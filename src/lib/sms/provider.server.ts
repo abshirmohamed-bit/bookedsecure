@@ -1,10 +1,25 @@
 // Provider abstraction. The rest of the app never imports Twilio-specific code.
+// Every send receives a resolved sender, so credentials are chosen per message
+// (platform account, per-business subaccount, or bring-your-own).
+
+export type CredentialMode = "platform" | "subaccount" | "byo";
+
+export type ResolvedSender = {
+  id: string;
+  businessId: string;
+  phoneNumber: string;
+  provider: string;
+  credentialMode: CredentialMode;
+  subaccountSid: string | null;
+  credentialSecretName: string | null;
+};
 
 export type SendResult = {
   providerMessageId: string;
   deliveryStatus: "queued" | "sent" | "delivered" | "failed" | "undelivered" | "unknown";
   errorCode?: string | null;
   provider: string;
+  providerCost?: number | null;
 };
 
 export type InboundMessage = {
@@ -21,11 +36,22 @@ export type DeliveryStatusUpdate = {
   errorCode?: string | null;
 };
 
+export type WebhookVerification = {
+  verified: boolean;
+  reason?: string;
+};
+
 export type SmsProvider = {
   name: string;
-  sendMessage(input: { to: string; from?: string | null; body: string }): Promise<SendResult>;
+  sendMessage(input: { to: string; body: string; sender: ResolvedSender }): Promise<SendResult>;
   handleInboundMessage(payload: Record<string, unknown>): InboundMessage | null;
   handleDeliveryStatus(payload: Record<string, unknown>): DeliveryStatusUpdate | null;
+  verifyWebhook(input: {
+    url: string;
+    params: Record<string, unknown>;
+    headers: Headers;
+    rawBody: string;
+  }): Promise<WebhookVerification>;
   checkBalance(): Promise<{ available: boolean; detail: string }>;
   formatProviderError(error: unknown): string;
 };
@@ -53,19 +79,36 @@ function mapStatus(raw: string | null): SendResult["deliveryStatus"] {
   return TWILIO_STATUS_MAP[raw.toLowerCase()] ?? "unknown";
 }
 
+/** Shared-secret fallback used when no provider signing token is configured. */
+async function verifySharedSecret(headers: Headers, url: string): Promise<WebhookVerification> {
+  const expected = process.env["SMS_WEBHOOK_SECRET"];
+  if (!expected) {
+    return { verified: false, reason: "No webhook secret configured." };
+  }
+  const provided =
+    headers.get("x-webhook-secret") ?? new URL(url).searchParams.get("t") ?? "";
+  if (!provided) return { verified: false, reason: "Missing webhook secret." };
+
+  const { createHash, timingSafeEqual } = await import("node:crypto");
+  const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
+  const ok = timingSafeEqual(digest(provided), digest(expected));
+  return ok ? { verified: true } : { verified: false, reason: "Invalid webhook secret." };
+}
+
 /**
  * Simulated provider: records exactly what would be sent without contacting a
  * carrier. Used until real provider credentials are connected.
  */
 export const simulatedProvider: SmsProvider = {
   name: "simulated",
-  async sendMessage({ to, body }) {
-    console.info(`[sms:simulated] -> ${to}: ${body}`);
+  async sendMessage({ to, body, sender }) {
+    console.info(`[sms:simulated] ${sender.phoneNumber} -> ${to}: ${body}`);
     return {
       provider: "simulated",
       providerMessageId: `sim_${crypto.randomUUID()}`,
       deliveryStatus: "delivered",
       errorCode: null,
+      providerCost: 0,
     };
   },
   handleInboundMessage(payload) {
@@ -89,6 +132,9 @@ export const simulatedProvider: SmsProvider = {
       errorCode: str(payload, "ErrorCode", "error_code"),
     };
   },
+  async verifyWebhook({ headers, url }) {
+    return verifySharedSecret(headers, url);
+  },
   async checkBalance() {
     return { available: true, detail: "Simulated provider — no carrier balance required." };
   },
@@ -98,37 +144,56 @@ export const simulatedProvider: SmsProvider = {
 };
 
 /**
- * Twilio through the Lovable connector gateway. Active only once the Twilio
- * connection is linked; credentials stay server-side.
+ * Twilio through the Lovable connector gateway. Credentials stay server-side and
+ * are never sent to the browser. `subaccount`/`byo` senders resolve their own
+ * credential; `platform` uses the connected platform account.
  */
 export const twilioProvider: SmsProvider = {
   name: "twilio",
-  async sendMessage({ to, from, body }) {
+  async sendMessage({ to, body, sender }) {
     const lovableKey = process.env["LOVABLE_API_KEY"];
-    const twilioKey = process.env["TWILIO_API_KEY"];
+    const twilioKey =
+      sender.credentialMode === "byo" && sender.credentialSecretName
+        ? process.env[sender.credentialSecretName]
+        : process.env["TWILIO_API_KEY"];
     if (!lovableKey || !twilioKey) {
       throw new Error("Twilio is not connected yet. Connect Twilio or use the simulated provider.");
     }
-    const response = await fetch("https://connector-gateway.lovable.dev/twilio/Messages.json", {
+
+    const basePath =
+      sender.credentialMode === "subaccount" && sender.subaccountSid
+        ? `/2010-04-01/Accounts/${sender.subaccountSid}/Messages.json`
+        : "/Messages.json";
+
+    const form = new URLSearchParams({ To: to, From: sender.phoneNumber, Body: body });
+    if (sender.status_callback_url_hack) form.set("StatusCallback", sender.status_callback_url_hack);
+
+    const response = await fetch(`https://connector-gateway.lovable.dev/twilio${basePath}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${lovableKey}`,
         "X-Connection-Api-Key": twilioKey,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({ To: to, From: from ?? "", Body: body }),
+      body: form,
     });
     const text = await response.text();
     if (!response.ok) {
       console.error(`[sms:twilio] send failed [${response.status}]: ${text}`);
       throw new Error(`Twilio send failed [${response.status}]: ${text}`);
     }
-    const payload = JSON.parse(text) as { sid?: string; status?: string; error_code?: string | null };
+    const payload = JSON.parse(text) as {
+      sid?: string;
+      status?: string;
+      error_code?: string | null;
+      price?: string | null;
+    };
     return {
       provider: "twilio",
       providerMessageId: payload.sid ?? `twilio_${crypto.randomUUID()}`,
       deliveryStatus: mapStatus(payload.status ?? null),
       errorCode: payload.error_code ?? null,
+      providerCost: payload.price ? Math.abs(Number(payload.price)) : null,
     };
   },
   handleInboundMessage(payload) {
@@ -136,6 +201,29 @@ export const twilioProvider: SmsProvider = {
   },
   handleDeliveryStatus(payload) {
     return simulatedProvider.handleDeliveryStatus(payload);
+  },
+  /**
+   * Twilio signs each webhook: HMAC-SHA1 over the full URL plus the POST
+   * parameters sorted by key, base64-encoded, keyed by the account auth token.
+   * When no auth token is available (gateway-held credentials) we fall back to
+   * the shared webhook secret so the endpoint is never unauthenticated.
+   */
+  async verifyWebhook({ url, params, headers }) {
+    const authToken = process.env["TWILIO_AUTH_TOKEN"];
+    const signature = headers.get("x-twilio-signature");
+    if (!authToken || !signature) {
+      return verifySharedSecret(headers, url);
+    }
+
+    const { createHmac, timingSafeEqual } = await import("node:crypto");
+    const base = Object.keys(params)
+      .sort()
+      .reduce((acc, key) => acc + key + String(params[key] ?? ""), url);
+    const expected = createHmac("sha1", authToken).update(base, "utf8").digest("base64");
+    const a = Buffer.from(signature);
+    const b = Buffer.from(expected);
+    const ok = a.length === b.length && timingSafeEqual(a, b);
+    return ok ? { verified: true } : { verified: false, reason: "Invalid Twilio signature." };
   },
   async checkBalance() {
     const twilioKey = process.env["TWILIO_API_KEY"];
