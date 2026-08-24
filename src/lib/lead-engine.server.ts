@@ -423,18 +423,25 @@ export async function sendSms(input: {
     .eq("business_id", input.businessId)
     .maybeSingle();
 
-  if (!lead) return { sent: false, reason: "Lead not found for this business." };
-  if (lead.opted_out_at) return { sent: false, reason: "Lead has opted out — no SMS sent." };
-  if (lead.status === "invalid") return { sent: false, reason: "Lead number is invalid." };
+  if (!lead) return { sent: false, retriable: false, reason: "Lead not found for this business." };
+  if (lead.opted_out_at)
+    return { sent: false, retriable: false, reason: "Lead has opted out — no SMS sent." };
+  if (lead.status === "invalid")
+    return { sent: false, retriable: false, reason: "Lead number is invalid." };
 
   const automated = input.kind === "acknowledgement" || input.kind === "follow_up";
 
   if (input.respectAutomation) {
     if (!business.automation_enabled)
-      return { sent: false, reason: "Automation is switched off for this business." };
+      return { sent: false, retriable: false, reason: "Automation is switched off for this business." };
     if (AUTOMATION_BLOCKED_STATUSES.includes(lead.status as LeadStatus))
-      return { sent: false, reason: `Automated SMS blocked for status "${lead.status}".` };
+      return {
+        sent: false,
+        retriable: false,
+        reason: `Automated SMS blocked for status "${lead.status}".`,
+      };
   }
+
 
   // Idempotency: a previously *successful* send with this key blocks a repeat.
   // Failed attempts stay retriable.
