@@ -212,6 +212,7 @@ export type CaptureInput = {
   utm_campaign?: string | null | undefined;
   consent?: boolean | undefined;
   consent_text?: string | null | undefined;
+  consent_source_url?: string | null | undefined;
 };
 
 export type CaptureResult = {
