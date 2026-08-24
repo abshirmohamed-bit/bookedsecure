@@ -166,7 +166,6 @@ export const twilioProvider: SmsProvider = {
         : "/Messages.json";
 
     const form = new URLSearchParams({ To: to, From: sender.phoneNumber, Body: body });
-    if (sender.status_callback_url_hack) form.set("StatusCallback", sender.status_callback_url_hack);
 
     const response = await fetch(`https://connector-gateway.lovable.dev/twilio${basePath}`, {
       method: "POST",
