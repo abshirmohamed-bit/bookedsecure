@@ -260,6 +260,18 @@ function QuotePage() {
             </div>
           )}
 
+          <div aria-hidden className="absolute left-[-9999px] h-0 w-0 overflow-hidden">
+            <label>
+              Company
+              <input
+                tabIndex={-1}
+                autoComplete="off"
+                value={honeypot}
+                onChange={(event) => setHoneypot(event.target.value)}
+              />
+            </label>
+          </div>
+
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
           <div className="mt-6 flex gap-2">
