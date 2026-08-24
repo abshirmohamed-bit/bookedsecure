@@ -74,6 +74,63 @@ export type Database = {
           },
         ]
       }
+      ai_usage_events: {
+        Row: {
+          business_id: string
+          created_at: string
+          error_detail: string | null
+          estimated_cost: number
+          id: string
+          input_tokens: number
+          lead_id: string | null
+          model: string
+          output_tokens: number
+          purpose: string
+          status: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          error_detail?: string | null
+          estimated_cost?: number
+          id?: string
+          input_tokens?: number
+          lead_id?: string | null
+          model: string
+          output_tokens?: number
+          purpose: string
+          status?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          error_detail?: string | null
+          estimated_cost?: number
+          id?: string
+          input_tokens?: number
+          lead_id?: string | null
+          model?: string
+          output_tokens?: number
+          purpose?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_events: {
         Row: {
           business_id: string | null
@@ -169,6 +226,7 @@ export type Database = {
           quiet_hours_end: number
           quiet_hours_start: number
           service_area: string | null
+          sms_credential_mode: string
           sms_signature: string | null
           status: string
           timezone: string
@@ -186,6 +244,7 @@ export type Database = {
           quiet_hours_end?: number
           quiet_hours_start?: number
           service_area?: string | null
+          sms_credential_mode?: string
           sms_signature?: string | null
           status?: string
           timezone?: string
@@ -203,12 +262,77 @@ export type Database = {
           quiet_hours_end?: number
           quiet_hours_start?: number
           service_area?: string | null
+          sms_credential_mode?: string
           sms_signature?: string | null
           status?: string
           timezone?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      consent_events: {
+        Row: {
+          business_id: string
+          channel: string
+          consent_text: string | null
+          created_at: string
+          event_type: string
+          id: string
+          lead_id: string
+          message_id: string | null
+          mobile_number: string | null
+          occurred_at: string
+          source: string | null
+        }
+        Insert: {
+          business_id: string
+          channel?: string
+          consent_text?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          lead_id: string
+          message_id?: string | null
+          mobile_number?: string | null
+          occurred_at?: string
+          source?: string | null
+        }
+        Update: {
+          business_id?: string
+          channel?: string
+          consent_text?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          lead_id?: string
+          message_id?: string | null
+          mobile_number?: string | null
+          occurred_at?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_events_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversations: {
         Row: {
@@ -419,6 +543,7 @@ export type Database = {
       }
       messages: {
         Row: {
+          attempt_count: number
           body: string
           business_id: string
           conversation_id: string | null
@@ -426,16 +551,22 @@ export type Database = {
           delivery_status: string
           direction: string
           error_code: string | null
+          from_number: string | null
           id: string
           idempotency_key: string | null
           lead_id: string
           message_kind: string
+          next_retry_at: string | null
           provider: string | null
+          provider_cost: number | null
           provider_message_id: string | null
           received_at: string | null
+          segments: number
+          sender_id: string | null
           sent_at: string | null
         }
         Insert: {
+          attempt_count?: number
           body: string
           business_id: string
           conversation_id?: string | null
@@ -443,16 +574,22 @@ export type Database = {
           delivery_status?: string
           direction: string
           error_code?: string | null
+          from_number?: string | null
           id?: string
           idempotency_key?: string | null
           lead_id: string
           message_kind?: string
+          next_retry_at?: string | null
           provider?: string | null
+          provider_cost?: number | null
           provider_message_id?: string | null
           received_at?: string | null
+          segments?: number
+          sender_id?: string | null
           sent_at?: string | null
         }
         Update: {
+          attempt_count?: number
           body?: string
           business_id?: string
           conversation_id?: string | null
@@ -460,13 +597,18 @@ export type Database = {
           delivery_status?: string
           direction?: string
           error_code?: string | null
+          from_number?: string | null
           id?: string
           idempotency_key?: string | null
           lead_id?: string
           message_kind?: string
+          next_retry_at?: string | null
           provider?: string | null
+          provider_cost?: number | null
           provider_message_id?: string | null
           received_at?: string | null
+          segments?: number
+          sender_id?: string | null
           sent_at?: string | null
         }
         Relationships: [
@@ -489,6 +631,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "sms_senders"
             referencedColumns: ["id"]
           },
         ]
@@ -572,6 +721,156 @@ export type Database = {
           },
         ]
       }
+      sms_senders: {
+        Row: {
+          active: boolean
+          business_id: string
+          created_at: string
+          credential_mode: string
+          credential_secret_name: string | null
+          id: string
+          is_primary: boolean
+          label: string | null
+          phone_number: string
+          provider: string
+          status_callback_url: string | null
+          subaccount_sid: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          created_at?: string
+          credential_mode?: string
+          credential_secret_name?: string | null
+          id?: string
+          is_primary?: boolean
+          label?: string | null
+          phone_number: string
+          provider?: string
+          status_callback_url?: string | null
+          subaccount_sid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          created_at?: string
+          credential_mode?: string
+          credential_secret_name?: string | null
+          id?: string
+          is_primary?: boolean
+          label?: string | null
+          phone_number?: string
+          provider?: string
+          status_callback_url?: string | null
+          subaccount_sid?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_senders_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sms_usage_daily: {
+        Row: {
+          business_id: string
+          created_at: string
+          failures: number
+          id: string
+          messages_out: number
+          provider_cost: number
+          retail_charge: number
+          segments_in: number
+          segments_out: number
+          updated_at: string
+          usage_date: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          failures?: number
+          id?: string
+          messages_out?: number
+          provider_cost?: number
+          retail_charge?: number
+          segments_in?: number
+          segments_out?: number
+          updated_at?: string
+          usage_date?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          failures?: number
+          id?: string
+          messages_out?: number
+          provider_cost?: number
+          retail_charge?: number
+          segments_in?: number
+          segments_out?: number
+          updated_at?: string
+          usage_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_usage_daily_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_limits: {
+        Row: {
+          alert_threshold_pct: number
+          business_id: string
+          created_at: string
+          hard_block: boolean
+          id: string
+          last_alert_sent_at: string | null
+          monthly_ai_cost_cap: number
+          monthly_segment_cap: number
+          updated_at: string
+        }
+        Insert: {
+          alert_threshold_pct?: number
+          business_id: string
+          created_at?: string
+          hard_block?: boolean
+          id?: string
+          last_alert_sent_at?: string | null
+          monthly_ai_cost_cap?: number
+          monthly_segment_cap?: number
+          updated_at?: string
+        }
+        Update: {
+          alert_threshold_pct?: number
+          business_id?: string
+          created_at?: string
+          hard_block?: boolean
+          id?: string
+          last_alert_sent_at?: string | null
+          monthly_ai_cost_cap?: number
+          monthly_segment_cap?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_limits_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -595,30 +894,44 @@ export type Database = {
       }
       webhook_events: {
         Row: {
+          business_id: string | null
           created_at: string
           event_id: string
           event_type: string | null
           id: string
           payload: Json | null
           provider: string
+          signature_verified: boolean | null
         }
         Insert: {
+          business_id?: string | null
           created_at?: string
           event_id: string
           event_type?: string | null
           id?: string
           payload?: Json | null
           provider: string
+          signature_verified?: boolean | null
         }
         Update: {
+          business_id?: string | null
           created_at?: string
           event_id?: string
           event_type?: string | null
           id?: string
           payload?: Json | null
           provider?: string
+          signature_verified?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "webhook_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
