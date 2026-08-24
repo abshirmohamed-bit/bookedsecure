@@ -271,6 +271,9 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
             consented: true,
             at: new Date().toISOString(),
             text: input.consent_text ?? "Consent given on quote form",
+            source_channel: input.source_channel ?? "unknown",
+            source_form: input.source_form ?? null,
+            form_url: input.consent_source_url ?? null,
           }
         : null,
     })
