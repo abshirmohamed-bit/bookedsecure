@@ -36,15 +36,18 @@ export const getDashboard = createServerFn({ method: "GET" })
         )
         .eq("business_id", app.businessId)
         .order("created_at", { ascending: false })
-        .limit(200),
+        .limit(200)
+        .then((response) => response.data),
       supabaseAdmin
         .from("conversations")
         .select("lead_id, status, next_follow_up_at, automation_paused, last_message_at")
-        .eq("business_id", app.businessId),
+        .eq("business_id", app.businessId)
+        .then((response) => response.data),
       supabaseAdmin
         .from("jobs")
         .select("lead_id, completed_value, completion_status")
-        .eq("business_id", app.businessId),
+        .eq("business_id", app.businessId)
+        .then((response) => response.data),
     ]);
 
     const conversationByLead = new Map((conversations ?? []).map((row) => [row.lead_id, row]));
@@ -182,7 +185,10 @@ export const updateLead = createServerFn({ method: "POST" })
     }
     if (Object.keys(update).length === 0) return { ok: true };
 
-    const { error } = await supabaseAdmin.from("leads").update(update).eq("id", leadId);
+    const { error } = await supabaseAdmin
+      .from("leads")
+      .update(update as never)
+      .eq("id", leadId);
     if (error) throw new Error(error.message);
 
     await recordAuditEvent({
@@ -544,5 +550,9 @@ export const getAnalytics = createServerFn({ method: "POST" })
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { computeMetrics } = await import("@/lib/reporting.server");
     const app = await requireAppContext(context.supabase, context.userId);
-    return await computeMetrics(app.businessId, data);
+    return await computeMetrics(app.businessId, {
+      from: data.from ?? null,
+      to: data.to ?? null,
+      source: data.source ?? null,
+    });
   });

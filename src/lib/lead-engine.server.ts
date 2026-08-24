@@ -49,7 +49,7 @@ async function getBusiness(businessId: string): Promise<Business> {
 
 async function audit(input: {
   businessId: string;
-  userId?: string | null;
+  userId?: string | null | undefined;
   eventType: string;
   entityType?: string;
   entityId?: string | null;
@@ -61,7 +61,7 @@ async function audit(input: {
     event_type: input.eventType,
     entity_type: input.entityType ?? null,
     entity_id: input.entityId ?? null,
-    metadata: input.metadata ?? null,
+    metadata: (input.metadata ?? null) as never,
   });
 }
 
@@ -79,22 +79,22 @@ function isWithinQuietHours(business: Business, at: Date): boolean {
 }
 
 export type CaptureInput = {
-  businessId?: string;
+  businessId?: string | undefined;
   name: string;
   mobile_number: string;
-  email?: string | null;
-  suburb?: string | null;
-  vehicle_type?: string | null;
-  last_cleaned_at?: string | null;
-  main_concerns?: string | null;
-  service_intent?: string | null;
-  source_channel?: string;
-  source_campaign?: string | null;
-  source_form?: string | null;
-  utm_source?: string | null;
-  utm_campaign?: string | null;
-  consent?: boolean;
-  consent_text?: string | null;
+  email?: string | null | undefined;
+  suburb?: string | null | undefined;
+  vehicle_type?: string | null | undefined;
+  last_cleaned_at?: string | null | undefined;
+  main_concerns?: string | null | undefined;
+  service_intent?: string | null | undefined;
+  source_channel?: string | undefined;
+  source_campaign?: string | null | undefined;
+  source_form?: string | null | undefined;
+  utm_source?: string | null | undefined;
+  utm_campaign?: string | null | undefined;
+  consent?: boolean | undefined;
+  consent_text?: string | null | undefined;
 };
 
 export type CaptureResult = {
@@ -210,7 +210,12 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     respectAutomation: true,
   });
 
-  return { leadId: lead.id, duplicate: false, acknowledgementSent: sent.sent, note: sent.reason };
+  return {
+    leadId: lead.id,
+    duplicate: false,
+    acknowledgementSent: sent.sent,
+    ...(sent.reason ? { note: sent.reason } : {}),
+  };
 }
 
 export type SendSmsResult = { sent: boolean; reason?: string; messageId?: string };
@@ -221,9 +226,9 @@ export async function sendSms(input: {
   leadId: string;
   body: string;
   kind: "acknowledgement" | "follow_up" | "manual" | "approved_reply";
-  idempotencyKey?: string;
+  idempotencyKey?: string | undefined;
   respectAutomation: boolean;
-  userId?: string | null;
+  userId?: string | null | undefined;
 }): Promise<SendSmsResult> {
   const business = await getBusiness(input.businessId);
   const { data: lead } = await supabaseAdmin
@@ -305,7 +310,7 @@ export async function sendSms(input: {
   else if (lead.status === "customer_replied" && input.kind !== "follow_up")
     leadUpdate["status"] = "waiting_for_customer";
   if (Object.keys(leadUpdate).length > 0) {
-    await supabaseAdmin.from("leads").update(leadUpdate).eq("id", lead.id);
+    await supabaseAdmin.from("leads").update(leadUpdate as never).eq("id", lead.id);
   }
 
   await scheduleNextFollowUp({ businessId: input.businessId, leadId: lead.id, business });
@@ -318,7 +323,7 @@ export async function sendSms(input: {
     entityId: lead.id,
   });
 
-  return { sent: true, messageId: message?.id };
+  return { sent: true, ...(message?.id ? { messageId: message.id } : {}) };
 }
 
 async function conversationIdFor(leadId: string): Promise<string | null> {
@@ -422,7 +427,7 @@ export async function handleInboundMessage(input: {
   } else if (!["completed", "scheduled", "quote_sent"].includes(lead.status)) {
     update["status"] = "customer_replied";
   }
-  await supabaseAdmin.from("leads").update(update).eq("id", lead.id);
+  await supabaseAdmin.from("leads").update(update as never).eq("id", lead.id);
 
   await audit({
     businessId: lead.business_id,
@@ -451,7 +456,7 @@ export async function handleDeliveryStatus(input: {
     .eq("provider_message_id", update.providerMessageId)
     .select("id");
 
-  return { handled: (data?.length ?? 0) > 0, reason: data?.length ? undefined : "Unknown message id." };
+  return data?.length ? { handled: true } : { handled: false, reason: "Unknown message id." };
 }
 
 /** Sends every follow-up that is currently due. Safe to run repeatedly. */

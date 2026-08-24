@@ -183,5 +183,7 @@ export async function computeMetrics(
       completed: completedJobs.length,
       lost: count(["lost"]),
     },
+    bySource,
   };
+
 }
