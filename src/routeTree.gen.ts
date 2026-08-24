@@ -10,13 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as QuoteRouteImport } from './routes/quote'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
+import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
+import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
+import { Route as ApiPublicSmsInboundRouteImport } from './routes/api/public/sms/inbound'
+import { Route as ApiPublicSmsStatusRouteImport } from './routes/api/public/sms/status'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -34,39 +46,131 @@ const QuoteRoute = QuoteRouteImport.update({
   path: '/quote',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
+  id: '/leads/$leadId',
+  path: '/leads/$leadId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
+  id: '/api/public/hooks/follow-ups',
+  path: '/api/public/hooks/follow-ups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicLeadsIntakeRoute = ApiPublicLeadsIntakeRouteImport.update({
+  id: '/api/public/leads/intake',
+  path: '/api/public/leads/intake',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSmsInboundRoute = ApiPublicSmsInboundRouteImport.update({
+  id: '/api/public/sms/inbound',
+  path: '/api/public/sms/inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSmsStatusRoute = ApiPublicSmsStatusRouteImport.update({
+  id: '/api/public/sms/status',
+  path: '/api/public/sms/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/privacy': typeof PrivacyRoute
   '/quote': typeof QuoteRoute
+  '/settings': typeof SettingsRoute
+  '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
+  '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
+  '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/privacy': typeof PrivacyRoute
   '/quote': typeof QuoteRoute
+  '/settings': typeof SettingsRoute
+  '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
+  '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
+  '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/privacy': typeof PrivacyRoute
   '/quote': typeof QuoteRoute
+  '/settings': typeof SettingsRoute
+  '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
+  '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
+  '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/privacy' | '/quote'
+  fullPaths:
+    | '/'
+    | '/analytics'
+    | '/auth'
+    | '/privacy'
+    | '/quote'
+    | '/settings'
+    | '/leads/$leadId'
+    | '/api/public/hooks/follow-ups'
+    | '/api/public/leads/intake'
+    | '/api/public/sms/inbound'
+    | '/api/public/sms/status'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/privacy' | '/quote'
-  id: '__root__' | '/' | '/auth' | '/privacy' | '/quote'
+  to:
+    | '/'
+    | '/analytics'
+    | '/auth'
+    | '/privacy'
+    | '/quote'
+    | '/settings'
+    | '/leads/$leadId'
+    | '/api/public/hooks/follow-ups'
+    | '/api/public/leads/intake'
+    | '/api/public/sms/inbound'
+    | '/api/public/sms/status'
+  id:
+    | '__root__'
+    | '/'
+    | '/analytics'
+    | '/auth'
+    | '/privacy'
+    | '/quote'
+    | '/settings'
+    | '/leads/$leadId'
+    | '/api/public/hooks/follow-ups'
+    | '/api/public/leads/intake'
+    | '/api/public/sms/inbound'
+    | '/api/public/sms/status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
   PrivacyRoute: typeof PrivacyRoute
   QuoteRoute: typeof QuoteRoute
+  SettingsRoute: typeof SettingsRoute
+  LeadsLeadIdRoute: typeof LeadsLeadIdRoute
+  ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
+  ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
+  ApiPublicSmsInboundRoute: typeof ApiPublicSmsInboundRoute
+  ApiPublicSmsStatusRoute: typeof ApiPublicSmsStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -76,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -99,14 +210,63 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuoteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leads/$leadId': {
+      id: '/leads/$leadId'
+      path: '/leads/$leadId'
+      fullPath: '/leads/$leadId'
+      preLoaderRoute: typeof LeadsLeadIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/follow-ups': {
+      id: '/api/public/hooks/follow-ups'
+      path: '/api/public/hooks/follow-ups'
+      fullPath: '/api/public/hooks/follow-ups'
+      preLoaderRoute: typeof ApiPublicHooksFollowUpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leads/intake': {
+      id: '/api/public/leads/intake'
+      path: '/api/public/leads/intake'
+      fullPath: '/api/public/leads/intake'
+      preLoaderRoute: typeof ApiPublicLeadsIntakeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sms/inbound': {
+      id: '/api/public/sms/inbound'
+      path: '/api/public/sms/inbound'
+      fullPath: '/api/public/sms/inbound'
+      preLoaderRoute: typeof ApiPublicSmsInboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/sms/status': {
+      id: '/api/public/sms/status'
+      path: '/api/public/sms/status'
+      fullPath: '/api/public/sms/status'
+      preLoaderRoute: typeof ApiPublicSmsStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
   PrivacyRoute: PrivacyRoute,
   QuoteRoute: QuoteRoute,
+  SettingsRoute: SettingsRoute,
+  LeadsLeadIdRoute: LeadsLeadIdRoute,
+  ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
+  ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
+  ApiPublicSmsInboundRoute: ApiPublicSmsInboundRoute,
+  ApiPublicSmsStatusRoute: ApiPublicSmsStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
