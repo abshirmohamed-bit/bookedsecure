@@ -32,6 +32,7 @@ function QuotePage() {
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
   const [form, setForm] = useState({
     vehicle_type: "",
     suburb: "",
