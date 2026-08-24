@@ -32,6 +32,7 @@ function QuotePage() {
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
   const [form, setForm] = useState({
     vehicle_type: "",
     suburb: "",
@@ -60,8 +61,10 @@ function QuotePage() {
     setError(null);
     try {
       const params = new URLSearchParams(window.location.search);
-      await submitQuoteRequest({
+      const result = await submitQuoteRequest({
         data: {
+          company: honeypot,
+          form_url: `${window.location.origin}${window.location.pathname}`,
           name: form.name,
           mobile_number: form.mobile_number,
           email: form.email || null,
@@ -77,13 +80,13 @@ function QuotePage() {
           utm_campaign: params.get("utm_campaign"),
         },
       });
+      if (!result.ok) {
+        setError(result.error ?? "Something went wrong. Please try again or call us.");
+        return;
+      }
       setDone(true);
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Something went wrong. Please try again or call us.",
-      );
+    } catch {
+      setError("Something went wrong. Please try again or call us.");
     } finally {
       setBusy(false);
     }
@@ -256,6 +259,18 @@ function QuotePage() {
               </label>
             </div>
           )}
+
+          <div aria-hidden className="absolute left-[-9999px] h-0 w-0 overflow-hidden">
+            <label>
+              Company
+              <input
+                tabIndex={-1}
+                autoComplete="off"
+                value={honeypot}
+                onChange={(event) => setHoneypot(event.target.value)}
+              />
+            </label>
+          </div>
 
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 

@@ -212,6 +212,7 @@ export type CaptureInput = {
   utm_campaign?: string | null | undefined;
   consent?: boolean | undefined;
   consent_text?: string | null | undefined;
+  consent_source_url?: string | null | undefined;
 };
 
 export type CaptureResult = {
@@ -270,6 +271,9 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
             consented: true,
             at: new Date().toISOString(),
             text: input.consent_text ?? "Consent given on quote form",
+            source_channel: input.source_channel ?? "unknown",
+            source_form: input.source_form ?? null,
+            form_url: input.consent_source_url ?? null,
           }
         : null,
     })
@@ -291,7 +295,9 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       eventType: "consent_given",
       mobileNumber: mobile ?? input.mobile_number,
       consentText: input.consent_text ?? "Consent given on quote form",
-      source: input.source_channel ?? "unknown",
+      source: input.consent_source_url
+        ? `${input.source_channel ?? "unknown"} | ${input.consent_source_url}`
+        : (input.source_channel ?? "unknown"),
     });
   }
 
