@@ -167,6 +167,17 @@ export const twilioProvider: SmsProvider = {
 
     const form = new URLSearchParams({ To: to, From: sender.phoneNumber, Body: body });
 
+    // Delivery receipts come back to our own status webhook, authenticated with
+    // the shared secret so callbacks can be verified even without the auth token.
+    const publicBase = process.env["PUBLIC_APP_URL"];
+    const webhookSecret = process.env["SMS_WEBHOOK_SECRET"];
+    if (publicBase && webhookSecret) {
+      form.set(
+        "StatusCallback",
+        `${publicBase.replace(/\/$/, "")}/api/public/sms/status?t=${encodeURIComponent(webhookSecret)}`,
+      );
+    }
+
     const response = await fetch(`https://connector-gateway.lovable.dev/twilio${basePath}`, {
       method: "POST",
       headers: {
