@@ -309,6 +309,36 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     metadata: { source_channel: input.source_channel ?? "unknown" },
   });
 
+  // Owner alert is durable and independent of the customer SMS.
+  const { enqueueJob, runJobById } = await import("@/lib/jobs.server");
+  const alertJob = await enqueueJob({
+    businessId,
+    leadId: lead.id,
+    jobType: "owner_alert",
+    idempotencyKey: `lead:${lead.id}:owner_alert`,
+    payload: {
+      title: `New lead: ${input.name}`,
+      body: [
+        `${input.name} · ${mobile ?? input.mobile_number}`,
+        input.service_intent ? `Service: ${input.service_intent}` : null,
+        input.suburb ? `Suburb: ${input.suburb}` : null,
+        `Received: ${new Date().toISOString()}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      metadata: {
+        lead_id: lead.id,
+        name: input.name,
+        mobile_number: mobile ?? input.mobile_number,
+        service_intent: input.service_intent ?? null,
+        suburb: input.suburb ?? null,
+        received_at: new Date().toISOString(),
+        source_channel: input.source_channel ?? "unknown",
+      },
+    },
+  });
+  if (alertJob.job) await runJobById(alertJob.job.id);
+
   if (!mobile) {
     return {
       leadId: lead.id,
@@ -332,27 +362,47 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     rule?.message_template ??
     "Hi {{first_name}}, thanks for contacting {{business_name}}. We've received your detailing enquiry. Reply with your vehicle type and main concern so we can help. Reply STOP to opt out.";
 
-  const sent = await sendSms({
+  // Durable acknowledgement: persisted before we attempt the send, so an
+  // interrupted request still leaves the ACK queued for the scheduler.
+  const ackJob = await enqueueJob({
     businessId,
     leadId: lead.id,
-    body: renderTemplate(template, {
-      first_name: firstName(input.name),
-      business_name: business.name,
-    }),
-    kind: "acknowledgement",
+    jobType: "acknowledgement",
     idempotencyKey: `${lead.id}:acknowledgement`,
-    respectAutomation: true,
+    payload: {
+      body: renderTemplate(template, {
+        first_name: firstName(input.name),
+        business_name: business.name,
+      }),
+    },
   });
+
+  const ackResult = ackJob.job ? await runJobById(ackJob.job.id) : null;
+  const sent = ackResult?.status === "succeeded";
 
   return {
     leadId: lead.id,
     duplicate: false,
-    acknowledgementSent: sent.sent,
-    ...(sent.reason ? { note: sent.reason } : {}),
+    acknowledgementSent: sent,
+    ...(sent
+      ? {}
+      : {
+          note:
+            ackResult?.status === "retrying"
+              ? `Acknowledgement queued for retry: ${ackResult.reason ?? "send failed"}`
+              : (ackResult?.reason ?? "Acknowledgement queued."),
+        }),
   };
 }
 
-export type SendSmsResult = { sent: boolean; reason?: string; messageId?: string };
+export type SendSmsResult = {
+  sent: boolean;
+  reason?: string;
+  messageId?: string;
+  duplicate?: boolean;
+  retriable?: boolean;
+};
+
 
 /** Single outbound path for every SMS: enforces opt-out, status, sender, caps and idempotency. */
 export async function sendSms(input: {
