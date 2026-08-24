@@ -79,13 +79,13 @@ function QuotePage() {
           utm_campaign: params.get("utm_campaign"),
         },
       });
+      if (!result.ok) {
+        setError(result.error ?? "Something went wrong. Please try again or call us.");
+        return;
+      }
       setDone(true);
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Something went wrong. Please try again or call us.",
-      );
+    } catch {
+      setError("Something went wrong. Please try again or call us.");
     } finally {
       setBusy(false);
     }
