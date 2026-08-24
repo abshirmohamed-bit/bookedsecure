@@ -730,6 +730,20 @@ export async function handleInboundMessage(input: {
   }
   await supabaseAdmin.from("leads").update(update as never).eq("id", lead.id);
 
+  // A reply (or STOP) stops queued automated sends, including pending retries.
+  await supabaseAdmin
+    .from("automation_jobs")
+    .update({
+      status: "cancelled",
+      failure_reason: optOut ? "Lead opted out." : "Customer replied.",
+      next_attempt_at: null,
+    })
+    .eq("lead_id", lead.id)
+    .eq("status", "pending")
+    .in("job_type", ["acknowledgement", "follow_up"]);
+
+
+
   await audit({
     businessId,
     eventType: optOut ? "opt_out_recorded" : "inbound_reply",
