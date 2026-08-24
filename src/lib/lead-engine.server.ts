@@ -436,14 +436,23 @@ export async function sendSms(input: {
       return { sent: false, reason: `Automated SMS blocked for status "${lead.status}".` };
   }
 
+  // Idempotency: a previously *successful* send with this key blocks a repeat.
+  // Failed attempts stay retriable.
   if (input.idempotencyKey) {
     const { data: dupe } = await supabaseAdmin
       .from("messages")
       .select("id")
       .eq("business_id", input.businessId)
       .eq("idempotency_key", input.idempotencyKey)
+      .neq("delivery_status", "failed")
       .maybeSingle();
-    if (dupe) return { sent: false, reason: "Already sent (duplicate suppressed).", messageId: dupe.id };
+    if (dupe)
+      return {
+        sent: false,
+        duplicate: true,
+        reason: "Already sent (duplicate suppressed).",
+        messageId: dupe.id,
+      };
   }
 
   const { segments } = countSegments(input.body);
@@ -457,9 +466,9 @@ export async function sendSms(input: {
         eventType: "sms_blocked_usage_cap",
         entityType: "lead",
         entityId: lead.id,
-        metadata: { used: cap.used, cap: cap.cap },
+        metadata: { used: cap.used, cap: cap.cap, kind: input.kind },
       });
-      return { sent: false, reason: cap.reason ?? "Monthly SMS safety cap reached." };
+      return { sent: false, retriable: false, reason: cap.reason ?? "Monthly SMS safety cap reached." };
     }
   }
 
@@ -471,6 +480,7 @@ export async function sendSms(input: {
   if (!sender) {
     return {
       sent: false,
+      retriable: true,
       reason: "No active sender number configured for this business (no_sender_configured).",
     };
   }
@@ -483,25 +493,48 @@ export async function sendSms(input: {
     result = await provider.sendMessage({ to: lead.mobile_number, body: input.body, sender });
   } catch (error) {
     const detail = provider.formatProviderError(error);
-    await supabaseAdmin.from("messages").insert({
-      business_id: input.businessId,
-      lead_id: lead.id,
-      conversation_id: conversationId,
-      direction: "outbound",
-      body: input.body,
-      provider: provider.name,
-      sender_id: sender.id,
-      from_number: sender.phoneNumber,
-      segments,
-      delivery_status: "failed",
-      error_code: detail.slice(0, 200),
-      message_kind: input.kind,
-      idempotency_key: input.idempotencyKey ?? null,
-      attempt_count: 1,
-    });
+    const existingFailure = input.idempotencyKey
+      ? (
+          await supabaseAdmin
+            .from("messages")
+            .select("id, attempt_count")
+            .eq("business_id", input.businessId)
+            .eq("idempotency_key", input.idempotencyKey)
+            .eq("delivery_status", "failed")
+            .maybeSingle()
+        ).data
+      : null;
+
+    if (existingFailure) {
+      await supabaseAdmin
+        .from("messages")
+        .update({
+          error_code: detail.slice(0, 200),
+          attempt_count: existingFailure.attempt_count + 1,
+        })
+        .eq("id", existingFailure.id);
+    } else {
+      await supabaseAdmin.from("messages").insert({
+        business_id: input.businessId,
+        lead_id: lead.id,
+        conversation_id: conversationId,
+        direction: "outbound",
+        body: input.body,
+        provider: provider.name,
+        sender_id: sender.id,
+        from_number: sender.phoneNumber,
+        segments,
+        delivery_status: "failed",
+        error_code: detail.slice(0, 200),
+        message_kind: input.kind,
+        idempotency_key: input.idempotencyKey ?? null,
+        attempt_count: 1,
+      });
+    }
     await recordSmsUsage({ businessId: input.businessId, failures: 1 });
-    return { sent: false, reason: detail };
+    return { sent: false, retriable: true, reason: detail };
   }
+
 
   const { data: message } = await supabaseAdmin
     .from("messages")
