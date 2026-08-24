@@ -101,6 +101,23 @@ export const getLead = createServerFn({ method: "GET" })
       .eq("lead_id", data.leadId)
       .maybeSingle();
 
+    const [notifications, automationJobs] = await Promise.all([
+      supabaseAdmin
+        .from("notifications")
+        .select("id, kind, title, body, created_at, read_at")
+        .eq("lead_id", data.leadId)
+        .order("created_at", { ascending: true })
+        .then((response) => response.data),
+      supabaseAdmin
+        .from("automation_jobs")
+        .select(
+          "id, job_type, step, status, attempt_count, max_attempts, run_at, next_attempt_at, last_attempt_at, failure_reason, created_at",
+        )
+        .eq("lead_id", data.leadId)
+        .order("created_at", { ascending: true })
+        .then((response) => response.data),
+    ]);
+
     return {
       role: app.role,
       lead: lead.data,
@@ -109,8 +126,50 @@ export const getLead = createServerFn({ method: "GET" })
       ai: ai.data ?? null,
       job: job.data ?? null,
       services: services.data ?? [],
+      notifications: notifications ?? [],
+      automationJobs: automationJobs ?? [],
     };
   });
+
+export const getNotifications = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    const { data } = await supabaseAdmin
+      .from("notifications")
+      .select("id, lead_id, kind, title, body, metadata, created_at, read_at")
+      .eq("business_id", app.businessId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    const notifications = data ?? [];
+    return {
+      notifications,
+      unread: notifications.filter((row) => !row.read_at).length,
+    };
+  });
+
+export const markNotificationsRead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ ids: z.array(z.string().uuid()).max(50).optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    let query = supabaseAdmin
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("business_id", app.businessId)
+      .is("read_at", null);
+    if (data.ids?.length) query = query.in("id", data.ids);
+    const { error } = await query;
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 
 export const sendManualReply = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
