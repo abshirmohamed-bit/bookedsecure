@@ -295,7 +295,9 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       eventType: "consent_given",
       mobileNumber: mobile ?? input.mobile_number,
       consentText: input.consent_text ?? "Consent given on quote form",
-      source: input.source_channel ?? "unknown",
+      source: input.consent_source_url
+        ? `${input.source_channel ?? "unknown"} | ${input.consent_source_url}`
+        : (input.source_channel ?? "unknown"),
     });
   }
 
