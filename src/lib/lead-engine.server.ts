@@ -619,15 +619,18 @@ async function scheduleNextFollowUp(input: {
     .maybeSingle();
   if (!conversation) return;
 
-  const nextStep = conversation.follow_up_step + 1;
+  // Next *enabled* step: disabled steps are skipped, not treated as the end.
   const { data: rule } = await supabaseAdmin
     .from("automation_rules")
-    .select("delay_minutes")
+    .select("delay_minutes, step")
     .eq("business_id", input.businessId)
     .eq("rule_type", "follow_up")
     .eq("active", true)
-    .eq("step", nextStep)
+    .gt("step", conversation.follow_up_step)
+    .order("step", { ascending: true })
+    .limit(1)
     .maybeSingle();
+
 
   await supabaseAdmin
     .from("conversations")
