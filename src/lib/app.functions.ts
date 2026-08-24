@@ -375,7 +375,7 @@ export const simulateInboundReply = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { handleInboundMessage } = await import("@/lib/lead-engine.server");
+    const { handleInboundMessage, resolveSender } = await import("@/lib/lead-engine.server");
     const app = await requireAppContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
 
@@ -385,15 +385,21 @@ export const simulateInboundReply = createServerFn({ method: "POST" })
       .eq("id", data.leadId)
       .single();
 
+    const sender = await resolveSender({ businessId: app.businessId, leadId: data.leadId });
+    if (!sender) throw new Error("No sender number is configured for this business yet.");
+
     return await handleInboundMessage({
       providerName: "simulated",
       payload: {
         From: lead?.mobile_number ?? "",
+        To: sender.phoneNumber,
         Body: data.body,
         MessageSid: `sim_test_${crypto.randomUUID()}`,
       },
+      sender,
     });
   });
+
 
 export const getSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

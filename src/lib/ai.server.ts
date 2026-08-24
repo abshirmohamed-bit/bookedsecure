@@ -132,12 +132,41 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     "Extract the structured fields (use null when the customer has not said it), summarise in one or two sentences, classify readiness, list missing fields, and suggest one reply the owner could send.",
   ].join("\n");
 
-  const { output } = await generateText({
-    model: gateway(apiKey)("google/gemini-3.7-flash"),
-    output: Output.object({ schema: AnalysisSchema }),
-    system,
-    prompt,
-  });
+  const { checkAiCap, recordAiUsage } = await import("@/lib/usage.server");
+  const cap = await checkAiCap(input.businessId);
+  if (cap.blocked) throw new Error(cap.reason ?? "Monthly AI safety cap reached.");
+
+  const MODEL = "google/gemini-3.7-flash";
+  let output;
+  try {
+    const generated = await generateText({
+      model: gateway(apiKey)(MODEL),
+      output: Output.object({ schema: AnalysisSchema }),
+      system,
+      prompt,
+    });
+    output = generated.output;
+    await recordAiUsage({
+      businessId: input.businessId,
+      leadId: input.leadId,
+      purpose: "lead_analysis",
+      model: MODEL,
+      inputTokens: generated.usage?.inputTokens ?? 0,
+      outputTokens: generated.usage?.outputTokens ?? 0,
+    });
+  } catch (error) {
+    await recordAiUsage({
+      businessId: input.businessId,
+      leadId: input.leadId,
+      purpose: "lead_analysis",
+      model: MODEL,
+      inputTokens: 0,
+      outputTokens: 0,
+      status: "failed",
+      errorDetail: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 
   const parsed = AnalysisSchema.parse(output);
   const guarded = guardReply(parsed.suggested_reply);

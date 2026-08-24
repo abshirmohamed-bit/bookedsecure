@@ -9,7 +9,9 @@ import {
   renderTemplate,
   type LeadStatus,
 } from "@/lib/domain";
-import { getProvider } from "@/lib/sms/provider.server";
+import { countSegments } from "@/lib/sms/segments";
+import { getProvider, type ResolvedSender } from "@/lib/sms/provider.server";
+import { checkSmsCap, recordSmsUsage } from "@/lib/usage.server";
 
 type Business = {
   id: string;
@@ -65,6 +67,30 @@ async function audit(input: {
   });
 }
 
+/** Permanent consent / opt-out history, kept separately from the lead record. */
+async function recordConsentEvent(input: {
+  businessId: string;
+  leadId: string;
+  eventType: "consent_given" | "opt_out" | "opt_in";
+  mobileNumber?: string | null;
+  consentText?: string | null;
+  source?: string | null;
+  messageId?: string | null;
+  occurredAt?: string;
+}) {
+  await supabaseAdmin.from("consent_events").insert({
+    business_id: input.businessId,
+    lead_id: input.leadId,
+    event_type: input.eventType,
+    channel: "sms",
+    mobile_number: input.mobileNumber ?? null,
+    consent_text: input.consentText ?? null,
+    source: input.source ?? null,
+    message_id: input.messageId ?? null,
+    occurred_at: input.occurredAt ?? new Date().toISOString(),
+  });
+}
+
 function isWithinQuietHours(business: Business, at: Date): boolean {
   const hour = Number(
     new Intl.DateTimeFormat("en-AU", {
@@ -76,6 +102,97 @@ function isWithinQuietHours(business: Business, at: Date): boolean {
   const { quiet_hours_start: start, quiet_hours_end: end } = business;
   if (start === end) return false;
   return start < end ? hour >= start && hour < end : hour >= start || hour < end;
+}
+
+// ---------------------------------------------------------------------------
+// Sender resolution
+// ---------------------------------------------------------------------------
+
+function toResolvedSender(row: {
+  id: string;
+  business_id: string;
+  phone_number: string;
+  provider: string;
+  credential_mode: string;
+  subaccount_sid: string | null;
+  credential_secret_name: string | null;
+}): ResolvedSender {
+  return {
+    id: row.id,
+    businessId: row.business_id,
+    phoneNumber: row.phone_number,
+    provider: row.provider,
+    credentialMode: row.credential_mode as ResolvedSender["credentialMode"],
+    subaccountSid: row.subaccount_sid,
+    credentialSecretName: row.credential_secret_name,
+  };
+}
+
+const SENDER_COLUMNS =
+  "id, business_id, phone_number, provider, credential_mode, subaccount_sid, credential_secret_name, active";
+
+/** Sender used for this business/lead: sticky per conversation, else primary. */
+export async function resolveSender(input: {
+  businessId: string;
+  leadId?: string | undefined;
+  senderId?: string | undefined;
+}): Promise<ResolvedSender | null> {
+  if (input.senderId) {
+    const { data } = await supabaseAdmin
+      .from("sms_senders")
+      .select(SENDER_COLUMNS)
+      .eq("id", input.senderId)
+      .eq("business_id", input.businessId)
+      .eq("active", true)
+      .maybeSingle();
+    if (data) return toResolvedSender(data);
+  }
+
+  if (input.leadId) {
+    const { data: last } = await supabaseAdmin
+      .from("messages")
+      .select("sender_id")
+      .eq("business_id", input.businessId)
+      .eq("lead_id", input.leadId)
+      .not("sender_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (last?.sender_id) {
+      const { data } = await supabaseAdmin
+        .from("sms_senders")
+        .select(SENDER_COLUMNS)
+        .eq("id", last.sender_id)
+        .eq("business_id", input.businessId)
+        .eq("active", true)
+        .maybeSingle();
+      if (data) return toResolvedSender(data);
+    }
+  }
+
+  const { data: primary } = await supabaseAdmin
+    .from("sms_senders")
+    .select(SENDER_COLUMNS)
+    .eq("business_id", input.businessId)
+    .eq("active", true)
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return primary ? toResolvedSender(primary) : null;
+}
+
+/** Tenant lookup for inbound/callback webhooks: the receiving number is the key. */
+export async function findSenderByNumber(number: string): Promise<ResolvedSender | null> {
+  const normalised = normaliseAuMobile(number) ?? number;
+  const { data } = await supabaseAdmin
+    .from("sms_senders")
+    .select(SENDER_COLUMNS)
+    .or(`phone_number.eq.${normalised},phone_number.eq.${number}`)
+    .limit(1)
+    .maybeSingle();
+  return data ? toResolvedSender(data) : null;
 }
 
 export type CaptureInput = {
@@ -167,6 +284,17 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     status: "open",
   });
 
+  if (input.consent) {
+    await recordConsentEvent({
+      businessId,
+      leadId: lead.id,
+      eventType: "consent_given",
+      mobileNumber: mobile ?? input.mobile_number,
+      consentText: input.consent_text ?? "Consent given on quote form",
+      source: input.source_channel ?? "unknown",
+    });
+  }
+
   await audit({
     businessId,
     eventType: "lead_created",
@@ -220,7 +348,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
 
 export type SendSmsResult = { sent: boolean; reason?: string; messageId?: string };
 
-/** Single outbound path for every SMS: enforces opt-out, status and idempotency rules. */
+/** Single outbound path for every SMS: enforces opt-out, status, sender, caps and idempotency. */
 export async function sendSms(input: {
   businessId: string;
   leadId: string;
@@ -229,6 +357,7 @@ export async function sendSms(input: {
   idempotencyKey?: string | undefined;
   respectAutomation: boolean;
   userId?: string | null | undefined;
+  senderId?: string | undefined;
 }): Promise<SendSmsResult> {
   const business = await getBusiness(input.businessId);
   const { data: lead } = await supabaseAdmin
@@ -241,6 +370,8 @@ export async function sendSms(input: {
   if (!lead) return { sent: false, reason: "Lead not found for this business." };
   if (lead.opted_out_at) return { sent: false, reason: "Lead has opted out — no SMS sent." };
   if (lead.status === "invalid") return { sent: false, reason: "Lead number is invalid." };
+
+  const automated = input.kind === "acknowledgement" || input.kind === "follow_up";
 
   if (input.respectAutomation) {
     if (!business.automation_enabled)
@@ -259,32 +390,63 @@ export async function sendSms(input: {
     if (dupe) return { sent: false, reason: "Already sent (duplicate suppressed).", messageId: dupe.id };
   }
 
-  const provider = getProvider(business.default_sms_provider);
+  const { segments } = countSegments(input.body);
+
+  // Monthly safety cap: blocks automated traffic, never inbound or STOP handling.
+  if (automated) {
+    const cap = await checkSmsCap({ businessId: input.businessId, segments });
+    if (cap.blocked) {
+      await audit({
+        businessId: input.businessId,
+        eventType: "sms_blocked_usage_cap",
+        entityType: "lead",
+        entityId: lead.id,
+        metadata: { used: cap.used, cap: cap.cap },
+      });
+      return { sent: false, reason: cap.reason ?? "Monthly SMS safety cap reached." };
+    }
+  }
+
+  const sender = await resolveSender({
+    businessId: input.businessId,
+    leadId: lead.id,
+    senderId: input.senderId,
+  });
+  if (!sender) {
+    return {
+      sent: false,
+      reason: "No active sender number configured for this business (no_sender_configured).",
+    };
+  }
+
+  const provider = getProvider(sender.provider === "twilio" ? business.default_sms_provider : sender.provider);
+  const conversationId = await conversationIdFor(lead.id);
+
   let result;
   try {
-    result = await provider.sendMessage({
-      to: lead.mobile_number,
-      from: business.phone_number,
-      body: input.body,
-    });
+    result = await provider.sendMessage({ to: lead.mobile_number, body: input.body, sender });
   } catch (error) {
     const detail = provider.formatProviderError(error);
     await supabaseAdmin.from("messages").insert({
       business_id: input.businessId,
       lead_id: lead.id,
-      conversation_id: await conversationIdFor(lead.id),
+      conversation_id: conversationId,
       direction: "outbound",
       body: input.body,
       provider: provider.name,
+      sender_id: sender.id,
+      from_number: sender.phoneNumber,
+      segments,
       delivery_status: "failed",
       error_code: detail.slice(0, 200),
       message_kind: input.kind,
       idempotency_key: input.idempotencyKey ?? null,
+      attempt_count: 1,
     });
+    await recordSmsUsage({ businessId: input.businessId, failures: 1 });
     return { sent: false, reason: detail };
   }
 
-  const conversationId = await conversationIdFor(lead.id);
   const { data: message } = await supabaseAdmin
     .from("messages")
     .insert({
@@ -295,14 +457,26 @@ export async function sendSms(input: {
       body: input.body,
       provider: result.provider,
       provider_message_id: result.providerMessageId,
+      sender_id: sender.id,
+      from_number: sender.phoneNumber,
+      segments,
+      provider_cost: result.providerCost ?? null,
       delivery_status: result.deliveryStatus,
       error_code: result.errorCode ?? null,
       message_kind: input.kind,
       idempotency_key: input.idempotencyKey ?? null,
+      attempt_count: 1,
       sent_at: new Date().toISOString(),
     })
     .select("id")
     .single();
+
+  await recordSmsUsage({
+    businessId: input.businessId,
+    segmentsOut: segments,
+    messagesOut: 1,
+    providerCost: result.providerCost ?? 0,
+  });
 
   const leadUpdate: Record<string, unknown> = {};
   if (!lead.first_contacted_at) leadUpdate["first_contacted_at"] = new Date().toISOString();
@@ -321,6 +495,7 @@ export async function sendSms(input: {
     eventType: `sms_sent_${input.kind}`,
     entityType: "lead",
     entityId: lead.id,
+    metadata: { segments, sender: sender.phoneNumber },
   });
 
   return { sent: true, ...(message?.id ? { messageId: message.id } : {}) };
@@ -369,40 +544,57 @@ async function scheduleNextFollowUp(input: {
     .eq("id", conversation.id);
 }
 
-/** Inbound SMS: stores the reply, handles opt-out and stops automation. */
+/**
+ * Inbound SMS: stores the reply, handles opt-out and stops automation.
+ * The tenant is identified by the receiving sender number — never by a global
+ * mobile-number scan.
+ */
 export async function handleInboundMessage(input: {
   providerName: string;
   payload: Record<string, unknown>;
+  sender: ResolvedSender;
 }): Promise<{ handled: boolean; reason?: string; leadId?: string }> {
   const provider = getProvider(input.providerName);
   const inbound = provider.handleInboundMessage(input.payload);
   if (!inbound) return { handled: false, reason: "Payload missing sender or body." };
 
+  const businessId = input.sender.businessId;
   const mobile = normaliseAuMobile(inbound.from) ?? inbound.from;
   const { data: lead } = await supabaseAdmin
     .from("leads")
     .select("id, business_id, status")
+    .eq("business_id", businessId)
     .eq("mobile_number", mobile)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (!lead) return { handled: false, reason: `No lead matches ${mobile}.` };
+  if (!lead) return { handled: false, reason: `No lead matches ${mobile} for this business.` };
 
   const conversationId = await conversationIdFor(lead.id);
-  await supabaseAdmin.from("messages").insert({
-    business_id: lead.business_id,
-    lead_id: lead.id,
-    conversation_id: conversationId,
-    direction: "inbound",
-    body: inbound.body,
-    provider: provider.name,
-    provider_message_id: inbound.providerMessageId,
-    delivery_status: "delivered",
-    message_kind: "customer_reply",
-    idempotency_key: `in:${inbound.providerMessageId}`,
-    received_at: inbound.receivedAt,
-  });
+  const { segments } = countSegments(inbound.body);
+  const { data: inboundMessage } = await supabaseAdmin
+    .from("messages")
+    .insert({
+      business_id: businessId,
+      lead_id: lead.id,
+      conversation_id: conversationId,
+      direction: "inbound",
+      body: inbound.body,
+      provider: provider.name,
+      provider_message_id: inbound.providerMessageId,
+      sender_id: input.sender.id,
+      from_number: mobile,
+      segments,
+      delivery_status: "delivered",
+      message_kind: "customer_reply",
+      idempotency_key: `in:${inbound.providerMessageId}`,
+      received_at: inbound.receivedAt,
+    })
+    .select("id")
+    .single();
+
+  await recordSmsUsage({ businessId, segmentsIn: segments });
 
   const optOut = isOptOutMessage(inbound.body);
 
@@ -424,13 +616,23 @@ export async function handleInboundMessage(input: {
       at: inbound.receivedAt,
       source_message: inbound.body,
     };
+    await recordConsentEvent({
+      businessId,
+      leadId: lead.id,
+      eventType: "opt_out",
+      mobileNumber: mobile,
+      consentText: inbound.body,
+      source: "inbound_sms",
+      messageId: inboundMessage?.id ?? null,
+      occurredAt: inbound.receivedAt,
+    });
   } else if (!["completed", "scheduled", "quote_sent"].includes(lead.status)) {
     update["status"] = "customer_replied";
   }
   await supabaseAdmin.from("leads").update(update as never).eq("id", lead.id);
 
   await audit({
-    businessId: lead.business_id,
+    businessId,
     eventType: optOut ? "opt_out_recorded" : "inbound_reply",
     entityType: "lead",
     entityId: lead.id,
@@ -439,13 +641,17 @@ export async function handleInboundMessage(input: {
   return { handled: true, leadId: lead.id };
 }
 
+/** Delivery callback, constrained to the business that owns the sender number. */
 export async function handleDeliveryStatus(input: {
   providerName: string;
   payload: Record<string, unknown>;
+  sender: ResolvedSender;
 }): Promise<{ handled: boolean; reason?: string }> {
   const provider = getProvider(input.providerName);
   const update = provider.handleDeliveryStatus(input.payload);
   if (!update) return { handled: false, reason: "Payload missing provider message id." };
+
+  const failed = update.deliveryStatus === "failed" || update.deliveryStatus === "undelivered";
 
   const { data } = await supabaseAdmin
     .from("messages")
@@ -454,9 +660,12 @@ export async function handleDeliveryStatus(input: {
       error_code: update.errorCode ?? null,
     })
     .eq("provider_message_id", update.providerMessageId)
+    .eq("business_id", input.sender.businessId)
     .select("id");
 
-  return data?.length ? { handled: true } : { handled: false, reason: "Unknown message id." };
+  if (!data?.length) return { handled: false, reason: "Unknown message id for this business." };
+  if (failed) await recordSmsUsage({ businessId: input.sender.businessId, failures: 1 });
+  return { handled: true };
 }
 
 /** Sends every follow-up that is currently due. Safe to run repeatedly. */
