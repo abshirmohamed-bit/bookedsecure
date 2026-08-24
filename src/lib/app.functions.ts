@@ -477,6 +477,100 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const getSmsSetup = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { getUsageLimits, monthlySmsSegments, monthlyAiCost } = await import(
+      "@/lib/usage.server"
+    );
+    const app = await requireAppContext(context.supabase, context.userId);
+
+    const [senders, limits, segments, aiCost] = await Promise.all([
+      supabaseAdmin
+        .from("sms_senders")
+        .select("id, phone_number, provider, credential_mode, label, is_primary, active")
+        .eq("business_id", app.businessId)
+        .order("is_primary", { ascending: false })
+        .then((response) => response.data ?? []),
+      getUsageLimits(app.businessId),
+      monthlySmsSegments(app.businessId),
+      monthlyAiCost(app.businessId),
+    ]);
+
+    return { role: app.role, senders, limits, usage: { segments, aiCost } };
+  });
+
+export const saveSender = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid().optional().nullable(),
+        phone_number: z.string().min(8).max(20),
+        label: z.string().max(80).nullable(),
+        active: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { normaliseAuMobile } = await import("@/lib/domain");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+
+    const number = data.phone_number.startsWith("+")
+      ? data.phone_number.replace(/[^\d+]/g, "")
+      : (normaliseAuMobile(data.phone_number) ?? data.phone_number);
+
+    if (data.id) {
+      const { error } = await supabaseAdmin
+        .from("sms_senders")
+        .update({ phone_number: number, label: data.label, active: data.active })
+        .eq("id", data.id)
+        .eq("business_id", app.businessId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabaseAdmin.from("sms_senders").insert({
+        business_id: app.businessId,
+        phone_number: number,
+        label: data.label,
+        active: data.active,
+        provider: "twilio",
+        credential_mode: "platform",
+      });
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
+export const saveUsageLimits = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        monthly_segment_cap: z.number().int().min(0).max(1000000),
+        monthly_ai_cost_cap: z.number().min(0).max(10000),
+        alert_threshold_pct: z.number().int().min(10).max(100),
+        hard_block: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    const { error } = await supabaseAdmin
+      .from("usage_limits")
+      .update(data)
+      .eq("business_id", app.businessId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const saveService = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>

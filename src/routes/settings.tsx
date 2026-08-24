@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { SmsSetupPanel } from "@/components/SmsSetupPanel";
 import {
   getSettings,
   saveAutomationRule,
@@ -54,6 +55,7 @@ function Settings() {
   return (
     <div className="space-y-6">
       <BusinessForm business={data.business} provider={data.provider} readOnly={data.role !== "owner"} />
+      <SmsSetupPanel />
       <ServicesEditor services={data.services} readOnly={data.role !== "owner"} />
       <RulesEditor rules={data.rules} readOnly={data.role !== "owner"} />
       <section className="panel p-4">
