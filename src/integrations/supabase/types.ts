@@ -172,6 +172,78 @@ export type Database = {
           },
         ]
       }
+      automation_jobs: {
+        Row: {
+          attempt_count: number
+          business_id: string
+          created_at: string
+          failure_reason: string | null
+          id: string
+          idempotency_key: string
+          job_type: string
+          last_attempt_at: string | null
+          lead_id: string | null
+          max_attempts: number
+          next_attempt_at: string | null
+          payload: Json | null
+          run_at: string
+          status: string
+          step: number
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          business_id: string
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          idempotency_key: string
+          job_type: string
+          last_attempt_at?: string | null
+          lead_id?: string | null
+          max_attempts?: number
+          next_attempt_at?: string | null
+          payload?: Json | null
+          run_at?: string
+          status?: string
+          step?: number
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          business_id?: string
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          idempotency_key?: string
+          job_type?: string
+          last_attempt_at?: string | null
+          lead_id?: string | null
+          max_attempts?: number
+          next_attempt_at?: string | null
+          payload?: Json | null
+          run_at?: string
+          status?: string
+          step?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_jobs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_jobs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_rules: {
         Row: {
           active: boolean
@@ -638,6 +710,63 @@ export type Database = {
             columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "sms_senders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string
+          business_id: string
+          created_at: string
+          id: string
+          idempotency_key: string
+          kind: string
+          lead_id: string | null
+          metadata: Json | null
+          read_at: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          body: string
+          business_id: string
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          kind?: string
+          lead_id?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          kind?: string
+          lead_id?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]

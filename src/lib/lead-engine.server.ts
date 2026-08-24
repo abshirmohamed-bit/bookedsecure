@@ -309,6 +309,36 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     metadata: { source_channel: input.source_channel ?? "unknown" },
   });
 
+  // Owner alert is durable and independent of the customer SMS.
+  const { enqueueJob, runJobById } = await import("@/lib/jobs.server");
+  const alertJob = await enqueueJob({
+    businessId,
+    leadId: lead.id,
+    jobType: "owner_alert",
+    idempotencyKey: `lead:${lead.id}:owner_alert`,
+    payload: {
+      title: `New lead: ${input.name}`,
+      body: [
+        `${input.name} · ${mobile ?? input.mobile_number}`,
+        input.service_intent ? `Service: ${input.service_intent}` : null,
+        input.suburb ? `Suburb: ${input.suburb}` : null,
+        `Received: ${new Date().toISOString()}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      metadata: {
+        lead_id: lead.id,
+        name: input.name,
+        mobile_number: mobile ?? input.mobile_number,
+        service_intent: input.service_intent ?? null,
+        suburb: input.suburb ?? null,
+        received_at: new Date().toISOString(),
+        source_channel: input.source_channel ?? "unknown",
+      },
+    },
+  });
+  if (alertJob.job) await runJobById(alertJob.job.id);
+
   if (!mobile) {
     return {
       leadId: lead.id,
@@ -332,27 +362,47 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     rule?.message_template ??
     "Hi {{first_name}}, thanks for contacting {{business_name}}. We've received your detailing enquiry. Reply with your vehicle type and main concern so we can help. Reply STOP to opt out.";
 
-  const sent = await sendSms({
+  // Durable acknowledgement: persisted before we attempt the send, so an
+  // interrupted request still leaves the ACK queued for the scheduler.
+  const ackJob = await enqueueJob({
     businessId,
     leadId: lead.id,
-    body: renderTemplate(template, {
-      first_name: firstName(input.name),
-      business_name: business.name,
-    }),
-    kind: "acknowledgement",
+    jobType: "acknowledgement",
     idempotencyKey: `${lead.id}:acknowledgement`,
-    respectAutomation: true,
+    payload: {
+      body: renderTemplate(template, {
+        first_name: firstName(input.name),
+        business_name: business.name,
+      }),
+    },
   });
+
+  const ackResult = ackJob.job ? await runJobById(ackJob.job.id) : null;
+  const sent = ackResult?.status === "succeeded";
 
   return {
     leadId: lead.id,
     duplicate: false,
-    acknowledgementSent: sent.sent,
-    ...(sent.reason ? { note: sent.reason } : {}),
+    acknowledgementSent: sent,
+    ...(sent
+      ? {}
+      : {
+          note:
+            ackResult?.status === "retrying"
+              ? `Acknowledgement queued for retry: ${ackResult.reason ?? "send failed"}`
+              : (ackResult?.reason ?? "Acknowledgement queued."),
+        }),
   };
 }
 
-export type SendSmsResult = { sent: boolean; reason?: string; messageId?: string };
+export type SendSmsResult = {
+  sent: boolean;
+  reason?: string;
+  messageId?: string;
+  duplicate?: boolean;
+  retriable?: boolean;
+};
+
 
 /** Single outbound path for every SMS: enforces opt-out, status, sender, caps and idempotency. */
 export async function sendSms(input: {
@@ -373,27 +423,43 @@ export async function sendSms(input: {
     .eq("business_id", input.businessId)
     .maybeSingle();
 
-  if (!lead) return { sent: false, reason: "Lead not found for this business." };
-  if (lead.opted_out_at) return { sent: false, reason: "Lead has opted out — no SMS sent." };
-  if (lead.status === "invalid") return { sent: false, reason: "Lead number is invalid." };
+  if (!lead) return { sent: false, retriable: false, reason: "Lead not found for this business." };
+  if (lead.opted_out_at)
+    return { sent: false, retriable: false, reason: "Lead has opted out — no SMS sent." };
+  if (lead.status === "invalid")
+    return { sent: false, retriable: false, reason: "Lead number is invalid." };
 
   const automated = input.kind === "acknowledgement" || input.kind === "follow_up";
 
   if (input.respectAutomation) {
     if (!business.automation_enabled)
-      return { sent: false, reason: "Automation is switched off for this business." };
+      return { sent: false, retriable: false, reason: "Automation is switched off for this business." };
     if (AUTOMATION_BLOCKED_STATUSES.includes(lead.status as LeadStatus))
-      return { sent: false, reason: `Automated SMS blocked for status "${lead.status}".` };
+      return {
+        sent: false,
+        retriable: false,
+        reason: `Automated SMS blocked for status "${lead.status}".`,
+      };
   }
 
+
+  // Idempotency: a previously *successful* send with this key blocks a repeat.
+  // Failed attempts stay retriable.
   if (input.idempotencyKey) {
     const { data: dupe } = await supabaseAdmin
       .from("messages")
       .select("id")
       .eq("business_id", input.businessId)
       .eq("idempotency_key", input.idempotencyKey)
+      .neq("delivery_status", "failed")
       .maybeSingle();
-    if (dupe) return { sent: false, reason: "Already sent (duplicate suppressed).", messageId: dupe.id };
+    if (dupe)
+      return {
+        sent: false,
+        duplicate: true,
+        reason: "Already sent (duplicate suppressed).",
+        messageId: dupe.id,
+      };
   }
 
   const { segments } = countSegments(input.body);
@@ -407,9 +473,9 @@ export async function sendSms(input: {
         eventType: "sms_blocked_usage_cap",
         entityType: "lead",
         entityId: lead.id,
-        metadata: { used: cap.used, cap: cap.cap },
+        metadata: { used: cap.used, cap: cap.cap, kind: input.kind },
       });
-      return { sent: false, reason: cap.reason ?? "Monthly SMS safety cap reached." };
+      return { sent: false, retriable: false, reason: cap.reason ?? "Monthly SMS safety cap reached." };
     }
   }
 
@@ -421,6 +487,7 @@ export async function sendSms(input: {
   if (!sender) {
     return {
       sent: false,
+      retriable: true,
       reason: "No active sender number configured for this business (no_sender_configured).",
     };
   }
@@ -433,25 +500,48 @@ export async function sendSms(input: {
     result = await provider.sendMessage({ to: lead.mobile_number, body: input.body, sender });
   } catch (error) {
     const detail = provider.formatProviderError(error);
-    await supabaseAdmin.from("messages").insert({
-      business_id: input.businessId,
-      lead_id: lead.id,
-      conversation_id: conversationId,
-      direction: "outbound",
-      body: input.body,
-      provider: provider.name,
-      sender_id: sender.id,
-      from_number: sender.phoneNumber,
-      segments,
-      delivery_status: "failed",
-      error_code: detail.slice(0, 200),
-      message_kind: input.kind,
-      idempotency_key: input.idempotencyKey ?? null,
-      attempt_count: 1,
-    });
+    const existingFailure = input.idempotencyKey
+      ? (
+          await supabaseAdmin
+            .from("messages")
+            .select("id, attempt_count")
+            .eq("business_id", input.businessId)
+            .eq("idempotency_key", input.idempotencyKey)
+            .eq("delivery_status", "failed")
+            .maybeSingle()
+        ).data
+      : null;
+
+    if (existingFailure) {
+      await supabaseAdmin
+        .from("messages")
+        .update({
+          error_code: detail.slice(0, 200),
+          attempt_count: existingFailure.attempt_count + 1,
+        })
+        .eq("id", existingFailure.id);
+    } else {
+      await supabaseAdmin.from("messages").insert({
+        business_id: input.businessId,
+        lead_id: lead.id,
+        conversation_id: conversationId,
+        direction: "outbound",
+        body: input.body,
+        provider: provider.name,
+        sender_id: sender.id,
+        from_number: sender.phoneNumber,
+        segments,
+        delivery_status: "failed",
+        error_code: detail.slice(0, 200),
+        message_kind: input.kind,
+        idempotency_key: input.idempotencyKey ?? null,
+        attempt_count: 1,
+      });
+    }
     await recordSmsUsage({ businessId: input.businessId, failures: 1 });
-    return { sent: false, reason: detail };
+    return { sent: false, retriable: true, reason: detail };
   }
+
 
   const { data: message } = await supabaseAdmin
     .from("messages")
@@ -529,15 +619,18 @@ async function scheduleNextFollowUp(input: {
     .maybeSingle();
   if (!conversation) return;
 
-  const nextStep = conversation.follow_up_step + 1;
+  // Next *enabled* step: disabled steps are skipped, not treated as the end.
   const { data: rule } = await supabaseAdmin
     .from("automation_rules")
-    .select("delay_minutes")
+    .select("delay_minutes, step")
     .eq("business_id", input.businessId)
     .eq("rule_type", "follow_up")
     .eq("active", true)
-    .eq("step", nextStep)
+    .gt("step", conversation.follow_up_step)
+    .order("step", { ascending: true })
+    .limit(1)
     .maybeSingle();
+
 
   await supabaseAdmin
     .from("conversations")
@@ -637,6 +730,20 @@ export async function handleInboundMessage(input: {
   }
   await supabaseAdmin.from("leads").update(update as never).eq("id", lead.id);
 
+  // A reply (or STOP) stops queued automated sends, including pending retries.
+  await supabaseAdmin
+    .from("automation_jobs")
+    .update({
+      status: "cancelled",
+      failure_reason: optOut ? "Lead opted out." : "Customer replied.",
+      next_attempt_at: null,
+    })
+    .eq("lead_id", lead.id)
+    .eq("status", "pending")
+    .in("job_type", ["acknowledgement", "follow_up"]);
+
+
+
   await audit({
     businessId,
     eventType: optOut ? "opt_out_recorded" : "inbound_reply",
@@ -674,13 +781,20 @@ export async function handleDeliveryStatus(input: {
   return { handled: true };
 }
 
-/** Sends every follow-up that is currently due. Safe to run repeatedly. */
+/**
+ * Turns every due follow-up into a durable job, then runs all due jobs
+ * (including acknowledgements that were interrupted and SMS retries).
+ * Safe to run repeatedly.
+ */
 export async function processDueFollowUps(): Promise<{
   processed: number;
   sent: number;
+  queued: number;
+  jobs: Array<{ jobId: string; jobType: string; status: string; attempt: number; reason?: string }>;
   skipped: Array<{ leadId: string; reason: string }>;
 }> {
   const now = new Date();
+  const { enqueueJob, processDueJobs } = await import("@/lib/jobs.server");
   const { data: due } = await supabaseAdmin
     .from("conversations")
     .select("id, business_id, lead_id, follow_up_step, automation_paused, next_follow_up_at")
@@ -689,7 +803,7 @@ export async function processDueFollowUps(): Promise<{
     .limit(100);
 
   const skipped: Array<{ leadId: string; reason: string }> = [];
-  let sent = 0;
+  let queued = 0;
 
   for (const conversation of due ?? []) {
     if (conversation.automation_paused) {
@@ -710,14 +824,16 @@ export async function processDueFollowUps(): Promise<{
       continue;
     }
 
-    const step = conversation.follow_up_step + 1;
+    // Next enabled step. Disabled steps are skipped, not treated as the end.
     const { data: rule } = await supabaseAdmin
       .from("automation_rules")
-      .select("message_template")
+      .select("message_template, step")
       .eq("business_id", conversation.business_id)
       .eq("rule_type", "follow_up")
       .eq("active", true)
-      .eq("step", step)
+      .gt("step", conversation.follow_up_step)
+      .order("step", { ascending: true })
+      .limit(1)
       .maybeSingle();
 
     if (!rule) {
@@ -736,39 +852,34 @@ export async function processDueFollowUps(): Promise<{
       .maybeSingle();
     if (!lead) continue;
 
+    // The job now owns this step; clear the conversation timer so the same
+    // step is not queued twice. Retries live on the job row.
     await supabaseAdmin
       .from("conversations")
-      .update({ follow_up_step: step })
+      .update({ follow_up_step: rule.step, next_follow_up_at: null })
       .eq("id", conversation.id);
 
-    const result = await sendSms({
+    const enqueued = await enqueueJob({
       businessId: conversation.business_id,
       leadId: lead.id,
-      body: renderTemplate(rule.message_template, {
-        first_name: firstName(lead.name),
-        business_name: business.name,
-      }),
-      kind: "follow_up",
-      idempotencyKey: `${lead.id}:follow_up:${step}`,
-      respectAutomation: true,
+      jobType: "follow_up",
+      step: rule.step,
+      idempotencyKey: `${lead.id}:follow_up:${rule.step}`,
+      payload: {
+        body: renderTemplate(rule.message_template, {
+          first_name: firstName(lead.name),
+          business_name: business.name,
+        }),
+      },
     });
-
-    if (result.sent) {
-      sent += 1;
-      await supabaseAdmin
-        .from("leads")
-        .update({ status: lead.status === "new" ? "contacted" : "waiting_for_customer" })
-        .eq("id", lead.id);
-    } else {
-      skipped.push({ leadId: lead.id, reason: result.reason ?? "Not sent." });
-      await supabaseAdmin
-        .from("conversations")
-        .update({ next_follow_up_at: null })
-        .eq("id", conversation.id);
-    }
+    if (enqueued.created) queued += 1;
   }
 
-  return { processed: due?.length ?? 0, sent, skipped };
+  const jobs = await processDueJobs();
+  const sent = jobs.filter((job) => job.status === "succeeded" && job.jobType !== "owner_alert").length;
+
+  return { processed: due?.length ?? 0, sent, queued, jobs, skipped };
 }
+
 
 export { audit as recordAuditEvent };
