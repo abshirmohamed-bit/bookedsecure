@@ -128,7 +128,7 @@ function LeadDetail() {
   if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
   if (!data?.lead) return <p className="text-sm text-muted-foreground">Lead not found.</p>;
 
-  const { lead, messages, conversation, ai, job, services } = data;
+  const { lead, messages, conversation, ai, job, services, notifications, automationJobs } = data;
 
   return (
     <div className="space-y-5">
