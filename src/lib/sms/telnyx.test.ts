@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createTelnyxProvider,
   buildTelnyxSendPayload,
   flattenTelnyxPayload,
   mapTelnyxStatus,
@@ -145,5 +146,43 @@ describe("signature verification", () => {
         publicKeyBase64,
       }),
     ).resolves.toMatchObject({ verified: false });
+  });
+});
+
+describe("production fail-closed", () => {
+  const provider = createTelnyxProvider({
+    verifySharedSecret: async () => ({ verified: true }),
+  });
+
+  it("falls back to the shared secret outside production", async () => {
+    delete process.env["TELNYX_PUBLIC_KEY"];
+    const prev = process.env["NODE_ENV"];
+    process.env["NODE_ENV"] = "development";
+    await expect(
+      provider.verifyWebhook({
+        headers: new Headers(),
+        rawBody: "{}",
+        url: "https://x.test/api/public/sms/telnyx?t=s",
+        params: {},
+      }),
+    ).resolves.toMatchObject({ verified: true });
+    process.env["NODE_ENV"] = prev;
+  });
+
+  it("rejects when the public key is missing in production", async () => {
+    delete process.env["TELNYX_PUBLIC_KEY"];
+    const prevNode = process.env["NODE_ENV"];
+    const prevVitest = process.env["VITEST"];
+    delete process.env["VITEST"];
+    process.env["NODE_ENV"] = "production";
+    const result = await provider.verifyWebhook({
+      headers: new Headers(),
+      rawBody: "{}",
+      url: "https://x.test/api/public/sms/telnyx?t=s",
+      params: {},
+    });
+    expect(result.verified).toBe(false);
+    process.env["NODE_ENV"] = prevNode;
+    if (prevVitest !== undefined) process.env["VITEST"] = prevVitest;
   });
 });
