@@ -102,7 +102,13 @@ async function verifySharedSecret(headers: Headers, url: string): Promise<Webhoo
 export const simulatedProvider: SmsProvider = {
   name: "simulated",
   async sendMessage({ to, body, sender }) {
+    // Fault injection for retry testing: this reserved test number always fails,
+    // so the bounded retry path can be exercised without a live carrier.
+    if (to.replace(/\D/g, "").endsWith("400000009")) {
+      throw new Error("simulated_provider_failure: carrier rejected message");
+    }
     console.info(`[sms:simulated] ${sender.phoneNumber} -> ${to}: ${body}`);
+
     return {
       provider: "simulated",
       providerMessageId: `sim_${crypto.randomUUID()}`,
