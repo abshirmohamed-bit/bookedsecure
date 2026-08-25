@@ -264,9 +264,21 @@ export function createTelnyxProvider(deps: {
 
     async verifyWebhook({ headers, rawBody, url }) {
       const publicKey = process.env["TELNYX_PUBLIC_KEY"];
-      if (!publicKey) return deps.verifySharedSecret(headers, url);
+      if (!publicKey) {
+        // Fail closed in production: the shared-secret fallback exists only for
+        // local development and tests.
+        if (isProductionRuntime()) {
+          console.error("[sms:telnyx] rejected: TELNYX_PUBLIC_KEY missing in production");
+          return {
+            verified: false,
+            reason: "TELNYX_PUBLIC_KEY is not configured; refusing Telnyx webhook in production.",
+          };
+        }
+        return deps.verifySharedSecret(headers, url);
+      }
       return verifyTelnyxSignature({ headers, rawBody, publicKeyBase64: publicKey });
     },
+
 
     async checkBalance() {
       return process.env["TELNYX_API_KEY"]
