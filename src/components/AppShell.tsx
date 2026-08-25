@@ -3,6 +3,8 @@ import { BarChart3, LayoutDashboard, LogOut, Settings, SquareArrowOutUpRight } f
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { NotificationBell } from "@/components/NotificationBell";
+
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
