@@ -1,0 +1,1 @@
+ALTER TABLE public.sms_senders ADD COLUMN IF NOT EXISTS messaging_profile_id text;

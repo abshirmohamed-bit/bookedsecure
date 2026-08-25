@@ -860,6 +860,7 @@ export type Database = {
           id: string
           is_primary: boolean
           label: string | null
+          messaging_profile_id: string | null
           phone_number: string
           provider: string
           status_callback_url: string | null
@@ -875,6 +876,7 @@ export type Database = {
           id?: string
           is_primary?: boolean
           label?: string | null
+          messaging_profile_id?: string | null
           phone_number: string
           provider?: string
           status_callback_url?: string | null
@@ -890,6 +892,7 @@ export type Database = {
           id?: string
           is_primary?: boolean
           label?: string | null
+          messaging_profile_id?: string | null
           phone_number?: string
           provider?: string
           status_callback_url?: string | null
