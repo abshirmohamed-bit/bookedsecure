@@ -17,7 +17,9 @@ export const Route = createFileRoute("/api/public/sms/status")({
           "@/lib/lead-engine.server"
         );
 
-        const provider = getProvider(null);
+        // This route is the Twilio-format endpoint, so it verifies with the Twilio
+        // scheme; the message handlers below use the matched sender's provider.
+        const provider = getProvider("twilio");
         const verification = await provider.verifyWebhook({
           url: request.url,
           params: payload,
@@ -59,7 +61,7 @@ export const Route = createFileRoute("/api/public/sms/status")({
         if (dedupeError) return Response.json({ ok: true, duplicate: true });
 
         const result = await handleDeliveryStatus({
-          providerName: "twilio",
+          providerName: sender.provider,
           payload: payload as never,
           sender,
         });
