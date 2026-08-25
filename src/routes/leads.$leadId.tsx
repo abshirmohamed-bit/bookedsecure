@@ -251,6 +251,8 @@ function LeadDetail() {
         </section>
 
         <div className="space-y-5">
+          <ActivityPanel notifications={notifications} automationJobs={automationJobs} />
+
           <section className="panel p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">AI assistant</h2>
