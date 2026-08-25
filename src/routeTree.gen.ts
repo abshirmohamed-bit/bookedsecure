@@ -20,6 +20,7 @@ import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
 import { Route as ApiPublicSmsInboundRouteImport } from './routes/api/public/sms/inbound'
 import { Route as ApiPublicSmsStatusRouteImport } from './routes/api/public/sms/status'
+import { Route as ApiPublicSmsTelnyxRouteImport } from './routes/api/public/sms/telnyx'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const ApiPublicSmsStatusRoute = ApiPublicSmsStatusRouteImport.update({
   path: '/api/public/sms/status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSmsTelnyxRoute = ApiPublicSmsTelnyxRouteImport.update({
+  id: '/api/public/sms/telnyx',
+  path: '/api/public/sms/telnyx',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
+  '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
+  '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
+  '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/intake'
     | '/api/public/sms/inbound'
     | '/api/public/sms/status'
+    | '/api/public/sms/telnyx'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/intake'
     | '/api/public/sms/inbound'
     | '/api/public/sms/status'
+    | '/api/public/sms/telnyx'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/intake'
     | '/api/public/sms/inbound'
     | '/api/public/sms/status'
+    | '/api/public/sms/telnyx'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
   ApiPublicSmsInboundRoute: typeof ApiPublicSmsInboundRoute
   ApiPublicSmsStatusRoute: typeof ApiPublicSmsStatusRoute
+  ApiPublicSmsTelnyxRoute: typeof ApiPublicSmsTelnyxRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSmsStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sms/telnyx': {
+      id: '/api/public/sms/telnyx'
+      path: '/api/public/sms/telnyx'
+      fullPath: '/api/public/sms/telnyx'
+      preLoaderRoute: typeof ApiPublicSmsTelnyxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
   ApiPublicSmsInboundRoute: ApiPublicSmsInboundRoute,
   ApiPublicSmsStatusRoute: ApiPublicSmsStatusRoute,
+  ApiPublicSmsTelnyxRoute: ApiPublicSmsTelnyxRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

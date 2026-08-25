@@ -116,6 +116,7 @@ function toResolvedSender(row: {
   credential_mode: string;
   subaccount_sid: string | null;
   credential_secret_name: string | null;
+  messaging_profile_id?: string | null;
 }): ResolvedSender {
   return {
     id: row.id,
@@ -125,11 +126,12 @@ function toResolvedSender(row: {
     credentialMode: row.credential_mode as ResolvedSender["credentialMode"],
     subaccountSid: row.subaccount_sid,
     credentialSecretName: row.credential_secret_name,
+    messagingProfileId: row.messaging_profile_id ?? null,
   };
 }
 
 const SENDER_COLUMNS =
-  "id, business_id, phone_number, provider, credential_mode, subaccount_sid, credential_secret_name, active";
+  "id, business_id, phone_number, provider, credential_mode, subaccount_sid, credential_secret_name, messaging_profile_id, active";
 
 /** Sender used for this business/lead: sticky per conversation, else primary. */
 export async function resolveSender(input: {
@@ -492,7 +494,9 @@ export async function sendSms(input: {
     };
   }
 
-  const provider = getProvider(sender.provider === "twilio" ? business.default_sms_provider : sender.provider);
+  // The sender row owns the carrier decision; the business default only
+  // applies when the sender has none recorded.
+  const provider = getProvider(sender.provider || business.default_sms_provider);
   const conversationId = await conversationIdFor(lead.id);
 
   let result;
@@ -759,6 +763,7 @@ export async function handleDeliveryStatus(input: {
   providerName: string;
   payload: Record<string, unknown>;
   sender: ResolvedSender;
+  providerCost?: number;
 }): Promise<{ handled: boolean; reason?: string }> {
   const provider = getProvider(input.providerName);
   const update = provider.handleDeliveryStatus(input.payload);
@@ -771,6 +776,7 @@ export async function handleDeliveryStatus(input: {
     .update({
       delivery_status: update.deliveryStatus,
       error_code: update.errorCode ?? null,
+      ...(input.providerCost !== undefined ? { provider_cost: input.providerCost } : {}),
     })
     .eq("provider_message_id", update.providerMessageId)
     .eq("business_id", input.sender.businessId)

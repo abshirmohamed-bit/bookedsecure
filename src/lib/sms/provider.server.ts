@@ -2,6 +2,8 @@
 // Every send receives a resolved sender, so credentials are chosen per message
 // (platform account, per-business subaccount, or bring-your-own).
 
+import { createTelnyxProvider } from "./telnyx.server";
+
 export type CredentialMode = "platform" | "subaccount" | "byo";
 
 export type ResolvedSender = {
@@ -12,6 +14,7 @@ export type ResolvedSender = {
   credentialMode: CredentialMode;
   subaccountSid: string | null;
   credentialSecretName: string | null;
+  messagingProfileId?: string | null;
 };
 
 export type SendResult = {
@@ -80,7 +83,7 @@ function mapStatus(raw: string | null): SendResult["deliveryStatus"] {
 }
 
 /** Shared-secret fallback used when no provider signing token is configured. */
-async function verifySharedSecret(headers: Headers, url: string): Promise<WebhookVerification> {
+export async function verifySharedSecret(headers: Headers, url: string): Promise<WebhookVerification> {
   const expected = process.env["SMS_WEBHOOK_SECRET"];
   if (!expected) {
     return { verified: false, reason: "No webhook secret configured." };
@@ -252,7 +255,11 @@ export const twilioProvider: SmsProvider = {
   },
 };
 
+/** Telnyx adapter, sharing the shared-secret fallback with the other providers. */
+export const telnyxProvider: SmsProvider = createTelnyxProvider({ verifySharedSecret });
+
 export function getProvider(name: string | null | undefined): SmsProvider {
   if (name === "twilio" && process.env["TWILIO_API_KEY"]) return twilioProvider;
+  if (name === "telnyx") return telnyxProvider;
   return simulatedProvider;
 }
