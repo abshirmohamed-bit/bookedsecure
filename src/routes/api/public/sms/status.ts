@@ -17,7 +17,7 @@ export const Route = createFileRoute("/api/public/sms/status")({
           "@/lib/lead-engine.server"
         );
 
-        const provider = getProvider("twilio");
+        const provider = getProvider(null);
         const verification = await provider.verifyWebhook({
           url: request.url,
           params: payload,
