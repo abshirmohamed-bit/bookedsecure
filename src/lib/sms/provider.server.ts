@@ -12,6 +12,7 @@ export type ResolvedSender = {
   credentialMode: CredentialMode;
   subaccountSid: string | null;
   credentialSecretName: string | null;
+  messagingProfileId?: string | null;
 };
 
 export type SendResult = {
