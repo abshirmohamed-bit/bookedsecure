@@ -295,8 +295,32 @@ export async function runJobById(jobId: string): Promise<JobResult | null> {
   return await runJob(data as JobRow);
 }
 
+/**
+ * Reclaims jobs left in "running" because the request that started them was
+ * interrupted (e.g. the visitor closed the browser mid-submission). After the
+ * lease window they go back to pending so the scheduler retries them.
+ */
+const RUNNING_LEASE_MINUTES = 5;
+
+export async function reclaimStaleJobs(): Promise<number> {
+  const cutoff = new Date(Date.now() - RUNNING_LEASE_MINUTES * 60 * 1000).toISOString();
+  const { data } = await supabaseAdmin
+    .from("automation_jobs")
+    .update({
+      status: "pending",
+      run_at: new Date().toISOString(),
+      next_attempt_at: new Date().toISOString(),
+      failure_reason: "Previous attempt was interrupted before it finished.",
+    })
+    .eq("status", "running")
+    .lt("last_attempt_at", cutoff)
+    .select("id");
+  return (data ?? []).length;
+}
+
 /** Runs every job that is due. Safe to call repeatedly. */
 export async function processDueJobs(limit = 50): Promise<JobResult[]> {
+  await reclaimStaleJobs();
   const { data: due } = await supabaseAdmin
     .from("automation_jobs")
     .select(JOB_COLUMNS)
@@ -304,6 +328,7 @@ export async function processDueJobs(limit = 50): Promise<JobResult[]> {
     .lte("run_at", new Date().toISOString())
     .order("run_at", { ascending: true })
     .limit(limit);
+
 
   const results: JobResult[] = [];
   for (const job of due ?? []) {
