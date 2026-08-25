@@ -182,6 +182,18 @@ export async function verifyTelnyxSignature(input: {
   }
 }
 
+/**
+ * Production means: deployed runtime, not a test run and not `vite dev`.
+ * Anything else (local dev, vitest) may use the shared-secret fallback.
+ */
+export function isProductionRuntime(): boolean {
+  const env = process.env["NODE_ENV"];
+  if (env === "test" || process.env["VITEST"]) return false;
+  return env === "production";
+}
+
+
+
 export function createTelnyxProvider(deps: {
   verifySharedSecret: (headers: Headers, url: string) => Promise<WebhookVerification>;
 }): SmsProvider {
