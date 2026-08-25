@@ -43,6 +43,8 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <NotificationBell />
+
             <a
               href="/quote"
               target="_blank"
