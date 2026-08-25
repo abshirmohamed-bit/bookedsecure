@@ -109,7 +109,7 @@ function BusinessForm({
     privacy_policy_url: business.privacy_policy_url ?? "",
     timezone: business.timezone,
     automation_enabled: business.automation_enabled,
-    default_sms_provider: business.default_sms_provider as "simulated" | "twilio",
+    default_sms_provider: business.default_sms_provider as "simulated" | "twilio" | "telnyx",
     quiet_hours_start: business.quiet_hours_start,
     quiet_hours_end: business.quiet_hours_end,
   });
@@ -171,12 +171,13 @@ function BusinessForm({
             disabled={readOnly}
             value={form.default_sms_provider}
             onChange={(event) =>
-              setForm({ ...form, default_sms_provider: event.target.value as "simulated" | "twilio" })
+              setForm({ ...form, default_sms_provider: event.target.value as "simulated" | "twilio" | "telnyx" })
             }
             className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm disabled:opacity-60"
           >
             <option value="simulated">Simulated (recorded, not sent)</option>
             <option value="twilio">Twilio (live SMS)</option>
+            <option value="telnyx">Telnyx (live SMS)</option>
           </select>
         </label>
         <div className="grid grid-cols-2 gap-3">

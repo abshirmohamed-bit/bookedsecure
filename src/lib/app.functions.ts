@@ -512,7 +512,7 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
         privacy_policy_url: z.string().max(300).nullable(),
         timezone: z.string().max(60),
         automation_enabled: z.boolean(),
-        default_sms_provider: z.enum(["simulated", "twilio"]),
+        default_sms_provider: z.enum(["simulated", "twilio", "telnyx"]),
         quiet_hours_start: z.number().int().min(0).max(23),
         quiet_hours_end: z.number().int().min(0).max(23),
       })
@@ -549,7 +549,7 @@ export const getSmsSetup = createServerFn({ method: "GET" })
     const [senders, limits, segments, aiCost] = await Promise.all([
       supabaseAdmin
         .from("sms_senders")
-        .select("id, phone_number, provider, credential_mode, label, is_primary, active")
+        .select("id, phone_number, provider, credential_mode, messaging_profile_id, label, is_primary, active")
         .eq("business_id", app.businessId)
         .order("is_primary", { ascending: false })
         .then((response) => response.data ?? []),
@@ -570,6 +570,8 @@ export const saveSender = createServerFn({ method: "POST" })
         phone_number: z.string().min(8).max(20),
         label: z.string().max(80).nullable(),
         active: z.boolean(),
+        provider: z.enum(["simulated", "twilio", "telnyx"]).default("twilio"),
+        messaging_profile_id: z.string().max(80).nullable().optional(),
       })
       .parse(input),
   )
@@ -587,7 +589,13 @@ export const saveSender = createServerFn({ method: "POST" })
     if (data.id) {
       const { error } = await supabaseAdmin
         .from("sms_senders")
-        .update({ phone_number: number, label: data.label, active: data.active })
+        .update({
+          phone_number: number,
+          label: data.label,
+          active: data.active,
+          provider: data.provider,
+          messaging_profile_id: data.messaging_profile_id ?? null,
+        })
         .eq("id", data.id)
         .eq("business_id", app.businessId);
       if (error) throw new Error(error.message);
@@ -597,7 +605,8 @@ export const saveSender = createServerFn({ method: "POST" })
         phone_number: number,
         label: data.label,
         active: data.active,
-        provider: "twilio",
+        provider: data.provider,
+        messaging_profile_id: data.messaging_profile_id ?? null,
         credential_mode: "platform",
       });
       if (error) throw new Error(error.message);
