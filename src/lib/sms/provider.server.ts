@@ -2,6 +2,8 @@
 // Every send receives a resolved sender, so credentials are chosen per message
 // (platform account, per-business subaccount, or bring-your-own).
 
+import { createTelnyxProvider } from "./telnyx.server";
+
 export type CredentialMode = "platform" | "subaccount" | "byo";
 
 export type ResolvedSender = {
@@ -253,19 +255,8 @@ export const twilioProvider: SmsProvider = {
   },
 };
 
-/** Telnyx adapter, built lazily so the module graph stays side-effect free. */
-let telnyxSingleton: SmsProvider | null = null;
-export function telnyxProviderInstance(): SmsProvider {
-  if (!telnyxSingleton) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    throw new Error("Telnyx provider not initialised");
-  }
-  return telnyxSingleton;
-}
-
-export function registerTelnyxProvider(provider: SmsProvider) {
-  telnyxSingleton = provider;
-}
+/** Telnyx adapter, sharing the shared-secret fallback with the other providers. */
+export const telnyxProvider: SmsProvider = createTelnyxProvider({ verifySharedSecret });
 
 export function getProvider(name: string | null | undefined): SmsProvider {
   if (name === "twilio" && process.env["TWILIO_API_KEY"]) return twilioProvider;
