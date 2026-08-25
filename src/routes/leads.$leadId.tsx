@@ -128,7 +128,7 @@ function LeadDetail() {
   if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
   if (!data?.lead) return <p className="text-sm text-muted-foreground">Lead not found.</p>;
 
-  const { lead, messages, conversation, ai, job, services } = data;
+  const { lead, messages, conversation, ai, job, services, notifications, automationJobs } = data;
 
   return (
     <div className="space-y-5">
@@ -251,6 +251,8 @@ function LeadDetail() {
         </section>
 
         <div className="space-y-5">
+          <ActivityPanel notifications={notifications} automationJobs={automationJobs} />
+
           <section className="panel p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">AI assistant</h2>
@@ -338,6 +340,81 @@ function LeadDetail() {
     </div>
   );
 }
+
+type NotificationRow = {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+};
+
+type AutomationJobRow = {
+  id: string;
+  job_type: string;
+  step: number;
+  status: string;
+  attempt_count: number;
+  max_attempts: number;
+  next_attempt_at: string | null;
+  last_attempt_at: string | null;
+  failure_reason: string | null;
+};
+
+function when(value: string | null) {
+  return value
+    ? new Date(value).toLocaleString("en-AU", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "—";
+}
+
+function ActivityPanel({
+  notifications,
+  automationJobs,
+}: {
+  notifications: NotificationRow[];
+  automationJobs: AutomationJobRow[];
+}) {
+  return (
+    <section className="panel p-4">
+      <h2 className="text-sm font-semibold">Automation &amp; alerts</h2>
+      <div className="mt-3 space-y-2">
+        {notifications.length === 0 && automationJobs.length === 0 && (
+          <p className="text-xs text-muted-foreground">No automation activity yet.</p>
+        )}
+        {notifications.map((item) => (
+          <div key={item.id} className="rounded-md border border-border bg-secondary/40 px-2.5 py-2">
+            <p className="text-xs font-medium">{item.title}</p>
+            <p className="mt-0.5 whitespace-pre-line text-[11px] text-muted-foreground">{item.body}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Owner alert · {when(item.created_at)} · {item.read_at ? "read" : "unread"}
+            </p>
+          </div>
+        ))}
+        {automationJobs.map((jobRow) => (
+          <div key={jobRow.id} className="rounded-md border border-border px-2.5 py-2 text-[11px]">
+            <p className="text-xs font-medium">
+              {jobRow.job_type.replace(/_/g, " ")}
+              {jobRow.step ? ` · step ${jobRow.step}` : ""}
+            </p>
+            <p className="mt-0.5 text-muted-foreground">
+              {jobRow.status} · attempt {jobRow.attempt_count}/{jobRow.max_attempts}
+              {jobRow.next_attempt_at ? ` · retry ${when(jobRow.next_attempt_at)}` : ""}
+            </p>
+            {jobRow.failure_reason && (
+              <p className="mt-0.5 text-destructive">{jobRow.failure_reason}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 
 function Detail({ label, value }: { label: string; value: string | null | undefined }) {
   return (

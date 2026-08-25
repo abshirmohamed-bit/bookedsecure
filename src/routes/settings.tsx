@@ -414,20 +414,39 @@ function RulesEditor({ rules, readOnly }: { rules: Rule[]; readOnly: boolean }) 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs font-medium">
                   Step {rule.step} · {rule.rule_type.replace(/_/g, " ")}
+                  {!rule.active && (
+                    <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      disabled — skipped by scheduler
+                    </span>
+                  )}
                 </p>
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    disabled={readOnly}
-                    checked={draft.active}
-                    onChange={(event) =>
-                      setDrafts({ ...drafts, [rule.id]: { ...draft, active: event.target.checked } })
-                    }
-                    className="h-4 w-4 accent-[var(--color-primary)]"
-                  />
-                  Active
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={draft.active}
+                    aria-label={`Step ${rule.step} enabled`}
+                    disabled={readOnly || mutation.isPending}
+                    onClick={() => {
+                      const next = { ...draft, active: !draft.active };
+                      setDrafts({ ...drafts, [rule.id]: next });
+                      // Toggling persists immediately — no separate save needed.
+                      mutation.mutate(next);
+                    }}
+                    className={`relative h-5 w-9 rounded-full transition-colors disabled:opacity-50 ${
+                      draft.active ? "bg-primary" : "bg-input"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all ${
+                        draft.active ? "left-4.5" : "left-0.5"
+                      }`}
+                    />
+                  </button>
+                  {draft.active ? "Enabled" : "Disabled"}
                 </label>
               </div>
+
               <label className="mt-2 block text-xs">
                 <span className="mb-1 block text-muted-foreground">Delay (minutes after previous)</span>
                 <input
