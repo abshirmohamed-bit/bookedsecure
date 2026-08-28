@@ -21,9 +21,11 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           return Response.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { getProvider } = await import("@/lib/sms/provider.server");
         const { flattenTelnyxPayload } = await import("@/lib/sms/telnyx.server");
+        const { recordWebhookEvent, resolveEventId, logWebhook } = await import(
+          "@/lib/sms/webhook.server"
+        );
         const { handleInboundMessage, handleDeliveryStatus, findSenderByNumber } = await import(
           "@/lib/lead-engine.server"
         );
@@ -36,40 +38,55 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           rawBody,
         });
         if (!verification.verified) {
-          console.error(`[sms:telnyx] rejected: ${verification.reason}`);
+          logWebhook("error", "telnyx", { outcome: "rejected", reason: verification.reason ?? null });
           return new Response("Unauthorized", { status: 401 });
         }
 
         const flat = flattenTelnyxPayload(payload);
-        if (!flat.eventId) {
-          return Response.json({ ok: false, error: "Missing event id" }, { status: 400 });
-        }
+        // Provider event id when present, content hash otherwise.
+        const { eventId, source } = await resolveEventId({
+          providerId: "telnyx",
+          eventId: flat.eventId,
+          rawBody,
+        });
 
         const inbound = flat.eventType === "message.received";
         // Inbound arrives at our number ("to"); status callbacks come from it ("from").
         const tenantNumber = inbound ? flat.to : flat.from;
         const sender = tenantNumber ? await findSenderByNumber(tenantNumber) : null;
         if (!sender) {
-          await supabaseAdmin.from("webhook_events").insert({
-            provider: "telnyx",
-            event_id: `unmatched:${flat.eventId}`,
-            event_type: `${flat.eventType ?? "unknown"}_unmatched`,
-            payload: payload as never,
-            signature_verified: true,
+          await recordWebhookEvent({
+            providerId: "telnyx",
+            eventId: `unmatched:${eventId}`,
+            eventType: `${flat.eventType ?? "unknown"}_unmatched`,
+            payload,
+            signatureVerified: true,
+          });
+          logWebhook("warn", "telnyx", {
+            outcome: "unmatched_number",
+            eventType: flat.eventType,
+            eventIdSource: source,
           });
           return Response.json({ ok: false, error: "Unknown number" }, { status: 404 });
         }
 
-        // Idempotency: Telnyx retries reuse data.id per event.
-        const { error: dedupeError } = await supabaseAdmin.from("webhook_events").insert({
-          provider: "telnyx",
-          event_id: flat.eventId,
-          event_type: flat.eventType ?? "unknown",
-          payload: payload as never,
-          business_id: sender.businessId,
-          signature_verified: true,
+        const { duplicate } = await recordWebhookEvent({
+          providerId: "telnyx",
+          eventId,
+          eventType: flat.eventType ?? "unknown",
+          payload,
+          businessId: sender.businessId,
+          signatureVerified: true,
         });
-        if (dedupeError) return Response.json({ ok: true, duplicate: true });
+        if (duplicate) {
+          logWebhook("info", "telnyx", {
+            outcome: "duplicate_suppressed",
+            eventType: flat.eventType,
+            eventIdSource: source,
+            businessId: sender.businessId,
+          });
+          return Response.json({ ok: true, duplicate: true });
+        }
 
         if (inbound) {
           const result = await handleInboundMessage({

@@ -3,15 +3,17 @@ import { createFileRoute } from "@tanstack/react-router";
 /**
  * Inbound SMS webhook (Twilio-compatible form body or JSON).
  * Order is: verify signature -> resolve the tenant from the receiving number ->
- * only then write anything.
+ * de-duplicate -> only then write anything.
  */
 export const Route = createFileRoute("/api/public/sms/inbound")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         const { payload, rawBody } = await readPayload(request);
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { getProvider } = await import("@/lib/sms/provider.server");
+        const { recordWebhookEvent, resolveEventId, logWebhook } = await import(
+          "@/lib/sms/webhook.server"
+        );
         const { handleInboundMessage, findSenderByNumber } = await import(
           "@/lib/lead-engine.server"
         );
@@ -26,36 +28,48 @@ export const Route = createFileRoute("/api/public/sms/inbound")({
           rawBody,
         });
         if (!verification.verified) {
-          console.error(`[sms:inbound] rejected: ${verification.reason}`);
+          logWebhook("error", "twilio", { outcome: "rejected", reason: verification.reason ?? null });
           return new Response("Unauthorized", { status: 401 });
         }
 
-        const eventId = String(payload["MessageSid"] ?? payload["message_id"] ?? "");
-        if (!eventId) return Response.json({ ok: false, error: "Missing message id" }, { status: 400 });
+        const { eventId, source } = await resolveEventId({
+          providerId: "twilio",
+          eventId: String(payload["MessageSid"] ?? payload["message_id"] ?? "") || null,
+          rawBody,
+        });
 
         const toNumber = String(payload["To"] ?? payload["to"] ?? "");
         const sender = toNumber ? await findSenderByNumber(toNumber) : null;
         if (!sender) {
-          await supabaseAdmin.from("webhook_events").insert({
-            provider: "twilio",
-            event_id: `unmatched:${eventId}`,
-            event_type: "inbound_unmatched",
-            payload: payload as never,
-            signature_verified: true,
+          await recordWebhookEvent({
+            providerId: "twilio",
+            eventId: `unmatched:${eventId}`,
+            eventType: "inbound_unmatched",
+            payload,
+            signatureVerified: true,
           });
+          logWebhook("warn", "twilio", { outcome: "unmatched_number", eventIdSource: source });
           return Response.json({ ok: false, error: "Unknown receiving number" }, { status: 404 });
         }
 
         // De-duplicate provider retries before doing any work.
-        const { error: dedupeError } = await supabaseAdmin.from("webhook_events").insert({
-          provider: "twilio",
-          event_id: eventId,
-          event_type: "inbound",
-          payload: payload as never,
-          business_id: sender.businessId,
-          signature_verified: true,
+        const { duplicate } = await recordWebhookEvent({
+          providerId: "twilio",
+          eventId,
+          eventType: "inbound",
+          payload,
+          businessId: sender.businessId,
+          signatureVerified: true,
         });
-        if (dedupeError) return Response.json({ ok: true, duplicate: true });
+        if (duplicate) {
+          logWebhook("info", "twilio", {
+            outcome: "duplicate_suppressed",
+            eventType: "inbound",
+            eventIdSource: source,
+            businessId: sender.businessId,
+          });
+          return Response.json({ ok: true, duplicate: true });
+        }
 
         const result = await handleInboundMessage({
           providerName: sender.provider,

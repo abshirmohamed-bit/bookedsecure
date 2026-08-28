@@ -3,6 +3,7 @@
 // (platform account, per-business subaccount, or bring-your-own).
 
 import { createTelnyxProvider } from "./telnyx.server";
+import { sinchProvider } from "./sinch.server";
 
 export type CredentialMode = "platform" | "subaccount" | "byo";
 
@@ -258,8 +259,33 @@ export const twilioProvider: SmsProvider = {
 /** Telnyx adapter, sharing the shared-secret fallback with the other providers. */
 export const telnyxProvider: SmsProvider = createTelnyxProvider({ verifySharedSecret });
 
-export function getProvider(name: string | null | undefined): SmsProvider {
-  if (name === "twilio" && process.env["TWILIO_API_KEY"]) return twilioProvider;
-  if (name === "telnyx") return telnyxProvider;
+/**
+ * Legacy adapter lookup. Provider *selection* (env overrides, defaults) lives in
+ * registry.server.ts; this function only maps an id to an implementation.
+ */
+export function getLegacyProvider(id: string): SmsProvider {
+  if (id === "twilio") return process.env["TWILIO_API_KEY"] ? twilioProvider : simulatedProvider;
+  if (id === "telnyx") return telnyxProvider;
+  if (id === "sinch") return sinchProvider;
   return simulatedProvider;
 }
+
+/**
+ * Provider used for a given sender/business. Kept for the existing engine call
+ * sites; it now routes through the central selection rules so a feature-flag
+ * switch needs no business-logic change.
+ */
+export function getProvider(name: string | null | undefined): SmsProvider {
+  const override = process.env["SMS_PROVIDER_OVERRIDE"];
+  const fallback = process.env["SMS_PROVIDER"];
+  const id = KNOWN_PROVIDER_IDS.includes(override ?? "")
+    ? override!
+    : KNOWN_PROVIDER_IDS.includes(name ?? "")
+      ? name!
+      : KNOWN_PROVIDER_IDS.includes(fallback ?? "")
+        ? fallback!
+        : "simulated";
+  return getLegacyProvider(id);
+}
+
+const KNOWN_PROVIDER_IDS: string[] = ["simulated", "telnyx", "sinch", "twilio"];
