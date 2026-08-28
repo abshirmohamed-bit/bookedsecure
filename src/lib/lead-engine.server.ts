@@ -3,14 +3,17 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   AUTOMATION_BLOCKED_STATUSES,
+  businessLocalHour,
   firstName,
   isOptOutMessage,
+  isQuietHour,
   normaliseAuMobile,
   renderTemplate,
   type LeadStatus,
 } from "@/lib/domain";
 import { countSegments } from "@/lib/sms/segments";
 import { getProvider, type ResolvedSender } from "@/lib/sms/provider.server";
+import { assertTenantMatch } from "@/lib/sms/events";
 import { checkSmsCap, recordSmsUsage } from "@/lib/usage.server";
 
 type Business = {
@@ -92,16 +95,11 @@ async function recordConsentEvent(input: {
 }
 
 function isWithinQuietHours(business: Business, at: Date): boolean {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-AU", {
-      timeZone: business.timezone,
-      hour: "2-digit",
-      hour12: false,
-    }).format(at),
+  return isQuietHour(
+    businessLocalHour(business.timezone, at),
+    business.quiet_hours_start,
+    business.quiet_hours_end,
   );
-  const { quiet_hours_start: start, quiet_hours_end: end } = business;
-  if (start === end) return false;
-  return start < end ? hour >= start && hour < end : hour >= start || hour < end;
 }
 
 // ---------------------------------------------------------------------------
@@ -673,6 +671,8 @@ export async function handleInboundMessage(input: {
     .maybeSingle();
 
   if (!lead) return { handled: false, reason: `No lead matches ${mobile} for this business.` };
+  // Defence in depth: the lead must belong to the tenant that owns the number.
+  assertTenantMatch(businessId, lead.business_id);
 
   const conversationId = await conversationIdFor(lead.id);
   const { segments } = countSegments(inbound.body);

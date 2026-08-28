@@ -6,6 +6,7 @@
 // stays queued with a bounded retry schedule, so nothing is lost when a request
 // is interrupted (e.g. the visitor closes the browser mid-submission).
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { AUTOMATION_STOP_STATUSES } from "@/lib/domain";
 
 export type JobType = "acknowledgement" | "follow_up" | "owner_alert";
 
@@ -13,14 +14,8 @@ export type JobType = "acknowledgement" | "follow_up" | "owner_alert";
 export const RETRY_DELAYS_MINUTES = [5, 30];
 export const MAX_ATTEMPTS = 3;
 
-/** Lead states that permanently stop automated outbound work. */
-const STOP_STATUSES = new Set([
-  "opted_out",
-  "completed",
-  "lost",
-  "invalid",
-  "customer_replied",
-]);
+/** Lead states that permanently stop automated outbound work (shared, pure). */
+const STOP_STATUSES = new Set<string>(AUTOMATION_STOP_STATUSES);
 
 export type JobRow = {
   id: string;

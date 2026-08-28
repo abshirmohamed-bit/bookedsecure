@@ -137,11 +137,17 @@ function BusinessForm({
     <section className="panel p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Business & automation</h2>
-        <span className="text-xs text-muted-foreground">
-          SMS provider: {provider.name}
-          {typeof provider.detail === "string" ? ` · ${provider.detail}` : ""}
+        <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="rounded-md border border-border px-2 py-0.5 font-medium text-foreground">
+            {provider.name === "simulated" ? "Simulated mode" : "Live sending"}
+          </span>
+          <span>
+            Active provider: {provider.name}
+            {typeof provider.detail === "string" ? ` · ${provider.detail}` : ""}
+          </span>
         </span>
       </div>
+
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {(

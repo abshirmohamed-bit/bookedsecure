@@ -115,3 +115,41 @@ export function formatMinutes(minutes: number | null): string {
   if (hours < 24) return `${hours.toFixed(1)}h`;
   return `${(hours / 24).toFixed(1)}d`;
 }
+
+// ---------------------------------------------------------------------------
+// Automation guard rails (pure, provider-independent, unit-testable)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lead states that permanently stop automated outbound work.
+ * "customer_replied" is included: a reply always ends the follow-up sequence.
+ */
+export const AUTOMATION_STOP_STATUSES: LeadStatus[] = [
+  "opted_out",
+  "completed",
+  "lost",
+  "invalid",
+  "customer_replied",
+];
+
+export function stopsAutomation(status: string, optedOutAt?: string | null): boolean {
+  if (optedOutAt) return true;
+  return (AUTOMATION_STOP_STATUSES as string[]).includes(status);
+}
+
+/** True when `hour` falls inside the [start, end) quiet window (wraps midnight). */
+export function isQuietHour(hour: number, start: number, end: number): boolean {
+  if (start === end) return false;
+  return start < end ? hour >= start && hour < end : hour >= start || hour < end;
+}
+
+/** Local hour (0-23) for a business timezone. */
+export function businessLocalHour(timezone: string, at: Date): number {
+  return Number(
+    new Intl.DateTimeFormat("en-AU", {
+      timeZone: timezone,
+      hour: "2-digit",
+      hour12: false,
+    }).format(at),
+  );
+}
