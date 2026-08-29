@@ -867,6 +867,10 @@ export type Database = {
           pilot_extension_ends_at: string | null
           pilot_started_at: string | null
           referrer: string | null
+          renewal_prevention_attempts: number
+          renewal_prevention_confirmed: boolean
+          renewal_prevention_last_attempt_at: string | null
+          renewal_prevention_last_error: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           services: string | null
@@ -912,6 +916,10 @@ export type Database = {
           pilot_extension_ends_at?: string | null
           pilot_started_at?: string | null
           referrer?: string | null
+          renewal_prevention_attempts?: number
+          renewal_prevention_confirmed?: boolean
+          renewal_prevention_last_attempt_at?: string | null
+          renewal_prevention_last_error?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           services?: string | null
@@ -957,6 +965,10 @@ export type Database = {
           pilot_extension_ends_at?: string | null
           pilot_started_at?: string | null
           referrer?: string | null
+          renewal_prevention_attempts?: number
+          renewal_prevention_confirmed?: boolean
+          renewal_prevention_last_attempt_at?: string | null
+          renewal_prevention_last_error?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           services?: string | null
@@ -1408,6 +1420,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_cron_credential: {
+        Args: { p_name: string; p_secret: string }
+        Returns: undefined
       }
     }
     Enums: {
