@@ -134,7 +134,7 @@ export function hasMessagingAccess(
   pilot: Pick<
     PilotCommercialRecord,
     "accessState" | "paymentRequired" | "pilotEndsAt" | "pilotExtensionEndsAt"
-  >,
+  > & { stripeSubscriptionId?: string | null; renewalPreventionConfirmed?: boolean },
   now: Date = new Date(),
 ): { allowed: boolean; reason: string } {
   if (pilot.paymentRequired && pilot.accessState === "pending") {
@@ -155,8 +155,17 @@ export function hasMessagingAccess(
   if (pilot.accessState !== "paid") {
     return { allowed: false, reason: "Messaging is not enabled for this account." };
   }
+  // Fail closed: a live subscription whose renewal cancellation is unconfirmed
+  // must not be treated as a safe, single-period pilot.
+  if (pilot.stripeSubscriptionId && pilot.renewalPreventionConfirmed === false) {
+    return {
+      allowed: false,
+      reason: "Automatic renewal is not confirmed as disabled — messaging is on hold.",
+    };
+  }
   return { allowed: true, reason: "" };
 }
+
 
 /**
  * Hard-cap boundary check: the send is allowed when it fits inside the
