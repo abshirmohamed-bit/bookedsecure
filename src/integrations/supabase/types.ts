@@ -1353,6 +1353,9 @@ export type Database = {
           event_type: string | null
           id: string
           payload: Json | null
+          processed_at: string | null
+          processing_error: string | null
+          processing_started_at: string | null
           provider: string
           signature_verified: boolean | null
         }
@@ -1363,6 +1366,9 @@ export type Database = {
           event_type?: string | null
           id?: string
           payload?: Json | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processing_started_at?: string | null
           provider: string
           signature_verified?: boolean | null
         }
@@ -1373,6 +1379,9 @@ export type Database = {
           event_type?: string | null
           id?: string
           payload?: Json | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processing_started_at?: string | null
           provider?: string
           signature_verified?: boolean | null
         }
