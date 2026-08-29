@@ -1,108 +1,65 @@
-# Production SMS Provider Architecture
+# BookedSecure Paid Pilot — Implementation Plan
 
-Design only — no code changes in this pass. Labels: **[EXISTS]**, **[CHANGE]**, **[MISSING]**.
+Payments are now enabled in test mode, so all of this can be built and verified end to end without real money. Nothing here touches the messaging engine's message composition, provider adapters, tenant isolation or the Glocast simulated environment — the only intersection is a new access check at the existing send-authorisation gate.
 
-## 1. Sender model
+Delivered in three reviewable slices.
 
-Platform owns the Twilio account. Glocast gets one dedicated Australian sender number, provisioned by us. Glocast never supplies credentials.
+---
 
-Three credential modes, one abstraction:
+## Slice 1 — Commercial configuration, state model and payment gating
 
-| Mode | Credentials | Numbers | Use |
-|---|---|---|---|
-| `platform` | Platform Twilio (connector) | Platform-owned pool | Glocast pilot |
-| `subaccount` | Platform parent + business subaccount SID | Owned by subaccount | SaaS scale, cost separation |
-| `byo` | Customer's own key, stored as a secret reference | Customer's own | Enterprise |
+**Central commercial configuration**
+One admin-only configuration record holding currency, price in minor units, billing interval, included segments, overage mode, pilot duration, support channel/address/target, cancellation terms, pilot-end action, the Stripe product and price IDs, a version number and who last changed it. Seeded to: AUD, $99, monthly, 250 segments, `hard_cap`, 30 days, email support, 1 business day, pause at pilot end, no automatic conversion, no free trial. Editing bumps the version and writes an audit event. Existing pilots are never re-priced — each pilot keeps a frozen snapshot of the terms it started on.
 
-`business_id -> sender number` is a row in a new `sms_senders` table, not a column on `businesses`, so a business can hold several numbers (spare, migration, second brand) with exactly one marked primary.
+**Pilot commercial state**
+The pilot application record gains commercial fields: access state (`pending`, `paid`, `past_due`, `canceled`, `paused`, `pilot_expired`), state reason, payment-invited/completed timestamps, pilot start and end, extension end, continuation requested/approved, cancellation requested, terms snapshot, configuration version, and the Stripe customer/subscription/checkout-session IDs. All existing application fields and workflow behaviour are preserved. A link from the application to the business tenant is added so gating can resolve state from a send.
 
-**[CHANGE]** `businesses.phone_number` becomes display-only; the engine reads the primary `sms_senders` row.
+**Segment accounting periods**
+A usage-period table per billing period: period start/end, included segments, segments used, segments blocked, hard-cap timestamp. Created only when payment is confirmed.
 
-## 2. Outbound sender selection
+**Payment gating**
+A single server-side authority answers "may this business send live outbound SMS right now?" — true only when the pilot is `paid` and inside its pilot window or a valid written extension, and the period has segment capacity. It is called at the existing send gate in the lead engine, immediately before the provider is contacted, alongside the current monthly safety cap. Simulated sends for Glocast stay functional; live provisioning and live sending are what get blocked. No message composition, retry logic or provider code changes.
 
-`sendSms` resolves, in order: explicit sender override -> the lead's last-used sender (conversation stickiness, so the customer always sees one number) -> the business's primary active sender. No sender -> refuse to send and record a failed message with reason `no_sender_configured`, never silently fall back to another business's number.
+**Hard cap**
+Segment reservation happens in one atomic database operation so concurrent sends cannot push past 250. Reaching the cap blocks the send, increments blocked count, stamps the cap timestamp, notifies owner and admin through the existing notification path, and writes audit events — no queueing for later, no overage, no invoice.
 
-The resolved sender carries its own credential mode, so the provider client is built per send, not per process.
+## Slice 2 — Stripe checkout, webhooks and lifecycle
 
-**[EXISTS]** single outbound path in `sendSms`, opt-out check, idempotency key, message row per attempt.
-**[CHANGE]** sender resolution + `sender_id` stamped on every message.
+**Product and price**
+A `BookedSecure Paid Pilot` product with a recurring AUD 99.00 monthly price is created in the test environment and its IDs saved into the central configuration. Checkout always resolves the amount from the stored price server-side; no client-supplied amount is accepted.
 
-## 3. Inbound replies
+**Checkout**
+Admin-triggered "Invite to paid pilot" on an approved application creates a Stripe-hosted checkout session server-side, stamps the application ID into protected metadata, saves the session ID, records an audit event and yields a URL to send through the existing communication method. The session cannot be created for an unapproved or unknown application, and the application identifier cannot be substituted by the client. The subscription is configured not to renew past the pilot unless continuation is recorded.
 
-Twilio posts to one shared route per provider. Identification is by the `To` number, which is the tenant key:
+**Webhook**
+A signature-verified webhook at the required payments path handles checkout completion, subscription created/updated/deleted, invoice paid and invoice payment failed. Every event is recorded against a unique Stripe event ID first, so a replay is a no-op — no duplicate activation, no duplicate usage period. On confirmed payment it stores the customer and subscription IDs, sets payment completed, sets pilot start to the confirmed payment time and pilot end to exactly 30 calendar days later, moves access to `paid`, opens the activation path, creates the first usage period and audits. Payment failure sets `past_due`; cancellation and deletion set `canceled`. Signature failures are rejected; unknown applications and subscription mismatches are recorded as errors rather than silently applied. Logs carry no payment payloads.
 
-1. Look up `sms_senders` by normalised `To` -> gives `business_id`.
-2. Find the lead by `business_id` + normalised `From` (most recent).
-3. No sender match -> 404 and log to `webhook_events`; never scan leads across all businesses.
+**Return page**
+A payment-confirming page that explicitly says payment is being confirmed and does not claim activation until the webhook has been processed; it polls the server for the real state.
 
-**[CHANGE]** current inbound lookup finds a lead by mobile number **globally** — this is the main tenant-isolation gap and must become sender-scoped.
-**[EXISTS]** `webhook_events` idempotency, STOP/UNSUBSCRIBE handling, follow-up cancellation on reply.
+**Lifecycle**
+A scheduled server-side check expires pilots past their end date (or extension end) into `pilot_expired` then `paused`, without automatic conversion. Explicit continuation and written extension are separate admin actions requiring confirmation, each recording who/when/why and auditing. Cancellation records the request, cancels at period end, prevents the next renewal and preserves all data.
 
-## 4. Delivery callbacks
+## Slice 3 — Admin surface, error states and acceptance tests
 
-Status callbacks are matched on `provider_message_id` **plus** the `business_id` derived from the callback's sender number, and the update is constrained to that business. Unknown SID -> logged, ignored.
+**Admin area** (reusing existing `platform_admin` authorisation — no second permission system)
+- A commercial configuration screen: view and edit all commercial terms without code changes; Stripe IDs visible, changing them needs deliberate confirmation and validation.
+- A pilot detail view: application status, payment state, access state and reason, Stripe customer/subscription/checkout status, pilot dates, extension and cancellation detail, current period, segments used/remaining/blocked, terms snapshot and related audit events.
+- Admin actions: send or regenerate a payment invitation, record a written extension (with date validation), record explicit continuation, pause manually with a reason, resume only when payment conditions are valid, and retry a failed activation. No action can mark a pilot active without a valid audited exception.
+- Support channel, address and the one-Australian-business-day target displayed, with the explicit note that support does not cover the business's own customer quote conversations.
 
-**[CHANGE]** current status route updates by `provider_message_id` alone.
+**Error states**
+Clear handling and display for checkout creation failure, missing/invalid price, abandonment, decline, signature failure, unknown application, duplicate event, subscription mismatch, paid-but-activation-failed (stays paid, raises a high-priority record, admin can retry safely), past due, expiry-processing failure, cap reached, concurrent accounting conflict, permission denied, invalid extension date and continuation after expiry.
 
-## 5. Credential storage and webhook verification
+**Tests**
+Automated unit tests for pilot date arithmetic, terms snapshotting, state transitions, segment counting (outbound counted, inbound not, blocked not), the 250/251 boundary, concurrency safety and webhook idempotency. Live verification in the running app for checkout with test cards, webhook replay, failed payment, cancellation, past-due send blocking, signature rejection, gating before payment, and a full regression run of the existing messaging and Glocast tests.
 
-- Platform Twilio: connector-managed env, server-only, read inside handlers.
-- Subaccount: SID stored in DB, auth handled by the parent credential — no per-tenant secret in the database.
-- BYO: DB stores only a secret *name*; the value lives in platform secrets. No plaintext token, ever, in a table or in a client bundle.
-- Signature verification **[MISSING]**: every Twilio webhook must verify `X-Twilio-Signature` (HMAC-SHA1 over full URL + sorted POST params, timing-safe compare) against the auth token for the receiving account before any DB write. Reject with 401. Simulated mode uses a shared cron-style secret instead.
+---
 
-## 6. Usage, cost and limits
+## Technical notes
 
-- **Segments**: computed at send time — GSM-7 vs UCS-2 detection, 160/70 single, 153/67 concatenated — and stored on the message. Billing counts segments, not messages.
-- **SMS usage** rolls up per business per month: segments sent, inbound received, failures, provider cost, retail charge.
-- **AI usage**: one row per model call (lead analysis, reply drafting) with tokens in/out and computed cost, tenant-scoped.
-- **Failures/retries** **[MISSING]**: failed sends already write a message row; add `attempt_count`, `next_retry_at`, and a bounded retry policy (retry transport/5xx and rate limits with backoff; never retry carrier rejections, invalid numbers, or opt-outs).
-- **Limits and alerts** **[MISSING]**: per-business monthly segment and AI spend caps, plus soft-threshold alerts (80%/100%). Hitting a hard cap blocks automation but never blocks STOP handling or inbound recording.
-
-## 7. Billing separation (Stripe)
-
-Two ledgers kept deliberately apart:
-- **Platform cost** — what Twilio and the AI gateway charge us, recorded from provider responses.
-- **Customer charge** — subscription plan (included segment allowance) plus metered overage pushed to Stripe as usage records at period close.
-
-Glocast pilot: usage is tracked but **not** billed; Stripe stays out of the pilot path. Margin is then simply retail minus recorded cost per business per period.
-
-## 8. Provider abstraction
-
-The existing `SmsProvider` interface is the right seam and stays. Additions: providers receive the resolved sender (number + credential mode), expose `verifyWebhookSignature`, and report cost and segment data back from a send. ClickSend becomes a third implementation with no changes above the interface; `simulated` remains the default until the pilot number is live.
-
-**[EXISTS]** interface, simulated provider, Twilio-via-gateway provider.
-**[CHANGE]** signature above; per-send credential resolution.
-**[MISSING]** ClickSend implementation.
-
-## 9. Database changes
-
-All new tables carry `business_id`, RLS scoped via `current_business_id()`, and explicit grants.
-
-- `sms_senders` **[MISSING]** — business, phone number (E.164, unique), provider, credential mode, subaccount SID, secret name, primary flag, active flag, status-callback URL.
-- `sms_usage_daily` **[MISSING]** — business, date, segments out/in, failures, provider cost, retail charge.
-- `ai_usage_events` **[MISSING]** — business, lead, purpose, model, tokens in/out, cost.
-- `usage_limits` **[MISSING]** — business, period, segment cap, AI spend cap, alert thresholds, hard-block flag.
-- `billing_subscriptions` **[MISSING]** — business, Stripe customer/subscription ids, plan, included allowance, status.
-- `messages` **[CHANGE]** — add `sender_id`, `segments`, `provider_cost`, `attempt_count`, `next_retry_at`.
-- `businesses` **[CHANGE]** — add `sms_credential_mode`; `phone_number` demoted to display.
-- `webhook_events` **[CHANGE]** — add `business_id` and signature-verification outcome.
-
-## 10. Security, consent, tenant isolation
-
-Every webhook: verify signature -> resolve tenant from the receiving number -> then write. Opt-out is per business and per number, stored with the triggering message, and blocks every automated path including retries. Consent text and the "Reply STOP to opt out" suffix stay mandatory on outbound. Provider credentials are read only inside server handlers; nothing tenant-sensitive crosses to the browser. Cross-tenant reads are prevented by RLS on the new tables and by the sender-scoped lookups above.
-
-## 11. Pilot vs SaaS scale
-
-**Required for the Glocast pilot:** one platform Twilio number in `sms_senders`; sender resolution in the outbound path; sender-scoped inbound and delivery lookups; Twilio signature verification; segment counting and usage recording; a monthly segment cap with alerts; unattended follow-up scheduling.
-
-**Deferrable to SaaS scale:** Twilio subaccounts and BYO credentials, ClickSend, Stripe subscriptions and metered overage, self-serve number provisioning, per-business onboarding wizard, margin reporting UI.
-
-## 12. Suggested build order
-
-1. `sms_senders` + Glocast number, sender resolution in `sendSms`.
-2. Webhook signature verification on all Twilio routes.
-3. Sender-scoped inbound and delivery-status lookups (closes the isolation gap).
-4. Segment counting, usage tables, AI usage events.
-5. Limits, alerts, bounded retries.
-6. Later: subaccounts, BYO, ClickSend, Stripe.
+- Access states and gating live in a server-only module called from the existing send gate in the lead engine; the engine's composition and provider logic is untouched.
+- Segment reservation uses a single atomic `update ... returning` guarded by the included-segment limit, so no two concurrent sends can both pass at 250.
+- Stripe access goes through the project's shared gateway client; keys stay server-side and no card data is ever stored.
+- Commercial configuration, Stripe IDs, usage periods and Stripe events are admin/service-role only under row-level security, consistent with existing tenant isolation.
+- Test mode only in this phase. No live payment readiness will be claimed until the sandbox acceptance tests pass.
