@@ -771,6 +771,92 @@ export type Database = {
           },
         ]
       }
+      pilot_applications: {
+        Row: {
+          business_name: string
+          challenge: string | null
+          contact_name: string
+          duplicate_of: string | null
+          email: string
+          id: string
+          internal_notes: string | null
+          landing_page: string | null
+          location: string | null
+          phone: string | null
+          referrer: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          services: string | null
+          status: string
+          submitted_at: string
+          updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          weekly_enquiry_volume: number | null
+        }
+        Insert: {
+          business_name: string
+          challenge?: string | null
+          contact_name: string
+          duplicate_of?: string | null
+          email: string
+          id?: string
+          internal_notes?: string | null
+          landing_page?: string | null
+          location?: string | null
+          phone?: string | null
+          referrer?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          services?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          weekly_enquiry_volume?: number | null
+        }
+        Update: {
+          business_name?: string
+          challenge?: string | null
+          contact_name?: string
+          duplicate_of?: string | null
+          email?: string
+          id?: string
+          internal_notes?: string | null
+          landing_page?: string | null
+          location?: string | null
+          phone?: string | null
+          referrer?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          services?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          weekly_enquiry_volume?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_applications_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "pilot_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
