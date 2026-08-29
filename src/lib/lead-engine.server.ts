@@ -16,6 +16,13 @@ import { getProvider, type ResolvedSender } from "@/lib/sms/provider.server";
 import { resolveEffectiveProviderName } from "@/lib/sms/resolution";
 import { assertTenantMatch } from "@/lib/sms/events";
 import { checkSmsCap, recordSmsUsage } from "@/lib/usage.server";
+import {
+  canReuseOutboundRow,
+  classifyCarrierFailure,
+  RESERVED_STATUS,
+  UNKNOWN_STATUS,
+} from "@/lib/sms/dispatch";
+import { isUniqueViolation } from "@/lib/sms/webhook.server";
 
 type Business = {
   id: string;
