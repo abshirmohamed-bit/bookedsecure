@@ -21,7 +21,12 @@ type Props = {
   pilotStartedAt: string | null;
   pilotEndsAt: string | null;
   paymentCompletedAt: string | null;
+  stripeSubscriptionId?: string | null;
+  renewalPreventionConfirmed?: boolean;
+  renewalPreventionAttempts?: number;
+  renewalPreventionLastError?: string | null;
 };
+
 
 /**
  * Platform-admin panel to invite one approved application to the paid pilot.
