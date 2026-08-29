@@ -11,7 +11,7 @@ export const Route = createFileRoute("/api/public/sms/inbound")({
       POST: async ({ request }) => {
         const { payload, rawBody } = await readPayload(request);
         const { getProvider } = await import("@/lib/sms/provider.server");
-        const { recordWebhookEvent, resolveEventId, logWebhook } = await import(
+        const { recordWebhookEvent, releaseWebhookEvent, resolveEventId, logWebhook } = await import(
           "@/lib/sms/webhook.server"
         );
         const { handleInboundMessage, findSenderByNumber } = await import(
@@ -53,7 +53,7 @@ export const Route = createFileRoute("/api/public/sms/inbound")({
         }
 
         // De-duplicate provider retries before doing any work.
-        const { duplicate } = await recordWebhookEvent({
+        const { duplicate, failed, reason } = await recordWebhookEvent({
           providerId: "twilio",
           eventId,
           eventType: "inbound",
@@ -61,6 +61,18 @@ export const Route = createFileRoute("/api/public/sms/inbound")({
           businessId: sender.businessId,
           signatureVerified: true,
         });
+        // Never acknowledge an event that was not safely persisted.
+        if (failed) {
+          logWebhook("error", "twilio", {
+            outcome: "persist_failed",
+            eventType: "inbound",
+            eventIdSource: source,
+            businessId: sender.businessId,
+            reason: reason ?? null,
+          });
+          return Response.json({ ok: false, error: "Persistence failed" }, { status: 503 });
+        }
+
         if (duplicate) {
           logWebhook("info", "twilio", {
             outcome: "duplicate_suppressed",
