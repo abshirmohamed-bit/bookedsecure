@@ -1383,6 +1383,10 @@ export type Database = {
         Args: { p_period_id: string; p_segments: number }
         Returns: undefined
       }
+      release_sms_segments: {
+        Args: { p_period_id: string; p_segments: number }
+        Returns: undefined
+      }
       reserve_sms_segments: {
         Args: { p_period_id: string; p_segments: number }
         Returns: {
