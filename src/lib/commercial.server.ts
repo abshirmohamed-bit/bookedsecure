@@ -162,7 +162,10 @@ type PilotRow = Pick<
   | "pilot_ends_at"
   | "pilot_extension_ends_at"
   | "commercial_terms_snapshot"
+  | "stripe_subscription_id"
+  | "renewal_prevention_confirmed"
 >;
+
 
 function toPilotRecord(row: PilotRow, config: CommercialConfig): PilotCommercialRecord {
   const snapshot = (row.commercial_terms_snapshot ?? null) as CommercialTermsSnapshot | null;
