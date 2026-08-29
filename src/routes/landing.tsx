@@ -258,8 +258,7 @@ function LandingPage() {
               </a>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
-              Early-stage platform. The live messaging provider setup is still being finalised, and
-              examples shown here are simulated.
+              BookedSecure is currently accepting a limited number of early-access pilot businesses.
             </p>
           </div>
           <div className="-mx-4 lg:mx-0">
