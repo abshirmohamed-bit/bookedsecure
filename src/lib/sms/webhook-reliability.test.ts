@@ -132,7 +132,7 @@ describe("route acknowledgement rules", () => {
 
 describe("signature verification remains mandatory", () => {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-  const publicKeyBase64 = publicKey.export({ format: "der", type: "spki" }).subarray(12).toString("base64");
+  const publicKeyBase64 = publicKey.export({ format: "der", type: "spki" }).subarray(-32).toString("base64");
   const rawBody = JSON.stringify({ data: { id: "evt_1" } });
   const timestamp = String(Math.floor(Date.now() / 1000));
 
