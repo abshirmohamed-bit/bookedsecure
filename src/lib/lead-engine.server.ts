@@ -497,10 +497,28 @@ export async function sendSms(input: {
   const provider = getProvider(sender.provider || business.default_sms_provider);
   const conversationId = await conversationIdFor(lead.id);
 
+  // Commercial gate (paid pilot): live sends require an active paid pilot
+  // with remaining segment allowance; segments are atomically reserved
+  // against the hard cap before contacting the carrier. Simulated sends
+  // (e.g. the Glocast environment) never touch a carrier and are exempt.
+  let pilotPeriodId: string | null = null;
+  if (provider.name !== "simulated") {
+    const { authorizeLiveSend } = await import("@/lib/commercial.server");
+    const gate = await authorizeLiveSend(input.businessId, segments);
+    if (!gate.allowed) {
+      return { sent: false, retriable: false, reason: gate.reason };
+    }
+    pilotPeriodId = gate.periodId;
+  }
+
   let result;
   try {
     result = await provider.sendMessage({ to: lead.mobile_number, body: input.body, sender });
   } catch (error) {
+    if (pilotPeriodId) {
+      const { releaseReservedSegments } = await import("@/lib/commercial.server");
+      await releaseReservedSegments(pilotPeriodId, segments);
+    }
     const detail = provider.formatProviderError(error);
     const existingFailure = input.idempotencyKey
       ? (
