@@ -195,10 +195,12 @@ export async function resolveSender(input: {
  */
 export async function findSenderByNumber(number: string): Promise<ResolvedSender | null> {
   const normalised = normaliseAuMobile(number) ?? number;
+  // Parameterised list — webhook-supplied text can never alter the filter.
+  const candidates = Array.from(new Set([normalised, number]));
   const { data } = await supabaseAdmin
     .from("sms_senders")
     .select(SENDER_COLUMNS)
-    .or(`phone_number.eq.${normalised},phone_number.eq.${number}`)
+    .in("phone_number", candidates)
     .eq("active", true)
     .not("business_id", "is", null)
     .limit(1)
