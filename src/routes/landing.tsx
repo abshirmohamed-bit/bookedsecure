@@ -437,8 +437,27 @@ function LandingPage() {
                 </div>
               ))}
             </div>
+            <div className="mt-8 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+              {SERVICE_IMAGES.map((img) => (
+                <figure key={img.src} className="relative overflow-hidden rounded-lg">
+                  <img
+                    src={img.src}
+                    alt={img.alt}
+                    width={1200}
+                    height={1200}
+                    loading="lazy"
+                    decoding="async"
+                    className="aspect-[16/9] w-full object-cover sm:aspect-[4/5]"
+                  />
+                  <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/90 to-transparent px-3 pb-3 pt-10 text-xs font-medium text-foreground">
+                    {img.label}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
         </section>
+
 
         {/* FAQs */}
         <section id="faqs" className="mx-auto max-w-3xl px-4 py-14">
