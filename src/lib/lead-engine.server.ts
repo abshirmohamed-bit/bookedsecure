@@ -457,17 +457,18 @@ export async function sendSms(input: {
   }
 
 
-  // Idempotency: a previously *successful* send with this key blocks a repeat.
-  // Failed attempts stay retriable.
+  // Fast path: a reserved, in-flight or successful send with this key blocks a
+  // repeat. Only confirmed failures stay retriable. The unique index on
+  // (business_id, idempotency_key) is the real guarantee — see the reservation
+  // insert below.
   if (input.idempotencyKey) {
     const { data: dupe } = await supabaseAdmin
       .from("messages")
-      .select("id")
+      .select("id, delivery_status")
       .eq("business_id", input.businessId)
       .eq("idempotency_key", input.idempotencyKey)
-      .neq("delivery_status", "failed")
       .maybeSingle();
-    if (dupe)
+    if (dupe && !canReuseOutboundRow(dupe.delivery_status))
       return {
         sent: false,
         duplicate: true,
