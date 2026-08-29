@@ -1,6 +1,6 @@
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 
-const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN as string | undefined;
+const clientToken = import.meta.env["VITE_PAYMENTS_CLIENT_TOKEN"] as string | undefined;
 
 let stripePromise: Promise<Stripe | null> | null = null;
 

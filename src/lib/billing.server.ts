@@ -41,7 +41,7 @@ export function pilotStripeEnv(): StripeEnv {
 type Row = Database["public"]["Tables"]["pilot_applications"]["Row"];
 
 const BILLING_COLUMNS =
-  "id, status, access_state, business_id, email, business_name, stripe_customer_id, stripe_subscription_id, stripe_checkout_session_id, pilot_started_at, pilot_ends_at, pilot_extension_ends_at, commercial_terms_snapshot, payment_required";
+  "id, status, cancellation_requested_at, access_state, business_id, email, business_name, stripe_customer_id, stripe_subscription_id, stripe_checkout_session_id, pilot_started_at, pilot_ends_at, pilot_extension_ends_at, commercial_terms_snapshot, payment_required";
 
 function toBilling(row: Partial<Row> & { id: string }): BillingApplication {
   return {
@@ -384,7 +384,7 @@ async function handleSubscriptionCanceled(subscription: any) {
       access_state: resolved.accessState,
       access_state_reason: resolved.reason,
       commercial_status: "canceled",
-      cancellation_requested_at: row.cancellation_requested_at ?? new Date().toISOString(),
+      cancellation_requested_at: new Date().toISOString(),
     })
     .eq("id", row.id);
 
