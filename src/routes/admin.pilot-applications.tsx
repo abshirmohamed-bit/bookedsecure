@@ -282,7 +282,12 @@ function ApplicationDetail({ application }: { application: Application }) {
         pilotStartedAt={application.pilot_started_at}
         pilotEndsAt={application.pilot_ends_at}
         paymentCompletedAt={application.payment_completed_at}
+        stripeSubscriptionId={application.stripe_subscription_id}
+        renewalPreventionConfirmed={application.renewal_prevention_confirmed}
+        renewalPreventionAttempts={application.renewal_prevention_attempts}
+        renewalPreventionLastError={application.renewal_prevention_last_error}
       />
+
     </div>
   );
 }
