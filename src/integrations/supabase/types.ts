@@ -342,6 +342,72 @@ export type Database = {
         }
         Relationships: []
       }
+      commercial_config: {
+        Row: {
+          billing_interval: string
+          cancellation_terms: string
+          configuration_version: number
+          created_at: string
+          currency: string
+          id: string
+          included_sms_segments: number
+          overage_mode: string
+          pilot_duration_days: number
+          pilot_end_action: string
+          pilot_price_minor_units: number
+          singleton: boolean
+          stripe_product_id: string | null
+          stripe_recurring_price_id: string | null
+          support_address: string
+          support_channel: string
+          support_target_business_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          billing_interval?: string
+          cancellation_terms?: string
+          configuration_version?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          included_sms_segments?: number
+          overage_mode?: string
+          pilot_duration_days?: number
+          pilot_end_action?: string
+          pilot_price_minor_units?: number
+          singleton?: boolean
+          stripe_product_id?: string | null
+          stripe_recurring_price_id?: string | null
+          support_address?: string
+          support_channel?: string
+          support_target_business_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          billing_interval?: string
+          cancellation_terms?: string
+          configuration_version?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          included_sms_segments?: number
+          overage_mode?: string
+          pilot_duration_days?: number
+          pilot_end_action?: string
+          pilot_price_minor_units?: number
+          singleton?: boolean
+          stripe_product_id?: string | null
+          stripe_recurring_price_id?: string | null
+          support_address?: string
+          support_channel?: string
+          support_target_business_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       consent_events: {
         Row: {
           business_id: string
@@ -773,21 +839,41 @@ export type Database = {
       }
       pilot_applications: {
         Row: {
+          access_state: string
+          access_state_reason: string | null
+          business_id: string | null
           business_name: string
+          cancellation_requested_at: string | null
           challenge: string | null
+          commercial_configuration_version: number | null
+          commercial_status: string
+          commercial_terms_snapshot: Json | null
           contact_name: string
+          continuation_approved_at: string | null
+          continuation_approved_by: string | null
+          continuation_requested_at: string | null
           duplicate_of: string | null
           email: string
           id: string
           internal_notes: string | null
           landing_page: string | null
+          last_payment_event_at: string | null
           location: string | null
+          payment_completed_at: string | null
+          payment_invited_at: string | null
+          payment_required: boolean
           phone: string | null
+          pilot_ends_at: string | null
+          pilot_extension_ends_at: string | null
+          pilot_started_at: string | null
           referrer: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           services: string | null
           status: string
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           submitted_at: string
           updated_at: string
           utm_campaign: string | null
@@ -798,21 +884,41 @@ export type Database = {
           weekly_enquiry_volume: number | null
         }
         Insert: {
+          access_state?: string
+          access_state_reason?: string | null
+          business_id?: string | null
           business_name: string
+          cancellation_requested_at?: string | null
           challenge?: string | null
+          commercial_configuration_version?: number | null
+          commercial_status?: string
+          commercial_terms_snapshot?: Json | null
           contact_name: string
+          continuation_approved_at?: string | null
+          continuation_approved_by?: string | null
+          continuation_requested_at?: string | null
           duplicate_of?: string | null
           email: string
           id?: string
           internal_notes?: string | null
           landing_page?: string | null
+          last_payment_event_at?: string | null
           location?: string | null
+          payment_completed_at?: string | null
+          payment_invited_at?: string | null
+          payment_required?: boolean
           phone?: string | null
+          pilot_ends_at?: string | null
+          pilot_extension_ends_at?: string | null
+          pilot_started_at?: string | null
           referrer?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           services?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           submitted_at?: string
           updated_at?: string
           utm_campaign?: string | null
@@ -823,21 +929,41 @@ export type Database = {
           weekly_enquiry_volume?: number | null
         }
         Update: {
+          access_state?: string
+          access_state_reason?: string | null
+          business_id?: string | null
           business_name?: string
+          cancellation_requested_at?: string | null
           challenge?: string | null
+          commercial_configuration_version?: number | null
+          commercial_status?: string
+          commercial_terms_snapshot?: Json | null
           contact_name?: string
+          continuation_approved_at?: string | null
+          continuation_approved_by?: string | null
+          continuation_requested_at?: string | null
           duplicate_of?: string | null
           email?: string
           id?: string
           internal_notes?: string | null
           landing_page?: string | null
+          last_payment_event_at?: string | null
           location?: string | null
+          payment_completed_at?: string | null
+          payment_invited_at?: string | null
+          payment_required?: boolean
           phone?: string | null
+          pilot_ends_at?: string | null
+          pilot_extension_ends_at?: string | null
+          pilot_started_at?: string | null
           referrer?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           services?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           submitted_at?: string
           updated_at?: string
           utm_campaign?: string | null
@@ -848,6 +974,13 @@ export type Database = {
           weekly_enquiry_volume?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pilot_applications_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pilot_applications_duplicate_of_fkey"
             columns: ["duplicate_of"]
@@ -1045,6 +1178,96 @@ export type Database = {
           },
         ]
       }
+      sms_usage_periods: {
+        Row: {
+          business_id: string | null
+          created_at: string
+          hard_cap_reached_at: string | null
+          id: string
+          included_segments: number
+          period_end: string
+          period_start: string
+          pilot_application_id: string
+          segments_blocked: number
+          segments_used: number
+          updated_at: string
+        }
+        Insert: {
+          business_id?: string | null
+          created_at?: string
+          hard_cap_reached_at?: string | null
+          id?: string
+          included_segments?: number
+          period_end: string
+          period_start: string
+          pilot_application_id: string
+          segments_blocked?: number
+          segments_used?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string | null
+          created_at?: string
+          hard_cap_reached_at?: string | null
+          id?: string
+          included_segments?: number
+          period_end?: string
+          period_start?: string
+          pilot_application_id?: string
+          segments_blocked?: number
+          segments_used?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_usage_periods_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_usage_periods_pilot_application_id_fkey"
+            columns: ["pilot_application_id"]
+            isOneToOne: false
+            referencedRelation: "pilot_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_events: {
+        Row: {
+          event_type: string
+          id: string
+          payload_reference: Json | null
+          processed_at: string | null
+          processing_error: string | null
+          processing_status: string
+          received_at: string
+          stripe_event_id: string
+        }
+        Insert: {
+          event_type: string
+          id?: string
+          payload_reference?: Json | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processing_status?: string
+          received_at?: string
+          stripe_event_id: string
+        }
+        Update: {
+          event_type?: string
+          id?: string
+          payload_reference?: Json | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processing_status?: string
+          received_at?: string
+          stripe_event_id?: string
+        }
+        Relationships: []
+      }
       usage_limits: {
         Row: {
           alert_threshold_pct: number
@@ -1156,7 +1379,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      record_blocked_sms_segments: {
+        Args: { p_period_id: string; p_segments: number }
+        Returns: undefined
+      }
+      reserve_sms_segments: {
+        Args: { p_period_id: string; p_segments: number }
+        Returns: {
+          business_id: string | null
+          created_at: string
+          hard_cap_reached_at: string | null
+          id: string
+          included_segments: number
+          period_end: string
+          period_start: string
+          pilot_application_id: string
+          segments_blocked: number
+          segments_used: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "sms_usage_periods"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_role: "owner" | "staff" | "platform_admin"
