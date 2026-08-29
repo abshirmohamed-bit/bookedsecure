@@ -108,14 +108,17 @@ function isWithinQuietHours(business: Business, at: Date): boolean {
 
 function toResolvedSender(row: {
   id: string;
-  business_id: string;
+  business_id: string | null;
   phone_number: string;
   provider: string;
   credential_mode: string;
   subaccount_sid: string | null;
   credential_secret_name: string | null;
   messaging_profile_id?: string | null;
-}): ResolvedSender {
+}): ResolvedSender | null {
+  // Unassigned platform inventory (no business) can never be used to send or
+  // receive: every write path is scoped by business_id.
+  if (!row.business_id) return null;
   return {
     id: row.id,
     businessId: row.business_id,
@@ -127,6 +130,7 @@ function toResolvedSender(row: {
     messagingProfileId: row.messaging_profile_id ?? null,
   };
 }
+
 
 const SENDER_COLUMNS =
   "id, business_id, phone_number, provider, credential_mode, subaccount_sid, credential_secret_name, messaging_profile_id, active";
