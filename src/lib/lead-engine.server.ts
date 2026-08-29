@@ -753,7 +753,7 @@ export async function handleInboundMessage(input: {
   providerName: string;
   payload: Record<string, unknown>;
   sender: ResolvedSender;
-}): Promise<{ handled: boolean; reason?: string; leadId?: string }> {
+}): Promise<{ handled: boolean; reason?: string; leadId?: string; replay?: boolean }> {
   const provider = getProvider(input.providerName);
   const inbound = provider.handleInboundMessage(input.payload);
   if (!inbound) return { handled: false, reason: "Payload missing sender or body." };
