@@ -92,7 +92,10 @@ export type PilotCommercialRecord = {
   pilotEndsAt: string | null;
   pilotExtensionEndsAt: string | null;
   includedSmsSegments: number;
+  stripeSubscriptionId: string | null;
+  renewalPreventionConfirmed: boolean;
 };
+
 
 export function addDays(isoDate: string, days: number): string {
   return new Date(new Date(isoDate).getTime() + days * 86_400_000).toISOString();
