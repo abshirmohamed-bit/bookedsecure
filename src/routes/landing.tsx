@@ -163,47 +163,35 @@ const AUDIENCE = [
 const FAQS = [
   {
     q: "What is BookedSecure?",
-    a: "A lead-response and follow-up platform designed for Australian detailing businesses. It's built to help you acknowledge enquiries, keep conversations moving, schedule follow-ups and manage which leads still need action.",
+    a: "BookedSecure helps detailing businesses respond to new enquiries and follow up consistently, so fewer potential jobs are forgotten.",
   },
   {
     q: "Who is it for?",
-    a: "Australian mobile detailers, automotive detailing studios, paint correction and ceramic coating businesses, and interior detailers — particularly owner-operators and small teams who handle enquiries themselves.",
+    a: "It's built for Australian mobile detailers, detailing studios, ceramic coating businesses, paint correction specialists and small teams managing customer enquiries.",
   },
   {
-    q: "Is BookedSecure live?",
-    a: "BookedSecure is at an early pilot stage. The workflow is being tested in a simulated messaging environment while the live provider arrangement is finalised.",
+    q: "How does it help?",
+    a: "It helps you acknowledge new enquiries, organise follow-ups, keep conversations visible and identify the next action.",
   },
   {
-    q: "Is Sinch connected?",
-    a: "Not yet. Sinch connectivity is still being finalised, and the current environment should not be treated as live Sinch production messaging.",
+    q: "Does it replace personal replies?",
+    a: "No. BookedSecure supports the follow-up process while the business remains in control of the conversation, quote and booking.",
   },
   {
-    q: "Which messaging providers are supported?",
-    a: "BookedSecure uses a provider-agnostic messaging layer. A simulated adapter is currently active. Telnyx and Twilio adapters are preserved in the architecture, and a Sinch adapter is reserved but not implemented. None are presented as released customer integrations yet.",
+    q: "Where do enquiries come from?",
+    a: "BookedSecure is designed for enquiries from websites, quote forms, social media, Google, phone calls and referrals.",
   },
   {
-    q: "Has production SMS been sent?",
-    a: "No. No production SMS has been sent through the pilot environment.",
+    q: "Can it guarantee more bookings?",
+    a: "No. It is designed to improve follow-up consistency, but outcomes depend on enquiries, offer, pricing, availability and customer demand.",
   },
   {
-    q: "Is Glocast a production customer?",
-    a: "Glocast is the initial Sydney design partner. The Glocast environment is simulated and is being used to test the workflow and product experience.",
-  },
-  {
-    q: "What does the pilot involve?",
-    a: "Reviewing the enquiry and follow-up workflow, testing it against how your business handles enquiries today, and giving feedback that shapes the product before broader availability.",
-  },
-  {
-    q: "Can BookedSecure guarantee more bookings?",
-    a: "No. BookedSecure is designed to improve response and follow-up consistency. Results depend on enquiry quality, your offer, pricing, availability, customer demand and how you use the workflow.",
-  },
-  {
-    q: "Does it replace human replies?",
-    a: "No. The platform is designed to support your response process. You remain responsible for reviewing conversations, answering customer-specific questions and confirming job details.",
+    q: "Who can join the pilot?",
+    a: "Australian detailing businesses that receive regular customer enquiries and want to improve how they manage follow-up.",
   },
   {
     q: "How do I request early access?",
-    a: "Complete the short form on this page. We'll review your details and be in touch about early access and the pilot process. Joining the waitlist doesn't automatically grant live access.",
+    a: "Submit the short form and we'll contact you about pilot availability.",
   },
 ];
 
