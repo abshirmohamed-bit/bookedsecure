@@ -503,9 +503,12 @@ export async function sendSms(input: {
     };
   }
 
-  // The sender row owns the carrier decision; the business default only
-  // applies when the sender has none recorded.
-  const provider = getProvider(sender.provider || business.default_sms_provider);
+  // The sender row owns the carrier decision, except that a business in
+  // simulated mode is a hard safety gate: no sender-level value can escalate
+  // it to a live carrier.
+  const provider = getProvider(
+    resolveEffectiveProviderName(business.default_sms_provider, sender.provider),
+  );
   const conversationId = await conversationIdFor(lead.id);
 
   // Commercial gate (paid pilot): live sends require an active paid pilot
