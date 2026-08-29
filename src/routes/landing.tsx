@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { submitPilotApplication } from "@/lib/pilot.functions";
+import { readAttribution } from "@/lib/pilot-schema";
+
 import {
   ArrowRight,
   BellRing,
