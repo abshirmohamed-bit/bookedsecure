@@ -336,6 +336,27 @@ function LandingPage() {
               Sample workflow · simulated example
             </span>
             <h2 className="mt-4 text-2xl font-semibold sm:text-3xl">From new enquiry to next action</h2>
+            {/* Workflow illustration (not a product screenshot) */}
+            <div
+              className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-stretch"
+              aria-hidden="true"
+            >
+              {[
+                { icon: ClipboardList, label: "New enquiry" },
+                { icon: Repeat2, label: "Follow-up" },
+                { icon: CheckCircle2, label: "Next step" },
+              ].map((node, i) => (
+                <div key={node.label} className="flex items-center gap-3 sm:flex-1 sm:flex-col">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-primary/40 bg-primary/10 text-primary">
+                    <node.icon className="h-4 w-4" />
+                  </span>
+                  <span className="text-sm font-medium">{node.label}</span>
+                  {i < 2 ? (
+                    <span className="ml-auto h-px w-10 bg-border sm:ml-0 sm:hidden" />
+                  ) : null}
+                </div>
+              ))}
+            </div>
             <div className="mt-8 space-y-4">
               {WORKFLOW.map((item) => (
                 <div key={item.label} className="panel p-4">
