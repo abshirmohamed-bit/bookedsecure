@@ -559,12 +559,10 @@ function LandingPage() {
         <footer className="mx-auto max-w-4xl px-4 py-10 text-xs text-muted-foreground">
           <p className="font-medium text-foreground">BookedSecure</p>
           <p className="mt-3">
-            BookedSecure is currently in an early pilot stage. Messaging features, provider
-            connectivity and availability may change during testing. Examples shown on this page are
-            illustrative or simulated. BookedSecure does not guarantee message delivery, customer
-            responses, bookings, revenue outcomes or legal compliance for a particular business.
-            Businesses remain responsible for obtaining appropriate customer consent and using
-            communications in accordance with applicable requirements.
+            BookedSecure does not guarantee message delivery, customer responses, bookings, revenue
+            outcomes or legal compliance for a particular business. Businesses remain responsible for
+            obtaining appropriate customer consent and using communications in accordance with applicable
+            requirements.
           </p>
         </footer>
       </main>
