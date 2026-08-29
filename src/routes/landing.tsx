@@ -421,10 +421,6 @@ function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="mt-6 text-xs text-muted-foreground">
-              Behind the scenes: a provider-agnostic messaging layer, a simulated messaging mode for
-              early testing, and configurable workflow steps.
-            </p>
           </div>
         </section>
 
