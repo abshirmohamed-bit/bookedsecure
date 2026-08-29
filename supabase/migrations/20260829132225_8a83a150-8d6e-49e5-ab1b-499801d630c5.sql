@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.admin_set_profile_assignment(uuid, uuid, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_profile_assignment(uuid, uuid, boolean) TO service_role;
