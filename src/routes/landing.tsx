@@ -252,33 +252,30 @@ function LandingPage() {
               examples shown here are simulated.
             </p>
           </div>
-          <div className="panel overflow-hidden">
+          <div className="-mx-4 lg:mx-0">
             <img
               src={heroImage}
-              alt="Mobile detailer machine-polishing the paintwork of a dark car at dusk"
+              alt="Mobile detailer machine-polishing the paintwork of a dark SUV on a residential driveway"
               width={1600}
-              height={1104}
-              className="h-56 w-full object-cover sm:h-80"
+              height={1200}
+              fetchPriority="high"
+              decoding="async"
+              className="aspect-[4/3] w-full object-cover object-[62%_center] sm:aspect-[16/10] sm:object-center lg:rounded-xl"
             />
-            <div className="space-y-3 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Simulated workflow · designed for the BookedSecure pilot
-              </p>
-              <ul className="space-y-2 text-sm">
-                {[
-                  "New enquiry received",
-                  "Acknowledgement prepared",
-                  "Follow-up scheduled",
-                  "Customer replies",
-                  "Lead moves towards booking",
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ul className="mt-5 grid gap-y-2 px-4 text-sm text-muted-foreground sm:grid-cols-2 lg:px-0">
+              {[
+                "New enquiry received",
+                "Acknowledgement prepared",
+                "Follow-up scheduled",
+                "Customer replies",
+                "Lead moves towards booking",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
