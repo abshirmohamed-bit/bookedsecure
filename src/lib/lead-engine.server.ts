@@ -13,6 +13,7 @@ import {
 } from "@/lib/domain";
 import { countSegments } from "@/lib/sms/segments";
 import { getProvider, type ResolvedSender } from "@/lib/sms/provider.server";
+import { resolveEffectiveProviderName } from "@/lib/sms/resolution";
 import { assertTenantMatch } from "@/lib/sms/events";
 import { checkSmsCap, recordSmsUsage } from "@/lib/usage.server";
 
