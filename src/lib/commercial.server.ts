@@ -95,7 +95,7 @@ export async function updateCommercialConfig(
     >
   >,
 ): Promise<CommercialConfig> {
-  const { requirePlatformAdmin, auditPilotEvent } = await import("@/lib/pilot.server");
+  const { requirePlatformAdmin } = await import("@/lib/pilot.server");
   await requirePlatformAdmin(caller, userId);
 
   const current = await getCommercialConfig();
@@ -123,8 +123,8 @@ export async function updateCommercialConfig(
     .single();
   if (error) throw new Error(error.message);
 
-  await auditPilotEvent({
-    actorUserId: userId,
+  await auditCommercialEvent({
+    userId,
     eventType: "commercial_config_updated",
     entityType: "commercial_config",
     entityId: current.id,
@@ -286,7 +286,7 @@ export async function authorizeLiveSend(
       p_period_id: period.id,
       p_segments: segments,
     });
-    await audit({
+    await auditCommercialEvent({
       businessId,
       userId: null,
       eventType: "sms_blocked_usage_cap",
