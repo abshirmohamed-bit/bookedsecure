@@ -19,6 +19,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
+import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicSmsInboundRouteImport } from './routes/api/public/sms/inbound'
@@ -76,6 +77,12 @@ const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   path: '/api/public/hooks/follow-ups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksPilotExpiryRoute =
+  ApiPublicHooksPilotExpiryRouteImport.update({
+    id: '/api/public/hooks/pilot-expiry',
+    path: '/api/public/hooks/pilot-expiry',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicLeadsIntakeRoute = ApiPublicLeadsIntakeRouteImport.update({
   id: '/api/public/leads/intake',
   path: '/api/public/leads/intake',
@@ -119,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
@@ -137,6 +145,7 @@ export interface FileRoutesByTo {
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
@@ -156,6 +165,7 @@ export interface FileRoutesById {
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/api/public/hooks/follow-ups'
+    | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
     | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/api/public/hooks/follow-ups'
+    | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
     | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/api/public/hooks/follow-ups'
+    | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
     | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
@@ -231,6 +244,7 @@ export interface RootRouteChildren {
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
+  ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicSmsInboundRoute: typeof ApiPublicSmsInboundRoute
@@ -311,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksFollowUpsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/pilot-expiry': {
+      id: '/api/public/hooks/pilot-expiry'
+      path: '/api/public/hooks/pilot-expiry'
+      fullPath: '/api/public/hooks/pilot-expiry'
+      preLoaderRoute: typeof ApiPublicHooksPilotExpiryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/leads/intake': {
       id: '/api/public/leads/intake'
       path: '/api/public/leads/intake'
@@ -367,6 +388,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
+  ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicSmsInboundRoute: ApiPublicSmsInboundRoute,
