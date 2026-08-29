@@ -26,9 +26,29 @@ export async function resolveEventId(input: {
   return { eventId: await eventFingerprint(input.providerId, input.rawBody), source: "hash" };
 }
 
+/** Postgres unique-violation — the only error that means "already recorded". */
+export function isUniqueViolation(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === "string" && code === "23505") return true;
+  const message = (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" && /duplicate key value|already exists/i.test(message);
+}
+
+export type WebhookRecordResult = {
+  /** The provider already sent this event: safe to acknowledge and stop. */
+  duplicate: boolean;
+  /** Persistence failed for a reason other than duplication: never acknowledge. */
+  failed: boolean;
+  reason?: string;
+};
+
 /**
  * Records the event and reports whether it is a duplicate. Insert-first, so the
  * unique index — not application state — is what guarantees exactly-once.
+ *
+ * Only a unique violation (23505) counts as a duplicate. Any other database
+ * error is a real failure so the caller can answer non-2xx and let the provider
+ * retry, rather than silently acknowledging an unpersisted event.
  */
 export async function recordWebhookEvent(input: {
   providerId: string;
@@ -37,7 +57,7 @@ export async function recordWebhookEvent(input: {
   payload: Record<string, unknown>;
   businessId?: string | null;
   signatureVerified: boolean;
-}): Promise<{ duplicate: boolean }> {
+}): Promise<WebhookRecordResult> {
   const { error } = await supabaseAdmin.from("webhook_events").insert({
     provider: input.providerId,
     event_id: input.eventId,
@@ -46,7 +66,26 @@ export async function recordWebhookEvent(input: {
     business_id: input.businessId ?? null,
     signature_verified: input.signatureVerified,
   });
-  return { duplicate: Boolean(error) };
+  if (!error) return { duplicate: false, failed: false };
+  if (isUniqueViolation(error)) return { duplicate: true, failed: false };
+  return {
+    duplicate: false,
+    failed: true,
+    reason: (error as { message?: string }).message ?? "webhook_persist_failed",
+  };
+}
+
+/**
+ * Compensating delete used when the event row was written but downstream
+ * processing threw. Without a processed-state column this is the smallest safe
+ * way to keep the event replayable instead of permanently "handled".
+ */
+export async function releaseWebhookEvent(providerId: string, eventId: string): Promise<void> {
+  await supabaseAdmin
+    .from("webhook_events")
+    .delete()
+    .eq("provider", providerId)
+    .eq("event_id", eventId);
 }
 
 /**
