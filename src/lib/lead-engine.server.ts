@@ -688,7 +688,7 @@ export async function sendSms(input: {
     metadata: { segments, sender: sender.phoneNumber },
   });
 
-  return { sent: true, ...(message?.id ? { messageId: message.id } : {}) };
+  return { sent: true, messageId: message?.id ?? messageId };
 }
 
 async function conversationIdFor(leadId: string): Promise<string | null> {
