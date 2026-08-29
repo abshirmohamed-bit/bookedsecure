@@ -19,6 +19,7 @@ import {
 } from "@/lib/commercial";
 import {
   assertCheckoutEligible,
+  confirmRenewalPrevention,
   pilotWindowFromPayment,
   resolveCancellationState,
   shouldExpire,
@@ -26,6 +27,7 @@ import {
   validatePaymentFacts,
   type BillingApplication,
 } from "@/lib/billing";
+
 import { getCommercialConfig, freezeTermsForApplication } from "@/lib/commercial.server";
 import { auditPilotEvent } from "@/lib/pilot.server";
 import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "@/lib/stripe.server";
