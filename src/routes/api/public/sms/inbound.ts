@@ -11,9 +11,13 @@ export const Route = createFileRoute("/api/public/sms/inbound")({
       POST: async ({ request }) => {
         const { payload, rawBody } = await readPayload(request);
         const { getProvider } = await import("@/lib/sms/provider.server");
-        const { recordWebhookEvent, releaseWebhookEvent, resolveEventId, logWebhook } = await import(
-          "@/lib/sms/webhook.server"
-        );
+        const {
+          recordWebhookEvent,
+          markWebhookProcessed,
+          markWebhookFailed,
+          resolveEventId,
+          logWebhook,
+        } = await import("@/lib/sms/webhook.server");
         const { handleInboundMessage, findSenderByNumber } = await import(
           "@/lib/lead-engine.server"
         );
@@ -53,7 +57,7 @@ export const Route = createFileRoute("/api/public/sms/inbound")({
         }
 
         // De-duplicate provider retries before doing any work.
-        const { duplicate, failed, reason } = await recordWebhookEvent({
+        const { duplicate, failed, reason, state } = await recordWebhookEvent({
           providerId: "twilio",
           eventId,
           eventType: "inbound",
@@ -74,26 +78,40 @@ export const Route = createFileRoute("/api/public/sms/inbound")({
         }
 
         if (duplicate) {
-          logWebhook("info", "twilio", {
-            outcome: "duplicate_suppressed",
+          // An event still being processed elsewhere is never acknowledged as done.
+          const inProgress = state === "duplicate_in_progress";
+          logWebhook(inProgress ? "warn" : "info", "twilio", {
+            outcome: inProgress ? "duplicate_in_progress" : "duplicate_processed",
             eventType: "inbound",
             eventIdSource: source,
             businessId: sender.businessId,
           });
-          return Response.json({ ok: true, duplicate: true });
+          return inProgress
+            ? Response.json({ ok: false, processing: true }, { status: 409 })
+            : Response.json({ ok: true, duplicate: true });
         }
 
-        // Processing failure releases the event row and answers non-2xx so the
-        // provider retries instead of the retry being suppressed as a duplicate.
+        // processed_at is written only after all downstream work succeeded.
         try {
           const result = await handleInboundMessage({
             providerName: sender.provider,
             payload: payload as never,
             sender,
           });
+          const marked = await markWebhookProcessed("twilio", eventId);
+          if (!marked.ok) {
+            logWebhook("error", "twilio", {
+              outcome: "mark_processed_failed",
+              eventType: "inbound",
+              eventIdSource: source,
+              businessId: sender.businessId,
+              reason: marked.reason ?? null,
+            });
+            return Response.json({ ok: false, error: "Persistence failed" }, { status: 503 });
+          }
           return Response.json(result, { status: result.handled ? 200 : 202 });
         } catch (error) {
-          await releaseWebhookEvent("twilio", eventId);
+          await markWebhookFailed("twilio", eventId, error);
           logWebhook("error", "twilio", {
             outcome: "processing_failed",
             eventType: "inbound",

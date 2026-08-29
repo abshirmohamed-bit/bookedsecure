@@ -23,9 +23,13 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
 
         const { getProvider } = await import("@/lib/sms/provider.server");
         const { flattenTelnyxPayload } = await import("@/lib/sms/telnyx.server");
-        const { recordWebhookEvent, releaseWebhookEvent, resolveEventId, logWebhook } = await import(
-          "@/lib/sms/webhook.server"
-        );
+        const {
+          recordWebhookEvent,
+          markWebhookProcessed,
+          markWebhookFailed,
+          resolveEventId,
+          logWebhook,
+        } = await import("@/lib/sms/webhook.server");
         const { handleInboundMessage, handleDeliveryStatus, findSenderByNumber } = await import(
           "@/lib/lead-engine.server"
         );
@@ -70,7 +74,7 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           return Response.json({ ok: false, error: "Unknown number" }, { status: 404 });
         }
 
-        const { duplicate, failed, reason } = await recordWebhookEvent({
+        const { duplicate, failed, reason, state } = await recordWebhookEvent({
           providerId: "telnyx",
           eventId,
           eventType: flat.eventType ?? "unknown",
@@ -91,28 +95,35 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           return Response.json({ ok: false, error: "Persistence failed" }, { status: 503 });
         }
         if (duplicate) {
-          logWebhook("info", "telnyx", {
-            outcome: "duplicate_suppressed",
+          // Only a completed event may be acknowledged. An event another worker
+          // is still processing must answer non-2xx so Telnyx redelivers later.
+          const inProgress = state === "duplicate_in_progress";
+          logWebhook(inProgress ? "warn" : "info", "telnyx", {
+            outcome: inProgress ? "duplicate_in_progress" : "duplicate_processed",
             eventType: flat.eventType,
             eventIdSource: source,
             businessId: sender.businessId,
           });
-          return Response.json({ ok: true, duplicate: true });
+          return inProgress
+            ? Response.json({ ok: false, processing: true }, { status: 409 })
+            : Response.json({ ok: true, duplicate: true });
         }
 
-        // Processing failures release the event row, so the retry is not
-        // suppressed as a duplicate of an event that was never handled.
+        // processed_at is only written once all downstream work succeeded; a
+        // failure leaves the event durably retryable and answers non-2xx.
         try {
+          let body: Record<string, unknown> = { ok: true, ignored: flat.eventType };
+          let status = 200;
+
           if (inbound) {
             const result = await handleInboundMessage({
               providerName: "telnyx",
               payload,
               sender,
             });
-            return Response.json(result, { status: result.handled ? 200 : 202 });
-          }
-
-          if (flat.eventType === "message.sent" || flat.eventType === "message.finalized") {
+            body = result as unknown as Record<string, unknown>;
+            status = result.handled ? 200 : 202;
+          } else if (flat.eventType === "message.sent" || flat.eventType === "message.finalized") {
             const result = await handleDeliveryStatus({
               providerName: "telnyx",
               payload,
@@ -121,10 +132,23 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
                 ? { providerCost: flat.cost }
                 : {}),
             });
-            return Response.json(result);
+            body = result as unknown as Record<string, unknown>;
           }
+
+          const marked = await markWebhookProcessed("telnyx", eventId);
+          if (!marked.ok) {
+            logWebhook("error", "telnyx", {
+              outcome: "mark_processed_failed",
+              eventType: flat.eventType,
+              eventIdSource: source,
+              businessId: sender.businessId,
+              reason: marked.reason ?? null,
+            });
+            return Response.json({ ok: false, error: "Persistence failed" }, { status: 503 });
+          }
+          return Response.json(body, { status });
         } catch (error) {
-          await releaseWebhookEvent("telnyx", eventId);
+          await markWebhookFailed("telnyx", eventId, error);
           logWebhook("error", "telnyx", {
             outcome: "processing_failed",
             eventType: flat.eventType,
@@ -134,8 +158,6 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           });
           return Response.json({ ok: false, error: "Processing failed" }, { status: 503 });
         }
-
-        return Response.json({ ok: true, ignored: flat.eventType });
       },
     },
   },
