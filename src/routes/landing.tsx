@@ -197,6 +197,10 @@ const FAQS = [
 
 function LandingPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submitApplication = useServerFn(submitPilotApplication);
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
