@@ -12,12 +12,14 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import {
   hasMessagingAccess,
+  isMessagingEligibleState,
   snapshotTerms,
   type CommercialConfig,
   type CommercialTermsSnapshot,
   type PilotAccessState,
   type PilotCommercialRecord,
 } from "@/lib/commercial";
+
 
 /** Platform-level audit entry (no tenant scope). */
 async function auditCommercialEvent(input: {
@@ -271,7 +273,11 @@ export async function authorizeLiveSend(
   const access = hasMessagingAccess(pilot, now);
   if (!access.allowed) {
     // Lazily record pilot expiry so the state model stays truthful.
-    if (access.reason === "The pilot period has ended." && pilot.accessState === "paid") {
+    if (
+      access.reason === "The pilot period has ended." &&
+      isMessagingEligibleState(pilot.accessState)
+    ) {
+
       await supabaseAdmin
         .from("pilot_applications")
         .update({ access_state: "pilot_expired", access_state_reason: "Pilot window elapsed" })

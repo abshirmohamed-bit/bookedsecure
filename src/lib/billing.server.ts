@@ -15,8 +15,10 @@ import type { Database } from "@/integrations/supabase/types";
 import {
   effectivePilotEnd,
   snapshotTerms,
+  MESSAGING_ELIGIBLE_STATES,
   type CommercialTermsSnapshot,
 } from "@/lib/commercial";
+
 import {
   assertCheckoutEligible,
   confirmRenewalPrevention,
@@ -503,10 +505,11 @@ export async function processPilotExpiry(now: Date = new Date()) {
   const { data: rows, error } = await supabaseAdmin
     .from("pilot_applications")
     .select(BILLING_COLUMNS)
-    .eq("access_state", "paid")
+    .in("access_state", [...MESSAGING_ELIGIBLE_STATES])
     .not("pilot_ends_at", "is", null)
     .lte("pilot_ends_at", now.toISOString())
     .limit(500);
+
   if (error) throw new Error(error.message);
 
   const expired: string[] = [];
@@ -522,7 +525,7 @@ export async function processPilotExpiry(now: Date = new Date()) {
         commercial_status: "pilot_expired",
       })
       .eq("id", app.id)
-      .eq("access_state", "paid")
+      .eq("access_state", app.accessState)
       .select("id")
       .maybeSingle();
 
