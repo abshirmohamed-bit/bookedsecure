@@ -12,9 +12,13 @@ export const Route = createFileRoute("/api/public/sms/status")({
           : Object.fromEntries(new URLSearchParams(rawBody).entries());
 
         const { getProvider } = await import("@/lib/sms/provider.server");
-        const { recordWebhookEvent, releaseWebhookEvent, resolveEventId, logWebhook } = await import(
-          "@/lib/sms/webhook.server"
-        );
+        const {
+          recordWebhookEvent,
+          markWebhookProcessed,
+          markWebhookFailed,
+          resolveEventId,
+          logWebhook,
+        } = await import("@/lib/sms/webhook.server");
         const { handleDeliveryStatus, findSenderByNumber } = await import(
           "@/lib/lead-engine.server"
         );
@@ -56,7 +60,7 @@ export const Route = createFileRoute("/api/public/sms/status")({
           return Response.json({ ok: false, error: "Unknown sending number" }, { status: 404 });
         }
 
-        const { duplicate, failed, reason } = await recordWebhookEvent({
+        const { duplicate, failed, reason, state } = await recordWebhookEvent({
           providerId: "twilio",
           eventId,
           eventType: "status",
@@ -77,13 +81,16 @@ export const Route = createFileRoute("/api/public/sms/status")({
         }
 
         if (duplicate) {
-          logWebhook("info", "twilio", {
-            outcome: "duplicate_suppressed",
+          const inProgress = state === "duplicate_in_progress";
+          logWebhook(inProgress ? "warn" : "info", "twilio", {
+            outcome: inProgress ? "duplicate_in_progress" : "duplicate_processed",
             eventType: "status",
             eventIdSource: source,
             businessId: sender.businessId,
           });
-          return Response.json({ ok: true, duplicate: true });
+          return inProgress
+            ? Response.json({ ok: false, processing: true }, { status: 409 })
+            : Response.json({ ok: true, duplicate: true });
         }
 
         try {
@@ -92,9 +99,20 @@ export const Route = createFileRoute("/api/public/sms/status")({
             payload: payload as never,
             sender,
           });
+          const marked = await markWebhookProcessed("twilio", eventId);
+          if (!marked.ok) {
+            logWebhook("error", "twilio", {
+              outcome: "mark_processed_failed",
+              eventType: "status",
+              eventIdSource: source,
+              businessId: sender.businessId,
+              reason: marked.reason ?? null,
+            });
+            return Response.json({ ok: false, error: "Persistence failed" }, { status: 503 });
+          }
           return Response.json(result);
         } catch (error) {
-          await releaseWebhookEvent("twilio", eventId);
+          await markWebhookFailed("twilio", eventId, error);
           logWebhook("error", "twilio", {
             outcome: "processing_failed",
             eventType: "status",
