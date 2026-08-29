@@ -23,7 +23,7 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
 
         const { getProvider } = await import("@/lib/sms/provider.server");
         const { flattenTelnyxPayload } = await import("@/lib/sms/telnyx.server");
-        const { recordWebhookEvent, resolveEventId, logWebhook } = await import(
+        const { recordWebhookEvent, releaseWebhookEvent, resolveEventId, logWebhook } = await import(
           "@/lib/sms/webhook.server"
         );
         const { handleInboundMessage, handleDeliveryStatus, findSenderByNumber } = await import(
