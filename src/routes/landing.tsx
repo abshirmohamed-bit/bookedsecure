@@ -427,30 +427,9 @@ function LandingPage() {
         {/* Trust / pilot stage */}
         <section className="mx-auto max-w-3xl px-4 py-14">
           <h2 className="text-2xl font-semibold sm:text-3xl">Built carefully, with detailing businesses</h2>
-          <div className="mt-5 space-y-4 text-sm text-muted-foreground sm:text-base">
-            <p>
-              BookedSecure is an early-stage platform being shaped with input from Australian
-              detailing businesses. Glocast is the initial Sydney design partner, and the current
-              environment is being used to test the workflow and product experience. Production SMS
-              has not yet been sent through the pilot.
-            </p>
-            <p>
-              The messaging provider partnership and live delivery setup are still being finalised.
-              Early-access businesses will help validate the workflow before broader availability.
-            </p>
-          </div>
-          <ul className="mt-6 grid gap-2 text-sm sm:grid-cols-2">
-            {[
-              "Designed specifically for detailing businesses",
-              "Initial Sydney design partner: Glocast",
-              "Simulated messaging environment currently active",
-              "Provider-agnostic messaging layer",
-            ].map((item) => (
-              <li key={item} className="rounded-md border border-border bg-card px-3 py-2">
-                {item}
-              </li>
-            ))}
-          </ul>
+          <p className="mt-5 text-sm text-muted-foreground sm:text-base">
+            BookedSecure is currently accepting a limited number of early-access pilot businesses.
+          </p>
         </section>
 
         {/* Who it's for */}
