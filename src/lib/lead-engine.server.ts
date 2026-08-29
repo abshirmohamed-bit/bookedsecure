@@ -775,28 +775,45 @@ export async function handleInboundMessage(input: {
 
   const conversationId = await conversationIdFor(lead.id);
   const { segments } = countSegments(inbound.body);
-  const { data: inboundMessage } = await supabaseAdmin
-    .from("messages")
-    .insert({
-      business_id: businessId,
-      lead_id: lead.id,
-      conversation_id: conversationId,
-      direction: "inbound",
-      body: inbound.body,
-      provider: provider.name,
-      provider_message_id: inbound.providerMessageId,
-      sender_id: input.sender.id,
-      from_number: mobile,
-      segments,
-      delivery_status: "delivered",
-      message_kind: "customer_reply",
-      idempotency_key: `in:${inbound.providerMessageId}`,
-      received_at: inbound.receivedAt,
-    })
-    .select("id")
-    .single();
+  const idempotencyKey = `in:${inbound.providerMessageId}`;
 
-  await recordSmsUsage({ businessId, segmentsIn: segments });
+  // A webhook retry may re-enter here after a mid-way failure. The inbound row,
+  // the usage counter and the audit event are written exactly once; the state
+  // updates below are set-to-value, so replaying them is harmless.
+  const { data: existingInbound } = await supabaseAdmin
+    .from("messages")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+  const alreadyPersisted = Boolean(existingInbound?.id);
+
+  let inboundMessage: { id: string } | null = existingInbound ?? null;
+  if (!alreadyPersisted) {
+    const { data: created } = await supabaseAdmin
+      .from("messages")
+      .insert({
+        business_id: businessId,
+        lead_id: lead.id,
+        conversation_id: conversationId,
+        direction: "inbound",
+        body: inbound.body,
+        provider: provider.name,
+        provider_message_id: inbound.providerMessageId,
+        sender_id: input.sender.id,
+        from_number: mobile,
+        segments,
+        delivery_status: "delivered",
+        message_kind: "customer_reply",
+        idempotency_key: idempotencyKey,
+        received_at: inbound.receivedAt,
+      })
+      .select("id")
+      .single();
+    inboundMessage = created ?? null;
+    await recordSmsUsage({ businessId, segmentsIn: segments });
+  }
+
 
   const optOut = isOptOutMessage(inbound.body);
 
