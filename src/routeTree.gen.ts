@@ -20,6 +20,7 @@ import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicSmsInboundRouteImport } from './routes/api/public/sms/inbound'
 import { Route as ApiPublicSmsSinchRouteImport } from './routes/api/public/sms/sinch'
 import { Route as ApiPublicSmsStatusRouteImport } from './routes/api/public/sms/status'
@@ -80,6 +81,12 @@ const ApiPublicLeadsIntakeRoute = ApiPublicLeadsIntakeRouteImport.update({
   path: '/api/public/leads/intake',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSmsInboundRoute = ApiPublicSmsInboundRouteImport.update({
   id: '/api/public/sms/inbound',
   path: '/api/public/sms/inbound',
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
@@ -130,6 +138,7 @@ export interface FileRoutesByTo {
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
@@ -148,6 +157,7 @@ export interface FileRoutesById {
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/leads/$leadId'
     | '/api/public/hooks/follow-ups'
     | '/api/public/leads/intake'
+    | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/leads/$leadId'
     | '/api/public/hooks/follow-ups'
     | '/api/public/leads/intake'
+    | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
@@ -201,6 +213,7 @@ export interface FileRouteTypes {
     | '/leads/$leadId'
     | '/api/public/hooks/follow-ups'
     | '/api/public/leads/intake'
+    | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
@@ -219,6 +232,7 @@ export interface RootRouteChildren {
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicSmsInboundRoute: typeof ApiPublicSmsInboundRoute
   ApiPublicSmsSinchRoute: typeof ApiPublicSmsSinchRoute
   ApiPublicSmsStatusRoute: typeof ApiPublicSmsStatusRoute
@@ -304,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLeadsIntakeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/sms/inbound': {
       id: '/api/public/sms/inbound'
       path: '/api/public/sms/inbound'
@@ -347,6 +368,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicSmsInboundRoute: ApiPublicSmsInboundRoute,
   ApiPublicSmsSinchRoute: ApiPublicSmsSinchRoute,
   ApiPublicSmsStatusRoute: ApiPublicSmsStatusRoute,
