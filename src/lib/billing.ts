@@ -7,11 +7,13 @@
  */
 import {
   effectivePilotEnd,
+  isMessagingEligibleState,
   isPilotWindowExpired,
   pilotEndFor,
   type CommercialTermsSnapshot,
   type PilotAccessState,
 } from "@/lib/commercial";
+
 
 /** The minimal application shape the billing rules need. */
 export type BillingApplication = {
@@ -107,8 +109,12 @@ export function pilotWindowFromPayment(
  * checkout session.
  */
 export function shouldStartPilot(app: BillingApplication, checkoutSessionId: string): boolean {
+  // Consideration satisfied off-Stripe: no payment event may ever rewrite the
+  // recorded pilot window.
+  if (app.accessState === "paid_by_platform_credits") return false;
   if (app.accessState === "paid" && app.pilotStartedAt) return false;
   if (app.stripeCheckoutSessionId === checkoutSessionId && app.pilotStartedAt) return false;
+
   return true;
 }
 
@@ -129,11 +135,12 @@ export function resolveCancellationState(
   };
 }
 
-/** Expiry only touches paid pilots whose effective end date has passed. */
+/** Expiry only touches active pilots whose effective end date has passed. */
 export function shouldExpire(app: BillingApplication, now: Date = new Date()): boolean {
-  if (app.accessState !== "paid") return false;
+  if (!isMessagingEligibleState(app.accessState)) return false;
   return isPilotWindowExpired(app, now);
 }
+
 
 /* --------------------------------------------------- renewal prevention */
 

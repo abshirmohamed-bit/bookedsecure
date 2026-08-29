@@ -15,8 +15,10 @@ import type { Database } from "@/integrations/supabase/types";
 import {
   effectivePilotEnd,
   snapshotTerms,
+  MESSAGING_ELIGIBLE_STATES,
   type CommercialTermsSnapshot,
 } from "@/lib/commercial";
+
 import {
   assertCheckoutEligible,
   confirmRenewalPrevention,
