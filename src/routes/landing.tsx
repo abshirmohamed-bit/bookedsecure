@@ -12,7 +12,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-import heroImage from "@/assets/detailing-hero.jpg";
+import heroImage from "@/assets/detail-hero.jpg";
+import enquiryImage from "@/assets/detail-enquiry.jpg";
+import exteriorImage from "@/assets/detail-exterior.jpg";
+import coatingImage from "@/assets/detail-coating.jpg";
+import interiorImage from "@/assets/detail-interior.jpg";
 import {
   Accordion,
   AccordionContent,
@@ -127,6 +131,24 @@ const FEATURES = [
   { icon: ClipboardList, title: "Lead status and management" },
   { icon: BellRing, title: "Reminder support" },
   { icon: CalendarClock, title: "Enquiry history and next actions" },
+];
+
+const SERVICE_IMAGES = [
+  {
+    src: exteriorImage,
+    label: "Exterior detailing",
+    alt: "Professional detailer applying wash foam to a sedan on a clean driveway with detailing tools nearby",
+  },
+  {
+    src: coatingImage,
+    label: "Paint correction & ceramic coating",
+    alt: "Close-up of a gloved detailer applying ceramic coating to a glossy dark car panel",
+  },
+  {
+    src: interiorImage,
+    label: "Interior detailing",
+    alt: "Detailer steam-cleaning and brushing the dashboard and console of a premium car interior",
+  },
 ];
 
 const AUDIENCE = [
@@ -252,33 +274,30 @@ function LandingPage() {
               examples shown here are simulated.
             </p>
           </div>
-          <div className="panel overflow-hidden">
+          <div className="-mx-4 lg:mx-0">
             <img
               src={heroImage}
-              alt="Mobile detailer machine-polishing the paintwork of a dark car at dusk"
+              alt="Mobile detailer machine-polishing the paintwork of a dark SUV on a residential driveway"
               width={1600}
-              height={1104}
-              className="h-56 w-full object-cover sm:h-80"
+              height={1200}
+              fetchPriority="high"
+              decoding="async"
+              className="aspect-[4/3] w-full object-cover object-[62%_center] sm:aspect-[16/10] sm:object-center lg:rounded-xl"
             />
-            <div className="space-y-3 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Simulated workflow · designed for the BookedSecure pilot
-              </p>
-              <ul className="space-y-2 text-sm">
-                {[
-                  "New enquiry received",
-                  "Acknowledgement prepared",
-                  "Follow-up scheduled",
-                  "Customer replies",
-                  "Lead moves towards booking",
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ul className="mt-5 grid gap-y-2 px-4 text-sm text-muted-foreground sm:grid-cols-2 lg:px-0">
+              {[
+                "New enquiry received",
+                "Acknowledgement prepared",
+                "Follow-up scheduled",
+                "Customer replies",
+                "Lead moves towards booking",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
@@ -293,6 +312,15 @@ function LandingPage() {
               between jobs, working at a customer's home or closing up for the day. A quick response
               is hard. A second follow-up is even easier to forget.
             </p>
+            <img
+              src={enquiryImage}
+              alt="Detailer in gloves checking a new customer enquiry on a smartphone beside a car between jobs"
+              width={1600}
+              height={1008}
+              loading="lazy"
+              decoding="async"
+              className="-mx-4 mt-8 aspect-[4/3] w-[calc(100%+2rem)] object-cover object-[70%_center] sm:mx-0 sm:aspect-[16/9] sm:w-full sm:rounded-xl sm:object-center"
+            />
             <ul className="mt-6 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
               {[
                 "They contact another detailer",
@@ -339,6 +367,27 @@ function LandingPage() {
               Sample workflow · simulated example
             </span>
             <h2 className="mt-4 text-2xl font-semibold sm:text-3xl">From new enquiry to next action</h2>
+            {/* Workflow illustration (not a product screenshot) */}
+            <div
+              className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-stretch"
+              aria-hidden="true"
+            >
+              {[
+                { icon: ClipboardList, label: "New enquiry" },
+                { icon: Repeat2, label: "Follow-up" },
+                { icon: CheckCircle2, label: "Next step" },
+              ].map((node, i) => (
+                <div key={node.label} className="flex items-center gap-3 sm:flex-1 sm:flex-col">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-primary/40 bg-primary/10 text-primary">
+                    <node.icon className="h-4 w-4" />
+                  </span>
+                  <span className="text-sm font-medium">{node.label}</span>
+                  {i < 2 ? (
+                    <span className="ml-auto h-px w-10 bg-border sm:ml-0 sm:hidden" />
+                  ) : null}
+                </div>
+              ))}
+            </div>
             <div className="mt-8 space-y-4">
               {WORKFLOW.map((item) => (
                 <div key={item.label} className="panel p-4">
@@ -440,8 +489,27 @@ function LandingPage() {
                 </div>
               ))}
             </div>
+            <div className="mt-8 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+              {SERVICE_IMAGES.map((img) => (
+                <figure key={img.src} className="relative overflow-hidden rounded-lg">
+                  <img
+                    src={img.src}
+                    alt={img.alt}
+                    width={1200}
+                    height={1200}
+                    loading="lazy"
+                    decoding="async"
+                    className="aspect-[16/9] w-full object-cover sm:aspect-[4/5]"
+                  />
+                  <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/90 to-transparent px-3 pb-3 pt-10 text-xs font-medium text-foreground">
+                    {img.label}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
         </section>
+
 
         {/* FAQs */}
         <section id="faqs" className="mx-auto max-w-3xl px-4 py-14">
