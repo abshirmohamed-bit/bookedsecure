@@ -1400,6 +1400,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_profile_assignment: {
+        Args: {
+          p_active?: boolean
+          p_business_id: string
+          p_profile_id: string
+        }
+        Returns: {
+          active: boolean
+          business_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       record_blocked_sms_segments: {
         Args: { p_period_id: string; p_segments: number }
         Returns: undefined
