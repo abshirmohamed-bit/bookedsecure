@@ -187,17 +187,24 @@ export async function resolveSender(input: {
   return primary ? toResolvedSender(primary) : null;
 }
 
-/** Tenant lookup for inbound/callback webhooks: the receiving number is the key. */
+/**
+ * Tenant lookup for inbound/callback webhooks: the receiving number is the key.
+ * Inactive rows and unassigned platform inventory are never matched, so a
+ * number that is only held for future activation stays inert.
+ */
 export async function findSenderByNumber(number: string): Promise<ResolvedSender | null> {
   const normalised = normaliseAuMobile(number) ?? number;
   const { data } = await supabaseAdmin
     .from("sms_senders")
     .select(SENDER_COLUMNS)
     .or(`phone_number.eq.${normalised},phone_number.eq.${number}`)
+    .eq("active", true)
+    .not("business_id", "is", null)
     .limit(1)
     .maybeSingle();
   return data ? toResolvedSender(data) : null;
 }
+
 
 export type CaptureInput = {
   businessId?: string | undefined;
