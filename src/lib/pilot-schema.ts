@@ -26,7 +26,7 @@ export const PilotApplicationSchema = z.object({
   email: z.string().trim().email("Enter a valid email address").max(160),
   phone: z.string().trim().min(6, "Mobile number is required").max(30),
   location: optionalText(120),
-  weekly_enquiry_volume: z.coerce.number().int().min(0).max(100000).optional().nullable(),
+  weekly_enquiry_volume: z.coerce.number().int().min(0).max(100000).optional().nullable().transform((value) => value ?? null),
   services: optionalText(500),
   challenge: optionalText(160),
   utm_source: optionalText(120),

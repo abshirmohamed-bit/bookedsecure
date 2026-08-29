@@ -54,7 +54,11 @@ export const submitPilotApplication = createServerFn({ method: "POST" })
 
     const { data: inserted, error } = await supabaseAdmin
       .from("pilot_applications")
-      .insert({ ...application, duplicate_of: existing?.id ?? null })
+      .insert({
+        ...application,
+        weekly_enquiry_volume: application.weekly_enquiry_volume ?? null,
+        duplicate_of: existing?.id ?? null,
+      })
       .select("id")
       .single();
 
@@ -139,12 +143,12 @@ export const updatePilotApplication = createServerFn({ method: "POST" })
     if (readError) throw new Error(readError.message);
     if (!current) throw new Error("Application not found.");
 
-    const patch: Record<string, unknown> = {
+    const patch = {
       reviewed_at: new Date().toISOString(),
       reviewed_by: context.userId,
+      ...(data.status ? { status: data.status } : {}),
+      ...(data.internal_notes !== undefined ? { internal_notes: data.internal_notes || null } : {}),
     };
-    if (data.status) patch['status'] = data.status;
-    if (data.internal_notes !== undefined) patch['internal_notes'] = data.internal_notes || null;
 
     const { data: updated, error } = await supabaseAdmin
       .from("pilot_applications")

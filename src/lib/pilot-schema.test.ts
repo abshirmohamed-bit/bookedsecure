@@ -12,7 +12,7 @@ describe("pilot application validation", () => {
   it("accepts a valid application", () => {
     const parsed = PilotApplicationSchema.parse(valid);
     expect(parsed.business_name).toBe("Shine Detailing");
-    expect(parsed.utm_source).toBeUndefined();
+    expect(parsed.utm_source).toBeNull();
   });
 
   it("requires business name, contact name, email and phone", () => {
