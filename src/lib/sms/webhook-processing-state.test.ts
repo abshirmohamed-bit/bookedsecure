@@ -1,15 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createWebhookEventsMock } from "./webhook-events.mock";
-import { CLAIM_TIMEOUT_MS } from "./dispatch-claim";
 
 const store = createWebhookEventsMock();
 vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: { from: () => store.table() },
 }));
 
-const { recordWebhookEvent, markWebhookProcessed, markWebhookFailed } = await import(
-  "./webhook.server"
-);
+const { recordWebhookEvent, markWebhookProcessed, markWebhookFailed, CLAIM_TIMEOUT_MS } =
+  await import("./webhook.server");
 
 const event = {
   providerId: "telnyx",
