@@ -309,17 +309,59 @@ async function handlePaidSession(session: any, eventCreated: number) {
     .eq("id", app.id);
 
   // Prevent a second automatic charge: the initial period is the whole pilot.
+  // Fail closed — the application is only treated as safely non-renewing once
+  // Stripe confirms `cancel_at_period_end`, and `hasMessagingAccess` keeps live
+  // sending blocked until then.
   let renewalStopped = false;
+  let renewalAttempts = 0;
+  let renewalError: string | undefined;
   if (subscriptionId) {
-    try {
-      const stripe = createStripeClient(pilotStripeEnv());
-      await stripe.subscriptions.update(subscriptionId, {
-        cancel_at_period_end: true,
-        metadata: { pilotApplicationId: app.id, no_auto_renewal: "true" },
+    const stripe = createStripeClient(pilotStripeEnv());
+    const outcome = await confirmRenewalPrevention({
+      subscriptionId,
+      applicationId: app.id,
+      stripe: {
+        update: (id, params) =>
+          stripe.subscriptions.update(id, params as never) as unknown as Promise<{
+            cancel_at_period_end?: boolean | null;
+          }>,
+      },
+    });
+    renewalStopped = outcome.confirmed;
+    renewalAttempts = outcome.attempts;
+    renewalError = outcome.error;
+
+    await supabaseAdmin
+      .from("pilot_applications")
+      .update({
+        renewal_prevention_confirmed: outcome.confirmed,
+        renewal_prevention_attempts: outcome.attempts,
+        renewal_prevention_last_attempt_at: new Date().toISOString(),
+        renewal_prevention_last_error: outcome.confirmed
+          ? null
+          : (outcome.error ?? "Stripe did not confirm cancel_at_period_end."),
+        ...(outcome.confirmed
+          ? {}
+          : {
+              access_state_reason:
+                "Automatic renewal is not confirmed as disabled — live messaging is on hold.",
+            }),
+      })
+      .eq("id", app.id);
+
+    if (!outcome.confirmed) {
+      console.error("[billing] renewal prevention unconfirmed:", renewalError);
+      await auditPilotEvent({
+        eventType: "pilot_renewal_prevention_failed",
+        applicationId: app.id,
+        metadata: {
+          stripe_subscription_id: subscriptionId,
+          attempts: outcome.attempts,
+          error: renewalError,
+          renewal_disabled: false,
+          messaging_blocked: true,
+        },
       });
-      renewalStopped = true;
-    } catch (error) {
-      console.error("[billing] could not disable renewal", getStripeErrorMessage(error));
     }
   }
 
@@ -335,8 +377,11 @@ async function handlePaidSession(session: any, eventCreated: number) {
       pilot_started_at: window.startedAt,
       pilot_ends_at: window.endsAt,
       renewal_disabled: renewalStopped,
+      renewal_prevention_attempts: renewalAttempts,
+      renewal_prevention_error: renewalError ?? null,
     },
   });
+
 
   return { ok: true as const, detail: "Pilot started" };
 }
