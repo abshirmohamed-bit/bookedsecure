@@ -351,7 +351,7 @@ function LandingPage() {
         <section id="workflow" className="border-y border-border bg-surface">
           <div className="mx-auto max-w-3xl px-4 py-14">
             <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-              Sample workflow · simulated example
+              Example workflow
             </span>
             <h2 className="mt-4 text-2xl font-semibold sm:text-3xl">From new enquiry to next action</h2>
             {/* Workflow illustration (not a product screenshot) */}
