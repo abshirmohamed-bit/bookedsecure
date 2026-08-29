@@ -44,6 +44,14 @@ export function assertCheckoutEligible(app: BillingApplication): EligibilityResu
   if (app.accessState === "paid") {
     return { ok: false, error: "This application has already paid for a pilot." };
   }
+  if (app.accessState === "paid_by_platform_credits") {
+    return {
+      ok: false,
+      error:
+        "This pilot's consideration was satisfied by platform credits — no Stripe checkout may be created.",
+    };
+  }
+
   if (app.accessState === "canceled") {
     return { ok: false, error: "This pilot was canceled — a new commercial decision is required." };
   }

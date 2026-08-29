@@ -13,6 +13,9 @@
 export const PILOT_ACCESS_STATES = [
   "pending",
   "paid",
+  // Consideration satisfied outside Stripe, through the Glocast-funded Lovable
+  // workspace subscription / platform credits. Never implies a Stripe payment.
+  "paid_by_platform_credits",
   "past_due",
   "canceled",
   "paused",
@@ -21,9 +24,22 @@ export const PILOT_ACCESS_STATES = [
 
 export type PilotAccessState = (typeof PILOT_ACCESS_STATES)[number];
 
+/** States that may send live SMS while the pilot window is open. */
+export const MESSAGING_ELIGIBLE_STATES = ["paid", "paid_by_platform_credits"] as const;
+
+export function isMessagingEligibleState(state: string): boolean {
+  return (MESSAGING_ELIGIBLE_STATES as readonly string[]).includes(state);
+}
+
+/** True only for consideration settled through a verified Stripe payment. */
+export function isStripePaidState(state: string): boolean {
+  return state === "paid";
+}
+
 export function isPilotAccessState(value: string): value is PilotAccessState {
   return (PILOT_ACCESS_STATES as readonly string[]).includes(value);
 }
+
 
 /** Row shape of the singleton public.commercial_config record. */
 export type CommercialConfig = {
@@ -155,9 +171,10 @@ export function hasMessagingAccess(
   if (pilot.accessState === "pilot_expired" || isPilotWindowExpired(pilot, now)) {
     return { allowed: false, reason: "The pilot period has ended." };
   }
-  if (pilot.accessState !== "paid") {
+  if (!isMessagingEligibleState(pilot.accessState)) {
     return { allowed: false, reason: "Messaging is not enabled for this account." };
   }
+
   // Fail closed: a live subscription whose renewal cancellation is unconfirmed
   // must not be treated as a safe, single-period pilot.
   if (pilot.stripeSubscriptionId && pilot.renewalPreventionConfirmed === false) {

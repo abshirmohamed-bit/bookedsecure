@@ -8,11 +8,13 @@ import { getStripe, isTestModePayments } from "@/lib/stripe";
 const ACCESS_STATE_LABELS: Record<string, string> = {
   pending: "Awaiting payment",
   paid: "Paid",
+  paid_by_platform_credits: "Paid by platform credits",
   past_due: "Payment failed",
   canceled: "Canceled",
   paused: "Paused",
   pilot_expired: "Pilot expired",
 };
+
 
 type Props = {
   applicationId: string;
