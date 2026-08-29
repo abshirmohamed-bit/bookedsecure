@@ -18,7 +18,25 @@ import {
   type PilotAccessState,
   type PilotCommercialRecord,
 } from "@/lib/commercial";
-import { audit } from "@/lib/audit.server";
+
+/** Platform-level audit entry (no tenant scope). */
+async function auditCommercialEvent(input: {
+  businessId?: string | null;
+  userId?: string | null;
+  eventType: string;
+  entityType?: string;
+  entityId?: string | null;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  await supabaseAdmin.from("audit_events").insert({
+    business_id: input.businessId ?? null,
+    user_id: input.userId ?? null,
+    event_type: input.eventType,
+    entity_type: input.entityType ?? null,
+    entity_id: input.entityId ?? null,
+    metadata: (input.metadata ?? null) as never,
+  });
+}
 
 type Client = SupabaseClient<Database>;
 
