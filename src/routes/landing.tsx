@@ -393,10 +393,6 @@ function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="mt-6 text-xs text-muted-foreground">
-              Illustrative example only. Message content, timing and delivery depend on provider
-              configuration and testing.
-            </p>
           </div>
         </section>
 
