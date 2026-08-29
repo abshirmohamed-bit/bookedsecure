@@ -5,7 +5,14 @@ import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe
 import { toast } from "sonner";
 import { createPilotCheckoutSession } from "@/lib/pilot-checkout.functions";
 import { getStripe, isTestModePayments } from "@/lib/stripe";
-import { PILOT_ACCESS_STATE_LABELS, type PilotAccessState } from "@/lib/commercial";
+const ACCESS_STATE_LABELS: Record<string, string> = {
+  pending: "Awaiting payment",
+  paid: "Paid",
+  past_due: "Payment failed",
+  canceled: "Canceled",
+  paused: "Paused",
+  pilot_expired: "Pilot expired",
+};
 
 type Props = {
   applicationId: string;
@@ -41,8 +48,7 @@ export function PilotCheckoutPanel(props: Props) {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const label =
-    PILOT_ACCESS_STATE_LABELS[props.accessState as PilotAccessState] ?? props.accessState;
+  const label = ACCESS_STATE_LABELS[props.accessState] ?? props.accessState;
   const approved = props.status === "accepted" || props.status === "active";
   const canInvite = approved && props.accessState === "pending";
 

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { listPilotApplications, updatePilotApplication } from "@/lib/pilot.functions";
+import { PilotCheckoutPanel } from "@/components/PilotCheckoutPanel";
 import { PILOT_STATUSES, PILOT_STATUS_LABELS, type PilotStatus } from "@/lib/pilot-schema";
 
 export const Route = createFileRoute("/admin/pilot-applications")({
@@ -273,6 +274,15 @@ function ApplicationDetail({ application }: { application: Application }) {
           {mutation.isPending ? "Saving…" : "Save changes"}
         </button>
       </form>
+
+      <PilotCheckoutPanel
+        applicationId={application.id}
+        status={application.status}
+        accessState={application.access_state}
+        pilotStartedAt={application.pilot_started_at}
+        pilotEndsAt={application.pilot_ends_at}
+        paymentCompletedAt={application.payment_completed_at}
+      />
     </div>
   );
 }
