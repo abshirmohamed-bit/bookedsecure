@@ -16,6 +16,7 @@ import { Route as LandingRouteImport } from './routes/landing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as QuoteRouteImport } from './routes/quote'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
@@ -57,6 +58,11 @@ const QuoteRoute = QuoteRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPilotApplicationsRoute = AdminPilotApplicationsRouteImport.update({
+  id: '/admin/pilot-applications',
+  path: '/admin/pilot-applications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/quote': typeof QuoteRoute
   '/settings': typeof SettingsRoute
+  '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/quote': typeof QuoteRoute
   '/settings': typeof SettingsRoute
+  '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/quote': typeof QuoteRoute
   '/settings': typeof SettingsRoute
+  '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/quote'
     | '/settings'
+    | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/api/public/hooks/follow-ups'
     | '/api/public/leads/intake'
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/quote'
     | '/settings'
+    | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/api/public/hooks/follow-ups'
     | '/api/public/leads/intake'
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/quote'
     | '/settings'
+    | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/api/public/hooks/follow-ups'
     | '/api/public/leads/intake'
@@ -203,6 +215,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   QuoteRoute: typeof QuoteRoute
   SettingsRoute: typeof SettingsRoute
+  AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
@@ -261,6 +274,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/pilot-applications': {
+      id: '/admin/pilot-applications'
+      path: '/admin/pilot-applications'
+      fullPath: '/admin/pilot-applications'
+      preLoaderRoute: typeof AdminPilotApplicationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads/$leadId': {
@@ -323,6 +343,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   QuoteRoute: QuoteRoute,
   SettingsRoute: SettingsRoute,
+  AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
