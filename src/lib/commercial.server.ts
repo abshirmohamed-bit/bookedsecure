@@ -196,7 +196,7 @@ export async function getPilotForBusiness(
       "id, business_id, access_state, payment_required, pilot_started_at, pilot_ends_at, pilot_extension_ends_at, commercial_terms_snapshot, stripe_subscription_id, renewal_prevention_confirmed",
     )
     .eq("business_id", businessId)
-    .order("created_at", { ascending: false })
+    .order("submitted_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   return data ? toPilotRecord(data, config) : null;
