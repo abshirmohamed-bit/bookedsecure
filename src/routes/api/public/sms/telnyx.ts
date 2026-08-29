@@ -70,7 +70,7 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           return Response.json({ ok: false, error: "Unknown number" }, { status: 404 });
         }
 
-        const { duplicate } = await recordWebhookEvent({
+        const { duplicate, failed, reason } = await recordWebhookEvent({
           providerId: "telnyx",
           eventId,
           eventType: flat.eventType ?? "unknown",
@@ -78,6 +78,18 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           businessId: sender.businessId,
           signatureVerified: true,
         });
+        // A real persistence failure must never be acknowledged: answer 503 so
+        // Telnyx retries the delivery.
+        if (failed) {
+          logWebhook("error", "telnyx", {
+            outcome: "persist_failed",
+            eventType: flat.eventType,
+            eventIdSource: source,
+            businessId: sender.businessId,
+            reason: reason ?? null,
+          });
+          return Response.json({ ok: false, error: "Persistence failed" }, { status: 503 });
+        }
         if (duplicate) {
           logWebhook("info", "telnyx", {
             outcome: "duplicate_suppressed",
