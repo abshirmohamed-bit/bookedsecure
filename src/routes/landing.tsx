@@ -290,6 +290,15 @@ function LandingPage() {
               between jobs, working at a customer's home or closing up for the day. A quick response
               is hard. A second follow-up is even easier to forget.
             </p>
+            <img
+              src={enquiryImage}
+              alt="Detailer in gloves checking a new customer enquiry on a smartphone beside a car between jobs"
+              width={1600}
+              height={1008}
+              loading="lazy"
+              decoding="async"
+              className="-mx-4 mt-8 aspect-[4/3] w-[calc(100%+2rem)] object-cover object-[70%_center] sm:mx-0 sm:aspect-[16/9] sm:w-full sm:rounded-xl sm:object-center"
+            />
             <ul className="mt-6 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
               {[
                 "They contact another detailer",
