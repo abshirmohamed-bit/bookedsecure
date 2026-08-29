@@ -198,6 +198,8 @@ export function SmsSetupPanel() {
         Opt-outs and inbound replies are always recorded, even when a cap has stopped outbound
         automation.
       </p>
+      {data.role === "platform_admin" && <TelnyxReadinessPanel />}
     </section>
+
   );
 }
