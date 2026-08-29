@@ -384,7 +384,9 @@ async function handleSubscriptionCanceled(subscription: any) {
       access_state: resolved.accessState,
       access_state_reason: resolved.reason,
       commercial_status: "canceled",
-      cancellation_requested_at: new Date().toISOString(),
+      cancellation_requested_at:
+        (row as { cancellation_requested_at?: string | null }).cancellation_requested_at ??
+        new Date().toISOString(),
     })
     .eq("id", row.id);
 
