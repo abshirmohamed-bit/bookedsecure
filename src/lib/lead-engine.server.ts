@@ -16,6 +16,13 @@ import { getProvider, type ResolvedSender } from "@/lib/sms/provider.server";
 import { resolveEffectiveProviderName } from "@/lib/sms/resolution";
 import { assertTenantMatch } from "@/lib/sms/events";
 import { checkSmsCap, recordSmsUsage } from "@/lib/usage.server";
+import {
+  canReuseOutboundRow,
+  classifyCarrierFailure,
+  RESERVED_STATUS,
+  UNKNOWN_STATUS,
+} from "@/lib/sms/dispatch";
+import { isUniqueViolation } from "@/lib/sms/webhook.server";
 
 type Business = {
   id: string;
@@ -195,10 +202,12 @@ export async function resolveSender(input: {
  */
 export async function findSenderByNumber(number: string): Promise<ResolvedSender | null> {
   const normalised = normaliseAuMobile(number) ?? number;
+  // Parameterised list — webhook-supplied text can never alter the filter.
+  const candidates = Array.from(new Set([normalised, number]));
   const { data } = await supabaseAdmin
     .from("sms_senders")
     .select(SENDER_COLUMNS)
-    .or(`phone_number.eq.${normalised},phone_number.eq.${number}`)
+    .in("phone_number", candidates)
     .eq("active", true)
     .not("business_id", "is", null)
     .limit(1)
@@ -455,17 +464,18 @@ export async function sendSms(input: {
   }
 
 
-  // Idempotency: a previously *successful* send with this key blocks a repeat.
-  // Failed attempts stay retriable.
+  // Fast path: a reserved, in-flight or successful send with this key blocks a
+  // repeat. Only confirmed failures stay retriable. The unique index on
+  // (business_id, idempotency_key) is the real guarantee — see the reservation
+  // insert below.
   if (input.idempotencyKey) {
     const { data: dupe } = await supabaseAdmin
       .from("messages")
-      .select("id")
+      .select("id, delivery_status")
       .eq("business_id", input.businessId)
       .eq("idempotency_key", input.idempotencyKey)
-      .neq("delivery_status", "failed")
       .maybeSingle();
-    if (dupe)
+    if (dupe && !canReuseOutboundRow(dupe.delivery_status))
       return {
         sent: false,
         duplicate: true,
@@ -526,37 +536,54 @@ export async function sendSms(input: {
     pilotPeriodId = gate.periodId;
   }
 
-  let result;
-  try {
-    result = await provider.sendMessage({ to: lead.mobile_number, body: input.body, sender });
-  } catch (error) {
-    if (pilotPeriodId) {
-      const { releaseReservedSegments } = await import("@/lib/commercial.server");
-      await releaseReservedSegments(pilotPeriodId, segments);
-    }
-    const detail = provider.formatProviderError(error);
-    const existingFailure = input.idempotencyKey
-      ? (
-          await supabaseAdmin
-            .from("messages")
-            .select("id, attempt_count")
-            .eq("business_id", input.businessId)
-            .eq("idempotency_key", input.idempotencyKey)
-            .eq("delivery_status", "failed")
-            .maybeSingle()
-        ).data
-      : null;
+  const releaseSegments = async () => {
+    if (!pilotPeriodId) return;
+    const { releaseReservedSegments } = await import("@/lib/commercial.server");
+    await releaseReservedSegments(pilotPeriodId, segments);
+  };
 
-    if (existingFailure) {
+  // Reserve the outbound row BEFORE the carrier call. The unique index on
+  // (business_id, idempotency_key) means a concurrent caller with the same key
+  // loses the insert and never dispatches a second SMS.
+  let messageId: string | null = null;
+  if (input.idempotencyKey) {
+    const { data: prior } = await supabaseAdmin
+      .from("messages")
+      .select("id, delivery_status, attempt_count")
+      .eq("business_id", input.businessId)
+      .eq("idempotency_key", input.idempotencyKey)
+      .maybeSingle();
+    if (prior) {
+      if (!canReuseOutboundRow(prior.delivery_status)) {
+        await releaseSegments();
+        return {
+          sent: false,
+          duplicate: true,
+          reason: "Already sent (duplicate suppressed).",
+          messageId: prior.id,
+        };
+      }
+      // Confirmed previous failure: reclaim the same row for this attempt.
       await supabaseAdmin
         .from("messages")
         .update({
-          error_code: detail.slice(0, 200),
-          attempt_count: existingFailure.attempt_count + 1,
+          delivery_status: RESERVED_STATUS,
+          error_code: null,
+          provider: provider.name,
+          sender_id: sender.id,
+          from_number: sender.phoneNumber,
+          segments,
+          attempt_count: prior.attempt_count + 1,
         })
-        .eq("id", existingFailure.id);
-    } else {
-      await supabaseAdmin.from("messages").insert({
+        .eq("id", prior.id);
+      messageId = prior.id;
+    }
+  }
+
+  if (!messageId) {
+    const reservation = await supabaseAdmin
+      .from("messages")
+      .insert({
         business_id: input.businessId,
         lead_id: lead.id,
         conversation_id: conversationId,
@@ -566,39 +593,78 @@ export async function sendSms(input: {
         sender_id: sender.id,
         from_number: sender.phoneNumber,
         segments,
-        delivery_status: "failed",
-        error_code: detail.slice(0, 200),
+        delivery_status: RESERVED_STATUS,
         message_kind: input.kind,
         idempotency_key: input.idempotencyKey ?? null,
         attempt_count: 1,
-      });
+      })
+      .select("id")
+      .single();
+    if (reservation.error || !reservation.data) {
+      await releaseSegments();
+      if (isUniqueViolation(reservation.error)) {
+        return { sent: false, duplicate: true, reason: "Already sent (duplicate suppressed)." };
+      }
+      return {
+        sent: false,
+        retriable: true,
+        reason: "Could not reserve the outbound message — nothing was sent.",
+      };
     }
-    await recordSmsUsage({ businessId: input.businessId, failures: 1 });
-    return { sent: false, retriable: true, reason: detail };
+    messageId = reservation.data.id;
   }
 
+  let result;
+  try {
+    result = await provider.sendMessage({ to: lead.mobile_number, body: input.body, sender });
+  } catch (error) {
+    const detail = provider.formatProviderError(error);
+    const failure = classifyCarrierFailure(error);
+
+    if (failure === "unknown_outcome") {
+      // The carrier may have accepted it. Keep the segments reserved, park the
+      // row as `unknown` (which holds the idempotency key, so no automatic
+      // resend) and surface it for reconciliation.
+      await supabaseAdmin
+        .from("messages")
+        .update({ delivery_status: UNKNOWN_STATUS, error_code: detail.slice(0, 200) })
+        .eq("id", messageId);
+      await audit({
+        businessId: input.businessId,
+        eventType: "sms_carrier_outcome_unknown",
+        entityType: "message",
+        entityId: messageId,
+        metadata: { kind: input.kind, segments, detail: detail.slice(0, 200) },
+      });
+      return {
+        sent: false,
+        retriable: false,
+        messageId,
+        reason: `Carrier outcome unknown — held for reconciliation, not resent: ${detail}`,
+      };
+    }
+
+    // Confirmed pre-dispatch rejection: release the reservation and stay retriable.
+    await releaseSegments();
+    await supabaseAdmin
+      .from("messages")
+      .update({ delivery_status: "failed", error_code: detail.slice(0, 200) })
+      .eq("id", messageId);
+    await recordSmsUsage({ businessId: input.businessId, failures: 1 });
+    return { sent: false, retriable: true, messageId, reason: detail };
+  }
 
   const { data: message } = await supabaseAdmin
     .from("messages")
-    .insert({
-      business_id: input.businessId,
-      lead_id: lead.id,
-      conversation_id: conversationId,
-      direction: "outbound",
-      body: input.body,
+    .update({
       provider: result.provider,
       provider_message_id: result.providerMessageId,
-      sender_id: sender.id,
-      from_number: sender.phoneNumber,
-      segments,
       provider_cost: result.providerCost ?? null,
       delivery_status: result.deliveryStatus,
       error_code: result.errorCode ?? null,
-      message_kind: input.kind,
-      idempotency_key: input.idempotencyKey ?? null,
-      attempt_count: 1,
       sent_at: new Date().toISOString(),
     })
+    .eq("id", messageId)
     .select("id")
     .single();
 
@@ -629,7 +695,7 @@ export async function sendSms(input: {
     metadata: { segments, sender: sender.phoneNumber },
   });
 
-  return { sent: true, ...(message?.id ? { messageId: message.id } : {}) };
+  return { sent: true, messageId: message?.id ?? messageId };
 }
 
 async function conversationIdFor(leadId: string): Promise<string | null> {

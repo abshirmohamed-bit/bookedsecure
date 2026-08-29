@@ -23,7 +23,7 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
 
         const { getProvider } = await import("@/lib/sms/provider.server");
         const { flattenTelnyxPayload } = await import("@/lib/sms/telnyx.server");
-        const { recordWebhookEvent, resolveEventId, logWebhook } = await import(
+        const { recordWebhookEvent, releaseWebhookEvent, resolveEventId, logWebhook } = await import(
           "@/lib/sms/webhook.server"
         );
         const { handleInboundMessage, handleDeliveryStatus, findSenderByNumber } = await import(
@@ -70,7 +70,7 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           return Response.json({ ok: false, error: "Unknown number" }, { status: 404 });
         }
 
-        const { duplicate } = await recordWebhookEvent({
+        const { duplicate, failed, reason } = await recordWebhookEvent({
           providerId: "telnyx",
           eventId,
           eventType: flat.eventType ?? "unknown",
@@ -78,6 +78,18 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           businessId: sender.businessId,
           signatureVerified: true,
         });
+        // A real persistence failure must never be acknowledged: answer 503 so
+        // Telnyx retries the delivery.
+        if (failed) {
+          logWebhook("error", "telnyx", {
+            outcome: "persist_failed",
+            eventType: flat.eventType,
+            eventIdSource: source,
+            businessId: sender.businessId,
+            reason: reason ?? null,
+          });
+          return Response.json({ ok: false, error: "Persistence failed" }, { status: 503 });
+        }
         if (duplicate) {
           logWebhook("info", "telnyx", {
             outcome: "duplicate_suppressed",
@@ -88,25 +100,39 @@ export const Route = createFileRoute("/api/public/sms/telnyx")({
           return Response.json({ ok: true, duplicate: true });
         }
 
-        if (inbound) {
-          const result = await handleInboundMessage({
-            providerName: "telnyx",
-            payload,
-            sender,
-          });
-          return Response.json(result, { status: result.handled ? 200 : 202 });
-        }
+        // Processing failures release the event row, so the retry is not
+        // suppressed as a duplicate of an event that was never handled.
+        try {
+          if (inbound) {
+            const result = await handleInboundMessage({
+              providerName: "telnyx",
+              payload,
+              sender,
+            });
+            return Response.json(result, { status: result.handled ? 200 : 202 });
+          }
 
-        if (flat.eventType === "message.sent" || flat.eventType === "message.finalized") {
-          const result = await handleDeliveryStatus({
-            providerName: "telnyx",
-            payload,
-            sender,
-            ...(flat.eventType === "message.finalized" && flat.cost !== null
-              ? { providerCost: flat.cost }
-              : {}),
+          if (flat.eventType === "message.sent" || flat.eventType === "message.finalized") {
+            const result = await handleDeliveryStatus({
+              providerName: "telnyx",
+              payload,
+              sender,
+              ...(flat.eventType === "message.finalized" && flat.cost !== null
+                ? { providerCost: flat.cost }
+                : {}),
+            });
+            return Response.json(result);
+          }
+        } catch (error) {
+          await releaseWebhookEvent("telnyx", eventId);
+          logWebhook("error", "telnyx", {
+            outcome: "processing_failed",
+            eventType: flat.eventType,
+            eventIdSource: source,
+            businessId: sender.businessId,
+            reason: error instanceof Error ? error.message : String(error),
           });
-          return Response.json(result);
+          return Response.json({ ok: false, error: "Processing failed" }, { status: 503 });
         }
 
         return Response.json({ ok: true, ignored: flat.eventType });
