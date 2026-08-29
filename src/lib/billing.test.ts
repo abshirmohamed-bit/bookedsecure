@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   assertCheckoutEligible,
+  confirmRenewalPrevention,
+  RENEWAL_PREVENTION_MAX_ATTEMPTS,
   pilotWindowFromPayment,
   resolveCancellationState,
   shouldExpire,
@@ -8,7 +10,7 @@ import {
   validatePaymentFacts,
   type BillingApplication,
 } from "./billing";
-import type { CommercialTermsSnapshot } from "./commercial";
+import { hasMessagingAccess, type CommercialTermsSnapshot } from "./commercial";
 
 const base: BillingApplication = {
   id: "app-1",
@@ -122,5 +124,80 @@ describe("expiry decisions", () => {
     for (const accessState of ["pending", "past_due", "canceled", "pilot_expired"] as const) {
       expect(shouldExpire({ ...paid, accessState }, new Date("2027-01-01T00:00:00.000Z"))).toBe(false);
     }
+  });
+});
+
+describe("renewal prevention fails closed", () => {
+  const noSleep = async () => {};
+
+  it("records renewal disabled when Stripe confirms the cancellation", async () => {
+    const update = vi.fn().mockResolvedValue({ cancel_at_period_end: true });
+    const result = await confirmRenewalPrevention({
+      subscriptionId: "sub_1",
+      applicationId: "app-1",
+      stripe: { update },
+      sleep: noSleep,
+    });
+    expect(result).toEqual({ confirmed: true, attempts: 1 });
+    expect(update).toHaveBeenCalledWith("sub_1", {
+      cancel_at_period_end: true,
+      metadata: { pilotApplicationId: "app-1", no_auto_renewal: "true" },
+    });
+  });
+
+  it("retries a failing Stripe call within a bounded budget", async () => {
+    const update = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Stripe unavailable"))
+      .mockResolvedValueOnce({ cancel_at_period_end: true });
+    const result = await confirmRenewalPrevention({
+      subscriptionId: "sub_1",
+      applicationId: "app-1",
+      stripe: { update },
+      sleep: noSleep,
+    });
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(result.confirmed).toBe(true);
+    expect(result.attempts).toBe(2);
+  });
+
+  it("surfaces a repeated failure with the error and the attempt count", async () => {
+    const update = vi.fn().mockRejectedValue(new Error("Stripe unavailable"));
+    const result = await confirmRenewalPrevention({
+      subscriptionId: "sub_1",
+      applicationId: "app-1",
+      stripe: { update },
+      sleep: noSleep,
+    });
+    expect(update).toHaveBeenCalledTimes(RENEWAL_PREVENTION_MAX_ATTEMPTS);
+    expect(result.confirmed).toBe(false);
+    expect(result.attempts).toBe(RENEWAL_PREVENTION_MAX_ATTEMPTS);
+    expect(result.error).toMatch(/Stripe unavailable/);
+  });
+
+  it("never records renewal as disabled when Stripe does not confirm it", async () => {
+    for (const response of [{}, { cancel_at_period_end: false }, null, undefined]) {
+      const result = await confirmRenewalPrevention({
+        subscriptionId: "sub_1",
+        applicationId: "app-1",
+        stripe: { update: vi.fn().mockResolvedValue(response) },
+        maxAttempts: 2,
+        sleep: noSleep,
+      });
+      expect(result.confirmed).toBe(false);
+      expect(result.error).toMatch(/did not confirm/i);
+    }
+  });
+
+  it("blocks live messaging while renewal prevention is unconfirmed", () => {
+    const paid = {
+      accessState: "paid" as const,
+      paymentRequired: true,
+      pilotEndsAt: "2099-01-01T00:00:00.000Z",
+      pilotExtensionEndsAt: null,
+      stripeSubscriptionId: "sub_1",
+    };
+    expect(hasMessagingAccess({ ...paid, renewalPreventionConfirmed: false }).allowed).toBe(false);
+    expect(hasMessagingAccess({ ...paid, renewalPreventionConfirmed: true }).allowed).toBe(true);
   });
 });

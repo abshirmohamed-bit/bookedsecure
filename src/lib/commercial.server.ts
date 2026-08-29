@@ -162,7 +162,10 @@ type PilotRow = Pick<
   | "pilot_ends_at"
   | "pilot_extension_ends_at"
   | "commercial_terms_snapshot"
+  | "stripe_subscription_id"
+  | "renewal_prevention_confirmed"
 >;
+
 
 function toPilotRecord(row: PilotRow, config: CommercialConfig): PilotCommercialRecord {
   const snapshot = (row.commercial_terms_snapshot ?? null) as CommercialTermsSnapshot | null;
@@ -175,6 +178,8 @@ function toPilotRecord(row: PilotRow, config: CommercialConfig): PilotCommercial
     pilotEndsAt: row.pilot_ends_at,
     pilotExtensionEndsAt: row.pilot_extension_ends_at,
     includedSmsSegments: snapshot?.includedSmsSegments ?? config.includedSmsSegments,
+    stripeSubscriptionId: row.stripe_subscription_id ?? null,
+    renewalPreventionConfirmed: row.renewal_prevention_confirmed ?? false,
   };
 }
 
@@ -186,7 +191,7 @@ export async function getPilotForBusiness(
   const { data } = await supabaseAdmin
     .from("pilot_applications")
     .select(
-      "id, business_id, access_state, payment_required, pilot_started_at, pilot_ends_at, pilot_extension_ends_at, commercial_terms_snapshot",
+      "id, business_id, access_state, payment_required, pilot_started_at, pilot_ends_at, pilot_extension_ends_at, commercial_terms_snapshot, stripe_subscription_id, renewal_prevention_confirmed",
     )
     .eq("business_id", businessId)
     .order("created_at", { ascending: false })
@@ -194,6 +199,7 @@ export async function getPilotForBusiness(
     .maybeSingle();
   return data ? toPilotRecord(data, config) : null;
 }
+
 
 type UsagePeriodRow = Database["public"]["Tables"]["sms_usage_periods"]["Row"];
 

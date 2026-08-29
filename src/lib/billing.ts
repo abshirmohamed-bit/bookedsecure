@@ -126,3 +126,55 @@ export function shouldExpire(app: BillingApplication, now: Date = new Date()): b
   if (app.accessState !== "paid") return false;
   return isPilotWindowExpired(app, now);
 }
+
+/* --------------------------------------------------- renewal prevention */
+
+/** Bounded retry budget for confirming Stripe renewal cancellation. */
+export const RENEWAL_PREVENTION_MAX_ATTEMPTS = 3;
+
+/** Minimal Stripe surface needed to switch renewal off (injectable for tests). */
+export type RenewalCanceler = {
+  update(
+    id: string,
+    params: { cancel_at_period_end: boolean; metadata?: Record<string, string> },
+  ): Promise<{ cancel_at_period_end?: boolean | null } | null | undefined>;
+};
+
+export type RenewalPreventionResult = { confirmed: boolean; attempts: number; error?: string };
+
+/**
+ * Fail-closed renewal prevention.
+ *
+ * The pilot is a single 30-day period, so the subscription must never renew.
+ * `confirmed` is true only when Stripe echoes back `cancel_at_period_end:
+ * true` — a thrown error, a missing field or a `false` value are all treated
+ * as "not disabled", after a bounded number of retries. Nothing is charged,
+ * refunded or otherwise cancelled here.
+ */
+export async function confirmRenewalPrevention(input: {
+  subscriptionId: string;
+  applicationId: string;
+  stripe: RenewalCanceler;
+  maxAttempts?: number;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<RenewalPreventionResult> {
+  const maxAttempts = Math.max(1, input.maxAttempts ?? RENEWAL_PREVENTION_MAX_ATTEMPTS);
+  const sleep = input.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  let lastError = "Stripe did not confirm cancel_at_period_end.";
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const updated = await input.stripe.update(input.subscriptionId, {
+        cancel_at_period_end: true,
+        metadata: { pilotApplicationId: input.applicationId, no_auto_renewal: "true" },
+      });
+      if (updated?.cancel_at_period_end === true) return { confirmed: true, attempts: attempt };
+      lastError = "Stripe did not confirm cancel_at_period_end.";
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    if (attempt < maxAttempts) await sleep(200 * attempt);
+  }
+
+  return { confirmed: false, attempts: maxAttempts, error: lastError };
+}

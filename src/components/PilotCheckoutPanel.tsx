@@ -21,7 +21,12 @@ type Props = {
   pilotStartedAt: string | null;
   pilotEndsAt: string | null;
   paymentCompletedAt: string | null;
+  stripeSubscriptionId?: string | null;
+  renewalPreventionConfirmed?: boolean;
+  renewalPreventionAttempts?: number;
+  renewalPreventionLastError?: string | null;
 };
+
 
 /**
  * Platform-admin panel to invite one approved application to the paid pilot.
@@ -85,7 +90,23 @@ export function PilotCheckoutPanel(props: Props) {
         </div>
       </dl>
 
+      {props.stripeSubscriptionId && props.renewalPreventionConfirmed === false ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+          <p className="font-semibold">Automatic renewal is NOT confirmed as disabled.</p>
+          <p className="mt-1">
+            Stripe did not confirm <code>cancel_at_period_end</code> after{" "}
+            {props.renewalPreventionAttempts ?? 0} attempt(s). Live messaging stays blocked for this
+            pilot until the cancellation is confirmed. Nothing was charged, refunded or cancelled
+            automatically.
+          </p>
+          {props.renewalPreventionLastError ? (
+            <p className="mt-1 break-words opacity-90">Last error: {props.renewalPreventionLastError}</p>
+          ) : null}
+        </div>
+      ) : null}
+
       {canInvite ? (
+
         <button
           type="button"
           onClick={() => mutation.mutate()}
