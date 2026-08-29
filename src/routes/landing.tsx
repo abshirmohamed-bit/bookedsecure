@@ -495,9 +495,10 @@ function LandingPage() {
 
             {submitted ? (
               <div className="panel mt-8 p-5 text-sm">
-                <p className="font-medium">Thanks for your interest.</p>
+                <p className="font-medium">Thanks.</p>
                 <p className="mt-2 text-muted-foreground">
-                  We'll review your details and be in touch about early access and the pilot process.
+                  We've received your BookedSecure pilot application. We'll review the details and
+                  follow up with the next steps.
                 </p>
               </div>
             ) : (
@@ -505,7 +506,45 @@ function LandingPage() {
                 className="panel mt-8 space-y-4 p-5"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  setSubmitted(true);
+                  if (submitting) return;
+                  const form = event.currentTarget;
+                  const values = new FormData(form);
+                  const attribution = readAttribution(
+                    window.location.search,
+                    document.referrer,
+                    window.location.pathname,
+                  );
+                  const volume = String(values.get("volume") ?? "").trim();
+                  const payload = {
+                    contact_name: String(values.get("name") ?? ""),
+                    business_name: String(values.get("business") ?? ""),
+                    email: String(values.get("email") ?? ""),
+                    phone: String(values.get("mobile") ?? ""),
+                    location: String(values.get("location") ?? ""),
+                    weekly_enquiry_volume: volume === "" ? null : volume,
+                    services: String(values.get("services") ?? ""),
+                    challenge: String(values.get("challenge") ?? ""),
+                    company: String(values.get("company") ?? ""),
+                    ...attribution,
+                  };
+
+                  setSubmitting(true);
+                  setError(null);
+                  submitApplication({ data: payload })
+                    .then((result) => {
+                      if (result.ok) {
+                        form.reset();
+                        setSubmitted(true);
+                      } else {
+                        setError(
+                          result.error ?? "We couldn't save your application. Please try again.",
+                        );
+                      }
+                    })
+                    .catch(() => {
+                      setError("We couldn't save your application. Please try again shortly.");
+                    })
+                    .finally(() => setSubmitting(false));
                 }}
               >
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -545,14 +584,25 @@ function LandingPage() {
                     <option>Other</option>
                   </select>
                 </label>
+                <input
+                  type="text"
+                  name="company"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  className="hidden"
+                />
+                {error ? <p className="text-sm text-destructive">{error}</p> : null}
                 <button
                   type="submit"
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  disabled={submitting}
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
-                  Request early access
+                  {submitting ? "Sending…" : "Request early access"}
                 </button>
               </form>
             )}
+
           </div>
         </section>
 
