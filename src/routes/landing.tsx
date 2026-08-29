@@ -12,7 +12,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-import heroImage from "@/assets/detailing-hero.jpg";
+import heroImage from "@/assets/detail-hero.jpg";
+import enquiryImage from "@/assets/detail-enquiry.jpg";
+import exteriorImage from "@/assets/detail-exterior.jpg";
+import coatingImage from "@/assets/detail-coating.jpg";
+import interiorImage from "@/assets/detail-interior.jpg";
 import {
   Accordion,
   AccordionContent,
