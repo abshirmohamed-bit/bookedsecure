@@ -835,7 +835,8 @@ export async function handleInboundMessage(input: {
       at: inbound.receivedAt,
       source_message: inbound.body,
     };
-    await recordConsentEvent({
+    // Consent events are an append-only log: only write on first handling.
+    if (!alreadyPersisted) await recordConsentEvent({
       businessId,
       leadId: lead.id,
       eventType: "opt_out",
@@ -864,14 +865,17 @@ export async function handleInboundMessage(input: {
 
 
 
-  await audit({
-    businessId,
-    eventType: optOut ? "opt_out_recorded" : "inbound_reply",
-    entityType: "lead",
-    entityId: lead.id,
-  });
+  // Audit exactly once per inbound event, even if a retry re-ran the handler.
+  if (!alreadyPersisted) {
+    await audit({
+      businessId,
+      eventType: optOut ? "opt_out_recorded" : "inbound_reply",
+      entityType: "lead",
+      entityId: lead.id,
+    });
+  }
 
-  return { handled: true, leadId: lead.id };
+  return { handled: true, leadId: lead.id, replay: alreadyPersisted };
 }
 
 /** Delivery callback, constrained to the business that owns the sender number. */
