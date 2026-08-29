@@ -1084,7 +1084,7 @@ export type Database = {
       sms_senders: {
         Row: {
           active: boolean
-          business_id: string
+          business_id: string | null
           created_at: string
           credential_mode: string
           credential_secret_name: string | null
@@ -1100,7 +1100,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
-          business_id: string
+          business_id?: string | null
           created_at?: string
           credential_mode?: string
           credential_secret_name?: string | null
@@ -1116,7 +1116,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
-          business_id?: string
+          business_id?: string | null
           created_at?: string
           credential_mode?: string
           credential_secret_name?: string | null

@@ -108,14 +108,17 @@ function isWithinQuietHours(business: Business, at: Date): boolean {
 
 function toResolvedSender(row: {
   id: string;
-  business_id: string;
+  business_id: string | null;
   phone_number: string;
   provider: string;
   credential_mode: string;
   subaccount_sid: string | null;
   credential_secret_name: string | null;
   messaging_profile_id?: string | null;
-}): ResolvedSender {
+}): ResolvedSender | null {
+  // Unassigned platform inventory (no business) can never be used to send or
+  // receive: every write path is scoped by business_id.
+  if (!row.business_id) return null;
   return {
     id: row.id,
     businessId: row.business_id,
@@ -127,6 +130,7 @@ function toResolvedSender(row: {
     messagingProfileId: row.messaging_profile_id ?? null,
   };
 }
+
 
 const SENDER_COLUMNS =
   "id, business_id, phone_number, provider, credential_mode, subaccount_sid, credential_secret_name, messaging_profile_id, active";
@@ -183,17 +187,24 @@ export async function resolveSender(input: {
   return primary ? toResolvedSender(primary) : null;
 }
 
-/** Tenant lookup for inbound/callback webhooks: the receiving number is the key. */
+/**
+ * Tenant lookup for inbound/callback webhooks: the receiving number is the key.
+ * Inactive rows and unassigned platform inventory are never matched, so a
+ * number that is only held for future activation stays inert.
+ */
 export async function findSenderByNumber(number: string): Promise<ResolvedSender | null> {
   const normalised = normaliseAuMobile(number) ?? number;
   const { data } = await supabaseAdmin
     .from("sms_senders")
     .select(SENDER_COLUMNS)
     .or(`phone_number.eq.${normalised},phone_number.eq.${number}`)
+    .eq("active", true)
+    .not("business_id", "is", null)
     .limit(1)
     .maybeSingle();
   return data ? toResolvedSender(data) : null;
 }
+
 
 export type CaptureInput = {
   businessId?: string | undefined;

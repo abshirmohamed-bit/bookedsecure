@@ -3,6 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getSmsSetup, saveSender, saveUsageLimits } from "@/lib/app.functions";
+import { TelnyxReadinessPanel } from "@/components/TelnyxReadinessPanel";
+
 
 /** Sending numbers, monthly usage and the safety caps for this business. */
 export function SmsSetupPanel() {
@@ -198,6 +200,8 @@ export function SmsSetupPanel() {
         Opt-outs and inbound replies are always recorded, even when a cap has stopped outbound
         automation.
       </p>
+      {data.role === "platform_admin" && <TelnyxReadinessPanel />}
     </section>
+
   );
 }
