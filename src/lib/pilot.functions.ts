@@ -91,6 +91,13 @@ export const listPilotApplications = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await requirePlatformAdmin(context.supabase, context.userId);
 
+    // Keep the scheduler credential mirror fresh so the hourly pilot-expiry
+    // cron job can authenticate with the managed server-side cron secret.
+    const { syncCronCredential } = await import("@/lib/cron.server");
+    await syncCronCredential();
+
+
+
     let query = supabaseAdmin
       .from("pilot_applications")
       .select("*")
