@@ -29,7 +29,7 @@ export const adminReassignProfile = createServerFn({ method: "POST" })
     const { data: updated, error } = await supabaseAdmin.rpc("admin_set_profile_assignment", {
       p_profile_id: data.profileId,
       p_business_id: data.businessId,
-      p_active: data.active ?? null,
+      p_active: data.active,
     });
     if (error) throw new Error(error.message);
 
