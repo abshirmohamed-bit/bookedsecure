@@ -133,6 +133,24 @@ const FEATURES = [
   { icon: CalendarClock, title: "Enquiry history and next actions" },
 ];
 
+const SERVICE_IMAGES = [
+  {
+    src: exteriorImage,
+    label: "Exterior detailing",
+    alt: "Professional detailer applying wash foam to a sedan on a clean driveway with detailing tools nearby",
+  },
+  {
+    src: coatingImage,
+    label: "Paint correction & ceramic coating",
+    alt: "Close-up of a gloved detailer applying ceramic coating to a glossy dark car panel",
+  },
+  {
+    src: interiorImage,
+    label: "Interior detailing",
+    alt: "Detailer steam-cleaning and brushing the dashboard and console of a premium car interior",
+  },
+];
+
 const AUDIENCE = [
   "Mobile detailing businesses",
   "Automotive detailing studios",
