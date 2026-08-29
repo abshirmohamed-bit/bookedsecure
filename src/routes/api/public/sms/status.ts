@@ -86,12 +86,24 @@ export const Route = createFileRoute("/api/public/sms/status")({
           return Response.json({ ok: true, duplicate: true });
         }
 
-        const result = await handleDeliveryStatus({
-          providerName: sender.provider,
-          payload: payload as never,
-          sender,
-        });
-        return Response.json(result);
+        try {
+          const result = await handleDeliveryStatus({
+            providerName: sender.provider,
+            payload: payload as never,
+            sender,
+          });
+          return Response.json(result);
+        } catch (error) {
+          await releaseWebhookEvent("twilio", eventId);
+          logWebhook("error", "twilio", {
+            outcome: "processing_failed",
+            eventType: "status",
+            eventIdSource: source,
+            businessId: sender.businessId,
+            reason: error instanceof Error ? error.message : String(error),
+          });
+          return Response.json({ ok: false, error: "Processing failed" }, { status: 503 });
+        }
       },
     },
   },
