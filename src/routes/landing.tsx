@@ -163,47 +163,35 @@ const AUDIENCE = [
 const FAQS = [
   {
     q: "What is BookedSecure?",
-    a: "A lead-response and follow-up platform designed for Australian detailing businesses. It's built to help you acknowledge enquiries, keep conversations moving, schedule follow-ups and manage which leads still need action.",
+    a: "BookedSecure helps detailing businesses respond to new enquiries and follow up consistently, so fewer potential jobs are forgotten.",
   },
   {
     q: "Who is it for?",
-    a: "Australian mobile detailers, automotive detailing studios, paint correction and ceramic coating businesses, and interior detailers — particularly owner-operators and small teams who handle enquiries themselves.",
+    a: "It's built for Australian mobile detailers, detailing studios, ceramic coating businesses, paint correction specialists and small teams managing customer enquiries.",
   },
   {
-    q: "Is BookedSecure live?",
-    a: "BookedSecure is at an early pilot stage. The workflow is being tested in a simulated messaging environment while the live provider arrangement is finalised.",
+    q: "How does it help?",
+    a: "It helps you acknowledge new enquiries, organise follow-ups, keep conversations visible and identify the next action.",
   },
   {
-    q: "Is Sinch connected?",
-    a: "Not yet. Sinch connectivity is still being finalised, and the current environment should not be treated as live Sinch production messaging.",
+    q: "Does it replace personal replies?",
+    a: "No. BookedSecure supports the follow-up process while the business remains in control of the conversation, quote and booking.",
   },
   {
-    q: "Which messaging providers are supported?",
-    a: "BookedSecure uses a provider-agnostic messaging layer. A simulated adapter is currently active. Telnyx and Twilio adapters are preserved in the architecture, and a Sinch adapter is reserved but not implemented. None are presented as released customer integrations yet.",
+    q: "Where do enquiries come from?",
+    a: "BookedSecure is designed for enquiries from websites, quote forms, social media, Google, phone calls and referrals.",
   },
   {
-    q: "Has production SMS been sent?",
-    a: "No. No production SMS has been sent through the pilot environment.",
+    q: "Can it guarantee more bookings?",
+    a: "No. It is designed to improve follow-up consistency, but outcomes depend on enquiries, offer, pricing, availability and customer demand.",
   },
   {
-    q: "Is Glocast a production customer?",
-    a: "Glocast is the initial Sydney design partner. The Glocast environment is simulated and is being used to test the workflow and product experience.",
-  },
-  {
-    q: "What does the pilot involve?",
-    a: "Reviewing the enquiry and follow-up workflow, testing it against how your business handles enquiries today, and giving feedback that shapes the product before broader availability.",
-  },
-  {
-    q: "Can BookedSecure guarantee more bookings?",
-    a: "No. BookedSecure is designed to improve response and follow-up consistency. Results depend on enquiry quality, your offer, pricing, availability, customer demand and how you use the workflow.",
-  },
-  {
-    q: "Does it replace human replies?",
-    a: "No. The platform is designed to support your response process. You remain responsible for reviewing conversations, answering customer-specific questions and confirming job details.",
+    q: "Who can join the pilot?",
+    a: "Australian detailing businesses that receive regular customer enquiries and want to improve how they manage follow-up.",
   },
   {
     q: "How do I request early access?",
-    a: "Complete the short form on this page. We'll review your details and be in touch about early access and the pilot process. Joining the waitlist doesn't automatically grant live access.",
+    a: "Submit the short form and we'll contact you about pilot availability.",
   },
 ];
 
@@ -270,8 +258,7 @@ function LandingPage() {
               </a>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
-              Early-stage platform. The live messaging provider setup is still being finalised, and
-              examples shown here are simulated.
+              BookedSecure is currently accepting a limited number of early-access pilot businesses.
             </p>
           </div>
           <div className="-mx-4 lg:mx-0">
@@ -364,7 +351,7 @@ function LandingPage() {
         <section id="workflow" className="border-y border-border bg-surface">
           <div className="mx-auto max-w-3xl px-4 py-14">
             <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-              Sample workflow · simulated example
+              Example workflow
             </span>
             <h2 className="mt-4 text-2xl font-semibold sm:text-3xl">From new enquiry to next action</h2>
             {/* Workflow illustration (not a product screenshot) */}
@@ -406,10 +393,6 @@ function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="mt-6 text-xs text-muted-foreground">
-              Illustrative example only. Message content, timing and delivery depend on provider
-              configuration and testing.
-            </p>
           </div>
         </section>
 
@@ -438,40 +421,15 @@ function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="mt-6 text-xs text-muted-foreground">
-              Behind the scenes: a provider-agnostic messaging layer, a simulated messaging mode for
-              early testing, and configurable workflow steps.
-            </p>
           </div>
         </section>
 
         {/* Trust / pilot stage */}
         <section className="mx-auto max-w-3xl px-4 py-14">
           <h2 className="text-2xl font-semibold sm:text-3xl">Built carefully, with detailing businesses</h2>
-          <div className="mt-5 space-y-4 text-sm text-muted-foreground sm:text-base">
-            <p>
-              BookedSecure is an early-stage platform being shaped with input from Australian
-              detailing businesses. Glocast is the initial Sydney design partner, and the current
-              environment is being used to test the workflow and product experience. Production SMS
-              has not yet been sent through the pilot.
-            </p>
-            <p>
-              The messaging provider partnership and live delivery setup are still being finalised.
-              Early-access businesses will help validate the workflow before broader availability.
-            </p>
-          </div>
-          <ul className="mt-6 grid gap-2 text-sm sm:grid-cols-2">
-            {[
-              "Designed specifically for detailing businesses",
-              "Initial Sydney design partner: Glocast",
-              "Simulated messaging environment currently active",
-              "Provider-agnostic messaging layer",
-            ].map((item) => (
-              <li key={item} className="rounded-md border border-border bg-card px-3 py-2">
-                {item}
-              </li>
-            ))}
-          </ul>
+          <p className="mt-5 text-sm text-muted-foreground sm:text-base">
+            BookedSecure is currently accepting a limited number of early-access pilot businesses.
+          </p>
         </section>
 
         {/* Who it's for */}
@@ -601,12 +559,10 @@ function LandingPage() {
         <footer className="mx-auto max-w-4xl px-4 py-10 text-xs text-muted-foreground">
           <p className="font-medium text-foreground">BookedSecure</p>
           <p className="mt-3">
-            BookedSecure is currently in an early pilot stage. Messaging features, provider
-            connectivity and availability may change during testing. Examples shown on this page are
-            illustrative or simulated. BookedSecure does not guarantee message delivery, customer
-            responses, bookings, revenue outcomes or legal compliance for a particular business.
-            Businesses remain responsible for obtaining appropriate customer consent and using
-            communications in accordance with applicable requirements.
+            BookedSecure does not guarantee message delivery, customer responses, bookings, revenue
+            outcomes or legal compliance for a particular business. Businesses remain responsible for
+            obtaining appropriate customer consent and using communications in accordance with applicable
+            requirements.
           </p>
         </footer>
       </main>
