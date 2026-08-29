@@ -61,7 +61,8 @@ export type WebhookRecordResult = {
 
 /** Diagnostics only: never persist payload bodies, numbers or credentials. */
 function safeReason(error: unknown): string {
-  const raw = error instanceof Error ? error.message : String(error ?? "unknown");
+  const message = (error as { message?: unknown } | null)?.message;
+  const raw = typeof message === "string" ? message : String(error ?? "unknown");
   return raw.replace(/\s+/g, " ").slice(0, 200);
 }
 
