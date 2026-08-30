@@ -90,7 +90,7 @@ function fakeClient(existingLeads: Record<string, unknown>[] = []) {
 
 describe("CRM CSV parsing and mapping", () => {
   it("requires a header row", () => {
-    expect(() => parseCsv("0412345678,Ada\n0412345679,Bob")).toThrow(/header row/i);
+    expect(() => parseCsv("0412345678,0412345679\n0412345670,0412345671")).toThrow(/header row/i);
     expect(() => parseCsv("")).toThrow(/empty/i);
   });
 
