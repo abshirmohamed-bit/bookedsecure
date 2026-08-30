@@ -170,7 +170,7 @@ function PreviewTable({ preview }: { preview: Preview }) {
           </thead>
           <tbody>
             {preview.rows.map((row) => {
-              const payload = row.normalized_payload as Record<string, unknown>;
+              const payload = row.normalized_payload;
               const metadata = (payload["source_metadata"] ?? {}) as Record<string, string>;
               return (
                 <tr key={row.row_number} className="border-t border-border align-top">

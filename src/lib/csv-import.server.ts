@@ -29,7 +29,7 @@ export type PreviewRow = {
   name: string | null;
   mobile_number: string | null;
   email: string | null;
-  normalized_payload: unknown;
+  normalized_payload: Record<string, unknown>;
   validation_errors: { code: string; field?: string; detail?: string }[];
   dedupe_match_lead_id: string | null;
   duplicate_of_row: number | null;
