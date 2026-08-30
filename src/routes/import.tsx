@@ -171,7 +171,7 @@ function PreviewTable({ preview }: { preview: Preview }) {
           <tbody>
             {preview.rows.map((row) => {
               const payload = row.normalized_payload;
-              const metadata = (payload["source_metadata"] ?? {}) as Record<string, string>;
+              const metadata = payload.source_metadata ?? {};
               return (
                 <tr key={row.row_number} className="border-t border-border align-top">
                   <td className="py-2 pr-3">{row.row_number}</td>
@@ -179,10 +179,10 @@ function PreviewTable({ preview }: { preview: Preview }) {
                   <td className="py-2 pr-3">{row.mobile_number ?? "—"}</td>
                   <td className="py-2 pr-3">{row.email ?? "—"}</td>
                   <td className="py-2 pr-3">
-                    <div>status: {(payload["proposed_status"] as string) ?? "—"}</div>
-                    <div>source: {(payload["source_channel"] as string) ?? "—"}</div>
-                    <div>form: {(payload["source_form"] as string) ?? "—"}</div>
-                    <div>created: {(payload["proposed_created_at"] as string) ?? "—"}</div>
+                    <div>status: {payload.proposed_status ?? "—"}</div>
+                    <div>source: {payload.source_channel ?? "—"}</div>
+                    <div>form: {payload.source_form ?? "—"}</div>
+                    <div>created: {payload.proposed_created_at ?? "—"}</div>
                     {Object.keys(metadata).length ? (
                       <div className="text-muted-foreground">
                         metadata:{" "}

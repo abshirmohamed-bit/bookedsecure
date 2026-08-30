@@ -13,7 +13,10 @@ import {
   prepareRow,
   unmappedColumns,
   type ExistingLeadIndex,
+  type NormalizedPayload,
 } from "@/lib/csv-import";
+
+export type PreviewPayload = NormalizedPayload & { duplicate_of_row: number | null };
 
 type Client = SupabaseClient<Database>;
 
@@ -29,7 +32,7 @@ export type PreviewRow = {
   name: string | null;
   mobile_number: string | null;
   email: string | null;
-  normalized_payload: Record<string, unknown>;
+  normalized_payload: PreviewPayload;
   validation_errors: { code: string; field?: string; detail?: string }[];
   dedupe_match_lead_id: string | null;
   duplicate_of_row: number | null;
@@ -206,24 +209,22 @@ export async function loadBatchPreview(
     .order("row_number", { ascending: true });
 
   const mapped = (rows ?? []).map((row) => {
-    const payload = (row.normalized_payload ?? {}) as Record<string, unknown>;
+    const payload = (row.normalized_payload ?? {}) as unknown as PreviewPayload;
     return {
       row_number: row.row_number,
-      name: (payload["name"] as string | null) ?? null,
-      mobile_number: (payload["mobile_number"] as string | null) ?? null,
-      email: (payload["email"] as string | null) ?? null,
+      name: payload.name ?? null,
+      mobile_number: payload.mobile_number ?? null,
+      email: payload.email ?? null,
       normalized_payload: payload,
       validation_errors: (row.validation_errors ?? []) as PreviewRow["validation_errors"],
       dedupe_match_lead_id: row.dedupe_match_lead_id,
-      duplicate_of_row: (payload["duplicate_of_row"] as number | null) ?? null,
+      duplicate_of_row: payload.duplicate_of_row ?? null,
       decision: row.decision,
     };
   });
 
   const headers = Object.keys((rows?.[0]?.raw_row ?? {}) as Record<string, unknown>);
-  const unmapped = (mapped[0]?.normalized_payload as Record<string, unknown> | undefined)?.[
-    "unmapped_columns"
-  ] as string[] | undefined;
+  const unmapped = mapped[0]?.normalized_payload?.unmapped_columns;
 
   return {
     batch: {
