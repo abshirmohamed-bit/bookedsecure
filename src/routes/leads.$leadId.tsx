@@ -149,7 +149,8 @@ function LeadDetail() {
           <p className="mt-1 text-xs text-muted-foreground">
             {lead.mobile_number}
             {lead.email ? ` · ${lead.email}` : ""} ·{" "}
-            {SOURCE_LABELS[lead.source_channel] ?? lead.source_channel}
+            {leadSourceLabel(lead)}
+            {importMethodLabel(lead) ? ` (via ${importMethodLabel(lead)})` : ""}
             {lead.source_campaign ? ` · ${lead.source_campaign}` : ""}
             {lead.source_form ? ` · ${lead.source_form}` : ""} ·{" "}
             {new Date(lead.created_at).toLocaleString("en-AU")}
