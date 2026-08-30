@@ -714,6 +714,65 @@ export type Database = {
           },
         ]
       }
+      lead_deletion_requests: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          business_id: string
+          created_at: string
+          deleted_count: number
+          failed_count: number
+          failures: Json
+          id: string
+          reason: string | null
+          request_id: string
+          requested_count: number
+          requested_lead_ids: string[]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          action?: string
+          actor_user_id?: string | null
+          business_id: string
+          created_at?: string
+          deleted_count?: number
+          failed_count?: number
+          failures?: Json
+          id?: string
+          reason?: string | null
+          request_id: string
+          requested_count?: number
+          requested_lead_ids?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          business_id?: string
+          created_at?: string
+          deleted_count?: number
+          failed_count?: number
+          failures?: Json
+          id?: string
+          reason?: string | null
+          request_id?: string
+          requested_count?: number
+          requested_lead_ids?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_deletion_requests_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_import_rows: {
         Row: {
           batch_id: string
@@ -794,6 +853,10 @@ export type Database = {
           business_id: string
           consent_record: Json | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_request_id: string | null
           email: string | null
           email_normalised: string | null
           external_id: string | null
@@ -826,6 +889,10 @@ export type Database = {
           business_id: string
           consent_record?: Json | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_request_id?: string | null
           email?: string | null
           email_normalised?: string | null
           external_id?: string | null
@@ -858,6 +925,10 @@ export type Database = {
           business_id?: string
           consent_record?: Json | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_request_id?: string | null
           email?: string | null
           email_normalised?: string | null
           external_id?: string | null
