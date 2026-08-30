@@ -667,7 +667,7 @@ function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows
  */
 function CommitGatePanel({ preview }: { preview: Preview }) {
   const runSimulation = useServerFn(simulateCrmCommit);
-  const runCanary = useServerFn(commitCrmCanaryRow);
+  const runCanary = useServerFn(verifyImportCanary);
   const queryClient = useQueryClient();
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
