@@ -908,3 +908,291 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
     </section>
   );
 }
+
+/**
+ * ROLLOUT STATUS + CONTROLS.
+ *
+ * Shows the tenant's current import mode, why it is active, which safety gates
+ * have passed, the last import summary and the pause kill switch. Advancing a
+ * mode, pausing, resuming, running a bounded batch and running an exception-only
+ * import are all explicit owner actions — nothing here advances on its own.
+ */
+function RolloutPanel({ batchId }: { batchId: string | null }) {
+  const load = useServerFn(getImportAutomation);
+  const setPause = useServerFn(setImportAutomationPause);
+  const setMode = useServerFn(setImportAutomationMode);
+  const runBounded = useServerFn(runImportBoundedBatch);
+  const runExceptions = useServerFn(runImportExceptionOnly);
+  const queryClient = useQueryClient();
+  const [rowsInput, setRowsInput] = useState("");
+
+  const { data } = useQuery({
+    queryKey: ["crm-import-automation"],
+    queryFn: () => load(),
+  });
+
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["crm-import-automation"] });
+    if (batchId) await queryClient.invalidateQueries({ queryKey: ["crm-import-batch", batchId] });
+  };
+
+  const pauseMutation = useMutation({
+    mutationFn: (paused: boolean) => setPause({ data: { paused } }),
+    onSuccess: async (state) => {
+      await refresh();
+      toast.success(
+        state.paused
+          ? "Automatic imports paused. Previewing and classification still run."
+          : "Automatic imports resumed.",
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const modeMutation = useMutation({
+    mutationFn: (mode: ImportMode) => setMode({ data: { mode } }),
+    onSuccess: async (result) => {
+      await refresh();
+      if (result.ok) toast.success(`Import mode is now ${IMPORT_MODE_LABELS[result.state.mode]}.`);
+      else toast.error(result.reasons.map((reason) => MODE_TRANSITION_LABELS[reason]).join(" "));
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const boundedMutation = useMutation({
+    mutationFn: (rowNumbers: number[]) =>
+      runBounded({ data: { batchId: batchId!, rowNumbers, confirm: true } }),
+    onSuccess: async (result) => {
+      await refresh();
+      if (result.status === "ok") {
+        toast.success(
+          `Bounded batch finished — ${result.summary.auto_imported + result.summary.manually_imported} live leads created.`,
+        );
+      } else if (result.status === "blocked") {
+        toast.error(result.reasons.map((reason) => IMPORT_GATE_LABELS[reason]).join(" "));
+      } else {
+        toast.error("This upload is not available for importing.");
+      }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const exceptionMutation = useMutation({
+    mutationFn: () => runExceptions({ data: { batchId: batchId!, confirm: true } }),
+    onSuccess: async (result) => {
+      await refresh();
+      if (result.status === "ok") {
+        toast.success(
+          `Import finished — ${result.summary.auto_imported} auto-imported, ${result.summary.pending_review} held for review.`,
+        );
+      } else if (result.status === "blocked") {
+        toast.error(result.reasons.map((reason) => IMPORT_GATE_LABELS[reason]).join(" "));
+      } else {
+        toast.error("This upload is not available for importing.");
+      }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const state = data?.state;
+  if (!state) return null;
+
+  const nextMode: ImportMode | null =
+    state.mode === "preview_only"
+      ? "canary_ready"
+      : state.mode === "canary_ready"
+        ? "bounded_batch"
+        : state.mode === "bounded_batch"
+          ? "exception_only"
+          : null;
+
+  const gates: [string, boolean][] = [
+    ["Canary passed", Boolean(state.canary_passed_at)],
+    ["Idempotency verified", Boolean(state.idempotency_verified_at)],
+    ["Bounded batch passed", Boolean(state.bounded_batch_passed_at)],
+    ["Exception-only enabled", Boolean(state.exception_only_enabled_at)],
+  ];
+
+  const parsedRows = [
+    ...new Set(
+      rowsInput
+        .split(/[^0-9]+/)
+        .map((value) => Number.parseInt(value, 10))
+        .filter((value) => Number.isInteger(value) && value > 0),
+    ),
+  ];
+
+  return (
+    <section className="panel space-y-4 p-4" aria-label="Import rollout status">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+            Import rollout
+          </p>
+          <h2 className="mt-1 text-sm font-semibold">
+            Current mode: {IMPORT_MODE_LABELS[state.mode]}
+            {state.paused ? " (paused)" : ""}
+          </h2>
+          <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
+            {modeExplanation(state)}
+          </p>
+          <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
+            {IMPORT_MODE_DESCRIPTIONS[state.mode]}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={pauseMutation.isPending}
+          onClick={() => pauseMutation.mutate(!state.paused)}
+          className="rounded-md border border-input px-3 py-1.5 text-xs disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          {state.paused ? "Resume automatic imports" : "Pause automatic imports"}
+        </button>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {gates.map(([label, passed]) => (
+          <div key={label} className="rounded-md border border-border p-2">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-0.5 text-sm font-semibold">{passed ? "Yes" : "Not yet"}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {nextMode ? (
+          <button
+            type="button"
+            disabled={modeMutation.isPending}
+            onClick={() => modeMutation.mutate(nextMode)}
+            className="rounded-md border border-input px-3 py-1.5 text-xs disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Advance to {IMPORT_MODE_LABELS[nextMode]}
+          </button>
+        ) : null}
+        {state.mode !== "preview_only" && state.mode !== "disabled" ? (
+          <button
+            type="button"
+            disabled={modeMutation.isPending}
+            onClick={() => modeMutation.mutate("preview_only")}
+            className="rounded-md border border-input px-3 py-1.5 text-xs disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Step back to preview only
+          </button>
+        ) : null}
+      </div>
+
+      {batchId && (state.mode === "bounded_batch" || state.mode === "exception_only") ? (
+        <div className="space-y-2 border-t border-border pt-3">
+          <h3 className="text-xs font-semibold">Run an import for the selected upload</h3>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-xs text-muted-foreground">
+              Bounded batch rows (max {BOUNDED_BATCH_MAX_ROWS})
+              <input
+                value={rowsInput}
+                onChange={(event) => setRowsInput(event.target.value)}
+                placeholder="e.g. 2, 3, 4"
+                aria-label="Row numbers for the bounded batch"
+                className="mt-1 block w-40 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={
+                boundedMutation.isPending ||
+                parsedRows.length === 0 ||
+                parsedRows.length > BOUNDED_BATCH_MAX_ROWS
+              }
+              onClick={() => boundedMutation.mutate(parsedRows)}
+              className="rounded-md border border-input px-3 py-1.5 text-xs disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              {boundedMutation.isPending ? "Importing…" : "Run bounded batch"}
+            </button>
+            {state.mode === "exception_only" ? (
+              <button
+                type="button"
+                disabled={exceptionMutation.isPending}
+                onClick={() => exceptionMutation.mutate()}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                {exceptionMutation.isPending
+                  ? "Importing…"
+                  : "Import clean rows and hold exceptions"}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <SummaryPanel summary={state.last_summary} ranAt={state.last_run_at} />
+    </section>
+  );
+}
+
+/** Durable post-import summary. `include` never appears here as "imported". */
+function SummaryPanel({
+  summary,
+  ranAt,
+}: {
+  summary: ImportSummary | null;
+  ranAt: string | null;
+}) {
+  if (!summary) {
+    return (
+      <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+        No import has run for this business yet.
+      </p>
+    );
+  }
+  const counts: [string, number][] = [
+    ["Total uploaded", summary.total_uploaded],
+    ["Auto-imported", summary.auto_imported],
+    ["Manually imported", summary.manually_imported],
+    ["Already committed", summary.already_committed],
+    ["Pending review", summary.pending_review],
+    ["Potential duplicates", summary.potential_duplicates],
+    ["Duplicate lookup unavailable", summary.duplicate_lookup_unavailable],
+    ["Invalid phones", summary.invalid_phones],
+    ["Non-mobile phones", summary.non_mobile_phones],
+    ["Excluded rows", summary.excluded_rows],
+    ["Failed rows", summary.failed_rows],
+    ["Reconciliation required", summary.reconciliation_required_rows],
+    ["Conversations created", summary.conversations_created],
+    ["SMS sent", summary.sms_sent],
+    ["Emails sent", summary.emails_sent],
+    ["Owner alerts", summary.owner_alerts],
+    ["Jobs created", summary.jobs_created],
+    ["Pipeline changes", summary.pipeline_changes],
+    ["Automation runs", summary.automation_runs],
+    ["Provider calls", summary.provider_calls],
+  ];
+  return (
+    <div className="space-y-2 border-t border-border pt-3">
+      <h3 className="text-xs font-semibold">
+        Last import summary — {IMPORT_MODE_LABELS[summary.mode]}
+        {ranAt ? ` · ${formatUploadTimestamp(ranAt)}` : ""}
+      </h3>
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {counts.map(([label, value]) => (
+          <div key={label} className="rounded-md border border-border p-2">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-0.5 text-sm font-semibold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {summary.rows.length ? (
+        <ul className="space-y-0.5 text-xs text-muted-foreground">
+          {summary.rows.map((row) => (
+            <li key={row.row_number}>
+              Row {row.row_number}: {ROW_OUTCOME_LABELS[row.outcome as RowOutcome] ?? row.outcome}
+              {row.reasons.length
+                ? ` — ${row.reasons.map((reason) => COMMIT_BLOCK_LABELS[reason as CommitBlockReason] ?? reason).join(", ")}`
+                : ""}
+              {row.error ? ` — ${row.error}` : ""}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
