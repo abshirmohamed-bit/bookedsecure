@@ -30,6 +30,7 @@ import {
   type ExclusionReason,
   type RowReview,
 } from "@/lib/row-review";
+import type { EditableField, StagedRowState } from "@/lib/staged-row-edit";
 
 export type PreviewPayload = NormalizedPayload & { duplicate_of_row: number | null };
 
@@ -537,5 +538,198 @@ export async function classifyPreviewBatch(
     auto_included: autoIncluded,
     manual_review: manualReview,
     preserved_manual: preservedManual,
+  };
+}
+
+/**
+ * Edit ONE staged preview row.
+ *
+ * SAFETY: writes only to `lead_import_rows` (this row) plus one `audit_events`
+ * record. It never inserts or updates leads, never creates conversations,
+ * messages, jobs, revenue, notifications or automation runs, and never calls a
+ * messaging provider. The raw uploaded row, batch id, business id, row number,
+ * import origin and any assigned commit/idempotency bookkeeping are untouched.
+ *
+ * After saving it re-runs the full revalidation chain: field normalization, AU
+ * phone classification, email validation, name validation, stage mapping, the
+ * tenant-scoped duplicate check against live leads and the in-batch duplicate
+ * check, then recomputes the issue list, classification and row state.
+ */
+export async function editStagedRow(
+  client: Client,
+  businessId: string,
+  input: {
+    batchId: string;
+    rowNumber: number;
+    userId: string;
+    fields: Partial<Record<EditableField, string>>;
+    reason?: string | null;
+  },
+): Promise<{
+  rowNumber: number;
+  changed_fields: EditableField[];
+  row: PreviewRow;
+  state: StagedRowState;
+  duplicate: { existing_lead_id: string | null; in_batch_row: number | null };
+}> {
+  const { DELETABLE_BATCH_STATUSES } = await import("@/lib/import-history");
+  const { applyStagedEdit, resolveStagedRowState } = await import("@/lib/staged-row-edit");
+  const { readCommitState } = await import("@/lib/commit-gate");
+
+  const { data: batch } = await client
+    .from("import_batches")
+    .select("id, status")
+    .eq("id", input.batchId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!batch) throw new Error("Import batch not found for this business.");
+  if (!(DELETABLE_BATCH_STATUSES as readonly string[]).includes(batch.status)) {
+    throw new Error("This upload has already been committed, so its rows cannot be edited.");
+  }
+
+  const { data: row } = await client
+    .from("lead_import_rows")
+    .select("id, row_number, raw_row, normalized_payload, validation_errors, dedupe_match_lead_id")
+    .eq("batch_id", input.batchId)
+    .eq("business_id", businessId)
+    .eq("row_number", input.rowNumber)
+    .maybeSingle();
+  if (!row) throw new Error("Preview row not found for this business.");
+
+  const payload = (row.normalized_payload ?? {}) as unknown as PreviewPayload &
+    Record<string, unknown>;
+  if (readCommitState(payload).status === "committed") {
+    throw new Error("This row has already been committed, so it cannot be edited.");
+  }
+
+  const applied = applyStagedEdit(payload, input.fields, {
+    userId: input.userId,
+    reason: input.reason ?? null,
+  });
+
+  // --- duplicate revalidation (read-only, tenant scoped) ---------------------
+  const lookup = await loadExistingIndex(client, businessId);
+  const duplicateLookup: DuplicateLookup = { state: lookup.state };
+  const phone = applied.normalized.mobile_number;
+  const email = applied.normalized.email_normalised;
+  const existingMatch =
+    lookup.state === "checked"
+      ? ((phone ? lookup.index.byPhone.get(phone) : null) ??
+        (email ? lookup.index.byEmail.get(email) : null) ??
+        null)
+      : null;
+
+  const { data: siblings } = await client
+    .from("lead_import_rows")
+    .select("row_number, normalized_payload")
+    .eq("batch_id", input.batchId)
+    .eq("business_id", businessId)
+    .order("row_number", { ascending: true });
+
+  let inBatchRow: number | null = null;
+  for (const sibling of siblings ?? []) {
+    if (sibling.row_number === input.rowNumber) continue;
+    const other = (sibling.normalized_payload ?? {}) as unknown as PreviewPayload;
+    const otherEmail = (other.email_normalised ?? other.email ?? "").toLowerCase() || null;
+    const matches =
+      (phone && other.mobile_number === phone) || (email && otherEmail === email) ? true : false;
+    if (matches) {
+      inBatchRow = sibling.row_number;
+      break;
+    }
+  }
+
+  const errors: PreviewRow["validation_errors"] = [...applied.validation_errors];
+  if (inBatchRow !== null) {
+    if (phone) errors.push({ code: "duplicate_phone_in_file", field: "mobile_number", detail: `row ${inBatchRow}` });
+    else errors.push({ code: "duplicate_email_in_file", field: "email", detail: `row ${inBatchRow}` });
+  }
+  if (existingMatch) {
+    errors.push(
+      phone && lookup.index.byPhone.get(phone) === existingMatch
+        ? { code: "duplicate_existing_phone", field: "mobile_number" }
+        : { code: "duplicate_existing_email", field: "email" },
+    );
+  }
+
+  const nextPayload = {
+    ...applied.payload,
+    duplicate_of_row: inBatchRow,
+  } as unknown as PreviewPayload & Record<string, unknown>;
+
+  const classification = classifyRow(
+    {
+      name: applied.normalized.name,
+      email: applied.normalized.email,
+      mobile_number: phone,
+      validation_errors: errors,
+      dedupe_match_lead_id: existingMatch,
+      duplicate_of_row: inBatchRow,
+    },
+    duplicateLookup,
+  );
+  // An edit always re-enters validation: the prior manual decision is cleared so
+  // a repaired row cannot keep a stale `include`, and a broken row cannot keep one.
+  const review = applyClassificationToReview({ ...DEFAULT_REVIEW }, classification);
+
+  const stored = { ...nextPayload, review, ...classification } as never;
+  const { error: updateError } = await client
+    .from("lead_import_rows")
+    .update({
+      normalized_payload: stored,
+      validation_errors: errors as never,
+      dedupe_match_lead_id: existingMatch,
+    })
+    .eq("id", row.id)
+    .eq("business_id", businessId);
+  if (updateError) throw new Error(updateError.message);
+
+  if (applied.changes.length > 0) {
+    await client.from("audit_events").insert({
+      business_id: businessId,
+      user_id: input.userId,
+      event_type: "import_row_edited",
+      entity_type: "lead_import_row",
+      entity_id: row.id,
+      metadata: {
+        batch_id: input.batchId,
+        staged_row_id: row.id,
+        row_number: input.rowNumber,
+        changed_fields: applied.changes.map((change) => change.field),
+        previous_values: Object.fromEntries(applied.changes.map((c) => [c.field, c.from])),
+        new_values: Object.fromEntries(applied.changes.map((c) => [c.field, c.to])),
+        reason: input.reason ?? null,
+        revision: applied.payload.edits?.revision ?? null,
+      } as never,
+    });
+  }
+
+  const previewRow: PreviewRow = {
+    row_number: input.rowNumber,
+    name: applied.normalized.name,
+    mobile_number: phone,
+    email: applied.normalized.email,
+    normalized_payload: nextPayload as unknown as PreviewPayload,
+    validation_errors: errors,
+    dedupe_match_lead_id: existingMatch,
+    duplicate_of_row: inBatchRow,
+    decision: "pending",
+    review,
+    classification,
+  };
+
+  return {
+    rowNumber: input.rowNumber,
+    changed_fields: applied.changes.map((change) => change.field),
+    row: previewRow,
+    state: resolveStagedRowState({
+      commit_status: readCommitState(nextPayload).status,
+      review_decision: review.decision,
+      classification: classification.classification,
+      validation_errors: errors,
+      dedupe_match_lead_id: existingMatch,
+      duplicate_of_row: inBatchRow,
+    }),
+    duplicate: { existing_lead_id: existingMatch, in_batch_row: inBatchRow },
   };
 }

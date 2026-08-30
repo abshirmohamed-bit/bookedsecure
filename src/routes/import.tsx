@@ -67,6 +67,12 @@ import {
   shortBatchId,
   type ImportBatchSummary,
 } from "@/lib/import-history";
+import { StagedRowEditor } from "@/components/StagedRowEditor";
+import {
+  STAGED_ROW_STATE_LABELS,
+  canEditStagedRow,
+  resolveStagedRowState,
+} from "@/lib/staged-row-edit";
 
 export const Route = createFileRoute("/import")({
   head: () => ({
@@ -107,6 +113,8 @@ function ImportView() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ImportBatchSummary | null>(null);
+  // Unsaved staged-row edits block the commit controls.
+  const [unsavedEdits, setUnsavedEdits] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["crm-import-batches"],
@@ -287,8 +295,8 @@ function ImportView() {
       {preview.data && preview.data.batch.id === activeId ? (
         <>
           <DryRunPanel preview={preview.data} />
-          <CommitGatePanel preview={preview.data} />
-          <PreviewTable preview={preview.data} />
+          <CommitGatePanel preview={preview.data} unsavedEdits={unsavedEdits} />
+          <PreviewTable preview={preview.data} onDirtyChange={setUnsavedEdits} />
         </>
       ) : null}
     </div>
@@ -359,7 +367,16 @@ function DeleteDialog({
   );
 }
 
-function PreviewTable({ preview }: { preview: Preview }) {
+function PreviewTable({
+  preview,
+  onDirtyChange,
+}: {
+  preview: Preview;
+  onDirtyChange: (dirty: boolean) => void;
+}) {
+  const [editing, setEditing] = useState<number | null>(null);
+  const editingRow = preview.rows.find((row) => row.row_number === editing) ?? null;
+  const rawRow = Object.fromEntries(preview.headers.map((header) => [header, ""]));
   return (
     <section className="panel space-y-3 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -396,6 +413,7 @@ function PreviewTable({ preview }: { preview: Preview }) {
               <th className="py-2 pr-3">Classification</th>
               <th className="py-2 pr-3">Commit status</th>
               <th className="py-2 pr-3">Decision</th>
+              <th className="py-2 pr-3">Edit</th>
             </tr>
           </thead>
           <tbody>
@@ -468,6 +486,21 @@ function PreviewTable({ preview }: { preview: Preview }) {
                           .join(", ")}
                       </div>
                     ) : null}
+                    <div className="text-muted-foreground">
+                      state:{" "}
+                      {
+                        STAGED_ROW_STATE_LABELS[
+                          resolveStagedRowState({
+                            commit_status: readCommitState(row.normalized_payload).status,
+                            review_decision: row.review?.decision,
+                            classification: row.classification?.classification,
+                            validation_errors: row.validation_errors,
+                            dedupe_match_lead_id: row.dedupe_match_lead_id,
+                            duplicate_of_row: row.duplicate_of_row,
+                          })
+                        ]
+                      }
+                    </div>
                   </td>
                   <td className="py-2 pr-3">
                     {rowCommitLabel(
@@ -478,6 +511,22 @@ function PreviewTable({ preview }: { preview: Preview }) {
                   <td className="py-2 pr-3">
                     <DecisionControl batchId={preview.batch.id} row={row} />
                   </td>
+                  <td className="py-2 pr-3">
+                    {canEditStagedRow({
+                      commit_status: readCommitState(row.normalized_payload).status,
+                    }) ? (
+                      <button
+                        type="button"
+                        onClick={() => setEditing(row.row_number)}
+                        aria-label={`Edit staged row ${row.row_number}`}
+                        className="rounded-md border border-input px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
+                        Edit
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground">committed</span>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -487,9 +536,19 @@ function PreviewTable({ preview }: { preview: Preview }) {
       <p className="text-xs text-muted-foreground">
         Preview only. Importing, merging and creating leads is not enabled yet.
       </p>
+      {editingRow ? (
+        <StagedRowEditor
+          batchId={preview.batch.id}
+          row={editingRow as never}
+          rawRow={rawRow}
+          onDirtyChange={onDirtyChange}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
     </section>
   );
 }
+
 
 function DryRunPanel({ preview }: { preview: Preview }) {
   const runClassifier = useServerFn(classifyCrmImportBatch);
@@ -664,7 +723,13 @@ function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows
  * row, only after a successful simulation and an explicit confirmation, and the
  * server re-runs the full pre-commit revalidation before any write.
  */
-function CommitGatePanel({ preview }: { preview: Preview }) {
+function CommitGatePanel({
+  preview,
+  unsavedEdits = false,
+}: {
+  preview: Preview;
+  unsavedEdits?: boolean;
+}) {
   const runSimulation = useServerFn(simulateCrmCommit);
   const runCanary = useServerFn(verifyImportCanary);
   const queryClient = useQueryClient();
@@ -711,7 +776,7 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
   const sim = result?.status === "ok" ? result.simulation : null;
   const candidates = sim?.candidates ?? [];
   const selected = candidates.find((candidate) => candidate.row_number === selectedRow) ?? null;
-  const canaryReady = Boolean(sim && selected) && !canary.isPending;
+  const canaryReady = Boolean(sim && selected) && !canary.isPending && !unsavedEdits;
   const verification = canary.data;
 
   return (
@@ -722,6 +787,12 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
         </p>
         <h2 className="mt-1 text-sm font-semibold">Commit simulation</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">{SIMULATION_WARNING}</p>
+        {unsavedEdits ? (
+          <p className="mt-1 text-xs text-destructive">
+            You have unsaved staged-row edits. Save or cancel them before importing — importing
+            always uses the latest saved values.
+          </p>
+        ) : null}
       </div>
       <button
         type="button"
