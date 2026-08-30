@@ -24,6 +24,7 @@ import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsAutomationRouteImport } from './routes/settings.automation'
 import { Route as SettingsBusinessRouteImport } from './routes/settings.business'
 import { Route as SettingsMessagingRouteImport } from './routes/settings.messaging'
+import { Route as SettingsTeamRouteImport } from './routes/settings.team'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
@@ -108,6 +109,11 @@ const SettingsMessagingRoute = SettingsMessagingRouteImport.update({
   path: '/messaging',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsTeamRoute = SettingsTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   id: '/api/public/hooks/follow-ups',
   path: '/api/public/hooks/follow-ups',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
+  '/settings/team': typeof SettingsTeamRoute
   '/leads/': typeof LeadsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
+  '/settings/team': typeof SettingsTeamRoute
   '/leads': typeof LeadsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
@@ -215,6 +223,7 @@ export interface FileRoutesById {
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
+  '/settings/team': typeof SettingsTeamRoute
   '/leads/': typeof LeadsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
+    | '/settings/team'
     | '/leads/'
     | '/settings/'
     | '/api/public/hooks/follow-ups'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
+    | '/settings/team'
     | '/leads'
     | '/settings'
     | '/api/public/hooks/follow-ups'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
+    | '/settings/team'
     | '/leads/'
     | '/settings/'
     | '/api/public/hooks/follow-ups'
@@ -432,6 +444,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsMessagingRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/team': {
+      id: '/settings/team'
+      path: '/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof SettingsTeamRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/api/public/hooks/follow-ups': {
       id: '/api/public/hooks/follow-ups'
       path: '/api/public/hooks/follow-ups'
@@ -495,6 +514,7 @@ interface SettingsRouteChildren {
   SettingsAutomationRoute: typeof SettingsAutomationRoute
   SettingsBusinessRoute: typeof SettingsBusinessRoute
   SettingsMessagingRoute: typeof SettingsMessagingRoute
+  SettingsTeamRoute: typeof SettingsTeamRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -502,6 +522,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAutomationRoute: SettingsAutomationRoute,
   SettingsBusinessRoute: SettingsBusinessRoute,
   SettingsMessagingRoute: SettingsMessagingRoute,
+  SettingsTeamRoute: SettingsTeamRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
