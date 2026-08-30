@@ -57,3 +57,21 @@ export const listCrmImportBatches = createServerFn({ method: "GET" })
       .limit(20);
     return { role: app.role, batches: data ?? [] };
   });
+
+/**
+ * Deletes one preview batch and its staged rows. Owner-gated, tenant resolved
+ * from the authenticated session — the batch id from the browser is only ever
+ * used inside a business-scoped filter. Live data is never touched.
+ */
+export const deleteCrmImportBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => BatchSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { deletePreviewBatch } = await import("@/lib/csv-import.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return deletePreviewBatch(supabaseAdmin, app.businessId, data.batchId);
+  });
+
