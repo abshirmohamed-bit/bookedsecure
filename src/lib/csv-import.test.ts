@@ -124,6 +124,7 @@ describe("CRM CSV parsing and mapping", () => {
       labels: "vip",
       secondary_phone: "0298765432",
       whatsapp_number: "+61412345678",
+      created_at_raw: "12/03/2026",
     });
     expect(row.normalized_payload.email).toBe("ada@example.com");
     expect(row.normalized_payload.proposed_status).toBe("quote_sent");
@@ -276,7 +277,11 @@ describe("synthetic CRM fidelity fixture", () => {
     expect(p.source_form).toBe("Test Form");
     expect(p.proposed_status).toBe("new");
     expect(p.proposed_created_at).toContain("2026-08-30");
-    expect(p.source_metadata).toEqual({ owner: "Test Owner", labels: "test" });
+    expect(p.source_metadata).toEqual({
+      owner: "Test Owner",
+      labels: "test",
+      created_at_raw: "30/08/2026",
+    });
     expect(row.raw_row["Unknown Test Column"]).toBe("keep-me");
     expect(row.validation_errors).toEqual([]);
   });
@@ -548,7 +553,10 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     expect(table.rows[0]).toHaveLength(12);
 
     const prepared = prepareRow(table.headers, table.rows[0]!, 1);
-    expect(prepared.validation_errors).toEqual([]);
+    // "Intake" is not a known stage; every other field maps cleanly.
+    expect(prepared.validation_errors).toEqual([
+      { code: "unmappable_stage", field: "status", detail: "Intake" },
+    ]);
     expect(prepared.normalized_payload.name).toBe("Diana Borinski");
     expect(prepared.normalized_payload.mobile_number).toBe("+61423662012");
     expect(prepared.normalized_payload.email).toBe("dianaborinski@gmail.com");
@@ -568,7 +576,9 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     expect(detectDelimiter(text)).toBe(",");
     const table = parseCsv(text);
     expect(table.headers).toEqual(HEADER);
-    expect(prepareRow(table.headers, table.rows[0]!, 1).validation_errors).toEqual([]);
+    expect(prepareRow(table.headers, table.rows[0]!, 1).validation_errors).toEqual([
+      { code: "unmappable_stage", field: "status", detail: "Intake" },
+    ]);
   });
 
   it("detects semicolon files", () => {
@@ -631,7 +641,12 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     const prepared = flagInBatchDuplicates(
       table.rows.map((row, index) => prepareRow(table.headers, row, index + 1)),
     );
-    expect(prepared.filter((row) => row.validation_errors.length > 0)).toHaveLength(0);
+    // Only the unknown "Intake" stage is flagged; no missing name/phone/email issues.
+    expect(
+      prepared.filter((row) =>
+        row.validation_errors.some((error) => error.code !== "unmappable_stage"),
+      ),
+    ).toHaveLength(0);
     expect(prepared.filter((row) => row.duplicate_of_row !== null)).toHaveLength(0);
   });
 });
