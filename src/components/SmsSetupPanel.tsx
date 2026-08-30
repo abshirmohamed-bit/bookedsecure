@@ -2,9 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getSmsSetup, saveSender, saveUsageLimits } from "@/lib/app.functions";
+import { getSmsSetup, saveUsageLimits } from "@/lib/app.functions";
 import { TelnyxReadinessPanel } from "@/components/TelnyxReadinessPanel";
 
+const PROVIDER_LABELS: Record<string, string> = {
+  telnyx: "Telnyx",
+  twilio: "Twilio",
+  simulated: "Simulated",
+};
 
 /** Sending numbers, monthly usage and the safety caps for this business. */
 export function SmsSetupPanel() {
@@ -12,11 +17,8 @@ export function SmsSetupPanel() {
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["sms-setup"], queryFn: () => fetchSetup() });
 
-  const persistSender = useServerFn(saveSender);
   const persistLimits = useServerFn(saveUsageLimits);
 
-  const [senderNumber, setSenderNumber] = useState("");
-  const [senderLabel, setSenderLabel] = useState("");
   const [caps, setCaps] = useState({
     monthly_segment_cap: 2000,
     monthly_ai_cost_cap: 25,
@@ -24,13 +26,10 @@ export function SmsSetupPanel() {
     hard_block: true,
   });
 
-  const primary = data?.senders?.find((sender) => sender.is_primary) ?? data?.senders?.[0] ?? null;
+  const primary = data?.senders?.find((sender) => sender.is_primary && sender.active) ?? null;
+  const retired = (data?.senders ?? []).filter((sender) => sender.id !== primary?.id);
 
   useEffect(() => {
-    if (primary) {
-      setSenderNumber(primary.phone_number);
-      setSenderLabel(primary.label ?? "");
-    }
     if (data?.limits) {
       setCaps({
         monthly_segment_cap: data.limits.monthly_segment_cap,
@@ -39,24 +38,7 @@ export function SmsSetupPanel() {
         hard_block: data.limits.hard_block,
       });
     }
-  }, [primary?.id, data?.limits?.monthly_segment_cap]);
-
-  const senderMutation = useMutation({
-    mutationFn: () =>
-      persistSender({
-        data: {
-          id: primary?.id ?? null,
-          phone_number: senderNumber,
-          label: senderLabel || null,
-          active: true,
-        },
-      }),
-    onSuccess: () => {
-      toast.success("Sender number saved");
-      void queryClient.invalidateQueries({ queryKey: ["sms-setup"] });
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
+  }, [data?.limits?.monthly_segment_cap]);
 
   const limitsMutation = useMutation({
     mutationFn: () => persistLimits({ data: caps }),
@@ -82,38 +64,69 @@ export function SmsSetupPanel() {
         receipts are matched back to this number, so numbers are never shared between businesses.
       </p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="text-sm">
-          <span className="mb-1 block text-muted-foreground">Dedicated sender number</span>
-          <input
-            className="w-full rounded-md border border-border bg-input px-3 py-2"
-            value={senderNumber}
-            onChange={(event) => setSenderNumber(event.target.value)}
-            disabled={readOnly}
-            placeholder="+61480000000"
-          />
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block text-muted-foreground">Label</span>
-          <input
-            className="w-full rounded-md border border-border bg-input px-3 py-2"
-            value={senderLabel}
-            onChange={(event) => setSenderLabel(event.target.value)}
-            disabled={readOnly}
-            placeholder="Glocast dedicated number"
-          />
-        </label>
+      <div className="mt-4 rounded-md border border-border p-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Live sending configuration
+        </h3>
+        <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-muted-foreground">Live sending number</dt>
+            <dd className="mt-1 text-sm font-medium">{primary?.phone_number ?? "Not configured"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Provider</dt>
+            <dd className="mt-1 text-sm font-medium">
+              {primary ? (PROVIDER_LABELS[primary.provider] ?? primary.provider) : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Assigned business</dt>
+            <dd className="mt-1 text-sm font-medium">{data.business?.name ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Active</dt>
+            <dd className="mt-1 text-sm font-medium">{primary?.active ? "Yes" : "No"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Primary</dt>
+            <dd className="mt-1 text-sm font-medium">{primary?.is_primary ? "Yes" : "No"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Automation</dt>
+            <dd className="mt-1 text-sm font-medium">
+              {data.business?.automation_enabled ? "Enabled" : "Disabled"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Current usage</dt>
+            <dd className="mt-1 text-sm font-medium">
+              {data.usage.segments} / {caps.monthly_segment_cap} segments
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Display label</dt>
+            <dd className="mt-1 text-sm font-medium">{primary?.label ?? "—"}</dd>
+            <dd className="text-xs text-muted-foreground">
+              Display only — does not affect routing.
+            </dd>
+          </div>
+        </dl>
+        {retired.length > 0 && (
+          <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+            {retired.map((sender) => (
+              <li key={sender.id}>
+                {sender.phone_number} — {sender.label ?? "no label"} (
+                {sender.active ? "active, not primary" : "inactive / retired"})
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 text-xs text-muted-foreground">
+          Your dedicated sending number and provider are managed by BookedSecure. Contact support if
+          these details appear incorrect.
+        </p>
       </div>
-      {!readOnly && (
-        <button
-          type="button"
-          className="mt-3 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-          onClick={() => senderMutation.mutate()}
-          disabled={senderMutation.isPending}
-        >
-          {senderMutation.isPending ? "Saving…" : "Save sender number"}
-        </button>
-      )}
+
 
       <dl className="mt-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-md border border-border p-3">
