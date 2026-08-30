@@ -359,7 +359,16 @@ function DeleteDialog({
   );
 }
 
-function PreviewTable({ preview }: { preview: Preview }) {
+function PreviewTable({
+  preview,
+  onDirtyChange,
+}: {
+  preview: Preview;
+  onDirtyChange: (dirty: boolean) => void;
+}) {
+  const [editing, setEditing] = useState<number | null>(null);
+  const editingRow = preview.rows.find((row) => row.row_number === editing) ?? null;
+  const rawRow = Object.fromEntries(preview.headers.map((header) => [header, ""]));
   return (
     <section className="panel space-y-3 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
