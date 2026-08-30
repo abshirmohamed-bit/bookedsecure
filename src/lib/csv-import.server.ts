@@ -187,6 +187,54 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
   }
 }
 
+/**
+ * Removes a preview-only batch and its staged rows.
+ *
+ * Touches nothing but import_batches and lead_import_rows: no leads,
+ * conversations, messages, jobs, automation_jobs or provider calls.
+ */
+export async function deletePreviewBatch(
+  client: Client,
+  businessId: string,
+  batchId: string,
+): Promise<{ batchId: string; filename: string | null; deletedRows: number }> {
+  const { DELETABLE_BATCH_STATUSES } = await import("@/lib/import-history");
+
+  const { data: batch } = await client
+    .from("import_batches")
+    .select("id, filename, status")
+    .eq("id", batchId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!batch) throw new Error("Import batch not found for this business.");
+
+  if (!(DELETABLE_BATCH_STATUSES as readonly string[]).includes(batch.status)) {
+    throw new Error("This upload has already been committed, so its rows cannot be deleted.");
+  }
+
+  const { data: staged } = await client
+    .from("lead_import_rows")
+    .select("id")
+    .eq("batch_id", batchId)
+    .eq("business_id", businessId);
+
+  const rowsDelete = await client
+    .from("lead_import_rows")
+    .delete()
+    .eq("batch_id", batchId)
+    .eq("business_id", businessId);
+  if (rowsDelete.error) throw new Error(rowsDelete.error.message);
+
+  const batchDelete = await client
+    .from("import_batches")
+    .delete()
+    .eq("id", batchId)
+    .eq("business_id", businessId);
+  if (batchDelete.error) throw new Error(batchDelete.error.message);
+
+  return { batchId, filename: batch.filename, deletedRows: (staged ?? []).length };
+}
+
 /** Tenant-scoped batch read. A batch from another business is not visible. */
 export async function loadBatchPreview(
   client: Client,
@@ -200,6 +248,7 @@ export async function loadBatchPreview(
     .eq("business_id", businessId)
     .maybeSingle();
   if (!batch) return null;
+
 
   const { data: rows } = await client
     .from("lead_import_rows")
