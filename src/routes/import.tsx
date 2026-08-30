@@ -669,12 +669,17 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
   const canary = useMutation({
     mutationFn: (rowNumber: number) =>
       runCanary({ data: { batchId: preview.batch.id, rowNumber, confirm: true } }),
-    onSuccess: async (outcome) => {
+    onSuccess: async (verification) => {
       setConfirming(false);
       await queryClient.invalidateQueries({ queryKey: ["crm-import-batch", preview.batch.id] });
-      if (outcome.status === "committed") toast.success("One canary lead imported.");
-      else if (outcome.status === "already_committed") toast.info("Already committed — nothing created.");
-      else toast.error("Canary blocked — nothing was created.");
+      await queryClient.invalidateQueries({ queryKey: ["crm-import-automation"] });
+      if (verification.status === "passed") {
+        toast.success("Canary verified — one live lead created, zero side effects.");
+      } else if (verification.status === "blocked") {
+        toast.error("Canary blocked — nothing was created.");
+      } else {
+        toast.error("Canary verification failed — review the checklist.");
+      }
     },
     onError: (error: Error) => {
       setConfirming(false);
@@ -687,7 +692,7 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
   const candidates = sim?.candidates ?? [];
   const selected = candidates.find((candidate) => candidate.row_number === selectedRow) ?? null;
   const canaryReady = Boolean(sim && selected) && !canary.isPending;
-  const outcome = canary.data;
+  const verification = canary.data;
 
   return (
     <section className="panel space-y-4 p-4" aria-label="Commit gate">
