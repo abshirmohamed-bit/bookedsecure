@@ -546,7 +546,7 @@ export const getSmsSetup = createServerFn({ method: "GET" })
     );
     const app = await requireAppContext(context.supabase, context.userId);
 
-    const [senders, limits, segments, aiCost] = await Promise.all([
+    const [senders, limits, segments, aiCost, business] = await Promise.all([
       supabaseAdmin
         .from("sms_senders")
         .select("id, phone_number, provider, credential_mode, messaging_profile_id, label, is_primary, active")
@@ -556,9 +556,16 @@ export const getSmsSetup = createServerFn({ method: "GET" })
       getUsageLimits(app.businessId),
       monthlySmsSegments(app.businessId),
       monthlyAiCost(app.businessId),
+      supabaseAdmin
+        .from("businesses")
+        .select("name, automation_enabled")
+        .eq("id", app.businessId)
+        .maybeSingle()
+        .then((response) => response.data ?? null),
     ]);
 
-    return { role: app.role, senders, limits, usage: { segments, aiCost } };
+    return { role: app.role, senders, limits, usage: { segments, aiCost }, business };
+
   });
 
 /**
