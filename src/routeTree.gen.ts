@@ -21,6 +21,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
+import { Route as LeadsDeletedRouteImport } from './routes/leads.deleted'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsAutomationRouteImport } from './routes/settings.automation'
 import { Route as SettingsBusinessRouteImport } from './routes/settings.business'
@@ -93,6 +94,11 @@ const LeadsIndexRoute = LeadsIndexRouteImport.update({
 const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
   id: '/leads/$leadId',
   path: '/leads/$leadId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadsDeletedRoute = LeadsDeletedRouteImport.update({
+  id: '/leads/deleted',
+  path: '/leads/deleted',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/leads/deleted': typeof LeadsDeletedRoute
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByTo {
   '/quote': typeof QuoteRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/leads/deleted': typeof LeadsDeletedRoute
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
@@ -229,6 +237,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/leads/deleted': typeof LeadsDeletedRoute
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/leads/deleted'
     | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/quote'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/leads/deleted'
     | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/leads/deleted'
     | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
@@ -339,6 +351,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
+  LeadsDeletedRoute: typeof LeadsDeletedRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
@@ -434,6 +447,13 @@ declare module '@tanstack/react-router' {
       path: '/leads/$leadId'
       fullPath: '/leads/$leadId'
       preLoaderRoute: typeof LeadsLeadIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leads/deleted': {
+      id: '/leads/deleted'
+      path: '/leads/deleted'
+      fullPath: '/leads/deleted'
+      preLoaderRoute: typeof LeadsDeletedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -562,6 +582,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
+  LeadsDeletedRoute: LeadsDeletedRoute,
   LeadsIndexRoute: LeadsIndexRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
