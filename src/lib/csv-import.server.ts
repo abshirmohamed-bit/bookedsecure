@@ -17,8 +17,13 @@ import {
 } from "@/lib/csv-import";
 import {
   DEFAULT_REVIEW,
+  applyClassificationToReview,
+  classifyRow,
+  readClassification,
   readReview,
   resolveDecisionChange,
+  type DuplicateLookup,
+  type RowClassification,
   type RowDecision,
   type ExclusionReason,
   type RowReview,
@@ -46,6 +51,7 @@ export type PreviewRow = {
   duplicate_of_row: number | null;
   decision: string;
   review: RowReview;
+  classification: RowClassification;
 };
 
 export type PreviewResult = {
@@ -72,19 +78,30 @@ export function assertCsvLimits(content: string, rowCount: number): void {
   if (rowCount > MAX_CSV_ROWS) throw new CsvParseError("The file has more than 2,000 data rows.");
 }
 
-async function loadExistingIndex(client: Client, businessId: string): Promise<ExistingLeadIndex> {
-  const { data } = await client
+/**
+ * Read-only, tenant-scoped duplicate preflight.
+ *
+ * Uses the project's existing lead identity rule: normalized AU mobile in
+ * E.164 form, or normalized (lower-cased, trimmed) email, scoped to one
+ * business_id. It only SELECTs from leads — never insert, update or delete.
+ */
+async function loadExistingIndex(
+  client: Client,
+  businessId: string,
+): Promise<{ state: "checked" | "error"; index: ExistingLeadIndex }> {
+  const { data, error } = await client
     .from("leads")
     .select("id, mobile_number, email_normalised, email")
     .eq("business_id", businessId);
   const byPhone = new Map<string, string>();
   const byEmail = new Map<string, string>();
+  if (error) return { state: "error", index: { byPhone, byEmail } };
   for (const lead of data ?? []) {
     if (lead.mobile_number && !byPhone.has(lead.mobile_number)) byPhone.set(lead.mobile_number, lead.id);
     const email = (lead.email_normalised ?? lead.email ?? "").trim().toLowerCase();
     if (email && !byEmail.has(email)) byEmail.set(email, lead.id);
   }
-  return { byPhone, byEmail };
+  return { state: "checked", index: { byPhone, byEmail } };
 }
 
 /** Parse, map, validate and persist a preview-only CRM import batch. */
@@ -112,11 +129,35 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
     const prepared = flagInBatchDuplicates(
       table.rows.map((row, index) => prepareRow(table.headers, row, index + 1)),
     );
-    const withExisting = flagExistingDuplicates(prepared, await loadExistingIndex(client, input.businessId));
+    // Read-only, tenant-scoped duplicate preflight against existing leads.
+    const lookup = await loadExistingIndex(client, input.businessId);
+    const duplicateLookup: DuplicateLookup = { state: lookup.state };
+    const withExisting = flagExistingDuplicates(prepared, lookup.index);
 
-    if (withExisting.length > 0) {
+    // Every row starts pending; the deterministic classifier may then promote a
+    // fully verified clean row to `include` (dry-run candidate only).
+    const classified = withExisting.map((row) => {
+      const classification = classifyRow(
+        {
+          name: row.normalized_payload.name,
+          email: row.normalized_payload.email,
+          mobile_number: row.normalized_payload.mobile_number,
+          validation_errors: row.validation_errors,
+          dedupe_match_lead_id: row.dedupe_match_lead_id,
+          duplicate_of_row: row.duplicate_of_row,
+        },
+        duplicateLookup,
+      );
+      return {
+        ...row,
+        classification,
+        review: applyClassificationToReview({ ...DEFAULT_REVIEW }, classification),
+      };
+    });
+
+    if (classified.length > 0) {
       const { error: rowError } = await client.from("lead_import_rows").insert(
-        withExisting.map((row) => ({
+        classified.map((row) => ({
           batch_id: created.id,
           business_id: input.businessId,
           row_number: row.row_number,
@@ -124,7 +165,8 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
           normalized_payload: {
             ...row.normalized_payload,
             duplicate_of_row: row.duplicate_of_row,
-            review: { ...DEFAULT_REVIEW },
+            review: row.review,
+            ...row.classification,
           },
           validation_errors: row.validation_errors,
           dedupe_match_lead_id: row.dedupe_match_lead_id,
@@ -134,8 +176,8 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
       if (rowError) throw new Error(rowError.message);
     }
 
-    const invalid = withExisting.filter((row) => row.validation_errors.length > 0).length;
-    const duplicates = withExisting.filter(
+    const invalid = classified.filter((row) => row.validation_errors.length > 0).length;
+    const duplicates = classified.filter(
       (row) => row.dedupe_match_lead_id !== null || row.duplicate_of_row !== null,
     ).length;
 
@@ -143,8 +185,8 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
       .from("import_batches")
       .update({
         status: "previewed",
-        total_rows: withExisting.length,
-        valid_rows: withExisting.length - invalid,
+        total_rows: classified.length,
+        valid_rows: classified.length - invalid,
         invalid_rows: invalid,
         duplicate_rows: duplicates,
       })
@@ -169,7 +211,7 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
       },
       headers: table.headers,
       unmapped_columns: unmappedColumns(table.headers),
-      rows: withExisting.map((row) => ({
+      rows: classified.map((row) => ({
         row_number: row.row_number,
         name: row.normalized_payload.name,
         mobile_number: row.normalized_payload.mobile_number,
@@ -179,7 +221,8 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
         dedupe_match_lead_id: row.dedupe_match_lead_id,
         duplicate_of_row: row.duplicate_of_row,
         decision: "pending",
-        review: { ...DEFAULT_REVIEW },
+        review: row.review,
+        classification: row.classification,
       })),
     };
   } catch (error) {
@@ -285,6 +328,7 @@ export async function loadBatchPreview(
       duplicate_of_row: payload.duplicate_of_row ?? null,
       decision: row.decision,
       review: readReview(payload),
+      classification: readClassification(payload),
     };
   });
 
@@ -368,4 +412,100 @@ export async function setRowReviewDecision(
   if (error) throw new Error(error.message);
 
   return { rowNumber: input.rowNumber, review };
+}
+
+/**
+ * Re-run the deterministic classifier over an uncommitted staged batch.
+ *
+ * Idempotent and preview-only: it re-runs the read-only, tenant-scoped
+ * duplicate preflight, then writes ONLY the `review` object and classification
+ * metadata inside lead_import_rows.normalized_payload. Raw CSV data, normalized
+ * fields, source metadata, validation errors and the legacy `decision` column
+ * are never modified, and manual decisions are always preserved.
+ */
+export async function classifyPreviewBatch(
+  client: Client,
+  businessId: string,
+  batchId: string,
+): Promise<{
+  batchId: string;
+  duplicate_lookup_state: DuplicateLookup["state"];
+  rows: number;
+  auto_included: number;
+  manual_review: number;
+  preserved_manual: number;
+}> {
+  const { DELETABLE_BATCH_STATUSES } = await import("@/lib/import-history");
+
+  const { data: batch } = await client
+    .from("import_batches")
+    .select("id, status")
+    .eq("id", batchId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!batch) throw new Error("Import batch not found for this business.");
+  if (!(DELETABLE_BATCH_STATUSES as readonly string[]).includes(batch.status)) {
+    throw new Error("This upload has already been committed, so it cannot be reclassified.");
+  }
+
+  const { data: rows } = await client
+    .from("lead_import_rows")
+    .select("id, row_number, normalized_payload, validation_errors, dedupe_match_lead_id")
+    .eq("batch_id", batchId)
+    .eq("business_id", businessId)
+    .order("row_number", { ascending: true });
+
+  const lookup = await loadExistingIndex(client, businessId);
+  const duplicateLookup: DuplicateLookup = { state: lookup.state };
+
+  let autoIncluded = 0;
+  let manualReview = 0;
+  let preservedManual = 0;
+
+  for (const row of rows ?? []) {
+    const payload = (row.normalized_payload ?? {}) as unknown as PreviewPayload;
+    const errors = (row.validation_errors ?? []) as PreviewRow["validation_errors"];
+    const phone = payload.mobile_number ?? null;
+    const email = payload.email_normalised ?? payload.email ?? null;
+    // Existing lead identity rule: normalized AU mobile, or normalized email.
+    const storedMatch: string | null =
+      typeof row.dedupe_match_lead_id === "string" ? row.dedupe_match_lead_id : null;
+    const phoneMatch = phone ? (lookup.index.byPhone.get(phone) ?? null) : null;
+    const emailMatch = email ? (lookup.index.byEmail.get(email.toLowerCase()) ?? null) : null;
+    const existingMatch: string | null = storedMatch ?? phoneMatch ?? emailMatch;
+
+    const classification = classifyRow(
+      {
+        name: payload.name ?? null,
+        email: payload.email ?? null,
+        mobile_number: phone,
+        validation_errors: errors,
+        dedupe_match_lead_id: lookup.state === "checked" ? existingMatch : null,
+        duplicate_of_row: payload.duplicate_of_row ?? null,
+      },
+      duplicateLookup,
+    );
+
+    const current = readReview(payload);
+    const review = applyClassificationToReview(current, classification);
+    if (current.source === "manual") preservedManual += 1;
+    if (classification.classification === "auto_include") autoIncluded += 1;
+    else manualReview += 1;
+
+    const { error } = await client
+      .from("lead_import_rows")
+      .update({ normalized_payload: { ...payload, review, ...classification } as never })
+      .eq("id", row.id)
+      .eq("business_id", businessId);
+    if (error) throw new Error(error.message);
+  }
+
+  return {
+    batchId,
+    duplicate_lookup_state: duplicateLookup.state,
+    rows: (rows ?? []).length,
+    auto_included: autoIncluded,
+    manual_review: manualReview,
+    preserved_manual: preservedManual,
+  };
 }

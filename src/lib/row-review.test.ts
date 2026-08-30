@@ -65,6 +65,7 @@ describe("row review decisions", () => {
     expect(resolveDecisionChange(row(), { decision: "include" })).toEqual({
       decision: "include",
       exclusion_reason: null,
+      source: "manual",
     });
   });
 
@@ -83,7 +84,7 @@ describe("row review decisions", () => {
       expect(resolveDecisionChange(candidate, { decision: "pending" }).decision).toBe("pending");
       expect(
         resolveDecisionChange(candidate, { decision: "exclude", exclusion_reason: "not_mobile" }),
-      ).toEqual({ decision: "exclude", exclusion_reason: "not_mobile" });
+      ).toEqual({ decision: "exclude", exclusion_reason: "not_mobile", source: "manual" });
     }
   });
 
