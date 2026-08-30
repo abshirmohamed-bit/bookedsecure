@@ -11,7 +11,7 @@ class Query implements PromiseLike<{ data: any; error: any }> {
   private filters: Filter[] = [];
   private mode: "select" | "insert" | "update" = "select";
   private payload: Row | null = null;
-  private single = false;
+  private singleRow = false;
   private maybe = false;
   private wantsRows = true;
   private limitValue: number | null = null;
@@ -81,6 +81,10 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     this.maybe = true;
     return this;
   }
+  single() {
+    this.singleRow = true;
+    return this;
+  }
   private matching() {
     return this.rows.filter((row) => this.filters.every((filter) => filter(row)));
   }
@@ -88,12 +92,12 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     if (this.mode === "insert") {
       const inserted = { id: `id-${this.rows.length + 1}`, ...(this.payload ?? {}) };
       this.rows.push(inserted);
-      return { data: this.single || this.maybe ? inserted : [inserted], error: null };
+      return { data: this.singleRow || this.maybe ? inserted : [inserted], error: null };
     }
     if (this.mode === "update") {
       const affected = this.matching();
       for (const row of affected) Object.assign(row, this.payload ?? {});
-      return { data: this.single || this.maybe ? (affected[0] ?? null) : affected, error: null };
+      return { data: this.singleRow || this.maybe ? (affected[0] ?? null) : affected, error: null };
     }
     let result = this.matching();
     if (this.orderKey) {
@@ -103,7 +107,7 @@ class Query implements PromiseLike<{ data: any; error: any }> {
       );
     }
     if (this.limitValue !== null) result = result.slice(0, this.limitValue);
-    if (this.single || this.maybe) return { data: result[0] ?? null, error: null };
+    if (this.singleRow || this.maybe) return { data: result[0] ?? null, error: null };
     return { data: result, error: null };
   }
   then<TResult1 = { data: any; error: any }, TResult2 = never>(
@@ -113,12 +117,6 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     return Promise.resolve(this.run()).then(onfulfilled ?? undefined, onrejected ?? undefined);
   }
 }
-
-// `single()` needs to exist on the chain too; add it via prototype augmentation.
-(Query.prototype as any).single = function single(this: any) {
-  this.single = true;
-  return this;
-};
 
 export function createFakeSupabase(db: FakeDb) {
   const log: { table: string; op: string }[] = [];
