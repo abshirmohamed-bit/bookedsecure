@@ -561,58 +561,49 @@ export const getSmsSetup = createServerFn({ method: "GET" })
     return { role: app.role, senders, limits, usage: { segments, aiCost } };
   });
 
-export const saveSender = createServerFn({ method: "POST" })
+/**
+ * Owner-facing sender save: display label only. The number, provider, tenant
+ * assignment, active/primary flags and routing fields are platform-managed and
+ * cannot be created or mutated from this path.
+ */
+export const saveSenderLabel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
-        id: z.string().uuid().optional().nullable(),
-        phone_number: z.string().min(8).max(20),
+        id: z.string().uuid(),
         label: z.string().max(80).nullable(),
-        active: z.boolean(),
-        provider: z.enum(["simulated", "twilio", "telnyx"]).default("twilio"),
-        messaging_profile_id: z.string().max(80).nullable().optional(),
       })
+      .strict()
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { normaliseAuMobile } = await import("@/lib/domain");
+    const { buildOwnerSenderPatch } = await import("@/lib/sender-settings");
     const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
 
-    const number = data.phone_number.startsWith("+")
-      ? data.phone_number.replace(/[^\d+]/g, "")
-      : (normaliseAuMobile(data.phone_number) ?? data.phone_number);
+    // Tenant context comes from the authenticated profile, never the client.
+    const { data: existing, error: loadError } = await supabaseAdmin
+      .from("sms_senders")
+      .select("id, business_id, phone_number, provider, active, is_primary, label")
+      .eq("id", data.id)
+      .eq("business_id", app.businessId)
+      .maybeSingle();
+    if (loadError) throw new Error(loadError.message);
+    if (!existing) throw new Error("Sender not found for this business.");
 
-    if (data.id) {
-      const { error } = await supabaseAdmin
-        .from("sms_senders")
-        .update({
-          phone_number: number,
-          label: data.label,
-          active: data.active,
-          provider: data.provider,
-          messaging_profile_id: data.messaging_profile_id ?? null,
-        })
-        .eq("id", data.id)
-        .eq("business_id", app.businessId);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await supabaseAdmin.from("sms_senders").insert({
-        business_id: app.businessId,
-        phone_number: number,
-        label: data.label,
-        active: data.active,
-        provider: data.provider,
-        messaging_profile_id: data.messaging_profile_id ?? null,
-        credential_mode: "platform",
-      });
-      if (error) throw new Error(error.message);
-    }
+    const patch = buildOwnerSenderPatch(existing, data);
+    const { error } = await supabaseAdmin
+      .from("sms_senders")
+      .update(patch)
+      .eq("id", existing.id)
+      .eq("business_id", app.businessId);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 export const saveUsageLimits = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
