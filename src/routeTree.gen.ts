@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as QuoteRouteImport } from './routes/quote'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
@@ -62,6 +63,11 @@ const LandingRoute = LandingRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const QuoteRoute = QuoteRouteImport.update({
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
   '/quote': typeof QuoteRoute
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
   '/quote': typeof QuoteRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
   '/quote': typeof QuoteRoute
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/landing'
     | '/privacy'
+    | '/profile'
     | '/quote'
     | '/settings'
     | '/admin/pilot-applications'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/landing'
     | '/privacy'
+    | '/profile'
     | '/quote'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
@@ -295,6 +306,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/landing'
     | '/privacy'
+    | '/profile'
     | '/quote'
     | '/settings'
     | '/admin/pilot-applications'
@@ -322,6 +334,7 @@ export interface RootRouteChildren {
   ImportRoute: typeof ImportRoute
   LandingRoute: typeof LandingRoute
   PrivacyRoute: typeof PrivacyRoute
+  ProfileRoute: typeof ProfileRoute
   QuoteRoute: typeof QuoteRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
@@ -379,6 +392,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/quote': {
@@ -537,6 +557,7 @@ const rootRouteChildren: RootRouteChildren = {
   ImportRoute: ImportRoute,
   LandingRoute: LandingRoute,
   PrivacyRoute: PrivacyRoute,
+  ProfileRoute: ProfileRoute,
   QuoteRoute: QuoteRoute,
   SettingsRoute: SettingsRouteWithChildren,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
