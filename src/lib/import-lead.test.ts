@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { buildImportLeadInsert, IMPORT_LEAD_ORIGIN } from "@/lib/import-lead.server";
 import { composeInboxRows, inboxLastActivity } from "@/lib/lead-inbox";
 import { commitIdempotencyKey } from "@/lib/commit-gate";
+import { LEAD_ORIGINS, isAllowedLeadOrigin } from "@/lib/domain";
+
 
 const BATCH = "11111111-1111-4111-8111-111111111111";
 const TENANT = "22222222-2222-4222-8222-222222222222";
