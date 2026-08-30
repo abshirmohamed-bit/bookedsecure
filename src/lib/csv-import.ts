@@ -269,6 +269,30 @@ export function normaliseEmail(raw: string): { value: string | null; valid: bool
 export function parseCreatedAt(raw: string): string | null {
   const trimmed = (raw ?? "").trim();
   if (!trimmed) return null;
+
+  // MM/DD/YYYY h:mm AM|PM (CRM exports) — deterministic UTC parse.
+  const mdyTime = trimmed.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp])\.?[Mm]\.?$/,
+  );
+  if (mdyTime) {
+    let hour = Number(mdyTime[4]);
+    if (hour < 1 || hour > 12) return null;
+    const isPm = (mdyTime[7] ?? "").toLowerCase() === "p";
+    if (hour === 12) hour = 0;
+    if (isPm) hour += 12;
+    const date = new Date(
+      Date.UTC(
+        Number(mdyTime[3]),
+        Number(mdyTime[1]) - 1,
+        Number(mdyTime[2]),
+        hour,
+        Number(mdyTime[5]),
+        Number(mdyTime[6] ?? 0),
+      ),
+    );
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
   // D/M/YYYY (existing AU exports)
   const dmy = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   // M/D/YY (US-style Meta lead-ads exports)
@@ -282,6 +306,7 @@ export function parseCreatedAt(raw: string): string | null {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
+
 
 export type ValidationError = { code: string; field?: string; detail?: string };
 
