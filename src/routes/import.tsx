@@ -266,6 +266,9 @@ function ImportView() {
         </section>
       )}
 
+      <RolloutPanel batchId={activeId} />
+
+
       {confirmDelete ? (
         <DeleteDialog
           batch={confirmDelete}
