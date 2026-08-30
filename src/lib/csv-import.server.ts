@@ -11,6 +11,8 @@ import {
   flagInBatchDuplicates,
   parseCsv,
   prepareRow,
+  restageStage,
+  canonicalField,
   unmappedColumns,
   type ExistingLeadIndex,
   type NormalizedPayload,
@@ -450,7 +452,7 @@ export async function classifyPreviewBatch(
 
   const { data: rows } = await client
     .from("lead_import_rows")
-    .select("id, row_number, normalized_payload, validation_errors, dedupe_match_lead_id")
+    .select("id, row_number, raw_row, normalized_payload, validation_errors, dedupe_match_lead_id")
     .eq("batch_id", batchId)
     .eq("business_id", businessId)
     .order("row_number", { ascending: true });
@@ -463,8 +465,36 @@ export async function classifyPreviewBatch(
   let preservedManual = 0;
 
   for (const row of rows ?? []) {
-    const payload = (row.normalized_payload ?? {}) as unknown as PreviewPayload;
-    const errors = (row.validation_errors ?? []) as PreviewRow["validation_errors"];
+    let payload = (row.normalized_payload ?? {}) as unknown as PreviewPayload;
+    let errors = (row.validation_errors ?? []) as PreviewRow["validation_errors"];
+
+    // Re-apply the stage mapping to staged rows so historical CRM stages that
+    // are now mappable stop being held as exceptions. Preview-only: raw CSV
+    // data, contact fields, source metadata and dates are preserved verbatim,
+    // and the original stage text is kept in source_metadata.stage_raw.
+    const metadata = (payload.source_metadata ?? {}) as Record<string, string>;
+    const rawRow = (row.raw_row ?? {}) as Record<string, unknown>;
+    const rawStageHeader = Object.keys(rawRow).find(
+      (header) => canonicalField(header) === "status",
+    );
+    const stageText =
+      metadata["stage_raw"] ??
+      (rawStageHeader ? String(rawRow[rawStageHeader] ?? "").trim() : "");
+    const restaged = restageStage(stageText, errors);
+    if (restaged.stage_raw && (restaged.changed || metadata["stage_raw"] !== restaged.stage_raw)) {
+      errors = restaged.errors;
+      payload = {
+        ...payload,
+        proposed_status: restaged.status ?? payload.proposed_status ?? null,
+        source_metadata: { ...metadata, stage_raw: restaged.stage_raw },
+      };
+      const stageUpdate = await client
+        .from("lead_import_rows")
+        .update({ normalized_payload: payload as never, validation_errors: errors as never })
+        .eq("id", row.id)
+        .eq("business_id", businessId);
+      if (stageUpdate.error) throw new Error(stageUpdate.error.message);
+    }
     const phone = payload.mobile_number ?? null;
     const email = payload.email_normalised ?? payload.email ?? null;
     // Existing lead identity rule: normalized AU mobile, or normalized email.

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   classifyAuPhone,
   mapStage,
+  restageStage,
   normalizePlatform,
   parseCreatedAt,
   parseCsv,
@@ -114,6 +115,35 @@ describe("CRM CSV parsing and mapping", () => {
     expect(mapStage("Weird Stage")).toBeNull();
   });
 
+  it("maps historical GoDaddy CRM stages and preserves the raw stage text", () => {
+    expect(mapStage("Intake")).toBe("new");
+    expect(mapStage("  intake ")).toBe("new");
+    expect(mapStage("Converted")).toBe("completed");
+    expect(mapStage("converted")).toBe("completed");
+    // Unknown future stages must stay exceptions rather than being guessed.
+    expect(mapStage("Nurture 2026")).toBeNull();
+
+    const headers = ["Name", "Phone", "Email", "Stage"];
+    const intake = prepareRow(headers, ["Jo Smith", "0412345678", "jo@example.com", "Intake"], 1);
+    expect(intake.normalized_payload.proposed_status).toBe("new");
+    expect(intake.normalized_payload.source_metadata["stage_raw"]).toBe("Intake");
+    expect(intake.validation_errors).toEqual([]);
+
+    const converted = prepareRow(
+      headers,
+      ["Ada Lee", "0412345679", "ada@example.com", "Converted"],
+      2,
+    );
+    expect(converted.normalized_payload.proposed_status).toBe("completed");
+    expect(converted.normalized_payload.source_metadata["stage_raw"]).toBe("Converted");
+    expect(converted.validation_errors).toEqual([]);
+
+    const unknown = prepareRow(headers, ["Bo Ng", "0412345670", "bo@example.com", "Nurture"], 3);
+    expect(unknown.normalized_payload.proposed_status).toBeNull();
+    expect(unknown.validation_errors.map((e) => e.code)).toContain("unmappable_stage");
+    expect(unknown.normalized_payload.source_metadata["stage_raw"]).toBe("Nurture");
+  });
+
   it("preserves unknown columns and keeps metadata-only fields out of lead fields", () => {
     const table = parseCsv(CSV);
     expect(unmappedColumns(table.headers)).toEqual(["Vehicle rego"]);
@@ -125,6 +155,7 @@ describe("CRM CSV parsing and mapping", () => {
       secondary_phone: "0298765432",
       whatsapp_number: "+61412345678",
       created_at_raw: "12/03/2026",
+      stage_raw: "Quoted",
     });
     expect(row.normalized_payload.email).toBe("ada@example.com");
     expect(row.normalized_payload.proposed_status).toBe("quote_sent");
@@ -281,6 +312,7 @@ describe("synthetic CRM fidelity fixture", () => {
       owner: "Test Owner",
       labels: "test",
       created_at_raw: "2026-08-30",
+      stage_raw: "New",
     });
     expect(row.raw_row["Unknown Test Column"]).toBe("keep-me");
     expect(row.validation_errors).toEqual([]);
@@ -553,10 +585,10 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     expect(table.rows[0]).toHaveLength(12);
 
     const prepared = prepareRow(table.headers, table.rows[0]!, 1);
-    // "Intake" is not a known stage; every other field maps cleanly.
-    expect(prepared.validation_errors).toEqual([
-      { code: "unmappable_stage", field: "status", detail: "Intake" },
-    ]);
+    // "Intake" maps to the internal `new` status; every other field maps cleanly.
+    expect(prepared.validation_errors).toEqual([]);
+    expect(prepared.normalized_payload.proposed_status).toBe("new");
+    expect(prepared.normalized_payload.source_metadata["stage_raw"]).toBe("Intake");
     expect(prepared.normalized_payload.name).toBe("Diana Borinski");
     expect(prepared.normalized_payload.mobile_number).toBe("+61423662012");
     expect(prepared.normalized_payload.email).toBe("dianaborinski@gmail.com");
@@ -576,9 +608,7 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     expect(detectDelimiter(text)).toBe(",");
     const table = parseCsv(text);
     expect(table.headers).toEqual(HEADER);
-    expect(prepareRow(table.headers, table.rows[0]!, 1).validation_errors).toEqual([
-      { code: "unmappable_stage", field: "status", detail: "Intake" },
-    ]);
+    expect(prepareRow(table.headers, table.rows[0]!, 1).validation_errors).toEqual([]);
   });
 
   it("detects semicolon files", () => {
@@ -641,12 +671,44 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     const prepared = flagInBatchDuplicates(
       table.rows.map((row, index) => prepareRow(table.headers, row, index + 1)),
     );
-    // Only the unknown "Intake" stage is flagged; no missing name/phone/email issues.
-    expect(
-      prepared.filter((row) =>
-        row.validation_errors.some((error) => error.code !== "unmappable_stage"),
-      ),
-    ).toHaveLength(0);
+    // No issues at all now that "Intake" maps to `new`.
+    expect(prepared.filter((row) => row.validation_errors.length > 0)).toHaveLength(0);
     expect(prepared.filter((row) => row.duplicate_of_row !== null)).toHaveLength(0);
+  });
+});
+
+describe("restageStage (preview-only stage remap)", () => {
+  it("clears a stale unmappable_stage issue once the stage maps", () => {
+    const out = restageStage("Intake", [
+      { code: "unmappable_stage", field: "status", detail: "Intake" },
+    ]);
+    expect(out.status).toBe("new");
+    expect(out.stage_raw).toBe("Intake");
+    expect(out.errors).toEqual([]);
+    expect(out.changed).toBe(true);
+  });
+
+  it("maps Converted without touching other issues", () => {
+    const out = restageStage("Converted", [
+      { code: "missing_name", field: "name" },
+      { code: "unmappable_stage", field: "status", detail: "Converted" },
+    ]);
+    expect(out.status).toBe("completed");
+    expect(out.errors).toEqual([{ code: "missing_name", field: "name" }]);
+  });
+
+  it("keeps unknown stages as exceptions", () => {
+    const errors = [{ code: "unmappable_stage", field: "status", detail: "Nurture" }];
+    const out = restageStage("Nurture", errors);
+    expect(out.status).toBeNull();
+    expect(out.errors).toBe(errors);
+    expect(out.changed).toBe(false);
+  });
+
+  it("is a no-op when no stage was supplied", () => {
+    const out = restageStage("", []);
+    expect(out.status).toBeNull();
+    expect(out.stage_raw).toBeNull();
+    expect(out.changed).toBe(false);
   });
 });

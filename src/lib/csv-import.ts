@@ -163,6 +163,11 @@ const STAGE_MAP: Record<string, LeadStatus> = {
   "new lead": "new",
   lead: "new",
   open: "new",
+  // Historical CRM (GoDaddy) stages. Conservative: a stage is a lead status
+  // label only — mapping never creates a job, revenue, booking, conversation
+  // or automation event.
+  intake: "new",
+  converted: "completed",
   contacted: "contacted",
   attempted: "contacted",
   "waiting for customer": "waiting_for_customer",
@@ -199,6 +204,25 @@ export function mapStage(value: string): LeadStatus | null {
     return key.replace(/ /g, "_") as LeadStatus;
   }
   return STAGE_MAP[key] ?? null;
+}
+
+/**
+ * Preview-only re-mapping of a staged row's CRM stage.
+ *
+ * Pure: given the stage text preserved at upload time, it returns the internal
+ * status plus the validation errors with any stale `unmappable_stage` issue
+ * removed once the stage is mappable. Unknown stages keep the exception.
+ */
+export function restageStage<E extends { code: string }>(
+  stageRaw: string | null | undefined,
+  errors: E[],
+): { status: LeadStatus | null; stage_raw: string | null; errors: E[]; changed: boolean } {
+  const raw = (stageRaw ?? "").trim();
+  if (!raw) return { status: null, stage_raw: null, errors, changed: false };
+  const status = mapStage(raw);
+  if (!status) return { status: null, stage_raw: raw, errors, changed: false };
+  const cleaned = errors.filter((issue) => issue.code !== "unmappable_stage");
+  return { status, stage_raw: raw, errors: cleaned, changed: cleaned.length !== errors.length };
 }
 
 const SOURCE_MAP: Record<string, string> = {
@@ -388,6 +412,8 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   }
   const createdRaw = cell(headers, row, "created_at");
   if (createdRaw) metadata["created_at_raw"] = createdRaw;
+  // Preserve the original CRM stage text verbatim (e.g. "Intake", "Converted").
+  if (stageRaw) metadata["stage_raw"] = stageRaw;
 
 
   // Meta lead-ads export: preserve raw created_time and platform values, and
