@@ -14,6 +14,7 @@ import {
   formatMinutes,
   normaliseAuMobile,
 } from "@/lib/domain";
+import { importMethodLabel, leadSourceLabel } from "@/lib/lead-source";
 
 /** The main daily workspace: which leads need attention, and how they are converting. */
 export function LeadsWorkspace() {
@@ -179,7 +180,12 @@ export function LeadsWorkspace() {
               {leads.map((lead) => (
                 <tr key={lead.id} className="border-b border-border/60 hover:bg-secondary/40">
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                    {SOURCE_LABELS[lead.source_channel] ?? lead.source_channel}
+                    {leadSourceLabel(lead)}
+                    {importMethodLabel(lead) && (
+                      <p className="text-[11px] text-muted-foreground/70">
+                        via {importMethodLabel(lead)}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     <Link to="/leads/$leadId" params={{ leadId: lead.id }} className="hover:underline">

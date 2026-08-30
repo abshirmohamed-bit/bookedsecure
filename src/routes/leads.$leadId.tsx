@@ -16,7 +16,8 @@ import {
   simulateInboundReply,
   updateLead,
 } from "@/lib/app.functions";
-import { LEAD_STATUSES, LEAD_STATUS_LABELS, SOURCE_LABELS, formatCurrency } from "@/lib/domain";
+import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency } from "@/lib/domain";
+import { importMethodLabel, leadSourceLabel, originalSourceDetails } from "@/lib/lead-source";
 
 export const Route = createFileRoute("/leads/$leadId")({
   head: () => ({
@@ -149,7 +150,8 @@ function LeadDetail() {
           <p className="mt-1 text-xs text-muted-foreground">
             {lead.mobile_number}
             {lead.email ? ` · ${lead.email}` : ""} ·{" "}
-            {SOURCE_LABELS[lead.source_channel] ?? lead.source_channel}
+            {leadSourceLabel(lead)}
+            {importMethodLabel(lead) ? ` (via ${importMethodLabel(lead)})` : ""}
             {lead.source_campaign ? ` · ${lead.source_campaign}` : ""}
             {lead.source_form ? ` · ${lead.source_form}` : ""} ·{" "}
             {new Date(lead.created_at).toLocaleString("en-AU")}
@@ -702,12 +704,17 @@ function ImportedSourcePanel({
 }) {
   const meta = sourceMetadata ?? {};
   const importInfo = (meta["import"] ?? {}) as Record<string, unknown>;
+  const original = originalSourceDetails(meta);
   const entries: [string, string][] = [
     ["Suburb", suburb ?? "—"],
     ["Vehicle", vehicleType ?? "—"],
     ["Service interest", serviceIntent ?? "—"],
-    ["Original platform", String(importInfo["source_channel_raw"] ?? meta["platform"] ?? "—")],
-    ["Form name", String(meta["form_name"] ?? "—")],
+    ["Import method", "CRM CSV"],
+    ["Original channel", original.channel ?? "—"],
+    ["Original platform", original.platform ?? "—"],
+    ["Form name", original.form ?? "—"],
+    ["Campaign", original.campaign ?? "—"],
+    ["Original created date", original.createdAt ?? "—"],
     ["Import batch", String(importInfo["batch_id"] ?? "—")],
     ["Import row", String(importInfo["row_number"] ?? "—")],
   ];

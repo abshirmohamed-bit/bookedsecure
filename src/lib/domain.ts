@@ -30,7 +30,14 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   invalid: "Invalid",
 };
 
-export const SOURCE_CHANNELS = ["meta", "website", "hosted_page", "manual", "unknown"] as const;
+export const SOURCE_CHANNELS = [
+  "meta",
+  "godaddy",
+  "website",
+  "hosted_page",
+  "manual",
+  "unknown",
+] as const;
 export type SourceChannel = (typeof SOURCE_CHANNELS)[number];
 
 /**
@@ -48,6 +55,7 @@ export function isAllowedLeadOrigin(value: string | null | undefined): boolean {
 
 export const SOURCE_LABELS: Record<string, string> = {
   meta: "Meta",
+  godaddy: "Website / GoDaddy",
   website: "Website",
   hosted_page: "Hosted quote page",
   manual: "Manual",
