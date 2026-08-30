@@ -69,8 +69,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
   name: ["name", "full name", "contact name", "customer name"],
   email: ["email", "email address"],
   mobile_number: ["phone", "phone number", "mobile", "mobile number"],
-  source_channel: ["source", "channel"],
-  source_form: ["form", "form name"],
+  source_channel: ["source", "channel", "lead source", "source channel", "contact source"],
+  source_form: ["form", "form name", "lead form", "source form", "campaign form"],
   status: ["stage", "status"],
   created_at: ["created", "created at", "created date"],
   owner: ["owner", "assigned to"],
@@ -150,6 +150,9 @@ const SOURCE_MAP: Record<string, string> = {
   manual: "manual",
   phone: "manual",
   referral: "manual",
+  crm: "manual",
+  "crm import": "manual",
+  import: "manual",
 };
 
 export function mapSourceChannel(value: string): string {
@@ -203,6 +206,8 @@ export type NormalizedPayload = {
   email: string | null;
   email_normalised: string | null;
   source_channel: string;
+  /** Original CSV value for the mapped source header, preserved verbatim. */
+  source_channel_raw: string | null;
   source_form: string | null;
   proposed_status: LeadStatus | null;
   proposed_created_at: string | null;
@@ -232,6 +237,12 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   });
 
   const errors: ValidationError[] = [];
+  if (row.length !== headers.length) {
+    errors.push({
+      code: "malformed_row",
+      detail: `expected ${headers.length} fields, found ${row.length}`,
+    });
+  }
   const name = cell(headers, row, "name") || null;
   if (!name) errors.push({ code: "missing_name", field: "name" });
 
@@ -273,6 +284,7 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
       email: email.valid ? email.value : null,
       email_normalised: email.valid ? email.value : null,
       source_channel: mapSourceChannel(cell(headers, row, "source_channel")),
+      source_channel_raw: cell(headers, row, "source_channel") || null,
       source_form: cell(headers, row, "source_form") || null,
       proposed_status: proposedStatus,
       proposed_created_at: parseCreatedAt(cell(headers, row, "created_at")),
@@ -343,6 +355,7 @@ export const ERROR_LABELS: Record<string, string> = {
   unsupported_phone_type: "Not a mobile number",
   invalid_email: "Invalid email",
   unmappable_stage: "Stage could not be mapped",
+  malformed_row: "Malformed row (column count does not match the header)",
   duplicate_phone_in_file: "Duplicate phone in this file",
   duplicate_email_in_file: "Duplicate email in this file",
   duplicate_existing_phone: "Matches an existing lead (phone)",
