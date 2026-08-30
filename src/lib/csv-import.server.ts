@@ -85,7 +85,7 @@ export function assertCsvLimits(content: string, rowCount: number): void {
  * E.164 form, or normalized (lower-cased, trimmed) email, scoped to one
  * business_id. It only SELECTs from leads — never insert, update or delete.
  */
-async function loadExistingIndex(
+export async function loadExistingIndex(
   client: Client,
   businessId: string,
 ): Promise<{ state: "checked" | "error"; index: ExistingLeadIndex }> {
