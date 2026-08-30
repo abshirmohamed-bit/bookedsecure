@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
@@ -58,6 +58,7 @@ function ImportView() {
   const upload = useServerFn(previewCrmImport);
   const fetchBatch = useServerFn(getCrmImportBatch);
   const removeBatch = useServerFn(deleteCrmImportBatch);
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ImportBatchSummary | null>(null);
 
@@ -74,7 +75,10 @@ function ImportView() {
   const preview = useQuery({
     queryKey: ["crm-import-batch", activeId],
     queryFn: () => fetchBatch({ data: { batchId: activeId! } }),
-    enabled: Boolean(activeId),
+    // Only fetch batches that are still present in the freshly-loaded list, so a
+    // deleted batch id can never be requested again.
+    enabled: Boolean(activeBatch),
+    retry: false,
   });
 
   const uploadMutation = useMutation({
@@ -100,6 +104,8 @@ function ImportView() {
       setConfirmDelete(null);
       // Clear the selection so the newest remaining upload is picked up.
       if (selectedId === result.batchId || activeId === result.batchId) setSelectedId(null);
+      // Drop the cached preview so nothing refetches the deleted batch.
+      queryClient.removeQueries({ queryKey: ["crm-import-batch", result.batchId] });
       await refetch();
       toast.success("Preview deleted. No live data was changed.");
     },
