@@ -197,6 +197,17 @@ function LeadDetail() {
         </div>
       </header>
 
+      {lead.lead_origin === "crm_import" && (
+        <ImportedSourcePanel
+          sourceMetadata={lead.source_metadata as Record<string, unknown> | null}
+          serviceIntent={lead.service_intent}
+          vehicleType={lead.vehicle_type}
+          suburb={lead.suburb}
+        />
+      )}
+
+
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <section className="panel flex flex-col">
           <h2 className="border-b border-border px-4 py-3 text-sm font-semibold">Conversation</h2>
