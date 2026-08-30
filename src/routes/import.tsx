@@ -36,7 +36,28 @@ import {
   rowCommitLabel,
   type CommitBlockReason,
 } from "@/lib/commit-gate";
-import { commitCrmCanaryRow, simulateCrmCommit } from "@/lib/commit-gate.functions";
+import { simulateCrmCommit } from "@/lib/commit-gate.functions";
+import {
+  BOUNDED_BATCH_MAX_ROWS,
+  IMPORT_GATE_LABELS,
+  IMPORT_MODE_DESCRIPTIONS,
+  IMPORT_MODE_LABELS,
+  MODE_TRANSITION_LABELS,
+  ROW_OUTCOME_LABELS,
+  modeExplanation,
+  type ImportGateReason,
+  type ImportMode,
+  type ImportSummary,
+  type RowOutcome,
+} from "@/lib/import-automation";
+import {
+  getImportAutomation,
+  runImportBoundedBatch,
+  runImportExceptionOnly,
+  setImportAutomationMode,
+  setImportAutomationPause,
+  verifyImportCanary,
+} from "@/lib/import-automation.functions";
 import {
   batchCountsLine,
   batchIdentityLine,
