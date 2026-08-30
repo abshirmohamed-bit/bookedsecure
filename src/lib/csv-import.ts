@@ -122,15 +122,17 @@ const FIELD_ALIASES: Record<string, string[]> = {
   name: ["name", "full name", "contact name", "customer name"],
   email: ["email", "email address"],
   mobile_number: ["phone", "phone number", "mobile", "mobile number"],
-  source_channel: ["source", "channel", "lead source", "source channel", "contact source", "platform"],
+  source_channel: ["source", "lead source", "source channel", "contact source", "platform"],
   source_form: ["form", "form name", "lead form", "source form", "campaign form"],
   status: ["stage", "status"],
   created_at: ["created", "created at", "created date", "created time"],
   owner: ["owner", "assigned to"],
   labels: ["labels", "label", "tags"],
-  secondary_phone: ["secondary phone", "phone 2", "alternate phone"],
+  channel: ["channel"],
+  secondary_phone: ["secondary phone", "secondary phone number", "phone 2", "alternate phone"],
   whatsapp_number: ["whatsapp number", "whatsapp"],
   is_organic: ["is organic", "organic"],
+
 };
 
 export const METADATA_FIELDS = [
