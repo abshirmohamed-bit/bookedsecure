@@ -113,6 +113,8 @@ function ImportView() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ImportBatchSummary | null>(null);
+  // Unsaved staged-row edits block the commit controls.
+  const [unsavedEdits, setUnsavedEdits] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["crm-import-batches"],
