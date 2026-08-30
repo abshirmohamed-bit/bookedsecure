@@ -30,7 +30,14 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   invalid: "Invalid",
 };
 
-export const SOURCE_CHANNELS = ["meta", "website", "hosted_page", "manual", "unknown"] as const;
+export const SOURCE_CHANNELS = [
+  "meta",
+  "godaddy",
+  "website",
+  "hosted_page",
+  "manual",
+  "unknown",
+] as const;
 export type SourceChannel = (typeof SOURCE_CHANNELS)[number];
 
 /**
