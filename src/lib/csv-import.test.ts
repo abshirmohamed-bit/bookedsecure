@@ -280,7 +280,7 @@ describe("synthetic CRM fidelity fixture", () => {
     expect(p.source_metadata).toEqual({
       owner: "Test Owner",
       labels: "test",
-      created_at_raw: "30/08/2026",
+      created_at_raw: "2026-08-30",
     });
     expect(row.raw_row["Unknown Test Column"]).toBe("keep-me");
     expect(row.validation_errors).toEqual([]);
