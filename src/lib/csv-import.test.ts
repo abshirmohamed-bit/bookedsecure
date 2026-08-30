@@ -582,10 +582,10 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     expect(table.rows[0]).toHaveLength(12);
 
     const prepared = prepareRow(table.headers, table.rows[0]!, 1);
-    // "Intake" is not a known stage; every other field maps cleanly.
-    expect(prepared.validation_errors).toEqual([
-      { code: "unmappable_stage", field: "status", detail: "Intake" },
-    ]);
+    // "Intake" maps to the internal `new` status; every other field maps cleanly.
+    expect(prepared.validation_errors).toEqual([]);
+    expect(prepared.normalized_payload.proposed_status).toBe("new");
+    expect(prepared.normalized_payload.source_metadata["stage_raw"]).toBe("Intake");
     expect(prepared.normalized_payload.name).toBe("Diana Borinski");
     expect(prepared.normalized_payload.mobile_number).toBe("+61423662012");
     expect(prepared.normalized_payload.email).toBe("dianaborinski@gmail.com");
@@ -605,9 +605,7 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     expect(detectDelimiter(text)).toBe(",");
     const table = parseCsv(text);
     expect(table.headers).toEqual(HEADER);
-    expect(prepareRow(table.headers, table.rows[0]!, 1).validation_errors).toEqual([
-      { code: "unmappable_stage", field: "status", detail: "Intake" },
-    ]);
+    expect(prepareRow(table.headers, table.rows[0]!, 1).validation_errors).toEqual([]);
   });
 
   it("detects semicolon files", () => {
@@ -670,12 +668,8 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     const prepared = flagInBatchDuplicates(
       table.rows.map((row, index) => prepareRow(table.headers, row, index + 1)),
     );
-    // Only the unknown "Intake" stage is flagged; no missing name/phone/email issues.
-    expect(
-      prepared.filter((row) =>
-        row.validation_errors.some((error) => error.code !== "unmappable_stage"),
-      ),
-    ).toHaveLength(0);
+    // No issues at all now that "Intake" maps to `new`.
+    expect(prepared.filter((row) => row.validation_errors.length > 0)).toHaveLength(0);
     expect(prepared.filter((row) => row.duplicate_of_row !== null)).toHaveLength(0);
   });
 });
