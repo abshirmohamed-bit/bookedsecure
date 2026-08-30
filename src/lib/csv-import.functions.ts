@@ -132,3 +132,50 @@ export const classifyCrmImportBatch = createServerFn({ method: "POST" })
     requireOwner(app);
     return classifyPreviewBatch(supabaseAdmin, app.businessId, data.batchId);
   });
+
+const EditSchema = z.object({
+  batchId: z.string().uuid(),
+  rowNumber: z.number().int().positive(),
+  fields: z.record(
+    z.enum([
+      "name",
+      "email",
+      "phone",
+      "secondary_phone",
+      "whatsapp_number",
+      "status",
+      "source",
+      "form",
+      "channel",
+      "owner",
+      "labels",
+      "created_at",
+    ]),
+    z.string().trim().max(300),
+  ),
+  reason: z.string().trim().max(300).nullable().optional(),
+});
+
+/**
+ * Edit one staged preview row and revalidate it. Owner-gated, tenant resolved
+ * from the session — the batch id and row number from the browser are only used
+ * inside a business-scoped filter. Preview-only: no live leads, conversations,
+ * messages, jobs, revenue, notifications, automation or provider calls.
+ */
+export const editCrmImportRow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => EditSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { editStagedRow } = await import("@/lib/csv-import.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return editStagedRow(supabaseAdmin, app.businessId, {
+      batchId: data.batchId,
+      rowNumber: data.rowNumber,
+      userId: app.userId,
+      fields: data.fields,
+      reason: data.reason ?? null,
+    });
+  });
