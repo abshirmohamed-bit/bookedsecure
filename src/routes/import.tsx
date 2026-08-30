@@ -28,6 +28,16 @@ import {
   type RowDecision,
 } from "@/lib/row-review";
 import {
+  CANARY_LABEL,
+  COMMIT_BLOCK_LABELS,
+  COMMIT_SIMULATION_LABEL,
+  SIMULATION_WARNING,
+  readCommitState,
+  rowCommitLabel,
+  type CommitBlockReason,
+} from "@/lib/commit-gate";
+import { commitCrmCanaryRow, simulateCrmCommit } from "@/lib/commit-gate.functions";
+import {
   batchCountsLine,
   batchIdentityLine,
   canDeleteBatch,
@@ -258,6 +268,7 @@ function ImportView() {
       {preview.data && preview.data.batch.id === activeId ? (
         <>
           <DryRunPanel preview={preview.data} />
+          <CommitGatePanel preview={preview.data} />
           <PreviewTable preview={preview.data} />
         </>
       ) : null}
@@ -364,6 +375,7 @@ function PreviewTable({ preview }: { preview: Preview }) {
               <th className="py-2 pr-3">Issues</th>
               <th className="py-2 pr-3">Duplicate</th>
               <th className="py-2 pr-3">Classification</th>
+              <th className="py-2 pr-3">Commit status</th>
               <th className="py-2 pr-3">Decision</th>
             </tr>
           </thead>
@@ -433,6 +445,12 @@ function PreviewTable({ preview }: { preview: Preview }) {
                           .join(", ")}
                       </div>
                     ) : null}
+                  </td>
+                  <td className="py-2 pr-3">
+                    {rowCommitLabel(
+                      { ...row, commit: readCommitState(row.normalized_payload) },
+                      preview.batch.id,
+                    )}
                   </td>
                   <td className="py-2 pr-3">
                     <DecisionControl batchId={preview.batch.id} row={row} />
@@ -616,5 +634,228 @@ function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows
         <p className="text-[10px] text-muted-foreground">Phone issue — cannot include</p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * COMMIT SIMULATION + CANARY IMPORT.
+ *
+ * The simulation is read-only. The canary control commits at most one selected
+ * row, only after a successful simulation and an explicit confirmation, and the
+ * server re-runs the full pre-commit revalidation before any write.
+ */
+function CommitGatePanel({ preview }: { preview: Preview }) {
+  const runSimulation = useServerFn(simulateCrmCommit);
+  const runCanary = useServerFn(commitCrmCanaryRow);
+  const queryClient = useQueryClient();
+  const [selectedRow, setSelectedRow] = useState<number | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  const simulation = useMutation({
+    mutationFn: () => runSimulation({ data: { batchId: preview.batch.id } }),
+    onSuccess: (result) => {
+      setSelectedRow(null);
+      if (result.status === "ok") {
+        toast.success(
+          `Simulation complete — ${result.simulation.total_candidates} candidates. No live data changed.`,
+        );
+      } else {
+        toast.error("This upload cannot be simulated for commit.");
+      }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const canary = useMutation({
+    mutationFn: (rowNumber: number) =>
+      runCanary({ data: { batchId: preview.batch.id, rowNumber, confirm: true } }),
+    onSuccess: async (outcome) => {
+      setConfirming(false);
+      await queryClient.invalidateQueries({ queryKey: ["crm-import-batch", preview.batch.id] });
+      if (outcome.status === "committed") toast.success("One canary lead imported.");
+      else if (outcome.status === "already_committed") toast.info("Already committed — nothing created.");
+      else toast.error("Canary blocked — nothing was created.");
+    },
+    onError: (error: Error) => {
+      setConfirming(false);
+      toast.error(error.message);
+    },
+  });
+
+  const result = simulation.data;
+  const sim = result?.status === "ok" ? result.simulation : null;
+  const candidates = sim?.candidates ?? [];
+  const selected = candidates.find((candidate) => candidate.row_number === selectedRow) ?? null;
+  const canaryReady = Boolean(sim && selected) && !canary.isPending;
+  const outcome = canary.data;
+
+  return (
+    <section className="panel space-y-4 p-4" aria-label="Commit gate">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+          {COMMIT_SIMULATION_LABEL}
+        </p>
+        <h2 className="mt-1 text-sm font-semibold">Commit simulation</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">{SIMULATION_WARNING}</p>
+      </div>
+      <button
+        type="button"
+        disabled={simulation.isPending}
+        onClick={() => simulation.mutate()}
+        className="rounded-md border border-input px-3 py-1.5 text-xs disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        {simulation.isPending ? "Simulating…" : COMMIT_SIMULATION_LABEL}
+      </button>
+
+      {result && result.status !== "ok" ? (
+        <p className="text-xs text-destructive">
+          {result.status === "batch_already_committed"
+            ? "This upload has already been committed, so it cannot be simulated."
+            : "This upload is no longer available."}
+        </p>
+      ) : null}
+
+      {sim ? (
+        <>
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {(
+              [
+                ["Total preview rows", sim.total_rows],
+                ["Total candidates", sim.total_candidates],
+                ["Would be created", sim.would_create],
+                ["Blocked by validation", sim.blocked_by_validation],
+                ["Blocked by duplicate status", sim.blocked_by_duplicate_status],
+                ["Already committed", sim.already_committed],
+                ["Skipped — pending", sim.skipped_pending],
+                ["Skipped — excluded", sim.skipped_excluded],
+                ["Previous failed attempts", sim.previous_failures],
+              ] as [string, number][]
+            ).map(([label, value]) => (
+              <div key={label} className="rounded-md border border-border p-2">
+                <dt className="text-xs text-muted-foreground">{label}</dt>
+                <dd className="mt-0.5 text-lg font-semibold tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div>
+            <h3 className="text-xs font-semibold">Candidates (simulated only — not imported)</h3>
+            {candidates.length ? (
+              <ul className="mt-1 space-y-1 text-xs">
+                {candidates.map((candidate) => (
+                  <li key={candidate.row_number} className="rounded-md border border-border p-2">
+                    <p className="font-medium">
+                      Row {candidate.row_number} · {candidate.name ?? "—"} ·{" "}
+                      {candidate.mobile_number ?? "—"} · {candidate.email ?? "—"}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {candidate.source === "manual" ? "Manually included" : "Auto-included"} · key{" "}
+                      {candidate.idempotency_key}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">No eligible candidates.</p>
+            )}
+          </div>
+
+          {sim.blocked.length ? (
+            <div>
+              <h3 className="text-xs font-semibold">Blocked rows</h3>
+              <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                {sim.blocked.map((entry) => (
+                  <li key={entry.row_number}>
+                    Row {entry.row_number}:{" "}
+                    {entry.reasons
+                      .map((reason) => COMMIT_BLOCK_LABELS[reason as CommitBlockReason] ?? reason)
+                      .join(", ")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <div className="space-y-2 border-t border-border pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+              CANARY IMPORT
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Select exactly one candidate. Only that single row can be committed — there is no
+              commit-all action. `include` does not mean imported.
+            </p>
+            <fieldset className="space-y-1">
+              <legend className="sr-only">Choose one canary candidate</legend>
+              {candidates.map((candidate) => (
+                <label key={candidate.row_number} className="flex items-center gap-2 text-xs">
+                  <input
+                    type="radio"
+                    name="canary-row"
+                    value={candidate.row_number}
+                    checked={selectedRow === candidate.row_number}
+                    onChange={() => setSelectedRow(candidate.row_number)}
+                  />
+                  Row {candidate.row_number} — {candidate.name ?? "—"} ({candidate.mobile_number ?? "—"})
+                </label>
+              ))}
+            </fieldset>
+            {selected ? (
+              <p className="rounded-md border border-border bg-secondary/40 p-2 text-xs">
+                Selected for canary: row {selected.row_number} · {selected.name ?? "—"} ·{" "}
+                {selected.mobile_number ?? "—"} · key {selected.idempotency_key}
+              </p>
+            ) : null}
+            {confirming ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs text-foreground">
+                  Confirm importing exactly one live lead for row {selected?.row_number}?
+                </p>
+                <button
+                  type="button"
+                  onClick={() => selected && canary.mutate(selected.row_number)}
+                  disabled={!canaryReady}
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  {canary.isPending ? "Importing…" : "Yes — import this one lead"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  className="rounded-md border border-input px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={!canaryReady}
+                onClick={() => setConfirming(true)}
+                className="rounded-md border border-input px-3 py-1.5 text-xs disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                {CANARY_LABEL}
+              </button>
+            )}
+            {outcome ? (
+              <p
+                className={`text-xs ${outcome.status === "committed" ? "text-foreground" : "text-destructive"}`}
+              >
+                {outcome.status === "committed"
+                  ? `Canary imported one lead (${outcome.lead_id}).`
+                  : outcome.status === "already_committed"
+                    ? "Already committed — nothing was created."
+                    : outcome.status === "potential_duplicate"
+                      ? "A live duplicate was found during the final recheck. Nothing was created."
+                      : outcome.status === "reconciliation_required"
+                        ? `Reconciliation required: ${outcome.error}`
+                        : outcome.status === "failed"
+                          ? `Commit failed: ${outcome.error}. The row was not marked committed.`
+                          : outcome.detail}
+              </p>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </section>
   );
 }
