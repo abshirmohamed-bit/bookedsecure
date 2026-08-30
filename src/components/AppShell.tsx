@@ -1,5 +1,12 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { BarChart3, LayoutDashboard, LogOut, Settings, SquareArrowOutUpRight } from "lucide-react";
+import {
+  BarChart3,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  SquareArrowOutUpRight,
+  Upload,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,8 +18,10 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/", label: "Leads", icon: LayoutDashboard },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/import", label: "Import", icon: Upload },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
+
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const { session, loading } = useAuth();
