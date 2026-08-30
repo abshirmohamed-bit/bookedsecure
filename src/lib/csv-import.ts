@@ -296,7 +296,7 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   };
 }
 
-/** Flags duplicates inside the uploaded batch (phone first, then email). */
+/** Flags duplicates inside the uploaded batch. Phone and email checks run independently. */
 export function flagInBatchDuplicates(rows: PreparedRow[]): PreparedRow[] {
   const seenPhone = new Map<string, number>();
   const seenEmail = new Map<string, number>();
@@ -304,14 +304,15 @@ export function flagInBatchDuplicates(rows: PreparedRow[]): PreparedRow[] {
     const phone = row.normalized_payload.mobile_number;
     const email = row.normalized_payload.email_normalised;
     if (phone && seenPhone.has(phone)) {
-      row.duplicate_of_row = seenPhone.get(phone)!;
+      row.duplicate_of_row ??= seenPhone.get(phone)!;
       row.validation_errors.push({
         code: "duplicate_phone_in_file",
         field: "mobile_number",
         detail: `row ${seenPhone.get(phone)}`,
       });
-    } else if (email && seenEmail.has(email)) {
-      row.duplicate_of_row = seenEmail.get(email)!;
+    }
+    if (email && seenEmail.has(email)) {
+      row.duplicate_of_row ??= seenEmail.get(email)!;
       row.validation_errors.push({
         code: "duplicate_email_in_file",
         field: "email",
