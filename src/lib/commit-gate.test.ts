@@ -92,6 +92,15 @@ function fakeClient(db: FakeDb) {
             );
             return { data: found ?? null, error: null };
           }
+          if (table === "lead_import_rows") {
+            const found = db.rows.find(
+              (r) =>
+                r.batch_id === filters["batch_id"] &&
+                r.business_id === filters["business_id"] &&
+                r.row_number === filters["row_number"],
+            );
+            return { data: found ?? null, error: null };
+          }
           if (table === "leads") {
             const found = db.leads.find(
               (lead) =>
@@ -102,7 +111,12 @@ function fakeClient(db: FakeDb) {
           }
           return { data: null, error: null };
         },
+        single: async () => {
+          if (table === "leads") return { data: { id: "created-lead-1" }, error: null };
+          return { data: null, error: null };
+        },
         then: undefined,
+
       };
       // The server code awaits the builder directly for list selects.
       (builder as { then: unknown }).then = (resolve: (value: unknown) => unknown) => {
