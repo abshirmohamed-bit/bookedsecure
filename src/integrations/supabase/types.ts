@@ -523,6 +523,65 @@ export type Database = {
           },
         ]
       }
+      import_batches: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_rows: number
+          duplicate_rows: number
+          filename: string | null
+          format: string
+          id: string
+          invalid_rows: number
+          skipped_rows: number
+          status: string
+          total_rows: number
+          updated_at: string
+          uploaded_by: string | null
+          valid_rows: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_rows?: number
+          duplicate_rows?: number
+          filename?: string | null
+          format: string
+          id?: string
+          invalid_rows?: number
+          skipped_rows?: number
+          status?: string
+          total_rows?: number
+          updated_at?: string
+          uploaded_by?: string | null
+          valid_rows?: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_rows?: number
+          duplicate_rows?: number
+          filename?: string | null
+          format?: string
+          id?: string
+          invalid_rows?: number
+          skipped_rows?: number
+          status?: string
+          total_rows?: number
+          updated_at?: string
+          uploaded_by?: string | null
+          valid_rows?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           business_id: string
@@ -583,6 +642,80 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_import_rows: {
+        Row: {
+          batch_id: string
+          business_id: string
+          created_at: string
+          decision: string
+          dedupe_match_lead_id: string | null
+          id: string
+          normalized_payload: Json | null
+          raw_row: Json | null
+          resulting_lead_id: string | null
+          row_number: number
+          updated_at: string
+          validation_errors: Json
+        }
+        Insert: {
+          batch_id: string
+          business_id: string
+          created_at?: string
+          decision?: string
+          dedupe_match_lead_id?: string | null
+          id?: string
+          normalized_payload?: Json | null
+          raw_row?: Json | null
+          resulting_lead_id?: string | null
+          row_number: number
+          updated_at?: string
+          validation_errors?: Json
+        }
+        Update: {
+          batch_id?: string
+          business_id?: string
+          created_at?: string
+          decision?: string
+          dedupe_match_lead_id?: string | null
+          id?: string
+          normalized_payload?: Json | null
+          raw_row?: Json | null
+          resulting_lead_id?: string | null
+          row_number?: number
+          updated_at?: string
+          validation_errors?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_import_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_import_rows_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_import_rows_dedupe_match_lead_id_fkey"
+            columns: ["dedupe_match_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_import_rows_resulting_lead_id_fkey"
+            columns: ["resulting_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
