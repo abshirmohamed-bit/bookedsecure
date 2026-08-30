@@ -9,9 +9,53 @@ export type CsvTable = { headers: string[]; rows: string[][] };
 
 export class CsvParseError extends Error {}
 
-/** RFC4180-ish CSV parser: quoted fields, escaped quotes, CRLF tolerant. */
+/** Reads the first non-empty line, respecting quoted values (which may span lines). */
+function firstLine(text: string): string {
+  let inQuotes = false;
+  let line = "";
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      line += char;
+      continue;
+    }
+    if (!inQuotes && (char === "\n" || char === "\r")) {
+      if (line.trim() !== "") return line;
+      line = "";
+      continue;
+    }
+    line += char;
+  }
+  return line;
+}
+
+/** Counts delimiter candidates outside quoted values. */
+function countOutsideQuotes(line: string, delimiter: string): number {
+  let inQuotes = false;
+  let count = 0;
+  for (const char of line) {
+    if (char === '"') inQuotes = !inQuotes;
+    else if (!inQuotes && char === delimiter) count += 1;
+  }
+  return count;
+}
+
+/** Comma by default; tab or semicolon only when clearly dominant in the header line. */
+export function detectDelimiter(text: string): "," | "\t" | ";" {
+  const header = firstLine(text.replace(/^\uFEFF/, ""));
+  const commas = countOutsideQuotes(header, ",");
+  const tabs = countOutsideQuotes(header, "\t");
+  const semis = countOutsideQuotes(header, ";");
+  if (tabs > commas && tabs >= semis) return "\t";
+  if (semis > commas && semis > tabs) return ";";
+  return ",";
+}
+
+/** RFC4180-ish parser: quoted fields, escaped quotes, CRLF tolerant, delimiter sniffing. */
 export function parseCsv(text: string): CsvTable {
   const clean = text.replace(/^\uFEFF/, "");
+  const delimiter = detectDelimiter(clean);
   const records: string[][] = [];
   let field = "";
   let record: string[] = [];
@@ -30,7 +74,7 @@ export function parseCsv(text: string): CsvTable {
     }
     if (char === '"') {
       inQuotes = true;
-    } else if (char === ",") {
+    } else if (char === delimiter) {
       record.push(field);
       field = "";
     } else if (char === "\n" || char === "\r") {
@@ -50,7 +94,14 @@ export function parseCsv(text: string): CsvTable {
   const nonEmpty = records.filter((row) => row.some((cell) => cell.trim() !== ""));
   if (nonEmpty.length === 0) throw new CsvParseError("The file is empty.");
 
-  const headers = (nonEmpty[0] ?? []).map((cell) => cell.trim());
+  // Trailing empty columns (common in spreadsheet exports) are not real fields.
+  const trimTrailingEmpty = (row: string[], keep: number): string[] => {
+    const out = [...row];
+    while (out.length > keep && (out[out.length - 1] ?? "").trim() === "") out.pop();
+    return out;
+  };
+
+  const headers = trimTrailingEmpty(nonEmpty[0] ?? [], 1).map((cell) => cell.trim());
   if (headers.length === 0 || headers.every((cell) => cell === "")) {
     throw new CsvParseError("The first row must be a header row with column names.");
   }
@@ -60,8 +111,10 @@ export function parseCsv(text: string): CsvTable {
   const looksLikeData = headers.every((cell) => /^[+\d\s()-]+$/.test(cell));
   if (looksLikeData) throw new CsvParseError("The first row must be a header row, not data.");
 
-  return { headers, rows: nonEmpty.slice(1) };
+  const rows = nonEmpty.slice(1).map((row) => trimTrailingEmpty(row, headers.length));
+  return { headers, rows };
 }
+
 
 // --- field mapping ------------------------------------------------------------
 
