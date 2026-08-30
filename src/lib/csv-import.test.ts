@@ -38,7 +38,8 @@ function fakeClient(existingLeads: Record<string, unknown>[] = []) {
     store,
     from(table: string) {
       const builder: Record<string, unknown> = {};
-      const selectResult = (data: unknown) => ({
+      const selectResult = (data: unknown): Record<string, unknown> => ({
+        select: () => selectResult(data),
         eq: () => selectResult(data),
         order: () => Promise.resolve({ data, error: null }),
         maybeSingle: () => Promise.resolve({ data, error: null }),
