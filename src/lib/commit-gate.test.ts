@@ -472,22 +472,44 @@ describe("canary import gate", () => {
     expect(CANARY_LABEL).toBe("IMPORT ONE CANARY LEAD");
   });
 
-  it("fails closed because the existing lead creation path has side effects", async () => {
+  it("commits one live lead through the import-only path and nothing else", async () => {
     const client = fakeClient(baseDb());
     const outcome = await commitCanaryRow(client, TENANT, BATCH, 1);
-    expect(outcome.status).toBe("blocked");
-    if (outcome.status === "blocked") {
-      expect(outcome.reasons).toContain("unsafe_lead_creation_path");
-      expect(outcome.detail).toBe(CANARY_BLOCKED_DETAIL);
+    expect(outcome.status).toBe("committed");
+    if (outcome.status === "committed") {
+      expect(outcome.lead_id).toBe("created-lead-1");
+      expect(outcome.idempotency_key).toBe(commitIdempotencyKey(BATCH, 1));
     }
-    // No lead, conversation, message, job, automation or pipeline write occurred.
-    expect(client.writes).toEqual([]);
+    // Only the live lead, its preview linkage and the audit record were written:
+    // no conversation, message, notification, job, automation or pipeline write.
+    expect(client.writes).toEqual([
+      "insert:leads",
+      "update:lead_import_rows",
+      "insert:audit_events",
+    ]);
+    expect(CANARY_BLOCKED_DETAIL).toContain("captureLead");
   });
 
-  it("is safe to run twice: still zero writes", async () => {
+  it("never touches conversations, messages, jobs, automation or notifications", async () => {
     const client = fakeClient(baseDb());
     await commitCanaryRow(client, TENANT, BATCH, 1);
-    await commitCanaryRow(client, TENANT, BATCH, 1);
+    for (const table of [
+      "conversations",
+      "messages",
+      "notifications",
+      "jobs",
+      "automation_jobs",
+      "consent_events",
+    ]) {
+      expect(client.writes.some((write) => write.endsWith(`:${table}`))).toBe(false);
+    }
+  });
+
+  it("does not double-import a row that already has a live lead", async () => {
+    const committed = stagedRow({ resulting_lead_id: "live-lead-7" });
+    const client = fakeClient(baseDb({ rows: [committed] }));
+    const outcome = await commitCanaryRow(client, TENANT, BATCH, 1);
+    expect(outcome.status).toBe("already_committed");
     expect(client.writes).toEqual([]);
   });
 
@@ -495,6 +517,7 @@ describe("canary import gate", () => {
     const client = fakeClient(baseDb());
     const foreign = await commitCanaryRow(client, OTHER_TENANT, BATCH, 1);
     expect(foreign.status).toBe("blocked");
+    expect(client.writes).toEqual([]);
     const excluded = stagedRow();
     excluded.normalized_payload = {
       ...excluded.normalized_payload,
@@ -507,13 +530,13 @@ describe("canary import gate", () => {
     expect(client2.writes).toEqual([]);
   });
 
-  it("preserves manual decisions, exclusion reasons and the legacy decision column", async () => {
+  it("simulation alone never writes", async () => {
     const staged = stagedRow();
     const snapshot = JSON.stringify(staged);
     const client = fakeClient(baseDb({ rows: [staged] }));
     await simulateCommit(client, TENANT, BATCH);
-    await commitCanaryRow(client, TENANT, BATCH, 1);
     expect(JSON.stringify(staged)).toBe(snapshot);
     expect(client.writes).toEqual([]);
   });
 });
+
