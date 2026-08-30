@@ -115,3 +115,20 @@ export const setCrmImportRowDecision = createServerFn({ method: "POST" })
       exclusionReason: data.exclusionReason ?? null,
     });
   });
+
+/**
+ * Re-runs the preview classifier and the read-only duplicate preflight for one
+ * staged batch. Owner-gated, tenant resolved from the session. Preview-only:
+ * no leads, conversations, messages, jobs, automation or provider calls.
+ */
+export const classifyCrmImportBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => BatchSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { classifyPreviewBatch } = await import("@/lib/csv-import.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return classifyPreviewBatch(supabaseAdmin, app.businessId, data.batchId);
+  });

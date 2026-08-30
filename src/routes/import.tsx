@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { ERROR_LABELS, MAX_CSV_BYTES } from "@/lib/csv-import";
 import {
+  classifyCrmImportBatch,
   deleteCrmImportBatch,
   getCrmImportBatch,
   listCrmImportBatches,
@@ -14,12 +15,15 @@ import {
   setCrmImportRowDecision,
 } from "@/lib/csv-import.functions";
 import {
+  CLASSIFICATION_REASON_LABELS,
   DRY_RUN_LABEL,
+  DUPLICATE_STATUS_LABELS,
   EXCLUSION_REASONS,
   EXCLUSION_REASON_LABELS,
   ROW_DECISIONS,
   buildDryRunSummary,
   hasPhoneIssue,
+  type ClassificationReason,
   type ExclusionReason,
   type RowDecision,
 } from "@/lib/row-review";
@@ -359,6 +363,7 @@ function PreviewTable({ preview }: { preview: Preview }) {
               <th className="py-2 pr-3">Proposed mapping</th>
               <th className="py-2 pr-3">Issues</th>
               <th className="py-2 pr-3">Duplicate</th>
+              <th className="py-2 pr-3">Classification</th>
               <th className="py-2 pr-3">Decision</th>
             </tr>
           </thead>
@@ -412,6 +417,24 @@ function PreviewTable({ preview }: { preview: Preview }) {
                         : "—"}
                   </td>
                   <td className="py-2 pr-3">
+                    <div>
+                      {row.classification?.classification === "auto_include"
+                        ? "auto include"
+                        : "manual review"}
+                    </div>
+                    <div className="text-muted-foreground">
+                      duplicates:{" "}
+                      {DUPLICATE_STATUS_LABELS[row.classification?.duplicate_status ?? "not_checked"]}
+                    </div>
+                    {row.classification?.classification_reasons?.length ? (
+                      <div className="text-muted-foreground">
+                        {row.classification.classification_reasons
+                          .map((reason) => CLASSIFICATION_REASON_LABELS[reason] ?? reason)
+                          .join(", ")}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="py-2 pr-3">
                     <DecisionControl batchId={preview.batch.id} row={row} />
                   </td>
                 </tr>
@@ -428,27 +451,70 @@ function PreviewTable({ preview }: { preview: Preview }) {
 }
 
 function DryRunPanel({ preview }: { preview: Preview }) {
+  const runClassifier = useServerFn(classifyCrmImportBatch);
+  const queryClient = useQueryClient();
   const summary = buildDryRunSummary(preview.rows);
-  const items: [string, number][] = [
+  const classifyMutation = useMutation({
+    mutationFn: () => runClassifier({ data: { batchId: preview.batch.id } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["crm-import-batch", preview.batch.id] });
+      toast.success(
+        `Classification complete — ${result.auto_included} auto-included. Nothing was imported.`,
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const duplicateVerified = summary.duplicate_lookup_verified;
+  const items: [string, string | number][] = [
     ["Total preview rows", summary.total_rows],
     ["Pending", summary.pending_rows],
-    ["Included", summary.included_rows],
+    ["Automatically included", summary.auto_included_rows],
+    ["Manually included", summary.manually_included_rows],
+    ["Total included", summary.included_rows],
     ["Excluded", summary.excluded_rows],
     ["Included with phone issues", summary.included_with_phone_issues],
     ["Included with valid AU mobile", summary.included_with_valid_au_mobile],
-    ["Potential duplicates of existing leads", summary.potential_existing_duplicates],
-    ["Would be skipped as duplicates", summary.would_skip_as_duplicate],
+    [
+      "Potential duplicates of existing leads",
+      duplicateVerified ? (summary.potential_duplicates ?? 0) : "Not checked",
+    ],
+    ["Duplicate lookup status", DUPLICATE_STATUS_LABELS[summary.duplicate_lookup_status]],
+    ["Rows with duplicate status not checked", summary.duplicate_not_checked_rows],
+    [
+      "Would be skipped as duplicates",
+      duplicateVerified ? summary.would_skip_as_duplicate : "Not checked",
+    ],
     ["Would be blocked from SMS", summary.would_block_sms_phone_ineligible],
   ];
+  const reasons = Object.entries(summary.classification_reason_counts).sort((a, b) => b[1] - a[1]);
+
   return (
     <section className="panel space-y-3 p-4" aria-label="Dry run summary">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">{DRY_RUN_LABEL}</p>
         <h2 className="mt-1 text-sm font-semibold">Dry-run summary</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Calculated from your row decisions. Nothing is imported, merged, messaged or scheduled.
+          Calculated from automated classification and manual row decisions. Nothing is imported,
+          merged, messaged, scheduled, or written to live leads.
         </p>
       </div>
+      {!duplicateVerified ? (
+        <p className="rounded-md border border-border bg-secondary/40 p-2 text-xs text-foreground">
+          Duplicate status: Not checked. Zero duplicates does not confirm that the live leads table
+          contains no matches.
+        </p>
+      ) : null}
+      <button
+        type="button"
+        disabled={classifyMutation.isPending}
+        onClick={() => classifyMutation.mutate()}
+        className="rounded-md border border-input px-3 py-1.5 text-xs disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        {classifyMutation.isPending
+          ? "Running duplicate preflight…"
+          : "Run duplicate preflight and classify"}
+      </button>
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {items.map(([label, value]) => (
           <div key={label} className="rounded-md border border-border p-2">
@@ -457,9 +523,24 @@ function DryRunPanel({ preview }: { preview: Preview }) {
           </div>
         ))}
       </dl>
+      <div>
+        <h3 className="text-xs font-semibold">Classification reasons</h3>
+        {reasons.length ? (
+          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+            {reasons.map(([reason, count]) => (
+              <li key={reason}>
+                {CLASSIFICATION_REASON_LABELS[reason as ClassificationReason] ?? reason}: {count}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground">No classification data yet.</p>
+        )}
+      </div>
     </section>
   );
 }
+
 
 /** Per-row review control. Writes only preview review state. */
 function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows"][number] }) {
