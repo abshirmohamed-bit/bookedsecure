@@ -15,6 +15,14 @@ import {
   type ExistingLeadIndex,
   type NormalizedPayload,
 } from "@/lib/csv-import";
+import {
+  DEFAULT_REVIEW,
+  readReview,
+  resolveDecisionChange,
+  type RowDecision,
+  type ExclusionReason,
+  type RowReview,
+} from "@/lib/row-review";
 
 export type PreviewPayload = NormalizedPayload & { duplicate_of_row: number | null };
 
@@ -37,6 +45,7 @@ export type PreviewRow = {
   dedupe_match_lead_id: string | null;
   duplicate_of_row: number | null;
   decision: string;
+  review: RowReview;
 };
 
 export type PreviewResult = {
@@ -115,6 +124,7 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
           normalized_payload: {
             ...row.normalized_payload,
             duplicate_of_row: row.duplicate_of_row,
+            review: { ...DEFAULT_REVIEW },
           },
           validation_errors: row.validation_errors,
           dedupe_match_lead_id: row.dedupe_match_lead_id,
@@ -169,6 +179,7 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
         dedupe_match_lead_id: row.dedupe_match_lead_id,
         duplicate_of_row: row.duplicate_of_row,
         decision: "pending",
+        review: { ...DEFAULT_REVIEW },
       })),
     };
   } catch (error) {
@@ -273,6 +284,7 @@ export async function loadBatchPreview(
       dedupe_match_lead_id: row.dedupe_match_lead_id,
       duplicate_of_row: payload.duplicate_of_row ?? null,
       decision: row.decision,
+      review: readReview(payload),
     };
   });
 
@@ -296,4 +308,64 @@ export async function loadBatchPreview(
     unmapped_columns: unmapped ?? [],
     rows: mapped,
   };
+}
+
+/**
+ * Update the review decision for one staged preview row.
+ *
+ * Preview-only: this writes ONLY the `review` object inside
+ * lead_import_rows.normalized_payload. It never inserts, updates or merges
+ * leads, never creates conversations, messages, jobs or automation jobs, and
+ * never calls a messaging provider. The legacy `decision` column is left
+ * untouched so existing preview records keep their `pending` value.
+ */
+export async function setRowReviewDecision(
+  client: Client,
+  businessId: string,
+  input: {
+    batchId: string;
+    rowNumber: number;
+    decision: RowDecision;
+    exclusionReason?: ExclusionReason | null;
+  },
+): Promise<{ rowNumber: number; review: RowReview }> {
+  const { DELETABLE_BATCH_STATUSES } = await import("@/lib/import-history");
+
+  const { data: batch } = await client
+    .from("import_batches")
+    .select("id, status")
+    .eq("id", input.batchId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!batch) throw new Error("Import batch not found for this business.");
+  if (!(DELETABLE_BATCH_STATUSES as readonly string[]).includes(batch.status)) {
+    throw new Error("This upload has already been committed, so its rows cannot be reviewed.");
+  }
+
+  const { data: row } = await client
+    .from("lead_import_rows")
+    .select("id, normalized_payload, validation_errors")
+    .eq("batch_id", input.batchId)
+    .eq("business_id", businessId)
+    .eq("row_number", input.rowNumber)
+    .maybeSingle();
+  if (!row) throw new Error("Preview row not found for this business.");
+
+  const payload = (row.normalized_payload ?? {}) as unknown as PreviewPayload;
+  const review = resolveDecisionChange(
+    {
+      mobile_number: payload.mobile_number ?? null,
+      validation_errors: (row.validation_errors ?? []) as PreviewRow["validation_errors"],
+    },
+    { decision: input.decision, exclusion_reason: input.exclusionReason ?? null },
+  );
+
+  const { error } = await client
+    .from("lead_import_rows")
+    .update({ normalized_payload: { ...payload, review } as never })
+    .eq("id", row.id)
+    .eq("business_id", businessId);
+  if (error) throw new Error(error.message);
+
+  return { rowNumber: input.rowNumber, review };
 }

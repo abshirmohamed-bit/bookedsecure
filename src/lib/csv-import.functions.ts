@@ -76,3 +76,42 @@ export const deleteCrmImportBatch = createServerFn({ method: "POST" })
     return deletePreviewBatch(supabaseAdmin, app.businessId, data.batchId);
   });
 
+
+const DecisionSchema = z.object({
+  batchId: z.string().uuid(),
+  rowNumber: z.number().int().positive(),
+  decision: z.enum(["pending", "include", "exclude"]),
+  exclusionReason: z
+    .enum([
+      "invalid_phone",
+      "not_mobile",
+      "duplicate",
+      "bad_data",
+      "not_relevant",
+      "manually_excluded",
+    ])
+    .nullable()
+    .optional(),
+});
+
+/**
+ * Preview-only row review. Owner-gated, tenant resolved from the session.
+ * Touches only the staged row's review state — no leads, conversations,
+ * messages, jobs, automation or provider calls.
+ */
+export const setCrmImportRowDecision = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => DecisionSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { setRowReviewDecision } = await import("@/lib/csv-import.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return setRowReviewDecision(supabaseAdmin, app.businessId, {
+      batchId: data.batchId,
+      rowNumber: data.rowNumber,
+      decision: data.decision,
+      exclusionReason: data.exclusionReason ?? null,
+    });
+  });

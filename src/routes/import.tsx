@@ -11,7 +11,18 @@ import {
   getCrmImportBatch,
   listCrmImportBatches,
   previewCrmImport,
+  setCrmImportRowDecision,
 } from "@/lib/csv-import.functions";
+import {
+  DRY_RUN_LABEL,
+  EXCLUSION_REASONS,
+  EXCLUSION_REASON_LABELS,
+  ROW_DECISIONS,
+  buildDryRunSummary,
+  hasPhoneIssue,
+  type ExclusionReason,
+  type RowDecision,
+} from "@/lib/row-review";
 import {
   batchCountsLine,
   batchIdentityLine,
@@ -241,7 +252,10 @@ function ImportView() {
         </p>
       ) : null}
       {preview.data && preview.data.batch.id === activeId ? (
-        <PreviewTable preview={preview.data} />
+        <>
+          <DryRunPanel preview={preview.data} />
+          <PreviewTable preview={preview.data} />
+        </>
       ) : null}
     </div>
   );
@@ -397,7 +411,9 @@ function PreviewTable({ preview }: { preview: Preview }) {
                         ? `row ${row.duplicate_of_row}`
                         : "—"}
                   </td>
-                  <td className="py-2 pr-3">{row.decision}</td>
+                  <td className="py-2 pr-3">
+                    <DecisionControl batchId={preview.batch.id} row={row} />
+                  </td>
                 </tr>
               );
             })}
@@ -408,5 +424,115 @@ function PreviewTable({ preview }: { preview: Preview }) {
         Preview only. Importing, merging and creating leads is not enabled yet.
       </p>
     </section>
+  );
+}
+
+function DryRunPanel({ preview }: { preview: Preview }) {
+  const summary = buildDryRunSummary(preview.rows);
+  const items: [string, number][] = [
+    ["Total preview rows", summary.total_rows],
+    ["Pending", summary.pending_rows],
+    ["Included", summary.included_rows],
+    ["Excluded", summary.excluded_rows],
+    ["Included with phone issues", summary.included_with_phone_issues],
+    ["Included with valid AU mobile", summary.included_with_valid_au_mobile],
+    ["Potential duplicates of existing leads", summary.potential_existing_duplicates],
+    ["Would be skipped as duplicates", summary.would_skip_as_duplicate],
+    ["Would be blocked from SMS", summary.would_block_sms_phone_ineligible],
+  ];
+  return (
+    <section className="panel space-y-3 p-4" aria-label="Dry run summary">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary">{DRY_RUN_LABEL}</p>
+        <h2 className="mt-1 text-sm font-semibold">Dry-run summary</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Calculated from your row decisions. Nothing is imported, merged, messaged or scheduled.
+        </p>
+      </div>
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {items.map(([label, value]) => (
+          <div key={label} className="rounded-md border border-border p-2">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/** Per-row review control. Writes only preview review state. */
+function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows"][number] }) {
+  const setDecision = useServerFn(setCrmImportRowDecision);
+  const queryClient = useQueryClient();
+  const phoneIssue = hasPhoneIssue(row);
+  const [reason, setReason] = useState<ExclusionReason>(
+    row.review.exclusion_reason ?? "manually_excluded",
+  );
+
+  const mutation = useMutation({
+    mutationFn: (input: { decision: RowDecision; exclusionReason: ExclusionReason | null }) =>
+      setDecision({
+        data: {
+          batchId,
+          rowNumber: row.row_number,
+          decision: input.decision,
+          exclusionReason: input.exclusionReason,
+        },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["crm-import-batch", batchId] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <div className="space-y-1">
+      <select
+        aria-label={`Decision for row ${row.row_number}`}
+        value={row.review.decision}
+        disabled={mutation.isPending}
+        onChange={(event) => {
+          const decision = event.target.value as RowDecision;
+          mutation.mutate({
+            decision,
+            exclusionReason: decision === "exclude" ? reason : null,
+          });
+        }}
+        className="rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        {ROW_DECISIONS.map((decision) => (
+          <option
+            key={decision}
+            value={decision}
+            disabled={decision === "include" && phoneIssue}
+          >
+            {decision}
+          </option>
+        ))}
+      </select>
+      {row.review.decision === "exclude" ? (
+        <select
+          aria-label={`Exclusion reason for row ${row.row_number}`}
+          value={row.review.exclusion_reason ?? reason}
+          disabled={mutation.isPending}
+          onChange={(event) => {
+            const next = event.target.value as ExclusionReason;
+            setReason(next);
+            mutation.mutate({ decision: "exclude", exclusionReason: next });
+          }}
+          className="block rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          {EXCLUSION_REASONS.map((value) => (
+            <option key={value} value={value}>
+              {EXCLUSION_REASON_LABELS[value]}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      {phoneIssue ? (
+        <p className="text-[10px] text-muted-foreground">Phone issue — cannot include</p>
+      ) : null}
+    </div>
   );
 }
