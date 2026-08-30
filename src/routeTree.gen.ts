@@ -22,6 +22,7 @@ import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsBusinessRouteImport } from './routes/settings.business'
+import { Route as SettingsMessagingRouteImport } from './routes/settings.messaging'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
@@ -96,6 +97,11 @@ const SettingsBusinessRoute = SettingsBusinessRouteImport.update({
   path: '/business',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsMessagingRoute = SettingsMessagingRouteImport.update({
+  id: '/messaging',
+  path: '/messaging',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   id: '/api/public/hooks/follow-ups',
   path: '/api/public/hooks/follow-ups',
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/settings/business': typeof SettingsBusinessRoute
+  '/settings/messaging': typeof SettingsMessagingRoute
   '/leads/': typeof LeadsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/settings/business': typeof SettingsBusinessRoute
+  '/settings/messaging': typeof SettingsMessagingRoute
   '/leads': typeof LeadsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/settings/business': typeof SettingsBusinessRoute
+  '/settings/messaging': typeof SettingsMessagingRoute
   '/leads/': typeof LeadsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/settings/business'
+    | '/settings/messaging'
     | '/leads/'
     | '/settings/'
     | '/api/public/hooks/follow-ups'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/settings/business'
+    | '/settings/messaging'
     | '/leads'
     | '/settings'
     | '/api/public/hooks/follow-ups'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/settings/business'
+    | '/settings/messaging'
     | '/leads/'
     | '/settings/'
     | '/api/public/hooks/follow-ups'
@@ -394,6 +406,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsBusinessRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/messaging': {
+      id: '/settings/messaging'
+      path: '/messaging'
+      fullPath: '/settings/messaging'
+      preLoaderRoute: typeof SettingsMessagingRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/api/public/hooks/follow-ups': {
       id: '/api/public/hooks/follow-ups'
       path: '/api/public/hooks/follow-ups'
@@ -455,11 +474,13 @@ declare module '@tanstack/react-router' {
 
 interface SettingsRouteChildren {
   SettingsBusinessRoute: typeof SettingsBusinessRoute
+  SettingsMessagingRoute: typeof SettingsMessagingRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBusinessRoute: SettingsBusinessRoute,
+  SettingsMessagingRoute: SettingsMessagingRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
