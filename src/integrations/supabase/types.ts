@@ -594,10 +594,14 @@ export type Database = {
           consent_record: Json | null
           created_at: string
           email: string | null
+          email_normalised: string | null
+          external_id: string | null
           first_contacted_at: string | null
           first_reply_at: string | null
           id: string
+          import_batch_id: string | null
           last_cleaned_at: string | null
+          lead_origin: string | null
           main_concerns: string | null
           mobile_number: string
           name: string
@@ -608,6 +612,7 @@ export type Database = {
           source_campaign: string | null
           source_channel: string
           source_form: string | null
+          source_metadata: Json | null
           status: string
           suburb: string | null
           updated_at: string
@@ -621,10 +626,14 @@ export type Database = {
           consent_record?: Json | null
           created_at?: string
           email?: string | null
+          email_normalised?: string | null
+          external_id?: string | null
           first_contacted_at?: string | null
           first_reply_at?: string | null
           id?: string
+          import_batch_id?: string | null
           last_cleaned_at?: string | null
+          lead_origin?: string | null
           main_concerns?: string | null
           mobile_number: string
           name: string
@@ -635,6 +644,7 @@ export type Database = {
           source_campaign?: string | null
           source_channel?: string
           source_form?: string | null
+          source_metadata?: Json | null
           status?: string
           suburb?: string | null
           updated_at?: string
@@ -648,10 +658,14 @@ export type Database = {
           consent_record?: Json | null
           created_at?: string
           email?: string | null
+          email_normalised?: string | null
+          external_id?: string | null
           first_contacted_at?: string | null
           first_reply_at?: string | null
           id?: string
+          import_batch_id?: string | null
           last_cleaned_at?: string | null
+          lead_origin?: string | null
           main_concerns?: string | null
           mobile_number?: string
           name?: string
@@ -662,6 +676,7 @@ export type Database = {
           source_campaign?: string | null
           source_channel?: string
           source_form?: string | null
+          source_metadata?: Json | null
           status?: string
           suburb?: string | null
           updated_at?: string
