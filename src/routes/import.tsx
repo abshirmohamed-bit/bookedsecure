@@ -67,6 +67,12 @@ import {
   shortBatchId,
   type ImportBatchSummary,
 } from "@/lib/import-history";
+import { StagedRowEditor } from "@/components/StagedRowEditor";
+import {
+  STAGED_ROW_STATE_LABELS,
+  canEditStagedRow,
+  resolveStagedRowState,
+} from "@/lib/staged-row-edit";
 
 export const Route = createFileRoute("/import")({
   head: () => ({
