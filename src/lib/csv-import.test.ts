@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   classifyAuPhone,
   mapStage,
+  normalizePlatform,
+  parseCreatedAt,
   parseCsv,
   prepareRow,
   unmappedColumns,
