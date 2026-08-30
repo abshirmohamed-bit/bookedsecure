@@ -21,6 +21,7 @@ import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SettingsAutomationRouteImport } from './routes/settings.automation'
 import { Route as SettingsBusinessRouteImport } from './routes/settings.business'
 import { Route as SettingsMessagingRouteImport } from './routes/settings.messaging'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
@@ -92,6 +93,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsAutomationRoute = SettingsAutomationRouteImport.update({
+  id: '/automation',
+  path: '/automation',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsBusinessRoute = SettingsBusinessRouteImport.update({
   id: '/business',
   path: '/business',
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/leads/': typeof LeadsIndexRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/quote': typeof QuoteRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/leads': typeof LeadsIndexRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/leads/': typeof LeadsIndexRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
     | '/leads/'
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/quote'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
     | '/leads'
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
     | '/leads/'
@@ -399,6 +411,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/automation': {
+      id: '/settings/automation'
+      path: '/automation'
+      fullPath: '/settings/automation'
+      preLoaderRoute: typeof SettingsAutomationRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/business': {
       id: '/settings/business'
       path: '/business'
@@ -473,12 +492,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface SettingsRouteChildren {
+  SettingsAutomationRoute: typeof SettingsAutomationRoute
   SettingsBusinessRoute: typeof SettingsBusinessRoute
   SettingsMessagingRoute: typeof SettingsMessagingRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAutomationRoute: SettingsAutomationRoute,
   SettingsBusinessRoute: SettingsBusinessRoute,
   SettingsMessagingRoute: SettingsMessagingRoute,
   SettingsIndexRoute: SettingsIndexRoute,
