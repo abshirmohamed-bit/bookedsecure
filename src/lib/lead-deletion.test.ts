@@ -49,7 +49,19 @@ function lead(id: string, overrides: Record<string, any> = {}): Record<string, a
   };
 }
 
-function freshDb(): Record<string, any[]> {
+type FakeDbShape = {
+  leads: any[];
+  conversations: any[];
+  messages: any[];
+  jobs: any[];
+  notifications: any[];
+  webhook_events: any[];
+  import_batches: any[];
+  lead_deletion_requests: any[];
+  audit_events: any[];
+};
+
+function freshDb(): FakeDbShape {
   return {
     leads: [
       lead(L1),
