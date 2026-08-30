@@ -28,6 +28,16 @@ import {
   type RowDecision,
 } from "@/lib/row-review";
 import {
+  CANARY_LABEL,
+  COMMIT_BLOCK_LABELS,
+  COMMIT_SIMULATION_LABEL,
+  SIMULATION_WARNING,
+  readCommitState,
+  rowCommitLabel,
+  type CommitBlockReason,
+} from "@/lib/commit-gate";
+import { commitCrmCanaryRow, simulateCrmCommit } from "@/lib/commit-gate.functions";
+import {
   batchCountsLine,
   batchIdentityLine,
   canDeleteBatch,
