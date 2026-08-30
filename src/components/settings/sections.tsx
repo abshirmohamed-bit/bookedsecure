@@ -34,6 +34,11 @@ export function useSettings() {
   return useQuery({ queryKey: ["settings"], queryFn: () => fetchSettings() });
 }
 
+type SettingsData = NonNullable<ReturnType<typeof useSettings>["data"]>;
+type SettingsDataWithBusiness = Omit<SettingsData, "business"> & {
+  business: NonNullable<SettingsData["business"]>;
+};
+
 /** Renders the shared loading/error/empty states around a settings section. */
 export function SettingsPageBody({
   heading,
@@ -42,8 +47,9 @@ export function SettingsPageBody({
 }: {
   heading: string;
   description: string;
-  children: (data: NonNullable<ReturnType<typeof useSettings>["data"]>) => React.ReactNode;
+  children: (data: SettingsDataWithBusiness) => React.ReactNode;
 }) {
+
   const { data, isLoading, error } = useSettings();
 
   return (
