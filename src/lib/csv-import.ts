@@ -393,6 +393,8 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   }
   const createdRaw = cell(headers, row, "created_at");
   if (createdRaw) metadata["created_at_raw"] = createdRaw;
+  // Preserve the original CRM stage text verbatim (e.g. "Intake", "Converted").
+  if (stageRaw) metadata["stage_raw"] = stageRaw;
 
 
   // Meta lead-ads export: preserve raw created_time and platform values, and
