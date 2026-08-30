@@ -43,7 +43,7 @@ export const Route = createFileRoute("/import")({
   component: ImportPage,
 });
 
-type Preview = Awaited<ReturnType<typeof getCrmImportBatch>>;
+type Preview = NonNullable<Awaited<ReturnType<typeof getCrmImportBatch>>>;
 
 function ImportPage() {
   return (
