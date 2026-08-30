@@ -142,7 +142,7 @@ export async function changeImportMode(
 export type CanaryCheck = { check: string; passed: boolean; detail: string };
 
 export type CanaryVerification = {
-  status: "passed" | "blocked" | "failed";
+  status: "passed" | "idempotent_pass" | "blocked" | "failed";
   gate_reasons: ImportGateReason[];
   lead_id: string | null;
   row_number: number;
@@ -152,6 +152,7 @@ export type CanaryVerification = {
   leads_after: number;
   state: ImportAutomationState;
 };
+
 
 async function countLeads(client: Client, businessId: string): Promise<number> {
   const { count } = await client
