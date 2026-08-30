@@ -523,6 +523,74 @@ export type Database = {
           },
         ]
       }
+      import_automation_state: {
+        Row: {
+          bounded_batch_batch_id: string | null
+          bounded_batch_imported: number
+          bounded_batch_passed_at: string | null
+          business_id: string
+          canary_batch_id: string | null
+          canary_lead_id: string | null
+          canary_passed_at: string | null
+          canary_row_number: number | null
+          created_at: string
+          exception_only_enabled_at: string | null
+          idempotency_verified_at: string | null
+          last_run_at: string | null
+          last_summary: Json | null
+          mode: string
+          mode_reason: string | null
+          paused: boolean
+          updated_at: string
+        }
+        Insert: {
+          bounded_batch_batch_id?: string | null
+          bounded_batch_imported?: number
+          bounded_batch_passed_at?: string | null
+          business_id: string
+          canary_batch_id?: string | null
+          canary_lead_id?: string | null
+          canary_passed_at?: string | null
+          canary_row_number?: number | null
+          created_at?: string
+          exception_only_enabled_at?: string | null
+          idempotency_verified_at?: string | null
+          last_run_at?: string | null
+          last_summary?: Json | null
+          mode?: string
+          mode_reason?: string | null
+          paused?: boolean
+          updated_at?: string
+        }
+        Update: {
+          bounded_batch_batch_id?: string | null
+          bounded_batch_imported?: number
+          bounded_batch_passed_at?: string | null
+          business_id?: string
+          canary_batch_id?: string | null
+          canary_lead_id?: string | null
+          canary_passed_at?: string | null
+          canary_row_number?: number | null
+          created_at?: string
+          exception_only_enabled_at?: string | null
+          idempotency_verified_at?: string | null
+          last_run_at?: string | null
+          last_summary?: Json | null
+          mode?: string
+          mode_reason?: string | null
+          paused?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_automation_state_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_batches: {
         Row: {
           business_id: string
