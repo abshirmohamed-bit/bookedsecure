@@ -16,7 +16,8 @@ import {
   simulateInboundReply,
   updateLead,
 } from "@/lib/app.functions";
-import { LEAD_STATUSES, LEAD_STATUS_LABELS, SOURCE_LABELS, formatCurrency } from "@/lib/domain";
+import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency } from "@/lib/domain";
+import { importMethodLabel, leadSourceLabel, originalSourceDetails } from "@/lib/lead-source";
 
 export const Route = createFileRoute("/leads/$leadId")({
   head: () => ({
