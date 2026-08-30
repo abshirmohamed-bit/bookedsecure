@@ -154,6 +154,7 @@ describe("CRM CSV parsing and mapping", () => {
       secondary_phone: "0298765432",
       whatsapp_number: "+61412345678",
       created_at_raw: "12/03/2026",
+      stage_raw: "Quoted",
     });
     expect(row.normalized_payload.email).toBe("ada@example.com");
     expect(row.normalized_payload.proposed_status).toBe("quote_sent");
