@@ -258,6 +258,7 @@ function ImportView() {
       {preview.data && preview.data.batch.id === activeId ? (
         <>
           <DryRunPanel preview={preview.data} />
+          <CommitGatePanel preview={preview.data} />
           <PreviewTable preview={preview.data} />
         </>
       ) : null}
