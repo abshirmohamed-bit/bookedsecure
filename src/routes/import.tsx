@@ -103,6 +103,8 @@ function ImportView() {
       setConfirmDelete(null);
       // Clear the selection so the newest remaining upload is picked up.
       if (selectedId === result.batchId || activeId === result.batchId) setSelectedId(null);
+      // Drop the cached preview so nothing refetches the deleted batch.
+      queryClient.removeQueries({ queryKey: ["crm-import-batch", result.batchId] });
       await refetch();
       toast.success("Preview deleted. No live data was changed.");
     },
