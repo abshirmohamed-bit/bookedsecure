@@ -18,6 +18,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as QuoteRouteImport } from './routes/quote'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
+import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
@@ -71,6 +72,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const AdminPilotApplicationsRoute = AdminPilotApplicationsRouteImport.update({
   id: '/admin/pilot-applications',
   path: '/admin/pilot-applications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadsIndexRoute = LeadsIndexRouteImport.update({
+  id: '/leads/',
+  path: '/leads/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/leads/': typeof LeadsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/leads': typeof LeadsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/leads/': typeof LeadsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/leads/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/leads'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/leads/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
@@ -256,6 +268,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
+  LeadsIndexRoute: typeof LeadsIndexRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
@@ -329,6 +342,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/pilot-applications'
       fullPath: '/admin/pilot-applications'
       preLoaderRoute: typeof AdminPilotApplicationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leads/': {
+      id: '/leads/'
+      path: '/leads'
+      fullPath: '/leads/'
+      preLoaderRoute: typeof LeadsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads/$leadId': {
@@ -408,6 +428,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
+  LeadsIndexRoute: LeadsIndexRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
