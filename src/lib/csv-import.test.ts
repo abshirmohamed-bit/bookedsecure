@@ -504,3 +504,131 @@ describe("real Meta lead-ads CRM export mapping", () => {
     fetchSpy.mockRestore();
   });
 });
+
+describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => {
+  const HEADER = [
+    "Created",
+    "Name",
+    "Email",
+    "Source",
+    "Form",
+    "Channel",
+    "Stage",
+    "Owner",
+    "Labels",
+    "Phone",
+    "Secondary phone number",
+    "WhatsApp number",
+  ];
+  const ROW = [
+    "08/29/2026 5:27 AM",
+    "Diana Borinski",
+    "dianaborinski@gmail.com",
+    "Paid",
+    "Glocast-copy",
+    "Email",
+    "Intake",
+    "Unassigned",
+    "",
+    "+61423662012",
+    "0412 345 678",
+    "+61423662012",
+  ];
+
+  it("detects a tab delimiter and maps every header", () => {
+    const text = `${HEADER.join("\t")}\n${ROW.join("\t")}\t\t\t\n`;
+    expect(detectDelimiter(text)).toBe("\t");
+    const table = parseCsv(text);
+    expect(table.headers).toEqual(HEADER);
+    expect(table.headers.length).toBe(12);
+    expect(table.rows).toHaveLength(1);
+    expect(table.rows[0]).toHaveLength(12);
+
+    const prepared = prepareRow(table.headers, table.rows[0]!, 1);
+    expect(prepared.validation_errors).toEqual([]);
+    expect(prepared.normalized_payload.name).toBe("Diana Borinski");
+    expect(prepared.normalized_payload.mobile_number).toBe("+61423662012");
+    expect(prepared.normalized_payload.email).toBe("dianaborinski@gmail.com");
+    expect(prepared.normalized_payload.source_channel_raw).toBe("Paid");
+    expect(prepared.normalized_payload.source_form).toBe("Glocast-copy");
+    expect(prepared.normalized_payload.proposed_created_at).toBe("2026-08-29T05:27:00.000Z");
+    expect(prepared.normalized_payload.source_metadata["channel"]).toBe("Email");
+    expect(prepared.normalized_payload.source_metadata["owner"]).toBe("Unassigned");
+    expect(prepared.normalized_payload.source_metadata["secondary_phone"]).toBe("0412 345 678");
+    expect(prepared.normalized_payload.source_metadata["whatsapp_number"]).toBe("+61423662012");
+    expect(prepared.normalized_payload.source_metadata["created_at_raw"]).toBe("08/29/2026 5:27 AM");
+    expect(prepared.normalized_payload.unmapped_columns).toEqual([]);
+  });
+
+  it("keeps comma files working and defaults to comma", () => {
+    const text = `${HEADER.join(",")}\n${ROW.join(",")}`;
+    expect(detectDelimiter(text)).toBe(",");
+    const table = parseCsv(text);
+    expect(table.headers).toEqual(HEADER);
+    expect(prepareRow(table.headers, table.rows[0]!, 1).validation_errors).toEqual([]);
+  });
+
+  it("detects semicolon files", () => {
+    const text = "Name;Phone;Email\nAda;0412345678;ada@example.com";
+    expect(detectDelimiter(text)).toBe(";");
+    const table = parseCsv(text);
+    expect(table.headers).toEqual(["Name", "Phone", "Email"]);
+    expect(table.rows[0]).toEqual(["Ada", "0412345678", "ada@example.com"]);
+  });
+
+  it("does not split delimiters inside quoted values", () => {
+    const comma = parseCsv('Name,Labels\n"Ada, Jr","vip,hot"');
+    expect(comma.rows[0]).toEqual(["Ada, Jr", "vip,hot"]);
+    const tab = parseCsv('Name\tLabels\n"Ada\tJr"\tvip');
+    expect(tab.rows[0]).toEqual(["Ada\tJr", "vip"]);
+    const multiline = parseCsv('Name,Notes\nAda,"line1\nline2"');
+    expect(multiline.rows[0]).toEqual(["Ada", "line1\nline2"]);
+  });
+
+  it("strips a UTF-8 BOM for both delimiters", () => {
+    expect(parseCsv("\uFEFFName,Phone\nAda,0412345678").headers).toEqual(["Name", "Phone"]);
+    expect(parseCsv("\uFEFFName\tPhone\nAda\t0412345678").headers).toEqual(["Name", "Phone"]);
+  });
+
+  it("parses MM/DD/YYYY h:mm AM/PM deterministically and keeps older formats", () => {
+    expect(parseCreatedAt("08/29/2026 5:27 AM")).toBe("2026-08-29T05:27:00.000Z");
+    expect(parseCreatedAt("08/29/2026 5:27 PM")).toBe("2026-08-29T17:27:00.000Z");
+    expect(parseCreatedAt("08/29/2026 12:05 AM")).toBe("2026-08-29T00:05:00.000Z");
+    expect(parseCreatedAt("08/29/2026 12:05 PM")).toBe("2026-08-29T12:05:00.000Z");
+    expect(parseCreatedAt("3/4/2026")).toBe(new Date("2026-04-03").toISOString());
+    expect(parseCreatedAt("3/4/26")).toBe(new Date("2026-03-04").toISOString());
+    expect(parseCreatedAt("")).toBeNull();
+    expect(parseCreatedAt("not a date")).toBeNull();
+  });
+
+  it("maps 'Secondary phone number' and validates AU mobiles", () => {
+    expect(canonicalField("Secondary phone number")).toBe("secondary_phone");
+    expect(canonicalField("Channel")).toBe("channel");
+    expect(canonicalField("Source")).toBe("source_channel");
+    expect(canonicalField("Form")).toBe("source_form");
+    expect(canonicalField("Stage")).toBe("status");
+    expect(canonicalField("Owner")).toBe("owner");
+    expect(canonicalField("Labels")).toBe("labels");
+    expect(canonicalField("Created")).toBe("created_at");
+    expect(classifyAuPhone("+61 423 662 012")).toEqual({ kind: "mobile", value: "+61423662012" });
+    expect(classifyAuPhone("0423662012")).toEqual({ kind: "mobile", value: "+61423662012" });
+  });
+
+  it("parses a 253-row tab-separated export with zero issues", () => {
+    const lines = [HEADER.join("\t")];
+    for (let i = 0; i < 253; i += 1) {
+      const row = [...ROW];
+      row[1] = `Person ${i}`;
+      row[2] = `person${i}@example.com`;
+      row[9] = `+6142300${String(i).padStart(4, "0")}`;
+      lines.push(`${row.join("\t")}\t\t\t`);
+    }
+    const table = parseCsv(lines.join("\r\n"));
+    expect(table.rows).toHaveLength(253);
+    const prepared = flagInBatchDuplicates(
+      table.rows.map((row, index) => prepareRow(table.headers, row, index + 1)),
+    );
+    expect(prepared.filter((row) => row.validation_errors.length > 0)).toHaveLength(0);
+    expect(prepared.filter((row) => row.duplicate_of_row !== null)).toHaveLength(0);
+  });
+});
