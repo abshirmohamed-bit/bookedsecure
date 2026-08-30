@@ -147,10 +147,20 @@ function LeadDetail() {
             <ReadinessBadge readiness={lead.readiness_classification} />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {lead.mobile_number} · {SOURCE_LABELS[lead.source_channel] ?? lead.source_channel}
-            {lead.source_campaign ? ` · ${lead.source_campaign}` : ""} ·{" "}
+            {lead.mobile_number}
+            {lead.email ? ` · ${lead.email}` : ""} ·{" "}
+            {SOURCE_LABELS[lead.source_channel] ?? lead.source_channel}
+            {lead.source_campaign ? ` · ${lead.source_campaign}` : ""}
+            {lead.source_form ? ` · ${lead.source_form}` : ""} ·{" "}
             {new Date(lead.created_at).toLocaleString("en-AU")}
           </p>
+          {lead.lead_origin === "crm_import" && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Imported historical lead — no acknowledgement SMS, owner alert or follow-up sequence
+              was created by the import.
+            </p>
+          )}
+
           {lead.opted_out_at && (
             <p className="mt-1 text-xs text-destructive">
               Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")} — automated SMS blocked.
@@ -187,13 +197,35 @@ function LeadDetail() {
         </div>
       </header>
 
+      {lead.lead_origin === "crm_import" && (
+        <ImportedSourcePanel
+          sourceMetadata={lead.source_metadata as Record<string, unknown> | null}
+          serviceIntent={lead.service_intent}
+          vehicleType={lead.vehicle_type}
+          suburb={lead.suburb}
+        />
+      )}
+
+
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <section className="panel flex flex-col">
           <h2 className="border-b border-border px-4 py-3 text-sm font-semibold">Conversation</h2>
           <div className="max-h-[520px] space-y-3 overflow-y-auto px-4 py-4">
             {messages.length === 0 && (
-              <p className="text-sm text-muted-foreground">No messages yet.</p>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  {conversation ? "No messages yet." : "No conversation yet."}
+                </p>
+                {!conversation && (
+                  <p className="text-xs text-muted-foreground">
+                    A conversation starts when you send the first message. Nothing is sent
+                    automatically.
+                  </p>
+                )}
+              </div>
             )}
+
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -652,6 +684,45 @@ function JobPanel({
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+/** Read-only view of the mapped source metadata captured at import time. */
+function ImportedSourcePanel({
+  sourceMetadata,
+  serviceIntent,
+  vehicleType,
+  suburb,
+}: {
+  sourceMetadata: Record<string, unknown> | null;
+  serviceIntent: string | null;
+  vehicleType: string | null;
+  suburb: string | null;
+}) {
+  const meta = sourceMetadata ?? {};
+  const importInfo = (meta["import"] ?? {}) as Record<string, unknown>;
+  const entries: [string, string][] = [
+    ["Suburb", suburb ?? "—"],
+    ["Vehicle", vehicleType ?? "—"],
+    ["Service interest", serviceIntent ?? "—"],
+    ["Original platform", String(importInfo["source_channel_raw"] ?? meta["platform"] ?? "—")],
+    ["Form name", String(meta["form_name"] ?? "—")],
+    ["Import batch", String(importInfo["batch_id"] ?? "—")],
+    ["Import row", String(importInfo["row_number"] ?? "—")],
+  ];
+
+  return (
+    <section className="panel p-4" aria-label="Imported source">
+      <h2 className="text-sm font-semibold">Imported source</h2>
+      <dl className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {entries.map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-0.5 break-words text-xs">{value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }

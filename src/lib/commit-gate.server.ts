@@ -1,10 +1,13 @@
 // Server-side CRM import commit gate.
 //
-// SAFETY BOUNDARY: every function in this module is READ-ONLY against live
-// data. It selects from import_batches, lead_import_rows and leads only. It
-// never inserts, updates or deletes leads, conversations, messages, jobs,
-// automation_jobs or pipeline state, and never calls a messaging provider
-// (Telnyx, Sinch) or `captureLead`.
+// SAFETY BOUNDARY: every function in this module except `commitCanaryRow` is
+// READ-ONLY against live data. It selects from import_batches,
+// lead_import_rows and leads only. `commitCanaryRow` delegates to the
+// import-only path in import-lead.server.ts, which creates exactly one live
+// lead row plus its preview linkage and an audit record. Nothing here inserts
+// conversations, messages, jobs, automation_jobs or pipeline state, calls a
+// messaging provider (Telnyx, Sinch), or uses `captureLead`.
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import {
@@ -219,19 +222,16 @@ export async function revalidateCandidate(
 /**
  * Canary commit entry point.
  *
- * The project's only existing lead-creation path (`captureLead` in
- * lead-engine.server.ts) has downstream side effects that cannot be disabled:
- * it inserts a conversation, enqueues AND immediately runs an `owner_alert`
- * job, and enqueues plus runs an acknowledgement SMS through the messaging
- * provider. Per the commit-gate safety rule we therefore do NOT execute a live
- * canary through it, and we do not invent a parallel lead-creation path.
- *
- * This function performs the full tenant-scoped, read-only revalidation so the
- * gate is exercised end to end, then fails closed with an explicit blocked
- * result. It performs zero writes.
+ * The project's inbound path (`captureLead` in lead-engine.server.ts) has
+ * downstream side effects that cannot be disabled — it opens a conversation,
+ * queues and runs an owner alert, and sends an acknowledgement SMS. It is
+ * therefore NOT used here. Instead this delegates to the dedicated import-only
+ * path in `import-lead.server.ts`, which creates exactly one live lead row plus
+ * its preview linkage and an audit record: no conversation, no message, no
+ * notification, no job, no automation and no provider call.
  */
 export const CANARY_BLOCKED_DETAIL =
-  "The existing lead creation path (captureLead) also opens a conversation, runs an owner alert job and sends an acknowledgement SMS. Those side effects cannot be proven absent, so the canary import is blocked and nothing was written.";
+  "The inbound lead path (captureLead) also opens a conversation, runs an owner alert job and sends an acknowledgement SMS, so it is never used for imports. The import-only path creates the live lead record alone.";
 
 export async function commitCanaryRow(
   client: Client,
@@ -241,9 +241,12 @@ export async function commitCanaryRow(
 ): Promise<CanaryOutcome> {
   const revalidated = await revalidateCandidate(client, businessId, batchId, rowNumber);
   if (!revalidated.ok) return revalidated.outcome;
-  return {
-    status: "blocked",
-    reasons: ["unsafe_lead_creation_path"],
-    detail: CANARY_BLOCKED_DETAIL,
-  };
+  const { importStagedRowAsLead } = await import("@/lib/import-lead.server");
+  return importStagedRowAsLead(client, {
+    businessId,
+    batchId,
+    rowNumber,
+    idempotencyKey: revalidated.idempotencyKey,
+  });
 }
+

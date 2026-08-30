@@ -24,15 +24,17 @@ export const getDashboard = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { computeMetrics } = await import("@/lib/reporting.server");
+    const { composeInboxRows } = await import("@/lib/lead-inbox");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const app = await requireAppContext(context.supabase, context.userId);
+
 
     const [metrics, leads, conversations, jobs] = await Promise.all([
       computeMetrics(app.businessId),
       supabaseAdmin
         .from("leads")
         .select(
-          "id, name, mobile_number, suburb, vehicle_type, service_intent, source_channel, status, readiness_classification, created_at, first_contacted_at, first_reply_at, updated_at",
+          "id, name, mobile_number, email, suburb, vehicle_type, service_intent, source_channel, source_campaign, lead_origin, status, readiness_classification, created_at, first_contacted_at, first_reply_at, updated_at",
         )
         .eq("business_id", app.businessId)
         .order("created_at", { ascending: false })
@@ -50,18 +52,14 @@ export const getDashboard = createServerFn({ method: "GET" })
         .then((response) => response.data),
     ]);
 
-    const conversationByLead = new Map((conversations ?? []).map((row) => [row.lead_id, row]));
-    const jobByLead = new Map((jobs ?? []).map((row) => [row.lead_id, row]));
-
+    // Conversations are left-joined: an imported lead with no conversation yet
+    // still appears in the inbox.
     return {
       role: app.role,
       metrics,
-      leads: (leads ?? []).map((lead) => ({
-        ...lead,
-        conversation: conversationByLead.get(lead.id) ?? null,
-        job: jobByLead.get(lead.id) ?? null,
-      })),
+      leads: composeInboxRows(leads, conversations, jobs),
     };
+
   });
 
 export const getLead = createServerFn({ method: "GET" })
