@@ -876,6 +876,23 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
                       Open this lead in the inbox
                     </Link>
                   </p>
+                ) : verification.status === "idempotent_pass" ? (
+                  <p className="text-xs text-foreground">
+                    Re-run passed — the row returned already_committed and zero duplicate leads were
+                    created. The original canary pass stays intact.
+                    {verification.lead_id ? (
+                      <>
+                        {" "}
+                        <Link
+                          to="/leads/$leadId"
+                          params={{ leadId: verification.lead_id }}
+                          className="underline hover:no-underline"
+                        >
+                          Open this lead in the inbox
+                        </Link>
+                      </>
+                    ) : null}
+                  </p>
                 ) : (
                   <p className="text-xs text-destructive">
                     {verification.gate_reasons.length
@@ -885,6 +902,7 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
                       : "The canary did not pass, so automatic importing stays blocked."}
                   </p>
                 )}
+
                 {verification.checks.length ? (
                   <ul className="space-y-0.5 text-xs text-muted-foreground">
                     {verification.checks.map((check) => (
