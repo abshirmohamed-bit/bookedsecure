@@ -316,3 +316,190 @@ describe("synthetic CRM fidelity fixture", () => {
     expect(row.normalized_payload.proposed_created_at).toBeNull();
   });
 });
+
+describe("real Meta lead-ads CRM export mapping", () => {
+  const HEADERS = [
+    "full_name",
+    "email",
+    "phone_number",
+    "created_time",
+    "platform",
+    "is_organic",
+    "form_name",
+    "id",
+    "ad_id",
+    "ad_name",
+    "adset_id",
+    "adset_name",
+    "campaign_id",
+    "campaign_name",
+    "form_id",
+    "what_services_are_you_seeking_for_your_vehicle?",
+    "what_do_you_primarily_use_your_vehicle_for?",
+    "what_type_of_vehicle_do_you_have?_(include_year/make/model_if_possible)",
+  ];
+  const row = (cells: string[]) => {
+    const csv = [HEADERS.join(","), cells.join(",")].join("\n");
+    const table = parseCsv(csv);
+    return prepareRow(table.headers, table.rows[0]!, 1);
+  };
+  const BASE = [
+    "Jane Citizen",
+    "jane@example.com",
+    "0412 345 678",
+    "1/13/26",
+    "fb",
+    "true",
+    "Quote form",
+    "lead-1",
+    "ad-1",
+    "Summer Ad",
+    "adset-1",
+    "Sydney Adset",
+    "camp-1",
+    "Winter Campaign",
+    "form-1",
+    "Ceramic coating",
+    '"Home, office, travel"',
+    "2021 Toyota Hilux",
+  ];
+
+  it("maps full_name, email, phone_number and form_name", () => {
+    const prepared = row(BASE);
+    const p = prepared.normalized_payload;
+    expect(p.name).toBe("Jane Citizen");
+    expect(p.email).toBe("jane@example.com");
+    expect(p.mobile_number).toBe("+61412345678");
+    expect(p.source_form).toBe("Quote form");
+    expect(p.proposed_status).toBeNull();
+  });
+
+  it("parses US-style M/D/YY created_time values", () => {
+    expect(parseCreatedAt("1/13/26")).toContain("2026-01-13");
+    expect(parseCreatedAt("1/11/26")).toContain("2026-01-11");
+    expect(parseCreatedAt("12/5/25")).toContain("2025-12-05");
+    expect(parseCreatedAt("12/1/25")).toContain("2025-12-01");
+    expect(parseCreatedAt("11/14/25")).toContain("2025-11-14");
+  });
+
+  it("exposes the parsed date and preserves the raw created_time value", () => {
+    const prepared = row(BASE);
+    expect(prepared.normalized_payload.proposed_created_at).toContain("2026-01-13");
+    expect(prepared.normalized_payload.source_metadata.created_time_raw).toBe("1/13/26");
+  });
+
+  it("normalizes fb/ig platforms and preserves the raw value", () => {
+    expect(normalizePlatform("fb")).toBe("facebook");
+    expect(normalizePlatform("ig")).toBe("instagram");
+    const fbRow = row(BASE);
+    expect(fbRow.normalized_payload.source_metadata.platform).toBe("facebook");
+    expect(fbRow.normalized_payload.source_metadata.platform_raw).toBe("fb");
+    expect(fbRow.normalized_payload.source_channel).toBe("meta");
+    expect(fbRow.normalized_payload.source_channel_raw).toBe("fb");
+    const igRow = row(BASE.map((c, i) => (i === 4 ? "ig" : c)));
+    expect(igRow.normalized_payload.source_metadata.platform).toBe("instagram");
+    expect(igRow.normalized_payload.source_metadata.platform_raw).toBe("ig");
+  });
+
+  it("preserves is_organic as a boolean string without changing its meaning", () => {
+    expect(row(BASE).normalized_payload.source_metadata.is_organic).toBe("true");
+    expect(
+      row(BASE.map((c, i) => (i === 5 ? "false" : c))).normalized_payload.source_metadata
+        .is_organic,
+    ).toBe("false");
+  });
+
+  it("preserves campaign, ad, adset, form, service, vehicle-use and vehicle fields as raw/unmapped data", () => {
+    const prepared = row(BASE);
+    expect(prepared.raw_row["campaign_name"]).toBe("Winter Campaign");
+    expect(prepared.raw_row["campaign_id"]).toBe("camp-1");
+    expect(prepared.raw_row["ad_id"]).toBe("ad-1");
+    expect(prepared.raw_row["ad_name"]).toBe("Summer Ad");
+    expect(prepared.raw_row["adset_id"]).toBe("adset-1");
+    expect(prepared.raw_row["adset_name"]).toBe("Sydney Adset");
+    expect(prepared.raw_row["form_id"]).toBe("form-1");
+    expect(prepared.raw_row["id"]).toBe("lead-1");
+    expect(prepared.raw_row["what_services_are_you_seeking_for_your_vehicle?"]).toBe(
+      "Ceramic coating",
+    );
+    expect(prepared.raw_row["what_do_you_primarily_use_your_vehicle_for?"]).toBe(
+      "Home, office, travel",
+    );
+    expect(
+      prepared.raw_row["what_type_of_vehicle_do_you_have?_(include_year/make/model_if_possible)"],
+    ).toBe("2021 Toyota Hilux");
+    expect(prepared.normalized_payload.unmapped_columns).toEqual(
+      expect.arrayContaining([
+        "id",
+        "ad_id",
+        "ad_name",
+        "adset_id",
+        "adset_name",
+        "campaign_id",
+        "campaign_name",
+        "form_id",
+        "what_services_are_you_seeking_for_your_vehicle?",
+        "what_do_you_primarily_use_your_vehicle_for?",
+        "what_type_of_vehicle_do_you_have?_(include_year/make/model_if_possible)",
+      ]),
+    );
+  });
+
+  it("keeps comma-containing quoted values intact", () => {
+    const prepared = row(BASE);
+    expect(prepared.validation_errors.map((e) => e.code)).not.toContain("malformed_row");
+    expect(prepared.raw_row["what_do_you_primarily_use_your_vehicle_for?"]).toBe(
+      "Home, office, travel",
+    );
+  });
+
+  it("keeps the non-mobile error for an Australian landline and keeps the row usable", () => {
+    const landline = row(BASE.map((c, i) => (i === 2 ? "+61247869523" : c)));
+    const p = landline.normalized_payload;
+    expect(landline.validation_errors).toContainEqual({
+      code: "unsupported_phone_type",
+      field: "mobile_number",
+      detail: "+61247869523",
+    });
+    expect(p.mobile_number).toBeNull();
+    expect(p.name).toBe("Jane Citizen");
+    expect(p.email).toBe("jane@example.com");
+    expect(p.source_metadata.platform).toBe("facebook");
+    expect(landline.raw_row["campaign_name"]).toBe("Winter Campaign");
+  });
+
+  it("keeps invalid phone errors unchanged", () => {
+    const bad = row(BASE.map((c, i) => (i === 2 ? "not-a-phone" : c)));
+    expect(bad.validation_errors).toContainEqual({
+      code: "invalid_phone",
+      field: "mobile_number",
+      detail: "not-a-phone",
+    });
+    expect(bad.normalized_payload.mobile_number).toBeNull();
+  });
+
+  it("does not reject test@com.au solely because it looks suspicious", () => {
+    const prepared = row(BASE.map((c, i) => (i === 1 ? "test@com.au" : c)));
+    expect(prepared.normalized_payload.email).toBe("test@com.au");
+    expect(prepared.validation_errors.map((e) => e.code)).not.toContain("invalid_email");
+  });
+
+  it("keeps all decisions pending and performs no live writes or provider calls", async () => {
+    const csv = [HEADERS.join(","), BASE.join(","), BASE.join(","), BASE.join(",")].join("\n");
+    const client = fakeClient();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const result = await previewCrmCsv(client as never, {
+      businessId: GLOCAST,
+      userId: OWNER,
+      filename: "meta-export.csv",
+      content: csv,
+    });
+    expect(result.rows.every((r) => r.decision === "pending")).toBe(true);
+    expect([...new Set(client.writes.map((w) => w.table))].sort()).toEqual([
+      "import_batches",
+      "lead_import_rows",
+    ]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+});
