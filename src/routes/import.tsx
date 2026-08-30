@@ -58,6 +58,7 @@ function ImportView() {
   const upload = useServerFn(previewCrmImport);
   const fetchBatch = useServerFn(getCrmImportBatch);
   const removeBatch = useServerFn(deleteCrmImportBatch);
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ImportBatchSummary | null>(null);
 
