@@ -82,7 +82,8 @@ export async function computeMetrics(
     .select(
       "id, status, source_channel, created_at, first_contacted_at, first_reply_at, opted_out_at, vehicle_type, main_concerns, suburb",
     )
-    .eq("business_id", businessId);
+    .eq("business_id", businessId)
+    .is("deleted_at", null);
 
   if (range?.from) leadQuery = leadQuery.gte("created_at", range.from);
   if (range?.to) leadQuery = leadQuery.lte("created_at", range.to);

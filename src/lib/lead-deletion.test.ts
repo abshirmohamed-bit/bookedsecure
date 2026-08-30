@@ -133,6 +133,16 @@ describe("confirmation summary", () => {
     expect(maskPhone(null)).toBeNull();
   });
 
+  it("cancelling the confirmation leaves the selection intact and deletes nothing", async () => {
+    const db = freshDb();
+    const client = createFakeSupabase(db);
+    const selection = [L1, L2];
+    buildConfirmation(selection, [lead(L1), lead(L2)] as never); // modal opened, then cancelled
+    expect(selection).toEqual([L1, L2]);
+    expect(client.writes).toHaveLength(0);
+    expect(db.leads.every((row) => row.deleted_at === null)).toBe(true);
+  });
+
   it("flags protected operational history", () => {
     const protectedLead = lead(L1, {
       job: { completion_status: "completed", completed_value: 250 },

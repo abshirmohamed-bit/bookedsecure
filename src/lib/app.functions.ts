@@ -34,9 +34,10 @@ export const getDashboard = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("leads")
         .select(
-          "id, name, mobile_number, email, suburb, vehicle_type, service_intent, source_channel, source_campaign, lead_origin, status, readiness_classification, created_at, first_contacted_at, first_reply_at, updated_at",
+          "id, name, mobile_number, email, suburb, vehicle_type, service_intent, source_channel, source_campaign, lead_origin, source_metadata, import_batch_id, status, readiness_classification, created_at, first_contacted_at, first_reply_at, updated_at, deleted_at",
         )
         .eq("business_id", app.businessId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(200)
         .then((response) => response.data),
