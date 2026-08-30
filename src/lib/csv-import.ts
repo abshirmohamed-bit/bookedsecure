@@ -163,6 +163,11 @@ const STAGE_MAP: Record<string, LeadStatus> = {
   "new lead": "new",
   lead: "new",
   open: "new",
+  // Historical CRM (GoDaddy) stages. Conservative: a stage is a lead status
+  // label only — mapping never creates a job, revenue, booking, conversation
+  // or automation event.
+  intake: "new",
+  converted: "completed",
   contacted: "contacted",
   attempted: "contacted",
   "waiting for customer": "waiting_for_customer",
