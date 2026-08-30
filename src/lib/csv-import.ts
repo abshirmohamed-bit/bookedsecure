@@ -138,10 +138,12 @@ const FIELD_ALIASES: Record<string, string[]> = {
 export const METADATA_FIELDS = [
   "owner",
   "labels",
+  "channel",
   "secondary_phone",
   "whatsapp_number",
   "is_organic",
 ] as const;
+
 
 export function canonicalField(header: string): string | null {
   const key = header.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
