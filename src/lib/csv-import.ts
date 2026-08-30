@@ -386,6 +386,9 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
     const value = cell(headers, row, field);
     if (value) metadata[field] = value;
   }
+  const createdRaw = cell(headers, row, "created_at");
+  if (createdRaw) metadata["created_at_raw"] = createdRaw;
+
 
   // Meta lead-ads export: preserve raw created_time and platform values, and
   // expose the normalized platform, alongside the mapped fields above.
