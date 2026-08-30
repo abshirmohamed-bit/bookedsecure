@@ -74,7 +74,10 @@ function ImportView() {
   const preview = useQuery({
     queryKey: ["crm-import-batch", activeId],
     queryFn: () => fetchBatch({ data: { batchId: activeId! } }),
-    enabled: Boolean(activeId),
+    // Only fetch batches that are still present in the freshly-loaded list, so a
+    // deleted batch id can never be requested again.
+    enabled: Boolean(activeBatch),
+    retry: false,
   });
 
   const uploadMutation = useMutation({
