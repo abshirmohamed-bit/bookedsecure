@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { Plus, RefreshCw, Upload } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Undo2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { createManualLead, getDashboard, runFollowUpsNow } from "@/lib/app.functions";
@@ -15,6 +15,16 @@ import {
   normaliseAuMobile,
 } from "@/lib/domain";
 import { importMethodLabel, leadSourceLabel } from "@/lib/lead-source";
+import {
+  buildConfirmation,
+  headerCheckboxState,
+  restrictToVisible,
+  selectAllVisible,
+  summariseResult,
+  toggleSelection,
+  type DeletionResult,
+} from "@/lib/lead-deletion";
+import { softDeleteLeadsRequest } from "@/lib/lead-deletion.functions";
 
 /** The main daily workspace: which leads need attention, and how they are converting. */
 export function LeadsWorkspace() {
@@ -24,6 +34,12 @@ export function LeadsWorkspace() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
+  const [selection, setSelection] = useState<string[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [allowProtected, setAllowProtected] = useState(false);
+  const [reason, setReason] = useState("");
+  const [lastResult, setLastResult] = useState<DeletionResult | null>(null);
+  const deleteLeads = useServerFn(softDeleteLeadsRequest);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard"],
@@ -47,6 +63,42 @@ export function LeadsWorkspace() {
         (sourceFilter === "all" || lead.source_channel === sourceFilter),
     );
   }, [data, statusFilter, sourceFilter]);
+
+  // Selection is always scoped to the current filtered result.
+  const visibleSelection = useMemo(() => restrictToVisible(selection, leads), [selection, leads]);
+  const selectedLeads = useMemo(
+    () => leads.filter((lead) => visibleSelection.includes(lead.id)),
+    [leads, visibleSelection],
+  );
+  const confirmation = useMemo(
+    () => buildConfirmation(visibleSelection, selectedLeads as never),
+    [visibleSelection, selectedLeads],
+  );
+  const checkboxState = headerCheckboxState(selection, leads);
+
+  const deletion = useMutation({
+    mutationFn: () =>
+      deleteLeads({
+        data: {
+          requestId: crypto.randomUUID(),
+          leadIds: visibleSelection,
+          reason: reason.trim() || undefined,
+          allowProtected: allowProtected || undefined,
+          confirm: true as const,
+        },
+      }),
+    onSuccess: (result) => {
+      setLastResult(result as DeletionResult);
+      setConfirmOpen(false);
+      setAllowProtected(false);
+      setReason("");
+      if ((result as DeletionResult).deleted > 0) setSelection([]);
+      toast.success(summariseResult(result as DeletionResult));
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["deleted-leads"] });
+    },
+    onError: (mutationError: Error) => toast.error(mutationError.message),
+  });
 
   const header = (
     <div className="flex flex-wrap items-end justify-between gap-3">
@@ -145,6 +197,31 @@ export function LeadsWorkspace() {
                 </option>
               ))}
             </select>
+            {visibleSelection.length > 0 && (
+              <>
+                <span className="text-xs text-muted-foreground" data-testid="selected-count">
+                  {visibleSelection.length} selected
+                </span>
+                <button
+                  onClick={() => setConfirmOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-destructive/60 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Delete selected
+                </button>
+                <button
+                  onClick={() => setSelection([])}
+                  className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Clear selection
+                </button>
+              </>
+            )}
+            <Link
+              to="/leads/deleted"
+              className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Undo2 className="h-3.5 w-3.5" aria-hidden="true" /> Deleted leads
+            </Link>
             <button
               onClick={() => followUps.mutate()}
               disabled={followUps.isPending}
@@ -163,10 +240,50 @@ export function LeadsWorkspace() {
 
         {showAdd && <AddLeadForm onDone={() => setShowAdd(false)} />}
 
+        {lastResult && (
+          <div className="border-b border-border bg-secondary/30 px-4 py-3 text-xs">
+            <p className="font-medium">Deletion complete</p>
+            <p className="mt-0.5 text-muted-foreground">
+              {lastResult.requested} requested · {lastResult.deleted} deleted · {lastResult.failed}{" "}
+              failed
+              {lastResult.idempotentReplay ? " · repeat request, nothing new deleted" : ""}
+            </p>
+            {lastResult.failures.length > 0 && (
+              <ul className="mt-1 list-disc pl-4 text-muted-foreground">
+                {lastResult.failures.map((failure) => (
+                  <li key={failure.leadId}>
+                    {failure.name ?? failure.leadId} — {failure.reason}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              onClick={() => setLastResult(null)}
+              className="mt-1.5 text-[11px] text-muted-foreground underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full min-w-[880px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                <th className="w-10 px-4 py-2 font-medium">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all visible leads"
+                    checked={checkboxState === "checked"}
+                    ref={(node) => {
+                      if (node) node.indeterminate = checkboxState === "indeterminate";
+                    }}
+                    onChange={(event) =>
+                      setSelection(event.target.checked ? selectAllVisible(leads) : [])
+                    }
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                  />
+                </th>
                 <th className="px-4 py-2 font-medium">Source</th>
                 <th className="px-4 py-2 font-medium">Customer</th>
                 <th className="px-4 py-2 font-medium">Mobile</th>
@@ -179,6 +296,15 @@ export function LeadsWorkspace() {
             <tbody>
               {leads.map((lead) => (
                 <tr key={lead.id} className="border-b border-border/60 hover:bg-secondary/40">
+                  <td className="px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${lead.name}`}
+                      checked={visibleSelection.includes(lead.id)}
+                      onChange={() => setSelection((current) => toggleSelection(current, lead.id))}
+                      className="h-4 w-4 accent-[var(--color-primary)]"
+                    />
+                  </td>
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">
                     {leadSourceLabel(lead)}
                     {importMethodLabel(lead) && (
@@ -222,7 +348,7 @@ export function LeadsWorkspace() {
               ))}
               {leads.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     No leads match these filters yet. Clear the filters, add a lead, or bring across
                     your history with <span className="text-foreground">Import data</span>.
                   </td>
@@ -232,6 +358,83 @@ export function LeadsWorkspace() {
           </table>
         </div>
       </section>
+
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm lead deletion"
+            className="panel w-full max-w-lg p-5"
+          >
+            <h2 className="text-sm font-semibold">
+              Delete {confirmation.count} {confirmation.count === 1 ? "lead" : "leads"}?
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">{confirmation.warning}</p>
+            <ul className="mt-3 max-h-56 space-y-1.5 overflow-y-auto text-xs">
+              {confirmation.rows.map((row) => (
+                <li key={row.id} className="rounded-md border border-border/60 px-2.5 py-1.5">
+                  <span className="font-medium text-foreground">{row.name}</span>
+                  <span className="text-muted-foreground">
+                    {row.phone ? ` · ${row.phone}` : " · no mobile"} · {row.source}
+                    {row.importMethod ? ` (via ${row.importMethod})` : ""}
+                  </span>
+                  {row.protectedReasons.length > 0 && (
+                    <p className="text-[11px] text-warning">
+                      Protected history: {row.protectedReasons.join(", ")}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {confirmation.protectedCount > 0 && (
+              <label className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={allowProtected}
+                  onChange={(event) => setAllowProtected(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]"
+                />
+                <span>
+                  {confirmation.protectedCount} of these have completed jobs, revenue, an active
+                  conversation or a pending action. I confirm removal from the inbox; all financial,
+                  message and audit history is preserved.
+                </span>
+              </label>
+            )}
+            <label className="mt-3 block text-xs">
+              <span className="mb-1 block text-muted-foreground">Reason (recorded in the audit trail)</span>
+              <input
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+              />
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setConfirmOpen(false);
+                  setAllowProtected(false);
+                }}
+                className="rounded-md border border-input px-3 py-1.5 text-xs text-muted-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={
+                  deletion.isPending ||
+                  confirmation.count === 0 ||
+                  (confirmation.protectedCount > 0 && !allowProtected)
+                }
+                onClick={() => deletion.mutate()}
+                className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground disabled:opacity-50"
+              >
+                {deletion.isPending ? "Deleting…" : confirmation.buttonLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
