@@ -114,6 +114,35 @@ describe("CRM CSV parsing and mapping", () => {
     expect(mapStage("Weird Stage")).toBeNull();
   });
 
+  it("maps historical GoDaddy CRM stages and preserves the raw stage text", () => {
+    expect(mapStage("Intake")).toBe("new");
+    expect(mapStage("  intake ")).toBe("new");
+    expect(mapStage("Converted")).toBe("completed");
+    expect(mapStage("converted")).toBe("completed");
+    // Unknown future stages must stay exceptions rather than being guessed.
+    expect(mapStage("Nurture 2026")).toBeNull();
+
+    const headers = ["Name", "Phone", "Email", "Stage"];
+    const intake = prepareRow(headers, ["Jo Smith", "0412345678", "jo@example.com", "Intake"], 1);
+    expect(intake.normalized_payload.proposed_status).toBe("new");
+    expect(intake.normalized_payload.source_metadata["stage_raw"]).toBe("Intake");
+    expect(intake.validation_errors).toEqual([]);
+
+    const converted = prepareRow(
+      headers,
+      ["Ada Lee", "0412345679", "ada@example.com", "Converted"],
+      2,
+    );
+    expect(converted.normalized_payload.proposed_status).toBe("completed");
+    expect(converted.normalized_payload.source_metadata["stage_raw"]).toBe("Converted");
+    expect(converted.validation_errors).toEqual([]);
+
+    const unknown = prepareRow(headers, ["Bo Ng", "0412345670", "bo@example.com", "Nurture"], 3);
+    expect(unknown.normalized_payload.proposed_status).toBeNull();
+    expect(unknown.validation_errors.map((e) => e.code)).toContain("unmappable_stage");
+    expect(unknown.normalized_payload.source_metadata["stage_raw"]).toBe("Nurture");
+  });
+
   it("preserves unknown columns and keeps metadata-only fields out of lead fields", () => {
     const table = parseCsv(CSV);
     expect(unmappedColumns(table.headers)).toEqual(["Vehicle rego"]);
