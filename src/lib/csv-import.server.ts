@@ -30,6 +30,7 @@ import {
   type ExclusionReason,
   type RowReview,
 } from "@/lib/row-review";
+import type { EditableField, StagedRowState } from "@/lib/staged-row-edit";
 
 export type PreviewPayload = NormalizedPayload & { duplicate_of_row: number | null };
 
