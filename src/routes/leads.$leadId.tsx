@@ -147,10 +147,20 @@ function LeadDetail() {
             <ReadinessBadge readiness={lead.readiness_classification} />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {lead.mobile_number} · {SOURCE_LABELS[lead.source_channel] ?? lead.source_channel}
-            {lead.source_campaign ? ` · ${lead.source_campaign}` : ""} ·{" "}
+            {lead.mobile_number}
+            {lead.email ? ` · ${lead.email}` : ""} ·{" "}
+            {SOURCE_LABELS[lead.source_channel] ?? lead.source_channel}
+            {lead.source_campaign ? ` · ${lead.source_campaign}` : ""}
+            {lead.source_form ? ` · ${lead.source_form}` : ""} ·{" "}
             {new Date(lead.created_at).toLocaleString("en-AU")}
           </p>
+          {lead.lead_origin === "crm_import" && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Imported historical lead — no acknowledgement SMS, owner alert or follow-up sequence
+              was created by the import.
+            </p>
+          )}
+
           {lead.opted_out_at && (
             <p className="mt-1 text-xs text-destructive">
               Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")} — automated SMS blocked.
