@@ -447,6 +447,12 @@ function PreviewTable({ preview }: { preview: Preview }) {
                     ) : null}
                   </td>
                   <td className="py-2 pr-3">
+                    {rowCommitLabel(
+                      { ...row, commit: readCommitState(row.normalized_payload) },
+                      preview.batch.id,
+                    )}
+                  </td>
+                  <td className="py-2 pr-3">
                     <DecisionControl batchId={preview.batch.id} row={row} />
                   </td>
                 </tr>
