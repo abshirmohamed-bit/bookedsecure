@@ -478,6 +478,21 @@ function PreviewTable({
                           .join(", ")}
                       </div>
                     ) : null}
+                    <div className="text-muted-foreground">
+                      state:{" "}
+                      {
+                        STAGED_ROW_STATE_LABELS[
+                          resolveStagedRowState({
+                            commit_status: readCommitState(row.normalized_payload).status,
+                            review_decision: row.review?.decision,
+                            classification: row.classification?.classification,
+                            validation_errors: row.validation_errors,
+                            dedupe_match_lead_id: row.dedupe_match_lead_id,
+                            duplicate_of_row: row.duplicate_of_row,
+                          })
+                        ]
+                      }
+                    </div>
                   </td>
                   <td className="py-2 pr-3">
                     {rowCommitLabel(
@@ -488,6 +503,22 @@ function PreviewTable({
                   <td className="py-2 pr-3">
                     <DecisionControl batchId={preview.batch.id} row={row} />
                   </td>
+                  <td className="py-2 pr-3">
+                    {canEditStagedRow({
+                      commit_status: readCommitState(row.normalized_payload).status,
+                    }) ? (
+                      <button
+                        type="button"
+                        onClick={() => setEditing(row.row_number)}
+                        aria-label={`Edit staged row ${row.row_number}`}
+                        className="rounded-md border border-input px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
+                        Edit
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground">committed</span>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -497,9 +528,19 @@ function PreviewTable({
       <p className="text-xs text-muted-foreground">
         Preview only. Importing, merging and creating leads is not enabled yet.
       </p>
+      {editingRow ? (
+        <StagedRowEditor
+          batchId={preview.batch.id}
+          row={editingRow as never}
+          rawRow={rawRow}
+          onDirtyChange={onDirtyChange}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
     </section>
   );
 }
+
 
 function DryRunPanel({ preview }: { preview: Preview }) {
   const runClassifier = useServerFn(classifyCrmImportBatch);
