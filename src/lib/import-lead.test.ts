@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { buildImportLeadInsert, IMPORT_LEAD_ORIGIN } from "@/lib/import-lead.server";
 import { composeInboxRows, inboxLastActivity } from "@/lib/lead-inbox";
 import { commitIdempotencyKey } from "@/lib/commit-gate";
+import { LEAD_ORIGINS, isAllowedLeadOrigin } from "@/lib/domain";
+
 
 const BATCH = "11111111-1111-4111-8111-111111111111";
 const TENANT = "22222222-2222-4222-8222-222222222222";
@@ -149,5 +151,31 @@ describe("lead inbox composition", () => {
 
   it("handles null query results without crashing", () => {
     expect(composeInboxRows(null, null, null)).toEqual([]);
+  });
+});
+
+describe("lead origin constraint contract", () => {
+  it("accepts crm_import for the import-only path", () => {
+    expect(IMPORT_LEAD_ORIGIN).toBe("crm_import");
+    expect(isAllowedLeadOrigin(IMPORT_LEAD_ORIGIN)).toBe(true);
+    expect(isAllowedLeadOrigin(insertFor().lead_origin)).toBe(true);
+  });
+
+  it("keeps existing valid lead origins accepted", () => {
+    for (const origin of ["live", "historical", "reactivation"]) {
+      expect(isAllowedLeadOrigin(origin)).toBe(true);
+    }
+    expect(LEAD_ORIGINS).toEqual(["live", "historical", "reactivation", "crm_import"]);
+  });
+
+  it("still rejects invalid origins", () => {
+    for (const origin of ["", "import", "CRM_IMPORT", "captured", "crm-import"]) {
+      expect(isAllowedLeadOrigin(origin)).toBe(false);
+    }
+  });
+
+  it("leaves captureLead behaviour unchanged (null origin remains valid)", () => {
+    expect(isAllowedLeadOrigin(null)).toBe(true);
+    expect(isAllowedLeadOrigin(undefined)).toBe(true);
   });
 });

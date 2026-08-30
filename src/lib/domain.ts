@@ -33,6 +33,19 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
 export const SOURCE_CHANNELS = ["meta", "website", "hosted_page", "manual", "unknown"] as const;
 export type SourceChannel = (typeof SOURCE_CHANNELS)[number];
 
+/**
+ * Values permitted by the `leads_lead_origin_check` database constraint.
+ * NULL is also accepted (that is what the live `captureLead` path writes).
+ */
+export const LEAD_ORIGINS = ["live", "historical", "reactivation", "crm_import"] as const;
+export type LeadOrigin = (typeof LEAD_ORIGINS)[number];
+
+export function isAllowedLeadOrigin(value: string | null | undefined): boolean {
+  if (value === null || value === undefined) return true;
+  return (LEAD_ORIGINS as readonly string[]).includes(value);
+}
+
+
 export const SOURCE_LABELS: Record<string, string> = {
   meta: "Meta",
   website: "Website",
