@@ -9,9 +9,53 @@ export type CsvTable = { headers: string[]; rows: string[][] };
 
 export class CsvParseError extends Error {}
 
-/** RFC4180-ish CSV parser: quoted fields, escaped quotes, CRLF tolerant. */
+/** Reads the first non-empty line, respecting quoted values (which may span lines). */
+function firstLine(text: string): string {
+  let inQuotes = false;
+  let line = "";
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      line += char;
+      continue;
+    }
+    if (!inQuotes && (char === "\n" || char === "\r")) {
+      if (line.trim() !== "") return line;
+      line = "";
+      continue;
+    }
+    line += char;
+  }
+  return line;
+}
+
+/** Counts delimiter candidates outside quoted values. */
+function countOutsideQuotes(line: string, delimiter: string): number {
+  let inQuotes = false;
+  let count = 0;
+  for (const char of line) {
+    if (char === '"') inQuotes = !inQuotes;
+    else if (!inQuotes && char === delimiter) count += 1;
+  }
+  return count;
+}
+
+/** Comma by default; tab or semicolon only when clearly dominant in the header line. */
+export function detectDelimiter(text: string): "," | "\t" | ";" {
+  const header = firstLine(text.replace(/^\uFEFF/, ""));
+  const commas = countOutsideQuotes(header, ",");
+  const tabs = countOutsideQuotes(header, "\t");
+  const semis = countOutsideQuotes(header, ";");
+  if (tabs > commas && tabs >= semis) return "\t";
+  if (semis > commas && semis > tabs) return ";";
+  return ",";
+}
+
+/** RFC4180-ish parser: quoted fields, escaped quotes, CRLF tolerant, delimiter sniffing. */
 export function parseCsv(text: string): CsvTable {
   const clean = text.replace(/^\uFEFF/, "");
+  const delimiter = detectDelimiter(clean);
   const records: string[][] = [];
   let field = "";
   let record: string[] = [];
@@ -30,7 +74,7 @@ export function parseCsv(text: string): CsvTable {
     }
     if (char === '"') {
       inQuotes = true;
-    } else if (char === ",") {
+    } else if (char === delimiter) {
       record.push(field);
       field = "";
     } else if (char === "\n" || char === "\r") {
@@ -50,7 +94,14 @@ export function parseCsv(text: string): CsvTable {
   const nonEmpty = records.filter((row) => row.some((cell) => cell.trim() !== ""));
   if (nonEmpty.length === 0) throw new CsvParseError("The file is empty.");
 
-  const headers = (nonEmpty[0] ?? []).map((cell) => cell.trim());
+  // Trailing empty columns (common in spreadsheet exports) are not real fields.
+  const trimTrailingEmpty = (row: string[], keep: number): string[] => {
+    const out = [...row];
+    while (out.length > keep && (out[out.length - 1] ?? "").trim() === "") out.pop();
+    return out;
+  };
+
+  const headers = trimTrailingEmpty(nonEmpty[0] ?? [], 1).map((cell) => cell.trim());
   if (headers.length === 0 || headers.every((cell) => cell === "")) {
     throw new CsvParseError("The first row must be a header row with column names.");
   }
@@ -60,8 +111,10 @@ export function parseCsv(text: string): CsvTable {
   const looksLikeData = headers.every((cell) => /^[+\d\s()-]+$/.test(cell));
   if (looksLikeData) throw new CsvParseError("The first row must be a header row, not data.");
 
-  return { headers, rows: nonEmpty.slice(1) };
+  const rows = nonEmpty.slice(1).map((row) => trimTrailingEmpty(row, headers.length));
+  return { headers, rows };
 }
+
 
 // --- field mapping ------------------------------------------------------------
 
@@ -69,24 +122,28 @@ const FIELD_ALIASES: Record<string, string[]> = {
   name: ["name", "full name", "contact name", "customer name"],
   email: ["email", "email address"],
   mobile_number: ["phone", "phone number", "mobile", "mobile number"],
-  source_channel: ["source", "channel", "lead source", "source channel", "contact source", "platform"],
+  source_channel: ["source", "lead source", "source channel", "contact source", "platform"],
   source_form: ["form", "form name", "lead form", "source form", "campaign form"],
   status: ["stage", "status"],
   created_at: ["created", "created at", "created date", "created time"],
   owner: ["owner", "assigned to"],
   labels: ["labels", "label", "tags"],
-  secondary_phone: ["secondary phone", "phone 2", "alternate phone"],
+  channel: ["channel"],
+  secondary_phone: ["secondary phone", "secondary phone number", "phone 2", "alternate phone"],
   whatsapp_number: ["whatsapp number", "whatsapp"],
   is_organic: ["is organic", "organic"],
+
 };
 
 export const METADATA_FIELDS = [
   "owner",
   "labels",
+  "channel",
   "secondary_phone",
   "whatsapp_number",
   "is_organic",
 ] as const;
+
 
 export function canonicalField(header: string): string | null {
   const key = header.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
@@ -214,6 +271,30 @@ export function normaliseEmail(raw: string): { value: string | null; valid: bool
 export function parseCreatedAt(raw: string): string | null {
   const trimmed = (raw ?? "").trim();
   if (!trimmed) return null;
+
+  // MM/DD/YYYY h:mm AM|PM (CRM exports) — deterministic UTC parse.
+  const mdyTime = trimmed.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp])\.?[Mm]\.?$/,
+  );
+  if (mdyTime) {
+    let hour = Number(mdyTime[4]);
+    if (hour < 1 || hour > 12) return null;
+    const isPm = (mdyTime[7] ?? "").toLowerCase() === "p";
+    if (hour === 12) hour = 0;
+    if (isPm) hour += 12;
+    const date = new Date(
+      Date.UTC(
+        Number(mdyTime[3]),
+        Number(mdyTime[1]) - 1,
+        Number(mdyTime[2]),
+        hour,
+        Number(mdyTime[5]),
+        Number(mdyTime[6] ?? 0),
+      ),
+    );
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
   // D/M/YYYY (existing AU exports)
   const dmy = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   // M/D/YY (US-style Meta lead-ads exports)
@@ -227,6 +308,7 @@ export function parseCreatedAt(raw: string): string | null {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
+
 
 export type ValidationError = { code: string; field?: string; detail?: string };
 
@@ -304,6 +386,9 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
     const value = cell(headers, row, field);
     if (value) metadata[field] = value;
   }
+  const createdRaw = cell(headers, row, "created_at");
+  if (createdRaw) metadata["created_at_raw"] = createdRaw;
+
 
   // Meta lead-ads export: preserve raw created_time and platform values, and
   // expose the normalized platform, alongside the mapped fields above.
