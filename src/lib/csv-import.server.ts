@@ -15,6 +15,14 @@ import {
   type ExistingLeadIndex,
   type NormalizedPayload,
 } from "@/lib/csv-import";
+import {
+  DEFAULT_REVIEW,
+  readReview,
+  resolveDecisionChange,
+  type RowDecision,
+  type ExclusionReason,
+  type RowReview,
+} from "@/lib/row-review";
 
 export type PreviewPayload = NormalizedPayload & { duplicate_of_row: number | null };
 
@@ -37,6 +45,7 @@ export type PreviewRow = {
   dedupe_match_lead_id: string | null;
   duplicate_of_row: number | null;
   decision: string;
+  review: RowReview;
 };
 
 export type PreviewResult = {
@@ -169,6 +178,7 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
         dedupe_match_lead_id: row.dedupe_match_lead_id,
         duplicate_of_row: row.duplicate_of_row,
         decision: "pending",
+        review: { ...DEFAULT_REVIEW },
       })),
     };
   } catch (error) {
@@ -273,6 +283,7 @@ export async function loadBatchPreview(
       dedupe_match_lead_id: row.dedupe_match_lead_id,
       duplicate_of_row: payload.duplicate_of_row ?? null,
       decision: row.decision,
+      review: readReview(payload),
     };
   });
 
