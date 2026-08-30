@@ -465,7 +465,7 @@ describe("real Meta lead-ads CRM export mapping", () => {
     expect(p.mobile_number).toBeNull();
     expect(p.name).toBe("Jane Citizen");
     expect(p.email).toBe("jane@example.com");
-    expect(p.source_metadata.platform).toBe("facebook");
+    expect(p.source_metadata["platform"]).toBe("facebook");
     expect(landline.raw_row["campaign_name"]).toBe("Winter Campaign");
   });
 
