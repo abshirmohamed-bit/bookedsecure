@@ -114,49 +114,72 @@ export function LeadsWorkspace() {
     </div>
   );
 
-  if (isLoading)
+  // Only a first load with nothing cached blocks the page.
+  if (dashboard.metricsStatus === "loading" && !dashboard.showLeadsPanel)
     return (
       <div className="space-y-6">
         {header}
-        <p className="text-sm text-muted-foreground">Loading leads…</p>
+        <p className="text-sm text-muted-foreground" role="status">
+          Loading leads…
+        </p>
       </div>
     );
-  if (error)
-    return (
-      <div className="space-y-6">
-        {header}
-        <p className="text-sm text-destructive">{(error as Error).message}</p>
-      </div>
-    );
-  if (!data) return header;
 
-  const { metrics } = data;
+  const metrics = dashboard.metrics;
 
   return (
     <div className="space-y-6">
       {header}
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-        <Metric label="Total leads" value={String(metrics.totalLeads)} />
-        <Metric
-          label="Median response"
-          value={formatMinutes(metrics.medianResponseMinutes)}
-          hint={`${Math.round(metrics.withinFiveMinutes * 100)}% within 5 min`}
-        />
-        <Metric label="Reply rate" value={`${Math.round(metrics.replyRate * 100)}%`} />
-        <Metric label="Completed jobs" value={String(metrics.completedJobs)} />
-        <Metric
-          label="Completed revenue"
-          value={formatCurrency(metrics.completedRevenue)}
-          hint={
-            metrics.averageJobValue ? `Avg ${formatCurrency(metrics.averageJobValue)}` : "No jobs yet"
-          }
-        />
-        <Metric
-          label="Needs follow-up"
-          value={String(metrics.needsFollowUp)}
-          hint={`${metrics.optOuts} opt-outs · ${metrics.deliveryFailures} failures`}
-        />
-      </section>
+      {metrics ? (
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+          <Metric label="Total leads" value={String(metrics.totalLeads)} />
+          <Metric
+            label="Median response"
+            value={formatMinutes(metrics.medianResponseMinutes)}
+            hint={`${Math.round(metrics.withinFiveMinutes * 100)}% within 5 min`}
+          />
+          <Metric label="Reply rate" value={`${Math.round(metrics.replyRate * 100)}%`} />
+          <Metric label="Completed jobs" value={String(metrics.completedJobs)} />
+          <Metric
+            label="Completed revenue"
+            value={formatCurrency(metrics.completedRevenue)}
+            hint={
+              metrics.averageJobValue ? `Avg ${formatCurrency(metrics.averageJobValue)}` : "No jobs yet"
+            }
+          />
+          <Metric
+            label="Needs follow-up"
+            value={String(metrics.needsFollowUp)}
+            hint={`${metrics.optOuts} opt-outs · ${metrics.deliveryFailures} failures`}
+          />
+        </section>
+      ) : dashboard.metricsStatus === "error" ? (
+        <section
+          className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+          data-testid="dashboard-metrics-error"
+          role="alert"
+        >
+          <div>
+            <p className="text-sm font-medium text-destructive">Metrics unavailable</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {dashboard.metricsError} Your leads below are unaffected.
+            </p>
+          </div>
+          <button
+            onClick={dashboard.retry}
+            disabled={dashboard.isRefreshing}
+            className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            {dashboard.isRefreshing ? "Retrying…" : "Retry metrics"}
+          </button>
+        </section>
+      ) : (
+        <section className="panel px-4 py-3" role="status">
+          <p className="text-xs text-muted-foreground">Refreshing metrics…</p>
+        </section>
+      )}
+
 
       <section className="panel">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 py-3 sm:flex sm:justify-between">
