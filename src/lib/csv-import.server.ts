@@ -49,7 +49,9 @@ export type PreviewResult = {
     valid_rows: number;
     invalid_rows: number;
     duplicate_rows: number;
+    created_at: string;
   };
+
   headers: string[];
   unmapped_columns: string[];
   rows: PreviewRow[];
