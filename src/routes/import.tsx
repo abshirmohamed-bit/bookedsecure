@@ -405,6 +405,7 @@ function PreviewTable({
               <th className="py-2 pr-3">Classification</th>
               <th className="py-2 pr-3">Commit status</th>
               <th className="py-2 pr-3">Decision</th>
+              <th className="py-2 pr-3">Edit</th>
             </tr>
           </thead>
           <tbody>
