@@ -375,6 +375,7 @@ function PreviewTable({ preview }: { preview: Preview }) {
               <th className="py-2 pr-3">Issues</th>
               <th className="py-2 pr-3">Duplicate</th>
               <th className="py-2 pr-3">Classification</th>
+              <th className="py-2 pr-3">Commit status</th>
               <th className="py-2 pr-3">Decision</th>
             </tr>
           </thead>
