@@ -704,12 +704,17 @@ function ImportedSourcePanel({
 }) {
   const meta = sourceMetadata ?? {};
   const importInfo = (meta["import"] ?? {}) as Record<string, unknown>;
+  const original = originalSourceDetails(meta);
   const entries: [string, string][] = [
     ["Suburb", suburb ?? "—"],
     ["Vehicle", vehicleType ?? "—"],
     ["Service interest", serviceIntent ?? "—"],
-    ["Original platform", String(importInfo["source_channel_raw"] ?? meta["platform"] ?? "—")],
-    ["Form name", String(meta["form_name"] ?? "—")],
+    ["Import method", "CRM CSV"],
+    ["Original channel", original.channel ?? "—"],
+    ["Original platform", original.platform ?? "—"],
+    ["Form name", original.form ?? "—"],
+    ["Campaign", original.campaign ?? "—"],
+    ["Original created date", original.createdAt ?? "—"],
     ["Import batch", String(importInfo["batch_id"] ?? "—")],
     ["Import row", String(importInfo["row_number"] ?? "—")],
   ];
