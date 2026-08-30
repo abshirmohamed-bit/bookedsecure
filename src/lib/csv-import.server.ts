@@ -289,6 +289,8 @@ export async function loadBatchPreview(
       valid_rows: batch.valid_rows,
       invalid_rows: batch.invalid_rows,
       duplicate_rows: batch.duplicate_rows,
+      created_at: batch.created_at ?? new Date().toISOString(),
+
     },
     headers,
     unmapped_columns: unmapped ?? [],
