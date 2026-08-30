@@ -209,7 +209,7 @@ export function buildDashboardDiagnostic(input: {
   status?: number | string | null;
   hasBusinessContext: boolean;
   responseShape?: ResponseShape | "not_received";
-  timestamp?: string;
+  timestamp?: string | undefined;
 }): DashboardDiagnostic {
   return {
     request: "dashboard",
