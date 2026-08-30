@@ -29,7 +29,7 @@ const L2 = "aaaaaaaa-0000-4000-8000-000000000002";
 const L3 = "aaaaaaaa-0000-4000-8000-000000000003";
 const FOREIGN = "bbbbbbbb-0000-4000-8000-000000000001";
 
-function lead(id: string, overrides: Record<string, unknown> = {}) {
+function lead(id: string, overrides: Record<string, any> = {}): Record<string, any> {
   return {
     id,
     business_id: TENANT,
@@ -49,7 +49,7 @@ function lead(id: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
-function freshDb() {
+function freshDb(): Record<string, any[]> {
   return {
     leads: [
       lead(L1),
@@ -59,12 +59,12 @@ function freshDb() {
     ],
     conversations: [{ lead_id: L3, business_id: TENANT, status: "closed", next_follow_up_at: null }],
     messages: [{ id: "m1", lead_id: L3, business_id: TENANT, body: "hi" }],
-    jobs: [] as Record<string, unknown>[],
+    jobs: [] as Record<string, any>[],
     notifications: [{ id: "n1", lead_id: L3, business_id: TENANT }],
     webhook_events: [{ id: "w1", business_id: TENANT }],
     import_batches: [{ id: "batch-1", business_id: TENANT }],
-    lead_deletion_requests: [] as Record<string, unknown>[],
-    audit_events: [] as Record<string, unknown>[],
+    lead_deletion_requests: [] as Record<string, any>[],
+    audit_events: [] as Record<string, any>[],
   };
 }
 

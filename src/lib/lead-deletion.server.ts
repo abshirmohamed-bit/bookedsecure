@@ -129,7 +129,7 @@ export async function softDeleteLeads(
   const plan = planSoftDelete({
     requestedIds,
     tenantLeads,
-    allowProtected: input.allowProtected,
+    ...(input.allowProtected === undefined ? {} : { allowProtected: input.allowProtected }),
   });
 
   const failures = [...plan.failures];

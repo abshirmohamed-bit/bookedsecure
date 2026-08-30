@@ -30,7 +30,7 @@ export const softDeleteLeadsRequest = createServerFn({ method: "POST" })
       requestId: data.requestId,
       leadIds: data.leadIds,
       reason: data.reason ?? null,
-      allowProtected: data.allowProtected,
+      ...(data.allowProtected === undefined ? {} : { allowProtected: data.allowProtected }),
     });
   });
 
