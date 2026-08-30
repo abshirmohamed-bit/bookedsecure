@@ -466,8 +466,9 @@ function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows
   const setDecision = useServerFn(setCrmImportRowDecision);
   const queryClient = useQueryClient();
   const phoneIssue = hasPhoneIssue(row);
+  const review = row.review ?? { decision: "pending" as RowDecision, exclusion_reason: null };
   const [reason, setReason] = useState<ExclusionReason>(
-    row.review.exclusion_reason ?? "manually_excluded",
+    review.exclusion_reason ?? "manually_excluded",
   );
 
   const mutation = useMutation({
@@ -490,7 +491,7 @@ function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows
     <div className="space-y-1">
       <select
         aria-label={`Decision for row ${row.row_number}`}
-        value={row.review.decision}
+        value={review.decision}
         disabled={mutation.isPending}
         onChange={(event) => {
           const decision = event.target.value as RowDecision;
@@ -511,10 +512,10 @@ function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows
           </option>
         ))}
       </select>
-      {row.review.decision === "exclude" ? (
+      {review.decision === "exclude" ? (
         <select
           aria-label={`Exclusion reason for row ${row.row_number}`}
-          value={row.review.exclusion_reason ?? reason}
+          value={review.exclusion_reason ?? reason}
           disabled={mutation.isPending}
           onChange={(event) => {
             const next = event.target.value as ExclusionReason;
