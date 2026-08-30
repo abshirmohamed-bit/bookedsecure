@@ -153,3 +153,29 @@ describe("lead inbox composition", () => {
     expect(composeInboxRows(null, null, null)).toEqual([]);
   });
 });
+
+describe("lead origin constraint contract", () => {
+  it("accepts crm_import for the import-only path", () => {
+    expect(IMPORT_LEAD_ORIGIN).toBe("crm_import");
+    expect(isAllowedLeadOrigin(IMPORT_LEAD_ORIGIN)).toBe(true);
+    expect(isAllowedLeadOrigin(insertFor().lead_origin)).toBe(true);
+  });
+
+  it("keeps existing valid lead origins accepted", () => {
+    for (const origin of ["live", "historical", "reactivation"]) {
+      expect(isAllowedLeadOrigin(origin)).toBe(true);
+    }
+    expect(LEAD_ORIGINS).toEqual(["live", "historical", "reactivation", "crm_import"]);
+  });
+
+  it("still rejects invalid origins", () => {
+    for (const origin of ["", "import", "CRM_IMPORT", "captured", "crm-import"]) {
+      expect(isAllowedLeadOrigin(origin)).toBe(false);
+    }
+  });
+
+  it("leaves captureLead behaviour unchanged (null origin remains valid)", () => {
+    expect(isAllowedLeadOrigin(null)).toBe(true);
+    expect(isAllowedLeadOrigin(undefined)).toBe(true);
+  });
+});
