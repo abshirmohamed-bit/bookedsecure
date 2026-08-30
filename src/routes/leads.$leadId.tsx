@@ -687,3 +687,42 @@ function JobPanel({
     </section>
   );
 }
+
+/** Read-only view of the mapped source metadata captured at import time. */
+function ImportedSourcePanel({
+  sourceMetadata,
+  serviceIntent,
+  vehicleType,
+  suburb,
+}: {
+  sourceMetadata: Record<string, unknown> | null;
+  serviceIntent: string | null;
+  vehicleType: string | null;
+  suburb: string | null;
+}) {
+  const meta = sourceMetadata ?? {};
+  const importInfo = (meta["import"] ?? {}) as Record<string, unknown>;
+  const entries: [string, string][] = [
+    ["Suburb", suburb ?? "—"],
+    ["Vehicle", vehicleType ?? "—"],
+    ["Service interest", serviceIntent ?? "—"],
+    ["Original platform", String(importInfo["source_channel_raw"] ?? meta["platform"] ?? "—")],
+    ["Form name", String(meta["form_name"] ?? "—")],
+    ["Import batch", String(importInfo["batch_id"] ?? "—")],
+    ["Import row", String(importInfo["row_number"] ?? "—")],
+  ];
+
+  return (
+    <section className="panel p-4" aria-label="Imported source">
+      <h2 className="text-sm font-semibold">Imported source</h2>
+      <dl className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {entries.map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-0.5 break-words text-xs">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
