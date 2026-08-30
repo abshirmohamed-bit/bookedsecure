@@ -224,7 +224,7 @@ describe("soft delete planning", () => {
 
   it("hides soft-deleted leads from active views", () => {
     const rows = [lead(L1), lead(L2, { deleted_at: "2025-08-01T00:00:00Z" })];
-    expect(activeLeads(rows).map((row) => row.id)).toEqual([L1]);
+    expect(activeLeads(rows).map((row) => row["id"])).toEqual([L1]);
   });
 });
 
