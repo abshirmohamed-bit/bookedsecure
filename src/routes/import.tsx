@@ -723,7 +723,13 @@ function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows
  * row, only after a successful simulation and an explicit confirmation, and the
  * server re-runs the full pre-commit revalidation before any write.
  */
-function CommitGatePanel({ preview }: { preview: Preview }) {
+function CommitGatePanel({
+  preview,
+  unsavedEdits = false,
+}: {
+  preview: Preview;
+  unsavedEdits?: boolean;
+}) {
   const runSimulation = useServerFn(simulateCrmCommit);
   const runCanary = useServerFn(verifyImportCanary);
   const queryClient = useQueryClient();
