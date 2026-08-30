@@ -130,8 +130,15 @@ export type DryRunSummary = {
 };
 
 /** Compute a dry-run summary. Read-only: no writes, no provider calls. */
-export function buildDryRunSummary(rows: ReviewableRow[]): DryRunSummary {
+export function buildDryRunSummary(input: ReviewableRow[]): DryRunSummary {
+  // Older staged rows (and cached responses) may not carry a review object yet,
+  // so normalize to the default `pending` review before counting.
+  const rows = input.map((row) => ({
+    ...row,
+    review: row.review?.decision ? row.review : { ...DEFAULT_REVIEW },
+  }));
   const included = rows.filter((row) => row.review.decision === "include");
+
   return {
     label: DRY_RUN_LABEL,
     total_rows: rows.length,
