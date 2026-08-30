@@ -202,8 +202,19 @@ function LeadDetail() {
           <h2 className="border-b border-border px-4 py-3 text-sm font-semibold">Conversation</h2>
           <div className="max-h-[520px] space-y-3 overflow-y-auto px-4 py-4">
             {messages.length === 0 && (
-              <p className="text-sm text-muted-foreground">No messages yet.</p>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  {conversation ? "No messages yet." : "No conversation yet."}
+                </p>
+                {!conversation && (
+                  <p className="text-xs text-muted-foreground">
+                    A conversation starts when you send the first message. Nothing is sent
+                    automatically.
+                  </p>
+                )}
+              </div>
             )}
+
             {messages.map((message) => (
               <div
                 key={message.id}
