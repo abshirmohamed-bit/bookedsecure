@@ -21,6 +21,7 @@ import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SettingsBusinessRouteImport } from './routes/settings.business'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
@@ -90,6 +91,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsBusinessRoute = SettingsBusinessRouteImport.update({
+  id: '/business',
+  path: '/business',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   id: '/api/public/hooks/follow-ups',
   path: '/api/public/hooks/follow-ups',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/settings/business': typeof SettingsBusinessRoute
   '/leads/': typeof LeadsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/quote': typeof QuoteRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/settings/business': typeof SettingsBusinessRoute
   '/leads': typeof LeadsIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
+  '/settings/business': typeof SettingsBusinessRoute
   '/leads/': typeof LeadsIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/settings/business'
     | '/leads/'
     | '/settings/'
     | '/api/public/hooks/follow-ups'
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/quote'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/settings/business'
     | '/leads'
     | '/settings'
     | '/api/public/hooks/follow-ups'
@@ -255,6 +266,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
+    | '/settings/business'
     | '/leads/'
     | '/settings/'
     | '/api/public/hooks/follow-ups'
@@ -375,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/business': {
+      id: '/settings/business'
+      path: '/business'
+      fullPath: '/settings/business'
+      preLoaderRoute: typeof SettingsBusinessRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/api/public/hooks/follow-ups': {
       id: '/api/public/hooks/follow-ups'
       path: '/api/public/hooks/follow-ups'
@@ -435,10 +454,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface SettingsRouteChildren {
+  SettingsBusinessRoute: typeof SettingsBusinessRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsBusinessRoute: SettingsBusinessRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
