@@ -37,9 +37,10 @@ export const getCrmImportBatch = createServerFn({ method: "GET" })
     const { loadBatchPreview } = await import("@/lib/csv-import.server");
     const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
+    // Missing/deleted batches are a normal race (e.g. a stale selection after a
+    // delete), not an exception — return null so the UI can render a notice.
     const preview = await loadBatchPreview(supabaseAdmin, app.businessId, data.batchId);
-    if (!preview) throw new Error("Import batch not found for this business.");
-    return preview;
+    return preview ?? null;
   });
 
 export const listCrmImportBatches = createServerFn({ method: "GET" })

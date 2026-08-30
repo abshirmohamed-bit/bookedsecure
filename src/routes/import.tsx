@@ -43,7 +43,7 @@ export const Route = createFileRoute("/import")({
   component: ImportPage,
 });
 
-type Preview = Awaited<ReturnType<typeof getCrmImportBatch>>;
+type Preview = NonNullable<Awaited<ReturnType<typeof getCrmImportBatch>>>;
 
 function ImportPage() {
   return (
@@ -234,6 +234,11 @@ function ImportView() {
       ) : null}
       {preview.error ? (
         <p className="text-sm text-destructive">{(preview.error as Error).message}</p>
+      ) : null}
+      {activeBatch && !preview.isLoading && preview.isSuccess && !preview.data ? (
+        <p className="text-sm text-muted-foreground">
+          This preview is no longer available. Select another upload or upload a new CSV.
+        </p>
       ) : null}
       {preview.data && preview.data.batch.id === activeId ? (
         <PreviewTable preview={preview.data} />
