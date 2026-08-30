@@ -841,33 +841,42 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
                 {CANARY_LABEL}
               </button>
             )}
-            {outcome ? (
-              outcome.status === "committed" ? (
-                <p className="text-xs text-foreground">
-                  Canary imported one live lead — no SMS, owner alert, conversation or automation was
-                  created.{" "}
-                  <Link
-                    to="/leads/$leadId"
-                    params={{ leadId: outcome.lead_id }}
-                    className="underline hover:no-underline"
-                  >
-                    Open this lead in the inbox
-                  </Link>
-                </p>
-              ) : (
-                <p className="text-xs text-destructive">
-                  {outcome.status === "already_committed"
-                    ? "Already committed — nothing was created."
-                    : outcome.status === "potential_duplicate"
-                      ? "A live duplicate was found during the final recheck. Nothing was created."
-                      : outcome.status === "reconciliation_required"
-                        ? `Reconciliation required: ${outcome.error}`
-                        : outcome.status === "failed"
-                          ? `Commit failed: ${outcome.error}. The row was not marked committed.`
-                          : outcome.detail}
-                </p>
-              )
+            {verification ? (
+              <div className="space-y-1">
+                {verification.status === "passed" && verification.lead_id ? (
+                  <p className="text-xs text-foreground">
+                    Canary verified — exactly one live lead was created, with no SMS, owner alert,
+                    conversation, job or automation.{" "}
+                    <Link
+                      to="/leads/$leadId"
+                      params={{ leadId: verification.lead_id }}
+                      className="underline hover:no-underline"
+                    >
+                      Open this lead in the inbox
+                    </Link>
+                  </p>
+                ) : (
+                  <p className="text-xs text-destructive">
+                    {verification.gate_reasons.length
+                      ? verification.gate_reasons
+                          .map((reason) => IMPORT_GATE_LABELS[reason] ?? reason)
+                          .join(" ")
+                      : "The canary did not pass, so automatic importing stays blocked."}
+                  </p>
+                )}
+                {verification.checks.length ? (
+                  <ul className="space-y-0.5 text-xs text-muted-foreground">
+                    {verification.checks.map((check) => (
+                      <li key={check.check}>
+                        {check.passed ? "Pass" : "Fail"} — {check.check.replace(/_/g, " ")}:{" "}
+                        {check.detail}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             ) : null}
+
 
           </div>
         </>
