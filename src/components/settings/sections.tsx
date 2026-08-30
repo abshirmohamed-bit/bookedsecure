@@ -63,7 +63,7 @@ export function SettingsPageBody({
       {!isLoading && !error && !data?.business && (
         <p className="text-sm text-muted-foreground">No business is linked to this account yet.</p>
       )}
-      {data?.business ? children(data) : null}
+      {data?.business ? children(data as SettingsDataWithBusiness) : null}
     </div>
   );
 }
