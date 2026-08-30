@@ -208,11 +208,7 @@ function ImportView() {
           <p id="upload-selector-label" className="mt-1 text-xs text-muted-foreground">
             Select an upload to review
           </p>
-          <ul
-            aria-labelledby="upload-selector-label"
-            role="radiogroup"
-            className="mt-3 space-y-2"
-          >
+          <ul aria-labelledby="upload-selector-label" role="radiogroup" className="mt-3 space-y-2">
             {batches.map((batch) => {
               const selected = batch.id === activeId;
               return (
@@ -267,7 +263,6 @@ function ImportView() {
       )}
 
       <RolloutPanel batchId={activeId} />
-
 
       {confirmDelete ? (
         <DeleteDialog
@@ -460,7 +455,11 @@ function PreviewTable({ preview }: { preview: Preview }) {
                     </div>
                     <div className="text-muted-foreground">
                       duplicates:{" "}
-                      {DUPLICATE_STATUS_LABELS[row.classification?.duplicate_status ?? "not_checked"]}
+                      {
+                        DUPLICATE_STATUS_LABELS[
+                          row.classification?.duplicate_status ?? "not_checked"
+                        ]
+                      }
                     </div>
                     {row.classification?.classification_reasons?.length ? (
                       <div className="text-muted-foreground">
@@ -534,7 +533,9 @@ function DryRunPanel({ preview }: { preview: Preview }) {
   return (
     <section className="panel space-y-3 p-4" aria-label="Dry run summary">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-primary">{DRY_RUN_LABEL}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+          {DRY_RUN_LABEL}
+        </p>
         <h2 className="mt-1 text-sm font-semibold">Dry-run summary</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Calculated from automated classification and manual row decisions. Nothing is imported,
@@ -583,7 +584,6 @@ function DryRunPanel({ preview }: { preview: Preview }) {
   );
 }
 
-
 /** Per-row review control. Writes only preview review state. */
 function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows"][number] }) {
   const setDecision = useServerFn(setCrmImportRowDecision);
@@ -626,11 +626,7 @@ function DecisionControl({ batchId, row }: { batchId: string; row: Preview["rows
         className="rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         {ROW_DECISIONS.map((decision) => (
-          <option
-            key={decision}
-            value={decision}
-            disabled={decision === "include" && phoneIssue}
-          >
+          <option key={decision} value={decision} disabled={decision === "include" && phoneIssue}>
             {decision}
           </option>
         ))}
@@ -824,7 +820,8 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
                     checked={selectedRow === candidate.row_number}
                     onChange={() => setSelectedRow(candidate.row_number)}
                   />
-                  Row {candidate.row_number} — {candidate.name ?? "—"} ({candidate.mobile_number ?? "—"})
+                  Row {candidate.row_number} — {candidate.name ?? "—"} (
+                  {candidate.mobile_number ?? "—"})
                 </label>
               ))}
             </fieldset>
@@ -900,8 +897,6 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
                 ) : null}
               </div>
             ) : null}
-
-
           </div>
         </>
       ) : null}
@@ -1033,9 +1028,7 @@ function RolloutPanel({ batchId }: { batchId: string | null }) {
             Current mode: {IMPORT_MODE_LABELS[state.mode]}
             {state.paused ? " (paused)" : ""}
           </h2>
-          <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
-            {modeExplanation(state)}
-          </p>
+          <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">{modeExplanation(state)}</p>
           <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
             {IMPORT_MODE_DESCRIPTIONS[state.mode]}
           </p>
@@ -1130,13 +1123,7 @@ function RolloutPanel({ batchId }: { batchId: string | null }) {
 }
 
 /** Durable post-import summary. `include` never appears here as "imported". */
-function SummaryPanel({
-  summary,
-  ranAt,
-}: {
-  summary: ImportSummary | null;
-  ranAt: string | null;
-}) {
+function SummaryPanel({ summary, ranAt }: { summary: ImportSummary | null; ranAt: string | null }) {
   if (!summary) {
     return (
       <p className="border-t border-border pt-3 text-xs text-muted-foreground">

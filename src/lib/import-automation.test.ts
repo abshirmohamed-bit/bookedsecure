@@ -51,7 +51,8 @@ function fakeClient(db: Db) {
     from(table: string) {
       const filters: Record<string, unknown> = {};
       const rows = () => (db[table] ??= []);
-      const match = (row: Table) => Object.entries(filters).every(([key, value]) => row[key] === value);
+      const match = (row: Table) =>
+        Object.entries(filters).every(([key, value]) => row[key] === value);
       let countMode = false;
       let pendingUpdate: Table | null = null;
       let pendingDelete = false;
@@ -112,7 +113,9 @@ function fakeClient(db: Db) {
         apply();
         const matched = rows().filter(match);
         return Promise.resolve(
-          countMode ? { count: matched.length, data: null, error: null } : { data: matched, error: null },
+          countMode
+            ? { count: matched.length, data: null, error: null }
+            : { data: matched, error: null },
         ).then(resolve);
       };
       return builder;
@@ -165,7 +168,13 @@ function baseDb(rowCount = 1, extra: Table[] = []): Db {
   };
 }
 
-const noSideEffectTables = ["conversations", "messages", "jobs", "notifications", "automation_jobs"];
+const noSideEffectTables = [
+  "conversations",
+  "messages",
+  "jobs",
+  "notifications",
+  "automation_jobs",
+];
 
 function assertNoSideEffects(client: { db: Db; calls: string[] }) {
   for (const table of noSideEffectTables) {
@@ -289,7 +298,9 @@ describe("import gates", () => {
   };
 
   it("blocks the canary in preview_only and when disabled", () => {
-    expect(evaluateCanaryGate(DEFAULT_IMPORT_AUTOMATION_STATE).reasons).toContain("preview_only_mode");
+    expect(evaluateCanaryGate(DEFAULT_IMPORT_AUTOMATION_STATE).reasons).toContain(
+      "preview_only_mode",
+    );
     expect(
       evaluateCanaryGate({ ...DEFAULT_IMPORT_AUTOMATION_STATE, mode: "disabled" }).reasons,
     ).toContain("mode_disabled");
@@ -298,7 +309,9 @@ describe("import gates", () => {
   it("blocks every import path for a paused tenant", () => {
     const paused = { ...verified, paused: true };
     expect(evaluateCanaryGate(paused).allowed).toBe(false);
-    expect(evaluateBoundedBatchGate({ ...paused, mode: "bounded_batch" }, 1).reasons).toContain("paused");
+    expect(evaluateBoundedBatchGate({ ...paused, mode: "bounded_batch" }, 1).reasons).toContain(
+      "paused",
+    );
     expect(evaluateExceptionOnlyGate(paused).reasons).toContain("paused");
   });
 
@@ -308,11 +321,14 @@ describe("import gates", () => {
     expect(evaluateBoundedBatchGate(state, 3).allowed).toBe(true);
     expect(evaluateBoundedBatchGate(state, 4).reasons).toContain("row_limit_exceeded");
     expect(evaluateBoundedBatchGate(state, 0).reasons).toContain("no_rows_selected");
-    expect(limitBoundedBatch([{ row_number: 5 }, { row_number: 1 }, { row_number: 9 }, { row_number: 2 }])).toEqual([
-      { row_number: 1 },
-      { row_number: 2 },
-      { row_number: 5 },
-    ]);
+    expect(
+      limitBoundedBatch([
+        { row_number: 5 },
+        { row_number: 1 },
+        { row_number: 9 },
+        { row_number: 2 },
+      ]),
+    ).toEqual([{ row_number: 1 }, { row_number: 2 }, { row_number: 5 }]);
   });
 
   it("only allows automatic importing in exception_only mode", () => {
@@ -602,9 +618,18 @@ describe("post-import summary", () => {
       ranAt: "2026-09-01T00:00:00.000Z",
       rows: [
         row({ row_number: 1 }),
-        row({ row_number: 2, review: { decision: "include", exclusion_reason: null, source: "manual" } }),
-        row({ row_number: 3, review: { decision: "pending", exclusion_reason: null, source: "auto" } }),
-        row({ row_number: 4, review: { decision: "exclude", exclusion_reason: "bad_data", source: "manual" } }),
+        row({
+          row_number: 2,
+          review: { decision: "include", exclusion_reason: null, source: "manual" },
+        }),
+        row({
+          row_number: 3,
+          review: { decision: "pending", exclusion_reason: null, source: "auto" },
+        }),
+        row({
+          row_number: 4,
+          review: { decision: "exclude", exclusion_reason: "bad_data", source: "manual" },
+        }),
         row({ row_number: 5, mobile_number: "+61298765432" }),
       ],
       results: [

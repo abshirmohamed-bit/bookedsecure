@@ -143,8 +143,7 @@ export const MODE_TRANSITION_LABELS: Record<ModeTransitionReason, string> = {
 };
 
 export type TransitionResult =
-  | { ok: true; mode: ImportMode; reason: string }
-  | { ok: false; reasons: ModeTransitionReason[] };
+  { ok: true; mode: ImportMode; reason: string } | { ok: false; reasons: ModeTransitionReason[] };
 
 /**
  * Deliberate, one-step-at-a-time transitions. Anything can be turned off, and
@@ -212,7 +211,8 @@ export type ImportGateReason = (typeof IMPORT_GATE_REASONS)[number];
 export const IMPORT_GATE_LABELS: Record<ImportGateReason, string> = {
   paused: "Automatic imports are paused for this business.",
   mode_disabled: "CRM importing is turned off for this business.",
-  preview_only_mode: "This business is in preview-only mode, so nothing can be written to live leads.",
+  preview_only_mode:
+    "This business is in preview-only mode, so nothing can be written to live leads.",
   canary_not_passed: "The verified one-row canary import has not passed yet.",
   idempotency_not_verified: "Canary re-run safety has not been verified yet.",
   bounded_batch_not_passed: "A bounded batch has not been verified yet.",

@@ -13,7 +13,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { commitIdempotencyKey, type CommitBlockReason } from "@/lib/commit-gate";
-import { loadCommitRows, revalidateCandidate, type StagedCommitRow } from "@/lib/commit-gate.server";
+import {
+  loadCommitRows,
+  revalidateCandidate,
+  type StagedCommitRow,
+} from "@/lib/commit-gate.server";
 import {
   BOUNDED_BATCH_MAX_ROWS,
   DEFAULT_IMPORT_AUTOMATION_STATE,
@@ -122,7 +126,8 @@ export async function changeImportMode(
   if (!decision.ok) return { ok: false, reasons: decision.reasons, state };
 
   const patch: Record<string, unknown> = { mode: decision.mode, mode_reason: decision.reason };
-  if (decision.mode === "exception_only") patch["exception_only_enabled_at"] = new Date().toISOString();
+  if (decision.mode === "exception_only")
+    patch["exception_only_enabled_at"] = new Date().toISOString();
   const updated = await patchState(client, businessId, patch);
   await audit(client, businessId, "crm_import_mode_changed", {
     from: state.mode,
@@ -240,7 +245,8 @@ export async function verifyCanaryImport(
     .eq("business_id", businessId)
     .eq("row_number", rowNumber)
     .maybeSingle();
-  const commit = ((staged?.normalized_payload ?? {}) as { commit?: Record<string, unknown> }).commit ?? {};
+  const commit =
+    ((staged?.normalized_payload ?? {}) as { commit?: Record<string, unknown> }).commit ?? {};
 
   // Re-run the same canary: it must be a no-op.
   const second = await commitCanaryRow(client, businessId, batchId, rowNumber);
@@ -550,9 +556,7 @@ export async function runExceptionOnlyImport(
   if (!loaded.batch.committable) return { status: "batch_already_committed" };
 
   const { evaluateCommitEligibility } = await import("@/lib/commit-gate");
-  const candidates = loaded.rows.filter(
-    (row) => evaluateCommitEligibility(batchId, row).eligible,
-  );
+  const candidates = loaded.rows.filter((row) => evaluateCommitEligibility(batchId, row).eligible);
 
   const results: RowResult[] = [];
   for (const row of candidates) {
