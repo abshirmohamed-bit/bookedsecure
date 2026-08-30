@@ -385,27 +385,28 @@ describe("real Meta lead-ads CRM export mapping", () => {
   it("exposes the parsed date and preserves the raw created_time value", () => {
     const prepared = row(BASE);
     expect(prepared.normalized_payload.proposed_created_at).toContain("2026-01-13");
-    expect(prepared.normalized_payload.source_metadata.created_time_raw).toBe("1/13/26");
+    expect(prepared.normalized_payload.source_metadata["created_time_raw"]).toBe("1/13/26");
   });
 
   it("normalizes fb/ig platforms and preserves the raw value", () => {
     expect(normalizePlatform("fb")).toBe("facebook");
     expect(normalizePlatform("ig")).toBe("instagram");
     const fbRow = row(BASE);
-    expect(fbRow.normalized_payload.source_metadata.platform).toBe("facebook");
-    expect(fbRow.normalized_payload.source_metadata.platform_raw).toBe("fb");
+    expect(fbRow.normalized_payload.source_metadata["platform"]).toBe("facebook");
+    expect(fbRow.normalized_payload.source_metadata["platform_raw"]).toBe("fb");
     expect(fbRow.normalized_payload.source_channel).toBe("meta");
     expect(fbRow.normalized_payload.source_channel_raw).toBe("fb");
     const igRow = row(BASE.map((c, i) => (i === 4 ? "ig" : c)));
-    expect(igRow.normalized_payload.source_metadata.platform).toBe("instagram");
-    expect(igRow.normalized_payload.source_metadata.platform_raw).toBe("ig");
+    expect(igRow.normalized_payload.source_metadata["platform"]).toBe("instagram");
+    expect(igRow.normalized_payload.source_metadata["platform_raw"]).toBe("ig");
   });
 
   it("preserves is_organic as a boolean string without changing its meaning", () => {
-    expect(row(BASE).normalized_payload.source_metadata.is_organic).toBe("true");
+    expect(row(BASE).normalized_payload.source_metadata["is_organic"]).toBe("true");
     expect(
-      row(BASE.map((c, i) => (i === 5 ? "false" : c))).normalized_payload.source_metadata
-        .is_organic,
+      row(BASE.map((c, i) => (i === 5 ? "false" : c))).normalized_payload.source_metadata[
+        "is_organic"
+      ],
     ).toBe("false");
   });
 

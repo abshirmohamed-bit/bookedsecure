@@ -312,11 +312,11 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
     return index === -1 ? "" : (row[index] ?? "").trim();
   };
   const createdTimeRaw = literalValue("created_time");
-  if (createdTimeRaw) metadata.created_time_raw = createdTimeRaw;
+  if (createdTimeRaw) metadata["created_time_raw"] = createdTimeRaw;
   const platformRaw = literalValue("platform");
   if (platformRaw) {
-    metadata.platform_raw = platformRaw;
-    metadata.platform = normalizePlatform(platformRaw);
+    metadata["platform_raw"] = platformRaw;
+    metadata["platform"] = normalizePlatform(platformRaw);
   }
 
   return {
