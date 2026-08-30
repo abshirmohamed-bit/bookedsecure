@@ -837,12 +837,21 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
               </button>
             )}
             {outcome ? (
-              <p
-                className={`text-xs ${outcome.status === "committed" ? "text-foreground" : "text-destructive"}`}
-              >
-                {outcome.status === "committed"
-                  ? `Canary imported one lead (${outcome.lead_id}).`
-                  : outcome.status === "already_committed"
+              outcome.status === "committed" ? (
+                <p className="text-xs text-foreground">
+                  Canary imported one live lead — no SMS, owner alert, conversation or automation was
+                  created.{" "}
+                  <Link
+                    to="/leads/$leadId"
+                    params={{ leadId: outcome.lead_id }}
+                    className="underline hover:no-underline"
+                  >
+                    Open this lead in the inbox
+                  </Link>
+                </p>
+              ) : (
+                <p className="text-xs text-destructive">
+                  {outcome.status === "already_committed"
                     ? "Already committed — nothing was created."
                     : outcome.status === "potential_duplicate"
                       ? "A live duplicate was found during the final recheck. Nothing was created."
@@ -851,8 +860,10 @@ function CommitGatePanel({ preview }: { preview: Preview }) {
                         : outcome.status === "failed"
                           ? `Commit failed: ${outcome.error}. The row was not marked committed.`
                           : outcome.detail}
-              </p>
+                </p>
+              )
             ) : null}
+
           </div>
         </>
       ) : null}
