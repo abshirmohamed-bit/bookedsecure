@@ -142,7 +142,7 @@ export async function changeImportMode(
 export type CanaryCheck = { check: string; passed: boolean; detail: string };
 
 export type CanaryVerification = {
-  status: "passed" | "blocked" | "failed";
+  status: "passed" | "idempotent_pass" | "blocked" | "failed";
   gate_reasons: ImportGateReason[];
   lead_id: string | null;
   row_number: number;
@@ -152,6 +152,7 @@ export type CanaryVerification = {
   leads_after: number;
   state: ImportAutomationState;
 };
+
 
 async function countLeads(client: Client, businessId: string): Promise<number> {
   const { count } = await client
@@ -209,10 +210,68 @@ export async function verifyCanaryImport(
 
   if (first.status !== "committed") {
     const leadsAfter = await countLeads(client, businessId);
+    const priorLeadId = "lead_id" in first ? (first.lead_id ?? null) : null;
+
+    // A re-run of a canary that already passed is the idempotency proof, not a
+    // failure: the row was already committed and no extra lead was created.
+    const isVerifiedRerun =
+      first.status === "already_committed" &&
+      Boolean(state.canary_passed_at) &&
+      state.canary_batch_id === batchId &&
+      state.canary_row_number === rowNumber;
+
+    if (isVerifiedRerun) {
+      const leadId = priorLeadId ?? state.canary_lead_id ?? null;
+      const now = new Date().toISOString();
+      const checks: CanaryCheck[] = [
+        {
+          check: "original_canary_pass_intact",
+          passed: true,
+          detail: `The first execution passed and created one live lead${leadId ? ` (${leadId})` : ""}.`,
+        },
+        {
+          check: "rerun_returns_already_committed",
+          passed: true,
+          detail: 'The re-run returned "already_committed".',
+        },
+        {
+          check: "rerun_creates_zero_additional_leads",
+          passed: leadsAfter === leadsBefore,
+          detail: `Live leads stayed at ${leadsAfter} after the re-run.`,
+        },
+      ];
+      const updated = await patchState(client, businessId, {
+        idempotency_verified_at: state.idempotency_verified_at ?? now,
+        last_run_at: now,
+        mode_reason:
+          "The canary was re-run and correctly returned already_committed, creating zero duplicate leads.",
+      });
+      await audit(client, businessId, "crm_import_canary_rerun_verified", {
+        batch_id: batchId,
+        row_number: rowNumber,
+        lead_id: leadId,
+        leads_before: leadsBefore,
+        leads_after: leadsAfter,
+        rerun_status: first.status,
+        checks,
+      });
+      return {
+        status: "idempotent_pass",
+        gate_reasons: [],
+        lead_id: leadId,
+        row_number: rowNumber,
+        checks,
+        rerun_status: first.status,
+        leads_before: leadsBefore,
+        leads_after: leadsAfter,
+        state: updated,
+      };
+    }
+
     return {
       status: first.status === "already_committed" ? "blocked" : "failed",
       gate_reasons: [],
-      lead_id: "lead_id" in first ? (first.lead_id ?? null) : null,
+      lead_id: priorLeadId,
       row_number: rowNumber,
       checks: [
         {
@@ -227,6 +286,7 @@ export async function verifyCanaryImport(
       state,
     };
   }
+
 
   const leadId = first.lead_id;
   const midLeads = await countLeads(client, businessId);

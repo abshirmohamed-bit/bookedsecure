@@ -367,14 +367,21 @@ describe("canary verification", () => {
     assertNoSideEffects(client);
   });
 
-  it("re-running the canary creates no duplicate lead", async () => {
+  it("re-running a verified canary passes as idempotent and creates no duplicate lead", async () => {
     const client = fakeClient(baseDb());
     await changeImportMode(client, TENANT, "canary_ready");
-    await verifyCanaryImport(client, TENANT, BATCH, 1);
+    const first = await verifyCanaryImport(client, TENANT, BATCH, 1);
     const again = await verifyCanaryImport(client, TENANT, BATCH, 1);
     expect(client.db["leads"]).toHaveLength(1);
-    expect(again.status).toBe("blocked");
+    expect(again.status).toBe("idempotent_pass");
+    expect(again.rerun_status).toBe("already_committed");
+    expect(again.lead_id).toBe(first.lead_id);
+    // The original pass and gate state survive the re-run.
+    expect(again.state.canary_passed_at).toBe(first.state.canary_passed_at);
+    expect(again.state.canary_lead_id).toBe(first.state.canary_lead_id);
+    expect(again.state.idempotency_verified_at).not.toBeNull();
   });
+
 
   it("blocks the bounded batch until the canary actually passed", async () => {
     const client = fakeClient(baseDb(3));
