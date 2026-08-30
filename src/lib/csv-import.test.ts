@@ -185,6 +185,26 @@ describe("previewCrmCsv (preview only)", () => {
     expect(existingMatch.validation_errors.map((e) => e.code)).toContain("duplicate_existing_phone");
   });
 
+  it("emits both phone and email duplicate errors when a row matches on both", async () => {
+    const client = fakeClient();
+    const result = await previewCrmCsv(client as never, {
+      businessId: GLOCAST,
+      userId: OWNER,
+      filename: "both.csv",
+      content: [
+        "Name,Phone,Email",
+        "First Lead,0419999999,dup@example.com",
+        "Second Lead,0419999999,dup@example.com",
+      ].join("\n"),
+    });
+    const dup = result.rows.find((row) => row.row_number === 2)!;
+    expect(dup.duplicate_of_row).toBe(1);
+    expect(dup.validation_errors).toEqual([
+      { code: "duplicate_phone_in_file", field: "mobile_number", detail: "row 1" },
+      { code: "duplicate_email_in_file", field: "email", detail: "row 1" },
+    ]);
+  });
+
   it("marks the batch failed and preserves details when parsing fails", async () => {
     const client = fakeClient();
     await expect(
