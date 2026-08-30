@@ -69,17 +69,24 @@ const FIELD_ALIASES: Record<string, string[]> = {
   name: ["name", "full name", "contact name", "customer name"],
   email: ["email", "email address"],
   mobile_number: ["phone", "phone number", "mobile", "mobile number"],
-  source_channel: ["source", "channel", "lead source", "source channel", "contact source"],
+  source_channel: ["source", "channel", "lead source", "source channel", "contact source", "platform"],
   source_form: ["form", "form name", "lead form", "source form", "campaign form"],
   status: ["stage", "status"],
-  created_at: ["created", "created at", "created date"],
+  created_at: ["created", "created at", "created date", "created time"],
   owner: ["owner", "assigned to"],
   labels: ["labels", "label", "tags"],
   secondary_phone: ["secondary phone", "phone 2", "alternate phone"],
   whatsapp_number: ["whatsapp number", "whatsapp"],
+  is_organic: ["is organic", "organic"],
 };
 
-export const METADATA_FIELDS = ["owner", "labels", "secondary_phone", "whatsapp_number"] as const;
+export const METADATA_FIELDS = [
+  "owner",
+  "labels",
+  "secondary_phone",
+  "whatsapp_number",
+  "is_organic",
+] as const;
 
 export function canonicalField(header: string): string | null {
   const key = header.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
@@ -153,7 +160,22 @@ const SOURCE_MAP: Record<string, string> = {
   crm: "manual",
   "crm import": "manual",
   import: "manual",
+  fb: "meta",
+  ig: "meta",
 };
+
+/** Meta lead-ads export platform codes. */
+export const PLATFORM_MAP: Record<string, string> = {
+  fb: "facebook",
+  ig: "instagram",
+  facebook: "facebook",
+  instagram: "instagram",
+};
+
+export function normalizePlatform(raw: string): string {
+  const key = raw.trim().toLowerCase();
+  return PLATFORM_MAP[key] ?? raw.trim();
+}
 
 export function mapSourceChannel(value: string): string {
   const key = value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
@@ -192,8 +214,16 @@ export function normaliseEmail(raw: string): { value: string | null; valid: bool
 export function parseCreatedAt(raw: string): string | null {
   const trimmed = (raw ?? "").trim();
   if (!trimmed) return null;
+  // D/M/YYYY (existing AU exports)
   const dmy = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  const iso = dmy ? `${dmy[3]}-${dmy[2]!.padStart(2, "0")}-${dmy[1]!.padStart(2, "0")}` : trimmed;
+  // M/D/YY (US-style Meta lead-ads exports)
+  const mdy = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  let iso = trimmed;
+  if (dmy) {
+    iso = `${dmy[3]}-${dmy[2]!.padStart(2, "0")}-${dmy[1]!.padStart(2, "0")}`;
+  } else if (mdy) {
+    iso = `20${mdy[3]}-${mdy[1]!.padStart(2, "0")}-${mdy[2]!.padStart(2, "0")}`;
+  }
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
@@ -273,6 +303,20 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   for (const field of METADATA_FIELDS) {
     const value = cell(headers, row, field);
     if (value) metadata[field] = value;
+  }
+
+  // Meta lead-ads export: preserve raw created_time and platform values, and
+  // expose the normalized platform, alongside the mapped fields above.
+  const literalValue = (literal: string): string => {
+    const index = headers.findIndex((header) => header.trim().toLowerCase() === literal);
+    return index === -1 ? "" : (row[index] ?? "").trim();
+  };
+  const createdTimeRaw = literalValue("created_time");
+  if (createdTimeRaw) metadata["created_time_raw"] = createdTimeRaw;
+  const platformRaw = literalValue("platform");
+  if (platformRaw) {
+    metadata["platform_raw"] = platformRaw;
+    metadata["platform"] = normalizePlatform(platformRaw);
   }
 
   return {
