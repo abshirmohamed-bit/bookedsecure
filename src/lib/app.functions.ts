@@ -24,8 +24,10 @@ export const getDashboard = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { computeMetrics } = await import("@/lib/reporting.server");
+    const { composeInboxRows } = await import("@/lib/lead-inbox");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const app = await requireAppContext(context.supabase, context.userId);
+
 
     const [metrics, leads, conversations, jobs] = await Promise.all([
       computeMetrics(app.businessId),
