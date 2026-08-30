@@ -180,7 +180,11 @@ function PreviewTable({ preview }: { preview: Preview }) {
                   <td className="py-2 pr-3">{row.email ?? "—"}</td>
                   <td className="py-2 pr-3">
                     <div>status: {payload.proposed_status ?? "—"}</div>
-                    <div>source: {payload.source_channel ?? "—"}</div>
+                    <div>
+                      source: {payload.source_channel_raw ?? "—"}
+                      {payload.source_channel_raw ? ` → ${payload.source_channel}` : ""}
+                    </div>
+
                     <div>form: {payload.source_form ?? "—"}</div>
                     <div>created: {payload.proposed_created_at ?? "—"}</div>
                     {Object.keys(metadata).length ? (

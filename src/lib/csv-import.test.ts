@@ -230,3 +230,67 @@ describe("previewCrmCsv (preview only)", () => {
     await expect(loadBatchPreview(scoped as never, OTHER, batchId)).resolves.toBeNull();
   });
 });
+
+describe("synthetic CRM fidelity fixture", () => {
+  const FIXTURE =
+    "Name,Email,Phone,Source,Form,Stage,Created,Owner,Labels,Unknown Test Column\n" +
+    "Synthetic Valid Lead,synthetic.valid@example.com,+61499999999,CRM,Test Form,New,2026-08-30,Test Owner,test,keep-me\n" +
+    'Empty Phone Lead,empty.phone@example.com,,Lead Source Value,Test Form,New,2026-08-30,Test Owner,test,"quoted, value"\n' +
+    "Malformed Lead,malformed@example.com,+61499999998,CRM,Test Form\n";
+
+  it("maps source, form, stage, created, owner, labels and keeps unknown columns", () => {
+    const table = parseCsv(FIXTURE);
+    expect(unmappedColumns(table.headers)).toEqual(["Unknown Test Column"]);
+    const row = prepareRow(table.headers, table.rows[0]!, 1);
+    const p = row.normalized_payload;
+    expect(p.name).toBe("Synthetic Valid Lead");
+    expect(p.email).toBe("synthetic.valid@example.com");
+    expect(p.mobile_number).toBe("+61499999999");
+    expect(p.source_channel_raw).toBe("CRM");
+    expect(p.source_channel).toBe("manual");
+    expect(p.source_form).toBe("Test Form");
+    expect(p.proposed_status).toBe("new");
+    expect(p.proposed_created_at).toContain("2026-08-30");
+    expect(p.source_metadata).toEqual({ owner: "Test Owner", labels: "test" });
+    expect(row.raw_row["Unknown Test Column"]).toBe("keep-me");
+    expect(row.validation_errors).toEqual([]);
+  });
+
+  it("maps the alternate source and form header spellings", () => {
+    const table = parseCsv(
+      "Name,Phone,Lead Source,Lead Form\nAda,0412345678,Channel Partner,Winter Form",
+    );
+    expect(unmappedColumns(table.headers)).toEqual([]);
+    const p = prepareRow(table.headers, table.rows[0]!, 1).normalized_payload;
+    expect(p.source_channel_raw).toBe("Channel Partner");
+    expect(p.source_form).toBe("Winter Form");
+    const table2 = parseCsv("Name,Phone,Source Channel,Campaign Form\nAda,0412345678,CRM,Autumn");
+    expect(unmappedColumns(table2.headers)).toEqual([]);
+    const p2 = prepareRow(table2.headers, table2.rows[0]!, 1).normalized_payload;
+    expect(p2.source_channel_raw).toBe("CRM");
+    expect(p2.source_channel).toBe("manual");
+    expect(p2.source_form).toBe("Autumn");
+  });
+
+  it("does not shift columns when a quoted row has an empty phone", () => {
+    const table = parseCsv(FIXTURE);
+    const row = prepareRow(table.headers, table.rows[1]!, 2);
+    const p = row.normalized_payload;
+    expect(p.mobile_number).toBeNull();
+    expect(p.email).toBe("empty.phone@example.com");
+    expect(p.source_channel_raw).toBe("Lead Source Value");
+    expect(p.source_form).toBe("Test Form");
+    expect(p.proposed_status).toBe("new");
+    expect(row.raw_row["Unknown Test Column"]).toBe("quoted, value");
+    expect(row.validation_errors.map((e) => e.code)).not.toContain("malformed_row");
+  });
+
+  it("flags a row with the wrong field count as malformed", () => {
+    const table = parseCsv(FIXTURE);
+    const row = prepareRow(table.headers, table.rows[2]!, 3);
+    const malformed = row.validation_errors.find((e) => e.code === "malformed_row");
+    expect(malformed?.detail).toBe("expected 10 fields, found 5");
+    expect(row.normalized_payload.source_channel_raw).toBe("CRM");
+    expect(row.normalized_payload.proposed_created_at).toBeNull();
+  });
+});
