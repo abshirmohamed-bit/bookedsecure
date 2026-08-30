@@ -776,7 +776,7 @@ function CommitGatePanel({
   const sim = result?.status === "ok" ? result.simulation : null;
   const candidates = sim?.candidates ?? [];
   const selected = candidates.find((candidate) => candidate.row_number === selectedRow) ?? null;
-  const canaryReady = Boolean(sim && selected) && !canary.isPending;
+  const canaryReady = Boolean(sim && selected) && !canary.isPending && !unsavedEdits;
   const verification = canary.data;
 
   return (
