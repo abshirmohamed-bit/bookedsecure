@@ -206,6 +206,25 @@ export function mapStage(value: string): LeadStatus | null {
   return STAGE_MAP[key] ?? null;
 }
 
+/**
+ * Preview-only re-mapping of a staged row's CRM stage.
+ *
+ * Pure: given the stage text preserved at upload time, it returns the internal
+ * status plus the validation errors with any stale `unmappable_stage` issue
+ * removed once the stage is mappable. Unknown stages keep the exception.
+ */
+export function restageStage<E extends { code: string }>(
+  stageRaw: string | null | undefined,
+  errors: E[],
+): { status: LeadStatus | null; stage_raw: string | null; errors: E[]; changed: boolean } {
+  const raw = (stageRaw ?? "").trim();
+  if (!raw) return { status: null, stage_raw: null, errors, changed: false };
+  const status = mapStage(raw);
+  if (!status) return { status: null, stage_raw: raw, errors, changed: false };
+  const cleaned = errors.filter((issue) => issue.code !== "unmappable_stage");
+  return { status, stage_raw: raw, errors: cleaned, changed: cleaned.length !== errors.length };
+}
+
 const SOURCE_MAP: Record<string, string> = {
   meta: "meta",
   facebook: "meta",
