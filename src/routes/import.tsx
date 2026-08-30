@@ -787,6 +787,12 @@ function CommitGatePanel({
         </p>
         <h2 className="mt-1 text-sm font-semibold">Commit simulation</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">{SIMULATION_WARNING}</p>
+        {unsavedEdits ? (
+          <p className="mt-1 text-xs text-destructive">
+            You have unsaved staged-row edits. Save or cancel them before importing — importing
+            always uses the latest saved values.
+          </p>
+        ) : null}
       </div>
       <button
         type="button"
