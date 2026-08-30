@@ -295,8 +295,8 @@ function ImportView() {
       {preview.data && preview.data.batch.id === activeId ? (
         <>
           <DryRunPanel preview={preview.data} />
-          <CommitGatePanel preview={preview.data} />
-          <PreviewTable preview={preview.data} />
+          <CommitGatePanel preview={preview.data} unsavedEdits={unsavedEdits} />
+          <PreviewTable preview={preview.data} onDirtyChange={setUnsavedEdits} />
         </>
       ) : null}
     </div>
