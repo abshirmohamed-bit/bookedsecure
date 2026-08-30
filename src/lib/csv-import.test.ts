@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   classifyAuPhone,
   mapStage,
+  restageStage,
   normalizePlatform,
   parseCreatedAt,
   parseCsv,
@@ -673,5 +674,41 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     // No issues at all now that "Intake" maps to `new`.
     expect(prepared.filter((row) => row.validation_errors.length > 0)).toHaveLength(0);
     expect(prepared.filter((row) => row.duplicate_of_row !== null)).toHaveLength(0);
+  });
+});
+
+describe("restageStage (preview-only stage remap)", () => {
+  it("clears a stale unmappable_stage issue once the stage maps", () => {
+    const out = restageStage("Intake", [
+      { code: "unmappable_stage", field: "status", detail: "Intake" },
+    ]);
+    expect(out.status).toBe("new");
+    expect(out.stage_raw).toBe("Intake");
+    expect(out.errors).toEqual([]);
+    expect(out.changed).toBe(true);
+  });
+
+  it("maps Converted without touching other issues", () => {
+    const out = restageStage("Converted", [
+      { code: "missing_name", field: "name" },
+      { code: "unmappable_stage", field: "status", detail: "Converted" },
+    ]);
+    expect(out.status).toBe("completed");
+    expect(out.errors).toEqual([{ code: "missing_name", field: "name" }]);
+  });
+
+  it("keeps unknown stages as exceptions", () => {
+    const errors = [{ code: "unmappable_stage", field: "status", detail: "Nurture" }];
+    const out = restageStage("Nurture", errors);
+    expect(out.status).toBeNull();
+    expect(out.errors).toBe(errors);
+    expect(out.changed).toBe(false);
+  });
+
+  it("is a no-op when no stage was supplied", () => {
+    const out = restageStage("", []);
+    expect(out.status).toBeNull();
+    expect(out.stage_raw).toBeNull();
+    expect(out.changed).toBe(false);
   });
 });
