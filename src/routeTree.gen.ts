@@ -20,6 +20,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
@@ -84,6 +85,11 @@ const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
   path: '/leads/$leadId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   id: '/api/public/hooks/follow-ups',
   path: '/api/public/hooks/follow-ups',
@@ -135,10 +141,11 @@ export interface FileRoutesByFullPath {
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
   '/quote': typeof QuoteRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/': typeof LeadsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -156,10 +163,10 @@ export interface FileRoutesByTo {
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
   '/quote': typeof QuoteRoute
-  '/settings': typeof SettingsRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads': typeof LeadsIndexRoute
+  '/settings': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -178,10 +185,11 @@ export interface FileRoutesById {
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
   '/quote': typeof QuoteRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/': typeof LeadsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -205,6 +213,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/leads/'
+    | '/settings/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
@@ -222,10 +231,10 @@ export interface FileRouteTypes {
     | '/landing'
     | '/privacy'
     | '/quote'
-    | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/leads'
+    | '/settings'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/leads/'
+    | '/settings/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
@@ -265,7 +275,7 @@ export interface RootRouteChildren {
   LandingRoute: typeof LandingRoute
   PrivacyRoute: typeof PrivacyRoute
   QuoteRoute: typeof QuoteRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
@@ -358,6 +368,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeadsLeadIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/api/public/hooks/follow-ups': {
       id: '/api/public/hooks/follow-ups'
       path: '/api/public/hooks/follow-ups'
@@ -417,6 +434,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface SettingsRouteChildren {
+  SettingsIndexRoute: typeof SettingsIndexRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsIndexRoute: SettingsIndexRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
@@ -425,7 +454,7 @@ const rootRouteChildren: RootRouteChildren = {
   LandingRoute: LandingRoute,
   PrivacyRoute: PrivacyRoute,
   QuoteRoute: QuoteRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   LeadsIndexRoute: LeadsIndexRoute,
