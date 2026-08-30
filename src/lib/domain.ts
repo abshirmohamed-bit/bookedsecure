@@ -55,6 +55,7 @@ export function isAllowedLeadOrigin(value: string | null | undefined): boolean {
 
 export const SOURCE_LABELS: Record<string, string> = {
   meta: "Meta",
+  godaddy: "Website / GoDaddy",
   website: "Website",
   hosted_page: "Hosted quote page",
   manual: "Manual",
