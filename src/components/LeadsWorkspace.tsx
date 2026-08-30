@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Plus, RefreshCw, Trash2, Undo2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { createManualLead, getDashboard, runFollowUpsNow } from "@/lib/app.functions";
+import { useDashboard } from "@/lib/useDashboard";
 import {
   LEAD_STATUSES,
   LEAD_STATUS_LABELS,
@@ -26,9 +27,11 @@ import {
 } from "@/lib/lead-deletion";
 import { softDeleteLeadsRequest } from "@/lib/lead-deletion.functions";
 
+type DashboardResult = Awaited<ReturnType<typeof getDashboard>>;
+type InboxLeadRow = DashboardResult["leads"][number];
+
 /** The main daily workspace: which leads need attention, and how they are converting. */
 export function LeadsWorkspace() {
-  const fetchDashboard = useServerFn(getDashboard);
   const runFollowUps = useServerFn(runFollowUpsNow);
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -52,13 +55,14 @@ export function LeadsWorkspace() {
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
 
+  const allLeads = dashboard.leads as unknown as InboxLeadRow[];
   const leads = useMemo(() => {
-    return dashboard.leads.filter(
+    return allLeads.filter(
       (lead) =>
-        (statusFilter === "all" || lead["status"] === statusFilter) &&
-        (sourceFilter === "all" || lead["source_channel"] === sourceFilter),
+        (statusFilter === "all" || lead.status === statusFilter) &&
+        (sourceFilter === "all" || lead.source_channel === sourceFilter),
     );
-  }, [dashboard.leads, statusFilter, sourceFilter]);
+  }, [allLeads, statusFilter, sourceFilter]);
 
 
   // Selection is always scoped to the current filtered result.
