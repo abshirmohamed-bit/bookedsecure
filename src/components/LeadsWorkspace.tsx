@@ -41,10 +41,7 @@ export function LeadsWorkspace() {
   const [lastResult, setLastResult] = useState<DeletionResult | null>(null);
   const deleteLeads = useServerFn(softDeleteLeadsRequest);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => fetchDashboard(),
-  });
+  const dashboard = useDashboard();
 
   const followUps = useMutation({
     mutationFn: () => runFollowUps(),
@@ -56,13 +53,13 @@ export function LeadsWorkspace() {
   });
 
   const leads = useMemo(() => {
-    if (!data) return [];
-    return data.leads.filter(
+    return dashboard.leads.filter(
       (lead) =>
-        (statusFilter === "all" || lead.status === statusFilter) &&
-        (sourceFilter === "all" || lead.source_channel === sourceFilter),
+        (statusFilter === "all" || lead["status"] === statusFilter) &&
+        (sourceFilter === "all" || lead["source_channel"] === sourceFilter),
     );
-  }, [data, statusFilter, sourceFilter]);
+  }, [dashboard.leads, statusFilter, sourceFilter]);
+
 
   // Selection is always scoped to the current filtered result.
   const visibleSelection = useMemo(() => restrictToVisible(selection, leads), [selection, leads]);
