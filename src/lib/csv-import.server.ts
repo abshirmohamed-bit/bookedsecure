@@ -468,11 +468,11 @@ export async function classifyPreviewBatch(
     const phone = payload.mobile_number ?? null;
     const email = payload.email_normalised ?? payload.email ?? null;
     // Existing lead identity rule: normalized AU mobile, or normalized email.
-    const storedMatch = (row.dedupe_match_lead_id as string | null) ?? null;
-    const existingMatch =
-      storedMatch ??
-      (phone ? (lookup.index.byPhone.get(phone) ?? null) : null) ??
-      (email ? (lookup.index.byEmail.get(email.toLowerCase()) ?? null) : null);
+    const storedMatch: string | null =
+      typeof row.dedupe_match_lead_id === "string" ? row.dedupe_match_lead_id : null;
+    const phoneMatch = phone ? (lookup.index.byPhone.get(phone) ?? null) : null;
+    const emailMatch = email ? (lookup.index.byEmail.get(email.toLowerCase()) ?? null) : null;
+    const existingMatch: string | null = storedMatch ?? phoneMatch ?? emailMatch;
 
     const classification = classifyRow(
       {
