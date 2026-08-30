@@ -1,10 +1,13 @@
 // Server-side CRM import commit gate.
 //
-// SAFETY BOUNDARY: every function in this module is READ-ONLY against live
-// data. It selects from import_batches, lead_import_rows and leads only. It
-// never inserts, updates or deletes leads, conversations, messages, jobs,
-// automation_jobs or pipeline state, and never calls a messaging provider
-// (Telnyx, Sinch) or `captureLead`.
+// SAFETY BOUNDARY: every function in this module except `commitCanaryRow` is
+// READ-ONLY against live data. It selects from import_batches,
+// lead_import_rows and leads only. `commitCanaryRow` delegates to the
+// import-only path in import-lead.server.ts, which creates exactly one live
+// lead row plus its preview linkage and an audit record. Nothing here inserts
+// conversations, messages, jobs, automation_jobs or pipeline state, calls a
+// messaging provider (Telnyx, Sinch), or uses `captureLead`.
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import {
