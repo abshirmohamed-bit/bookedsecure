@@ -305,6 +305,20 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
     if (value) metadata[field] = value;
   }
 
+  // Meta lead-ads export: preserve raw created_time and platform values, and
+  // expose the normalized platform, alongside the mapped fields above.
+  const literalValue = (literal: string): string => {
+    const index = headers.findIndex((header) => header.trim().toLowerCase() === literal);
+    return index === -1 ? "" : (row[index] ?? "").trim();
+  };
+  const createdTimeRaw = literalValue("created_time");
+  if (createdTimeRaw) metadata.created_time_raw = createdTimeRaw;
+  const platformRaw = literalValue("platform");
+  if (platformRaw) {
+    metadata.platform_raw = platformRaw;
+    metadata.platform = normalizePlatform(platformRaw);
+  }
+
   return {
     row_number: rowNumber,
     raw_row: raw,
