@@ -36,6 +36,8 @@ export function LeadsWorkspace() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [smsFilter, setSmsFilter] = useState<SmsLeadFilter>("all");
+
   const [showAdd, setShowAdd] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
