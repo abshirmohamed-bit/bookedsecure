@@ -7,14 +7,13 @@ import {
 } from "@/lib/sms/reachability";
 import {
   AUTOMATION_BLOCKED_STATUSES,
-  businessLocalHour,
   firstName,
   isOptOutMessage,
-  isQuietHour,
   normaliseAuMobile,
   renderTemplate,
   type LeadStatus,
 } from "@/lib/domain";
+
 import { countSegments } from "@/lib/sms/segments";
 import { getProvider, type ResolvedSender } from "@/lib/sms/provider.server";
 import { resolveEffectiveProviderName } from "@/lib/sms/resolution";
@@ -27,6 +26,8 @@ import {
   UNKNOWN_STATUS,
 } from "@/lib/sms/dispatch";
 import { isUniqueViolation } from "@/lib/sms/webhook.server";
+import { evaluateQuietHoursGate, QUIET_HOURS_BLOCKED_CODE } from "@/lib/sms/quiet-hours";
+
 
 type Business = {
   id: string;
@@ -107,12 +108,9 @@ async function recordConsentEvent(input: {
 }
 
 function isWithinQuietHours(business: Business, at: Date): boolean {
-  return isQuietHour(
-    businessLocalHour(business.timezone, at),
-    business.quiet_hours_start,
-    business.quiet_hours_end,
-  );
+  return evaluateQuietHoursGate(business, at).blocked;
 }
+
 
 // ---------------------------------------------------------------------------
 // Sender resolution
@@ -446,7 +444,10 @@ export type SendSmsResult = {
   messageId?: string;
   duplicate?: boolean;
   retriable?: boolean;
+  /** Explicit, typed block reason. Currently only the final quiet-hours gate. */
+  code?: typeof QUIET_HOURS_BLOCKED_CODE;
 };
+
 
 
 /** Single outbound path for every SMS: enforces opt-out, status, sender, caps and idempotency. */
@@ -523,6 +524,38 @@ export async function sendSms(input: {
         messageId: dupe.id,
       };
   }
+
+  // Final quiet-hours safety gate for EVERY outbound kind (manual, approved AI
+  // reply, acknowledgement, automated follow-up). It runs before segments are
+  // reserved, before any usage accounting, before a conversation is created and
+  // before the carrier is contacted, so a blocked send leaves no trace other
+  // than an internal audit event. Scheduling of a later attempt stays with the
+  // existing callers (job retry / follow-up deferral) — nothing is queued here.
+  const quietHours = evaluateQuietHoursGate(business, new Date());
+  if (quietHours.blocked) {
+    await audit({
+      businessId: input.businessId,
+      eventType: "sms_blocked_quiet_hours",
+      entityType: "lead",
+      entityId: lead.id,
+      metadata: {
+        kind: input.kind,
+        source: messageSource,
+        local_hour: quietHours.localHour,
+        quiet_hours_start: quietHours.start,
+        quiet_hours_end: quietHours.end,
+        timezone: business.timezone,
+      },
+    });
+    return {
+      sent: false,
+      retriable: true,
+      code: QUIET_HOURS_BLOCKED_CODE,
+      reason: quietHours.reason,
+    };
+  }
+
+
 
   const { segments } = countSegments(input.body);
 
