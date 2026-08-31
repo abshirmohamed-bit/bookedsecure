@@ -301,6 +301,22 @@ async function rollUpLeadDeliveryState(
     update["last_sms_failure_reason"] = input.classification.reason;
     update["last_sms_failure_code"] = input.classification.code;
   }
+
+  // Reachability is evidence about the number, tracked separately from the
+  // latest message status. A permanent failure never claims the number is dead.
+  const signal = reachabilitySignalFor(input.status, input.classification, input.at);
+  if (signal) {
+    const { data: lead } = await client
+      .from("leads")
+      .select(
+        "sms_suppressed_at, reachability_state, reachability_evidence, reachability_evidence_at, last_successful_delivery_at, last_permanent_failure_at, last_inbound_reply_at",
+      )
+      .eq("id", input.leadId)
+      .eq("business_id", input.businessId)
+      .maybeSingle();
+    Object.assign(update, reachabilityUpdateFor((lead ?? {}) as ReachabilityRecord, signal));
+  }
+
   if (Object.keys(update).length === 0) return;
 
   await client
@@ -309,3 +325,18 @@ async function rollUpLeadDeliveryState(
     .eq("id", input.leadId)
     .eq("business_id", input.businessId);
 }
+
+/** Maps a delivery outcome to reachability evidence, or to nothing at all. */
+function reachabilitySignalFor(
+  status: DeliveryStatus,
+  classification: FailureClassification | null,
+  at: string,
+): ReachabilitySignal | null {
+  if (status === "delivered") return { kind: "delivered", at };
+  if (!classification) return null;
+  if (classification.suppressLead)
+    return { kind: "permanent_failure", at, reason: classification.reason, code: classification.code };
+  if (classification.failureClass === "configuration") return { kind: "configuration_failure", at };
+  return { kind: "temporary_failure", at };
+}
+
