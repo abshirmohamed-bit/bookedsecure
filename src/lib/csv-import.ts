@@ -1,6 +1,8 @@
 // Pure, client-safe CRM CSV parsing / mapping / validation helpers.
 // This module NEVER writes leads, conversations, messages or jobs.
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/domain";
+import { repairPhone, type PhoneRepair, type RepairOptions } from "@/lib/phone-repair";
+
 
 export const MAX_CSV_BYTES = 2 * 1024 * 1024; // 2 MB
 export const MAX_CSV_ROWS = 2000;
