@@ -201,7 +201,7 @@ describe("applyDeliveryEvent", () => {
     const result = await applyDeliveryEvent(event({ providerMessageId: "pmsg_missing" }), { client });
     expect(result.handled).toBe(false);
     expect(result.reason).toBe("unknown_provider_message_id");
-    expect(client.db["audit_events"]!.some((row) => row["event_type"] === "sms_delivery_event_unmatched")).toBe(true);
+    expect(client.db["audit_events"]!.some((row: Record<string, unknown>) => row["event_type"] === "sms_delivery_event_unmatched")).toBe(true);
   });
 
   it("cannot update a message belonging to another tenant (14, 28)", async () => {
@@ -220,9 +220,9 @@ describe("applyDeliveryEvent", () => {
     expect(client.db["messages"]!.length).toBe(1);
     expect(client.db["conversations"]!.length).toBe(1);
     expect(client.db["jobs"]!.length).toBe(0);
-    expect(client.writes.some((write) => write.table === "jobs")).toBe(false);
-    expect(client.writes.some((write) => write.table === "messages" && write.op === "insert")).toBe(false);
-    expect(client.writes.some((write) => write.table === "conversations" && write.op === "insert")).toBe(false);
+    expect(client.writes.some((write: { table: string; op: string }) => write.table === "jobs")).toBe(false);
+    expect(client.writes.some((write: { table: string; op: string }) => write.table === "messages" && write.op === "insert")).toBe(false);
+    expect(client.writes.some((write: { table: string; op: string }) => write.table === "conversations" && write.op === "insert")).toBe(false);
   });
 
   it("stops automation and suppresses future automated SMS on permanent failure (20, 21)", async () => {
