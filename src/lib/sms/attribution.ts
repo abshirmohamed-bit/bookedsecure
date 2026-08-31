@@ -48,7 +48,7 @@ export type AttributionProposal = {
   confidence: AttributionConfidence;
   proof: string[];
   conflict: boolean;
-  conflictDetail?: string;
+  conflictDetail?: string | undefined;
   updateAllowed: boolean;
 };
 
@@ -160,7 +160,7 @@ export function summariseProposals(proposals: AttributionProposal[]) {
       byCategory[proposal.proposedSource] = (byCategory[proposal.proposedSource] ?? 0) + 1;
     } else if (!proposal.currentSource) {
       unattributed += 1;
-      byCategory.unknown = (byCategory.unknown ?? 0) + 1;
+      byCategory["unknown"] = (byCategory["unknown"] ?? 0) + 1;
     }
     if (proposal.conflict) conflicts += 1;
   }

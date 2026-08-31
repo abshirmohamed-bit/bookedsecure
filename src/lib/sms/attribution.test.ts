@@ -95,7 +95,7 @@ describe("proposeAttribution", () => {
     expect(summary.total).toBe(3);
     expect(summary.attributable).toBe(2);
     expect(summary.unattributed).toBe(1);
-    expect(summary.byCategory.automation).toBe(1);
-    expect(summary.byCategory.manual).toBe(1);
+    expect(summary.byCategory["automation"]).toBe(1);
+    expect(summary.byCategory["manual"]).toBe(1);
   });
 });
