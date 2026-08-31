@@ -5,9 +5,9 @@
 
 import { SMS_LEAD_FILTERS, type SmsLeadFilter } from "@/lib/sms/delivery";
 
-export const DEFAULT_PAGE_SIZE = 25;
-export const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
-export const MAX_PAGE_SIZE = 100;
+export const DEFAULT_PAGE_SIZE = 14;
+export const PAGE_SIZE_OPTIONS = [14] as const;
+export const MAX_PAGE_SIZE = 14;
 
 export type LeadScope = "active" | "deleted";
 
