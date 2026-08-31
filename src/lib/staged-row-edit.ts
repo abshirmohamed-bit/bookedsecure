@@ -431,12 +431,12 @@ const INVALID_CONTACT_CODES = [
  * in a fixed precedence order so the result is deterministic.
  */
 export function resolveStagedRowState(row: {
-  commit_status?: string;
-  review_decision?: string;
-  classification?: string;
+  commit_status?: string | undefined;
+  review_decision?: string | undefined;
+  classification?: string | undefined;
   validation_errors: { code: string }[];
-  dedupe_match_lead_id?: string | null;
-  duplicate_of_row?: number | null;
+  dedupe_match_lead_id?: string | null | undefined;
+  duplicate_of_row?: number | null | undefined;
 }): StagedRowState {
   if (row.commit_status === "committed") return "already_committed";
   if (row.review_decision === "exclude") return "excluded";

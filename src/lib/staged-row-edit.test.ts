@@ -63,6 +63,16 @@ function db(overrides: Partial<FakeDb> = {}): FakeDb {
   };
 }
 
+function rows(data: FakeDb): Record<string, any>[] {
+  return (data["lead_import_rows"] ?? []) as Record<string, any>[];
+}
+function audits(data: FakeDb): Record<string, any>[] {
+  return (data["audit_events"] ?? []) as Record<string, any>[];
+}
+function liveLeads(data: FakeDb): Record<string, any>[] {
+  return (data["leads"] ?? []) as Record<string, any>[];
+}
+
 const BASE_PAYLOAD = {
   name: null,
   email: "orig@example.com",
@@ -225,21 +235,34 @@ describe("editStagedRow (preview-only)", () => {
       batchId: BATCH,
       rowNumber: 1,
       userId: USER,
-      fields: { phone: "+610404398423" },
+      fields: { phone: "0404398423" },
     });
     expect(result.row.mobile_number).toBe("+61404398423");
     expect(result.row.validation_errors).toEqual([]);
     expect(result.state).toBe("auto_include_candidate");
     expect(result.changed_fields).toEqual(["phone"]);
-    expect(data.lead_import_rows[0]!.raw_row).toEqual({
+    expect(rows(data)[0]!["raw_row"]).toEqual({
       Name: "Original",
       Phone: "+610404398423",
       Email: "orig@example.com",
       Stage: "Intake",
     });
-    expect(data.audit_events).toHaveLength(1);
-    expect(data.audit_events[0]!.event_type).toBe("import_row_edited");
+    expect(audits(data)).toHaveLength(1);
+    expect(audits(data)[0]!["event_type"]).toBe("import_row_edited");
     assertNoSideEffects(client);
+  });
+
+  it("keeps an unsupported +610... value as an exception until it is corrected", async () => {
+    const data = db({ lead_import_rows: [stagedRow({ ...BASE_PAYLOAD, name: "Harry" })] });
+    const client = createFakeSupabase(data);
+    const bad = await editStagedRow(client, BUSINESS, {
+      batchId: BATCH,
+      rowNumber: 1,
+      userId: USER,
+      fields: { phone: "+610404398423" },
+    });
+    expect(bad.row.mobile_number).toBeNull();
+    expect(bad.row.validation_errors.map((e) => e.code)).toContain("invalid_phone");
   });
 
   it("accepts a spaced AU mobile and stores the corrected raw phone", async () => {
@@ -249,15 +272,15 @@ describe("editStagedRow (preview-only)", () => {
       batchId: BATCH,
       rowNumber: 1,
       userId: USER,
-      fields: { phone: "+61 0404 398 423" },
+      fields: { phone: "0404 398 423" },
     });
     expect(result.row.mobile_number).toBe("+61404398423");
-    const meta = data.lead_import_rows[0]!.normalized_payload.source_metadata;
-    expect(meta.phone_corrected).toBe("+61 0404 398 423");
+    const meta = rows(data)[0]!["normalized_payload"].source_metadata;
+    expect(meta.phone_corrected).toBe("0404 398 423");
     expect(meta.stage_raw).toBe("Intake");
   });
 
-  it("saving a name keeps a still-missing phone pending", async () => {
+  it("saving a name leaves the row pending when the phone is still missing", async () => {
     const data = db({
       lead_import_rows: [stagedRow({ ...BASE_PAYLOAD }, [{ code: "missing_name" }])],
     });
@@ -268,9 +291,11 @@ describe("editStagedRow (preview-only)", () => {
       userId: USER,
       fields: { name: "Harry" },
     });
-    expect(result.state).toBe("invalid_contact");
+    expect(result.row.mobile_number).toBeNull();
+    expect(result.state).toBe("pending_review");
     expect(result.row.review.decision).toBe("pending");
   });
+
 
   it("a cleared name puts the row back to pending review", async () => {
     const data = db({
@@ -333,7 +358,7 @@ describe("editStagedRow (preview-only)", () => {
     expect(result.duplicate.existing_lead_id).toBe("lead-9");
     expect(result.state).toBe("potential_duplicate");
     expect(result.row.review.decision).toBe("pending");
-    expect(data.leads).toHaveLength(1);
+    expect(liveLeads(data)).toHaveLength(1);
   });
 
   it("detects an existing-lead duplicate after editing the email", async () => {
@@ -397,12 +422,13 @@ describe("editStagedRow (preview-only)", () => {
       batchId: BATCH,
       rowNumber: 1,
       userId: USER,
-      fields: { phone: "0404398423" },
+      fields: { phone: "+61404398423" },
     });
     expect(second.changed_fields).toEqual([]);
     expect(second.row.mobile_number).toBe(first.row.mobile_number);
-    expect(data.audit_events).toHaveLength(1);
-    expect(data.lead_import_rows).toHaveLength(1);
+    expect(audits(data)).toHaveLength(1);
+
+    expect(rows(data)).toHaveLength(1);
   });
 
   it("a failed save leaves the staged values unchanged", async () => {
@@ -420,8 +446,8 @@ describe("editStagedRow (preview-only)", () => {
         fields: { created_at: "bogus" },
       }),
     ).rejects.toThrow(StagedEditError);
-    expect(data.lead_import_rows[0]!.normalized_payload.name).toBe("Harry");
-    expect(data.audit_events).toHaveLength(0);
+    expect(rows(data)[0]!["normalized_payload"].name).toBe("Harry");
+    expect(audits(data)).toHaveLength(0);
   });
 
   it("is tenant isolated", async () => {
@@ -435,7 +461,7 @@ describe("editStagedRow (preview-only)", () => {
         fields: { name: "Hacked" },
       }),
     ).rejects.toThrow(/not found/i);
-    expect(data.lead_import_rows[0]!.normalized_payload.name).toBe("Harry");
+    expect(rows(data)[0]!["normalized_payload"].name).toBe("Harry");
   });
 
   it("refuses to edit a committed row or a committed batch", async () => {
@@ -491,14 +517,14 @@ describe("editStagedRow (preview-only)", () => {
       userId: USER,
       fields: { name: "Harry Fixed" },
     });
-    expect(data.leads[0]).toEqual(godaddy);
+    expect(liveLeads(data)[0]).toEqual(godaddy);
     assertNoSideEffects(client);
   });
 
   it("reprocessing an upload row keeps the parsed identity stable", () => {
     const table = parseCsv("Name,Phone,Email,Stage\nHarry,+610404398423,h@example.com,Intake");
     const prepared = prepareRow(table.headers, table.rows[0]!, 1);
-    expect(prepared.normalized_payload.source_metadata["stage_raw"]).toBe("Intake");
+    expect(prepared["normalized_payload"].source_metadata["stage_raw"]).toBe("Intake");
     const edited = applyStagedEdit(prepared.normalized_payload, { phone: "0404398423" }, {
       userId: USER,
     });
