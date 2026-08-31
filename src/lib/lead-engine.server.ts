@@ -529,6 +529,38 @@ export async function sendSms(input: {
       };
   }
 
+  // Final quiet-hours safety gate for EVERY outbound kind (manual, approved AI
+  // reply, acknowledgement, automated follow-up). It runs before segments are
+  // reserved, before any usage accounting, before a conversation is created and
+  // before the carrier is contacted, so a blocked send leaves no trace other
+  // than an internal audit event. Scheduling of a later attempt stays with the
+  // existing callers (job retry / follow-up deferral) — nothing is queued here.
+  const quietHours = evaluateQuietHoursGate(business, new Date());
+  if (quietHours.blocked) {
+    await audit({
+      businessId: input.businessId,
+      eventType: "sms_blocked_quiet_hours",
+      entityType: "lead",
+      entityId: lead.id,
+      metadata: {
+        kind: input.kind,
+        source: messageSource,
+        local_hour: quietHours.localHour,
+        quiet_hours_start: quietHours.start,
+        quiet_hours_end: quietHours.end,
+        timezone: business.timezone,
+      },
+    });
+    return {
+      sent: false,
+      retriable: true,
+      code: QUIET_HOURS_BLOCKED_CODE,
+      reason: quietHours.reason,
+    };
+  }
+
+
+
   const { segments } = countSegments(input.body);
 
   // Monthly safety cap: blocks automated traffic, never inbound or STOP handling.
