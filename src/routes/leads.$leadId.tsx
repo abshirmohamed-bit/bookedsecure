@@ -168,7 +168,30 @@ function LeadDetail() {
               Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")} — automated SMS blocked.
             </p>
           )}
+
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <DeliveryBadge status={lead.last_outbound_sms_status} />
+            {lead.sms_suppressed_at && (
+              <SmsSuppressedBadge reason={lead.sms_suppression_reason} />
+            )}
+            {lead.last_delivered_sms_at && (
+              <span>
+                Last delivered {new Date(lead.last_delivered_sms_at).toLocaleString("en-AU")}
+              </span>
+            )}
+            {lead.last_reply_at && (
+              <span>Last reply {new Date(lead.last_reply_at).toLocaleString("en-AU")}</span>
+            )}
+            {conversation?.automation_paused && <span>Automation stopped</span>}
+          </div>
+          {lead.last_sms_failure_reason && (
+            <p className="mt-1 text-xs text-destructive">
+              Last SMS failure: {lead.last_sms_failure_reason}
+              {lead.last_sms_failure_code ? ` (code ${lead.last_sms_failure_code})` : ""}
+            </p>
+          )}
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={lead.status}
