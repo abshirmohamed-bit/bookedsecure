@@ -44,12 +44,66 @@ export function ReadinessBadge({ readiness }: { readiness: string | null }) {
   );
 }
 
-export function DeliveryBadge({ status }: { status: string }) {
-  const tone =
-    status === "delivered"
-      ? "text-success"
-      : status === "failed" || status === "undelivered"
-        ? "text-destructive"
-        : "text-muted-foreground";
-  return <span className={cn("text-xs", tone)}>{status}</span>;
+const DELIVERY_TONES: Record<string, string> = {
+  delivered: "bg-success/15 text-success border-success/40",
+  failed: "bg-destructive/15 text-destructive border-destructive/40",
+  undelivered: "bg-destructive/15 text-destructive border-destructive/40",
+  sent: "bg-info/10 text-info border-info/30",
+  provider_accepted: "bg-secondary text-muted-foreground border-border",
+  queued: "bg-secondary text-muted-foreground border-border",
+  unknown: "bg-warning/10 text-warning border-warning/30",
+};
+
+/**
+ * Delivery state of one outbound SMS. Deliberately never says "Delivered"
+ * unless a provider receipt confirmed it — "Accepted by provider" and
+ * "Awaiting confirmation" are distinct, visible states.
+ */
+export function DeliveryBadge({
+  status,
+  className,
+}: {
+  status: string | null | undefined;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
+        DELIVERY_TONES[status ?? ""] ?? "bg-secondary text-muted-foreground border-border",
+        className,
+      )}
+    >
+      {deliveryLabel(status)}
+    </span>
+  );
 }
+
+/** Failure classification (permanent / temporary / configuration). */
+export function FailureClassBadge({ failureClass }: { failureClass: string | null | undefined }) {
+  if (!failureClass) return null;
+  const tone =
+    failureClass === "permanent"
+      ? "bg-destructive/15 text-destructive border-destructive/40"
+      : failureClass === "temporary"
+        ? "bg-warning/10 text-warning border-warning/30"
+        : "bg-secondary text-muted-foreground border-border";
+  return (
+    <span className={cn("inline-flex rounded-md border px-1.5 py-0.5 text-[11px]", tone)}>
+      {FAILURE_CLASS_LABELS[failureClass as FailureClass] ?? failureClass}
+    </span>
+  );
+}
+
+/** Lead-level messaging state for the inbox and lead header. */
+export function SmsSuppressedBadge({ reason }: { reason?: string | null }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded-md border border-destructive/40 bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive"
+      title={reason ?? "Automated SMS is suppressed for this lead."}
+    >
+      SMS suppressed
+    </span>
+  );
+}
+
