@@ -80,11 +80,20 @@ import {
   type ImportBatchSummary,
 } from "@/lib/import-history";
 import { StagedRowEditor } from "@/components/StagedRowEditor";
+import { LiteImportPanel } from "@/components/LiteImportPanel";
+import {
+  ADVANCED_VIEW_LABEL,
+  DEFAULT_IMPORT_VIEW,
+  EXCEPTION_ANCHOR_ID,
+  LITE_VIEW_LABEL,
+  type ImportView,
+} from "@/lib/import-lite";
 import {
   STAGED_ROW_STATE_LABELS,
   canEditStagedRow,
   resolveStagedRowState,
 } from "@/lib/staged-row-edit";
+
 
 export const Route = createFileRoute("/import")({
   head: () => ({
@@ -127,6 +136,11 @@ function ImportView() {
   const [confirmDelete, setConfirmDelete] = useState<ImportBatchSummary | null>(null);
   // Unsaved staged-row edits block the commit controls.
   const [unsavedEdits, setUnsavedEdits] = useState(false);
+  // Lite mode is the default view for every user. Switching views keeps the
+  // same selected batch, the same preview cache and the same row decisions.
+  const [view, setView] = useState<ImportView>(DEFAULT_IMPORT_VIEW);
+  const [focusExceptions, setFocusExceptions] = useState(false);
+
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["crm-import-batches"],
@@ -187,8 +201,39 @@ function ImportView() {
     );
   }
 
+  if (view === "lite") {
+    return (
+      <LiteImportPanel
+        preview={preview.data && preview.data.batch.id === activeId ? preview.data : null}
+        uploading={uploadMutation.isPending || preview.isLoading}
+        onUpload={(file) => uploadMutation.mutate(file)}
+        onOpenAdvanced={({ focusExceptions: focus }) => {
+          setFocusExceptions(focus);
+          setView("advanced");
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          {ADVANCED_VIEW_LABEL} — detailed validation, duplicates, row decisions and import
+          controls.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setFocusExceptions(false);
+            setView("lite");
+          }}
+          className="rounded-md border border-input px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          Back to {LITE_VIEW_LABEL.toLowerCase()}
+        </button>
+      </div>
+
       <section className="panel space-y-3 p-4">
         <div>
           <h2 className="text-sm font-semibold">Upload a CRM CSV</h2>
@@ -309,7 +354,12 @@ function ImportView() {
           <RepairPanel preview={preview.data} />
           <DryRunPanel preview={preview.data} />
           <CommitGatePanel preview={preview.data} unsavedEdits={unsavedEdits} />
-          <PreviewTable preview={preview.data} onDirtyChange={setUnsavedEdits} />
+          <PreviewTable
+            preview={preview.data}
+            onDirtyChange={setUnsavedEdits}
+            focusExceptions={focusExceptions}
+          />
+
         </>
       ) : null}
 
@@ -384,17 +434,25 @@ function DeleteDialog({
 function PreviewTable({
   preview,
   onDirtyChange,
+  focusExceptions = false,
 }: {
   preview: Preview;
   onDirtyChange: (dirty: boolean) => void;
+  focusExceptions?: boolean;
 }) {
   const [editing, setEditing] = useState<number | null>(null);
-  const [filter, setFilter] = useState<RepairFilter>("all");
+  const [filter, setFilter] = useState<RepairFilter>(focusExceptions ? "needs_review" : "all");
+  const sectionRef = useRef<HTMLElement>(null);
   const editingRow = preview.rows.find((row) => row.row_number === editing) ?? null;
   const rawRow = Object.fromEntries(preview.headers.map((header) => [header, ""]));
   const visibleRows = preview.rows.filter((row) => matchesRepairFilter(row as never, filter));
+  // Arriving from the simple view's review annotation lands on the exceptions.
+  useEffect(() => {
+    if (focusExceptions) sectionRef.current?.scrollIntoView({ block: "start" });
+  }, [focusExceptions]);
   return (
-    <section className="panel space-y-3 p-4">
+    <section id={EXCEPTION_ANCHOR_ID} ref={sectionRef} className="panel space-y-3 p-4">
+
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h2 className="text-sm font-semibold">
