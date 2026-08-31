@@ -414,6 +414,10 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   if (createdRaw) metadata["created_at_raw"] = createdRaw;
   // Preserve the original CRM stage text verbatim (e.g. "Intake", "Converted").
   if (stageRaw) metadata["stage_raw"] = stageRaw;
+  // The uploaded phone text is preserved verbatim alongside any repair.
+  if (phoneRaw) metadata["phone_raw"] = phoneRaw;
+
+
 
 
   // Meta lead-ads export: preserve raw created_time and platform values, and
