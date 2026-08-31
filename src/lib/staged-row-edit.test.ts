@@ -412,11 +412,12 @@ describe("editStagedRow (preview-only)", () => {
       batchId: BATCH,
       rowNumber: 1,
       userId: USER,
-      fields: { phone: "0404398423" },
+      fields: { phone: "+61404398423" },
     });
     expect(second.changed_fields).toEqual([]);
     expect(second.row.mobile_number).toBe(first.row.mobile_number);
     expect(data.audit_events).toHaveLength(1);
+
     expect(data.lead_import_rows).toHaveLength(1);
   });
 
