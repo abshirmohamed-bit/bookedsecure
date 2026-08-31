@@ -60,9 +60,11 @@ export function LeadsWorkspace() {
     return allLeads.filter(
       (lead) =>
         (statusFilter === "all" || lead.status === statusFilter) &&
-        (sourceFilter === "all" || lead.source_channel === sourceFilter),
+        (sourceFilter === "all" || lead.source_channel === sourceFilter) &&
+        matchesSmsFilter(lead as never, smsFilter),
     );
-  }, [allLeads, statusFilter, sourceFilter]);
+  }, [allLeads, statusFilter, sourceFilter, smsFilter]);
+
 
 
   // Selection is always scoped to the current filtered result.
