@@ -286,6 +286,42 @@ export function classifyAuPhone(raw: string): PhoneResult {
   return { kind: "unsupported_type", value: e164 };
 }
 
+export type ResolvedPhone = {
+  /** Repaired E.164 mobile, or null when no high-confidence mobile exists. */
+  mobile_number: string | null;
+  repair: PhoneRepair;
+  errors: ValidationError[];
+};
+
+/**
+ * Deterministic phone resolution for a staged row: normalize → repair candidate
+ * → validate. High-confidence repairs are applied to the staged normalized
+ * value; the raw value is returned untouched inside `repair.original`.
+ * Pure — no writes, no provider calls, and no subscriber digit is invented.
+ */
+export function resolvePhoneWithRepair(raw: string, options?: RepairOptions): ResolvedPhone {
+  const repair = repairPhone(raw, options ?? {});
+  const errors: ValidationError[] = [];
+  if (repair.applied) return { mobile_number: repair.normalized, repair, errors };
+  switch (repair.classification) {
+    case "empty_phone":
+      break;
+    case "valid_au_landline":
+      errors.push({
+        code: "unsupported_phone_type",
+        field: "mobile_number",
+        detail: repair.normalized ?? repair.cleaned,
+      });
+      break;
+    default:
+      errors.push({ code: "invalid_phone", field: "mobile_number", detail: repair.original });
+      break;
+  }
+  return { mobile_number: null, repair, errors };
+}
+
+
+
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 
 export function normaliseEmail(raw: string): { value: string | null; valid: boolean } {
