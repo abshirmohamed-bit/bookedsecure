@@ -45,7 +45,7 @@ export const getDashboard = createServerFn({ method: "GET" })
       queryLeadInbox(supabaseAdmin, {
         businessId: app.businessId,
         page: data.page ?? 1,
-        pageSize: data.pageSize ?? 25,
+        pageSize: data.pageSize ?? DEFAULT_PAGE_SIZE,
         filters: {
           scope: "active",
           ...(data.status === undefined ? {} : { status: data.status }),
