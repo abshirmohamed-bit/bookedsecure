@@ -20,6 +20,7 @@ export type MessagingEventType = (typeof MESSAGING_EVENT_TYPES)[number];
 /** Internal delivery status. Deliberately provider-neutral. */
 export type InternalDeliveryStatus =
   | "queued"
+  | "provider_accepted"
   | "sent"
   | "delivered"
   | "failed"
@@ -61,6 +62,7 @@ export function eventTypeForDeliveryStatus(
 ): MessagingEventType | null {
   switch (status) {
     case "queued":
+    case "provider_accepted":
       return "message.accepted";
     case "sent":
       return "message.sent";

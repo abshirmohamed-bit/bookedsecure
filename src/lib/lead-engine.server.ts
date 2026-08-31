@@ -416,6 +416,26 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
   };
 }
 
+/** Where an outbound SMS came from. Persisted on the message for reporting. */
+export type MessageSource =
+  | "manual"
+  | "approved_reply"
+  | "quote_page"
+  | "inbound_enquiry"
+  | "automation";
+
+export function deriveMessageSource(
+  kind: "acknowledgement" | "follow_up" | "manual" | "approved_reply",
+  leadOrigin: string | null | undefined,
+): MessageSource {
+  if (kind === "manual") return "manual";
+  if (kind === "approved_reply") return "approved_reply";
+  if (kind === "follow_up") return "automation";
+  return leadOrigin === "live" || leadOrigin === null || leadOrigin === undefined
+    ? "quote_page"
+    : "inbound_enquiry";
+}
+
 export type SendSmsResult = {
   sent: boolean;
   reason?: string;
@@ -435,11 +455,15 @@ export async function sendSms(input: {
   respectAutomation: boolean;
   userId?: string | null | undefined;
   senderId?: string | undefined;
+  /** Trigger for observability: manual, quote_page, inbound_follow_up, automation. */
+  source?: MessageSource | undefined;
 }): Promise<SendSmsResult> {
   const business = await getBusiness(input.businessId);
   const { data: lead } = await supabaseAdmin
     .from("leads")
-    .select("id, name, mobile_number, status, opted_out_at, business_id, first_contacted_at")
+    .select(
+      "id, name, mobile_number, status, opted_out_at, business_id, first_contacted_at, sms_suppressed_at, sms_suppression_reason, lead_origin, source_channel",
+    )
     .eq("id", input.leadId)
     .eq("business_id", input.businessId)
     .maybeSingle();
@@ -451,6 +475,18 @@ export async function sendSms(input: {
     return { sent: false, retriable: false, reason: "Lead number is invalid." };
 
   const automated = input.kind === "acknowledgement" || input.kind === "follow_up";
+
+  // A permanent delivery failure suppresses future *automated* SMS to this lead.
+  // Manual owner-initiated messages stay possible, deliberately.
+  if (automated && lead.sms_suppressed_at) {
+    return {
+      sent: false,
+      retriable: false,
+      reason: `Automated SMS suppressed for this lead: ${lead.sms_suppression_reason ?? "permanent delivery failure"}`,
+    };
+  }
+
+  const messageSource = input.source ?? deriveMessageSource(input.kind, lead.lead_origin);
 
   if (input.respectAutomation) {
     if (!business.automation_enabled)
@@ -574,6 +610,7 @@ export async function sendSms(input: {
           from_number: sender.phoneNumber,
           segments,
           attempt_count: prior.attempt_count + 1,
+          message_source: messageSource,
         })
         .eq("id", prior.id);
       messageId = prior.id;
@@ -597,6 +634,8 @@ export async function sendSms(input: {
         message_kind: input.kind,
         idempotency_key: input.idempotencyKey ?? null,
         attempt_count: 1,
+        message_source: messageSource,
+        delivery_event_count: 0,
       })
       .select("id")
       .single();
@@ -654,15 +693,27 @@ export async function sendSms(input: {
     return { sent: false, retriable: true, messageId, reason: detail };
   }
 
+  // A successful provider response only proves ACCEPTANCE. `provider_accepted`
+  // is the strongest status we may write here; `delivered` only ever comes from
+  // a verified delivery receipt (or the simulated provider, which has no carrier).
+  const acceptedAt = new Date().toISOString();
+  const acceptanceStatus =
+    result.deliveryStatus === "queued" || result.deliveryStatus === "unknown"
+      ? "provider_accepted"
+      : result.deliveryStatus;
+
   const { data: message } = await supabaseAdmin
     .from("messages")
     .update({
       provider: result.provider,
       provider_message_id: result.providerMessageId,
       provider_cost: result.providerCost ?? null,
-      delivery_status: result.deliveryStatus,
+      delivery_status: acceptanceStatus,
+      provider_raw_status: result.deliveryStatus,
       error_code: result.errorCode ?? null,
-      sent_at: new Date().toISOString(),
+      provider_accepted_at: acceptedAt,
+      sent_at: acceptanceStatus === "provider_accepted" ? null : acceptedAt,
+      ...(acceptanceStatus === "delivered" ? { delivered_at: acceptedAt } : {}),
     })
     .eq("id", messageId)
     .select("id")
@@ -675,14 +726,16 @@ export async function sendSms(input: {
     providerCost: result.providerCost ?? 0,
   });
 
-  const leadUpdate: Record<string, unknown> = {};
+  const leadUpdate: Record<string, unknown> = {
+    last_outbound_sms_status: acceptanceStatus,
+    last_outbound_sms_at: acceptedAt,
+    ...(acceptanceStatus === "delivered" ? { last_delivered_sms_at: acceptedAt } : {}),
+  };
   if (!lead.first_contacted_at) leadUpdate["first_contacted_at"] = new Date().toISOString();
   if (["new"].includes(lead.status)) leadUpdate["status"] = "contacted";
   else if (lead.status === "customer_replied" && input.kind !== "follow_up")
     leadUpdate["status"] = "waiting_for_customer";
-  if (Object.keys(leadUpdate).length > 0) {
-    await supabaseAdmin.from("leads").update(leadUpdate as never).eq("id", lead.id);
-  }
+  await supabaseAdmin.from("leads").update(leadUpdate as never).eq("id", lead.id);
 
   await scheduleNextFollowUp({ businessId: input.businessId, leadId: lead.id, business });
 
@@ -826,7 +879,12 @@ export async function handleInboundMessage(input: {
     })
     .eq("lead_id", lead.id);
 
-  const update: Record<string, unknown> = { first_reply_at: inbound.receivedAt };
+  // A reply proves the number is contactable, but it never rewrites the
+  // delivery status of earlier outbound messages — it is recorded separately.
+  const update: Record<string, unknown> = {
+    first_reply_at: inbound.receivedAt,
+    last_reply_at: inbound.receivedAt,
+  };
   if (optOut) {
     update["status"] = "opted_out";
     update["opted_out_at"] = inbound.receivedAt;
@@ -878,33 +936,57 @@ export async function handleInboundMessage(input: {
   return { handled: true, leadId: lead.id, replay: alreadyPersisted };
 }
 
-/** Delivery callback, constrained to the business that owns the sender number. */
+/**
+ * Delivery receipt, constrained to the business that owns the sender number.
+ *
+ * This path never sends an SMS, never creates a message or conversation, and
+ * never triggers automation — it only records the verified delivery outcome.
+ */
 export async function handleDeliveryStatus(input: {
   providerName: string;
   payload: Record<string, unknown>;
   sender: ResolvedSender;
   providerCost?: number;
-}): Promise<{ handled: boolean; reason?: string }> {
+}): Promise<{
+  handled: boolean;
+  reason?: string;
+  applied?: boolean;
+  status?: string;
+  suppressed?: boolean;
+}> {
   const provider = getProvider(input.providerName);
   const update = provider.handleDeliveryStatus(input.payload);
   if (!update) return { handled: false, reason: "Payload missing provider message id." };
 
-  const failed = update.deliveryStatus === "failed" || update.deliveryStatus === "undelivered";
+  const { applyDeliveryEvent } = await import("@/lib/sms/delivery.server");
+  const result = await applyDeliveryEvent({
+    providerName: provider.name,
+    businessId: input.sender.businessId,
+    providerMessageId: update.providerMessageId,
+    status: update.deliveryStatus,
+    rawStatus: update.rawStatus ?? null,
+    failureCode: update.errorCode ?? null,
+    eventId: update.eventId ?? null,
+    occurredAt: update.occurredAt ?? null,
+    ...(input.providerCost !== undefined ? { providerCost: input.providerCost } : {}),
+  });
 
-  const { data } = await supabaseAdmin
-    .from("messages")
-    .update({
-      delivery_status: update.deliveryStatus,
-      error_code: update.errorCode ?? null,
-      ...(input.providerCost !== undefined ? { provider_cost: input.providerCost } : {}),
-    })
-    .eq("provider_message_id", update.providerMessageId)
-    .eq("business_id", input.sender.businessId)
-    .select("id");
-
-  if (!data?.length) return { handled: false, reason: "Unknown message id for this business." };
-  if (failed) await recordSmsUsage({ businessId: input.sender.businessId, failures: 1 });
-  return { handled: true };
+  if (!result.handled) {
+    return { handled: false, reason: "Unknown message id for this business." };
+  }
+  // Delivery-state changes are not new outbound messages: usage is never
+  // incremented here. Only the daily failure counter reflects a first-time
+  // terminal failure.
+  if (result.applied && (result.status === "failed" || result.status === "undelivered")) {
+    await recordSmsUsage({ businessId: input.sender.businessId, failures: 1 });
+  }
+  return {
+    handled: true,
+    applied: result.applied,
+    ...(result.status ? { status: result.status } : {}),
+    ...(result.suppressed ? { suppressed: true } : {}),
+    ...(result.reason ? { reason: result.reason } : {}),
+  };
 }
 
 /**
