@@ -58,8 +58,8 @@ export function SuppressionRecoveryPanel({
             <span className="text-muted-foreground/70">Reachability: </span>
             <ReachabilityBadge
               state={lead.reachability_state}
-              evidence={lead.reachability_evidence}
-              evidenceAt={lead.reachability_evidence_at}
+              evidence={lead.reachability_evidence ?? null}
+              evidenceAt={lead.reachability_evidence_at ?? null}
             />
           </p>
           <p className="text-warning">
