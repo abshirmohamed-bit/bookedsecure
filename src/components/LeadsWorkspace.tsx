@@ -4,7 +4,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Plus, RefreshCw, Trash2, Undo2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/StatusBadge";
+import { DeliveryBadge, SmsSuppressedBadge, StatusBadge } from "@/components/StatusBadge";
+import {
+  matchesSmsFilter,
+  SMS_FILTER_LABELS,
+  SMS_LEAD_FILTERS,
+  type SmsLeadFilter,
+} from "@/lib/sms/delivery";
+
 import { createManualLead, getDashboard, runFollowUpsNow } from "@/lib/app.functions";
 import { useDashboard } from "@/lib/useDashboard";
 import {
