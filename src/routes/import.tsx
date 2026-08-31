@@ -80,6 +80,10 @@ import {
   type ImportBatchSummary,
 } from "@/lib/import-history";
 import { StagedRowEditor } from "@/components/StagedRowEditor";
+import { ImportSectionNav } from "@/components/import/ImportSectionNav";
+import { ImportSummarySection } from "@/components/import/ImportSummarySection";
+import { ImportActivityPanel } from "@/components/import/ImportActivityPanel";
+import { CanaryResultCard } from "@/components/import/CanaryResultCard";
 import { LiteImportPanel } from "@/components/LiteImportPanel";
 import {
   ADVANCED_VIEW_LABEL,
@@ -93,7 +97,6 @@ import {
   canEditStagedRow,
   resolveStagedRowState,
 } from "@/lib/staged-row-edit";
-
 
 export const Route = createFileRoute("/import")({
   head: () => ({
@@ -140,7 +143,6 @@ function ImportView() {
   // same selected batch, the same preview cache and the same row decisions.
   const [view, setView] = useState<ImportView>(DEFAULT_IMPORT_VIEW);
   const [focusExceptions, setFocusExceptions] = useState(false);
-
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["crm-import-batches"],
@@ -216,9 +218,9 @@ function ImportView() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
+    <div className="space-y-5">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
+        <p className="min-w-0 text-xs text-muted-foreground">
           {ADVANCED_VIEW_LABEL} — detailed validation, duplicates, row decisions and import
           controls.
         </p>
@@ -228,13 +230,19 @@ function ImportView() {
             setFocusExceptions(false);
             setView("lite");
           }}
-          className="rounded-md border border-input px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="shrink-0 rounded-md border border-input px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           Back to {LITE_VIEW_LABEL.toLowerCase()}
         </button>
       </div>
 
-      <section className="panel space-y-3 p-4">
+      <ImportSectionNav />
+
+      {/* 1. Rollout mode and safety state — always the first thing on the page. */}
+      <RolloutPanel batchId={activeId} />
+
+      {/* 2. Upload and recent uploads. */}
+      <section id="import-upload" className="panel space-y-3 p-4">
         <div>
           <h2 className="text-sm font-semibold">Upload a CRM CSV</h2>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -260,7 +268,7 @@ function ImportView() {
       </section>
 
       {batches.length === 0 ? (
-        <section className="panel p-6 text-center">
+        <section id="import-recent" className="panel p-6 text-center">
           <h2 className="text-sm font-semibold">No preview uploads yet</h2>
           <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
             Upload a CRM CSV to inspect historical data safely. Previewing does not create leads or
@@ -268,7 +276,7 @@ function ImportView() {
           </p>
         </section>
       ) : (
-        <section className="panel p-4">
+        <section id="import-recent" className="panel p-4">
           <h2 className="text-sm font-semibold">Recent uploads</h2>
           <p id="upload-selector-label" className="mt-1 text-xs text-muted-foreground">
             Select an upload to review
@@ -279,7 +287,7 @@ function ImportView() {
               return (
                 <li key={batch.id}>
                   <div
-                    className={`flex flex-wrap items-start gap-2 rounded-md border p-3 sm:flex-nowrap sm:items-center ${
+                    className={`grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 rounded-md border p-3 sm:flex sm:items-center ${
                       selected
                         ? "border-primary bg-secondary/60 ring-1 ring-primary/40"
                         : "border-border hover:bg-secondary/30"
@@ -327,7 +335,8 @@ function ImportView() {
         </section>
       )}
 
-      <RolloutPanel batchId={activeId} />
+      {/* 3 + 4. Latest import outcome, then the contained activity list. */}
+      <LatestOutcome />
 
       {confirmDelete ? (
         <DeleteDialog
@@ -359,11 +368,29 @@ function ImportView() {
             onDirtyChange={setUnsavedEdits}
             focusExceptions={focusExceptions}
           />
-
         </>
       ) : null}
-
     </div>
+  );
+}
+
+/**
+ * Latest import outcome and activity. Reads the same cached rollout query as the
+ * rollout panel — no new server call, no state change.
+ */
+function LatestOutcome() {
+  const load = useServerFn(getImportAutomation);
+  const { data } = useQuery({
+    queryKey: ["crm-import-automation"],
+    queryFn: () => load(),
+  });
+  const state = data?.state;
+  const summary = state?.last_summary ?? null;
+  return (
+    <>
+      <ImportSummarySection summary={summary} ranAt={state?.last_run_at ?? null} />
+      <ImportActivityPanel rows={summary?.rows ?? []} ranAt={state?.last_run_at ?? null} />
+    </>
   );
 }
 
@@ -452,7 +479,6 @@ function PreviewTable({
   }, [focusExceptions]);
   return (
     <section id={EXCEPTION_ANCHOR_ID} ref={sectionRef} className="panel space-y-3 p-4">
-
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h2 className="text-sm font-semibold">
@@ -708,7 +734,7 @@ function RepairPanel({ preview }: { preview: Preview }) {
   ];
 
   return (
-    <section className="panel space-y-3 p-4" aria-label="Phone repair summary">
+    <section id="import-repair" className="panel space-y-3 p-4" aria-label="Phone repair summary">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           {DRY_RUN_LABEL}
@@ -750,7 +776,6 @@ function RepairPanel({ preview }: { preview: Preview }) {
 }
 
 function DryRunPanel({ preview }: { preview: Preview }) {
-
   const runClassifier = useServerFn(classifyCrmImportBatch);
   const queryClient = useQueryClient();
   const summary = buildDryRunSummary(preview.rows);
@@ -790,7 +815,7 @@ function DryRunPanel({ preview }: { preview: Preview }) {
   const reasons = Object.entries(summary.classification_reason_counts).sort((a, b) => b[1] - a[1]);
 
   return (
-    <section className="panel space-y-3 p-4" aria-label="Dry run summary">
+    <section id="import-dry-run" className="panel space-y-3 p-4" aria-label="Dry run summary">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           {DRY_RUN_LABEL}
@@ -980,7 +1005,7 @@ function CommitGatePanel({
   const verification = canary.data;
 
   return (
-    <section className="panel space-y-4 p-4" aria-label="Commit gate">
+    <section id="import-simulation" className="panel space-y-4 p-4" aria-label="Commit gate">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           {COMMIT_SIMULATION_LABEL}
@@ -1134,57 +1159,12 @@ function CommitGatePanel({
               </button>
             )}
             {verification ? (
-              <div className="space-y-1">
-                {verification.status === "passed" && verification.lead_id ? (
-                  <p className="text-xs text-foreground">
-                    Canary verified — exactly one live lead was created, with no SMS, owner alert,
-                    conversation, job or automation.{" "}
-                    <Link
-                      to="/leads/$leadId"
-                      params={{ leadId: verification.lead_id }}
-                      className="underline hover:no-underline"
-                    >
-                      Open this lead in the inbox
-                    </Link>
-                  </p>
-                ) : verification.status === "idempotent_pass" ? (
-                  <p className="text-xs text-foreground">
-                    Re-run passed — the row returned already_committed and zero duplicate leads were
-                    created. The original canary pass stays intact.
-                    {verification.lead_id ? (
-                      <>
-                        {" "}
-                        <Link
-                          to="/leads/$leadId"
-                          params={{ leadId: verification.lead_id }}
-                          className="underline hover:no-underline"
-                        >
-                          Open this lead in the inbox
-                        </Link>
-                      </>
-                    ) : null}
-                  </p>
-                ) : (
-                  <p className="text-xs text-destructive">
-                    {verification.gate_reasons.length
-                      ? verification.gate_reasons
-                          .map((reason) => IMPORT_GATE_LABELS[reason] ?? reason)
-                          .join(" ")
-                      : "The canary did not pass, so automatic importing stays blocked."}
-                  </p>
-                )}
-
-                {verification.checks.length ? (
-                  <ul className="space-y-0.5 text-xs text-muted-foreground">
-                    {verification.checks.map((check) => (
-                      <li key={check.check}>
-                        {check.passed ? "Pass" : "Fail"} — {check.check.replace(/_/g, " ")}:{" "}
-                        {check.detail}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
+              <CanaryResultCard
+                result={verification}
+                batchId={preview.batch.id}
+                ranAt={verification.state?.last_run_at ?? null}
+                gateReasons={verification.gate_reasons}
+              />
             ) : null}
           </div>
         </>
@@ -1307,7 +1287,7 @@ function RolloutPanel({ batchId }: { batchId: string | null }) {
   ];
 
   return (
-    <section className="panel space-y-4 p-4" aria-label="Import rollout status">
+    <section id="import-rollout" className="panel space-y-4 p-4" aria-label="Import rollout status">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
@@ -1405,70 +1385,6 @@ function RolloutPanel({ batchId }: { batchId: string | null }) {
           </div>
         </div>
       ) : null}
-
-      <SummaryPanel summary={state.last_summary} ranAt={state.last_run_at} />
     </section>
-  );
-}
-
-/** Durable post-import summary. `include` never appears here as "imported". */
-function SummaryPanel({ summary, ranAt }: { summary: ImportSummary | null; ranAt: string | null }) {
-  if (!summary) {
-    return (
-      <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-        No import has run for this business yet.
-      </p>
-    );
-  }
-  const counts: [string, number][] = [
-    ["Total uploaded", summary.total_uploaded],
-    ["Auto-imported", summary.auto_imported],
-    ["Manually imported", summary.manually_imported],
-    ["Already committed", summary.already_committed],
-    ["Pending review", summary.pending_review],
-    ["Potential duplicates", summary.potential_duplicates],
-    ["Duplicate lookup unavailable", summary.duplicate_lookup_unavailable],
-    ["Invalid phones", summary.invalid_phones],
-    ["Non-mobile phones", summary.non_mobile_phones],
-    ["Excluded rows", summary.excluded_rows],
-    ["Failed rows", summary.failed_rows],
-    ["Reconciliation required", summary.reconciliation_required_rows],
-    ["Conversations created", summary.conversations_created],
-    ["SMS sent", summary.sms_sent],
-    ["Emails sent", summary.emails_sent],
-    ["Owner alerts", summary.owner_alerts],
-    ["Jobs created", summary.jobs_created],
-    ["Pipeline changes", summary.pipeline_changes],
-    ["Automation runs", summary.automation_runs],
-    ["Provider calls", summary.provider_calls],
-  ];
-  return (
-    <div className="space-y-2 border-t border-border pt-3">
-      <h3 className="text-xs font-semibold">
-        Last import summary — {IMPORT_MODE_LABELS[summary.mode]}
-        {ranAt ? ` · ${formatUploadTimestamp(ranAt)}` : ""}
-      </h3>
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {counts.map(([label, value]) => (
-          <div key={label} className="rounded-md border border-border p-2">
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="mt-0.5 text-sm font-semibold tabular-nums">{value}</dd>
-          </div>
-        ))}
-      </dl>
-      {summary.rows.length ? (
-        <ul className="space-y-0.5 text-xs text-muted-foreground">
-          {summary.rows.map((row) => (
-            <li key={row.row_number}>
-              Row {row.row_number}: {ROW_OUTCOME_LABELS[row.outcome as RowOutcome] ?? row.outcome}
-              {row.reasons.length
-                ? ` — ${row.reasons.map((reason) => COMMIT_BLOCK_LABELS[reason as CommitBlockReason] ?? reason).join(", ")}`
-                : ""}
-              {row.error ? ` — ${row.error}` : ""}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
   );
 }
