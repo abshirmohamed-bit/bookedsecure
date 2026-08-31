@@ -236,6 +236,56 @@ describe("repair summary and filters", () => {
   });
 });
 
+describe("repair summary defensive reads", () => {
+  it("tolerates a phone_repair record with missing actions", () => {
+    const repair = repairPhone("0404398423");
+    const { actions, ...rest } = repair;
+    const rows = [{ normalized_payload: { phone_repair: rest } }];
+    const summary = buildRepairSummary(rows as never);
+    expect(summary.rows_scanned).toBe(1);
+    expect(summary.repaired_au_mobiles).toBe(1);
+    expect(summary.extra_trunk_zero_repairs).toBe(0);
+    expect(summary.nine_digit_mobile_repairs).toBe(0);
+  });
+
+  it("tolerates a phone_repair record with an empty actions array", () => {
+    const repair = { ...repairPhone("0404398423"), actions: [] as const };
+    const rows = [{ normalized_payload: { phone_repair: repair } }];
+    const summary = buildRepairSummary(rows as never);
+    expect(summary.rows_scanned).toBe(1);
+    expect(summary.repaired_au_mobiles).toBe(1);
+    expect(summary.extra_trunk_zero_repairs).toBe(0);
+  });
+
+  it("ignores malformed actions while keeping valid metadata", () => {
+    const repair = {
+      ...repairPhone("+610404398423"),
+      actions: ["removed_extra_trunk_zero", "not_a_real_action", 123, null] as unknown[],
+    };
+    const rows = [{ normalized_payload: { phone_repair: repair } }];
+    const summary = buildRepairSummary(rows as never);
+    expect(summary.rows_scanned).toBe(1);
+    expect(summary.repaired_au_mobiles).toBe(1);
+    expect(summary.extra_trunk_zero_repairs).toBe(1);
+  });
+
+  it("keeps normal summary output unchanged for a complete record", () => {
+    const rows = [
+      { normalized_payload: { phone_repair: stampRepair(repairPhone("0404398423"), {}) } },
+      { normalized_payload: { phone_repair: stampRepair(repairPhone("+61450802677"), {}) } },
+      { normalized_payload: { phone_repair: stampRepair(repairPhone("02 9876 5432"), {}) } },
+      { normalized_payload: { phone_repair: stampRepair(repairPhone("0404"), {}) } },
+    ];
+    const summary = buildRepairSummary(rows as never);
+    expect(summary.rows_scanned).toBe(4);
+    expect(summary.high_confidence_applied).toBe(2);
+    expect(summary.repaired_au_mobiles).toBe(2);
+    expect(summary.valid_au_mobiles).toBe(1);
+    expect(summary.valid_au_landlines).toBe(1);
+    expect(summary.incomplete_phones).toBe(1);
+  });
+});
+
 describe("repair safety boundary", () => {
   it("the repair engine has no IO, provider, lead, message or automation code", () => {
     const source = readFileSync("src/lib/phone-repair.ts", "utf8");
