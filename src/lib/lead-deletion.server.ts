@@ -15,6 +15,7 @@ import {
   type DeletionFailure,
   type DeletionResult,
 } from "@/lib/lead-deletion";
+import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
 type Client = SupabaseClient<Database>;
 
@@ -215,7 +216,7 @@ export async function listDeletedLeads(
     businessId,
     filters: { scope: "deleted" },
     page: pagination?.page ?? 1,
-    pageSize: pagination?.pageSize ?? 25,
+    pageSize: pagination?.pageSize ?? DEFAULT_PAGE_SIZE,
   });
   return result;
 }

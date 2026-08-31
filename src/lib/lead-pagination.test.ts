@@ -47,34 +47,34 @@ function tiedDb(count = 10): FakeDb {
 
 describe("page arithmetic", () => {
   it("uses a safe default page size and clamps hostile input", () => {
-    expect(DEFAULT_PAGE_SIZE).toBe(25);
-    expect(clampPageSize(undefined)).toBe(25);
-    expect(clampPageSize(0)).toBe(25);
-    expect(clampPageSize(-5)).toBe(25);
-    expect(clampPageSize(5000)).toBe(100);
-    expect(normalisePageRequest({ page: -3, pageSize: 50 })).toEqual({ page: 1, pageSize: 50 });
+    expect(DEFAULT_PAGE_SIZE).toBe(14);
+    expect(clampPageSize(undefined)).toBe(14);
+    expect(clampPageSize(0)).toBe(14);
+    expect(clampPageSize(-5)).toBe(14);
+    expect(clampPageSize(5000)).toBe(14);
+    expect(normalisePageRequest({ page: -3, pageSize: 50 })).toEqual({ page: 1, pageSize: 14 });
   });
 
   it("maps pages to inclusive zero-based ranges", () => {
-    expect(rangeFor({ page: 1, pageSize: 25 })).toEqual({ from: 0, to: 24 });
-    expect(rangeFor({ page: 3, pageSize: 25 })).toEqual({ from: 50, to: 74 });
+    expect(rangeFor({ page: 1, pageSize: 14 })).toEqual({ from: 0, to: 13 });
+    expect(rangeFor({ page: 3, pageSize: 14 })).toEqual({ from: 28, to: 41 });
   });
 
   it("reports next/previous and the visible row range", () => {
-    const meta = buildPageMeta({ page: 2, pageSize: 25, totalCount: 60, returned: 25 });
+    const meta = buildPageMeta({ page: 2, pageSize: 14, totalCount: 60, returned: 14 });
     expect(meta).toMatchObject({
-      pageCount: 3,
+      pageCount: 5,
       hasNextPage: true,
       hasPreviousPage: true,
-      rangeFrom: 26,
-      rangeTo: 50,
+      rangeFrom: 15,
+      rangeTo: 28,
     });
-    const last = buildPageMeta({ page: 3, pageSize: 25, totalCount: 60, returned: 10 });
-    expect(last).toMatchObject({ hasNextPage: false, rangeFrom: 51, rangeTo: 60 });
+    const last = buildPageMeta({ page: 5, pageSize: 14, totalCount: 60, returned: 4 });
+    expect(last).toMatchObject({ hasNextPage: false, rangeFrom: 57, rangeTo: 60 });
   });
 
   it("renders an empty page without pretending rows exist", () => {
-    const meta = buildPageMeta({ page: 1, pageSize: 25, totalCount: 0, returned: 0 });
+    const meta = buildPageMeta({ page: 1, pageSize: 14, totalCount: 0, returned: 0 });
     expect(meta).toMatchObject({
       totalCount: 0,
       pageCount: 0,
@@ -86,9 +86,9 @@ describe("page arithmetic", () => {
   });
 
   it("never leaves the caller past the end of the filtered result", () => {
-    expect(resolveRequestedPage(9, 30, 25)).toBe(2);
-    expect(resolveRequestedPage(4, 0, 25)).toBe(1);
-    expect(resolveRequestedPage(1, 500, 25)).toBe(1);
+    expect(resolveRequestedPage(9, 30, 14)).toBe(3);
+    expect(resolveRequestedPage(4, 0, 14)).toBe(1);
+    expect(resolveRequestedPage(1, 500, 14)).toBe(1);
   });
 });
 

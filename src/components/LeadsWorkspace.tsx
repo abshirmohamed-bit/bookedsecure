@@ -46,7 +46,6 @@ export function LeadsWorkspace() {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [smsFilter, setSmsFilter] = useState<SmsLeadFilter>("all");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
   const [showAdd, setShowAdd] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
@@ -60,7 +59,7 @@ export function LeadsWorkspace() {
   // pagination. Any filter change resets to page 1.
   const dashboard = useDashboard({
     page,
-    pageSize,
+    pageSize: DEFAULT_PAGE_SIZE,
     status: statusFilter,
     source: sourceFilter,
     sms: smsFilter,
@@ -455,11 +454,6 @@ export function LeadsWorkspace() {
           isLoading={dashboard.isRefreshing}
           onPageChange={(next) => {
             setPage(next);
-            setSelection([]);
-          }}
-          onPageSizeChange={(next) => {
-            setPageSize(next);
-            setPage(1);
             setSelection([]);
           }}
         />

@@ -5,7 +5,7 @@
 // metrics block must never hide the lead list, and safe zero defaults are only
 // ever used for genuinely empty metrics — never to conceal a failed request.
 
-import { buildPageMeta, type PageMeta } from "@/lib/lead-pagination";
+import { buildPageMeta, DEFAULT_PAGE_SIZE, type PageMeta } from "@/lib/lead-pagination";
 
 export type DashboardMetrics = {
   totalLeads: number;
@@ -118,7 +118,7 @@ function normalisePage(raw: unknown, returned: number): PageMeta | null {
   if (!isRecord(raw)) return null;
   return buildPageMeta({
     page: isFiniteNumber(raw["page"]) ? raw["page"] : 1,
-    pageSize: isFiniteNumber(raw["pageSize"]) ? raw["pageSize"] : Math.max(returned, 25),
+    pageSize: isFiniteNumber(raw["pageSize"]) ? raw["pageSize"] : Math.max(returned, DEFAULT_PAGE_SIZE),
     totalCount: isFiniteNumber(raw["totalCount"]) ? raw["totalCount"] : returned,
     returned,
   });

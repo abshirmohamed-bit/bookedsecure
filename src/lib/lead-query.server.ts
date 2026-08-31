@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
 import {
   buildPageMeta,
+  DEFAULT_PAGE_SIZE,
   leadFilterPredicates,
   normaliseFilters,
   normalisePageRequest,
@@ -206,7 +207,10 @@ export async function queryLeadInbox(
   if (!input.businessId) throw new Error("A business context is required to read leads.");
 
   const filters = normaliseFilters(input.filters);
-  const requested = normalisePageRequest({ page: input.page ?? 1, pageSize: input.pageSize ?? 25 });
+  const requested = normalisePageRequest({
+    page: input.page ?? 1,
+    pageSize: input.pageSize ?? DEFAULT_PAGE_SIZE,
+  });
   const predicates = leadFilterPredicates(input.businessId, filters);
 
   const countQuery = applyPredicates(

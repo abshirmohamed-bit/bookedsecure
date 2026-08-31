@@ -10,6 +10,7 @@ import {
   type DashboardPayload,
 } from "@/lib/dashboard-contract";
 import { DashboardContractError, deriveDashboardView, type DashboardView } from "@/lib/dashboard-state";
+import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
 export const DASHBOARD_QUERY_KEY = ["dashboard"] as const;
 
@@ -36,7 +37,7 @@ export function useDashboard(request?: Partial<DashboardRequest>): DashboardView
 
   const params: DashboardRequest = {
     page: request?.page ?? 1,
-    pageSize: request?.pageSize ?? 25,
+    pageSize: request?.pageSize ?? DEFAULT_PAGE_SIZE,
     status: request?.status ?? "all",
     source: request?.source ?? "all",
     sms: request?.sms ?? "all",

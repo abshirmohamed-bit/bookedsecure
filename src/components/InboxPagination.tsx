@@ -29,7 +29,7 @@ export function InboxPagination({
           : `Showing ${page.rangeFrom}–${page.rangeTo} of ${page.totalCount} ${label}`}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        {onPageSizeChange && (
+        {onPageSizeChange && PAGE_SIZE_OPTIONS.length > 1 && (
           <label className="flex items-center gap-1.5 text-muted-foreground">
             <span className="sr-only">Rows per page</span>
             <select
