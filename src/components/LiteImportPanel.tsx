@@ -19,16 +19,25 @@ import {
   HELD_SAFETY_COPY,
   LITE_HOLD_REASON_LABELS,
   LITE_NO_MESSAGES_COPY,
+  LITE_PREPARE_COPY,
+  LITE_PREPARE_SAFETY_COPY,
+  LITE_PREPARE_STEPS,
+  LITE_SYNC_OUTCOME_LABELS,
   SYNC_ACTION_LABEL,
   SYNC_BLOCK_COPY,
   advancedHighlight,
   buildLiteSummary,
+  buildLiteSyncReport,
   liteSummaryLines,
+  liteSyncHeadline,
   planLiteSync,
   type LiteHoldReason,
+  type LiteSyncReport,
 } from "@/lib/import-lite";
 import { getImportAutomation, runImportBoundedBatch, runImportExceptionOnly } from "@/lib/import-automation.functions";
+import { repairCrmImportPhones } from "@/lib/csv-import.functions";
 import type { getCrmImportBatch } from "@/lib/csv-import.functions";
+
 
 type Preview = NonNullable<Awaited<ReturnType<typeof getCrmImportBatch>>>;
 
@@ -62,13 +71,48 @@ export function LiteImportPanel({
   const loadAutomation = useServerFn(getImportAutomation);
   const runBounded = useServerFn(runImportBoundedBatch);
   const runExceptions = useServerFn(runImportExceptionOnly);
+  const prepareContacts = useServerFn(repairCrmImportPhones);
+  const [report, setReport] = useState<LiteSyncReport | null>(null);
+  // Batches this session has already prepared. Preparation is idempotent, so a
+  // repeat run would be harmless — this only avoids pointless work.
+  const preparedRef = useRef<Set<string>>(new Set());
 
   const automation = useQuery({
     queryKey: ["crm-import-automation"],
     queryFn: () => loadAutomation(),
   });
 
-  const summary = preview ? buildLiteSummary(preview.batch.id, preview.rows as never) : null;
+  // AUTOMATED PREPARATION: the simple view runs the existing owner-gated
+  // deterministic preparation pass for the owner instead of asking them to.
+  // The server pass corrects Australian phone formats with the single shared
+  // repair engine, keeps every original value and repair reason, revalidates
+  // each row, re-runs the tenant-scoped duplicate preflight and re-classifies.
+  // It writes to staged preview rows only — never to leads.
+  const prepare = useMutation({
+    mutationFn: (batchId: string) => prepareContacts({ data: { batchId } }),
+    onSuccess: async (_result, batchId) => {
+      await queryClient.invalidateQueries({ queryKey: ["crm-import-batch", batchId] });
+      await queryClient.invalidateQueries({ queryKey: ["crm-import-batches"] });
+    },
+    onError: () =>
+      toast.error("We could not finish getting your contacts ready. Nothing was saved."),
+  });
+
+  const batchId = preview?.batch.id ?? null;
+  useEffect(() => {
+    if (!batchId || preparedRef.current.has(batchId) || prepare.isPending) return;
+    preparedRef.current.add(batchId);
+    setReport(null);
+    prepare.mutate(batchId);
+    // `prepare` is a stable mutation handle; the batch id is the only trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchId]);
+
+  const preparing = prepare.isPending;
+  const busy = uploading || preparing;
+
+  const summary =
+    preview && !preparing ? buildLiteSummary(preview.batch.id, preview.rows as never) : null;
   const plan = summary ? planLiteSync(summary, automation.data?.state) : null;
   const highlight = advancedHighlight({ held: summary?.reviewable ?? 0, reducedMotion });
 
@@ -91,11 +135,14 @@ export function LiteImportPanel({
       }
       await queryClient.invalidateQueries({ queryKey: ["crm-import-batches"] });
       if (result.status === "ok") {
-        const saved = result.summary.auto_imported + result.summary.manually_imported;
-        toast.success(
-          `${saved} ${saved === 1 ? "contact" : "contacts"} saved. ${result.summary.pending_review} held for your review.`,
-        );
+        // Per-row outcomes come straight from the server run summary, so a
+        // partial failure is reported honestly rather than as a success.
+        const next = buildLiteSyncReport(result.summary);
+        setReport(next);
+        if (next.failed > 0) toast.warning(liteSyncHeadline(next));
+        else toast.success(liteSyncHeadline(next));
       } else {
+        setReport(null);
         toast.error("Saving contacts is not available for your business right now.");
       }
     },
@@ -107,6 +154,7 @@ export function LiteImportPanel({
         ([reason, count]) => count > 0 && reason !== "already_saved",
       )
     : [];
+
 
   return (
     <div className="space-y-6">
@@ -122,12 +170,12 @@ export function LiteImportPanel({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          disabled={uploading}
+          disabled={busy}
           className="flex w-full flex-col items-center gap-2 rounded-lg border border-dashed border-input bg-secondary/20 px-6 py-10 text-center hover:bg-secondary/40 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <UploadCloud className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
           <span className="text-sm font-medium">
-            {uploading ? "Checking your contacts…" : "Choose a contact file"}
+            {busy ? "Checking your contacts…" : "Choose a contact file"}
           </span>
           <span className="text-xs text-muted-foreground">CSV file, up to 2 MB</span>
         </button>
@@ -137,7 +185,7 @@ export function LiteImportPanel({
           aria-label="Choose a contact file to import"
           accept=".csv,text/csv,.tsv,text/tab-separated-values"
           className="sr-only"
-          disabled={uploading}
+          disabled={busy}
           onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = "";
@@ -150,11 +198,18 @@ export function LiteImportPanel({
           }}
         />
 
-        {uploading ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            Checking your contacts… this only takes a moment.
-          </p>
+        {busy ? (
+          <div role="status" className="space-y-1 text-sm text-muted-foreground">
+            <p>{preparing ? LITE_PREPARE_COPY : "Checking your contacts… this only takes a moment."}</p>
+            <ul className="space-y-0.5 text-xs">
+              {LITE_PREPARE_STEPS.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ul>
+            <p className="text-xs">{LITE_PREPARE_SAFETY_COPY}</p>
+          </div>
         ) : null}
+
       </section>
 
       {summary ? (
@@ -222,6 +277,35 @@ export function LiteImportPanel({
           {plan && !plan.ok ? (
             <p className="text-xs text-muted-foreground">{SYNC_BLOCK_COPY[plan.reason]}</p>
           ) : null}
+
+          {report ? (
+            <div
+              className="rounded-md border border-border bg-secondary/30 p-3"
+              aria-label="What happened to each contact"
+            >
+              <p className="text-sm font-medium">{liteSyncHeadline(report)}</p>
+              {report.partial_failure ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Only part of this upload was saved. The contacts already saved stay saved — trying
+                  again will not add them twice.
+                </p>
+              ) : null}
+              <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                {report.rows.map((row) => (
+                  <li key={row.row_number}>
+                    Contact {row.row_number} · {LITE_SYNC_OUTCOME_LABELS[row.outcome]}
+                  </li>
+                ))}
+              </ul>
+              {report.failed > 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  You can press {SYNC_ACTION_LABEL} again to retry the contacts that could not be
+                  saved.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
         </section>
       ) : (
         <section className="panel p-6 text-center">

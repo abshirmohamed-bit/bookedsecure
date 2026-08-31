@@ -10,6 +10,9 @@
 import {
   BOUNDED_BATCH_MAX_ROWS,
   type ImportAutomationState,
+  type ImportSummary,
+  type RowOutcome,
+  type RowResult,
 } from "@/lib/import-automation";
 import {
   evaluateCommitEligibility,
@@ -17,6 +20,7 @@ import {
   type CommitBlockReason,
   type CommitEvaluableRow,
 } from "@/lib/commit-gate";
+
 
 export const IMPORT_VIEWS = ["lite", "advanced"] as const;
 export type ImportView = (typeof IMPORT_VIEWS)[number];
@@ -222,7 +226,8 @@ export function planLiteSync(
 ): SyncPlan {
   if (summary.eligible_rows.length === 0) return { ok: false, reason: "nothing_to_sync" };
   if (state?.paused) return { ok: false, reason: "paused" };
-  if (!state || state.mode === "disabled" || state.mode === "preview_only") {
+  // Fail closed: only the two modes whose server gates permit a batch import.
+  if (!state || (state.mode !== "bounded_batch" && state.mode !== "exception_only")) {
     return { ok: false, reason: "not_enabled" };
   }
   const path = chooseSyncPath(summary.eligible_rows.length);
@@ -242,3 +247,123 @@ export const SYNC_BLOCK_COPY: Record<
   paused: "Saving contacts is paused for your business right now.",
   not_enabled: "Saving contacts to your CRM is not switched on for your business yet.",
 };
+
+// --- automated preparation ----------------------------------------------------
+
+/**
+ * Plain-language description of the automated preparation the simple view runs
+ * for the owner. Every step is an EXISTING verified server step; this list is
+ * copy only and performs nothing itself.
+ *
+ * 1-4 and 7 happen inside `previewCrmImport` -> `previewCrmCsv` (delimiter
+ * detection, parsing, column mapping, date parsing, validation).
+ * 5-6, 8-10 happen inside `repairCrmImportPhones` -> `repairPreviewBatch`
+ * (deterministic phone repair with original-value and reason preservation,
+ * revalidation, tenant-scoped duplicate preflight and classification).
+ */
+export const LITE_PREPARE_STEPS = [
+  "Reading your file",
+  "Matching your columns",
+  "Correcting Australian phone formats",
+  "Checking for contacts you already have",
+  "Deciding what is safe to save",
+] as const;
+
+export const LITE_PREPARE_COPY = "Getting your contacts ready…";
+export const LITE_PREPARE_SAFETY_COPY =
+  "Your original values are always kept exactly as you uploaded them.";
+
+// --- per-row sync outcomes ----------------------------------------------------
+
+export type LiteSyncOutcome = "saved" | "already_saved" | "held" | "failed";
+
+export const LITE_SYNC_OUTCOME_LABELS: Record<LiteSyncOutcome, string> = {
+  saved: "Saved to your CRM",
+  already_saved: "Already in your CRM — nothing was added again",
+  held: "Held for your review",
+  failed: "Could not be saved — safe to try again",
+};
+
+/** Translate one existing engine outcome into plain business language. */
+export function liteSyncOutcome(outcome: RowOutcome): LiteSyncOutcome {
+  switch (outcome) {
+    case "auto_imported":
+    case "manually_imported":
+      return "saved";
+    case "already_committed":
+      return "already_saved";
+    case "failed":
+      return "failed";
+    // A row that needs human reconciliation is never retried automatically.
+    case "reconciliation_required":
+      return "held";
+    default:
+      return "held";
+  }
+}
+
+/**
+ * A failed row may be retried; a saved, already-saved, held or
+ * reconciliation-required row may not. Retrying never re-sends a saved row:
+ * the shared eligibility engine reports it as `already_committed`, so it is not
+ * offered as a candidate again.
+ */
+export function isLiteRetryable(result: RowResult): boolean {
+  return result.outcome === "failed";
+}
+
+export type LiteSyncRow = {
+  row_number: number;
+  outcome: LiteSyncOutcome;
+  retryable: boolean;
+};
+
+export type LiteSyncReport = {
+  saved: number;
+  already_saved: number;
+  held: number;
+  failed: number;
+  /** True when at least one row was saved AND at least one row was not. */
+  partial_failure: boolean;
+  retryable_rows: number[];
+  rows: LiteSyncRow[];
+};
+
+/**
+ * Derive the per-row result display from the EXISTING run summary. Pure: it
+ * reads `ImportSummary.rows`, which the server produced through
+ * `revalidateCandidate` + `importStagedRowAsLead`.
+ */
+export function buildLiteSyncReport(summary: ImportSummary): LiteSyncReport {
+  const rows: LiteSyncRow[] = summary.rows.map((result) => ({
+    row_number: result.row_number,
+    outcome: liteSyncOutcome(result.outcome),
+    retryable: isLiteRetryable(result),
+  }));
+  const count = (outcome: LiteSyncOutcome) => rows.filter((row) => row.outcome === outcome).length;
+  const saved = count("saved");
+  const unresolved = count("held") + count("failed");
+  return {
+    saved,
+    already_saved: count("already_saved"),
+    held: count("held"),
+    failed: count("failed"),
+    partial_failure: saved > 0 && unresolved > 0,
+    retryable_rows: rows.filter((row) => row.retryable).map((row) => row.row_number),
+    rows,
+  };
+}
+
+/**
+ * Honest headline for a completed sync. Partial failure is never hidden behind
+ * a generic success message.
+ */
+export function liteSyncHeadline(report: LiteSyncReport): string {
+  const parts = [`${report.saved} ${report.saved === 1 ? "contact" : "contacts"} saved`];
+  if (report.already_saved > 0) parts.push(`${report.already_saved} already in your CRM`);
+  if (report.failed > 0) {
+    parts.push(`${report.failed} could not be saved and can be tried again`);
+  }
+  if (report.held > 0) parts.push(`${report.held} still held for your review`);
+  return `${parts.join(", ")}.`;
+}

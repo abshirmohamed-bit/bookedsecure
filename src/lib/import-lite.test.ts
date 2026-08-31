@@ -8,17 +8,29 @@ import {
   TECHNICAL_TERMS,
   advancedHighlight,
   buildLiteSummary,
+  buildLiteSyncReport,
   chooseSyncPath,
+  isLiteRetryable,
   liteSummaryLines,
+  liteSyncHeadline,
+  liteSyncOutcome,
   planLiteSync,
 } from "@/lib/import-lite";
 import {
   BOUNDED_BATCH_MAX_ROWS,
   DEFAULT_IMPORT_AUTOMATION_STATE,
+  buildImportSummary,
   type ImportAutomationState,
+  type RowResult,
 } from "@/lib/import-automation";
-import { commitIdempotencyKey, type CommitEvaluableRow } from "@/lib/commit-gate";
+import {
+  commitIdempotencyKey,
+  evaluateCommitEligibility,
+  type CommitEvaluableRow,
+} from "@/lib/commit-gate";
+import { prepareRow } from "@/lib/csv-import";
 import { DEFAULT_CLASSIFICATION, DEFAULT_REVIEW } from "@/lib/row-review";
+
 
 const BATCH = "11111111-1111-4111-8111-111111111111";
 
@@ -344,5 +356,273 @@ describe("lite sync uses the existing controlled execution paths", () => {
     liteSummaryLines(summary);
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+});
+
+// --- automated lite preparation ------------------------------------------------
+
+describe("lite mode automates the existing safe preparation workflow", () => {
+  it("automatically invokes the existing owner-gated deterministic repair pass", async () => {
+    const component = await readFile("src/components/LiteImportPanel.tsx", "utf8");
+    // The single approved preparation entry point, run for the owner instead of
+    // requiring them to press a technical button in the advanced view.
+    expect(component).toContain("repairCrmImportPhones");
+    expect(component).toContain("prepare.mutate(batchId)");
+    expect(component).toContain("useEffect");
+    // No second phone-repair implementation anywhere in the lite path.
+    expect(component).not.toContain("repairPhone");
+    const lite = await readFile("src/lib/import-lite.ts", "utf8");
+    expect(lite).not.toContain("repairPhone");
+  });
+
+  it("runs the repair pass through the owner-gated tenant-scoped server function", async () => {
+    const functions = await readFile("src/lib/csv-import.functions.ts", "utf8");
+    const block = functions.slice(functions.indexOf("export const repairCrmImportPhones"));
+    expect(block).toContain("requireSupabaseAuth");
+    expect(block).toContain("requireOwner(app)");
+    expect(block).toContain("app.businessId");
+  });
+
+  it("keeps the preparation pass preview-only — it never touches live records", async () => {
+    const server = await readFile("src/lib/csv-import.server.ts", "utf8");
+    const pass = server.slice(
+      server.indexOf("export async function repairPreviewBatch"),
+      server.indexOf("export async function editStagedRow"),
+    );
+    expect(pass.length).toBeGreaterThan(0);
+    for (const forbidden of [
+      "captureLead",
+      "sendSms",
+      'from("leads")',
+      'from("messages")',
+      'from("conversations")',
+      'from("jobs")',
+      'from("notifications")',
+      'from("automation_jobs")',
+      "telnyx",
+    ]) {
+      expect(pass.toLowerCase()).not.toContain(forbidden.toLowerCase());
+    }
+  });
+
+  it("repairs a nine-digit Australian mobile and only then makes it eligible", () => {
+    const row = prepareRow(["Name", "Email", "Phone"], ["Nine", "nine@example.com", "424012949"], 1);
+    expect(row.normalized_payload.mobile_number).toBe("+61424012949");
+    expect(row.normalized_payload.source_metadata["phone_raw"]).toBe("424012949");
+    expect(row.normalized_payload.phone_repair?.reason).toBeTruthy();
+
+    const repaired = cleanRow(1, { mobile_number: row.normalized_payload.mobile_number });
+    expect(buildLiteSummary(BATCH, [repaired]).eligible_rows).toEqual([1]);
+  });
+
+  it("cleans an extra trunk zero after the country code", () => {
+    const row = prepareRow(
+      ["Name", "Email", "Phone"],
+      ["Trunk", "trunk@example.com", "+610404398423"],
+      1,
+    );
+    expect(row.normalized_payload.mobile_number).toBe("+61404398423");
+    expect(row.normalized_payload.phone_repair?.actions).toContain("removed_extra_trunk_zero");
+  });
+
+  it("is idempotent when preparation runs again on an already-repaired value", () => {
+    const first = prepareRow(["Name", "Phone"], ["Nine", "424012949"], 1);
+    const second = prepareRow(
+      ["Name", "Phone"],
+      ["Nine", first.normalized_payload.mobile_number ?? ""],
+      1,
+    );
+    expect(second.normalized_payload.mobile_number).toBe(first.normalized_payload.mobile_number);
+    const before = buildLiteSummary(BATCH, [cleanRow(1, { mobile_number: first.normalized_payload.mobile_number })]);
+    const after = buildLiteSummary(BATCH, [cleanRow(1, { mobile_number: second.normalized_payload.mobile_number })]);
+    expect(after).toEqual(before);
+  });
+
+  it("keeps an uncertain or unrepairable phone held for advanced review", () => {
+    const uncertain = prepareRow(["Name", "Email", "Phone"], ["Sam", "sam@example.com", "0404"], 1);
+    expect(uncertain.normalized_payload.mobile_number).toBeNull();
+    const summary = buildLiteSummary(BATCH, [heldPhoneRow(1)]);
+    expect(summary.eligible_rows).toEqual([]);
+    expect(summary.held).toBe(1);
+    expect(summary.hold_reason_counts.needs_phone_fix).toBe(1);
+  });
+
+  it("derives the lite candidate set from the identical shared eligibility engine", () => {
+    const rows = [cleanRow(1), heldPhoneRow(2), duplicateRow(3), cleanRow(4)];
+    const advanced = rows
+      .filter((row) => evaluateCommitEligibility(BATCH, row).eligible)
+      .map((row) => row.row_number);
+    expect(buildLiteSummary(BATCH, rows).eligible_rows).toEqual(advanced);
+    expect(advanced).toEqual([1, 4]);
+  });
+
+  it("never lets a blocked row be forced through the lite sync plan", () => {
+    const rows = [heldPhoneRow(1), duplicateRow(2)];
+    const summary = buildLiteSummary(BATCH, rows);
+    expect(planLiteSync(summary, enabled())).toEqual({ ok: false, reason: "nothing_to_sync" });
+  });
+
+  it("moves a row into the lite candidate set only after an advanced edit fixes it", () => {
+    const rows = [heldPhoneRow(1), cleanRow(2)];
+    expect(buildLiteSummary(BATCH, rows).eligible_rows).toEqual([2]);
+    // The same shared rows after an advanced-view repair + revalidation.
+    const edited = rows.map((row) => (row.row_number === 1 ? cleanRow(1) : row));
+    const after = buildLiteSummary(BATCH, edited);
+    expect(after.eligible_rows).toEqual([1, 2]);
+    expect(after.held).toBe(0);
+    // Being edited does not commit anything: an explicit sync is still required.
+    expect(planLiteSync(after, enabled()).ok).toBe(true);
+    expect(after.already_saved).toBe(0);
+  });
+});
+
+describe("lite sync reports every per-row outcome honestly", () => {
+  const summaryFor = (results: RowResult[], rows: CommitEvaluableRow[]) =>
+    buildImportSummary({
+      mode: "exception_only",
+      batchId: BATCH,
+      ranAt: "2026-03-01T00:00:00.000Z",
+      rows,
+      results,
+    });
+
+  const result = (rowNumber: number, outcome: RowResult["outcome"]): RowResult => ({
+    row_number: rowNumber,
+    outcome,
+    lead_id: outcome === "auto_imported" ? `lead-${rowNumber}` : null,
+    idempotency_key: commitIdempotencyKey(BATCH, rowNumber),
+    reasons: [],
+    error: outcome === "failed" ? "insert failed" : null,
+  });
+
+  it("distinguishes saved, already saved, held and failed rows", () => {
+    const rows = [cleanRow(1), cleanRow(2), cleanRow(3), heldPhoneRow(4)];
+    const report = buildLiteSyncReport(
+      summaryFor(
+        [
+          result(1, "auto_imported"),
+          result(2, "already_committed"),
+          result(3, "failed"),
+          result(4, "blocked"),
+        ],
+        rows,
+      ),
+    );
+    expect(report.saved).toBe(1);
+    expect(report.already_saved).toBe(1);
+    expect(report.failed).toBe(1);
+    expect(report.held).toBe(1);
+    expect(report.rows.map((row) => row.outcome)).toEqual([
+      "saved",
+      "already_saved",
+      "failed",
+      "held",
+    ]);
+  });
+
+  it("never hides a partial failure behind a generic success message", () => {
+    const report = buildLiteSyncReport(
+      summaryFor([result(1, "auto_imported"), result(2, "failed")], [cleanRow(1), cleanRow(2)]),
+    );
+    expect(report.partial_failure).toBe(true);
+    const headline = liteSyncHeadline(report);
+    expect(headline).toContain("1 contact saved");
+    expect(headline).toContain("could not be saved");
+  });
+
+  it("keeps only failed rows retryable, and never a saved or held row", () => {
+    const report = buildLiteSyncReport(
+      summaryFor(
+        [
+          result(1, "auto_imported"),
+          result(2, "failed"),
+          result(3, "already_committed"),
+          result(4, "reconciliation_required"),
+        ],
+        [cleanRow(1), cleanRow(2), cleanRow(3), heldPhoneRow(4)],
+      ),
+    );
+    expect(report.retryable_rows).toEqual([2]);
+    expect(isLiteRetryable(result(1, "auto_imported"))).toBe(false);
+    expect(isLiteRetryable(result(4, "reconciliation_required"))).toBe(false);
+    expect(liteSyncOutcome("reconciliation_required")).toBe("held");
+  });
+
+  it("retries only the still-eligible rows and never duplicates a saved row", () => {
+    const committed = (rowNumber: number) =>
+      cleanRow(rowNumber, {
+        commit: {
+          status: "committed",
+          idempotency_key: commitIdempotencyKey(BATCH, rowNumber),
+          lead_id: `lead-${rowNumber}`,
+          committed_at: "2026-03-01T00:00:00.000Z",
+          attempted_at: null,
+          error: null,
+          reconciliation_required: false,
+        },
+      } as Partial<CommitEvaluableRow>);
+
+    // State after a partial run: row 1 saved, row 2 failed and still staged.
+    const afterRun = [committed(1), cleanRow(2)];
+    const retryPlan = planLiteSync(buildLiteSummary(BATCH, afterRun), enabled());
+    expect(retryPlan.ok).toBe(true);
+    if (retryPlan.ok) expect(retryPlan.rowNumbers).toEqual([2]);
+
+    // A retry that still includes row 1 gets already_committed, never a duplicate.
+    const retryReport = buildLiteSyncReport(
+      summaryFor([result(1, "already_committed"), result(2, "auto_imported")], afterRun),
+    );
+    expect(retryReport.saved).toBe(1);
+    expect(retryReport.already_saved).toBe(1);
+    expect(retryReport.failed).toBe(0);
+  });
+
+  it("keeps the import-only invariants at zero for every reported run", () => {
+    const summary = summaryFor([result(1, "auto_imported"), result(2, "failed")], [
+      cleanRow(1),
+      cleanRow(2),
+    ]);
+    expect(summary.sms_sent).toBe(0);
+    expect(summary.emails_sent).toBe(0);
+    expect(summary.conversations_created).toBe(0);
+    expect(summary.jobs_created).toBe(0);
+    expect(summary.owner_alerts).toBe(0);
+    expect(summary.automation_runs).toBe(0);
+    expect(summary.provider_calls).toBe(0);
+    expect(summary.pipeline_changes).toBe(0);
+  });
+
+  it("revalidates every candidate immediately before insertion on both paths", async () => {
+    const server = await readFile("src/lib/import-automation.server.ts", "utf8");
+    const importOne = server.slice(
+      server.indexOf("async function importOne("),
+      server.indexOf("async function finishRun("),
+    );
+    // Revalidation happens first, and the write is the single approved path.
+    expect(importOne.indexOf("revalidateCandidate")).toBeLessThan(
+      importOne.indexOf("importStagedRowAsLead"),
+    );
+    expect(importOne).toContain("if (!revalidated.ok)");
+    expect(server).toContain("runBoundedBatch");
+    expect(server).toContain("runExceptionOnlyImport");
+    // Ignore the module's own safety commentary; scan executable lines only.
+    const code = server
+      .split("\n")
+      .filter((line) => {
+        const trimmed = line.trim();
+        return !trimmed.startsWith("//") && !trimmed.startsWith("*") && !trimmed.startsWith("/*");
+      })
+      .join("\n")
+      .toLowerCase();
+    for (const forbidden of ["capturelead", "sendsms", 'from("messages").insert', "telnyx"]) {
+      expect(code).not.toContain(forbidden);
+    }
+  });
+
+  it("fails closed on rollout mode and pause for the automated lite path", () => {
+    const summary = buildLiteSummary(BATCH, [cleanRow(1)]);
+    expect(planLiteSync(summary, enabled({ mode: "preview_only" })).ok).toBe(false);
+    expect(planLiteSync(summary, enabled({ paused: true })).ok).toBe(false);
+    expect(planLiteSync(summary, enabled({ mode: "canary_ready" })).ok).toBe(false);
   });
 });
