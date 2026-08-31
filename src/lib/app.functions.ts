@@ -5,6 +5,14 @@ import { LEAD_STATUSES } from "@/lib/domain";
 
 const LeadIdSchema = z.object({ leadId: z.string().uuid() });
 
+const InboxQuerySchema = z.object({
+  page: z.number().int().optional(),
+  pageSize: z.number().int().optional(),
+  status: z.string().max(64).optional(),
+  source: z.string().max(64).optional(),
+  sms: z.string().max(64).optional(),
+});
+
 export const getSession = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -21,48 +29,40 @@ export const getSession = createServerFn({ method: "GET" })
 
 export const getDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: unknown) => InboxQuerySchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { computeMetrics } = await import("@/lib/reporting.server");
-    const { composeInboxRows } = await import("@/lib/lead-inbox");
+    const { queryLeadInbox } = await import("@/lib/lead-query.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const app = await requireAppContext(context.supabase, context.userId);
 
-
-    const [metrics, leads, conversations, jobs] = await Promise.all([
+    // Pagination and filtering happen in the shared tenant-scoped query: the
+    // browser never receives the full lead table.
+    const [metrics, inbox] = await Promise.all([
       computeMetrics(app.businessId),
-      supabaseAdmin
-        .from("leads")
-        .select(
-          "id, name, mobile_number, email, suburb, vehicle_type, service_intent, source_channel, source_campaign, lead_origin, source_metadata, import_batch_id, status, readiness_classification, created_at, first_contacted_at, first_reply_at, updated_at, deleted_at, last_outbound_sms_status, last_outbound_sms_at, last_delivered_sms_at, last_sms_failure_at, last_sms_failure_reason, last_sms_failure_code, sms_suppressed_at, sms_suppression_reason, last_reply_at",
-        )
-
-        .eq("business_id", app.businessId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(200)
-        .then((response) => response.data),
-      supabaseAdmin
-        .from("conversations")
-        .select("lead_id, status, next_follow_up_at, automation_paused, last_message_at")
-        .eq("business_id", app.businessId)
-        .then((response) => response.data),
-      supabaseAdmin
-        .from("jobs")
-        .select("lead_id, completed_value, completion_status")
-        .eq("business_id", app.businessId)
-        .then((response) => response.data),
+      queryLeadInbox(supabaseAdmin, {
+        businessId: app.businessId,
+        page: data.page ?? 1,
+        pageSize: data.pageSize ?? 25,
+        filters: {
+          scope: "active",
+          ...(data.status === undefined ? {} : { status: data.status }),
+          ...(data.source === undefined ? {} : { source: data.source }),
+          ...(data.sms === undefined ? {} : { sms: data.sms as never }),
+        },
+      }),
     ]);
 
-    // Conversations are left-joined: an imported lead with no conversation yet
-    // still appears in the inbox.
     return {
       role: app.role,
       metrics,
-      leads: composeInboxRows(leads, conversations, jobs),
+      leads: inbox.leads,
+      page: inbox.page,
+      filters: inbox.filters,
     };
-
   });
+
 
 export const getLead = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
