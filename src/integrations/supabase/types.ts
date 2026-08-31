@@ -922,18 +922,24 @@ export type Database = {
           import_batch_id: string | null
           last_cleaned_at: string | null
           last_delivered_sms_at: string | null
+          last_inbound_reply_at: string | null
           last_outbound_sms_at: string | null
           last_outbound_sms_status: string | null
+          last_permanent_failure_at: string | null
           last_reply_at: string | null
           last_sms_failure_at: string | null
           last_sms_failure_code: string | null
           last_sms_failure_reason: string | null
+          last_successful_delivery_at: string | null
           lead_origin: string | null
           main_concerns: string | null
           mobile_number: string
           name: string
           notes: string | null
           opted_out_at: string | null
+          reachability_evidence: string | null
+          reachability_evidence_at: string | null
+          reachability_state: string
           readiness_classification: string | null
           service_intent: string | null
           sms_suppressed_at: string | null
@@ -967,18 +973,24 @@ export type Database = {
           import_batch_id?: string | null
           last_cleaned_at?: string | null
           last_delivered_sms_at?: string | null
+          last_inbound_reply_at?: string | null
           last_outbound_sms_at?: string | null
           last_outbound_sms_status?: string | null
+          last_permanent_failure_at?: string | null
           last_reply_at?: string | null
           last_sms_failure_at?: string | null
           last_sms_failure_code?: string | null
           last_sms_failure_reason?: string | null
+          last_successful_delivery_at?: string | null
           lead_origin?: string | null
           main_concerns?: string | null
           mobile_number: string
           name: string
           notes?: string | null
           opted_out_at?: string | null
+          reachability_evidence?: string | null
+          reachability_evidence_at?: string | null
+          reachability_state?: string
           readiness_classification?: string | null
           service_intent?: string | null
           sms_suppressed_at?: string | null
@@ -1012,18 +1024,24 @@ export type Database = {
           import_batch_id?: string | null
           last_cleaned_at?: string | null
           last_delivered_sms_at?: string | null
+          last_inbound_reply_at?: string | null
           last_outbound_sms_at?: string | null
           last_outbound_sms_status?: string | null
+          last_permanent_failure_at?: string | null
           last_reply_at?: string | null
           last_sms_failure_at?: string | null
           last_sms_failure_code?: string | null
           last_sms_failure_reason?: string | null
+          last_successful_delivery_at?: string | null
           lead_origin?: string | null
           main_concerns?: string | null
           mobile_number?: string
           name?: string
           notes?: string | null
           opted_out_at?: string | null
+          reachability_evidence?: string | null
+          reachability_evidence_at?: string | null
+          reachability_state?: string
           readiness_classification?: string | null
           service_intent?: string | null
           sms_suppressed_at?: string | null
@@ -1850,15 +1868,21 @@ export type Database = {
           job_id: string | null
           last_activity_at: string | null
           last_delivered_sms_at: string | null
+          last_inbound_reply_at: string | null
           last_outbound_sms_at: string | null
           last_outbound_sms_status: string | null
+          last_permanent_failure_at: string | null
           last_reply_at: string | null
           last_sms_failure_at: string | null
           last_sms_failure_code: string | null
           last_sms_failure_reason: string | null
+          last_successful_delivery_at: string | null
           lead_origin: string | null
           mobile_number: string | null
           name: string | null
+          reachability_evidence: string | null
+          reachability_evidence_at: string | null
+          reachability_state: string | null
           readiness_classification: string | null
           service_intent: string | null
           sms_suppressed_at: string | null
