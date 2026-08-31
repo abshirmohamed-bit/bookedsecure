@@ -64,18 +64,50 @@ export const LEAD_INBOX_COLUMNS = [
   "job_completed_value",
 ].join(", ");
 
-export type LeadInboxRow = Record<string, unknown> & {
+type Nullable = string | null;
+
+/** Serializable inbox row contract returned to the browser. */
+export type LeadInboxRow = {
   id: string;
+  name: string;
+  mobile_number: string;
+  email: Nullable;
+  suburb: Nullable;
+  vehicle_type: Nullable;
+  service_intent: Nullable;
+  source_channel: Nullable;
+  source_campaign: Nullable;
+  lead_origin: Nullable;
+  source_metadata: unknown;
+  import_batch_id: Nullable;
+  status: string;
+  readiness_classification: Nullable;
   created_at: string;
-  last_activity_at: string | null;
+  updated_at: Nullable;
+  first_contacted_at: Nullable;
+  first_reply_at: Nullable;
+  deleted_at: Nullable;
+  deleted_by: Nullable;
+  deletion_reason: Nullable;
+  deletion_request_id: Nullable;
+  last_outbound_sms_status: Nullable;
+  last_outbound_sms_at: Nullable;
+  last_delivered_sms_at: Nullable;
+  last_sms_failure_at: Nullable;
+  last_sms_failure_reason: Nullable;
+  last_sms_failure_code: Nullable;
+  sms_suppressed_at: Nullable;
+  sms_suppression_reason: Nullable;
+  last_reply_at: Nullable;
+  last_activity_at: Nullable;
   conversation: {
-    id: string | null;
-    status: string | null;
-    next_follow_up_at: string | null;
+    id: Nullable;
+    status: Nullable;
+    next_follow_up_at: Nullable;
     automation_paused: boolean | null;
-    last_message_at: string | null;
+    last_message_at: Nullable;
   } | null;
-  job: { id: string | null; completion_status: string | null; completed_value: number | null } | null;
+  job: { id: Nullable; completion_status: Nullable; completed_value: number | null } | null;
 };
 
 export type LeadInboxPage = { leads: LeadInboxRow[]; page: PageMeta; filters: LeadInboxFilters };
@@ -95,7 +127,7 @@ export function shapeLeadRow(row: Record<string, unknown>): LeadInboxRow {
   } = row;
 
   return {
-    ...(lead as Record<string, unknown>),
+    ...(lead as Omit<LeadInboxRow, "conversation" | "job">),
     id: String(row["id"]),
     created_at: String(row["created_at"]),
     last_activity_at: (row["last_activity_at"] as string | null) ?? null,
