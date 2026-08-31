@@ -75,7 +75,7 @@ export type LeadInboxRow = {
   suburb: Nullable;
   vehicle_type: Nullable;
   service_intent: Nullable;
-  source_channel: Nullable;
+  source_channel: string;
   source_campaign: Nullable;
   lead_origin: Nullable;
   source_metadata: Json | null;
