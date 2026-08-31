@@ -136,6 +136,11 @@ function ImportView() {
   const [confirmDelete, setConfirmDelete] = useState<ImportBatchSummary | null>(null);
   // Unsaved staged-row edits block the commit controls.
   const [unsavedEdits, setUnsavedEdits] = useState(false);
+  // Lite mode is the default view for every user. Switching views keeps the
+  // same selected batch, the same preview cache and the same row decisions.
+  const [view, setView] = useState<ImportView>(DEFAULT_IMPORT_VIEW);
+  const [focusExceptions, setFocusExceptions] = useState(false);
+
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["crm-import-batches"],
