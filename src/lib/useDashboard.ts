@@ -10,6 +10,7 @@ import {
   type DashboardPayload,
 } from "@/lib/dashboard-contract";
 import { DashboardContractError, deriveDashboardView, type DashboardView } from "@/lib/dashboard-state";
+import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
 export const DASHBOARD_QUERY_KEY = ["dashboard"] as const;
 
