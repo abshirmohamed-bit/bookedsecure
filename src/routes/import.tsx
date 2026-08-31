@@ -612,8 +612,87 @@ function PreviewTable({
   );
 }
 
+/**
+ * Automatic staged-row phone repair. Preview-only: nothing is imported,
+ * messaged, merged or written to live leads.
+ */
+function RepairPanel({ preview }: { preview: Preview }) {
+  const runRepair = useServerFn(repairCrmImportPhones);
+  const queryClient = useQueryClient();
+  const summary = buildRepairSummary(preview.rows as never);
+  const mutation = useMutation({
+    mutationFn: () => runRepair({ data: { batchId: preview.batch.id } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["crm-import-batch", preview.batch.id] });
+      toast.success(
+        `Repair scan complete — ${result.high_confidence_applied} high-confidence repairs applied. Nothing was imported.`,
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const items: [string, string | number][] = [
+    ["Rows scanned", summary.rows_scanned],
+    ["High-confidence repairs applied", summary.high_confidence_applied],
+    ["Medium-confidence suggestions", summary.medium_confidence_suggestions],
+    ["Low-confidence or unrepairable", summary.low_confidence_or_unrepairable],
+    ["Valid Australian mobiles", summary.valid_au_mobiles],
+    ["Repaired Australian mobiles", summary.repaired_au_mobiles],
+    ["Valid Australian landlines", summary.valid_au_landlines],
+    ["Truly invalid phones", summary.invalid_phones],
+    ["Incomplete phones", summary.incomplete_phones],
+    ["Ambiguous phones", summary.ambiguous_phones],
+    ["No phone supplied", summary.empty_phones],
+    ["Potential duplicates", summary.potential_duplicates],
+    ["Auto-include candidates", summary.auto_include_candidates],
+    ["Extra +610 trunk-zero repairs", summary.extra_trunk_zero_repairs],
+    ["Nine-digit mobile repairs", summary.nine_digit_mobile_repairs],
+  ];
+
+  return (
+    <section className="panel space-y-3 p-4" aria-label="Phone repair summary">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+          {DRY_RUN_LABEL}
+        </p>
+        <h2 className="mt-1 text-sm font-semibold">Automatic phone repair (Australia only)</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Deterministic Australian formatting repairs are applied to staged preview values only. The
+          raw uploaded phone is preserved, no subscriber digit is ever invented, and nothing is
+          imported, messaged, merged, scheduled, or written to live leads.
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={mutation.isPending}
+        onClick={() => mutation.mutate()}
+        className="rounded-md border border-input px-3 py-1.5 text-xs disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        {mutation.isPending ? "Scanning and repairing…" : "Scan and repair phone formats"}
+      </button>
+      {mutation.data ? (
+        <p className="text-xs text-muted-foreground">
+          Last run: {mutation.data.rows_scanned} rows scanned · {mutation.data.rows_updated} staged
+          rows updated · eligible rows {mutation.data.before.eligible_rows} →{" "}
+          {mutation.data.after.eligible_rows} · duplicates {mutation.data.before.duplicates} →{" "}
+          {mutation.data.after.duplicates} · raw values preserved:{" "}
+          {mutation.data.raw_values_preserved ? "yes" : "no"}
+        </p>
+      ) : null}
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {items.map(([label, value]) => (
+          <div key={label} className="rounded-md border border-border p-2">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
 
 function DryRunPanel({ preview }: { preview: Preview }) {
+
   const runClassifier = useServerFn(classifyCrmImportBatch);
   const queryClient = useQueryClient();
   const summary = buildDryRunSummary(preview.rows);
