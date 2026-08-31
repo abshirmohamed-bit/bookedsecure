@@ -218,6 +218,9 @@ export type NormalizedEdit = {
   mobile_number: string | null;
   /** The value the owner typed, kept verbatim for the phone field. */
   phone_input: string | null;
+  /** Deterministic repair provenance for the edited phone value. */
+  phone_repair: PhoneRepair;
+
   secondary_phone: string | null;
   whatsapp_number: string | null;
   proposed_status: LeadStatus | null;
