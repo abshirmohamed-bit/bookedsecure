@@ -283,7 +283,8 @@ describe("repair summary defensive reads", () => {
     expect(summary.valid_au_mobiles).toBe(1);
     expect(summary.valid_au_landlines).toBe(1);
     expect(summary.incomplete_phones).toBe(1);
-    expect(summary.extra_trunk_zero_repairs).toBe(1);
+    expect(summary.extra_trunk_zero_repairs).toBe(0);
+    expect(summary.nine_digit_mobile_repairs).toBe(0);
   });
 });
 
