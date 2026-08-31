@@ -449,7 +449,9 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
       proposed_created_at: parseCreatedAt(cell(headers, row, "created_at")),
       source_metadata: metadata,
       unmapped_columns: unmappedColumns(headers),
+      phone_repair: resolved.repair,
     },
+
     validation_errors: errors,
     duplicate_of_row: null,
   };
