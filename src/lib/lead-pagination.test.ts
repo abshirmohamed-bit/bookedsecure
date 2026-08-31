@@ -74,7 +74,7 @@ describe("page arithmetic", () => {
   });
 
   it("renders an empty page without pretending rows exist", () => {
-    const meta = buildPageMeta({ page: 1, pageSize: 25, totalCount: 0, returned: 0 });
+    const meta = buildPageMeta({ page: 1, pageSize: 14, totalCount: 0, returned: 0 });
     expect(meta).toMatchObject({
       totalCount: 0,
       pageCount: 0,
