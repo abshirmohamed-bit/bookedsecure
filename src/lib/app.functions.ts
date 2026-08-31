@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { LEAD_STATUSES } from "@/lib/domain";
+import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
 const LeadIdSchema = z.object({ leadId: z.string().uuid() });
 
