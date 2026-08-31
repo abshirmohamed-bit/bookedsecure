@@ -69,7 +69,7 @@ describe("permanent failure suppression is not auto-cleared", () => {
   it("permanent failure creates the suppression state", async () => {
     const client = createFakeSupabase(seed());
     await applyDeliveryEvent(
-      client.client,
+      client,
       event({ status: "failed", rawStatus: "failed", errorCode: "30003" }),
     );
     const lead = client.db["leads"]![0]!;
@@ -87,7 +87,7 @@ describe("permanent failure suppression is not auto-cleared", () => {
       }),
     );
     await applyDeliveryEvent(
-      client.client,
+      client,
       event({ occurredAt: "2026-01-02T00:00:00.000Z", eventId: "evt_2" }),
     );
     const lead = client.db["leads"]![0]!;
@@ -127,7 +127,7 @@ describe("permanent failure suppression is not auto-cleared", () => {
     for (const code of ["30001", "30007"]) {
       const client = createFakeSupabase(seed());
       await applyDeliveryEvent(
-        client.client,
+        client,
         event({ status: "failed", rawStatus: "failed", errorCode: code, eventId: `evt_${code}` }),
       );
       const lead = client.db["leads"]![0]!;
@@ -166,7 +166,7 @@ describe("owner-confirmed resume", () => {
 
   it("clears only the active suppression state and preserves history", async () => {
     const client = createFakeSupabase(suppressed());
-    const result = await resumeSuppressedAutomation(client.client, {
+    const result = await resumeSuppressedAutomation(client, {
       businessId: BUSINESS,
       actorUserId: "u-1",
       leadId: "l-1",
@@ -186,7 +186,7 @@ describe("owner-confirmed resume", () => {
   it("creates no message, no conversation, no usage change and no automation run", async () => {
     const db = suppressed();
     const client = createFakeSupabase(db);
-    await resumeSuppressedAutomation(client.client, {
+    await resumeSuppressedAutomation(client, {
       businessId: BUSINESS,
       actorUserId: "u-1",
       leadId: "l-1",
@@ -196,13 +196,15 @@ describe("owner-confirmed resume", () => {
     expect(client.db["sms_usage_daily"]).toHaveLength(0);
     expect(client.db["jobs"]).toHaveLength(0);
     expect(client.db["automation_jobs"]![0]!["status"]).toBe("pending");
-    const touched = new Set(client.log.map((entry) => `${entry.table}:${entry.op}`));
-    expect(touched).toEqual(new Set(["leads:select", "leads:update", "audit_events:insert"]));
+    const touched = new Set(
+      (client.writes as { table: string; op: string }[]).map((entry) => `${entry.table}:${entry.op}`),
+    );
+    expect(touched).toEqual(new Set(["leads:update", "audit_events:insert"]));
   });
 
   it("writes one owner-scoped audit event with the previous suppression state", async () => {
     const client = createFakeSupabase(suppressed());
-    await resumeSuppressedAutomation(client.client, {
+    await resumeSuppressedAutomation(client, {
       businessId: BUSINESS,
       actorUserId: "u-1",
       leadId: "l-1",
@@ -221,12 +223,12 @@ describe("owner-confirmed resume", () => {
 
   it("is idempotent on repeated submission", async () => {
     const client = createFakeSupabase(suppressed());
-    await resumeSuppressedAutomation(client.client, {
+    await resumeSuppressedAutomation(client, {
       businessId: BUSINESS,
       actorUserId: "u-1",
       leadId: "l-1",
     });
-    const second = await resumeSuppressedAutomation(client.client, {
+    const second = await resumeSuppressedAutomation(client, {
       businessId: BUSINESS,
       actorUserId: "u-1",
       leadId: "l-1",
@@ -237,7 +239,7 @@ describe("owner-confirmed resume", () => {
 
   it("cannot resume a lead in another tenant", async () => {
     const client = createFakeSupabase(suppressed());
-    const result = await resumeSuppressedAutomation(client.client, {
+    const result = await resumeSuppressedAutomation(client, {
       businessId: OTHER,
       actorUserId: "u-9",
       leadId: "l-1",
