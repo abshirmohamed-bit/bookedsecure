@@ -113,6 +113,11 @@ describe("evaluateTelnyxReadiness", () => {
 });
 
 describe("collectTelnyxFacts", () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
   it("only issues read-only GET requests", async () => {
     const calls: Array<{ url: string; method: string }> = [];
     const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
@@ -124,7 +129,7 @@ describe("collectTelnyxFacts", () => {
           : { data: [{ id: "num_1", status: "active" }] };
       return new Response(JSON.stringify(body), { status: 200 });
     });
-    vi.stubGlobal("fetch", fetchMock);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const facts = await collectTelnyxFacts({ phoneNumber: TELNYX_PILOT_NUMBER, apiKey: "key" });
 
@@ -133,20 +138,16 @@ describe("collectTelnyxFacts", () => {
     expect(facts.profile?.webhookApiVersion).toBe("2");
     expect(calls.every((call) => call.method === "GET")).toBe(true);
     expect(calls.some((call) => call.url.includes("/messages"))).toBe(false);
-    vi.unstubAllGlobals();
   });
 
   it("degrades to a readable reason when Telnyx rejects the lookup", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("nope", { status: 401 })),
-    );
+    globalThis.fetch = vi.fn(async () => new Response("nope", { status: 401 })) as unknown as typeof fetch;
     const facts = await collectTelnyxFacts({ phoneNumber: TELNYX_PILOT_NUMBER, apiKey: "bad" });
     expect(facts.number).toBeNull();
     expect(facts.error).toContain("401");
-    vi.unstubAllGlobals();
   });
 });
+
 
 describe("readiness authorization", () => {
   function fakeSupabase(role: string | null) {
