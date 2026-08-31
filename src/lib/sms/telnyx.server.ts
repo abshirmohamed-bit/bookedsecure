@@ -17,7 +17,7 @@ const TELNYX_API_BASE = "https://api.telnyx.com/v2";
 
 /** Telnyx message statuses -> internal delivery statuses. */
 const TELNYX_STATUS_MAP: Record<string, SendResult["deliveryStatus"]> = {
-  queued: "queued",
+  queued: "provider_accepted",
   sending: "sent",
   sent: "sent",
   delivered: "delivered",
@@ -245,7 +245,7 @@ export function createTelnyxProvider(deps: {
       return {
         provider: "telnyx",
         providerMessageId: flat.messageId ?? `telnyx_${crypto.randomUUID()}`,
-        deliveryStatus: flat.status ? mapTelnyxStatus(flat.status) : "queued",
+        deliveryStatus: flat.status ? mapTelnyxStatus(flat.status) : "provider_accepted",
         errorCode: flat.errorCode,
         providerCost: flat.cost,
       };
@@ -271,6 +271,9 @@ export function createTelnyxProvider(deps: {
         providerMessageId: flat.messageId,
         deliveryStatus: mapTelnyxStatus(flat.status),
         errorCode: flat.errorCode,
+        rawStatus: flat.status,
+        eventId: flat.eventId,
+        occurredAt: flat.occurredAt,
       };
     },
 
