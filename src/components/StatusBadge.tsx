@@ -1,3 +1,9 @@
+import {
+  REACHABILITY_DESCRIPTIONS,
+  REACHABILITY_LABELS,
+  REACHABILITY_STATES,
+  type ReachabilityState,
+} from "@/lib/sms/reachability";
 import { cn } from "@/lib/utils";
 import { LEAD_STATUS_LABELS, READINESS_LABELS, type LeadStatus } from "@/lib/domain";
 import { deliveryLabel, FAILURE_CLASS_LABELS, type FailureClass } from "@/lib/sms/delivery";
@@ -109,3 +115,54 @@ export function SmsSuppressedBadge({ reason }: { reason?: string | null }) {
   );
 }
 
+
+/**
+ * Reachability is evidence about the number, and is shown separately from the
+ * latest outbound message status. It never asserts a number is permanently
+ * inactive: a permanent failure reads "Suppressed - needs review".
+ */
+export function ReachabilityBadge({
+  state,
+  evidenceAt,
+  evidence,
+  className,
+}: {
+  state: string | null | undefined;
+  evidenceAt?: string | null;
+  evidence?: string | null;
+  className?: string;
+}) {
+  const key = (REACHABILITY_STATES as readonly string[]).includes(state ?? "")
+    ? (state as ReachabilityState)
+    : "unknown";
+  const tone =
+    key === "reachable_recently"
+      ? "bg-success/10 text-success border-success/30"
+      : key === "suppressed_pending_review"
+        ? "bg-warning/10 text-warning border-warning/30"
+        : key === "unreachable_recently"
+          ? "bg-destructive/10 text-destructive border-destructive/40"
+          : "bg-secondary text-muted-foreground border-border";
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
+        tone,
+        className,
+      )}
+      title={evidence ?? REACHABILITY_DESCRIPTIONS[key]}
+    >
+      {REACHABILITY_LABELS[key]}
+      {evidenceAt ? (
+        <span className="font-normal opacity-80">
+          {new Date(evidenceAt).toLocaleString("en-AU", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
+      ) : null}
+    </span>
+  );
+}
