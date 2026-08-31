@@ -46,7 +46,6 @@ export function LeadsWorkspace() {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [smsFilter, setSmsFilter] = useState<SmsLeadFilter>("all");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
   const [showAdd, setShowAdd] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
