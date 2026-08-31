@@ -205,6 +205,21 @@ export function LeadsWorkspace() {
                 </option>
               ))}
             </select>
+            <label className="sr-only" htmlFor="sms-filter">
+              Filter by SMS delivery
+            </label>
+            <select
+              id="sms-filter"
+              value={smsFilter}
+              onChange={(event) => setSmsFilter(event.target.value as SmsLeadFilter)}
+              className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+            >
+              {SMS_LEAD_FILTERS.map((value) => (
+                <option key={value} value={value}>
+                  {SMS_FILTER_LABELS[value]}
+                </option>
+              ))}
+            </select>
             <label className="sr-only" htmlFor="status-filter">
               Filter by status
             </label>
@@ -221,6 +236,7 @@ export function LeadsWorkspace() {
                 </option>
               ))}
             </select>
+
             {visibleSelection.length > 0 && (
               <>
                 <span className="text-xs text-muted-foreground" data-testid="selected-count">
