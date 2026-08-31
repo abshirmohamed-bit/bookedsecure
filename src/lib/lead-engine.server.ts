@@ -109,12 +109,9 @@ async function recordConsentEvent(input: {
 }
 
 function isWithinQuietHours(business: Business, at: Date): boolean {
-  return isQuietHour(
-    businessLocalHour(business.timezone, at),
-    business.quiet_hours_start,
-    business.quiet_hours_end,
-  );
+  return evaluateQuietHoursGate(business, at).blocked;
 }
+
 
 // ---------------------------------------------------------------------------
 // Sender resolution
