@@ -37,7 +37,7 @@ export function useDashboard(request?: Partial<DashboardRequest>): DashboardView
 
   const params: DashboardRequest = {
     page: request?.page ?? 1,
-    pageSize: request?.pageSize ?? 25,
+    pageSize: request?.pageSize ?? DEFAULT_PAGE_SIZE,
     status: request?.status ?? "all",
     source: request?.source ?? "all",
     sms: request?.sms ?? "all",
