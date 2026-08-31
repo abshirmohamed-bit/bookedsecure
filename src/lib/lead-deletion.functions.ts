@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
 const DeleteSchema = z.object({
   requestId: z.string().uuid(),
