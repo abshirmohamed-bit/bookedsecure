@@ -15,6 +15,7 @@ import {
   type DeletionFailure,
   type DeletionResult,
 } from "@/lib/lead-deletion";
+import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
 type Client = SupabaseClient<Database>;
 
