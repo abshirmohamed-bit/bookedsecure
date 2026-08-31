@@ -446,7 +446,10 @@ export type SendSmsResult = {
   messageId?: string;
   duplicate?: boolean;
   retriable?: boolean;
+  /** Explicit, typed block reason. Currently only the final quiet-hours gate. */
+  code?: typeof QUIET_HOURS_BLOCKED_CODE;
 };
+
 
 
 /** Single outbound path for every SMS: enforces opt-out, status, sender, caps and idempotency. */
