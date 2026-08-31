@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Plus, RefreshCw, Trash2, Undo2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { DeliveryBadge, SmsSuppressedBadge, StatusBadge } from "@/components/StatusBadge";
+import { DeliveryBadge, ReachabilityBadge, SmsSuppressedBadge, StatusBadge } from "@/components/StatusBadge";
 import { InboxPagination } from "@/components/InboxPagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 import {
@@ -394,14 +394,19 @@ export function LeadsWorkspace() {
                         <span className="text-xs text-warning">paused</span>
                       )}
                     </div>
-                    {lead.last_outbound_sms_status && (
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {lead.last_outbound_sms_status && (
                         <DeliveryBadge status={lead.last_outbound_sms_status} />
-                        {lead.sms_suppressed_at && (
-                          <SmsSuppressedBadge reason={lead.sms_suppression_reason} />
-                        )}
-                      </div>
-                    )}
+                      )}
+                      <ReachabilityBadge
+                        state={lead.reachability_state}
+                        evidence={lead.reachability_evidence}
+                        evidenceAt={lead.reachability_evidence_at}
+                      />
+                      {lead.sms_suppressed_at && (
+                        <SmsSuppressedBadge reason={lead.sms_suppression_reason} />
+                      )}
+                    </div>
                     {lead.last_sms_failure_reason && (
                       <p className="mt-1 max-w-[220px] text-[11px] text-destructive">
                         {lead.last_sms_failure_reason}

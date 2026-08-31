@@ -2,6 +2,10 @@
 // or server routes, never imported by client code.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  reachabilityUpdateFor,
+  type ReachabilityRecord,
+} from "@/lib/sms/reachability";
+import {
   AUTOMATION_BLOCKED_STATUSES,
   businessLocalHour,
   firstName,
@@ -815,7 +819,9 @@ export async function handleInboundMessage(input: {
   const mobile = normaliseAuMobile(inbound.from) ?? inbound.from;
   const { data: lead } = await supabaseAdmin
     .from("leads")
-    .select("id, business_id, status")
+    .select(
+      "id, business_id, status, sms_suppressed_at, reachability_state, reachability_evidence, reachability_evidence_at, last_successful_delivery_at, last_permanent_failure_at, last_inbound_reply_at",
+    )
     .eq("business_id", businessId)
     .eq("mobile_number", mobile)
     .order("created_at", { ascending: false })
@@ -881,9 +887,15 @@ export async function handleInboundMessage(input: {
 
   // A reply proves the number is contactable, but it never rewrites the
   // delivery status of earlier outbound messages — it is recorded separately.
+  // An inbound reply is direct evidence the number was in use at that time, so
+  // it restores reachable_recently while the failure history stays intact.
   const update: Record<string, unknown> = {
     first_reply_at: inbound.receivedAt,
     last_reply_at: inbound.receivedAt,
+    ...reachabilityUpdateFor(lead as ReachabilityRecord, {
+      kind: "inbound_reply",
+      at: inbound.receivedAt,
+    }),
   };
   if (optOut) {
     update["status"] = "opted_out";

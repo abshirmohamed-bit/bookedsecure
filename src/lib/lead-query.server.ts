@@ -53,6 +53,12 @@ export const LEAD_INBOX_COLUMNS = [
   "sms_suppressed_at",
   "sms_suppression_reason",
   "last_reply_at",
+  "reachability_state",
+  "reachability_evidence",
+  "reachability_evidence_at",
+  "last_successful_delivery_at",
+  "last_permanent_failure_at",
+  "last_inbound_reply_at",
   "last_activity_at",
   "conversation_id",
   "conversation_status",
@@ -99,6 +105,12 @@ export type LeadInboxRow = {
   sms_suppressed_at: Nullable;
   sms_suppression_reason: Nullable;
   last_reply_at: Nullable;
+  reachability_state: Nullable;
+  reachability_evidence: Nullable;
+  reachability_evidence_at: Nullable;
+  last_successful_delivery_at: Nullable;
+  last_permanent_failure_at: Nullable;
+  last_inbound_reply_at: Nullable;
   last_activity_at: Nullable;
   conversation: {
     id: Nullable;
