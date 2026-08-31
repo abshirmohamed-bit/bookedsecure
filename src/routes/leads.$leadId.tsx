@@ -249,12 +249,32 @@ function LeadDetail() {
                   </span>
                   <span>{message.message_kind}</span>
                   {message.direction === "outbound" && (
-                    <DeliveryBadge status={message.delivery_status} />
+                    <>
+                      <DeliveryBadge status={message.delivery_status} />
+                      <FailureClassBadge failureClass={message.failure_class} />
+                      {message.automation_stopped && (
+                        <span className="text-destructive">Automation stopped</span>
+                      )}
+                      {message.message_source && <span>via {message.message_source}</span>}
+                    </>
                   )}
-                  {message.error_code && (
-                    <span className="text-destructive">{message.error_code}</span>
+                  {(message.failure_code ?? message.error_code) && (
+                    <span className="text-destructive">
+                      {message.failure_code ?? message.error_code}
+                    </span>
                   )}
                 </div>
+                {message.direction === "outbound" && message.failure_reason && (
+                  <p className="mt-1 text-[11px] text-destructive">
+                    {message.failure_reason}
+                    {message.failure_class === "permanent"
+                      ? " Future automated SMS is suppressed for this lead."
+                      : message.failure_class === "temporary"
+                        ? " Temporary problem — no automatic retry was sent."
+                        : ""}
+                  </p>
+                )}
+
               </div>
             ))}
           </div>
