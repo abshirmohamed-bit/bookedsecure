@@ -252,7 +252,7 @@ describe("editStagedRow (preview-only)", () => {
     assertNoSideEffects(client);
   });
 
-  it("keeps an unsupported +610... value as an exception until it is corrected", async () => {
+  it("repairs an extra trunk zero after +61 instead of raising an exception", async () => {
     const data = db({ lead_import_rows: [stagedRow({ ...BASE_PAYLOAD, name: "Harry" })] });
     const client = createFakeSupabase(data);
     const bad = await editStagedRow(client, BUSINESS, {
@@ -261,9 +261,10 @@ describe("editStagedRow (preview-only)", () => {
       userId: USER,
       fields: { phone: "+610404398423" },
     });
-    expect(bad.row.mobile_number).toBeNull();
-    expect(bad.row.validation_errors.map((e) => e.code)).toContain("invalid_phone");
+    expect(bad.row.mobile_number).toBe("+61404398423");
+    expect(bad.row.validation_errors.map((e) => e.code)).not.toContain("invalid_phone");
   });
+
 
   it("accepts a spaced AU mobile and stores the corrected raw phone", async () => {
     const data = db({ lead_import_rows: [stagedRow({ ...BASE_PAYLOAD, name: "Harry" })] });

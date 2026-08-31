@@ -1,6 +1,8 @@
 // Pure, client-safe CRM CSV parsing / mapping / validation helpers.
 // This module NEVER writes leads, conversations, messages or jobs.
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/domain";
+import { repairPhone, type PhoneRepair, type RepairOptions } from "@/lib/phone-repair";
+
 
 export const MAX_CSV_BYTES = 2 * 1024 * 1024; // 2 MB
 export const MAX_CSV_ROWS = 2000;
@@ -284,6 +286,42 @@ export function classifyAuPhone(raw: string): PhoneResult {
   return { kind: "unsupported_type", value: e164 };
 }
 
+export type ResolvedPhone = {
+  /** Repaired E.164 mobile, or null when no high-confidence mobile exists. */
+  mobile_number: string | null;
+  repair: PhoneRepair;
+  errors: ValidationError[];
+};
+
+/**
+ * Deterministic phone resolution for a staged row: normalize → repair candidate
+ * → validate. High-confidence repairs are applied to the staged normalized
+ * value; the raw value is returned untouched inside `repair.original`.
+ * Pure — no writes, no provider calls, and no subscriber digit is invented.
+ */
+export function resolvePhoneWithRepair(raw: string, options?: RepairOptions): ResolvedPhone {
+  const repair = repairPhone(raw, options ?? {});
+  const errors: ValidationError[] = [];
+  if (repair.applied) return { mobile_number: repair.normalized, repair, errors };
+  switch (repair.classification) {
+    case "empty_phone":
+      break;
+    case "valid_au_landline":
+      errors.push({
+        code: "unsupported_phone_type",
+        field: "mobile_number",
+        detail: repair.normalized ?? repair.cleaned,
+      });
+      break;
+    default:
+      errors.push({ code: "invalid_phone", field: "mobile_number", detail: repair.original });
+      break;
+  }
+  return { mobile_number: null, repair, errors };
+}
+
+
+
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 
 export function normaliseEmail(raw: string): { value: string | null; valid: boolean } {
@@ -349,7 +387,10 @@ export type NormalizedPayload = {
   proposed_created_at: string | null;
   source_metadata: Record<string, string>;
   unmapped_columns: string[];
+  /** Deterministic phone repair provenance (preview-only). */
+  phone_repair?: PhoneRepair;
 };
+
 
 export type PreparedRow = {
   row_number: number;
@@ -383,21 +424,18 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   if (!name) errors.push({ code: "missing_name", field: "name" });
 
   const phoneRaw = cell(headers, row, "mobile_number");
-  const phone = classifyAuPhone(phoneRaw);
-  if (phone.kind === "invalid") {
-    errors.push({ code: "invalid_phone", field: "mobile_number", detail: phoneRaw });
-  } else if (phone.kind === "unsupported_type") {
-    errors.push({ code: "unsupported_phone_type", field: "mobile_number", detail: phone.value });
-  }
+  const resolved = resolvePhoneWithRepair(phoneRaw);
+  errors.push(...resolved.errors);
 
   const emailRaw = cell(headers, row, "email");
   const email = normaliseEmail(emailRaw);
   if (!email.valid) errors.push({ code: "invalid_email", field: "email", detail: emailRaw });
 
-  const mobile = phone.kind === "mobile" ? phone.value : null;
+  const mobile = resolved.mobile_number;
   if (!mobile && !(email.valid && email.value)) {
     errors.push({ code: "missing_phone_and_email" });
   }
+
 
   const stageRaw = cell(headers, row, "status");
   const proposedStatus = stageRaw ? mapStage(stageRaw) : null;
@@ -414,6 +452,10 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   if (createdRaw) metadata["created_at_raw"] = createdRaw;
   // Preserve the original CRM stage text verbatim (e.g. "Intake", "Converted").
   if (stageRaw) metadata["stage_raw"] = stageRaw;
+  // The uploaded phone text is preserved verbatim alongside any repair.
+  if (phoneRaw) metadata["phone_raw"] = phoneRaw;
+
+
 
 
   // Meta lead-ads export: preserve raw created_time and platform values, and
@@ -445,7 +487,9 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
       proposed_created_at: parseCreatedAt(cell(headers, row, "created_at")),
       source_metadata: metadata,
       unmapped_columns: unmappedColumns(headers),
+      phone_repair: resolved.repair,
     },
+
     validation_errors: errors,
     duplicate_of_row: null,
   };

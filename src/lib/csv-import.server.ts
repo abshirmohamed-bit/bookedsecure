@@ -541,6 +541,318 @@ export async function classifyPreviewBatch(
   };
 }
 
+// --- automatic staged-row phone repair ----------------------------------------
+
+export type RepairPhase = {
+  valid_au_mobiles: number;
+  repaired_au_mobiles: number;
+  valid_au_landlines: number;
+  invalid_phones: number;
+  incomplete_or_ambiguous_phones: number;
+  empty_phones: number;
+  duplicates: number;
+  eligible_rows: number;
+};
+
+export type RepairRunResult = {
+  batchId: string;
+  rows_scanned: number;
+  rows_updated: number;
+  high_confidence_applied: number;
+  medium_confidence_suggestions: number;
+  low_confidence_or_unrepairable: number;
+  extra_trunk_zero_repairs: number;
+  nine_digit_mobile_repairs: number;
+  raw_values_preserved: boolean;
+  before: RepairPhase;
+  after: RepairPhase;
+  duplicate_lookup_state: DuplicateLookup["state"];
+};
+
+const PHONE_ERROR_CODES = [
+  "invalid_phone",
+  "unsupported_phone_type",
+  "missing_phone_and_email",
+] as const;
+const IN_FILE_DUPLICATE_CODES = ["duplicate_phone_in_file", "duplicate_email_in_file"] as const;
+
+function emptyPhase(): RepairPhase {
+  return {
+    valid_au_mobiles: 0,
+    repaired_au_mobiles: 0,
+    valid_au_landlines: 0,
+    invalid_phones: 0,
+    incomplete_or_ambiguous_phones: 0,
+    empty_phones: 0,
+    duplicates: 0,
+    eligible_rows: 0,
+  };
+}
+
+/**
+ * Run the deterministic phone repair engine across one uncommitted staged batch.
+ *
+ * SAFETY: writes ONLY `lead_import_rows` for this batch (normalized value,
+ * repair provenance, issue list, in-batch duplicate pointer) plus one
+ * `audit_events` record. It never inserts or updates leads, conversations,
+ * messages, jobs, revenue, notifications or automation runs, and never calls a
+ * messaging provider. Raw uploaded rows, batch identity, source, form, channel,
+ * stage, created date, owner, labels and import provenance are untouched.
+ *
+ * Idempotent: the engine is pure, so a second run recomputes the same values and
+ * keeps the first repair timestamp.
+ */
+export async function repairPreviewBatch(
+  client: Client,
+  businessId: string,
+  batchId: string,
+  options: { userId?: string | null } = {},
+): Promise<RepairRunResult> {
+  const { DELETABLE_BATCH_STATUSES } = await import("@/lib/import-history");
+  const { resolvePhoneWithRepair } = await import("@/lib/csv-import");
+  const { readPhoneRepair, stampRepair } = await import("@/lib/phone-repair");
+
+  const { data: batch } = await client
+    .from("import_batches")
+    .select("id, status")
+    .eq("id", batchId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!batch) throw new Error("Import batch not found for this business.");
+  if (!(DELETABLE_BATCH_STATUSES as readonly string[]).includes(batch.status)) {
+    throw new Error("This upload has already been committed, so its rows cannot be repaired.");
+  }
+
+  const { data: rows } = await client
+    .from("lead_import_rows")
+    .select("id, row_number, raw_row, normalized_payload, validation_errors, dedupe_match_lead_id")
+    .eq("batch_id", batchId)
+    .eq("business_id", businessId)
+    .order("row_number", { ascending: true });
+
+  const before = emptyPhase();
+  const after = emptyPhase();
+  let applied = 0;
+  let medium = 0;
+  let low = 0;
+  let extraTrunkZero = 0;
+  let nineDigit = 0;
+  let updated = 0;
+  let rawPreserved = true;
+  const now = new Date().toISOString();
+
+  type Staged = {
+    id: string;
+    row_number: number;
+    payload: PreviewPayload & Record<string, unknown>;
+    errors: PreviewRow["validation_errors"];
+    mobile: string | null;
+    email: string | null;
+    duplicate_of_row: number | null;
+    repair: ReturnType<typeof stampRepair>;
+  };
+
+  const staged: Staged[] = [];
+
+  for (const row of rows ?? []) {
+    const payload = (row.normalized_payload ?? {}) as unknown as PreviewPayload &
+      Record<string, unknown>;
+    const priorErrors = (row.validation_errors ?? []) as PreviewRow["validation_errors"];
+    const priorCodes = priorErrors.map((issue) => issue.code);
+    const metadata = { ...((payload.source_metadata ?? {}) as Record<string, string>) };
+    const priorRepair = readPhoneRepair(payload);
+
+    // "before" counters, from the values staged prior to this run.
+    if (priorCodes.includes("unsupported_phone_type")) before.valid_au_landlines += 1;
+    else if (priorCodes.includes("invalid_phone")) before.invalid_phones += 1;
+    else if (payload.mobile_number) before.valid_au_mobiles += 1;
+    else before.empty_phones += 1;
+    if (priorRepair?.classification === "repaired_au_mobile") before.repaired_au_mobiles += 1;
+    if (row.dedupe_match_lead_id || (payload.duplicate_of_row ?? null) !== null) {
+      before.duplicates += 1;
+    }
+    if (readClassification(payload).classification === "auto_include") before.eligible_rows += 1;
+
+    // The raw uploaded phone text: the immutable source for every repair.
+    const rawRow = (row.raw_row ?? {}) as Record<string, unknown>;
+    const rawHeader = Object.keys(rawRow).find(
+      (header) => canonicalField(header) === "mobile_number",
+    );
+    const rawPhone =
+      priorRepair?.original ??
+      metadata["phone_raw"] ??
+      (rawHeader ? String(rawRow[rawHeader] ?? "").trim() : "") ??
+      "";
+    if (priorRepair && priorRepair.original !== rawPhone) rawPreserved = false;
+
+    const resolved = resolvePhoneWithRepair(rawPhone);
+    const repair = stampRepair(resolved.repair, {
+      stagedRowId: row.id,
+      batchId,
+      at: now,
+      previous: priorRepair,
+    });
+
+    if (repair.applied && repair.classification === "repaired_au_mobile") applied += 1;
+    if (repair.confidence === "medium") medium += 1;
+    if (repair.confidence === "low") low += 1;
+    if (repair.actions.includes("removed_extra_trunk_zero")) extraTrunkZero += 1;
+    if (repair.actions.includes("added_country_code") && repair.applied) nineDigit += 1;
+
+    const email = (payload.email_normalised ?? payload.email ?? "").trim().toLowerCase() || null;
+    const mobile = resolved.mobile_number;
+
+    // Recompute only the phone/duplicate issue codes; every other issue stands.
+    const kept = priorErrors.filter(
+      (issue) =>
+        !(PHONE_ERROR_CODES as readonly string[]).includes(issue.code) &&
+        !(IN_FILE_DUPLICATE_CODES as readonly string[]).includes(issue.code),
+    );
+    const errors: PreviewRow["validation_errors"] = [...kept, ...resolved.errors];
+    if (!mobile && !email) errors.push({ code: "missing_phone_and_email" });
+
+    if (rawPhone) metadata["phone_raw"] = rawPhone;
+    if (repair.normalized && repair.normalized !== rawPhone) {
+      metadata["phone_repaired"] = repair.normalized;
+    }
+
+    staged.push({
+      id: row.id,
+      row_number: row.row_number,
+      payload: { ...payload, source_metadata: metadata },
+      errors,
+      mobile,
+      email,
+      duplicate_of_row: null,
+      repair,
+    });
+  }
+
+  // In-batch duplicates are recomputed from the repaired values, first row wins.
+  const seenPhone = new Map<string, number>();
+  const seenEmail = new Map<string, number>();
+  for (const row of staged) {
+    if (row.mobile && seenPhone.has(row.mobile)) {
+      row.duplicate_of_row = seenPhone.get(row.mobile)!;
+      row.errors.push({
+        code: "duplicate_phone_in_file",
+        field: "mobile_number",
+        detail: `row ${row.duplicate_of_row}`,
+      });
+    } else if (row.email && seenEmail.has(row.email)) {
+      row.duplicate_of_row = seenEmail.get(row.email)!;
+      row.errors.push({
+        code: "duplicate_email_in_file",
+        field: "email",
+        detail: `row ${row.duplicate_of_row}`,
+      });
+    }
+    if (row.mobile && !seenPhone.has(row.mobile)) seenPhone.set(row.mobile, row.row_number);
+    if (row.email && !seenEmail.has(row.email)) seenEmail.set(row.email, row.row_number);
+  }
+
+  for (const row of staged) {
+    const nextPayload = {
+      ...row.payload,
+      mobile_number: row.mobile,
+      duplicate_of_row: row.duplicate_of_row,
+      phone_repair: row.repair,
+    };
+    const unchanged =
+      JSON.stringify(row.payload.mobile_number ?? null) === JSON.stringify(row.mobile) &&
+      (row.payload.duplicate_of_row ?? null) === row.duplicate_of_row &&
+      JSON.stringify((row.payload as { phone_repair?: unknown }).phone_repair ?? null) ===
+        JSON.stringify(row.repair);
+    if (!unchanged) updated += 1;
+
+    const { error } = await client
+      .from("lead_import_rows")
+      .update({
+        normalized_payload: nextPayload as never,
+        validation_errors: row.errors as never,
+      })
+      .eq("id", row.id)
+      .eq("business_id", businessId);
+    if (error) throw new Error(error.message);
+
+    switch (row.repair.classification) {
+      case "valid_au_mobile":
+        after.valid_au_mobiles += 1;
+        break;
+      case "repaired_au_mobile":
+        after.repaired_au_mobiles += 1;
+        after.valid_au_mobiles += 1;
+        break;
+      case "valid_au_landline":
+        after.valid_au_landlines += 1;
+        break;
+      case "invalid_phone":
+        after.invalid_phones += 1;
+        break;
+      case "incomplete_phone":
+      case "ambiguous_phone":
+        after.incomplete_or_ambiguous_phones += 1;
+        break;
+      case "empty_phone":
+        after.empty_phones += 1;
+        break;
+    }
+  }
+
+  // Re-run the read-only tenant-scoped duplicate preflight and classifier so the
+  // repaired values drive duplicate status and auto-include eligibility.
+  const classified = await classifyPreviewBatch(client, businessId, batchId);
+  after.eligible_rows = classified.auto_included;
+
+  const { data: refreshed } = await client
+    .from("lead_import_rows")
+    .select("normalized_payload, dedupe_match_lead_id")
+    .eq("batch_id", batchId)
+    .eq("business_id", businessId);
+  after.duplicates = (refreshed ?? []).filter((row) => {
+    const payload = (row.normalized_payload ?? {}) as unknown as PreviewPayload;
+    return Boolean(row.dedupe_match_lead_id) || (payload.duplicate_of_row ?? null) !== null;
+  }).length;
+
+  if (options.userId) {
+    await client.from("audit_events").insert({
+      business_id: businessId,
+      user_id: options.userId,
+      event_type: "import_phone_repair_run",
+      entity_type: "import_batch",
+      entity_id: batchId,
+      metadata: {
+        batch_id: batchId,
+        rows_scanned: staged.length,
+        rows_updated: updated,
+        high_confidence_applied: applied,
+        medium_confidence_suggestions: medium,
+        low_confidence_or_unrepairable: low,
+        extra_trunk_zero_repairs: extraTrunkZero,
+        nine_digit_mobile_repairs: nineDigit,
+        engine_version: staged[0]?.repair.engine_version ?? null,
+      } as never,
+    });
+  }
+
+  return {
+    batchId,
+    rows_scanned: staged.length,
+    rows_updated: updated,
+    high_confidence_applied: applied,
+    medium_confidence_suggestions: medium,
+    low_confidence_or_unrepairable: low,
+    extra_trunk_zero_repairs: extraTrunkZero,
+    nine_digit_mobile_repairs: nineDigit,
+    raw_values_preserved: rawPreserved,
+    before,
+    after,
+    duplicate_lookup_state: classified.duplicate_lookup_state,
+  };
+}
+
+
+
 /**
  * Edit ONE staged preview row.
  *

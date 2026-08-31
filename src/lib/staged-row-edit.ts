@@ -7,14 +7,16 @@
 // correct an import exception before anything is committed.
 
 import {
-  classifyAuPhone,
   mapSourceChannel,
   mapStage,
   normaliseEmail,
   parseCreatedAt,
+  resolvePhoneWithRepair,
   type ValidationError,
 } from "@/lib/csv-import";
+import { readPhoneRepair, stampRepair, type PhoneRepair } from "@/lib/phone-repair";
 import type { LeadStatus } from "@/lib/domain";
+
 
 export const STAGED_EDIT_SCOPE_NOTICE =
   "Changes apply only to this staged import row. No live lead is created or updated.";
@@ -216,6 +218,9 @@ export type NormalizedEdit = {
   mobile_number: string | null;
   /** The value the owner typed, kept verbatim for the phone field. */
   phone_input: string | null;
+  /** Deterministic repair provenance for the edited phone value. */
+  phone_repair: PhoneRepair;
+
   secondary_phone: string | null;
   whatsapp_number: string | null;
   proposed_status: LeadStatus | null;
@@ -243,13 +248,12 @@ export function normalizeEditableValues(values: EditableValues): NormalizedEdit 
   if (!name) errors.push({ code: "missing_name", field: "name" });
 
   const phoneInput = text(values.phone);
-  const phone = classifyAuPhone(phoneInput);
-  if (phone.kind === "invalid") {
-    errors.push({ code: "invalid_phone", field: "mobile_number", detail: phoneInput });
-  } else if (phone.kind === "unsupported_type") {
-    errors.push({ code: "unsupported_phone_type", field: "mobile_number", detail: phone.value });
-  }
-  const mobile = phone.kind === "mobile" ? phone.value : null;
+  // Same deterministic repair engine used by the importer: high-confidence
+  // Australian formatting fixes are applied, digits are never invented.
+  const resolvedPhone = resolvePhoneWithRepair(phoneInput);
+  errors.push(...resolvedPhone.errors);
+  const mobile = resolvedPhone.mobile_number;
+
 
   const emailInput = text(values.email);
   const email = normaliseEmail(emailInput);
@@ -274,6 +278,8 @@ export function normalizeEditableValues(values: EditableValues): NormalizedEdit 
     email_normalised: email.valid ? email.value : null,
     mobile_number: mobile,
     phone_input: phoneInput || null,
+    phone_repair: resolvedPhone.repair,
+
     secondary_phone: text(values.secondary_phone) || null,
     whatsapp_number: text(values.whatsapp_number) || null,
     proposed_status: status,
@@ -389,7 +395,12 @@ export function applyStagedEdit(
       source_channel: normalized.source_channel,
       source_form: normalized.source_form,
       source_metadata: meta,
+      phone_repair: stampRepair(normalized.phone_repair, {
+        at: now.toISOString(),
+        previous: readPhoneRepair(base),
+      }),
       edits,
+
     },
     values: next,
     normalized,

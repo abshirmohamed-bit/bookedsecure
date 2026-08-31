@@ -12,8 +12,20 @@ import {
   getCrmImportBatch,
   listCrmImportBatches,
   previewCrmImport,
+  repairCrmImportPhones,
   setCrmImportRowDecision,
 } from "@/lib/csv-import.functions";
+import {
+  PHONE_CLASSIFICATION_LABELS,
+  PHONE_REPAIR_ACTION_LABELS,
+  REPAIR_FILTERS,
+  REPAIR_FILTER_LABELS,
+  buildRepairSummary,
+  matchesRepairFilter,
+  readPhoneRepair,
+  type RepairFilter,
+} from "@/lib/phone-repair";
+
 import {
   CLASSIFICATION_REASON_LABELS,
   DRY_RUN_LABEL,
@@ -294,11 +306,13 @@ function ImportView() {
       ) : null}
       {preview.data && preview.data.batch.id === activeId ? (
         <>
+          <RepairPanel preview={preview.data} />
           <DryRunPanel preview={preview.data} />
           <CommitGatePanel preview={preview.data} unsavedEdits={unsavedEdits} />
           <PreviewTable preview={preview.data} onDirtyChange={setUnsavedEdits} />
         </>
       ) : null}
+
     </div>
   );
 }
@@ -375,8 +389,10 @@ function PreviewTable({
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const [editing, setEditing] = useState<number | null>(null);
+  const [filter, setFilter] = useState<RepairFilter>("all");
   const editingRow = preview.rows.find((row) => row.row_number === editing) ?? null;
   const rawRow = Object.fromEntries(preview.headers.map((header) => [header, ""]));
+  const visibleRows = preview.rows.filter((row) => matchesRepairFilter(row as never, filter));
   return (
     <section className="panel space-y-3 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -399,6 +415,27 @@ function PreviewTable({
         </p>
       ) : null}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="repair-filter" className="text-xs text-muted-foreground">
+          Filter rows
+        </label>
+        <select
+          id="repair-filter"
+          value={filter}
+          onChange={(event) => setFilter(event.target.value as RepairFilter)}
+          className="rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          {REPAIR_FILTERS.map((option) => (
+            <option key={option} value={option}>
+              {REPAIR_FILTER_LABELS[option]}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-muted-foreground">
+          Showing {visibleRows.length} of {preview.rows.length} staged rows
+        </span>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-xs">
           <thead className="text-muted-foreground">
@@ -406,6 +443,7 @@ function PreviewTable({
               <th className="py-2 pr-3">#</th>
               <th className="py-2 pr-3">Name</th>
               <th className="py-2 pr-3">Phone</th>
+              <th className="py-2 pr-3">Phone repair</th>
               <th className="py-2 pr-3">Email</th>
               <th className="py-2 pr-3">Proposed mapping</th>
               <th className="py-2 pr-3">Issues</th>
@@ -417,15 +455,40 @@ function PreviewTable({
             </tr>
           </thead>
           <tbody>
-            {preview.rows.map((row) => {
+            {visibleRows.map((row) => {
               const payload = row.normalized_payload;
               const metadata = payload.source_metadata ?? {};
+              const repair = readPhoneRepair(payload);
               return (
                 <tr key={row.row_number} className="border-t border-border align-top">
                   <td className="py-2 pr-3">{row.row_number}</td>
                   <td className="py-2 pr-3">{row.name ?? "—"}</td>
                   <td className="py-2 pr-3">{row.mobile_number ?? "—"}</td>
+                  <td className="py-2 pr-3">
+                    {repair ? (
+                      <>
+                        <div>original: {repair.original || "—"}</div>
+                        <div>normalised: {repair.normalized ?? "—"}</div>
+                        <div className="text-muted-foreground">
+                          {PHONE_REPAIR_ACTION_LABELS[repair.action] ?? repair.action}
+                        </div>
+                        <div className="text-muted-foreground">{repair.reason}</div>
+                        <div className="text-muted-foreground">
+                          confidence: {repair.confidence} ·{" "}
+                          {PHONE_CLASSIFICATION_LABELS[repair.classification] ??
+                            repair.classification}
+                        </div>
+                        <div className="text-muted-foreground">
+                          eligible for import:{" "}
+                          {row.classification?.classification === "auto_include" ? "yes" : "no"}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">not scanned yet</span>
+                    )}
+                  </td>
                   <td className="py-2 pr-3">{row.email ?? "—"}</td>
+
                   <td className="py-2 pr-3">
                     <div>status: {payload.proposed_status ?? "—"}</div>
                     <div>
@@ -549,8 +612,87 @@ function PreviewTable({
   );
 }
 
+/**
+ * Automatic staged-row phone repair. Preview-only: nothing is imported,
+ * messaged, merged or written to live leads.
+ */
+function RepairPanel({ preview }: { preview: Preview }) {
+  const runRepair = useServerFn(repairCrmImportPhones);
+  const queryClient = useQueryClient();
+  const summary = buildRepairSummary(preview.rows as never);
+  const mutation = useMutation({
+    mutationFn: () => runRepair({ data: { batchId: preview.batch.id } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["crm-import-batch", preview.batch.id] });
+      toast.success(
+        `Repair scan complete — ${result.high_confidence_applied} high-confidence repairs applied. Nothing was imported.`,
+      );
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const items: [string, string | number][] = [
+    ["Rows scanned", summary.rows_scanned],
+    ["High-confidence repairs applied", summary.high_confidence_applied],
+    ["Medium-confidence suggestions", summary.medium_confidence_suggestions],
+    ["Low-confidence or unrepairable", summary.low_confidence_or_unrepairable],
+    ["Valid Australian mobiles", summary.valid_au_mobiles],
+    ["Repaired Australian mobiles", summary.repaired_au_mobiles],
+    ["Valid Australian landlines", summary.valid_au_landlines],
+    ["Truly invalid phones", summary.invalid_phones],
+    ["Incomplete phones", summary.incomplete_phones],
+    ["Ambiguous phones", summary.ambiguous_phones],
+    ["No phone supplied", summary.empty_phones],
+    ["Potential duplicates", summary.potential_duplicates],
+    ["Auto-include candidates", summary.auto_include_candidates],
+    ["Extra +610 trunk-zero repairs", summary.extra_trunk_zero_repairs],
+    ["Nine-digit mobile repairs", summary.nine_digit_mobile_repairs],
+  ];
+
+  return (
+    <section className="panel space-y-3 p-4" aria-label="Phone repair summary">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+          {DRY_RUN_LABEL}
+        </p>
+        <h2 className="mt-1 text-sm font-semibold">Automatic phone repair (Australia only)</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Deterministic Australian formatting repairs are applied to staged preview values only. The
+          raw uploaded phone is preserved, no subscriber digit is ever invented, and nothing is
+          imported, messaged, merged, scheduled, or written to live leads.
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={mutation.isPending}
+        onClick={() => mutation.mutate()}
+        className="rounded-md border border-input px-3 py-1.5 text-xs disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        {mutation.isPending ? "Scanning and repairing…" : "Scan and repair phone formats"}
+      </button>
+      {mutation.data ? (
+        <p className="text-xs text-muted-foreground">
+          Last run: {mutation.data.rows_scanned} rows scanned · {mutation.data.rows_updated} staged
+          rows updated · eligible rows {mutation.data.before.eligible_rows} →{" "}
+          {mutation.data.after.eligible_rows} · duplicates {mutation.data.before.duplicates} →{" "}
+          {mutation.data.after.duplicates} · raw values preserved:{" "}
+          {mutation.data.raw_values_preserved ? "yes" : "no"}
+        </p>
+      ) : null}
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {items.map(([label, value]) => (
+          <div key={label} className="rounded-md border border-border p-2">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
 
 function DryRunPanel({ preview }: { preview: Preview }) {
+
   const runClassifier = useServerFn(classifyCrmImportBatch);
   const queryClient = useQueryClient();
   const summary = buildDryRunSummary(preview.rows);

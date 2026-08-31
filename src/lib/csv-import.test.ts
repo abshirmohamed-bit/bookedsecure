@@ -156,6 +156,7 @@ describe("CRM CSV parsing and mapping", () => {
       whatsapp_number: "+61412345678",
       created_at_raw: "12/03/2026",
       stage_raw: "Quoted",
+      phone_raw: "0412 345 678",
     });
     expect(row.normalized_payload.email).toBe("ada@example.com");
     expect(row.normalized_payload.proposed_status).toBe("quote_sent");
@@ -313,7 +314,9 @@ describe("synthetic CRM fidelity fixture", () => {
       labels: "test",
       created_at_raw: "2026-08-30",
       stage_raw: "New",
+      phone_raw: "+61499999999",
     });
+
     expect(row.raw_row["Unknown Test Column"]).toBe("keep-me");
     expect(row.validation_errors).toEqual([]);
   });
