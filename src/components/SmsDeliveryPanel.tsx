@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { getSession } from "@/lib/app.functions";
 import { getSmsDeliverySummary, reconcileSmsDelivery } from "@/lib/sms-delivery.functions";
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -20,7 +21,10 @@ function percent(value: number | null): string {
  * Tenant-scoped SMS delivery observability. Delivery rate counts only messages
  * with a final outcome, so pending messages are never implied to be delivered.
  */
-export function SmsDeliveryPanel({ canReconcile }: { canReconcile: boolean }) {
+export function SmsDeliveryPanel() {
+  const fetchSession = useServerFn(getSession);
+  const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
+  const canReconcile = session.data?.role === "owner";
   const fetchSummary = useServerFn(getSmsDeliverySummary);
   const reconcile = useServerFn(reconcileSmsDelivery);
   const queryClient = useQueryClient();
