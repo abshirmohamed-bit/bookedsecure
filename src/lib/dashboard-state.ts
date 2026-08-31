@@ -12,6 +12,7 @@ import {
   type DashboardLead,
   type DashboardMetrics,
   type DashboardPayload,
+  type DashboardPage,
   type ResponseShape,
 } from "@/lib/dashboard-contract";
 
@@ -36,6 +37,8 @@ export type DashboardView = {
   metricsError: string | null;
   /** The lead list stays available even when metrics fail. */
   leads: DashboardLead[];
+  /** Page metadata for the rows currently rendered (stale rows keep their page). */
+  page: DashboardPage | null;
   leadsAreStale: boolean;
   showLeadsPanel: boolean;
   canRetry: boolean;
@@ -64,6 +67,7 @@ export function deriveDashboardView(input: {
       metricsStatus: isEmpty ? "empty" : "ready",
       metricsError: null,
       leads: input.data.leads,
+      page: input.data.page,
       leadsAreStale: false,
       showLeadsPanel: true,
       canRetry: true,
@@ -91,6 +95,7 @@ export function deriveDashboardView(input: {
           ? failureMessage(failure.kind)
           : "The dashboard metrics could not be loaded.",
       leads,
+      page: lastGood?.page ?? null,
       leadsAreStale: leads.length > 0,
       showLeadsPanel: leads.length > 0,
       canRetry: true,
@@ -112,6 +117,7 @@ export function deriveDashboardView(input: {
     metricsStatus: "loading",
     metricsError: null,
     leads: lastGood?.leads ?? [],
+    page: lastGood?.page ?? null,
     leadsAreStale: Boolean(lastGood),
     showLeadsPanel: Boolean(lastGood),
     canRetry: false,
