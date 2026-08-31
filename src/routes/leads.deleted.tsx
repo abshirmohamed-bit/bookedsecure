@@ -38,7 +38,6 @@ function DeletedLeadsPage() {
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<string[]>([]);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
   // Tenant-scoped and paginated on the server, exactly like the active inbox.
   const { data, isLoading, isFetching, error } = useQuery({
