@@ -306,11 +306,13 @@ function ImportView() {
       ) : null}
       {preview.data && preview.data.batch.id === activeId ? (
         <>
+          <RepairPanel preview={preview.data} />
           <DryRunPanel preview={preview.data} />
           <CommitGatePanel preview={preview.data} unsavedEdits={unsavedEdits} />
           <PreviewTable preview={preview.data} onDirtyChange={setUnsavedEdits} />
         </>
       ) : null}
+
     </div>
   );
 }
