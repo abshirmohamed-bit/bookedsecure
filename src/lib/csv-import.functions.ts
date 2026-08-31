@@ -133,6 +133,28 @@ export const classifyCrmImportBatch = createServerFn({ method: "POST" })
     return classifyPreviewBatch(supabaseAdmin, app.businessId, data.batchId);
   });
 
+/**
+ * Runs the deterministic staged-row phone repair engine across one preview
+ * batch, then re-runs validation, the read-only duplicate preflight and the
+ * classifier. Owner-gated, tenant resolved from the session. Preview-only: no
+ * leads, conversations, messages, jobs, revenue, automation or provider calls.
+ */
+export const repairCrmImportPhones = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => BatchSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { repairPreviewBatch } = await import("@/lib/csv-import.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return repairPreviewBatch(supabaseAdmin, app.businessId, data.batchId, {
+      userId: app.userId,
+    });
+  });
+
+
+
 const EditSchema = z.object({
   batchId: z.string().uuid(),
   rowNumber: z.number().int().positive(),
