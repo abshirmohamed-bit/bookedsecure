@@ -204,19 +204,22 @@ export async function softDeleteLeads(
 }
 
 /** Lists soft-deleted leads for the recovery view. Tenant-scoped, read-only. */
-export async function listDeletedLeads(client: Client, businessId: string) {
-  const { data, error } = await client
-    .from("leads")
-    .select(
-      "id, name, mobile_number, source_channel, lead_origin, import_batch_id, source_metadata, status, created_at, deleted_at, deleted_by, deletion_reason, deletion_request_id",
-    )
-    .eq("business_id", businessId)
-    .not("deleted_at", "is", null)
-    .order("deleted_at", { ascending: false })
-    .limit(200);
-  if (error) throw new Error(error.message);
-  return data ?? [];
+/** One tenant-scoped, paginated page of soft-deleted leads. Read-only. */
+export async function listDeletedLeads(
+  client: Client,
+  businessId: string,
+  pagination?: { page?: number; pageSize?: number },
+) {
+  const { queryLeadInbox } = await import("@/lib/lead-query.server");
+  const result = await queryLeadInbox(client, {
+    businessId,
+    filters: { scope: "deleted" },
+    page: pagination?.page ?? 1,
+    pageSize: pagination?.pageSize ?? 25,
+  });
+  return result;
 }
+
 
 /**
  * Restores soft-deleted leads in place: the same row, id, source attribution,
