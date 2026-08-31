@@ -395,7 +395,12 @@ export function applyStagedEdit(
       source_channel: normalized.source_channel,
       source_form: normalized.source_form,
       source_metadata: meta,
+      phone_repair: stampRepair(normalized.phone_repair, {
+        at: now.toISOString(),
+        previous: readPhoneRepair(base),
+      }),
       edits,
+
     },
     values: next,
     normalized,
