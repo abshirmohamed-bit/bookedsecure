@@ -177,7 +177,14 @@ function LeadDetail() {
           )}
 
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="text-muted-foreground/70">Latest SMS:</span>
             <DeliveryBadge status={lead.last_outbound_sms_status} />
+            <span className="text-muted-foreground/70">Reachability:</span>
+            <ReachabilityBadge
+              state={lead.reachability_state}
+              evidence={lead.reachability_evidence}
+              evidenceAt={lead.reachability_evidence_at}
+            />
             {lead.sms_suppressed_at && (
               <SmsSuppressedBadge reason={lead.sms_suppression_reason} />
             )}
@@ -195,6 +202,14 @@ function LeadDetail() {
             <p className="mt-1 text-xs text-destructive">
               Last SMS failure: {lead.last_sms_failure_reason}
               {lead.last_sms_failure_code ? ` (code ${lead.last_sms_failure_code})` : ""}
+            </p>
+          )}
+          {lead.sms_suppressed_at && (
+            <p className="mt-1 text-xs text-warning">
+              Automated SMS suppressed {new Date(lead.sms_suppressed_at).toLocaleString("en-AU")} —{" "}
+              {lead.sms_suppression_reason ?? "permanent delivery failure reported by the provider"}.
+              This does not prove the number is inactive; a later delivery or reply restores it
+              automatically.
             </p>
           )}
         </div>
