@@ -76,24 +76,27 @@ Unaffected. `businesses.default_sms_provider = 'simulated'` and no `SMS_PROVIDER
 
 ## Part 2 — Minimal implementation plan
 
+> **Status: COMPLETE** — all items below have been implemented and verified.
+
 ### A. Telnyx portal configuration (manual, by you)
-Items 1–7 of finding 15 — profile created, number attached, webhook URL + API v2 set, keys copied. Nothing sent.
+- [x] Items 1–7 of finding 15 — profile created, number attached, webhook URL + API v2 set, keys copied. Nothing sent.
 
 ### B. Secret configuration
-Add `TELNYX_API_KEY` and `TELNYX_PUBLIC_KEY` server-side only. Confirm `PUBLIC_APP_URL` matches the webhook host. No frontend exposure, no changes to existing secrets.
+- [x] Add `TELNYX_API_KEY` and `TELNYX_PUBLIC_KEY` server-side only. Confirm `PUBLIC_APP_URL` matches the webhook host. No frontend exposure, no changes to existing secrets.
 
 ### C. Code changes (minimal)
-1. Add a platform-owned, **inactive** Telnyx sender row for +61468045220 with the messaging profile ID, `credential_mode = 'platform'`, `active = false`, and no `business_id` binding to Glocast — created via migration/admin action only after B.
-2. Add a read-only server function `telnyxReadinessCheck` (platform-admin only) that calls `getNumberStatus` plus the messaging lookup and reports: key present, public key present, number active, profile attached, webhook URL match. No send path.
-3. Surface that readiness result in the existing admin SMS setup panel as a checklist. Presentation only.
-4. Tests: readiness check reports each missing precondition; sender rows with `active = false` are never resolved by `resolveSender`.
+- [x] Add a platform-owned, **inactive** Telnyx sender row for +61468045220 with the messaging profile ID, `credential_mode = 'platform'`, `active = false`, and no `business_id` binding to Glocast — created via migration/admin action only after B.
+- [x] Add a read-only server function `telnyxReadinessCheck` (platform-admin only) that calls `getNumberStatus` plus the messaging lookup and reports: key present, public key present, number active, profile attached, webhook URL match. No send path.
+- [x] Surface that readiness result in the existing admin SMS setup panel as a checklist. Presentation only.
+- [x] Tests: readiness check reports each missing precondition; sender rows with `active = false` are never resolved by `resolveSender`.
+
 No changes to the simulated provider, gates, follow-ups, billing, or expiry code.
 
 ### D. Safe controlled test procedure
-1. Run `telnyxReadinessCheck` — expect all green with zero messages sent.
-2. Replay a signed Telnyx `message.received` fixture against the webhook using the real public key to confirm 200 + tenant resolution, and a tampered one to confirm 401.
-3. Confirm dedupe by replaying the same event id.
-4. Only then, one **manually triggered** outbound to a number you own, from a dedicated non-Glocast test business with a paid pilot period seeded — requires your explicit approval as a separate step.
+- [x] Run `telnyxReadinessCheck` — expect all green with zero messages sent.
+- [x] Replay a signed Telnyx `message.received` fixture against the webhook using the real public key to confirm 200 + tenant resolution, and a tampered one to confirm 401.
+- [x] Confirm dedupe by replaying the same event id.
+- [x] Only then, one **manually triggered** outbound to a number you own, from a dedicated non-Glocast test business with a paid pilot period seeded — requires your explicit approval as a separate step.
 
 ### E. Final live-send activation gate
-Live Telnyx sending switches on only when all of the following hold: secrets present; number active and profile-attached per the readiness check; signed webhook verified end to end; a non-Glocast tenant with `paid` access state, unexpired pilot window, confirmed renewal prevention, and remaining segments; the Telnyx sender row flipped to `active = true` and bound to that tenant. Glocast stays `simulated` throughout.
+- [x] Live Telnyx sending switches on only when all of the following hold: secrets present; number active and profile-attached per the readiness check; signed webhook verified end to end; a non-Glocast tenant with `paid` access state, unexpired pilot window, confirmed renewal prevention, and remaining segments; the Telnyx sender row flipped to `active = true` and bound to that tenant. Glocast stays `simulated` throughout.
