@@ -108,6 +108,11 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     )
     .join("\n");
 
+  const requestType = (lead as { request_type?: string | null }).request_type ?? null;
+  const serviceSnapshot = (lead as { service_name_snapshot?: string | null }).service_name_snapshot ?? null;
+  const flexibleText = (lead as { flexible_request_text?: string | null }).flexible_request_text ?? null;
+  const ownerReview = Boolean((lead as { requires_owner_review?: boolean | null }).requires_owner_review);
+
   const system = [
     "You assist an Australian mobile car detailing business with lead qualification.",
     "You are an assistant, not the decision maker. A human always approves messages.",
@@ -118,13 +123,26 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     "- Never give mechanical, safety or insurance advice, and never invent details.",
     "- If information is missing, say the owner will confirm it.",
     "- Keep the suggested reply under 320 characters, plain Australian English, no emojis.",
+    serviceSnapshot
+      ? `- The customer already chose the service "${serviceSnapshot}". Do not switch, upsell or substitute it; work within that request.`
+      : "- The customer did not choose an approved service. Do not pick one for them; ask what they need and say the owner will confirm the right option.",
+    ownerReview
+      ? "- This is a flexible or open request the owner must handle personally. Your reply may only acknowledge and clarify; never propose a specific service or next step."
+      : "",
     `Approved service catalogue for ${business?.name ?? "the business"} (service area: ${business?.service_area ?? "unspecified"}):`,
     catalogue || "- No services configured yet.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const prompt = [
     "Lead record:",
     JSON.stringify(lead, null, 2),
+    "",
+    "Request routing:",
+    `- Request type: ${requestType ?? "not specified"}`,
+    `- Chosen service: ${serviceSnapshot ?? "none chosen"}`,
+    `- Customer's own description: ${flexibleText ?? "none"}`,
     "",
     "Conversation so far:",
     transcript || "(no messages yet)",
