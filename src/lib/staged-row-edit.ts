@@ -278,6 +278,8 @@ export function normalizeEditableValues(values: EditableValues): NormalizedEdit 
     email_normalised: email.valid ? email.value : null,
     mobile_number: mobile,
     phone_input: phoneInput || null,
+    phone_repair: resolvedPhone.repair,
+
     secondary_phone: text(values.secondary_phone) || null,
     whatsapp_number: text(values.whatsapp_number) || null,
     proposed_status: status,
