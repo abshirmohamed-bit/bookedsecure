@@ -456,11 +456,6 @@ export function LeadsWorkspace() {
             setPage(next);
             setSelection([]);
           }}
-          onPageSizeChange={(next) => {
-            setPageSize(next);
-            setPage(1);
-            setSelection([]);
-          }}
         />
       </section>
 
