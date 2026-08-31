@@ -26,6 +26,7 @@ import {
 } from "@/lib/app.functions";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency } from "@/lib/domain";
 import { importMethodLabel, leadSourceLabel, originalSourceDetails } from "@/lib/lead-source";
+import { SuppressionRecoveryPanel } from "@/components/SuppressionRecoveryPanel";
 
 export const Route = createFileRoute("/leads/$leadId")({
   head: () => ({
@@ -209,8 +210,8 @@ function LeadDetail() {
             <p className="mt-1 text-xs text-warning">
               Automated SMS suppressed {new Date(lead.sms_suppressed_at).toLocaleString("en-AU")} —{" "}
               {lead.sms_suppression_reason ?? "permanent delivery failure reported by the provider"}.
-              This does not prove the number is inactive; a later delivery or reply restores it
-              automatically.
+              This does not prove the number is inactive. A later delivery or reply records new
+              evidence but never resumes automation on its own — the owner must review and resume.
             </p>
           )}
         </div>
@@ -244,6 +245,8 @@ function LeadDetail() {
           </button>
         </div>
       </header>
+
+      <SuppressionRecoveryPanel lead={lead} role={data.role} onResumed={invalidate} />
 
       {lead.lead_origin === "crm_import" && (
         <ImportedSourcePanel
