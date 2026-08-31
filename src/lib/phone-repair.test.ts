@@ -278,11 +278,12 @@ describe("repair summary defensive reads", () => {
     ];
     const summary = buildRepairSummary(rows as never);
     expect(summary.rows_scanned).toBe(4);
-    expect(summary.high_confidence_applied).toBe(2);
-    expect(summary.repaired_au_mobiles).toBe(2);
+    expect(summary.high_confidence_applied).toBe(1);
+    expect(summary.repaired_au_mobiles).toBe(1);
     expect(summary.valid_au_mobiles).toBe(1);
     expect(summary.valid_au_landlines).toBe(1);
     expect(summary.incomplete_phones).toBe(1);
+    expect(summary.extra_trunk_zero_repairs).toBe(1);
   });
 });
 
