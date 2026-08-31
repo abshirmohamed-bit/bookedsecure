@@ -41,8 +41,8 @@ function DeletedLeadsPage() {
 
   // Tenant-scoped and paginated on the server, exactly like the active inbox.
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ["deleted-leads", { page, pageSize }],
-    queryFn: () => fetchDeleted({ data: { page, pageSize } }),
+    queryKey: ["deleted-leads", { page, pageSize: DEFAULT_PAGE_SIZE }],
+    queryFn: () => fetchDeleted({ data: { page, pageSize: DEFAULT_PAGE_SIZE } }),
   });
 
   const leads = useMemo(() => data?.leads ?? [], [data]);
