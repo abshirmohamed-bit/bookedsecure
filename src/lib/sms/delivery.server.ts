@@ -10,6 +10,11 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  reachabilityUpdateFor,
+  type ReachabilityRecord,
+  type ReachabilitySignal,
+} from "./reachability";
+import {
   TERMINAL_FAILURES,
   classifyDeliveryFailure,
   decideTransition,
