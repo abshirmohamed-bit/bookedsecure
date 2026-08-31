@@ -7,14 +7,16 @@
 // correct an import exception before anything is committed.
 
 import {
-  classifyAuPhone,
   mapSourceChannel,
   mapStage,
   normaliseEmail,
   parseCreatedAt,
+  resolvePhoneWithRepair,
   type ValidationError,
 } from "@/lib/csv-import";
+import type { PhoneRepair } from "@/lib/phone-repair";
 import type { LeadStatus } from "@/lib/domain";
+
 
 export const STAGED_EDIT_SCOPE_NOTICE =
   "Changes apply only to this staged import row. No live lead is created or updated.";
