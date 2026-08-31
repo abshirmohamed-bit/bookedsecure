@@ -349,7 +349,10 @@ export type NormalizedPayload = {
   proposed_created_at: string | null;
   source_metadata: Record<string, string>;
   unmapped_columns: string[];
+  /** Deterministic phone repair provenance (preview-only). */
+  phone_repair?: PhoneRepair;
 };
+
 
 export type PreparedRow = {
   row_number: number;
