@@ -59,7 +59,7 @@ export function LeadsWorkspace() {
   // pagination. Any filter change resets to page 1.
   const dashboard = useDashboard({
     page,
-    pageSize,
+    pageSize: DEFAULT_PAGE_SIZE,
     status: statusFilter,
     source: sourceFilter,
     sms: smsFilter,
