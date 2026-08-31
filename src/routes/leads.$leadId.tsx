@@ -5,7 +5,14 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Bot, Pause, Play, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
-import { DeliveryBadge, ReadinessBadge, StatusBadge } from "@/components/StatusBadge";
+import {
+  DeliveryBadge,
+  FailureClassBadge,
+  ReadinessBadge,
+  SmsSuppressedBadge,
+  StatusBadge,
+} from "@/components/StatusBadge";
+
 import {
   analyseConversation,
   getLead,
