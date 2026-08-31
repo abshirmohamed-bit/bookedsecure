@@ -52,7 +52,7 @@ export const getDeletedLeads = createServerFn({ method: "GET" })
     requireOwner(app);
     const result = await listDeletedLeads(supabaseAdmin, app.businessId, {
       page: data.page ?? 1,
-      pageSize: data.pageSize ?? 25,
+      pageSize: data.pageSize ?? DEFAULT_PAGE_SIZE,
     });
     return { role: app.role, leads: result.leads, page: result.page };
   });
