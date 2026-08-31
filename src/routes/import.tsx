@@ -201,8 +201,39 @@ function ImportView() {
     );
   }
 
+  if (view === "lite") {
+    return (
+      <LiteImportPanel
+        preview={preview.data && preview.data.batch.id === activeId ? preview.data : null}
+        uploading={uploadMutation.isPending || preview.isLoading}
+        onUpload={(file) => uploadMutation.mutate(file)}
+        onOpenAdvanced={({ focusExceptions: focus }) => {
+          setFocusExceptions(focus);
+          setView("advanced");
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          {ADVANCED_VIEW_LABEL} — detailed validation, duplicates, row decisions and import
+          controls.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setFocusExceptions(false);
+            setView("lite");
+          }}
+          className="rounded-md border border-input px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          Back to {LITE_VIEW_LABEL.toLowerCase()}
+        </button>
+      </div>
+
       <section className="panel space-y-3 p-4">
         <div>
           <h2 className="text-sm font-semibold">Upload a CRM CSV</h2>
