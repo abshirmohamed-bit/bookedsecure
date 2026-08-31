@@ -425,6 +425,13 @@ export type RepairSummary = {
   engine_version: string;
 };
 
+/** Read a repair's actions safely, treating missing or malformed values as empty. */
+function safeRepairActions(repair: PhoneRepair): PhoneRepairAction[] {
+  const actions = (repair as { actions?: unknown }).actions;
+  if (!Array.isArray(actions)) return [];
+  return actions.filter((a): a is PhoneRepairAction => PHONE_REPAIR_ACTIONS.includes(a));
+}
+
 /** Read-only aggregate over staged preview rows. No writes, no provider calls. */
 export function buildRepairSummary(rows: RepairableRowView[]): RepairSummary {
   const summary: RepairSummary = {
@@ -485,8 +492,9 @@ export function buildRepairSummary(rows: RepairableRowView[]): RepairSummary {
         break;
     }
 
-    if (repair.actions.includes("removed_extra_trunk_zero")) summary.extra_trunk_zero_repairs += 1;
-    if (repair.actions.includes("added_country_code") && repair.applied) {
+    const actions = safeRepairActions(repair);
+    if (actions.includes("removed_extra_trunk_zero")) summary.extra_trunk_zero_repairs += 1;
+    if (actions.includes("added_country_code") && repair.applied) {
       summary.nine_digit_mobile_repairs += 1;
     }
   }
