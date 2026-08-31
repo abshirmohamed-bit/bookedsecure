@@ -163,6 +163,9 @@ function Analytics() {
         <Stat label="Delivery failures" value={String(data.deliveryFailures)} />
       </section>
 
+      <SmsDeliveryPanel canReconcile={data.role === "owner"} />
+
+
       <p className="text-xs text-muted-foreground">
         Completed-job revenue is the sum of completed_value for jobs explicitly marked completed.
         Scheduled and quoted work is never counted. Differences against baseline may also reflect
