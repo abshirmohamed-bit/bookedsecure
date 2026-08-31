@@ -434,17 +434,25 @@ function DeleteDialog({
 function PreviewTable({
   preview,
   onDirtyChange,
+  focusExceptions = false,
 }: {
   preview: Preview;
   onDirtyChange: (dirty: boolean) => void;
+  focusExceptions?: boolean;
 }) {
   const [editing, setEditing] = useState<number | null>(null);
-  const [filter, setFilter] = useState<RepairFilter>("all");
+  const [filter, setFilter] = useState<RepairFilter>(focusExceptions ? "needs_review" : "all");
+  const sectionRef = useRef<HTMLElement>(null);
   const editingRow = preview.rows.find((row) => row.row_number === editing) ?? null;
   const rawRow = Object.fromEntries(preview.headers.map((header) => [header, ""]));
   const visibleRows = preview.rows.filter((row) => matchesRepairFilter(row as never, filter));
+  // Arriving from the simple view's review annotation lands on the exceptions.
+  useEffect(() => {
+    if (focusExceptions) sectionRef.current?.scrollIntoView({ block: "start" });
+  }, [focusExceptions]);
   return (
-    <section className="panel space-y-3 p-4">
+    <section id={EXCEPTION_ANCHOR_ID} ref={sectionRef} className="panel space-y-3 p-4">
+
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h2 className="text-sm font-semibold">
