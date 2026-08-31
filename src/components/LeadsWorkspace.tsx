@@ -379,11 +379,38 @@ export function LeadsWorkspace() {
                     {lead.service_intent ?? "—"}
                   </td>
                   <td className="px-4 py-2.5">
-                    <StatusBadge status={lead.status} />
-                    {lead.conversation?.automation_paused && (
-                      <span className="ml-1.5 text-xs text-warning">paused</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <StatusBadge status={lead.status} />
+                      {lead.conversation?.automation_paused && (
+                        <span className="text-xs text-warning">paused</span>
+                      )}
+                    </div>
+                    {lead.last_outbound_sms_status && (
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <DeliveryBadge status={lead.last_outbound_sms_status} />
+                        {lead.sms_suppressed_at && (
+                          <SmsSuppressedBadge reason={lead.sms_suppression_reason} />
+                        )}
+                      </div>
+                    )}
+                    {lead.last_sms_failure_reason && (
+                      <p className="mt-1 max-w-[220px] text-[11px] text-destructive">
+                        {lead.last_sms_failure_reason}
+                      </p>
+                    )}
+                    {lead.last_delivered_sms_at && !lead.last_sms_failure_reason && (
+                      <p className="mt-1 text-[11px] text-muted-foreground/70">
+                        Delivered{" "}
+                        {new Date(lead.last_delivered_sms_at).toLocaleString("en-AU", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
                     )}
                   </td>
+
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">
                     {new Date(lead.conversation?.last_message_at ?? lead.created_at).toLocaleString(
                       "en-AU",
