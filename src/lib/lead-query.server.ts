@@ -5,7 +5,7 @@
 // pagination, and fetches conversation + job context in the same round trip
 // (the view left-joins them), so there is no N+1 and no cross-tenant read.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import {
   buildPageMeta,
   leadFilterPredicates,
@@ -78,7 +78,7 @@ export type LeadInboxRow = {
   source_channel: Nullable;
   source_campaign: Nullable;
   lead_origin: Nullable;
-  source_metadata: unknown;
+  source_metadata: Json | null;
   import_batch_id: Nullable;
   status: string;
   readiness_classification: Nullable;

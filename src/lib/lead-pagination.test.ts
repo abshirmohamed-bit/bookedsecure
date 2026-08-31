@@ -247,7 +247,7 @@ describe("queryLeadInbox", () => {
     expect(result.leads[0]!.job?.completed_value).toBe(320);
     expect(result.leads[0]!.last_activity_at).toBe("2026-03-01T00:00:00Z");
     // Two statements only: one count, one page read.
-    expect(client.writes.filter((entry) => entry.op !== "select")).toHaveLength(0);
+    expect(client.writes.filter((entry: { op: string }) => entry.op !== "select")).toHaveLength(0);
   });
 
   it("leaves leads without a conversation visible", async () => {
