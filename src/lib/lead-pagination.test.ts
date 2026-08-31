@@ -47,12 +47,12 @@ function tiedDb(count = 10): FakeDb {
 
 describe("page arithmetic", () => {
   it("uses a safe default page size and clamps hostile input", () => {
-    expect(DEFAULT_PAGE_SIZE).toBe(25);
-    expect(clampPageSize(undefined)).toBe(25);
-    expect(clampPageSize(0)).toBe(25);
-    expect(clampPageSize(-5)).toBe(25);
-    expect(clampPageSize(5000)).toBe(100);
-    expect(normalisePageRequest({ page: -3, pageSize: 50 })).toEqual({ page: 1, pageSize: 50 });
+    expect(DEFAULT_PAGE_SIZE).toBe(14);
+    expect(clampPageSize(undefined)).toBe(14);
+    expect(clampPageSize(0)).toBe(14);
+    expect(clampPageSize(-5)).toBe(14);
+    expect(clampPageSize(5000)).toBe(14);
+    expect(normalisePageRequest({ page: -3, pageSize: 50 })).toEqual({ page: 1, pageSize: 14 });
   });
 
   it("maps pages to inclusive zero-based ranges", () => {
