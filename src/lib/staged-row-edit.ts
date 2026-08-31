@@ -14,7 +14,7 @@ import {
   resolvePhoneWithRepair,
   type ValidationError,
 } from "@/lib/csv-import";
-import type { PhoneRepair } from "@/lib/phone-repair";
+import { readPhoneRepair, stampRepair, type PhoneRepair } from "@/lib/phone-repair";
 import type { LeadStatus } from "@/lib/domain";
 
 
