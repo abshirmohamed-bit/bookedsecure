@@ -68,10 +68,7 @@ function event(overrides: Record<string, unknown> = {}) {
 describe("permanent failure suppression is not auto-cleared", () => {
   it("permanent failure creates the suppression state", async () => {
     const client = createFakeSupabase(seed());
-    await applyDeliveryEvent(
-      client,
-      event({ status: "failed", rawStatus: "failed", errorCode: "30003" }),
-    );
+    await applyDeliveryEvent(event({ status: "failed", rawStatus: "failed", failureCode: "40012" }), { client });
     const lead = client.db["leads"]![0]!;
     expect(lead["sms_suppressed_at"]).toBeTruthy();
     expect(lead["last_permanent_failure_at"]).toBeTruthy();
@@ -83,13 +80,10 @@ describe("permanent failure suppression is not auto-cleared", () => {
         sms_suppressed_at: "2026-01-01T01:00:00.000Z",
         sms_suppression_reason: "Handset unreachable.",
         last_permanent_failure_at: "2026-01-01T01:00:00.000Z",
-        last_sms_failure_code: "30003",
+        last_sms_failure_code: "40012",
       }),
     );
-    await applyDeliveryEvent(
-      client,
-      event({ occurredAt: "2026-01-02T00:00:00.000Z", eventId: "evt_2" }),
-    );
+    await applyDeliveryEvent(event({ occurredAt: "2026-01-02T00:00:00.000Z", eventId: "evt_2" }), { client });
     const lead = client.db["leads"]![0]!;
     expect(lead["reachability_state"]).toBe("reachable_recently");
     expect(lead["sms_suppressed_at"]).toBe("2026-01-01T01:00:00.000Z");
@@ -124,12 +118,9 @@ describe("permanent failure suppression is not auto-cleared", () => {
   });
 
   it("temporary and configuration failures never create the recovery state", async () => {
-    for (const code of ["30001", "30007"]) {
+    for (const code of ["40001", "40003"]) {
       const client = createFakeSupabase(seed());
-      await applyDeliveryEvent(
-        client,
-        event({ status: "failed", rawStatus: "failed", errorCode: code, eventId: `evt_${code}` }),
-      );
+      await applyDeliveryEvent(event({ status: "failed", rawStatus: "failed", failureCode: code, eventId: `evt_${code}` }), { client });
       const lead = client.db["leads"]![0]!;
       if (lead["sms_suppressed_at"]) continue; // permanent classes are covered above
       expect(assessSuppressionRecovery(lead as never).canResume).toBe(false);
@@ -143,7 +134,7 @@ describe("owner-confirmed resume", () => {
       sms_suppressed_at: "2026-01-01T01:00:00.000Z",
       sms_suppression_reason: "Handset unreachable.",
       last_permanent_failure_at: "2026-01-01T01:00:00.000Z",
-      last_sms_failure_code: "30003",
+      last_sms_failure_code: "40012",
       last_sms_failure_reason: "Handset unreachable.",
       reachability_state: "reachable_recently",
       last_inbound_reply_at: "2026-01-03T00:00:00.000Z",
@@ -177,7 +168,7 @@ describe("owner-confirmed resume", () => {
     expect(lead["sms_suppressed_at"]).toBeNull();
     expect(lead["sms_suppression_reason"]).toBeNull();
     expect(lead["last_permanent_failure_at"]).toBe("2026-01-01T01:00:00.000Z");
-    expect(lead["last_sms_failure_code"]).toBe("30003");
+    expect(lead["last_sms_failure_code"]).toBe("40012");
     expect(lead["last_sms_failure_reason"]).toBe("Handset unreachable.");
     expect(lead["reachability_state"]).toBe("reachable_recently");
     expect(lead["reachability_evidence_at"]).toBe("2026-01-03T00:00:00.000Z");
