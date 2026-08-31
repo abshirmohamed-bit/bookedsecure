@@ -61,16 +61,16 @@ describe("page arithmetic", () => {
   });
 
   it("reports next/previous and the visible row range", () => {
-    const meta = buildPageMeta({ page: 2, pageSize: 25, totalCount: 60, returned: 25 });
+    const meta = buildPageMeta({ page: 2, pageSize: 14, totalCount: 60, returned: 14 });
     expect(meta).toMatchObject({
-      pageCount: 3,
+      pageCount: 5,
       hasNextPage: true,
       hasPreviousPage: true,
-      rangeFrom: 26,
-      rangeTo: 50,
+      rangeFrom: 15,
+      rangeTo: 28,
     });
-    const last = buildPageMeta({ page: 3, pageSize: 25, totalCount: 60, returned: 10 });
-    expect(last).toMatchObject({ hasNextPage: false, rangeFrom: 51, rangeTo: 60 });
+    const last = buildPageMeta({ page: 5, pageSize: 14, totalCount: 60, returned: 4 });
+    expect(last).toMatchObject({ hasNextPage: false, rangeFrom: 57, rangeTo: 60 });
   });
 
   it("renders an empty page without pretending rows exist", () => {
