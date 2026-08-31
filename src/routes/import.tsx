@@ -80,11 +80,20 @@ import {
   type ImportBatchSummary,
 } from "@/lib/import-history";
 import { StagedRowEditor } from "@/components/StagedRowEditor";
+import { LiteImportPanel } from "@/components/LiteImportPanel";
+import {
+  ADVANCED_VIEW_LABEL,
+  DEFAULT_IMPORT_VIEW,
+  EXCEPTION_ANCHOR_ID,
+  LITE_VIEW_LABEL,
+  type ImportView,
+} from "@/lib/import-lite";
 import {
   STAGED_ROW_STATE_LABELS,
   canEditStagedRow,
   resolveStagedRowState,
 } from "@/lib/staged-row-edit";
+
 
 export const Route = createFileRoute("/import")({
   head: () => ({
