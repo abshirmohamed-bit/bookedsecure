@@ -56,8 +56,8 @@ describe("page arithmetic", () => {
   });
 
   it("maps pages to inclusive zero-based ranges", () => {
-    expect(rangeFor({ page: 1, pageSize: 25 })).toEqual({ from: 0, to: 24 });
-    expect(rangeFor({ page: 3, pageSize: 25 })).toEqual({ from: 50, to: 74 });
+    expect(rangeFor({ page: 1, pageSize: 14 })).toEqual({ from: 0, to: 13 });
+    expect(rangeFor({ page: 3, pageSize: 14 })).toEqual({ from: 28, to: 41 });
   });
 
   it("reports next/previous and the visible row range", () => {
