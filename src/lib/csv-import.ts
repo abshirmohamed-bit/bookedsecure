@@ -386,21 +386,18 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   if (!name) errors.push({ code: "missing_name", field: "name" });
 
   const phoneRaw = cell(headers, row, "mobile_number");
-  const phone = classifyAuPhone(phoneRaw);
-  if (phone.kind === "invalid") {
-    errors.push({ code: "invalid_phone", field: "mobile_number", detail: phoneRaw });
-  } else if (phone.kind === "unsupported_type") {
-    errors.push({ code: "unsupported_phone_type", field: "mobile_number", detail: phone.value });
-  }
+  const resolved = resolvePhoneWithRepair(phoneRaw);
+  errors.push(...resolved.errors);
 
   const emailRaw = cell(headers, row, "email");
   const email = normaliseEmail(emailRaw);
   if (!email.valid) errors.push({ code: "invalid_email", field: "email", detail: emailRaw });
 
-  const mobile = phone.kind === "mobile" ? phone.value : null;
+  const mobile = resolved.mobile_number;
   if (!mobile && !(email.valid && email.value)) {
     errors.push({ code: "missing_phone_and_email" });
   }
+
 
   const stageRaw = cell(headers, row, "status");
   const proposedStatus = stageRaw ? mapStage(stageRaw) : null;
