@@ -86,9 +86,9 @@ describe("page arithmetic", () => {
   });
 
   it("never leaves the caller past the end of the filtered result", () => {
-    expect(resolveRequestedPage(9, 30, 25)).toBe(2);
-    expect(resolveRequestedPage(4, 0, 25)).toBe(1);
-    expect(resolveRequestedPage(1, 500, 25)).toBe(1);
+    expect(resolveRequestedPage(9, 30, 14)).toBe(3);
+    expect(resolveRequestedPage(4, 0, 14)).toBe(1);
+    expect(resolveRequestedPage(1, 500, 14)).toBe(1);
   });
 });
 
