@@ -12,8 +12,20 @@ import {
   getCrmImportBatch,
   listCrmImportBatches,
   previewCrmImport,
+  repairCrmImportPhones,
   setCrmImportRowDecision,
 } from "@/lib/csv-import.functions";
+import {
+  PHONE_CLASSIFICATION_LABELS,
+  PHONE_REPAIR_ACTION_LABELS,
+  REPAIR_FILTERS,
+  REPAIR_FILTER_LABELS,
+  buildRepairSummary,
+  matchesRepairFilter,
+  readPhoneRepair,
+  type RepairFilter,
+} from "@/lib/phone-repair";
+
 import {
   CLASSIFICATION_REASON_LABELS,
   DRY_RUN_LABEL,
