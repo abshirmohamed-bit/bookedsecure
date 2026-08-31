@@ -236,6 +236,17 @@ export type CaptureInput = {
   consent?: boolean | undefined;
   consent_text?: string | null | undefined;
   consent_source_url?: string | null | undefined;
+  /** Structured request routing from the tenant quote form. */
+  request_type?: string | null | undefined;
+  approved_service_id?: string | null | undefined;
+  /** Historical source of truth for the chosen service; survives renames and deletion. */
+  service_name_snapshot?: string | null | undefined;
+  flexible_request_text?: string | null | undefined;
+  requires_owner_review?: boolean | undefined;
+  lead_origin?: string | null | undefined;
+  source_metadata?: Record<string, unknown> | null | undefined;
+  /** Deterministic submission key; retries reuse the existing lead instead of rewriting it. */
+  external_id?: string | null | undefined;
 };
 
 export type CaptureResult = {
@@ -252,6 +263,19 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
   const business = await getBusiness(businessId);
 
   const status: LeadStatus = mobile ? "new" : "invalid";
+
+  // Retry of the exact same submission: reuse the existing lead, never overwrite it.
+  if (input.external_id) {
+    const { data: priorSubmission } = await supabaseAdmin
+      .from("leads")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("external_id", input.external_id)
+      .maybeSingle();
+    if (priorSubmission?.id) {
+      return { leadId: priorSubmission.id, duplicate: true, acknowledgementSent: false };
+    }
+  }
 
   // De-duplicate repeated submissions / retried webhooks from the same number.
   if (mobile) {
@@ -289,6 +313,14 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       utm_campaign: input.utm_campaign ?? null,
       status,
       readiness_classification: "new",
+      request_type: input.request_type ?? null,
+      approved_service_id: input.approved_service_id ?? null,
+      service_name_snapshot: input.service_name_snapshot ?? null,
+      flexible_request_text: input.flexible_request_text ?? null,
+      requires_owner_review: input.requires_owner_review ?? false,
+      ...(input.lead_origin ? { lead_origin: input.lead_origin } : {}),
+      ...(input.source_metadata ? { source_metadata: input.source_metadata as never } : {}),
+      ...(input.external_id ? { external_id: input.external_id } : {}),
       consent_record: input.consent
         ? {
             consented: true,
@@ -303,7 +335,22 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     .select("id")
     .single();
 
-  if (error || !lead) throw new Error(error?.message ?? "Could not create lead");
+  if (error || !lead) {
+    // Concurrent retry lost the race on the unique (business_id, external_id) index:
+    // read back the winning lead rather than creating or modifying anything.
+    if (input.external_id && error?.code === "23505") {
+      const { data: raced } = await supabaseAdmin
+        .from("leads")
+        .select("id")
+        .eq("business_id", businessId)
+        .eq("external_id", input.external_id)
+        .maybeSingle();
+      if (raced?.id) {
+        return { leadId: raced.id, duplicate: true, acknowledgementSent: false };
+      }
+    }
+    throw new Error(error?.message ?? "Could not create lead");
+  }
 
   await supabaseAdmin.from("conversations").insert({
     business_id: businessId,
@@ -368,6 +415,26 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       duplicate: false,
       acknowledgementSent: false,
       note: "Mobile number was not a valid Australian mobile — lead marked invalid, no SMS sent.",
+    };
+  }
+
+  // Flexible / recommendation requests are owner-review only: no acknowledgement is queued.
+  if (input.requires_owner_review) {
+    return {
+      leadId: lead.id,
+      duplicate: false,
+      acknowledgementSent: false,
+      note: "Flagged for owner review — no automated SMS was queued for this enquiry.",
+    };
+  }
+
+  // Consent is a precondition for any acknowledgement on the public form path.
+  if (input.lead_origin === "inbound_form" && !input.consent) {
+    return {
+      leadId: lead.id,
+      duplicate: false,
+      acknowledgementSent: false,
+      note: "No SMS consent recorded — no automated SMS was queued.",
     };
   }
 

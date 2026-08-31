@@ -311,14 +311,18 @@ export type Database = {
           automation_enabled: boolean
           created_at: string
           default_sms_provider: string
+          flexible_requests_enabled: boolean
           id: string
+          logo_url: string | null
           name: string
           opening_hours: string | null
           phone_number: string | null
           privacy_policy_url: string | null
           quiet_hours_end: number
           quiet_hours_start: number
+          quote_form_active: boolean
           service_area: string | null
+          slug: string | null
           sms_credential_mode: string
           sms_signature: string | null
           status: string
@@ -329,14 +333,18 @@ export type Database = {
           automation_enabled?: boolean
           created_at?: string
           default_sms_provider?: string
+          flexible_requests_enabled?: boolean
           id?: string
+          logo_url?: string | null
           name: string
           opening_hours?: string | null
           phone_number?: string | null
           privacy_policy_url?: string | null
           quiet_hours_end?: number
           quiet_hours_start?: number
+          quote_form_active?: boolean
           service_area?: string | null
+          slug?: string | null
           sms_credential_mode?: string
           sms_signature?: string | null
           status?: string
@@ -347,14 +355,18 @@ export type Database = {
           automation_enabled?: boolean
           created_at?: string
           default_sms_provider?: string
+          flexible_requests_enabled?: boolean
           id?: string
+          logo_url?: string | null
           name?: string
           opening_hours?: string | null
           phone_number?: string | null
           privacy_policy_url?: string | null
           quiet_hours_end?: number
           quiet_hours_start?: number
+          quote_form_active?: boolean
           service_area?: string | null
+          slug?: string | null
           sms_credential_mode?: string
           sms_signature?: string | null
           status?: string
@@ -905,6 +917,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          approved_service_id: string | null
           assigned_to: string | null
           business_id: string
           consent_record: Json | null
@@ -918,6 +931,7 @@ export type Database = {
           external_id: string | null
           first_contacted_at: string | null
           first_reply_at: string | null
+          flexible_request_text: string | null
           id: string
           import_batch_id: string | null
           last_cleaned_at: string | null
@@ -941,7 +955,10 @@ export type Database = {
           reachability_evidence_at: string | null
           reachability_state: string
           readiness_classification: string | null
+          request_type: string | null
+          requires_owner_review: boolean
           service_intent: string | null
+          service_name_snapshot: string | null
           sms_suppressed_at: string | null
           sms_suppression_reason: string | null
           source_campaign: string | null
@@ -956,6 +973,7 @@ export type Database = {
           vehicle_type: string | null
         }
         Insert: {
+          approved_service_id?: string | null
           assigned_to?: string | null
           business_id: string
           consent_record?: Json | null
@@ -969,6 +987,7 @@ export type Database = {
           external_id?: string | null
           first_contacted_at?: string | null
           first_reply_at?: string | null
+          flexible_request_text?: string | null
           id?: string
           import_batch_id?: string | null
           last_cleaned_at?: string | null
@@ -992,7 +1011,10 @@ export type Database = {
           reachability_evidence_at?: string | null
           reachability_state?: string
           readiness_classification?: string | null
+          request_type?: string | null
+          requires_owner_review?: boolean
           service_intent?: string | null
+          service_name_snapshot?: string | null
           sms_suppressed_at?: string | null
           sms_suppression_reason?: string | null
           source_campaign?: string | null
@@ -1007,6 +1029,7 @@ export type Database = {
           vehicle_type?: string | null
         }
         Update: {
+          approved_service_id?: string | null
           assigned_to?: string | null
           business_id?: string
           consent_record?: Json | null
@@ -1020,6 +1043,7 @@ export type Database = {
           external_id?: string | null
           first_contacted_at?: string | null
           first_reply_at?: string | null
+          flexible_request_text?: string | null
           id?: string
           import_batch_id?: string | null
           last_cleaned_at?: string | null
@@ -1043,7 +1067,10 @@ export type Database = {
           reachability_evidence_at?: string | null
           reachability_state?: string
           readiness_classification?: string | null
+          request_type?: string | null
+          requires_owner_review?: boolean
           service_intent?: string | null
+          service_name_snapshot?: string | null
           sms_suppressed_at?: string | null
           sms_suppression_reason?: string | null
           source_campaign?: string | null
@@ -1058,6 +1085,13 @@ export type Database = {
           vehicle_type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_approved_service_id_fkey"
+            columns: ["approved_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_business_id_fkey"
             columns: ["business_id"]
@@ -1496,6 +1530,7 @@ export type Database = {
           included_items: string | null
           name: string
           price_guidance: string | null
+          qualification_note: string | null
         }
         Insert: {
           active?: boolean
@@ -1507,6 +1542,7 @@ export type Database = {
           included_items?: string | null
           name: string
           price_guidance?: string | null
+          qualification_note?: string | null
         }
         Update: {
           active?: boolean
@@ -1518,6 +1554,7 @@ export type Database = {
           included_items?: string | null
           name?: string
           price_guidance?: string | null
+          qualification_note?: string | null
         }
         Relationships: [
           {

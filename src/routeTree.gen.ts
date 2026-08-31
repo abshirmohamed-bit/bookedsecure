@@ -16,12 +16,13 @@ import { Route as ImportRouteImport } from './routes/import'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as QuoteRouteImport } from './routes/quote'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as LeadsDeletedRouteImport } from './routes/leads.deleted'
+import { Route as QuoteIndexRouteImport } from './routes/quote.index'
+import { Route as QuoteSlugRouteImport } from './routes/quote.$slug'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsAutomationRouteImport } from './routes/settings.automation'
 import { Route as SettingsBusinessRouteImport } from './routes/settings.business'
@@ -71,11 +72,6 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const QuoteRoute = QuoteRouteImport.update({
-  id: '/quote',
-  path: '/quote',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -99,6 +95,16 @@ const LeadsLeadIdRoute = LeadsLeadIdRouteImport.update({
 const LeadsDeletedRoute = LeadsDeletedRouteImport.update({
   id: '/leads/deleted',
   path: '/leads/deleted',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuoteIndexRoute = QuoteIndexRouteImport.update({
+  id: '/quote/',
+  path: '/quote/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuoteSlugRoute = QuoteSlugRouteImport.update({
+  id: '/quote/$slug',
+  path: '/quote/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
@@ -177,16 +183,17 @@ export interface FileRoutesByFullPath {
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
-  '/quote': typeof QuoteRoute
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
+  '/quote/$slug': typeof QuoteSlugRoute
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
   '/leads/': typeof LeadsIndexRoute
+  '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
@@ -205,15 +212,16 @@ export interface FileRoutesByTo {
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
-  '/quote': typeof QuoteRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
+  '/quote/$slug': typeof QuoteSlugRoute
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
   '/leads': typeof LeadsIndexRoute
+  '/quote': typeof QuoteIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
@@ -233,16 +241,17 @@ export interface FileRoutesById {
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
-  '/quote': typeof QuoteRoute
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
+  '/quote/$slug': typeof QuoteSlugRoute
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
   '/leads/': typeof LeadsIndexRoute
+  '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
@@ -263,16 +272,17 @@ export interface FileRouteTypes {
     | '/landing'
     | '/privacy'
     | '/profile'
-    | '/quote'
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/leads/deleted'
+    | '/quote/$slug'
     | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
     | '/settings/team'
     | '/leads/'
+    | '/quote/'
     | '/settings/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
@@ -291,15 +301,16 @@ export interface FileRouteTypes {
     | '/landing'
     | '/privacy'
     | '/profile'
-    | '/quote'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/leads/deleted'
+    | '/quote/$slug'
     | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
     | '/settings/team'
     | '/leads'
+    | '/quote'
     | '/settings'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
@@ -318,16 +329,17 @@ export interface FileRouteTypes {
     | '/landing'
     | '/privacy'
     | '/profile'
-    | '/quote'
     | '/settings'
     | '/admin/pilot-applications'
     | '/leads/$leadId'
     | '/leads/deleted'
+    | '/quote/$slug'
     | '/settings/automation'
     | '/settings/business'
     | '/settings/messaging'
     | '/settings/team'
     | '/leads/'
+    | '/quote/'
     | '/settings/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
@@ -347,12 +359,13 @@ export interface RootRouteChildren {
   LandingRoute: typeof LandingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
-  QuoteRoute: typeof QuoteRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   LeadsDeletedRoute: typeof LeadsDeletedRoute
+  QuoteSlugRoute: typeof QuoteSlugRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
+  QuoteIndexRoute: typeof QuoteIndexRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
@@ -414,13 +427,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/quote': {
-      id: '/quote'
-      path: '/quote'
-      fullPath: '/quote'
-      preLoaderRoute: typeof QuoteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -454,6 +460,20 @@ declare module '@tanstack/react-router' {
       path: '/leads/deleted'
       fullPath: '/leads/deleted'
       preLoaderRoute: typeof LeadsDeletedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quote/': {
+      id: '/quote/'
+      path: '/quote'
+      fullPath: '/quote/'
+      preLoaderRoute: typeof QuoteIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quote/$slug': {
+      id: '/quote/$slug'
+      path: '/quote/$slug'
+      fullPath: '/quote/$slug'
+      preLoaderRoute: typeof QuoteSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -578,12 +598,13 @@ const rootRouteChildren: RootRouteChildren = {
   LandingRoute: LandingRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
-  QuoteRoute: QuoteRoute,
   SettingsRoute: SettingsRouteWithChildren,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   LeadsDeletedRoute: LeadsDeletedRoute,
+  QuoteSlugRoute: QuoteSlugRoute,
   LeadsIndexRoute: LeadsIndexRoute,
+  QuoteIndexRoute: QuoteIndexRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
