@@ -164,14 +164,23 @@ describe("queryLeadInbox", () => {
     expect(seen).toHaveLength(10);
   });
 
-  it("returns an empty page beyond the end without leaking rows", async () => {
+  it("clamps a page request past the end back to the last page", async () => {
     const result = await queryLeadInbox(createFakeSupabase(tiedDb(2)), {
       businessId: TENANT,
       page: 9,
       pageSize: 25,
     });
+    expect(result.page).toMatchObject({ page: 1, totalCount: 2, hasNextPage: false });
+    expect(result.leads).toHaveLength(2);
+  });
+
+  it("renders an empty page when no rows match the filters", async () => {
+    const result = await queryLeadInbox(createFakeSupabase(tiedDb(2)), {
+      businessId: TENANT,
+      filters: { status: "completed" },
+    });
     expect(result.leads).toEqual([]);
-    expect(result.page).toMatchObject({ page: 1, totalCount: 2 });
+    expect(result.page).toMatchObject({ totalCount: 0, rangeFrom: 0, rangeTo: 0 });
   });
 
   it("filters by delivery status and suppression", async () => {
