@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import { LEAD_STATUS_LABELS, READINESS_LABELS, type LeadStatus } from "@/lib/domain";
+import { deliveryLabel, FAILURE_CLASS_LABELS, type FailureClass } from "@/lib/sms/delivery";
+
 
 const STATUS_STYLES: Record<string, string> = {
   new: "bg-info/15 text-info border-info/30",
