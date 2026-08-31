@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getAnalytics } from "@/lib/app.functions";
+import { SmsDeliveryPanel } from "@/components/SmsDeliveryPanel";
 import { SOURCE_LABELS, formatCurrency, formatMinutes } from "@/lib/domain";
 
 export const Route = createFileRoute("/analytics")({
@@ -162,6 +163,9 @@ function Analytics() {
         <Stat label="Opt-outs" value={String(data.optOuts)} />
         <Stat label="Delivery failures" value={String(data.deliveryFailures)} />
       </section>
+
+      <SmsDeliveryPanel />
+
 
       <p className="text-xs text-muted-foreground">
         Completed-job revenue is the sum of completed_value for jobs explicitly marked completed.

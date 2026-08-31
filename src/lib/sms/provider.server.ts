@@ -20,7 +20,14 @@ export type ResolvedSender = {
 
 export type SendResult = {
   providerMessageId: string;
-  deliveryStatus: "queued" | "sent" | "delivered" | "failed" | "undelivered" | "unknown";
+  deliveryStatus:
+    | "queued"
+    | "provider_accepted"
+    | "sent"
+    | "delivered"
+    | "failed"
+    | "undelivered"
+    | "unknown";
   errorCode?: string | null;
   provider: string;
   providerCost?: number | null;
@@ -38,6 +45,12 @@ export type DeliveryStatusUpdate = {
   providerMessageId: string;
   deliveryStatus: SendResult["deliveryStatus"];
   errorCode?: string | null;
+  /** Raw provider status string, preserved for support and audit only. */
+  rawStatus?: string | null;
+  /** Provider event id, used as the delivery-event idempotency key. */
+  eventId?: string | null;
+  /** Provider timestamp for this delivery event. */
+  occurredAt?: string | null;
 };
 
 export type WebhookVerification = {
@@ -70,7 +83,7 @@ function str(payload: Record<string, unknown>, ...keys: string[]): string | null
 
 const TWILIO_STATUS_MAP: Record<string, SendResult["deliveryStatus"]> = {
   queued: "queued",
-  accepted: "queued",
+  accepted: "provider_accepted",
   sending: "sent",
   sent: "sent",
   delivered: "delivered",

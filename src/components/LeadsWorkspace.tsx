@@ -4,7 +4,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Plus, RefreshCw, Trash2, Undo2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/StatusBadge";
+import { DeliveryBadge, SmsSuppressedBadge, StatusBadge } from "@/components/StatusBadge";
+import {
+  matchesSmsFilter,
+  SMS_FILTER_LABELS,
+  SMS_LEAD_FILTERS,
+  type SmsLeadFilter,
+} from "@/lib/sms/delivery";
+
 import { createManualLead, getDashboard, runFollowUpsNow } from "@/lib/app.functions";
 import { useDashboard } from "@/lib/useDashboard";
 import {
@@ -36,6 +43,8 @@ export function LeadsWorkspace() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [smsFilter, setSmsFilter] = useState<SmsLeadFilter>("all");
+
   const [showAdd, setShowAdd] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -60,9 +69,11 @@ export function LeadsWorkspace() {
     return allLeads.filter(
       (lead) =>
         (statusFilter === "all" || lead.status === statusFilter) &&
-        (sourceFilter === "all" || lead.source_channel === sourceFilter),
+        (sourceFilter === "all" || lead.source_channel === sourceFilter) &&
+        matchesSmsFilter(lead as never, smsFilter),
     );
-  }, [allLeads, statusFilter, sourceFilter]);
+  }, [allLeads, statusFilter, sourceFilter, smsFilter]);
+
 
 
   // Selection is always scoped to the current filtered result.
@@ -205,6 +216,21 @@ export function LeadsWorkspace() {
                 </option>
               ))}
             </select>
+            <label className="sr-only" htmlFor="sms-filter">
+              Filter by SMS delivery
+            </label>
+            <select
+              id="sms-filter"
+              value={smsFilter}
+              onChange={(event) => setSmsFilter(event.target.value as SmsLeadFilter)}
+              className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+            >
+              {SMS_LEAD_FILTERS.map((value) => (
+                <option key={value} value={value}>
+                  {SMS_FILTER_LABELS[value]}
+                </option>
+              ))}
+            </select>
             <label className="sr-only" htmlFor="status-filter">
               Filter by status
             </label>
@@ -221,6 +247,7 @@ export function LeadsWorkspace() {
                 </option>
               ))}
             </select>
+
             {visibleSelection.length > 0 && (
               <>
                 <span className="text-xs text-muted-foreground" data-testid="selected-count">
@@ -352,11 +379,38 @@ export function LeadsWorkspace() {
                     {lead.service_intent ?? "—"}
                   </td>
                   <td className="px-4 py-2.5">
-                    <StatusBadge status={lead.status} />
-                    {lead.conversation?.automation_paused && (
-                      <span className="ml-1.5 text-xs text-warning">paused</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <StatusBadge status={lead.status} />
+                      {lead.conversation?.automation_paused && (
+                        <span className="text-xs text-warning">paused</span>
+                      )}
+                    </div>
+                    {lead.last_outbound_sms_status && (
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <DeliveryBadge status={lead.last_outbound_sms_status} />
+                        {lead.sms_suppressed_at && (
+                          <SmsSuppressedBadge reason={lead.sms_suppression_reason} />
+                        )}
+                      </div>
+                    )}
+                    {lead.last_sms_failure_reason && (
+                      <p className="mt-1 max-w-[220px] text-[11px] text-destructive">
+                        {lead.last_sms_failure_reason}
+                      </p>
+                    )}
+                    {lead.last_delivered_sms_at && !lead.last_sms_failure_reason && (
+                      <p className="mt-1 text-[11px] text-muted-foreground/70">
+                        Delivered{" "}
+                        {new Date(lead.last_delivered_sms_at).toLocaleString("en-AU", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
                     )}
                   </td>
+
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">
                     {new Date(lead.conversation?.last_message_at ?? lead.created_at).toLocaleString(
                       "en-AU",

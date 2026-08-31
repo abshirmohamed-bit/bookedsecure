@@ -865,6 +865,13 @@ export type Database = {
           id: string
           import_batch_id: string | null
           last_cleaned_at: string | null
+          last_delivered_sms_at: string | null
+          last_outbound_sms_at: string | null
+          last_outbound_sms_status: string | null
+          last_reply_at: string | null
+          last_sms_failure_at: string | null
+          last_sms_failure_code: string | null
+          last_sms_failure_reason: string | null
           lead_origin: string | null
           main_concerns: string | null
           mobile_number: string
@@ -873,6 +880,8 @@ export type Database = {
           opted_out_at: string | null
           readiness_classification: string | null
           service_intent: string | null
+          sms_suppressed_at: string | null
+          sms_suppression_reason: string | null
           source_campaign: string | null
           source_channel: string
           source_form: string | null
@@ -901,6 +910,13 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           last_cleaned_at?: string | null
+          last_delivered_sms_at?: string | null
+          last_outbound_sms_at?: string | null
+          last_outbound_sms_status?: string | null
+          last_reply_at?: string | null
+          last_sms_failure_at?: string | null
+          last_sms_failure_code?: string | null
+          last_sms_failure_reason?: string | null
           lead_origin?: string | null
           main_concerns?: string | null
           mobile_number: string
@@ -909,6 +925,8 @@ export type Database = {
           opted_out_at?: string | null
           readiness_classification?: string | null
           service_intent?: string | null
+          sms_suppressed_at?: string | null
+          sms_suppression_reason?: string | null
           source_campaign?: string | null
           source_channel?: string
           source_form?: string | null
@@ -937,6 +955,13 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           last_cleaned_at?: string | null
+          last_delivered_sms_at?: string | null
+          last_outbound_sms_at?: string | null
+          last_outbound_sms_status?: string | null
+          last_reply_at?: string | null
+          last_sms_failure_at?: string | null
+          last_sms_failure_code?: string | null
+          last_sms_failure_reason?: string | null
           lead_origin?: string | null
           main_concerns?: string | null
           mobile_number?: string
@@ -945,6 +970,8 @@ export type Database = {
           opted_out_at?: string | null
           readiness_classification?: string | null
           service_intent?: string | null
+          sms_suppressed_at?: string | null
+          sms_suppression_reason?: string | null
           source_campaign?: string | null
           source_channel?: string
           source_form?: string | null
@@ -969,69 +996,108 @@ export type Database = {
       messages: {
         Row: {
           attempt_count: number
+          automation_stopped: boolean
           body: string
           business_id: string
           conversation_id: string | null
           created_at: string
+          delivered_at: string | null
+          delivery_event_count: number
           delivery_status: string
           direction: string
           error_code: string | null
+          failed_at: string | null
+          failure_class: string | null
+          failure_code: string | null
+          failure_reason: string | null
           from_number: string | null
           id: string
           idempotency_key: string | null
+          last_provider_event_at: string | null
+          last_provider_event_id: string | null
           lead_id: string
           message_kind: string
+          message_source: string | null
           next_retry_at: string | null
           provider: string | null
+          provider_accepted_at: string | null
           provider_cost: number | null
           provider_message_id: string | null
+          provider_raw_status: string | null
           received_at: string | null
+          reconciled_at: string | null
           segments: number
           sender_id: string | null
           sent_at: string | null
         }
         Insert: {
           attempt_count?: number
+          automation_stopped?: boolean
           body: string
           business_id: string
           conversation_id?: string | null
           created_at?: string
+          delivered_at?: string | null
+          delivery_event_count?: number
           delivery_status?: string
           direction: string
           error_code?: string | null
+          failed_at?: string | null
+          failure_class?: string | null
+          failure_code?: string | null
+          failure_reason?: string | null
           from_number?: string | null
           id?: string
           idempotency_key?: string | null
+          last_provider_event_at?: string | null
+          last_provider_event_id?: string | null
           lead_id: string
           message_kind?: string
+          message_source?: string | null
           next_retry_at?: string | null
           provider?: string | null
+          provider_accepted_at?: string | null
           provider_cost?: number | null
           provider_message_id?: string | null
+          provider_raw_status?: string | null
           received_at?: string | null
+          reconciled_at?: string | null
           segments?: number
           sender_id?: string | null
           sent_at?: string | null
         }
         Update: {
           attempt_count?: number
+          automation_stopped?: boolean
           body?: string
           business_id?: string
           conversation_id?: string | null
           created_at?: string
+          delivered_at?: string | null
+          delivery_event_count?: number
           delivery_status?: string
           direction?: string
           error_code?: string | null
+          failed_at?: string | null
+          failure_class?: string | null
+          failure_code?: string | null
+          failure_reason?: string | null
           from_number?: string | null
           id?: string
           idempotency_key?: string | null
+          last_provider_event_at?: string | null
+          last_provider_event_id?: string | null
           lead_id?: string
           message_kind?: string
+          message_source?: string | null
           next_retry_at?: string | null
           provider?: string | null
+          provider_accepted_at?: string | null
           provider_cost?: number | null
           provider_message_id?: string | null
+          provider_raw_status?: string | null
           received_at?: string | null
+          reconciled_at?: string | null
           segments?: number
           sender_id?: string | null
           sent_at?: string | null

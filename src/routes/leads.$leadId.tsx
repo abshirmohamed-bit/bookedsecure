@@ -5,7 +5,14 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Bot, Pause, Play, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
-import { DeliveryBadge, ReadinessBadge, StatusBadge } from "@/components/StatusBadge";
+import {
+  DeliveryBadge,
+  FailureClassBadge,
+  ReadinessBadge,
+  SmsSuppressedBadge,
+  StatusBadge,
+} from "@/components/StatusBadge";
+
 import {
   analyseConversation,
   getLead,
@@ -168,7 +175,30 @@ function LeadDetail() {
               Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")} — automated SMS blocked.
             </p>
           )}
+
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <DeliveryBadge status={lead.last_outbound_sms_status} />
+            {lead.sms_suppressed_at && (
+              <SmsSuppressedBadge reason={lead.sms_suppression_reason} />
+            )}
+            {lead.last_delivered_sms_at && (
+              <span>
+                Last delivered {new Date(lead.last_delivered_sms_at).toLocaleString("en-AU")}
+              </span>
+            )}
+            {lead.last_reply_at && (
+              <span>Last reply {new Date(lead.last_reply_at).toLocaleString("en-AU")}</span>
+            )}
+            {conversation?.automation_paused && <span>Automation stopped</span>}
+          </div>
+          {lead.last_sms_failure_reason && (
+            <p className="mt-1 text-xs text-destructive">
+              Last SMS failure: {lead.last_sms_failure_reason}
+              {lead.last_sms_failure_code ? ` (code ${lead.last_sms_failure_code})` : ""}
+            </p>
+          )}
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={lead.status}
@@ -249,12 +279,32 @@ function LeadDetail() {
                   </span>
                   <span>{message.message_kind}</span>
                   {message.direction === "outbound" && (
-                    <DeliveryBadge status={message.delivery_status} />
+                    <>
+                      <DeliveryBadge status={message.delivery_status} />
+                      <FailureClassBadge failureClass={message.failure_class} />
+                      {message.automation_stopped && (
+                        <span className="text-destructive">Automation stopped</span>
+                      )}
+                      {message.message_source && <span>via {message.message_source}</span>}
+                    </>
                   )}
-                  {message.error_code && (
-                    <span className="text-destructive">{message.error_code}</span>
+                  {(message.failure_code ?? message.error_code) && (
+                    <span className="text-destructive">
+                      {message.failure_code ?? message.error_code}
+                    </span>
                   )}
                 </div>
+                {message.direction === "outbound" && message.failure_reason && (
+                  <p className="mt-1 text-[11px] text-destructive">
+                    {message.failure_reason}
+                    {message.failure_class === "permanent"
+                      ? " Future automated SMS is suppressed for this lead."
+                      : message.failure_class === "temporary"
+                        ? " Temporary problem — no automatic retry was sent."
+                        : ""}
+                  </p>
+                )}
+
               </div>
             ))}
           </div>
