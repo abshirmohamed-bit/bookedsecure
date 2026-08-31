@@ -354,7 +354,12 @@ function ImportView() {
           <RepairPanel preview={preview.data} />
           <DryRunPanel preview={preview.data} />
           <CommitGatePanel preview={preview.data} unsavedEdits={unsavedEdits} />
-          <PreviewTable preview={preview.data} onDirtyChange={setUnsavedEdits} />
+          <PreviewTable
+            preview={preview.data}
+            onDirtyChange={setUnsavedEdits}
+            focusExceptions={focusExceptions}
+          />
+
         </>
       ) : null}
 
