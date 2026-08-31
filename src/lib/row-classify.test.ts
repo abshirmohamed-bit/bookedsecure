@@ -356,7 +356,11 @@ describe("preview-only safety boundary for classification", () => {
     const source = await import("node:fs/promises").then((fs) =>
       fs.readFile("src/lib/csv-import.server.ts", "utf8"),
     );
-    const writer = source.slice(source.indexOf("export async function classifyPreviewBatch"));
+    const writer = (() => {
+      const start = source.indexOf("export async function classifyPreviewBatch");
+      const next = source.indexOf("\nexport ", start + 1);
+      return next === -1 ? source.slice(start) : source.slice(start, next);
+    })();
     expect(writer).toContain('from("lead_import_rows")');
     expect(writer).toContain("normalized_payload");
     expect(writer).not.toContain("decision:");
