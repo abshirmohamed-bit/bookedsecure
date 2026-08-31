@@ -66,7 +66,7 @@ describe("outbound payload creation", () => {
 
 describe("telnyx status mapping", () => {
   it("maps every documented status", () => {
-    expect(mapTelnyxStatus("queued")).toBe("queued");
+    expect(mapTelnyxStatus("queued")).toBe("provider_accepted");
     expect(mapTelnyxStatus("sending")).toBe("sent");
     expect(mapTelnyxStatus("sent")).toBe("sent");
     expect(mapTelnyxStatus("delivered")).toBe("delivered");

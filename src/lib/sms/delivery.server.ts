@@ -148,7 +148,7 @@ export async function applyDeliveryEvent(
     update["failure_code"] = classification.code;
     update["failure_reason"] = classification.reason;
     update["failure_class"] = classification.failureClass;
-    update["error_code"] = classification.code ?? short(event.detail) || null;
+    update["error_code"] = classification.code ?? (short(event.detail) || null);
   }
 
   await client.from("messages").update(update as never).eq("id", message.id);
