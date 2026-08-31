@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
 import {
   buildPageMeta,
+  DEFAULT_PAGE_SIZE,
   leadFilterPredicates,
   normaliseFilters,
   normalisePageRequest,
