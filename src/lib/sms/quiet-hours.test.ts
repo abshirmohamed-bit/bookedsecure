@@ -55,7 +55,7 @@ describe("quiet-hours gate (pure)", () => {
 function createEngine(opts: {
   settings: typeof SYDNEY;
   now: string;
-  carrier: ReturnType<typeof vi.fn>;
+  carrier: ReturnType<typeof vi.fn> & (() => unknown);
 }) {
   const messages: { id: string; businessId: string; key: string | null; status: string }[] = [];
   const conversations: string[] = [];
