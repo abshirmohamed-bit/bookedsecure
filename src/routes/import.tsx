@@ -389,8 +389,10 @@ function PreviewTable({
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const [editing, setEditing] = useState<number | null>(null);
+  const [filter, setFilter] = useState<RepairFilter>("all");
   const editingRow = preview.rows.find((row) => row.row_number === editing) ?? null;
   const rawRow = Object.fromEntries(preview.headers.map((header) => [header, ""]));
+  const visibleRows = preview.rows.filter((row) => matchesRepairFilter(row as never, filter));
   return (
     <section className="panel space-y-3 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -413,6 +415,27 @@ function PreviewTable({
         </p>
       ) : null}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="repair-filter" className="text-xs text-muted-foreground">
+          Filter rows
+        </label>
+        <select
+          id="repair-filter"
+          value={filter}
+          onChange={(event) => setFilter(event.target.value as RepairFilter)}
+          className="rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          {REPAIR_FILTERS.map((option) => (
+            <option key={option} value={option}>
+              {REPAIR_FILTER_LABELS[option]}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-muted-foreground">
+          Showing {visibleRows.length} of {preview.rows.length} staged rows
+        </span>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-xs">
           <thead className="text-muted-foreground">
@@ -420,6 +443,7 @@ function PreviewTable({
               <th className="py-2 pr-3">#</th>
               <th className="py-2 pr-3">Name</th>
               <th className="py-2 pr-3">Phone</th>
+              <th className="py-2 pr-3">Phone repair</th>
               <th className="py-2 pr-3">Email</th>
               <th className="py-2 pr-3">Proposed mapping</th>
               <th className="py-2 pr-3">Issues</th>
@@ -431,15 +455,40 @@ function PreviewTable({
             </tr>
           </thead>
           <tbody>
-            {preview.rows.map((row) => {
+            {visibleRows.map((row) => {
               const payload = row.normalized_payload;
               const metadata = payload.source_metadata ?? {};
+              const repair = readPhoneRepair(payload);
               return (
                 <tr key={row.row_number} className="border-t border-border align-top">
                   <td className="py-2 pr-3">{row.row_number}</td>
                   <td className="py-2 pr-3">{row.name ?? "—"}</td>
                   <td className="py-2 pr-3">{row.mobile_number ?? "—"}</td>
+                  <td className="py-2 pr-3">
+                    {repair ? (
+                      <>
+                        <div>original: {repair.original || "—"}</div>
+                        <div>normalised: {repair.normalized ?? "—"}</div>
+                        <div className="text-muted-foreground">
+                          {PHONE_REPAIR_ACTION_LABELS[repair.action] ?? repair.action}
+                        </div>
+                        <div className="text-muted-foreground">{repair.reason}</div>
+                        <div className="text-muted-foreground">
+                          confidence: {repair.confidence} ·{" "}
+                          {PHONE_CLASSIFICATION_LABELS[repair.classification] ??
+                            repair.classification}
+                        </div>
+                        <div className="text-muted-foreground">
+                          eligible for import:{" "}
+                          {row.classification?.classification === "auto_include" ? "yes" : "no"}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">not scanned yet</span>
+                    )}
+                  </td>
                   <td className="py-2 pr-3">{row.email ?? "—"}</td>
+
                   <td className="py-2 pr-3">
                     <div>status: {payload.proposed_status ?? "—"}</div>
                     <div>
