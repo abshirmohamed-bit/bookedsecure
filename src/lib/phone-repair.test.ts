@@ -202,8 +202,8 @@ describe("repair summary and filters", () => {
     {
       normalized_payload: {
         phone_repair: stampRepair(repairPhone("424012949"), {}),
-        duplicate_of_row: 1,
       },
+      duplicate_of_row: 1,
       classification: { classification: "manual_review" },
     },
     {
@@ -226,12 +226,12 @@ describe("repair summary and filters", () => {
   });
 
   it("filters rows by repair state", () => {
-    expect(rows.filter((r) => matchesRepairFilter(r as never, "repaired")).length).toBe(3);
+    expect(rows.filter((r) => matchesRepairFilter(r as never, "repaired_automatically")).length).toBe(3);
     expect(rows.filter((r) => matchesRepairFilter(r as never, "non_mobile")).length).toBe(1);
     expect(rows.filter((r) => matchesRepairFilter(r as never, "potential_duplicate")).length).toBe(
       1,
     );
-    expect(rows.filter((r) => matchesRepairFilter(r as never, "auto_include")).length).toBe(1);
+    expect(rows.filter((r) => matchesRepairFilter(r as never, "auto_include_candidate")).length).toBe(1);
     expect(rows.filter((r) => matchesRepairFilter(r as never, "all")).length).toBe(6);
   });
 });
