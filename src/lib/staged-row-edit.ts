@@ -243,13 +243,12 @@ export function normalizeEditableValues(values: EditableValues): NormalizedEdit 
   if (!name) errors.push({ code: "missing_name", field: "name" });
 
   const phoneInput = text(values.phone);
-  const phone = classifyAuPhone(phoneInput);
-  if (phone.kind === "invalid") {
-    errors.push({ code: "invalid_phone", field: "mobile_number", detail: phoneInput });
-  } else if (phone.kind === "unsupported_type") {
-    errors.push({ code: "unsupported_phone_type", field: "mobile_number", detail: phone.value });
-  }
-  const mobile = phone.kind === "mobile" ? phone.value : null;
+  // Same deterministic repair engine used by the importer: high-confidence
+  // Australian formatting fixes are applied, digits are never invented.
+  const resolvedPhone = resolvePhoneWithRepair(phoneInput);
+  errors.push(...resolvedPhone.errors);
+  const mobile = resolvedPhone.mobile_number;
+
 
   const emailInput = text(values.email);
   const email = normaliseEmail(emailInput);
