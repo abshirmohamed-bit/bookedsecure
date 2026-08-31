@@ -225,7 +225,7 @@ describe("editStagedRow (preview-only)", () => {
       batchId: BATCH,
       rowNumber: 1,
       userId: USER,
-      fields: { phone: "+610404398423" },
+      fields: { phone: "0404398423" },
     });
     expect(result.row.mobile_number).toBe("+61404398423");
     expect(result.row.validation_errors).toEqual([]);
@@ -242,6 +242,19 @@ describe("editStagedRow (preview-only)", () => {
     assertNoSideEffects(client);
   });
 
+  it("keeps an unsupported +610... value as an exception until it is corrected", async () => {
+    const data = db({ lead_import_rows: [stagedRow({ ...BASE_PAYLOAD, name: "Harry" })] });
+    const client = createFakeSupabase(data);
+    const bad = await editStagedRow(client, BUSINESS, {
+      batchId: BATCH,
+      rowNumber: 1,
+      userId: USER,
+      fields: { phone: "+610404398423" },
+    });
+    expect(bad.row.mobile_number).toBeNull();
+    expect(bad.row.validation_errors.map((e) => e.code)).toContain("invalid_phone");
+  });
+
   it("accepts a spaced AU mobile and stores the corrected raw phone", async () => {
     const data = db({ lead_import_rows: [stagedRow({ ...BASE_PAYLOAD, name: "Harry" })] });
     const client = createFakeSupabase(data);
@@ -249,15 +262,15 @@ describe("editStagedRow (preview-only)", () => {
       batchId: BATCH,
       rowNumber: 1,
       userId: USER,
-      fields: { phone: "+61 0404 398 423" },
+      fields: { phone: "0404 398 423" },
     });
     expect(result.row.mobile_number).toBe("+61404398423");
     const meta = data.lead_import_rows[0]!.normalized_payload.source_metadata;
-    expect(meta.phone_corrected).toBe("+61 0404 398 423");
+    expect(meta.phone_corrected).toBe("0404 398 423");
     expect(meta.stage_raw).toBe("Intake");
   });
 
-  it("saving a name keeps a still-missing phone pending", async () => {
+  it("saving a name leaves the row pending when the phone is still missing", async () => {
     const data = db({
       lead_import_rows: [stagedRow({ ...BASE_PAYLOAD }, [{ code: "missing_name" }])],
     });
@@ -268,9 +281,11 @@ describe("editStagedRow (preview-only)", () => {
       userId: USER,
       fields: { name: "Harry" },
     });
-    expect(result.state).toBe("invalid_contact");
+    expect(result.row.mobile_number).toBeNull();
+    expect(result.state).toBe("pending_review");
     expect(result.row.review.decision).toBe("pending");
   });
+
 
   it("a cleared name puts the row back to pending review", async () => {
     const data = db({
