@@ -166,7 +166,7 @@ describe("reachability through the delivery pipeline", () => {
   it("delivered message marks the lead reachable_recently", async () => {
     const client = createFakeSupabase(seed());
     await applyDeliveryEvent(event(), { client });
-    const row = client.db["leads"]!.find((r) => r["id"] === "l-1")!;
+    const row = client.db["leads"]!.find((r: Record<string, unknown>) => r["id"] === "l-1")!;
     expect(row["reachability_state"]).toBe("reachable_recently");
     expect(row["last_successful_delivery_at"]).toBe("2026-01-01T01:00:00.000Z");
     expect(row["last_outbound_sms_status"]).toBe("delivered");
@@ -178,7 +178,7 @@ describe("reachability through the delivery pipeline", () => {
       event({ status: "undelivered", failureCode: "40012" }),
       { client },
     );
-    const row = client.db["leads"]!.find((r) => r["id"] === "l-1")!;
+    const row = client.db["leads"]!.find((r: Record<string, unknown>) => r["id"] === "l-1")!;
     expect(result.automationStopped).toBe(true);
     expect(row["reachability_state"]).toBe("suppressed_pending_review");
     expect(row["sms_suppressed_at"]).toBeTruthy();
@@ -189,7 +189,7 @@ describe("reachability through the delivery pipeline", () => {
   it("temporary failure does not suppress or mark unreachable", async () => {
     const client = createFakeSupabase(seed());
     await applyDeliveryEvent(event({ status: "failed", failureCode: "40006" }), { client });
-    const row = client.db["leads"]!.find((r) => r["id"] === "l-1")!;
+    const row = client.db["leads"]!.find((r: Record<string, unknown>) => r["id"] === "l-1")!;
     expect(row["sms_suppressed_at"]).toBe(null);
     expect(row["reachability_state"]).toBe("unknown");
   });
@@ -212,7 +212,7 @@ describe("reachability through the delivery pipeline", () => {
       event({ providerMessageId: "pmsg_2", eventId: "evt_2", occurredAt: "2026-02-01T01:00:00.000Z" }),
       { client },
     );
-    const row = client.db["leads"]!.find((r) => r["id"] === "l-1")!;
+    const row = client.db["leads"]!.find((r: Record<string, unknown>) => r["id"] === "l-1")!;
     expect(row["reachability_state"]).toBe("reachable_recently");
     expect(row["last_permanent_failure_at"]).toBe("2026-01-01T03:00:00.000Z");
     expect(row["last_sms_failure_code"]).toBe("40012");
@@ -221,7 +221,7 @@ describe("reachability through the delivery pipeline", () => {
   it("never touches another tenant's lead", async () => {
     const client = createFakeSupabase(seed());
     await applyDeliveryEvent(event({ status: "undelivered", failureCode: "40012" }), { client });
-    const other = client.db["leads"]!.find((r) => r["id"] === "other-1")!;
+    const other = client.db["leads"]!.find((r: Record<string, unknown>) => r["id"] === "other-1")!;
     expect(other["reachability_state"]).toBe("unknown");
     expect(other["sms_suppressed_at"]).toBe(null);
   });

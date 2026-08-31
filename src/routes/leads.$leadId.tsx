@@ -10,6 +10,7 @@ import {
   FailureClassBadge,
   ReadinessBadge,
   SmsSuppressedBadge,
+  ReachabilityBadge,
   StatusBadge,
 } from "@/components/StatusBadge";
 
