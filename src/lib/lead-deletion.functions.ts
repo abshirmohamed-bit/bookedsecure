@@ -35,15 +35,25 @@ export const softDeleteLeadsRequest = createServerFn({ method: "POST" })
   });
 
 /** Recovery view data. Owner-gated, tenant-scoped, read-only. */
+const DeletedPageSchema = z.object({
+  page: z.number().int().optional(),
+  pageSize: z.number().int().optional(),
+});
+
 export const getDeletedLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: unknown) => DeletedPageSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
     const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { listDeletedLeads } = await import("@/lib/lead-deletion.server");
     const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
-    return { role: app.role, leads: await listDeletedLeads(supabaseAdmin, app.businessId) };
+    const result = await listDeletedLeads(supabaseAdmin, app.businessId, {
+      page: data.page ?? 1,
+      pageSize: data.pageSize ?? 25,
+    });
+    return { role: app.role, leads: result.leads, page: result.page };
   });
 
 /** Restores soft-deleted leads in place. Owner-gated, never creates duplicates. */

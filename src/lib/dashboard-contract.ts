@@ -5,6 +5,8 @@
 // metrics block must never hide the lead list, and safe zero defaults are only
 // ever used for genuinely empty metrics — never to conceal a failed request.
 
+import { buildPageMeta, type PageMeta } from "@/lib/lead-pagination";
+
 export type DashboardMetrics = {
   totalLeads: number;
   medianResponseMinutes: number | null;
@@ -18,12 +20,16 @@ export type DashboardMetrics = {
   deliveryFailures: number;
 };
 
+export type DashboardPage = PageMeta;
+
 export type DashboardLead = { id: string; created_at: string } & Record<string, unknown>;
 
 export type DashboardPayload = {
   role: string | null;
   metrics: DashboardMetrics;
   leads: DashboardLead[];
+  /** Server-side page metadata; null when an older response omitted it. */
+  page: PageMeta | null;
 };
 
 /** Zero metrics. Only valid when the response itself was valid and empty. */
@@ -107,6 +113,17 @@ function normaliseMetrics(raw: Record<string, unknown>): DashboardMetrics {
   return metrics;
 }
 
+/** Accepts server page metadata, or derives a single-page fallback from the rows. */
+function normalisePage(raw: unknown, returned: number): PageMeta | null {
+  if (!isRecord(raw)) return null;
+  return buildPageMeta({
+    page: isFiniteNumber(raw["page"]) ? raw["page"] : 1,
+    pageSize: isFiniteNumber(raw["pageSize"]) ? raw["pageSize"] : Math.max(returned, 25),
+    totalCount: isFiniteNumber(raw["totalCount"]) ? raw["totalCount"] : returned,
+    returned,
+  });
+}
+
 export type DashboardValidation =
   | { ok: true; shape: "valid"; payload: DashboardPayload; isEmpty: boolean }
   | { ok: false; shape: Exclude<ResponseShape, "valid">; message: string; leads: DashboardLead[] };
@@ -138,6 +155,7 @@ export function validateDashboardResponse(raw: unknown): DashboardValidation {
         role: typeof record["role"] === "string" ? record["role"] : null,
         metrics,
         leads,
+        page: normalisePage(record["page"], leads.length),
       },
       isEmpty: leads.length === 0 && metrics.totalLeads === 0,
     };

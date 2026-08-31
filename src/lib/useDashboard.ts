@@ -13,21 +13,39 @@ import { DashboardContractError, deriveDashboardView, type DashboardView } from 
 
 export const DASHBOARD_QUERY_KEY = ["dashboard"] as const;
 
+export type DashboardRequest = {
+  page: number;
+  pageSize: number;
+  status: string;
+  source: string;
+  sms: string;
+};
+
 /**
  * Single source of truth for the Leads page dashboard request.
  *
+ * Filtering and pagination are server-side: the request carries the page and
+ * filters, and the response carries only that page of the caller's own leads.
  * Validates the response before anything renders, logs a safe diagnostic that
  * never contains the tenant id or customer data, and keeps the last good lead
  * list so a temporary metrics failure does not blank the inbox.
  */
-export function useDashboard(): DashboardView & { retry: () => void } {
+export function useDashboard(request?: Partial<DashboardRequest>): DashboardView & { retry: () => void } {
   const fetchDashboard = useServerFn(getDashboard);
   const lastGood = useRef<DashboardPayload | null>(null);
 
+  const params: DashboardRequest = {
+    page: request?.page ?? 1,
+    pageSize: request?.pageSize ?? 25,
+    status: request?.status ?? "all",
+    source: request?.source ?? "all",
+    sms: request?.sms ?? "all",
+  };
+
   const query = useQuery({
-    queryKey: DASHBOARD_QUERY_KEY,
+    queryKey: [...DASHBOARD_QUERY_KEY, params],
     queryFn: async (): Promise<DashboardPayload> => {
-      const raw = await fetchDashboard();
+      const raw = await fetchDashboard({ data: params });
       const result = validateDashboardResponse(raw);
       if (!result.ok) {
         throw new DashboardContractError(result.message, result.shape, result.leads);
@@ -43,6 +61,7 @@ export function useDashboard(): DashboardView & { retry: () => void } {
   });
 
   if (query.data) lastGood.current = query.data;
+
 
   const view = deriveDashboardView({
     status: query.status,

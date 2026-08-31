@@ -8,6 +8,8 @@ import { AppShell } from "@/components/AppShell";
 import { getDeletedLeads, restoreLeadsRequest } from "@/lib/lead-deletion.functions";
 import { importMethodLabel, leadSourceLabel } from "@/lib/lead-source";
 import { maskPhone, toggleSelection } from "@/lib/lead-deletion";
+import { InboxPagination } from "@/components/InboxPagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
 export const Route = createFileRoute("/leads/deleted")({
   head: () => ({
@@ -35,10 +37,13 @@ function DeletedLeadsPage() {
   const restore = useServerFn(restoreLeadsRequest);
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["deleted-leads"],
-    queryFn: () => fetchDeleted(),
+  // Tenant-scoped and paginated on the server, exactly like the active inbox.
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: ["deleted-leads", { page, pageSize }],
+    queryFn: () => fetchDeleted({ data: { page, pageSize } }),
   });
 
   const leads = useMemo(() => data?.leads ?? [], [data]);
@@ -80,7 +85,7 @@ function DeletedLeadsPage() {
         {data && (
           <section className="panel">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-              <h2 className="text-sm font-semibold">{leads.length} deleted</h2>
+              <h2 className="text-sm font-semibold">{data.page.totalCount} deleted</h2>
               <div className="flex items-center gap-2">
                 {selection.length > 0 && (
                   <span className="text-xs text-muted-foreground">{selection.length} selected</span>
@@ -170,6 +175,21 @@ function DeletedLeadsPage() {
                 </tbody>
               </table>
             </div>
+
+            <InboxPagination
+              page={data.page}
+              isLoading={isFetching}
+              label="deleted leads"
+              onPageChange={(next) => {
+                setPage(next);
+                setSelection([]);
+              }}
+              onPageSizeChange={(next) => {
+                setPageSize(next);
+                setPage(1);
+                setSelection([]);
+              }}
+            />
           </section>
         )}
       </div>

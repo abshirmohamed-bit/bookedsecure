@@ -425,7 +425,8 @@ describe("recovery view", () => {
     db.leads.find((item) => item.id === L1)!.deleted_at = "2025-08-01T00:00:00Z";
     db.leads.find((item) => item.id === FOREIGN)!.deleted_at = "2025-08-01T00:00:00Z";
     const deleted = await listDeletedLeads(createFakeSupabase(db), TENANT);
-    expect(deleted.map((row: { id: string }) => row.id)).toEqual([L1]);
+    expect(deleted.leads.map((row) => row.id)).toEqual([L1]);
+    expect(deleted.page.totalCount).toBe(1);
   });
 
   it("restores a lead in place without creating a duplicate", async () => {

@@ -5,8 +5,9 @@ import { useMemo, useState } from "react";
 import { Plus, RefreshCw, Trash2, Undo2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { DeliveryBadge, SmsSuppressedBadge, StatusBadge } from "@/components/StatusBadge";
+import { InboxPagination } from "@/components/InboxPagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 import {
-  matchesSmsFilter,
   SMS_FILTER_LABELS,
   SMS_LEAD_FILTERS,
   type SmsLeadFilter,
@@ -44,6 +45,8 @@ export function LeadsWorkspace() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [smsFilter, setSmsFilter] = useState<SmsLeadFilter>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
   const [showAdd, setShowAdd] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
@@ -53,7 +56,21 @@ export function LeadsWorkspace() {
   const [lastResult, setLastResult] = useState<DeletionResult | null>(null);
   const deleteLeads = useServerFn(softDeleteLeadsRequest);
 
-  const dashboard = useDashboard();
+  // Filters live in the request, so they are applied in the database before
+  // pagination. Any filter change resets to page 1.
+  const dashboard = useDashboard({
+    page,
+    pageSize,
+    status: statusFilter,
+    source: sourceFilter,
+    sms: smsFilter,
+  });
+
+  function changeFilter(apply: () => void) {
+    apply();
+    setPage(1);
+    setSelection([]);
+  }
 
   const followUps = useMutation({
     mutationFn: () => runFollowUps(),
@@ -64,16 +81,8 @@ export function LeadsWorkspace() {
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
 
-  const allLeads = dashboard.leads as unknown as InboxLeadRow[];
-  const leads = useMemo(() => {
-    return allLeads.filter(
-      (lead) =>
-        (statusFilter === "all" || lead.status === statusFilter) &&
-        (sourceFilter === "all" || lead.source_channel === sourceFilter) &&
-        matchesSmsFilter(lead as never, smsFilter),
-    );
-  }, [allLeads, statusFilter, sourceFilter, smsFilter]);
-
+  // Already filtered and paginated by the server: this page only.
+  const leads = dashboard.leads as unknown as InboxLeadRow[];
 
 
   // Selection is always scoped to the current filtered result.
@@ -206,7 +215,7 @@ export function LeadsWorkspace() {
             <select
               id="source-filter"
               value={sourceFilter}
-              onChange={(event) => setSourceFilter(event.target.value)}
+              onChange={(event) => changeFilter(() => setSourceFilter(event.target.value))}
               className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
             >
               <option value="all">All sources</option>
@@ -222,7 +231,7 @@ export function LeadsWorkspace() {
             <select
               id="sms-filter"
               value={smsFilter}
-              onChange={(event) => setSmsFilter(event.target.value as SmsLeadFilter)}
+              onChange={(event) => changeFilter(() => setSmsFilter(event.target.value as SmsLeadFilter))}
               className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
             >
               {SMS_LEAD_FILTERS.map((value) => (
@@ -237,7 +246,7 @@ export function LeadsWorkspace() {
             <select
               id="status-filter"
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
+              onChange={(event) => changeFilter(() => setStatusFilter(event.target.value))}
               className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
             >
               <option value="all">All statuses</option>
@@ -435,6 +444,20 @@ export function LeadsWorkspace() {
             </tbody>
           </table>
         </div>
+
+        <InboxPagination
+          page={dashboard.page}
+          isLoading={dashboard.isRefreshing}
+          onPageChange={(next) => {
+            setPage(next);
+            setSelection([]);
+          }}
+          onPageSizeChange={(next) => {
+            setPageSize(next);
+            setPage(1);
+            setSelection([]);
+          }}
+        />
       </section>
 
       {confirmOpen && (

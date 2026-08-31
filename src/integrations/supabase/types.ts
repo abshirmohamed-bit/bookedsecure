@@ -69,6 +69,13 @@ export type Database = {
             foreignKeyName: "ai_outputs_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_outputs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -120,6 +127,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
             referencedColumns: ["id"]
           },
           {
@@ -233,6 +247,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_jobs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
             referencedColumns: ["id"]
           },
           {
@@ -460,6 +481,13 @@ export type Database = {
             foreignKeyName: "consent_events_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -512,6 +540,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
             referencedColumns: ["id"]
           },
           {
@@ -702,6 +737,13 @@ export type Database = {
             foreignKeyName: "jobs_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -835,7 +877,21 @@ export type Database = {
             foreignKeyName: "lead_import_rows_dedupe_match_lead_id_fkey"
             columns: ["dedupe_match_lead_id"]
             isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_import_rows_dedupe_match_lead_id_fkey"
+            columns: ["dedupe_match_lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_import_rows_resulting_lead_id_fkey"
+            columns: ["resulting_lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
             referencedColumns: ["id"]
           },
           {
@@ -1118,6 +1174,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["conversation_id"]
+          },
+          {
+            foreignKeyName: "messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "messages_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
@@ -1179,6 +1249,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
             referencedColumns: ["id"]
           },
           {
@@ -1750,7 +1827,60 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      lead_inbox_rows: {
+        Row: {
+          business_id: string | null
+          conversation_automation_paused: boolean | null
+          conversation_id: string | null
+          conversation_last_message_at: string | null
+          conversation_next_follow_up_at: string | null
+          conversation_status: string | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_request_id: string | null
+          email: string | null
+          first_contacted_at: string | null
+          first_reply_at: string | null
+          id: string | null
+          import_batch_id: string | null
+          job_completed_value: number | null
+          job_completion_status: string | null
+          job_id: string | null
+          last_activity_at: string | null
+          last_delivered_sms_at: string | null
+          last_outbound_sms_at: string | null
+          last_outbound_sms_status: string | null
+          last_reply_at: string | null
+          last_sms_failure_at: string | null
+          last_sms_failure_code: string | null
+          last_sms_failure_reason: string | null
+          lead_origin: string | null
+          mobile_number: string | null
+          name: string | null
+          readiness_classification: string | null
+          service_intent: string | null
+          sms_suppressed_at: string | null
+          sms_suppression_reason: string | null
+          source_campaign: string | null
+          source_channel: string | null
+          source_metadata: Json | null
+          status: string | null
+          suburb: string | null
+          updated_at: string | null
+          vehicle_type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_set_profile_assignment: {

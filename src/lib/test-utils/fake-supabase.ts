@@ -15,8 +15,11 @@ class Query implements PromiseLike<{ data: any; error: any }> {
   private maybe = false;
   private wantsRows = true;
   private limitValue: number | null = null;
-  private orderKey: string | null = null;
-  private orderAsc = true;
+  private orders: { key: string; ascending: boolean }[] = [];
+  private rangeFrom: number | null = null;
+  private rangeTo: number | null = null;
+  private wantsCount = false;
+  private headOnly = false;
 
   constructor(
     private db: FakeDb,
@@ -25,12 +28,14 @@ class Query implements PromiseLike<{ data: any; error: any }> {
   ) {}
 
   private get rows(): Row[] {
+    if (this.table === "lead_inbox_rows") return buildLeadInboxRows(this.db);
     return (this.db[this.table] ??= []);
   }
 
-  select(_columns?: string) {
-    if (this.mode === "select") this.wantsRows = true;
-    else this.wantsRows = true;
+  select(_columns?: string, options?: { count?: "exact"; head?: boolean }) {
+    this.wantsRows = true;
+    if (options?.count) this.wantsCount = true;
+    if (options?.head) this.headOnly = true;
     return this;
   }
   insert(payload: Row) {
@@ -68,9 +73,13 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     this.filters.push((row) => set.has(row[column]));
     return this;
   }
-  order(column: string, options?: { ascending?: boolean }) {
-    this.orderKey = column;
-    this.orderAsc = options?.ascending !== false;
+  order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }) {
+    this.orders.push({ key: column, ascending: options?.ascending !== false });
+    return this;
+  }
+  range(from: number, to: number) {
+    this.rangeFrom = from;
+    this.rangeTo = to;
     return this;
   }
   limit(value: number) {
@@ -100,14 +109,24 @@ class Query implements PromiseLike<{ data: any; error: any }> {
       return { data: this.singleRow || this.maybe ? (affected[0] ?? null) : affected, error: null };
     }
     let result = this.matching();
-    if (this.orderKey) {
-      const key = this.orderKey;
-      result = [...result].sort((a, b) =>
-        this.orderAsc ? String(a[key]).localeCompare(String(b[key])) : String(b[key]).localeCompare(String(a[key])),
-      );
+    if (this.orders.length > 0) {
+      result = [...result].sort((a, b) => {
+        for (const { key, ascending } of this.orders) {
+          const left = a[key] ?? "";
+          const right = b[key] ?? "";
+          const cmp = String(left).localeCompare(String(right));
+          if (cmp !== 0) return ascending ? cmp : -cmp;
+        }
+        return 0;
+      });
     }
+    const total = result.length;
     if (this.limitValue !== null) result = result.slice(0, this.limitValue);
+    if (this.rangeFrom !== null && this.rangeTo !== null)
+      result = result.slice(this.rangeFrom, this.rangeTo + 1);
+    if (this.headOnly) return { data: null, error: null, count: total } as any;
     if (this.singleRow || this.maybe) return { data: result[0] ?? null, error: null };
+    if (this.wantsCount) return { data: result, error: null, count: total } as any;
     return { data: result, error: null };
   }
   then<TResult1 = { data: any; error: any }, TResult2 = never>(
@@ -116,6 +135,32 @@ class Query implements PromiseLike<{ data: any; error: any }> {
   ): PromiseLike<TResult1 | TResult2> {
     return Promise.resolve(this.run()).then(onfulfilled ?? undefined, onrejected ?? undefined);
   }
+}
+
+/** Mirrors the `lead_inbox_rows` database view: lead + latest conversation + latest job. */
+export function buildLeadInboxRows(db: FakeDb): Row[] {
+  const conversations = db["conversations"] ?? [];
+  const jobs = db["jobs"] ?? [];
+  return (db["leads"] ?? []).map((lead) => {
+    const conversation = conversations
+      .filter((row) => row["lead_id"] === lead["id"] && row["business_id"] === lead["business_id"])
+      .sort((a, b) => String(b["last_message_at"] ?? "").localeCompare(String(a["last_message_at"] ?? "")))[0];
+    const job = jobs
+      .filter((row) => row["lead_id"] === lead["id"] && row["business_id"] === lead["business_id"])
+      .sort((a, b) => String(b["completed_at"] ?? "").localeCompare(String(a["completed_at"] ?? "")))[0];
+    return {
+      ...lead,
+      conversation_id: conversation?.["id"] ?? null,
+      conversation_status: conversation?.["status"] ?? null,
+      conversation_next_follow_up_at: conversation?.["next_follow_up_at"] ?? null,
+      conversation_automation_paused: conversation?.["automation_paused"] ?? null,
+      conversation_last_message_at: conversation?.["last_message_at"] ?? null,
+      job_id: job?.["id"] ?? null,
+      job_completion_status: job?.["completion_status"] ?? null,
+      job_completed_value: job?.["completed_value"] ?? null,
+      last_activity_at: conversation?.["last_message_at"] ?? lead["created_at"],
+    };
+  });
 }
 
 export function createFakeSupabase(db: FakeDb) {
