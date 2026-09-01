@@ -149,6 +149,18 @@ function DeletedLeadsPage() {
                     ? "Restoring…"
                     : `Restore ${selection.length} ${selection.length === 1 ? "lead" : "leads"}`}
                 </button>
+                {isOwner && (
+                  <button
+                    disabled={selection.length === 0 || purgeMutation.isPending}
+                    onClick={() => {
+                      setPhrase("");
+                      setPurgeOpen(true);
+                    }}
+                    className="rounded-md border border-destructive/60 bg-destructive/10 px-2.5 py-1.5 text-xs font-medium text-destructive disabled:opacity-50"
+                  >
+                    Permanently delete selected
+                  </button>
+                )}
                 <button
                   onClick={() => setSelection([])}
                   className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground"
