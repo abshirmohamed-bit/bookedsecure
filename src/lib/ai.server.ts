@@ -1,10 +1,18 @@
 // Lovable AI analysis of a conversation. Output is validated before it can be
 // shown; it is never piped straight into an SMS send.
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, Output } from "ai";
-import { z } from "zod";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildBusinessSettingsContext } from "@/lib/ai-context";
+import {
+  AI_ANALYSIS_FAILURE_MESSAGE,
+  AnalysisSchema,
+  buildRepairInstruction,
+  correlationRef,
+  failureMessage,
+  parseAnalysisPayload,
+  type Analysis,
+} from "@/lib/ai-analysis-contract";
 import {
   buildApprovedFacts,
   buildApprovedFactsContext,
@@ -12,40 +20,21 @@ import {
   type ApprovedFacts,
 } from "@/lib/approved-facts";
 
-const AnalysisSchema = z.object({
-  summary: z.string(),
-  readiness: z.enum([
-    "new",
-    "needs_information",
-    "quote_ready",
-    "high_intent",
-    "unclear",
-    "not_suitable",
-  ]),
-  missing_fields: z.array(z.string()),
-  extracted: z.object({
-    vehicle_type: z.string().nullable(),
-    suburb: z.string().nullable(),
-    last_cleaned_at: z.string().nullable(),
-    main_concerns: z.string().nullable(),
-    service_intent: z.string().nullable(),
-    // Phase 3: the customer's own words about when they'd like the job done.
-    // This is an extraction of what they SAID — never a slot, offer or booking.
-    requested_day_or_time: z.string().nullable(),
-  }),
-  suggested_reply: z.string(),
-  needs_human_review: z.boolean(),
-});
-
-export type Analysis = z.infer<typeof AnalysisSchema>;
+export { AnalysisSchema };
+export type { Analysis };
 
 function gateway(apiKey: string) {
   return createOpenAICompatible({
     name: "lovable",
     baseURL: "https://ai.gateway.lovable.dev/v1",
-    headers: { "Lovable-API-Key": apiKey },
+    // Strict json_schema: without this the gateway is asked for a bare
+    // json_object and the model invents its own field names, which the schema
+    // then rejects ("No object generated").
+    supportsStructuredOutputs: true,
+    headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
   });
 }
+
 
 // Sentences containing a price are allow-listable: they survive only when the
 // price text is traceable to the current tenant's approved price guidance.
@@ -124,6 +113,137 @@ export function guardReply(
   });
   const cleaned = safe.join(" ").trim();
   return { reply: cleaned.length > 0 ? cleaned : FALLBACK_REPLY, flagged };
+}
+
+export const ANALYSIS_MODEL = "google/gemini-3.7-flash";
+
+/** Shape the runner needs from a generate call — SDK output plus token usage. */
+export type GenerateOutcome = {
+  output?: unknown;
+  text?: string;
+  usage?: { inputTokens?: number; outputTokens?: number };
+};
+
+export type StructuredAnalysisResult = {
+  analysis: Analysis;
+  attempts: number;
+  inputTokens: number;
+  outputTokens: number;
+};
+
+/** Terminal analysis failure carrying a redacted reason (never raw model text). */
+export class AnalysisFailure extends Error {
+  constructor(
+    public reason: string,
+    public attempts: number,
+    public inputTokens: number,
+    public outputTokens: number,
+  ) {
+    super(reason);
+    this.name = "AnalysisFailure";
+  }
+}
+
+function rawTextOf(error: unknown, outcome?: GenerateOutcome): string | undefined {
+  if (NoObjectGeneratedError.isInstance(error)) return error.text;
+  if (error instanceof Error) {
+    const text = (error as unknown as { text?: unknown }).text;
+    if (typeof text === "string") return text;
+  }
+  return outcome?.text;
+}
+
+/**
+ * One attempt, then at most ONE bounded repair retry with the same model,
+ * system prompt (tenant context + approved facts) and guardrails. Never loops.
+ */
+export async function runStructuredAnalysis(input: {
+  system: string;
+  prompt: string;
+  generate: (options: { system: string; prompt: string }) => Promise<GenerateOutcome>;
+}): Promise<StructuredAnalysisResult> {
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let reason = "unparseable_response: provider returned no text";
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const prompt = attempt === 1 ? input.prompt : `${input.prompt}\n\n${buildRepairInstruction(reason)}`;
+    let outcome: GenerateOutcome | undefined;
+    let thrown: unknown;
+    try {
+      outcome = await input.generate({ system: input.system, prompt });
+    } catch (error) {
+      thrown = error;
+      if (!NoObjectGeneratedError.isInstance(error) && rawTextOf(error) === undefined) {
+        throw new AnalysisFailure(
+          `provider_error: ${error instanceof Error ? error.name : "unknown"}`,
+          attempt,
+          inputTokens,
+          outputTokens,
+        );
+      }
+    }
+    inputTokens += outcome?.usage?.inputTokens ?? 0;
+    outputTokens += outcome?.usage?.outputTokens ?? 0;
+
+    if (!thrown && outcome?.output !== undefined) {
+      const direct = AnalysisSchema.safeParse(outcome.output);
+      if (direct.success) {
+        return { analysis: direct.data, attempts: attempt, inputTokens, outputTokens };
+      }
+    }
+
+    // Safe normalisation only (Markdown-fenced JSON), then the existing schema.
+    const parsed = parseAnalysisPayload(rawTextOf(thrown, outcome));
+    if (parsed.status === "ok") {
+      return { analysis: parsed.analysis, attempts: attempt, inputTokens, outputTokens };
+    }
+    reason = parsed.reason;
+  }
+
+  throw new AnalysisFailure(reason, 2, inputTokens, outputTokens);
+}
+
+type MinimalClient = Pick<typeof supabaseAdmin, "from">;
+
+/**
+ * Persists the failure (audit trail) and raises one owner alert, de-duplicated
+ * by the attempt's correlation id so a replay creates nothing new.
+ */
+export async function recordAnalysisFailure(input: {
+  businessId: string;
+  leadId: string;
+  correlationId: string;
+  reason: string;
+  attempts: number;
+  client?: MinimalClient;
+}): Promise<void> {
+  const client = (input.client ?? supabaseAdmin) as typeof supabaseAdmin;
+  await client.from("audit_events").insert({
+    business_id: input.businessId,
+    event_type: "ai_analysis_failed",
+    entity_type: "lead",
+    entity_id: input.leadId,
+    metadata: {
+      correlation_id: input.correlationId,
+      reason: input.reason,
+      attempts: input.attempts,
+      model: ANALYSIS_MODEL,
+      analysis_status: "failed",
+      sms_sent: false,
+    } as never,
+  });
+
+  const { createNotification } = await import("@/lib/jobs.server");
+  await createNotification({
+    businessId: input.businessId,
+    leadId: input.leadId,
+    kind: "ai_analysis_failed",
+    title: "AI analysis could not be completed",
+    body: `${AI_ANALYSIS_FAILURE_MESSAGE} Reference ${correlationRef(input.correlationId)}.`,
+    metadata: { correlation_id: input.correlationId, reason: input.reason },
+    idempotencyKey: `lead:${input.leadId}:ai_analysis_failed:${input.correlationId}`,
+  });
 }
 
 
@@ -239,39 +359,58 @@ export async function analyseLead(input: { businessId: string; leadId: string })
   const cap = await checkAiCap(input.businessId);
   if (cap.blocked) throw new Error(cap.reason ?? "Monthly AI safety cap reached.");
 
-  const MODEL = "google/gemini-3.7-flash";
-  let output;
+  const correlationId = crypto.randomUUID();
+  let result: StructuredAnalysisResult;
   try {
-    const generated = await generateText({
-      model: gateway(apiKey)(MODEL),
-      output: Output.object({ schema: AnalysisSchema }),
+    result = await runStructuredAnalysis({
       system,
       prompt,
-    });
-    output = generated.output;
-    await recordAiUsage({
-      businessId: input.businessId,
-      leadId: input.leadId,
-      purpose: "lead_analysis",
-      model: MODEL,
-      inputTokens: generated.usage?.inputTokens ?? 0,
-      outputTokens: generated.usage?.outputTokens ?? 0,
+      generate: (options) =>
+        generateText({
+          model: gateway(apiKey)(ANALYSIS_MODEL),
+          output: Output.object({ schema: AnalysisSchema }),
+          system: options.system,
+          prompt: options.prompt,
+        }) as unknown as Promise<GenerateOutcome>,
     });
   } catch (error) {
+    const failure = error instanceof AnalysisFailure ? error : null;
+    const reason = failure
+      ? failure.reason
+      : `provider_error: ${error instanceof Error ? error.name : "unknown"}`;
     await recordAiUsage({
       businessId: input.businessId,
       leadId: input.leadId,
       purpose: "lead_analysis",
-      model: MODEL,
-      inputTokens: 0,
-      outputTokens: 0,
+      model: ANALYSIS_MODEL,
+      inputTokens: failure?.inputTokens ?? 0,
+      outputTokens: failure?.outputTokens ?? 0,
       status: "failed",
-      errorDetail: error instanceof Error ? error.message : String(error),
+      errorDetail: `[${correlationId}] ${reason}`,
     });
-    throw error;
+    // Failure is observable and owner-visible, but changes nothing operational:
+    // no SMS, no provider send, no lead status, booking, job or follow-up change.
+    await recordAnalysisFailure({
+      businessId: input.businessId,
+      leadId: input.leadId,
+      correlationId,
+      reason,
+      attempts: failure?.attempts ?? 1,
+    });
+    throw new Error(failureMessage(reason, correlationId));
   }
 
-  const parsed = AnalysisSchema.parse(output);
+  await recordAiUsage({
+    businessId: input.businessId,
+    leadId: input.leadId,
+    purpose: "lead_analysis",
+    model: ANALYSIS_MODEL,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+  });
+
+  const parsed = result.analysis;
+
   const guarded = guardReply(parsed.suggested_reply, approvedFacts);
   const analysis: Analysis = {
     ...parsed,
