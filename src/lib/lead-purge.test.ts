@@ -296,3 +296,23 @@ describe("permanentlyDeleteLeads (server)", () => {
     }
   });
 });
+
+describe("permanent deletion authorization", () => {
+  it("accepts an owner and rejects a non-owner", async () => {
+    const { requireOwner } = await import("@/lib/app-context.server");
+    const owner = { userId: ACTOR, businessId: TENANT, role: "owner", name: null, email: null } as const;
+    const staff = { ...owner, role: "staff" } as const;
+    expect(() => requireOwner(owner as any)).not.toThrow();
+    expect(() => requireOwner(staff as any)).toThrow(/owner/i);
+  });
+
+  it("gates the server function on owner role, the DELETE phrase and server-side tenant scope", async () => {
+    const source = await Bun.file("src/lib/lead-deletion.functions.ts").text();
+    const block = source.slice(source.indexOf("permanentlyDeleteLeadsRequest"));
+    expect(block).toContain("requireSupabaseAuth");
+    expect(block).toContain("requireOwner(app)");
+    expect(block).toContain("isPurgeConfirmed(data.confirmationPhrase)");
+    expect(block).toContain("businessId: app.businessId");
+    expect(block).not.toMatch(/businessId: data\./);
+  });
+});
