@@ -226,39 +226,58 @@ export async function analyseLead(input: { businessId: string; leadId: string })
   const cap = await checkAiCap(input.businessId);
   if (cap.blocked) throw new Error(cap.reason ?? "Monthly AI safety cap reached.");
 
-  const MODEL = "google/gemini-3.7-flash";
-  let output;
+  const correlationId = crypto.randomUUID();
+  let result: StructuredAnalysisResult;
   try {
-    const generated = await generateText({
-      model: gateway(apiKey)(MODEL),
-      output: Output.object({ schema: AnalysisSchema }),
+    result = await runStructuredAnalysis({
       system,
       prompt,
-    });
-    output = generated.output;
-    await recordAiUsage({
-      businessId: input.businessId,
-      leadId: input.leadId,
-      purpose: "lead_analysis",
-      model: MODEL,
-      inputTokens: generated.usage?.inputTokens ?? 0,
-      outputTokens: generated.usage?.outputTokens ?? 0,
+      generate: (options) =>
+        generateText({
+          model: gateway(apiKey)(ANALYSIS_MODEL),
+          output: Output.object({ schema: AnalysisSchema }),
+          system: options.system,
+          prompt: options.prompt,
+        }) as unknown as Promise<GenerateOutcome>,
     });
   } catch (error) {
+    const failure = error instanceof AnalysisFailure ? error : null;
+    const reason = failure
+      ? failure.reason
+      : `provider_error: ${error instanceof Error ? error.name : "unknown"}`;
     await recordAiUsage({
       businessId: input.businessId,
       leadId: input.leadId,
       purpose: "lead_analysis",
-      model: MODEL,
-      inputTokens: 0,
-      outputTokens: 0,
+      model: ANALYSIS_MODEL,
+      inputTokens: failure?.inputTokens ?? 0,
+      outputTokens: failure?.outputTokens ?? 0,
       status: "failed",
-      errorDetail: error instanceof Error ? error.message : String(error),
+      errorDetail: `[${correlationId}] ${reason}`,
     });
-    throw error;
+    // Failure is observable and owner-visible, but changes nothing operational:
+    // no SMS, no provider send, no lead status, booking, job or follow-up change.
+    await recordAnalysisFailure({
+      businessId: input.businessId,
+      leadId: input.leadId,
+      correlationId,
+      reason,
+      attempts: failure?.attempts ?? 1,
+    });
+    throw new Error(failureMessage(reason, correlationId));
   }
 
-  const parsed = AnalysisSchema.parse(output);
+  await recordAiUsage({
+    businessId: input.businessId,
+    leadId: input.leadId,
+    purpose: "lead_analysis",
+    model: ANALYSIS_MODEL,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+  });
+
+  const parsed = result.analysis;
+
   const guarded = guardReply(parsed.suggested_reply, approvedFacts);
   const analysis: Analysis = {
     ...parsed,
