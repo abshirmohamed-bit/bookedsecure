@@ -174,17 +174,7 @@ function TenantQuotePage() {
       <div className="mx-auto max-w-md">
         <header className="mb-6">
           <div className="flex items-center gap-3">
-            {tenant.logoUrl ? (
-              <img
-                src={tenant.logoUrl}
-                alt={`${tenant.name} logo`}
-                className="h-10 w-10 shrink-0 rounded-md object-cover"
-              />
-            ) : (
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-                {tenant.name.slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <TenantMark name={tenant.name} logoUrl={tenant.logoUrl} />
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold">{tenant.name}</h1>
               <p className="text-xs text-muted-foreground">
