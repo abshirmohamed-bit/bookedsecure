@@ -73,6 +73,42 @@ function DeletedLeadsPage() {
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
 
+  const isOwner = data?.role === "owner" || data?.role === "platform_admin";
+  const confirmation = useMemo(() => buildPurgeConfirmation(selection, leads), [selection, leads]);
+
+  const purgeMutation = useMutation({
+    mutationFn: () =>
+      purge({
+        data: {
+          requestId: crypto.randomUUID(),
+          leadIds: selection,
+          confirmationPhrase: phrase.trim(),
+        },
+      }),
+    // Only a server-confirmed deletion counts as success.
+    onSuccess: (result) => {
+      setPurgeReport(result);
+      setPurgeOpen(false);
+      setPhrase("");
+      if (result.deleted > 0) {
+        setSelection((current) =>
+          current.filter(
+            (id) =>
+              !result.outcomes.some(
+                (outcome) => outcome.leadId === id && outcome.status === "deleted",
+              ),
+          ),
+        );
+        toast.success(summarisePurgeResult(result));
+      } else {
+        toast.error(summarisePurgeResult(result));
+      }
+      queryClient.invalidateQueries({ queryKey: ["deleted-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (mutationError: Error) => toast.error(mutationError.message),
+  });
+
   return (
     <AppShell title="Deleted leads">
       <div className="space-y-5">
