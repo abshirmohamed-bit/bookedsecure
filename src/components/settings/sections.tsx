@@ -22,6 +22,7 @@ export type Business = {
   opening_hours: string | null;
   sms_signature: string | null;
   privacy_policy_url: string | null;
+  logo_url: string | null;
   timezone: string;
   automation_enabled: boolean;
   default_sms_provider: string;
