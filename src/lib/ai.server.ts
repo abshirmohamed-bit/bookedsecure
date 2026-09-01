@@ -5,6 +5,12 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildBusinessSettingsContext } from "@/lib/ai-context";
+import {
+  buildApprovedFacts,
+  buildApprovedFactsContext,
+  hasApprovedPrice,
+  type ApprovedFacts,
+} from "@/lib/approved-facts";
 
 const AnalysisSchema = z.object({
   summary: z.string(),
@@ -142,7 +148,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
       supabaseAdmin
         .from("services")
         .select(
-          "name, description, price_guidance, included_items, excluded_items, qualification_note",
+          "id, business_id, name, description, price_guidance, included_items, excluded_items, qualification_note, active",
         )
         .eq("business_id", input.businessId)
         .eq("active", true),
@@ -166,6 +172,14 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     ? buildBusinessSettingsContext(business, services ?? [])
     : "Business Settings unavailable — do not state any operational facts.";
 
+  // The allow-list: built from this tenant's active services plus the lead's
+  // own snapshot, and passed separately from the general settings context.
+  const approvedFacts = buildApprovedFacts({
+    businessId: input.businessId,
+    lead: lead as never,
+    services: (services ?? []) as never,
+  });
+
   const requestType = (lead as { request_type?: string | null }).request_type ?? null;
   const serviceSnapshot = (lead as { service_name_snapshot?: string | null }).service_name_snapshot ?? null;
   const flexibleText = (lead as { flexible_request_text?: string | null }).flexible_request_text ?? null;
@@ -180,7 +194,11 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     "- Never recommend a service that is not in the approved service catalogue.",
     "- Never give mechanical, safety or insurance advice, and never invent details.",
     "- If information is missing, say the owner will confirm it.",
-    "- Only use the operational facts listed in Business Settings below; never assume any fact that is absent.",
+    "- Business Settings are operational context only. They are NEVER a source of pricing language.",
+    "- Only the Approved facts (allow-list) block may be used for pricing. Quote its exact approved price guidance verbatim or state no price at all.",
+    "- Never infer, calculate, combine, narrow, total or invent a price, and never add fees, taxes, deposits, discounts or percentages.",
+    "- If the approved facts contain no price guidance, or the requested service is ambiguous, ask a neutral clarifying question and say the owner will confirm.",
+    "- Never claim or confirm a date, time, availability, slot, appointment or booking.",
     "- Keep the suggested reply under 320 characters, plain Australian English, no emojis.",
     serviceSnapshot
       ? `- The customer already chose the service "${serviceSnapshot}". Do not switch, upsell or substitute it; work within that request.`
@@ -189,6 +207,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
       ? "- This is a flexible or open request the owner must handle personally. Your reply may only acknowledge and clarify; never propose a specific service or next step."
       : "",
     settingsContext,
+    buildApprovedFactsContext(approvedFacts),
   ]
     .filter(Boolean)
     .join("\n");
@@ -246,7 +265,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
   }
 
   const parsed = AnalysisSchema.parse(output);
-  const guarded = guardReply(parsed.suggested_reply);
+  const guarded = guardReply(parsed.suggested_reply, approvedFacts);
   const analysis: Analysis = {
     ...parsed,
     suggested_reply: guarded.reply,
