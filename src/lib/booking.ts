@@ -131,6 +131,31 @@ export function assessBookingConfirmation(input: {
   return { allowed: true, reason: null, needsHumanReview: false };
 }
 
+/**
+ * Normal path vs exception path.
+ *
+ * An ordinary approved booking is completed automatically. Anything that
+ * already requires human review (owner-review request, no approved service or
+ * approved price guidance, ambiguous service, paused automation, automation
+ * switched off, or any base guard) stays on the existing exception path.
+ */
+export function assessAutomaticBooking(input: {
+  businessId: string;
+  lead: BookingLead & { requires_owner_review?: boolean | null };
+  conversation?: BookingConversation;
+  automationEnabled: boolean;
+  approvedPriceAvailable: boolean;
+}): { automatic: boolean; reason: BookingBlockReason | "owner_review_required" | null } {
+  const blocked = baseGuards(input);
+  if (blocked) return { automatic: false, reason: blocked };
+  if (input.lead.requires_owner_review === true)
+    return { automatic: false, reason: "owner_review_required" };
+  if (!input.automationEnabled) return { automatic: false, reason: "automation_paused" };
+  if (!input.approvedPriceAvailable)
+    return { automatic: false, reason: "owner_review_required" };
+  return { automatic: true, reason: null };
+}
+
 // ---------------------------------------------------------------------------
 // Server-composed message text (never model output)
 // ---------------------------------------------------------------------------
