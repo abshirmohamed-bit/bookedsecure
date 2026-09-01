@@ -456,7 +456,24 @@ export async function recordCustomerSlotSelection(input: {
     entityId: input.leadId,
     metadata: { offer_id: input.offerId, slot_start: offer.slot_start, message_id: input.messageId },
   });
-  return { ok: true, offer: updated as OfferRow };
+
+  const { lead, conversation } = await loadLeadAndConversation(input.businessId, input.leadId);
+  if (!lead) return { ok: true, offer: updated as OfferRow, automaticallyBooked: false };
+
+  const auto = await autoConfirmIfNormalPath({
+    businessId: input.businessId,
+    leadId: input.leadId,
+    offerId: input.offerId,
+    lead,
+    conversation,
+  });
+
+  return {
+    ok: true,
+    offer: updated as OfferRow,
+    automaticallyBooked: auto.automaticallyBooked,
+    ...(auto.automaticallyBooked || auto.reason === undefined ? {} : { reason: auto.reason }),
+  };
 }
 
 /**
