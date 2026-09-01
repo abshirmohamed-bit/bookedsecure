@@ -67,6 +67,7 @@ function TenantQuotePage() {
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState(false);
   const [honeypot, setHoneypot] = useState("");
   // One nonce per form session: retries of this submission reuse the same lead.
   const [nonce, setNonce] = useState(() => createSubmissionNonce());
@@ -111,6 +112,7 @@ function TenantQuotePage() {
   async function submit() {
     setBusy(true);
     setError(null);
+    setDuplicate(false);
     try {
       const search = new URLSearchParams(window.location.search);
       const params: Record<string, string> = {};
@@ -138,8 +140,12 @@ function TenantQuotePage() {
           consent: true,
         },
       });
-      if (!result.ok) {
-        setError(result.error ?? "Something went wrong. Please try again or call us.");
+      const outcome = classifyQuoteResult(result);
+      if (outcome !== "success") {
+        // Duplicate and ordinary failures are both non-success, but they are
+        // reported differently and neither is retried automatically.
+        setDuplicate(outcome === "duplicate");
+        setError(quoteErrorMessage(result));
         // A failed submission keeps the same nonce so a retry cannot create a second lead.
         return;
       }
@@ -150,6 +156,38 @@ function TenantQuotePage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (duplicate) {
+    return (
+      <FormShell>
+        <div className="text-center" role="alert">
+          <AlertCircle className="mx-auto h-10 w-10 text-destructive" aria-hidden="true" />
+          <h1 className="mt-4 text-xl font-semibold">We already have this enquiry</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{DUPLICATE_LEAD_CLIENT_MESSAGE}</p>
+          <div className="mt-6 flex flex-col gap-2">
+            <button
+              onClick={() => {
+                setDuplicate(false);
+                setError(null);
+                setStep(0);
+              }}
+              className="rounded-md border border-input px-3 py-2 text-sm font-medium"
+            >
+              Back to the form
+            </button>
+            {tenant.phoneNumber && (
+              <a
+                href={`tel:${tenant.phoneNumber}`}
+                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              >
+                Call {tenant.name}
+              </a>
+            )}
+          </div>
+        </div>
+      </FormShell>
+    );
   }
 
   if (done) {
