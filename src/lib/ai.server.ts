@@ -5,8 +5,10 @@ import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildBusinessSettingsContext } from "@/lib/ai-context";
 import {
+  AI_ANALYSIS_FAILURE_MESSAGE,
   AnalysisSchema,
   buildRepairInstruction,
+  correlationRef,
   failureMessage,
   parseAnalysisPayload,
   type Analysis,
