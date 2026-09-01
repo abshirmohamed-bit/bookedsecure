@@ -1,10 +1,16 @@
 // Lovable AI analysis of a conversation. Output is validated before it can be
 // shown; it is never piped straight into an SMS send.
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, Output } from "ai";
-import { z } from "zod";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildBusinessSettingsContext } from "@/lib/ai-context";
+import {
+  AnalysisSchema,
+  buildRepairInstruction,
+  failureMessage,
+  parseAnalysisPayload,
+  type Analysis,
+} from "@/lib/ai-analysis-contract";
 import {
   buildApprovedFacts,
   buildApprovedFactsContext,
@@ -12,40 +18,21 @@ import {
   type ApprovedFacts,
 } from "@/lib/approved-facts";
 
-const AnalysisSchema = z.object({
-  summary: z.string(),
-  readiness: z.enum([
-    "new",
-    "needs_information",
-    "quote_ready",
-    "high_intent",
-    "unclear",
-    "not_suitable",
-  ]),
-  missing_fields: z.array(z.string()),
-  extracted: z.object({
-    vehicle_type: z.string().nullable(),
-    suburb: z.string().nullable(),
-    last_cleaned_at: z.string().nullable(),
-    main_concerns: z.string().nullable(),
-    service_intent: z.string().nullable(),
-    // Phase 3: the customer's own words about when they'd like the job done.
-    // This is an extraction of what they SAID — never a slot, offer or booking.
-    requested_day_or_time: z.string().nullable(),
-  }),
-  suggested_reply: z.string(),
-  needs_human_review: z.boolean(),
-});
-
-export type Analysis = z.infer<typeof AnalysisSchema>;
+export { AnalysisSchema };
+export type { Analysis };
 
 function gateway(apiKey: string) {
   return createOpenAICompatible({
     name: "lovable",
     baseURL: "https://ai.gateway.lovable.dev/v1",
-    headers: { "Lovable-API-Key": apiKey },
+    // Strict json_schema: without this the gateway is asked for a bare
+    // json_object and the model invents its own field names, which the schema
+    // then rejects ("No object generated").
+    supportsStructuredOutputs: true,
+    headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
   });
 }
+
 
 // Sentences containing a price are allow-listable: they survive only when the
 // price text is traceable to the current tenant's approved price guidance.
