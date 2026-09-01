@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { getPublicQuoteForm, submitQuoteRequest } from "@/lib/public.functions";
 import { VEHICLE_TYPES, normaliseAuMobile } from "@/lib/domain";
+import { brandInitial } from "@/lib/tenant-branding";
 import {
   FLEXIBLE_SERVICE_VALUE,
   REQUEST_TYPES,
@@ -421,6 +422,34 @@ function TenantQuotePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * Tenant logo with a safe fallback: no configured logo, or an image that fails
+ * to load at runtime, degrades to the tenant's initial badge.
+ */
+function TenantMark({ name, logoUrl }: { name: string; logoUrl: string | null }) {
+  const [broken, setBroken] = useState(false);
+  const showLogo = Boolean(logoUrl) && !broken;
+
+  if (showLogo) {
+    return (
+      <img
+        src={logoUrl as string}
+        alt={`${name} logo`}
+        width={40}
+        height={40}
+        onError={() => setBroken(true)}
+        className="h-10 w-10 shrink-0 rounded-md bg-secondary object-contain"
+      />
+    );
+  }
+
+  return (
+    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+      {brandInitial(name)}
+    </div>
   );
 }
 
