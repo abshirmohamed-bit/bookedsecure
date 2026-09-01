@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { getPublicQuoteForm, submitQuoteRequest } from "@/lib/public.functions";
 import { VEHICLE_TYPES, normaliseAuMobile } from "@/lib/domain";
+import { brandInitial } from "@/lib/tenant-branding";
 import {
   FLEXIBLE_SERVICE_VALUE,
   REQUEST_TYPES,
@@ -174,17 +175,7 @@ function TenantQuotePage() {
       <div className="mx-auto max-w-md">
         <header className="mb-6">
           <div className="flex items-center gap-3">
-            {tenant.logoUrl ? (
-              <img
-                src={tenant.logoUrl}
-                alt={`${tenant.name} logo`}
-                className="h-10 w-10 shrink-0 rounded-md object-cover"
-              />
-            ) : (
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-                {tenant.name.slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <TenantMark name={tenant.name} logoUrl={tenant.logoUrl} />
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold">{tenant.name}</h1>
               <p className="text-xs text-muted-foreground">
@@ -431,6 +422,34 @@ function TenantQuotePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * Tenant logo with a safe fallback: no configured logo, or an image that fails
+ * to load at runtime, degrades to the tenant's initial badge.
+ */
+function TenantMark({ name, logoUrl }: { name: string; logoUrl: string | null }) {
+  const [broken, setBroken] = useState(false);
+  const showLogo = Boolean(logoUrl) && !broken;
+
+  if (showLogo) {
+    return (
+      <img
+        src={logoUrl as string}
+        alt={`${name} logo`}
+        width={40}
+        height={40}
+        onError={() => setBroken(true)}
+        className="h-10 w-10 shrink-0 rounded-md bg-secondary object-contain"
+      />
+    );
+  }
+
+  return (
+    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+      {brandInitial(name)}
+    </div>
   );
 }
 

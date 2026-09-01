@@ -3,6 +3,7 @@
 // business id is ever trusted, and an unknown/inactive slug resolves to null (never a default).
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normaliseSlug } from "@/lib/tenant-slug";
+import { sanitiseLogoUrl } from "@/lib/tenant-branding";
 
 export type PublicService = {
   id: string;
@@ -48,7 +49,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     businessId: business.id,
     slug,
     name: business.name,
-    logoUrl: business.logo_url ?? null,
+    logoUrl: sanitiseLogoUrl(business.logo_url),
     serviceArea: business.service_area ?? null,
     privacyPolicyUrl: business.privacy_policy_url ?? null,
     flexibleRequestsEnabled: business.flexible_requests_enabled !== false,

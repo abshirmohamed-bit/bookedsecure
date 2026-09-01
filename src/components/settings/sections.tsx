@@ -22,6 +22,7 @@ export type Business = {
   opening_hours: string | null;
   sms_signature: string | null;
   privacy_policy_url: string | null;
+  logo_url: string | null;
   timezone: string;
   automation_enabled: boolean;
   default_sms_provider: string;
@@ -75,6 +76,7 @@ const TEXT_FIELDS = {
   opening_hours: "Opening hours",
   sms_signature: "SMS signature",
   privacy_policy_url: "Privacy policy URL",
+  logo_url: "Logo URL (shown on your quote form)",
   timezone: "Timezone",
 } as const;
 
@@ -112,6 +114,7 @@ export function BusinessSettingsForm({
     opening_hours: business.opening_hours ?? "",
     sms_signature: business.sms_signature ?? "",
     privacy_policy_url: business.privacy_policy_url ?? "",
+    logo_url: business.logo_url ?? "",
     timezone: business.timezone,
     automation_enabled: business.automation_enabled,
     default_sms_provider: business.default_sms_provider as "simulated" | "twilio" | "telnyx",
@@ -129,6 +132,7 @@ export function BusinessSettingsForm({
           opening_hours: form.opening_hours || null,
           sms_signature: form.sms_signature || null,
           privacy_policy_url: form.privacy_policy_url || null,
+          logo_url: form.logo_url || null,
         },
       }),
     onSuccess: () => {
