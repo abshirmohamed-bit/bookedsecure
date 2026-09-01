@@ -511,6 +511,7 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
         opening_hours: z.string().max(200).nullable(),
         sms_signature: z.string().max(80).nullable(),
         privacy_policy_url: z.string().max(300).nullable(),
+        logo_url: z.string().max(500).nullable(),
         timezone: z.string().max(60),
         automation_enabled: z.boolean(),
         default_sms_provider: z.enum(["simulated", "twilio", "telnyx"]),

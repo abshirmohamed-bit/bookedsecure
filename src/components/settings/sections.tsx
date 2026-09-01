@@ -132,6 +132,7 @@ export function BusinessSettingsForm({
           opening_hours: form.opening_hours || null,
           sms_signature: form.sms_signature || null,
           privacy_policy_url: form.privacy_policy_url || null,
+          logo_url: form.logo_url || null,
         },
       }),
     onSuccess: () => {
