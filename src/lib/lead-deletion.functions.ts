@@ -16,6 +16,36 @@ const RestoreSchema = z.object({
   confirm: z.literal(true),
 });
 
+const PurgeSchema = z.object({
+  requestId: z.string().uuid(),
+  leadIds: z.array(z.string().uuid()).min(1).max(100),
+  reason: z.string().max(500).optional(),
+  confirmationPhrase: z.string(),
+});
+
+/** Owner-only permanent deletion of already soft-deleted leads. */
+export const permanentlyDeleteLeadsRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => PurgeSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { isPurgeConfirmed } = await import("@/lib/lead-purge");
+    const { permanentlyDeleteLeads } = await import("@/lib/lead-purge.server");
+    if (!isPurgeConfirmed(data.confirmationPhrase)) {
+      throw new Error("Type DELETE to confirm permanent deletion.");
+    }
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return permanentlyDeleteLeads(supabaseAdmin, {
+      businessId: app.businessId,
+      actorUserId: app.userId,
+      requestId: data.requestId,
+      leadIds: data.leadIds,
+      reason: data.reason ?? null,
+    });
+  });
+
 /** Soft-deletes the caller's own leads. Tenant-scoped and idempotent per requestId. */
 export const softDeleteLeadsRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -5,9 +5,20 @@ import { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
-import { getDeletedLeads, restoreLeadsRequest } from "@/lib/lead-deletion.functions";
+import {
+  getDeletedLeads,
+  permanentlyDeleteLeadsRequest,
+  restoreLeadsRequest,
+} from "@/lib/lead-deletion.functions";
 import { importMethodLabel, leadSourceLabel } from "@/lib/lead-source";
 import { maskPhone, toggleSelection } from "@/lib/lead-deletion";
+import {
+  buildPurgeConfirmation,
+  isPurgeConfirmed,
+  purgeButtonLabel,
+  summarisePurgeResult,
+  type PurgeResult,
+} from "@/lib/lead-purge";
 import { InboxPagination } from "@/components/InboxPagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
@@ -35,9 +46,13 @@ export const Route = createFileRoute("/leads/deleted")({
 function DeletedLeadsPage() {
   const fetchDeleted = useServerFn(getDeletedLeads);
   const restore = useServerFn(restoreLeadsRequest);
+  const purge = useServerFn(permanentlyDeleteLeadsRequest);
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [phrase, setPhrase] = useState("");
+  const [purgeReport, setPurgeReport] = useState<PurgeResult | null>(null);
 
   // Tenant-scoped and paginated on the server, exactly like the active inbox.
   const { data, isLoading, isFetching, error } = useQuery({
@@ -52,6 +67,42 @@ function DeletedLeadsPage() {
     onSuccess: (result) => {
       toast.success(`${result.restored} of ${result.requested} leads restored`);
       setSelection([]);
+      queryClient.invalidateQueries({ queryKey: ["deleted-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (mutationError: Error) => toast.error(mutationError.message),
+  });
+
+  const isOwner = data?.role === "owner" || data?.role === "platform_admin";
+  const confirmation = useMemo(() => buildPurgeConfirmation(selection, leads), [selection, leads]);
+
+  const purgeMutation = useMutation({
+    mutationFn: () =>
+      purge({
+        data: {
+          requestId: crypto.randomUUID(),
+          leadIds: selection,
+          confirmationPhrase: phrase.trim(),
+        },
+      }),
+    // Only a server-confirmed deletion counts as success.
+    onSuccess: (result) => {
+      setPurgeReport(result);
+      setPurgeOpen(false);
+      setPhrase("");
+      if (result.deleted > 0) {
+        setSelection((current) =>
+          current.filter(
+            (id) =>
+              !result.outcomes.some(
+                (outcome) => outcome.leadId === id && outcome.status === "deleted",
+              ),
+          ),
+        );
+        toast.success(summarisePurgeResult(result));
+      } else {
+        toast.error(summarisePurgeResult(result));
+      }
       queryClient.invalidateQueries({ queryKey: ["deleted-leads"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -98,6 +149,18 @@ function DeletedLeadsPage() {
                     ? "Restoring…"
                     : `Restore ${selection.length} ${selection.length === 1 ? "lead" : "leads"}`}
                 </button>
+                {isOwner && (
+                  <button
+                    disabled={selection.length === 0 || purgeMutation.isPending}
+                    onClick={() => {
+                      setPhrase("");
+                      setPurgeOpen(true);
+                    }}
+                    className="rounded-md border border-destructive/60 bg-destructive/10 px-2.5 py-1.5 text-xs font-medium text-destructive disabled:opacity-50"
+                  >
+                    Permanently delete selected
+                  </button>
+                )}
                 <button
                   onClick={() => setSelection([])}
                   className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground"
@@ -185,6 +248,112 @@ function DeletedLeadsPage() {
               }}
             />
           </section>
+        )}
+
+        {purgeReport && (
+          <section className="panel p-4">
+            <h2 className="text-sm font-semibold">Permanent deletion result</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {summarisePurgeResult(purgeReport)}
+            </p>
+            <ul className="mt-3 space-y-1.5 text-xs">
+              {purgeReport.outcomes.map((outcome) => (
+                <li key={outcome.leadId} className="flex flex-wrap items-baseline gap-2">
+                  <span
+                    className={
+                      outcome.status === "deleted"
+                        ? "font-medium text-foreground"
+                        : "font-medium text-destructive"
+                    }
+                  >
+                    {outcome.status === "deleted" ? "Permanently deleted" : "Blocked"}
+                  </span>
+                  <span className="text-muted-foreground">{outcome.name ?? "Unnamed lead"}</span>
+                  <span className="tabular text-[11px] text-muted-foreground">{outcome.leadId}</span>
+                  {outcome.reason && (
+                    <span className="text-muted-foreground">— {outcome.reason}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {isOwner && purgeOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm permanent deletion"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur"
+          >
+            <div className="panel mt-10 w-full max-w-2xl p-5">
+              <h2 className="text-base font-semibold text-destructive">
+                Permanently delete {confirmation.count}{" "}
+                {confirmation.count === 1 ? "lead" : "leads"}
+              </h2>
+              <p className="mt-2 text-xs text-muted-foreground">{confirmation.warning}</p>
+
+              <div className="mt-4 max-h-64 overflow-y-auto rounded-md border border-border">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border text-left text-muted-foreground">
+                      <th className="px-3 py-2 font-medium">Customer</th>
+                      <th className="px-3 py-2 font-medium">Mobile</th>
+                      <th className="px-3 py-2 font-medium">Source</th>
+                      <th className="px-3 py-2 font-medium">Lead ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {confirmation.rows.map((row) => (
+                      <tr key={row.id} className="border-b border-border/60">
+                        <td className="px-3 py-2 font-medium">{row.name}</td>
+                        <td className="px-3 py-2 tabular text-muted-foreground">
+                          {row.phone ?? "—"}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {row.source}
+                          {row.importMethod && <> · via {row.importMethod}</>}
+                        </td>
+                        <td className="px-3 py-2 tabular text-[11px] text-muted-foreground">
+                          {row.id}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <label className="mt-4 block text-xs font-medium" htmlFor="purge-confirm">
+                Type DELETE to confirm
+              </label>
+              <input
+                id="purge-confirm"
+                value={phrase}
+                onChange={(event) => setPhrase(event.target.value)}
+                autoComplete="off"
+                className="mt-1 w-40 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+              />
+
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setPurgeOpen(false);
+                    setPhrase("");
+                  }}
+                  className="rounded-md border border-input px-3 py-1.5 text-xs text-muted-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!isPurgeConfirmed(phrase) || purgeMutation.isPending}
+                  onClick={() => purgeMutation.mutate()}
+                  className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground disabled:opacity-50"
+                >
+                  {purgeMutation.isPending ? "Deleting…" : purgeButtonLabel(confirmation.count)}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </AppShell>
