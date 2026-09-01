@@ -4,6 +4,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { buildBusinessSettingsContext } from "@/lib/ai-context";
 
 const AnalysisSchema = z.object({
   summary: z.string(),
@@ -77,7 +78,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
       supabaseAdmin
         .from("leads")
         .select(
-          "id, name, suburb, vehicle_type, last_cleaned_at, main_concerns, service_intent, source_channel, status",
+          "id, name, suburb, vehicle_type, last_cleaned_at, main_concerns, service_intent, source_channel, status, request_type, approved_service_id, service_name_snapshot, flexible_request_text, requires_owner_review",
         )
         .eq("id", input.leadId)
         .eq("business_id", input.businessId)
@@ -89,10 +90,18 @@ export async function analyseLead(input: { businessId: string; leadId: string })
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("services")
-        .select("name, description, price_guidance, included_items, excluded_items")
+        .select(
+          "name, description, price_guidance, included_items, excluded_items, qualification_note",
+        )
         .eq("business_id", input.businessId)
         .eq("active", true),
-      supabaseAdmin.from("businesses").select("name, service_area").eq("id", input.businessId).single(),
+      supabaseAdmin
+        .from("businesses")
+        .select(
+          "name, service_area, timezone, opening_hours, quiet_hours_start, quiet_hours_end, sms_signature, privacy_policy_url",
+        )
+        .eq("id", input.businessId)
+        .single(),
     ]);
 
   if (!lead) throw new Error("Lead not found for this business.");
@@ -101,12 +110,10 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     .map((message) => `${message.direction === "inbound" ? "Customer" : "Business"}: ${message.body}`)
     .join("\n");
 
-  const catalogue = (services ?? [])
-    .map(
-      (service) =>
-        `- ${service.name}: ${service.description ?? ""} | Includes: ${service.included_items ?? "n/a"} | Excludes: ${service.excluded_items ?? "n/a"} | Price guidance: ${service.price_guidance ?? "not approved for sharing"}`,
-    )
-    .join("\n");
+  // Business Settings are the single source of truth for operational facts.
+  const settingsContext = business
+    ? buildBusinessSettingsContext(business, services ?? [])
+    : "Business Settings unavailable — do not state any operational facts.";
 
   const requestType = (lead as { request_type?: string | null }).request_type ?? null;
   const serviceSnapshot = (lead as { service_name_snapshot?: string | null }).service_name_snapshot ?? null;
@@ -122,6 +129,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     "- Never recommend a service that is not in the approved service catalogue.",
     "- Never give mechanical, safety or insurance advice, and never invent details.",
     "- If information is missing, say the owner will confirm it.",
+    "- Only use the operational facts listed in Business Settings below; never assume any fact that is absent.",
     "- Keep the suggested reply under 320 characters, plain Australian English, no emojis.",
     serviceSnapshot
       ? `- The customer already chose the service "${serviceSnapshot}". Do not switch, upsell or substitute it; work within that request.`
@@ -129,11 +137,11 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     ownerReview
       ? "- This is a flexible or open request the owner must handle personally. Your reply may only acknowledge and clarify; never propose a specific service or next step."
       : "",
-    `Approved service catalogue for ${business?.name ?? "the business"} (service area: ${business?.service_area ?? "unspecified"}):`,
-    catalogue || "- No services configured yet.",
+    settingsContext,
   ]
     .filter(Boolean)
     .join("\n");
+
 
   const prompt = [
     "Lead record:",
