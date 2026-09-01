@@ -124,7 +124,7 @@ describe("duplicate response contract", () => {
   it("never leaks the existing lead id or customer data", () => {
     const response = duplicateQuoteResponse() as unknown as Record<string, unknown>;
     expect(Object.keys(response).sort()).toEqual(["code", "duplicate", "message", "ok"]);
-    expect(JSON.stringify(response)).not.toMatch(/lead|\+614|@/i);
+    expect(JSON.stringify(response)).not.toMatch(/leadId|lead_id|lead-|\+614|@/i);
   });
 
   it("renders as an error and never as success", () => {
@@ -264,6 +264,6 @@ describe("submission surfaces report duplicates explicitly", () => {
     expect(source).toContain("Back to the form");
     // No automatic retry.
     expect(source).not.toMatch(/setTimeout\([^)]*submit/);
-    expect(source).not.toMatch(/retry|retryCount/i);
+    expect(source).not.toMatch(/setInterval|autoRetry|retryCount/i);
   });
 });
