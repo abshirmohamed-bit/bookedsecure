@@ -40,7 +40,7 @@ export const getDashboard = createServerFn({ method: "GET" })
 
     // Pagination and filtering happen in the shared tenant-scoped query: the
     // browser never receives the full lead table.
-    const [metrics, inbox] = await Promise.all([
+    const [metrics, inbox, business] = await Promise.all([
       computeMetrics(app.businessId),
       queryLeadInbox(supabaseAdmin, {
         businessId: app.businessId,
@@ -53,6 +53,11 @@ export const getDashboard = createServerFn({ method: "GET" })
           ...(data.sms === undefined ? {} : { sms: data.sms as never }),
         },
       }),
+      supabaseAdmin
+        .from("businesses")
+        .select("id, name, slug, logo_url")
+        .eq("id", app.businessId)
+        .single(),
     ]);
 
     return {
@@ -61,6 +66,13 @@ export const getDashboard = createServerFn({ method: "GET" })
       leads: inbox.leads,
       page: inbox.page,
       filters: inbox.filters,
+      // Authenticated tenant identity for shell branding and the tenant-scoped
+      // public quote URL. Never includes another tenant's row.
+      tenant: {
+        name: business.data?.name ?? null,
+        slug: business.data?.slug ?? null,
+        logoUrl: business.data?.logo_url ?? null,
+      },
     };
   });
 
