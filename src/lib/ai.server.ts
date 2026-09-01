@@ -46,7 +46,7 @@ const BANNED_PATTERNS = [
 ];
 
 /** Strips guard-rail violations rather than trusting the model. */
-function guardReply(reply: string): { reply: string; flagged: string[] } {
+export function guardReply(reply: string): { reply: string; flagged: string[] } {
   const flagged: string[] = [];
   const sentences = reply.split(/(?<=[.!?])\s+/);
   const safe = sentences.filter((sentence) => {
