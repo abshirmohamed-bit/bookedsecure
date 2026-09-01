@@ -918,16 +918,8 @@ export async function handleInboundMessage(input: {
 
   const businessId = input.sender.businessId;
   const mobile = normaliseAuMobile(inbound.from) ?? inbound.from;
-  const { data: lead } = await supabaseAdmin
-    .from("leads")
-    .select(
-      "id, business_id, status, sms_suppressed_at, reachability_state, reachability_evidence, reachability_evidence_at, last_successful_delivery_at, last_permanent_failure_at, last_inbound_reply_at",
-    )
-    .eq("business_id", businessId)
-    .eq("mobile_number", mobile)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: lead } = await findActiveLeadByMobile(supabaseAdmin, businessId, mobile);
+
 
   if (!lead) return { handled: false, reason: `No lead matches ${mobile} for this business.` };
   // Defence in depth: the lead must belong to the tenant that owns the number.
