@@ -53,19 +53,19 @@ function db(): FakeDb {
 
 describe("inbound lead matching", () => {
   it("never attaches a reply to a soft-deleted lead", async () => {
-    const { client } = createFakeSupabase(db());
+    const client = createFakeSupabase(db());
     const { data } = await findActiveLeadByMobile(client, BUSINESS_A, MOBILE);
     expect(data?.id).not.toBe("deleted-newest");
   });
 
   it("attaches to the most recent active lead", async () => {
-    const { client } = createFakeSupabase(db());
+    const client = createFakeSupabase(db());
     const { data } = await findActiveLeadByMobile(client, BUSINESS_A, MOBILE);
     expect(data?.id).toBe("active-older");
   });
 
   it("preserves tenant isolation", async () => {
-    const { client } = createFakeSupabase(db());
+    const client = createFakeSupabase(db());
     const a = await findActiveLeadByMobile(client, BUSINESS_A, MOBILE);
     const b = await findActiveLeadByMobile(client, BUSINESS_B, MOBILE);
     expect(a.data?.business_id).toBe(BUSINESS_A);
@@ -77,15 +77,15 @@ describe("inbound lead matching", () => {
     data.leads = data.leads.map((row) =>
       row.business_id === BUSINESS_A ? { ...row, deleted_at: "2026-09-01T06:00:00Z" } : row,
     );
-    const { client } = createFakeSupabase(data);
+    const client = createFakeSupabase(data);
     const result = await findActiveLeadByMobile(client, BUSINESS_A, MOBILE);
     expect(result.data).toBeNull();
   });
 
   it("performs no writes while matching", async () => {
-    const { client, log } = createFakeSupabase(db());
+    const client = createFakeSupabase(db());
     await findActiveLeadByMobile(client, BUSINESS_A, MOBILE);
-    expect(log.filter((entry) => entry.op !== "select")).toEqual([]);
+    expect(client.writes).toEqual([]);
   });
 
   it("leaves STOP detection unchanged", () => {
