@@ -74,9 +74,10 @@ describe("inbound lead matching", () => {
 
   it("returns no lead when every match is soft-deleted", async () => {
     const data = db();
-    data.leads = data.leads.map((row) =>
-      row.business_id === BUSINESS_A ? { ...row, deleted_at: "2026-09-01T06:00:00Z" } : row,
+    data["leads"] = (data["leads"] ?? []).map((row) =>
+      row["business_id"] === BUSINESS_A ? { ...row, deleted_at: "2026-09-01T06:00:00Z" } : row,
     );
+
     const client = createFakeSupabase(data);
     const result = await findActiveLeadByMobile(client, BUSINESS_A, MOBILE);
     expect(result.data).toBeNull();
