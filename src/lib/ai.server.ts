@@ -38,32 +38,83 @@ function gateway(apiKey: string) {
   });
 }
 
-const BANNED_PATTERNS = [
-  /\$\s?\d/,
-  /\b\d+\s?(?:dollars|aud)\b/i,
-  /\bdiscount|\bspecial offer|\b% off/i,
-  /\b(?:tomorrow|today|this (?:morning|afternoon|weekend)|next week)\b/i,
-  /\bbooked in\b|\bconfirmed your booking\b|\bavailable at\b/i,
+// Sentences containing a price are allow-listable: they survive only when the
+// price text is traceable to the current tenant's approved price guidance.
+const PRICE_PATTERNS = [/\$\s?\d/, /\b\d+\s?(?:dollars|aud)\b/i];
+
+// Never allow-listable: discounts, percentages, fees, taxes, deposits, final or
+// guaranteed price claims, inspection-conditional price promises.
+const UNSAFE_PRICING_PATTERNS = [
+  /\bdiscount|\bspecial offer|\b%\s?off|\b\d+\s?%/i,
+  /\bfee\b|\bfees\b|\bsurcharge\b|\bdeposit\b|\btax\b|\bgst\b|\blevy\b/i,
+  /\bfinal price\b|\btotal (?:is|will be|comes)\b|\bguarantee|\bguaranteed\b|\bwill cost\b|\bcosts you\b/i,
+  /\bafter (?:an )?inspection\b|\bon inspection it (?:will|would)\b/i,
 ];
 
-/** Strips guard-rail violations rather than trusting the model. */
-export function guardReply(reply: string): { reply: string; flagged: string[] } {
+// Never allow-listable: dates, times, availability, scheduling, bookings.
+const BANNED_PATTERNS = [
+  /\b(?:tomorrow|today|tonight|this (?:morning|afternoon|evening|weekend)|next week|this week)\b/i,
+  /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i,
+  /\b\d{1,2}(?::\d{2})?\s?(?:am|pm)\b/i,
+  /\bbooked in\b|\byou are booked\b|\bconfirmed your booking\b|\bbooking is confirmed\b/i,
+  /\bappointment\b|\bslot\b|\bschedul/i,
+  /\bavailab/i,
+];
+
+const FALLBACK_REPLY =
+  "Thanks for those details. The Glocast team will confirm the right service and pricing with you shortly.";
+
+/** Formatting-only normalisation. Never changes the underlying claim. */
+function normalisePriceText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[\u2010-\u2015]/g, "-")
+    .replace(/[\u2018\u2019\u201c\u201d]/g, "'")
+    .replace(/\$\s+(?=\d)/g, "$")
+    .replace(/\s*-\s*/g, "-")
+    .replace(/[,.;:!?]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Strips guard-rail violations rather than trusting the model.
+ *
+ * `approvedFacts` is the allow-list and is passed separately from general
+ * Business Settings context: only its exact `priceGuidance` can justify a
+ * price. Without it, every price is stripped, as in Phase 1.
+ */
+export function guardReply(
+  reply: string,
+  approvedFacts?: ApprovedFacts | null,
+): { reply: string; flagged: string[] } {
+  const priceAllowed = hasApprovedPrice(approvedFacts);
+  const approvedPrice = priceAllowed ? normalisePriceText(approvedFacts!.priceGuidance!) : "";
+
   const flagged: string[] = [];
   const sentences = reply.split(/(?<=[.!?])\s+/);
   const safe = sentences.filter((sentence) => {
-    const bad = BANNED_PATTERNS.some((pattern) => pattern.test(sentence));
+    let bad = BANNED_PATTERNS.some((pattern) => pattern.test(sentence));
+    if (!bad && PRICE_PATTERNS.some((pattern) => pattern.test(sentence))) {
+      bad = true;
+      if (priceAllowed && !UNSAFE_PRICING_PATTERNS.some((p) => p.test(sentence))) {
+        const normalised = normalisePriceText(sentence);
+        const index = normalised.indexOf(approvedPrice);
+        if (index >= 0) {
+          // Any price figure beyond the approved guidance is unsupported.
+          const residual =
+            normalised.slice(0, index) + " " + normalised.slice(index + approvedPrice.length);
+          bad = PRICE_PATTERNS.some((pattern) => pattern.test(residual));
+        }
+      }
+    }
     if (bad) flagged.push(sentence.trim());
     return !bad;
   });
   const cleaned = safe.join(" ").trim();
-  return {
-    reply:
-      cleaned.length > 0
-        ? cleaned
-        : "Thanks for those details. The Glocast team will confirm the right service and pricing with you shortly.",
-    flagged,
-  };
+  return { reply: cleaned.length > 0 ? cleaned : FALLBACK_REPLY, flagged };
 }
+
 
 export async function analyseLead(input: { businessId: string; leadId: string }): Promise<{
   analysis: Analysis;
