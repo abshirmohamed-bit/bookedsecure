@@ -1,9 +1,14 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { getPublicQuoteForm, submitQuoteRequest } from "@/lib/public.functions";
 import { VEHICLE_TYPES, normaliseAuMobile } from "@/lib/domain";
 import { TenantMark } from "@/components/TenantMark";
+import {
+  DUPLICATE_LEAD_CLIENT_MESSAGE,
+  classifyQuoteResult,
+  quoteErrorMessage,
+} from "@/lib/quote-duplicate";
 import {
   FLEXIBLE_SERVICE_VALUE,
   REQUEST_TYPES,
@@ -176,14 +181,6 @@ function TenantQuotePage() {
             >
               Back to the form
             </button>
-            {tenant.phoneNumber && (
-              <a
-                href={`tel:${tenant.phoneNumber}`}
-                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-              >
-                Call {tenant.name}
-              </a>
-            )}
           </div>
         </div>
       </FormShell>
