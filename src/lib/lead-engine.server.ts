@@ -902,11 +902,36 @@ async function scheduleNextFollowUp(input: {
     .eq("id", conversation.id);
 }
 
+export const INBOUND_LEAD_COLUMNS =
+  "id, business_id, status, sms_suppressed_at, reachability_state, reachability_evidence, reachability_evidence_at, last_successful_delivery_at, last_permanent_failure_at, last_inbound_reply_at";
+
+/**
+ * Most recent *active* lead for a mobile number within one tenant.
+ * Soft-deleted leads (deleted_at set) are never matched: a reply must not
+ * attach to a lead the owner has removed from the inbox.
+ */
+export function findActiveLeadByMobile(
+  client: { from: (table: string) => any },
+  businessId: string,
+  mobile: string,
+) {
+  return client
+    .from("leads")
+    .select(INBOUND_LEAD_COLUMNS)
+    .eq("business_id", businessId)
+    .eq("mobile_number", mobile)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
 /**
  * Inbound SMS: stores the reply, handles opt-out and stops automation.
  * The tenant is identified by the receiving sender number — never by a global
  * mobile-number scan.
  */
+
 export async function handleInboundMessage(input: {
   providerName: string;
   payload: Record<string, unknown>;
