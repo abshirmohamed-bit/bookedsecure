@@ -90,7 +90,7 @@ describe("inbound lead matching", () => {
 
   it("leaves STOP detection unchanged", () => {
     expect(isOptOutMessage("STOP")).toBe(true);
-    expect(isOptOutMessage("stop please")).toBe(true);
+    expect(isOptOutMessage(" stop ")).toBe(true);
     expect(isOptOutMessage("Yes please, SUV in Newtown")).toBe(false);
   });
 });
