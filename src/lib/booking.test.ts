@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assessAutomaticBooking,
   assessBookingConfirmation,
   assessOfferGeneration,
   bookingConfirmationIdempotencyKey,
@@ -325,5 +326,52 @@ describe("AI guardrail integrity is unchanged by Phase 3", () => {
       needsHumanReview: true,
     });
     expect(guarded.reply.toLowerCase()).not.toContain("availability");
+  });
+});
+
+describe("automatic normal-path booking gate", () => {
+  const normal = {
+    businessId: BUSINESS,
+    lead: lead(),
+    conversation: null,
+    automationEnabled: true,
+    approvedPriceAvailable: true,
+  };
+
+  it("books automatically for an ordinary approved lead", () => {
+    expect(assessAutomaticBooking(normal).automatic).toBe(true);
+  });
+
+  it("keeps owner-review leads on the human-review path", () => {
+    const decision = assessAutomaticBooking({
+      ...normal,
+      lead: lead({ requires_owner_review: true } as never),
+    });
+    expect(decision.automatic).toBe(false);
+    expect(decision.reason).toBe("owner_review_required");
+  });
+
+  it("keeps leads without approved price guidance on the human-review path", () => {
+    expect(assessAutomaticBooking({ ...normal, approvedPriceAvailable: false }).automatic).toBe(
+      false,
+    );
+  });
+
+  it("respects the existing automation policy", () => {
+    expect(assessAutomaticBooking({ ...normal, automationEnabled: false }).automatic).toBe(false);
+    expect(
+      assessAutomaticBooking({ ...normal, conversation: { automation_paused: true } }).automatic,
+    ).toBe(false);
+  });
+
+  it("respects opt-out, suppression-independent base guards and tenant isolation", () => {
+    expect(
+      assessAutomaticBooking({ ...normal, lead: lead({ opted_out_at: new Date().toISOString() }) })
+        .reason,
+    ).toBe("opted_out");
+    expect(assessAutomaticBooking({ ...normal, businessId: OTHER }).reason).toBe("cross_tenant");
+    expect(assessAutomaticBooking({ ...normal, lead: lead({ status: "completed" }) }).automatic).toBe(
+      false,
+    );
   });
 });
