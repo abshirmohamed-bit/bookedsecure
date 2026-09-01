@@ -481,7 +481,7 @@ export const getSettings = createServerFn({ method: "GET" })
     const { getProvider } = await import("@/lib/sms/provider.server");
     const app = await requireAppContext(context.supabase, context.userId);
 
-    const [business, services, rules, team] = await Promise.all([
+    const [business, services, rules, team, availability] = await Promise.all([
       supabaseAdmin.from("businesses").select("*").eq("id", app.businessId).single(),
       supabaseAdmin
         .from("services")
@@ -497,6 +497,13 @@ export const getSettings = createServerFn({ method: "GET" })
         .from("profiles")
         .select("id, name, email, active")
         .eq("business_id", app.businessId),
+      supabaseAdmin
+        .from("booking_availability")
+        .select(
+          "active, slot_minutes, lead_time_minutes, horizon_days, offer_ttl_minutes, weekly_windows",
+        )
+        .eq("business_id", app.businessId)
+        .maybeSingle(),
     ]);
 
     const provider = getProvider(business.data?.default_sms_provider);
@@ -509,6 +516,7 @@ export const getSettings = createServerFn({ method: "GET" })
       rules: rules.data ?? [],
       team: team.data ?? [],
       provider: { name: provider.name, ...balance },
+      availability: availability.data ?? null,
     };
   });
 
@@ -735,4 +743,165 @@ export const getAnalytics = createServerFn({ method: "POST" })
       to: data.to ?? null,
       source: data.source ?? null,
     });
+  });
+
+// ---------------------------------------------------------------------------
+// Phase 3: availability and booking
+// ---------------------------------------------------------------------------
+
+const WeeklyWindowSchema = z.object({
+  weekday: z.number().int().min(0).max(6),
+  start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+});
+
+/** Owner-controlled bookable availability. Opening hours stay free text. */
+export const saveAvailabilitySettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        active: z.boolean(),
+        slot_minutes: z.number().int().min(30).max(480),
+        lead_time_minutes: z.number().int().min(0).max(10080),
+        horizon_days: z.number().int().min(1).max(30),
+        offer_ttl_minutes: z.number().int().min(15).max(1440),
+        weekly_windows: z.array(WeeklyWindowSchema).max(21),
+      })
+      .strict()
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const { isValidTimezone } = await import("@/lib/availability");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+
+    for (const window of data.weekly_windows) {
+      if (window.end <= window.start)
+        throw new Error("Each bookable window must end after it starts.");
+    }
+
+    // A valid tenant timezone is a hard requirement for offering any slot.
+    const { data: business } = await supabaseAdmin
+      .from("businesses")
+      .select("timezone")
+      .eq("id", app.businessId)
+      .single();
+    if (!isValidTimezone(business?.timezone))
+      throw new Error("Set a valid business timezone before switching on availability.");
+
+    const { error } = await supabaseAdmin.from("booking_availability").upsert(
+      {
+        business_id: app.businessId,
+        active: data.active,
+        slot_minutes: data.slot_minutes,
+        lead_time_minutes: data.lead_time_minutes,
+        horizon_days: data.horizon_days,
+        offer_ttl_minutes: data.offer_ttl_minutes,
+        weekly_windows: data.weekly_windows as never,
+      },
+      { onConflict: "business_id" },
+    );
+    if (error) throw new Error(error.message);
+
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "booking_availability_updated",
+      entityType: "business",
+      entityId: app.businessId,
+      metadata: { active: data.active, windows: data.weekly_windows.length },
+    });
+    return { ok: true };
+  });
+
+/** Read-only booking view for one lead: config, valid options, existing offers. */
+export const getBookingOptions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => LeadIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { getBookingView } = await import("@/lib/availability.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    await assertLeadOwnership(app.businessId, data.leadId);
+    return await getBookingView({ businessId: app.businessId, leadId: data.leadId });
+  });
+
+/** Offers the server-computed options to the customer via the approved send path. */
+export const offerBookingSlots = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => LeadIdSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { sendSlotOffer } = await import("@/lib/availability.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    await assertLeadOwnership(app.businessId, data.leadId);
+    const result = await sendSlotOffer({
+      businessId: app.businessId,
+      leadId: data.leadId,
+      userId: app.userId,
+    });
+    return {
+      sent: result.sent,
+      reason: result.reason ?? null,
+      offers: result.offers.map((offer) => ({ id: offer.id, slot_start: offer.slot_start })),
+    };
+  });
+
+/** Records the customer's own explicit choice of one offered option. */
+export const selectBookingSlot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        leadId: z.string().uuid(),
+        offerId: z.string().uuid(),
+        messageId: z.string().uuid(),
+      })
+      .strict()
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { recordCustomerSlotSelection } = await import("@/lib/availability.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    await assertLeadOwnership(app.businessId, data.leadId);
+    return await recordCustomerSlotSelection({
+      businessId: app.businessId,
+      leadId: data.leadId,
+      offerId: data.offerId,
+      messageId: data.messageId,
+      userId: app.userId,
+    });
+  });
+
+/** Owner approval: the only action that can reach `scheduled` (Booked). */
+export const confirmLeadBooking = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ leadId: z.string().uuid(), offerId: z.string().uuid() }).strict().parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner, assertLeadOwnership } = await import(
+      "@/lib/app-context.server"
+    );
+    const { confirmBooking } = await import("@/lib/availability.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    await assertLeadOwnership(app.businessId, data.leadId);
+    const result = await confirmBooking({
+      businessId: app.businessId,
+      leadId: data.leadId,
+      offerId: data.offerId,
+      userId: app.userId,
+    });
+    return {
+      ok: result.ok,
+      reason: result.reason ?? null,
+      alreadyConfirmed: result.alreadyConfirmed ?? false,
+      needsHumanReview: result.decision.needsHumanReview,
+    };
   });

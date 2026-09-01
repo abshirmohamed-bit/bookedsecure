@@ -306,6 +306,160 @@ export type Database = {
           },
         ]
       }
+      booking_availability: {
+        Row: {
+          active: boolean
+          business_id: string
+          created_at: string
+          horizon_days: number
+          lead_time_minutes: number
+          offer_ttl_minutes: number
+          slot_minutes: number
+          updated_at: string
+          weekly_windows: Json
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          created_at?: string
+          horizon_days?: number
+          lead_time_minutes?: number
+          offer_ttl_minutes?: number
+          slot_minutes?: number
+          updated_at?: string
+          weekly_windows?: Json
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          created_at?: string
+          horizon_days?: number
+          lead_time_minutes?: number
+          offer_ttl_minutes?: number
+          slot_minutes?: number
+          updated_at?: string
+          weekly_windows?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_availability_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_offers: {
+        Row: {
+          accepted_at: string | null
+          accepted_message_id: string | null
+          business_id: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          job_id: string | null
+          lead_id: string
+          service_id: string | null
+          service_name_snapshot: string | null
+          slot_end: string
+          slot_start: string
+          status: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_message_id?: string | null
+          business_id: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          job_id?: string | null
+          lead_id: string
+          service_id?: string | null
+          service_name_snapshot?: string | null
+          slot_end: string
+          slot_start: string
+          status?: string
+          timezone: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_message_id?: string | null
+          business_id?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          job_id?: string | null
+          lead_id?: string
+          service_id?: string | null
+          service_name_snapshot?: string | null
+          slot_end?: string
+          slot_start?: string
+          status?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_offers_accepted_message_id_fkey"
+            columns: ["accepted_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_offers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_offers_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_offers_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["job_id"]
+          },
+          {
+            foreignKeyName: "booking_offers_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_offers_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_offers_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           automation_enabled: boolean
