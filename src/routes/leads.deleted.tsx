@@ -5,9 +5,20 @@ import { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
-import { getDeletedLeads, restoreLeadsRequest } from "@/lib/lead-deletion.functions";
+import {
+  getDeletedLeads,
+  permanentlyDeleteLeadsRequest,
+  restoreLeadsRequest,
+} from "@/lib/lead-deletion.functions";
 import { importMethodLabel, leadSourceLabel } from "@/lib/lead-source";
 import { maskPhone, toggleSelection } from "@/lib/lead-deletion";
+import {
+  buildPurgeConfirmation,
+  isPurgeConfirmed,
+  purgeButtonLabel,
+  summarisePurgeResult,
+  type PurgeResult,
+} from "@/lib/lead-purge";
 import { InboxPagination } from "@/components/InboxPagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
