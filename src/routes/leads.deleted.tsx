@@ -46,9 +46,13 @@ export const Route = createFileRoute("/leads/deleted")({
 function DeletedLeadsPage() {
   const fetchDeleted = useServerFn(getDeletedLeads);
   const restore = useServerFn(restoreLeadsRequest);
+  const purge = useServerFn(permanentlyDeleteLeadsRequest);
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [phrase, setPhrase] = useState("");
+  const [purgeReport, setPurgeReport] = useState<PurgeResult | null>(null);
 
   // Tenant-scoped and paginated on the server, exactly like the active inbox.
   const { data, isLoading, isFetching, error } = useQuery({
