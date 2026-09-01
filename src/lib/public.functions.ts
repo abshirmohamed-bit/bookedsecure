@@ -38,7 +38,7 @@ export const submitQuoteRequest = createServerFn({ method: "POST" })
 
     // Silently accept honeypot hits so bots get no signal.
     if (data.company && data.company.trim().length > 0) {
-      return { ok: true as const, acknowledgementSent: false, note: null };
+      return { ok: true as const, duplicate: false as const, acknowledgementSent: false, note: null };
     }
 
     const mobile = normaliseAuMobile(data.mobile_number);
@@ -141,8 +141,17 @@ export const submitQuoteRequest = createServerFn({ method: "POST" })
         consent_source_url: data.form_url ?? null,
       });
 
+      // Duplicate protection stays in captureLead (soft-deleted leads included,
+      // 30-minute window unchanged). Nothing was created on this path, so report
+      // it explicitly instead of letting the form claim success.
+      if (result.duplicate) {
+        const { duplicateQuoteResponse } = await import("@/lib/quote-duplicate");
+        return duplicateQuoteResponse();
+      }
+
       return {
         ok: true as const,
+        duplicate: false as const,
         acknowledgementSent: result.acknowledgementSent,
         note: result.note ?? null,
       };

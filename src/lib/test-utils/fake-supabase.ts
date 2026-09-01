@@ -70,6 +70,10 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     this.filters.push((row) => (row[column] ?? null) !== null);
     return this;
   }
+  gte(column: string, value: string) {
+    this.filters.push((row) => String(row[column] ?? "") >= value);
+    return this;
+  }
   in(column: string, values: unknown[]) {
     const set = new Set(values);
     this.filters.push((row) => set.has(row[column]));

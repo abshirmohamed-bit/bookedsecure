@@ -62,8 +62,15 @@ export const Route = createFileRoute("/api/public/leads/intake")({
             : "No explicit SMS consent supplied with this lead.",
         });
 
+        // Duplicate suppressed: nothing was created, so say so explicitly rather
+        // than returning a lead id as if this submission had been accepted.
+        if (result.duplicate) {
+          const { duplicateQuoteResponse } = await import("@/lib/quote-duplicate");
+          return Response.json(duplicateQuoteResponse(), { headers: CORS });
+        }
+
         return Response.json(
-          { ok: true, leadId: result.leadId, acknowledgementSent: result.acknowledgementSent },
+          { ok: true, duplicate: false, leadId: result.leadId, acknowledgementSent: result.acknowledgementSent },
           { headers: CORS },
         );
       },
