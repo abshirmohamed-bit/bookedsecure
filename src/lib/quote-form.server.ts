@@ -3,6 +3,7 @@
 // business id is ever trusted, and an unknown/inactive slug resolves to null (never a default).
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normaliseSlug } from "@/lib/tenant-slug";
+import { sanitiseLogoUrl } from "@/lib/tenant-branding";
 
 export type PublicService = {
   id: string;
