@@ -100,7 +100,9 @@ export function guardReply(
   const flagged: string[] = [];
   const sentences = reply.split(/(?<=[.!?])\s+/);
   const safe = sentences.filter((sentence) => {
-    let bad = BANNED_PATTERNS.some((pattern) => pattern.test(sentence));
+    let bad = [...BANNED_PATTERNS, ...UNSAFE_PRICING_PATTERNS].some((pattern) =>
+      pattern.test(sentence),
+    );
     if (!bad && PRICE_PATTERNS.some((pattern) => pattern.test(sentence))) {
       bad = true;
       if (priceAllowed && !UNSAFE_PRICING_PATTERNS.some((p) => p.test(sentence))) {
