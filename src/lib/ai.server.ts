@@ -146,8 +146,9 @@ export class AnalysisFailure extends Error {
 
 function rawTextOf(error: unknown, outcome?: GenerateOutcome): string | undefined {
   if (NoObjectGeneratedError.isInstance(error)) return error.text;
-  if (error instanceof Error && typeof (error as { text?: unknown }).text === "string") {
-    return (error as { text: string }).text;
+  if (error instanceof Error) {
+    const text = (error as unknown as { text?: unknown }).text;
+    if (typeof text === "string") return text;
   }
   return outcome?.text;
 }
