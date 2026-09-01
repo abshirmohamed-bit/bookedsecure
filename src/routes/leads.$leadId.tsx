@@ -27,6 +27,7 @@ import {
 import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency } from "@/lib/domain";
 import { importMethodLabel, leadSourceLabel, originalSourceDetails } from "@/lib/lead-source";
 import { SuppressionRecoveryPanel } from "@/components/SuppressionRecoveryPanel";
+import { BookingPanel } from "@/components/BookingPanel";
 
 export const Route = createFileRoute("/leads/$leadId")({
   head: () => ({
@@ -430,6 +431,16 @@ function LeadDetail() {
             </dl>
             <NotesEditor leadId={leadId} initial={lead.notes ?? ""} onSaved={invalidate} />
           </section>
+
+          <BookingPanel
+            leadId={leadId}
+            inboundMessages={(messages ?? [])
+              .filter((message: { direction: string }) => message.direction === "inbound")
+              .slice(-10)
+              .reverse()}
+            readOnly={data.role !== "owner"}
+            onDone={invalidate}
+          />
 
           <JobPanel
             leadId={leadId}

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
+import { AvailabilityEditor } from "@/components/settings/availability";
 import {
   BusinessSettingsForm,
   ServicesEditor,
@@ -48,6 +49,11 @@ function BusinessSettingsPage() {
                 "privacy_policy_url",
                 "timezone",
               ]}
+            />
+            <AvailabilityEditor
+              availability={data.availability}
+              timezone={data.business.timezone}
+              readOnly={data.role !== "owner"}
             />
             <ServicesEditor services={data.services} readOnly={data.role !== "owner"} />
           </>

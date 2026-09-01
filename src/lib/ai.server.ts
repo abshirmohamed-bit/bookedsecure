@@ -29,6 +29,9 @@ const AnalysisSchema = z.object({
     last_cleaned_at: z.string().nullable(),
     main_concerns: z.string().nullable(),
     service_intent: z.string().nullable(),
+    // Phase 3: the customer's own words about when they'd like the job done.
+    // This is an extraction of what they SAID — never a slot, offer or booking.
+    requested_day_or_time: z.string().nullable(),
   }),
   suggested_reply: z.string(),
   needs_human_review: z.boolean(),
@@ -201,6 +204,8 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     "- Never infer, calculate, combine, narrow, total or invent a price, and never add fees, taxes, deposits, discounts or percentages.",
     "- If the approved facts contain no price guidance, or the requested service is ambiguous, ask a neutral clarifying question and say the owner will confirm.",
     "- Never claim or confirm a date, time, availability, slot, appointment or booking.",
+    "- You may record the customer's stated timing preference in extracted.requested_day_or_time using their own words only (e.g. \"weekend mornings\"). Leave it null if they gave none, and never turn it into a specific date, time or slot.",
+    "- Appointment options and booking confirmations are produced by the system, not by you. If the customer asks when you can come, say the owner will send available times.",
     "- Keep the suggested reply under 320 characters, plain Australian English, no emojis.",
     serviceSnapshot
       ? `- The customer already chose the service "${serviceSnapshot}". Do not switch, upsell or substitute it; work within that request.`
