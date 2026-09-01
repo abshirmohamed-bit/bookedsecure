@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
 import {
   PURGE_CONFIRMATION_PHRASE,
   buildPurgeConfirmation,
@@ -307,7 +308,7 @@ describe("permanent deletion authorization", () => {
   });
 
   it("gates the server function on owner role, the DELETE phrase and server-side tenant scope", async () => {
-    const source = await Bun.file("src/lib/lead-deletion.functions.ts").text();
+    const source = await readFile("src/lib/lead-deletion.functions.ts", "utf8");
     const block = source.slice(source.indexOf("permanentlyDeleteLeadsRequest"));
     expect(block).toContain("requireSupabaseAuth");
     expect(block).toContain("requireOwner(app)");
