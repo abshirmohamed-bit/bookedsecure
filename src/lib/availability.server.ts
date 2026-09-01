@@ -15,7 +15,9 @@ import {
   type AvailabilityConfig,
   type AvailableSlot,
 } from "@/lib/availability";
+import { buildApprovedFacts, hasApprovedPrice } from "@/lib/approved-facts";
 import {
+  assessAutomaticBooking,
   assessBookingConfirmation,
   assessOfferGeneration,
   bookingConfirmationIdempotencyKey,
