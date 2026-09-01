@@ -18,7 +18,6 @@ function lead(overrides: Partial<BookingLead> = {}): BookingLead {
   return {
     id: "lead-1",
     business_id: BUSINESS,
-    name: "Sam",
     status: "contacted",
     opted_out_at: null,
     sms_suppressed_at: null,
