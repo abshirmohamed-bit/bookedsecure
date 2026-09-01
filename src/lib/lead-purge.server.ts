@@ -11,7 +11,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import {
   PENDING_AUTOMATION_STATUSES,
-  blockReasonText,
   normaliseSelection,
   planPermanentDelete,
   retainedText,
@@ -264,8 +263,6 @@ export async function permanentlyDeleteLeads(
       reason,
     },
   });
-
-  void blockReasonText;
 
   return {
     requestId: input.requestId,

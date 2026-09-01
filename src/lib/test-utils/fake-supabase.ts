@@ -9,7 +9,7 @@ export type FakeDb = Record<string, Row[]>;
 
 class Query implements PromiseLike<{ data: any; error: any }> {
   private filters: Filter[] = [];
-  private mode: "select" | "insert" | "update" = "select";
+  private mode: "select" | "insert" | "update" | "delete" = "select";
   private payload: Row | null = null;
   private singleRow = false;
   private maybe = false;
@@ -53,8 +53,10 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     return this;
   }
   delete() {
+    this.mode = "delete";
+    this.wantsRows = false;
     this.log.push({ table: this.table, op: "delete" });
-    throw new Error("hard delete is not permitted");
+    return this;
   }
   eq(column: string, value: unknown) {
     this.filters.push((row) => row[column] === value);
@@ -107,6 +109,15 @@ class Query implements PromiseLike<{ data: any; error: any }> {
       const affected = this.matching();
       for (const row of affected) Object.assign(row, this.payload ?? {});
       return { data: this.singleRow || this.maybe ? (affected[0] ?? null) : affected, error: null };
+    }
+    if (this.mode === "delete") {
+      const affected = this.matching();
+      const ids = new Set(affected);
+      const rows = this.rows;
+      for (let index = rows.length - 1; index >= 0; index -= 1) {
+        if (ids.has(rows[index]!)) rows.splice(index, 1);
+      }
+      return { data: affected, error: null };
     }
     let result = this.matching();
     if (this.orders.length > 0) {
