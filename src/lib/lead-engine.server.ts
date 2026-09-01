@@ -27,6 +27,7 @@ import {
 } from "@/lib/sms/dispatch";
 import { isUniqueViolation } from "@/lib/sms/webhook.server";
 import { evaluateQuietHoursGate, QUIET_HOURS_BLOCKED_CODE } from "@/lib/sms/quiet-hours";
+import { resolveAcknowledgementTemplate } from "@/lib/acknowledgement-contract";
 
 
 type Business = {
@@ -448,9 +449,9 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     .limit(1)
     .maybeSingle();
 
-  const template =
-    rule?.message_template ??
-    "Hi {{first_name}}, thanks for contacting {{business_name}}. We've received your detailing enquiry. Reply with your vehicle type and main concern so we can help. Reply STOP to opt out.";
+  // The acknowledgement text is a frozen contract: a stored rule is honoured
+  // only when it matches it exactly, otherwise the frozen text is used.
+  const { template } = resolveAcknowledgementTemplate(rule?.message_template);
 
   // Durable acknowledgement: persisted before we attempt the send, so an
   // interrupted request still leaves the ACK queued for the scheduler.
