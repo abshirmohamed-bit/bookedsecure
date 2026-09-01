@@ -15,7 +15,9 @@ import {
   type AvailabilityConfig,
   type AvailableSlot,
 } from "@/lib/availability";
+import { buildApprovedFacts, hasApprovedPrice } from "@/lib/approved-facts";
 import {
+  assessAutomaticBooking,
   assessBookingConfirmation,
   assessOfferGeneration,
   bookingConfirmationIdempotencyKey,
@@ -330,6 +332,60 @@ export async function sendSlotOffer(input: {
 }
 
 /**
+ * Normal-path automatic booking: ordinary approved bookings are confirmed by
+ * the server as soon as the customer picks a server-generated slot. Exception
+ * cases return without booking and stay with the owner.
+ */
+async function autoConfirmIfNormalPath(input: {
+  businessId: string;
+  leadId: string;
+  offerId: string;
+  lead: LeadRow;
+  conversation: { automation_paused?: boolean | null } | null;
+}): Promise<{ automaticallyBooked: boolean; reason?: string }> {
+  const [{ data: business }, { data: services }] = await Promise.all([
+    supabaseAdmin
+      .from("businesses")
+      .select("automation_enabled")
+      .eq("id", input.businessId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("services")
+      .select(
+        "id, business_id, name, description, price_guidance, included_items, excluded_items, qualification_note, active",
+      )
+      .eq("business_id", input.businessId)
+      .eq("active", true),
+  ]);
+
+  const facts = buildApprovedFacts({
+    businessId: input.businessId,
+    lead: input.lead as never,
+    services: (services ?? []) as never,
+  });
+
+  const gate = assessAutomaticBooking({
+    businessId: input.businessId,
+    lead: input.lead,
+    conversation: input.conversation,
+    automationEnabled: Boolean(business?.automation_enabled),
+    approvedPriceAvailable: hasApprovedPrice(facts),
+  });
+  if (!gate.automatic) return { automaticallyBooked: false, ...(gate.reason ? { reason: gate.reason } : {}) };
+
+  const confirmed = await confirmBooking({
+    businessId: input.businessId,
+    leadId: input.leadId,
+    offerId: input.offerId,
+    userId: null,
+  });
+  return {
+    automaticallyBooked: confirmed.ok,
+    ...(confirmed.reason === undefined ? {} : { reason: confirmed.reason }),
+  };
+}
+
+/**
  * Records the customer's explicit selection of ONE server-returned option.
  * `messageId` must be an inbound message on this lead — the deterministic proof
  * of customer confirmation. The conditional update plus the partial unique index
@@ -341,7 +397,12 @@ export async function recordCustomerSlotSelection(input: {
   offerId: string;
   messageId: string;
   userId?: string | null;
-}): Promise<{ ok: boolean; reason?: string; offer?: OfferRow }> {
+}): Promise<{
+  ok: boolean;
+  reason?: string;
+  offer?: OfferRow;
+  automaticallyBooked?: boolean;
+}> {
   const { data: message } = await supabaseAdmin
     .from("messages")
     .select("id, direction")
@@ -397,7 +458,24 @@ export async function recordCustomerSlotSelection(input: {
     entityId: input.leadId,
     metadata: { offer_id: input.offerId, slot_start: offer.slot_start, message_id: input.messageId },
   });
-  return { ok: true, offer: updated as OfferRow };
+
+  const { lead, conversation } = await loadLeadAndConversation(input.businessId, input.leadId);
+  if (!lead) return { ok: true, offer: updated as OfferRow, automaticallyBooked: false };
+
+  const auto = await autoConfirmIfNormalPath({
+    businessId: input.businessId,
+    leadId: input.leadId,
+    offerId: input.offerId,
+    lead,
+    conversation,
+  });
+
+  return {
+    ok: true,
+    offer: updated as OfferRow,
+    automaticallyBooked: auto.automaticallyBooked,
+    ...(auto.automaticallyBooked || auto.reason === undefined ? {} : { reason: auto.reason }),
+  };
 }
 
 /**

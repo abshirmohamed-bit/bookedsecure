@@ -58,7 +58,9 @@ export function BookingPanel({
   const selectMutation = useMutation({
     mutationFn: (offerId: string) => select({ data: { leadId, offerId, messageId } }),
     onSuccess: (result) => {
-      if (result.ok) toast.success("Customer choice recorded");
+      if (result.ok && result.automaticallyBooked)
+        toast.success("Booked and confirmed by SMS");
+      else if (result.ok) toast.success("Customer choice recorded");
       else toast.error(result.reason ?? "Could not record that choice");
       refresh();
     },
