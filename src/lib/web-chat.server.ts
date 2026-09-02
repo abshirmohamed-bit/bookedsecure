@@ -115,6 +115,12 @@ export async function replyToWebChat(input: {
   conversationId: string;
   answer: string;
   formUrl: string | null;
+  /**
+   * Idempotency guard: the step the client believed it was answering. When the
+   * conversation has already moved past it (a retried or double-submitted turn),
+   * the answer is not applied again — the current state is returned instead.
+   */
+  expectedStep?: string | null;
 }): Promise<WebChatState | null> {
   const tenant = await resolvePublicTenant(input.slug);
   if (!tenant || tenant.quoteMode !== "ai_chat") return null;
@@ -152,6 +158,21 @@ export async function replyToWebChat(input: {
       status: conversation.status,
       messages: turns,
       prompt: null,
+      requiresOwnerReview: conversation.requires_owner_review,
+      completed: false,
+      declined: false,
+      duplicate: false,
+    };
+  }
+
+  // Replayed/duplicated turn: the conversation already advanced past the step the
+  // client answered, so nothing is applied and no extra turns are persisted.
+  if (input.expectedStep && input.expectedStep !== step) {
+    return {
+      conversationId: conversation.id,
+      status: conversation.status,
+      messages: turns,
+      prompt: promptFor(step, chatTenant),
       requiresOwnerReview: conversation.requires_owner_review,
       completed: false,
       declined: false,
