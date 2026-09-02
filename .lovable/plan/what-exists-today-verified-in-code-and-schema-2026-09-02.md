@@ -1,4 +1,20 @@
-# Phase 0 verification + approved-scope plan (BookedSecure / Glocast)
+*Approved for the controlled Phase 0 and AI lead-capture slice, with the following conditions:*
+
+1. *Preserve Manual mode exactly. The default and fallback must be* `manual_sms`*, and existing Manual public form behavior, validation, deduplication, consent, SMS billing, opt-out, quiet hours, suppression, delivery tracking, and follow-ups must remain unchanged.*
+2. *Fix the acknowledgement defect so an inactive or missing acknowledgement rule produces no acknowledgement job and no SMS. The lead must still be created where the current rules allow it. Add regression tests for active, inactive, missing, invalid mobile, missing consent, owner review, opt-out, quiet hours, and usage-cap cases.*
+3. *Add the tenant-scoped two-value mode selector:* `manual_sms` *and* `ai_chat`*. The default must be Manual. Changing the mode must affect future public visitors only and must not alter existing leads, conversations, bookings, jobs, SMS records, or historical data.*
+4. *Build the AI quote experience only through the first lead-capture slice. It must support the branded public chat, tenant-specific approved service context, customer detail collection, consent, recommendation and owner-review handling, unsupported-request handling, duplicate handling, web-chat persistence, and owner dashboard visibility.*
+5. *Store web-chat conversations separately from SMS messages. Do not write AI web messages into the existing SMS* `messages` *table. Do not invoke SMS jobs, follow-up jobs, SMS usage accounting, delivery providers, or SMS webhooks from the AI chat path.*
+6. *Do not implement customer slot selection, AI booking, booking confirmation, reminders, on-the-way messages, or campaigns in this phase. Availability may be configured and tested separately, but no public booking surface should be activated yet.*
+7. *Do not expose price guidance, duration, inclusions, or exclusions to customers unless the current data and business rules explicitly support customer-facing display. Do not invent database fields or service facts.*
+8. *The owner dashboard must clearly identify AI-origin leads and show the web transcript separately from the SMS thread.*
+9. *Before making changes, provide the exact files, routes, schema changes, RLS policies, and tests that will be touched. Stop if any ambiguity appears around existing SMS, lead, booking, or tenant-isolation behavior.*
+10. *After implementation, report the exact changes, test results, build results, and any remaining limitations. No provider calls, live SMS, live booking, production data mutation, or unrelated refactoring.*  
+  
+  
+  
+  
+Phase 0 verification + approved-scope plan (BookedSecure / Glocast)
 
 Read-only inspection is complete. Nothing has been changed.
 
@@ -19,6 +35,7 @@ In `captureLead`, the active acknowledgement rule is read, then `resolveAcknowle
 ## 1. Files and routes
 
 Existing files to extend
+
 - `src/lib/lead-engine.server.ts` — ACK suppression fix (no active rule → no job, no send, lead still created); add an explicit non-SMS capture path for web-chat leads.
 - `src/lib/public.functions.ts` — mode-aware public payload; new AI-chat server functions live in a new file, not here.
 - `src/lib/quote-form.server.ts` — return the tenant's quote mode plus approved service display fields.
@@ -28,6 +45,7 @@ Existing files to extend
 - `src/routes/leads.$leadId.tsx`, `src/routes/leads.index.tsx`, `src/lib/lead-source.ts` — show AI origin, owner-review flag, and the web transcript.
 
 New files
+
 - `src/components/quote/AiQuoteChat.tsx` — branded tenant chat UI.
 - `src/lib/quote-mode.ts` — the two-value enum, parse/fallback-to-manual helper (pure, tested).
 - `src/lib/web-chat.functions.ts` — public server fns: start conversation, post message, finalise lead.
@@ -36,18 +54,21 @@ New files
 - Tests: `quote-mode.test.ts`, `web-chat.test.ts`, `acknowledgement-suppression.test.ts`, `manual-quote-regression.test.ts`.
 
 Protected from modification
+
 - `src/integrations/supabase/*` (generated), `src/lib/sms/**`, `jobs.server.ts`, `usage.server.ts`, quiet-hours/suppression/opt-out/delivery code, `acknowledgement-contract.ts` frozen text, follow-up rules, CSV/import and commit-gate code, `booking_offers`/`availability.server.ts` booking paths, existing AI schema and guardrails.
 
 ## 2. Data fields
 
 Reuse (no new column):
+
 - Consent → `leads.consent_record`. Customer/vehicle/suburb/concerns → existing lead columns. Requested service → `approved_service_id` + `service_name_snapshot`; typed request → `flexible_request_text`. Owner review → `requires_owner_review`. Tenant → `business_id`. Attribution → `source_metadata`.
 
 New (minimum):
+
 - `businesses.quote_mode text not null default 'manual_sms'`, check in (`manual_sms`,`ai_chat`). Needed for the mode selector; default keeps every existing tenant, including Glocast, on Manual.
 - `leads.lead_origin` gains allowed value `ai_web_chat` (check-constraint extension only; existing rows untouched, no backfill). This is the mode indicator.
 - New `web_conversations` (business_id, lead_id nullable, status, consent_outcome, unsupported_request, requires_owner_review, completed_at, timestamps) and `web_conversation_messages` (business_id, conversation_id, role, body, created_at), both with GRANTs + RLS (tenant-scoped read for members, writes server-side only).
-  Reason not to reuse `messages`: that table is SMS delivery state (provider ids, delivery_status, retries) and is what the SMS pipeline, usage counting and delivery webhooks scan. Writing web chat there is the single biggest risk of accidental SMS behaviour, so it is kept out.
+Reason not to reuse `messages`: that table is SMS delivery state (provider ids, delivery_status, retries) and is what the SMS pipeline, usage counting and delivery webhooks scan. Writing web chat there is the single biggest risk of accidental SMS behaviour, so it is kept out.
 
 ## 3. Manual mode protection
 
