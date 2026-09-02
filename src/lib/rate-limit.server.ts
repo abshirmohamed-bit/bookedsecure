@@ -40,7 +40,8 @@ export async function allowPublicFormAttempt(
       .eq("provider", PROVIDER)
       .like("event_id", `${key}:%`)
       .gte("created_at", hourAgo)
-      .limit(50);
+      // Must exceed the largest hourly budget, otherwise the cap is never seen.
+      .limit(400);
 
     const rows = data ?? [];
     if (rows.length > perHour) return false;

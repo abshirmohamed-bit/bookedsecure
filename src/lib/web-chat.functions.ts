@@ -20,7 +20,10 @@ export const startQuoteConversation = createServerFn({ method: "POST" })
     if (data.company && data.company.trim().length > 0) return { ok: false as const, error: "Unavailable." };
 
     const { allowPublicFormAttempt } = await import("@/lib/rate-limit.server");
-    if (!(await allowPublicFormAttempt(clientIp()))) {
+    // Opening a chat happens on every page open/refresh, so it gets its own
+    // namespace and a realistic budget — the strict lead-submission budget stays
+    // untouched on the manual quote form path.
+    if (!(await allowPublicFormAttempt(`chatstart:${clientIp()}`, { perMinute: 8, perHour: 40 }))) {
       return { ok: false as const, error: "Too many requests from this device. Please try again shortly." };
     }
 
@@ -44,13 +47,29 @@ export const replyQuoteConversation = createServerFn({ method: "POST" })
         conversation_id: z.string().uuid(),
         answer: z.string().min(1).max(500),
         form_url: z.string().max(300).optional().nullable(),
+        expected_step: z.string().max(40).optional().nullable(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
     const { allowPublicFormAttempt } = await import("@/lib/rate-limit.server");
-    if (!(await allowPublicFormAttempt(`chat:${clientIp()}`))) {
-      return { ok: false as const, error: "Too many messages from this device. Please try again shortly." };
+    // A genuine quote conversation is ~10 turns, so the reply path gets a
+    // conversation-scoped budget sized for real use plus a wider per-device
+    // ceiling. Abuse protection stays on; only the thresholds are realistic.
+    const withinConversation = await allowPublicFormAttempt(`chat:${data.conversation_id}`, {
+      perMinute: 15,
+      perHour: 80,
+    });
+    const withinDevice = await allowPublicFormAttempt(`chatip:${clientIp()}`, {
+      perMinute: 25,
+      perHour: 300,
+    });
+    if (!withinConversation || !withinDevice) {
+      return {
+        ok: false as const,
+        error: "Too many messages from this device. Please try again shortly.",
+        rateLimited: true as const,
+      };
     }
 
     const { replyToWebChat } = await import("@/lib/web-chat.server");
@@ -60,6 +79,7 @@ export const replyQuoteConversation = createServerFn({ method: "POST" })
         conversationId: data.conversation_id,
         answer: data.answer,
         formUrl: data.form_url ?? null,
+        expectedStep: data.expected_step ?? null,
       });
       if (!state) return { ok: false as const, error: "This conversation is no longer available." };
       return { ok: true as const, state };
