@@ -111,6 +111,9 @@ function filledSteps(collected: WebChatCollected): CorrectableStep[] {
 
 function clearField(collected: WebChatCollected, field: CorrectableStep): WebChatCollected {
   const next: WebChatCollected = { ...collected };
+  // Any change re-opens the final review so the customer always confirms the
+  // latest values before consent.
+  next.reviewed = false;
   switch (field) {
     case "service":
       next.service_id = null;
@@ -137,6 +140,18 @@ function clearField(collected: WebChatCollected, field: CorrectableStep): WebCha
       break;
   }
   return next;
+}
+
+/**
+ * Explicit, unambiguous "change this field" directive sent by the review-step
+ * buttons (`change:name`). Deterministic — it can never start a clarify loop.
+ */
+export const CHANGE_DIRECTIVE_PREFIX = "change:";
+
+export function parseChangeDirective(raw: string): CorrectableStep | null {
+  const match = /^change:([a-z]+)$/i.exec(raw.trim());
+  const field = match?.[1]?.toLowerCase();
+  return field && (CORRECTABLE_STEPS as readonly string[]).includes(field) ? (field as CorrectableStep) : null;
 }
 
 export type CorrectionResult =
