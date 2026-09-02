@@ -137,7 +137,10 @@ function RuleCard({
         >
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {rule.label}
-            <Info className="h-3.5 w-3.5 shrink-0" aria-hidden title={rule.tip} />
+            <span title={rule.tip} className="inline-flex">
+              <Info className="h-3.5 w-3.5 shrink-0" aria-label={rule.tip} />
+            </span>
+
           </span>
           <span className="mt-1 block text-sm font-medium text-foreground">
             {rule.format(value)}
