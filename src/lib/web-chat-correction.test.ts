@@ -62,7 +62,7 @@ describe("mid-conversation corrections", () => {
   });
 
   it("corrects the mobile while another field is active", () => {
-    const collected = { ...allCollected(), email: undefined } as WebChatCollected;
+    const collected: WebChatCollected = { ...upToMobile(), mobile_number: "+61447852565" };
     const result = detectCorrection(collected, "email", "change my number to 0412 345 678", tenant);
     expect(result.kind).toBe("applied");
     if (result.kind !== "applied") return;
