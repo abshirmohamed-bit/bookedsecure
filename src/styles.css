@@ -103,6 +103,14 @@
   --sidebar-accent-foreground: oklch(0.95 0.008 150);
   --sidebar-border: oklch(0.3 0.014 162);
   --sidebar-ring: oklch(0.74 0.17 152);
+  /* Public AI quote conversation only: customer bubble pair + branded header wash. */
+  --chat-user: oklch(0.52 0.19 292);
+  --chat-user-foreground: oklch(0.98 0.005 292);
+  --gradient-chat-header: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--chat-user) 26%, var(--card)),
+    var(--card) 70%
+  );
 }
 
 .dark {
