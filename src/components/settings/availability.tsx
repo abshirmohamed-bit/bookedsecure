@@ -1,9 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Info } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { saveAvailabilitySettings } from "@/lib/app.functions";
 import { WEEKDAY_LABELS, type AvailabilityWindow } from "@/lib/availability";
+
 
 /**
  * Owner-controlled bookable availability. This is the only source the server
