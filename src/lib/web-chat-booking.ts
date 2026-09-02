@@ -83,3 +83,6 @@ export function bookingDeclinedMessage(businessName: string): string {
     `${businessName} has your enquiry and will be in touch to arrange a time that works for you.`,
   ].join(" ");
 }
+
+export const BOOKING_EXPIRED_MESSAGE =
+  "That time had been held for a while and has since expired, so I've refreshed the options. Here are the times that are open right now.";
