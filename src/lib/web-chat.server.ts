@@ -23,8 +23,10 @@ import {
 } from "@/lib/web-chat";
 import {
   AMBIGUOUS_CORRECTION_MESSAGE,
+  FIELD_LABELS,
   detectCorrection,
   hasCorrectionCue,
+  parseChangeDirective,
 } from "@/lib/web-chat-correction";
 
 const MAX_MESSAGES = 60;
