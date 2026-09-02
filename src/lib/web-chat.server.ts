@@ -30,6 +30,7 @@ import {
 } from "@/lib/web-chat-correction";
 import {
   BOOKING_CONFLICT_MESSAGE,
+  BOOKING_EXPIRED_MESSAGE,
   BOOKING_UNAVAILABLE_MESSAGE,
   bookingDeclinedMessage,
 } from "@/lib/web-chat-booking";
