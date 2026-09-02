@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { AvailabilityEditor } from "@/components/settings/availability";
 import {
   BusinessSettingsForm,
+  QuotePageModeCard,
   ServicesEditor,
   SettingsPageBody,
 } from "@/components/settings/sections";
@@ -49,6 +50,11 @@ function BusinessSettingsPage() {
                 "privacy_policy_url",
                 "timezone",
               ]}
+            />
+            <QuotePageModeCard
+              quoteMode={data.business.quote_mode}
+              slug={data.business.slug}
+              readOnly={data.role !== "owner"}
             />
             <AvailabilityEditor
               availability={data.availability}
