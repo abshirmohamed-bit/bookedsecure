@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Loader2, RotateCcw, Send, ShieldCheck, User } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
 import { replyQuoteConversation, startQuoteConversation } from "@/lib/web-chat.functions";
-import { isVerboseIntro, serviceShortDescription } from "@/lib/web-chat-presentation";
+import { isVerboseIntro } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
 
 type Turn = { role: "customer" | "assistant" | "system"; body: string };
@@ -212,29 +212,89 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   );
                 })}
 
-                {/* Tenant service-list message, built from the tenant's own options */}
-                {!busy && !pending && !finished && onServiceStep && serviceOptions.length > 0 && (
-                  <li className="flex items-end gap-2">
-                    <TenantMark
-                      name={tenant.name}
-                      logoUrl={tenant.logoUrl}
-                      size={28}
-                      className="rounded-full"
-                    />
-                    <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-secondary px-3.5 py-2.5 text-sm leading-relaxed text-secondary-foreground">
-                      <p>
-                        We offer a variety of mobile detailing services
-                        {tenant.serviceArea ? ` across ${tenant.serviceArea}` : ""}, including:
-                      </p>
-                    </div>
-                  </li>
-                )}
+                {/* One natural assistant message: intro line, the tenant's own
+                    selectable service list, then a single follow-up question. */}
+                {!busy &&
+                  !pending &&
+                  !finished &&
+                  !describing &&
+                  onServiceStep &&
+                  serviceOptions.length > 0 && (
+                    <li className="flex items-end gap-2">
+                      <TenantMark
+                        name={tenant.name}
+                        logoUrl={tenant.logoUrl}
+                        size={28}
+                        className="rounded-full"
+                      />
+                      <div className="max-w-[85%] space-y-2.5 rounded-2xl rounded-bl-md bg-secondary px-3.5 py-3 text-sm leading-relaxed text-secondary-foreground">
+                        <p>
+                          We offer a range of services
+                          {tenant.serviceArea ? ` across ${tenant.serviceArea}` : ""}, including:
+                        </p>
+                        <ul className="space-y-1">
+                          {serviceOptions.map((option) => {
+                            const isFlexible = option.value === FLEXIBLE_CHOICE;
+                            return (
+                              <li key={option.value} className="flex items-start gap-2">
+                                <span
+                                  className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground"
+                                  aria-hidden="true"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  aria-label={
+                                    isFlexible
+                                      ? "Something else or not sure — describe your own request"
+                                      : `Choose ${option.label}`
+                                  }
+                                  onClick={() => {
+                                    setSelected(option.value);
+                                    if (isFlexible) {
+                                      setDescribing(true);
+                                      setError(null);
+                                      requestAnimationFrame(() => input.current?.focus());
+                                      return;
+                                    }
+                                    send(option.value, option.label);
+                                  }}
+                                  className={`-mx-1 rounded-lg px-1 text-left font-semibold underline decoration-dotted decoration-1 underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
+                                    selected === option.value ? "text-primary" : ""
+                                  } ${isFlexible ? "font-medium italic" : ""}`}
+                                >
+                                  {option.label}
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        <p>Are you mainly looking to clean up the interior, the exterior, or both?</p>
+                      </div>
+                    </li>
+                  )}
 
                 {describing && !pending && (
-                  <li className="flex flex-row-reverse items-end gap-2">
-                    {customerBubble("Something else or not sure")}
-                  </li>
+                  <>
+                    <li className="flex flex-row-reverse items-end gap-2">
+                      {customerBubble("Something else or not sure")}
+                    </li>
+                    {!busy && (
+                      <li className="flex items-end gap-2">
+                        <TenantMark
+                          name={tenant.name}
+                          logoUrl={tenant.logoUrl}
+                          size={28}
+                          className="rounded-full"
+                        />
+                        <p className="max-w-[85%] rounded-2xl rounded-bl-md bg-secondary px-3.5 py-2.5 text-sm leading-relaxed text-secondary-foreground">
+                          No worries — tell me what you need in your own words below.
+                        </p>
+                      </li>
+                    )}
+                  </>
                 )}
+
 
                 {/* Optimistic customer turn — shown before the assistant replies */}
                 {pending && (
@@ -265,59 +325,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                 )}
               </ul>
 
-              {/* Interactive service options (service step only) */}
-              {!finished && !busy && !pending && !describing && onServiceStep && (
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {serviceOptions.map((option) => {
-                    const isFlexible = option.value === FLEXIBLE_CHOICE;
-                    const description = isFlexible ? "" : serviceShortDescription(option.detail);
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        disabled={busy}
-                        aria-label={
-                          isFlexible
-                            ? "Something else or not sure — describe your own request"
-                            : `Choose ${option.label}`
-                        }
-                        onClick={() => {
-                          if (isFlexible) {
-                            setSelected(option.value);
-                            setDescribing(true);
-                            setError(null);
-                            requestAnimationFrame(() => input.current?.focus());
-                            return;
-                          }
-                          setSelected(option.value);
-                          send(option.value, option.label);
-                        }}
-                        className={`flex min-h-11 w-full flex-col justify-center rounded-xl border px-3.5 py-3 text-left transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
-                          selected === option.value
-                            ? "border-primary bg-primary/10"
-                            : "border-border bg-card/60"
-                        } ${isFlexible ? "sm:col-span-2" : ""}`}
-                      >
-                        <span className="truncate text-sm font-semibold">{option.label}</span>
-                        {description && (
-                          <span className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                            {description}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
 
-              {/* Follow-up question, after the options */}
-              {!finished && !busy && !pending && onServiceStep && (
-                <p className="mt-4 max-w-[80%] rounded-2xl rounded-bl-md bg-secondary px-3.5 py-2.5 text-sm leading-relaxed text-secondary-foreground sm:ml-9">
-                  {describing
-                    ? "No worries — tell me what you need in your own words below."
-                    : "Are you mainly looking to clean up the interior, exterior, or both?"}
-                </p>
-              )}
+
 
               {/* Consent */}
               {!finished && !busy && !pending && prompt?.kind === "consent" && (
