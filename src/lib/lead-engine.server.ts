@@ -437,6 +437,17 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     };
   }
 
+  // Web-chat capture never touches the SMS path: no acknowledgement, no
+  // follow-up sequence, no provider call. The lead is still created.
+  if (input.channel === "web") {
+    return {
+      leadId: lead.id,
+      duplicate: false,
+      acknowledgementSent: false,
+      note: "Captured from the web conversation — no SMS was queued.",
+    };
+  }
+
   // Consent is a precondition for any acknowledgement on the public form path.
   if (input.lead_origin === "inbound_form" && !input.consent) {
     return {
@@ -457,9 +468,22 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     .limit(1)
     .maybeSingle();
 
+  // The acknowledgement is opt-in: with no active acknowledgement rule for this
+  // tenant nothing is queued and nothing is sent. The frozen contract text is a
+  // guard against an edited template, never a substitute for a disabled rule.
+  if (!rule) {
+    return {
+      leadId: lead.id,
+      duplicate: false,
+      acknowledgementSent: false,
+      note: "Acknowledgement is switched off for this business — no SMS was queued.",
+    };
+  }
+
   // The acknowledgement text is a frozen contract: a stored rule is honoured
   // only when it matches it exactly, otherwise the frozen text is used.
-  const { template } = resolveAcknowledgementTemplate(rule?.message_template);
+  const { template } = resolveAcknowledgementTemplate(rule.message_template);
+
 
   // Durable acknowledgement: persisted before we attempt the send, so an
   // interrupted request still leaves the ACK queued for the scheduler.
