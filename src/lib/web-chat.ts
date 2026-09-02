@@ -161,7 +161,7 @@ export function promptFor(
     case "email":
       return { step, kind: "text", optional: true, text: "Email address? This one's optional — you can skip it." };
     case "review":
-      return { step, kind: "review", text: reviewMessage(collected) };
+      return { step, kind: "review", text: reviewMessage(collected), fields: reviewSummary(collected) };
     case "consent":
       return {
         step,
