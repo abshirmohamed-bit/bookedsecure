@@ -237,7 +237,11 @@ export function applyAnswer(
       return { ok: true, collected: next, echo: value };
     }
     case "review": {
-      if (/^(yes|yep|yeah|confirm|confirmed|correct|all good|looks good|looks right|that'?s right|send it|good|ok(ay)?|no changes|nothing)\b/i.test(value)) {
+      if (
+        /^(yes|yep|yeah|confirm(ed)?|correct|ok(ay)?|good|send it|no changes|nothing)\b|\b(looks|sounds)\s+(good|right|correct)\b|\ball good\b|\bthat'?s (right|correct)\b/i.test(
+          value,
+        )
+      ) {
         next.reviewed = true;
         return { ok: true, collected: next, echo: "That all looks right" };
       }

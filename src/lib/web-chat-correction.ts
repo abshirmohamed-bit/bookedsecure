@@ -64,8 +64,12 @@ function namedFields(raw: string): CorrectableStep[] {
   return CORRECTABLE_STEPS.filter((step) => FIELD_WORDS[step].test(raw));
 }
 
+/** Filler that describes the problem rather than naming a replacement value. */
+const NON_VALUE = /^(wrong|incorrect|not\s+right|not\s+correct|bad|different|another|it|that|this|new|changed?|updated?)$/i;
+
 function tidy(value: string): string {
   return value
+    .split(/\.\s+/)[0]!
     .replace(/\s+(?:for|as|to)\s+(?:my|the)\s+[\w-]+.*$/i, "")
     .replace(/\s+\b(?:instead|please|thanks|thank\s+you|now|ok(?:ay)?)\b[.!]?$/i, "")
     .replace(/^(?:my|the|a|an|it'?s|its|is|be)\s+/i, "")
@@ -79,15 +83,16 @@ function tidy(value: string): string {
 export function extractCorrectionValue(raw: string, field: CorrectableStep): string | null {
   const words = FIELD_WORD_SOURCE[field];
   const patterns: RegExp[] = [
-    new RegExp(`(?:${words})\\s*(?:was|is|are)?\\s*(?:instead)?\\s*(?:should\\s+be|to|as|=|:)\\s*([^.,;!?]+)`, "i"),
-    new RegExp(`(?:${words})\\s+(?:is|are)\\s+([^.,;!?]+)`, "i"),
-    /(?:put|change|set|make|use|update)\s+(?:it|that|this)?\s*(?:my\s+[\w-]+)?\s*(?:as|to)\s+([^.,;!?]+)/i,
-    /\b(?:actually|instead|i\s+meant|i\s+mean|it'?s|its)\b[,:]?\s*([^.,;!?]+)/i,
+    new RegExp(`(?:${words})\\s*(?:was|is|are)?\\s*(?:instead)?\\s*(?:should\\s+be|to|as|=|:)\\s*([^,;!?]+)`, "i"),
+    new RegExp(`(?:${words})\\s+(?:is|are)\\s+([^,;!?]+)`, "i"),
+    /(?:put|change|set|make|use|update)\s+(?:it|that|this)?\s*(?:my\s+[\w-]+)?\s*(?:as|to)\s+([^,;!?]+)/i,
+    /\b(?:actually|instead|i\s+meant|i\s+mean|it'?s|its)\b[,:]?\s*([^,;!?]+)/i,
   ];
   for (const pattern of patterns) {
     const match = pattern.exec(raw);
     const candidate = match?.[1] ? tidy(match[1]) : "";
-    if (candidate.length >= 2 && !FIELD_WORDS[field].test(candidate)) return candidate;
+    if (candidate.length >= 2 && !NON_VALUE.test(candidate) && !FIELD_WORDS[field].test(candidate))
+      return candidate;
   }
   return null;
 }
