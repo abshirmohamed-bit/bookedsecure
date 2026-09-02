@@ -118,6 +118,68 @@ export async function refreshBookingOffers(input: {
 }
 
 /**
+ * Resume-safe offer list.
+ *
+ * A conversation resumed after a refresh must never re-present an offer that
+ * has since expired or been taken, and must never be able to produce a second
+ * booking for a lead that is already booked. Everything is re-derived from the
+ * database and from live availability — the stored `pilot_offers` on the
+ * conversation are treated as untrusted display state.
+ */
+export async function rehydrateBookingOffers(input: {
+  businessId: string;
+  leadId: string;
+}): Promise<
+  | { state: "already_booked"; slotStart: string }
+  | { state: "open"; offers: PilotOffer[] }
+  | { state: "unavailable" }
+> {
+  const lead = await loadPilotLead(input.businessId, input.leadId);
+  if (!lead) return { state: "unavailable" };
+
+  const { data: existing } = await supabaseAdmin
+    .from("booking_offers")
+    .select("id, slot_start, status, expires_at, job_id")
+    .eq("business_id", input.businessId)
+    .eq("lead_id", input.leadId)
+    .order("slot_start", { ascending: true });
+
+  const rows = existing ?? [];
+  const booked = rows.find((row) => row.status === "confirmed" && row.job_id);
+  if (booked) return { state: "already_booked", slotStart: booked.slot_start };
+
+  const config = await loadAvailabilityConfig(input.businessId);
+  const occupied = await occupiedSlotStarts(input.businessId);
+  const now = new Date();
+
+  const live = rows.filter((row) => {
+    if (row.status !== "offered") return false;
+    if (new Date(row.expires_at).getTime() <= now.getTime()) return false;
+    return isSlotStillAvailable({
+      config,
+      now,
+      occupiedStarts: occupied,
+      slotStart: row.slot_start,
+    }).available;
+  });
+
+  if (live.length > 0) {
+    return {
+      state: "open",
+      offers: live.map((row) => ({
+        offer_id: row.id,
+        slot_start: row.slot_start,
+        label: slotLabel(row.slot_start, config.timezone),
+      })),
+    };
+  }
+
+  const fresh = await refreshBookingOffers(input);
+  if (fresh.length === 0) return { state: "unavailable" };
+  return { state: "open", offers: fresh };
+}
+
+/**
  * Revalidates the customer's chosen slot and commits the booking.
  *
  * Availability is recomputed here — an expired, occupied, malformed or
@@ -153,6 +215,18 @@ export async function commitWebChatBooking(input: {
       jobId: offerRow.job_id,
       slotStart: offerRow.slot_start,
     };
+  }
+
+  // An offer that has been withdrawn, or that belongs to a booking that has
+  // already been made elsewhere, can never be committed.
+  if (offerRow.status !== "offered" && offerRow.status !== "accepted") {
+    return { ok: false, reason: "offer_closed" };
+  }
+
+  // Expiry is enforced here as well as inside the commit routine, so an expired
+  // offer id never reaches the transaction at all.
+  if (new Date(offerRow.expires_at).getTime() <= Date.now()) {
+    return { ok: false, reason: "offer_expired" };
   }
 
   const config = await loadAvailabilityConfig(input.businessId);

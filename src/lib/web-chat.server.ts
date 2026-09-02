@@ -101,18 +101,77 @@ export async function resumeWebChat(slug: string, conversationId: string): Promi
 
   const { data: conversation } = await supabaseAdmin
     .from("web_conversations")
-    .select("id, status, collected, requires_owner_review")
+    .select("id, status, collected, requires_owner_review, lead_id")
     .eq("id", conversationId)
     .eq("business_id", tenant.businessId)
     .maybeSingle();
+  // A completed or declined conversation is never resumable, so a refresh can
+  // never be turned into a second booking.
   if (!conversation || conversation.status !== "active") return null;
 
   const chatTenant = toChatTenant(tenant);
-  const collected = (conversation.collected ?? {}) as WebChatCollected;
+  let collected = (conversation.collected ?? {}) as WebChatCollected;
   const turns = await loadTurns(conversation.id);
   if (turns.length === 0 || turns.length > MAX_MESSAGES) return null;
 
-  const step = nextStep(collected);
+  let step = nextStep(collected);
+
+  // Booking step: the offer list stored on the conversation is display state and
+  // may be stale. Re-derive it from the database and live availability so a
+  // resumed conversation can only ever select a slot that is still bookable.
+  if (step === "booking" && conversation.lead_id) {
+    const { rehydrateBookingOffers } = await import("@/lib/web-chat-booking.server");
+    const rehydrated = await rehydrateBookingOffers({
+      businessId: tenant.businessId,
+      leadId: conversation.lead_id,
+    });
+
+    if (rehydrated.state === "open") {
+      collected = { ...collected, pilot_offers: rehydrated.offers, booking_selected: null, booking_declined: false };
+      await supabaseAdmin
+        .from("web_conversations")
+        .update({ collected: collected as never })
+        .eq("id", conversation.id)
+        .eq("business_id", tenant.businessId);
+    } else {
+      // Already booked elsewhere, or nothing bookable is left: close the booking
+      // step instead of offering a slot that cannot be honoured.
+      const closing =
+        rehydrated.state === "already_booked"
+          ? await (async () => {
+              const { bookingConfirmationText } = await import("@/lib/web-chat-booking.server");
+              return await bookingConfirmationText({
+                businessId: tenant.businessId,
+                leadId: conversation.lead_id!,
+                slotStart: rehydrated.slotStart,
+              });
+            })()
+          : BOOKING_UNAVAILABLE_MESSAGE;
+      collected = { ...collected, booking_declined: rehydrated.state !== "already_booked" };
+      await supabaseAdmin
+        .from("web_conversations")
+        .update({
+          collected: collected as never,
+          status: "completed",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", conversation.id)
+        .eq("business_id", tenant.businessId);
+      await addMessage(tenant.businessId, conversation.id, "assistant", closing);
+      return {
+        conversationId: conversation.id,
+        status: "completed",
+        messages: [...turns, { role: "assistant", body: closing }],
+        prompt: null,
+        requiresOwnerReview: conversation.requires_owner_review,
+        completed: true,
+        declined: false,
+        duplicate: false,
+      };
+    }
+    step = nextStep(collected);
+  }
+
   return {
     conversationId: conversation.id,
     status: conversation.status,
