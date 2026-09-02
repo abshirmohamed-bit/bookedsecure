@@ -98,27 +98,17 @@ export function AvailabilityEditor({
       </label>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {(
-          [
-            ["slot_minutes", "Appointment length (minutes)"],
-            ["lead_time_minutes", "Minimum notice (minutes)"],
-            ["horizon_days", "How far ahead to offer (days)"],
-            ["offer_ttl_minutes", "Offered times expire after (minutes)"],
-          ] as const
-        ).map(([field, label]) => (
-          <label key={field} className="block text-xs text-muted-foreground">
-            {label}
-            <input
-              type="number"
-              min={0}
-              disabled={readOnly}
-              value={form[field]}
-              onChange={(event) => setForm({ ...form, [field]: Number(event.target.value) })}
-              className="mt-1 w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground disabled:opacity-60"
-            />
-          </label>
+        {RULES.map((rule) => (
+          <RuleCard
+            key={rule.field}
+            rule={rule}
+            value={form[rule.field]}
+            readOnly={readOnly}
+            onChange={(value) => setForm({ ...form, [rule.field]: value })}
+          />
         ))}
       </div>
+
 
       <div className="mt-4 space-y-2">
         <p className="text-xs font-medium">Weekly working windows</p>
