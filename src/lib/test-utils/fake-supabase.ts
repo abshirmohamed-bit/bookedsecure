@@ -74,6 +74,31 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     this.filters.push((row) => String(row[column] ?? "") >= value);
     return this;
   }
+  gt(column: string, value: string) {
+    this.filters.push((row) => String(row[column] ?? "") > value);
+    return this;
+  }
+  lte(column: string, value: string) {
+    this.filters.push((row) => String(row[column] ?? "") <= value);
+    return this;
+  }
+  lt(column: string, value: string) {
+    this.filters.push((row) => String(row[column] ?? "") < value);
+    return this;
+  }
+  /** Narrow upsert: matches on the conflict columns present in the payload. */
+  upsert(payload: Row, options?: { onConflict?: string }) {
+    const keys = (options?.onConflict ?? "id").split(",").map((key) => key.trim());
+    const existing = this.rows.find((row) => keys.every((key) => row[key] === payload[key]));
+    if (existing) {
+      Object.assign(existing, payload);
+      this.mode = "select";
+      this.filters.push((row) => row === existing);
+      this.log.push({ table: this.table, op: "upsert" });
+      return this;
+    }
+    return this.insert(payload);
+  }
   in(column: string, values: unknown[]) {
     const set = new Set(values);
     this.filters.push((row) => set.has(row[column]));
@@ -178,13 +203,24 @@ export function buildLeadInboxRows(db: FakeDb): Row[] {
   });
 }
 
-export function createFakeSupabase(db: FakeDb) {
+export function createFakeSupabase(
+  db: FakeDb,
+  rpcHandlers: Record<string, (args: Record<string, any>) => any> = {},
+) {
   const log: { table: string; op: string }[] = [];
+  const rpcCalls: { name: string; args: Record<string, any> }[] = [];
   return {
     db,
     writes: log,
+    rpcCalls,
     from(table: string) {
       return new Query(db, table, log) as any;
+    },
+    async rpc(name: string, args: Record<string, any>) {
+      rpcCalls.push({ name, args });
+      const handler = rpcHandlers[name];
+      if (!handler) return { data: null, error: { message: `no handler for ${name}` } };
+      return { data: handler(args), error: null };
     },
   } as any;
 }
