@@ -7,6 +7,16 @@ import {
   ServicesEditor,
   SettingsPageBody,
 } from "@/components/settings/sections";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
 
 export const Route = createFileRoute("/settings/business")({
   head: () => ({
