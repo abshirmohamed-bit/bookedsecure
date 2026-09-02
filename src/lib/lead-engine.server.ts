@@ -253,6 +253,9 @@ export type CaptureInput = {
   channel?: "sms" | "web" | undefined;
   /** Deterministic submission key; retries reuse the existing lead instead of rewriting it. */
   external_id?: string | null | undefined;
+};
+
+
 
 
 export type CaptureResult = {
