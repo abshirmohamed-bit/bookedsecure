@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { getPublicQuoteForm, submitQuoteRequest } from "@/lib/public.functions";
 import { VEHICLE_TYPES, normaliseAuMobile } from "@/lib/domain";
 import { TenantMark } from "@/components/TenantMark";
+import { AiQuoteChat } from "@/components/AiQuoteChat";
 import {
   DUPLICATE_LEAD_CLIENT_MESSAGE,
   classifyQuoteResult,
@@ -67,6 +68,26 @@ export const Route = createFileRoute("/quote/$slug")({
 const STEPS = ["Request", "Vehicle", "Condition", "Contact"] as const;
 
 function TenantQuotePage() {
+  const tenant = Route.useLoaderData();
+  // Mode is resolved server-side; anything other than ai_chat renders the
+  // unchanged manual quote form.
+  if (tenant.quoteMode === "ai_chat") {
+    return (
+      <AiQuoteChat
+        tenant={{
+          slug: tenant.slug,
+          name: tenant.name,
+          logoUrl: tenant.logoUrl,
+          serviceArea: tenant.serviceArea,
+          privacyPolicyUrl: tenant.privacyPolicyUrl,
+        }}
+      />
+    );
+  }
+  return <ManualQuoteForm />;
+}
+
+function ManualQuoteForm() {
   const tenant = Route.useLoaderData();
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);

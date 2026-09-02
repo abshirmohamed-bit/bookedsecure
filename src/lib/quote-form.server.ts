@@ -4,12 +4,15 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normaliseSlug } from "@/lib/tenant-slug";
 import { sanitiseLogoUrl } from "@/lib/tenant-branding";
+import { resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
 
 export type PublicService = {
   id: string;
   name: string;
   description: string | null;
   qualification_note: string | null;
+  included_items: string | null;
+  excluded_items: string | null;
 };
 
 export type PublicTenant = {
@@ -20,6 +23,7 @@ export type PublicTenant = {
   serviceArea: string | null;
   privacyPolicyUrl: string | null;
   flexibleRequestsEnabled: boolean;
+  quoteMode: QuoteMode;
   services: PublicService[];
 };
 
@@ -31,7 +35,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
   const { data: business } = await supabaseAdmin
     .from("businesses")
     .select(
-      "id, name, slug, logo_url, service_area, privacy_policy_url, status, quote_form_active, flexible_requests_enabled",
+      "id, name, slug, logo_url, service_area, privacy_policy_url, status, quote_form_active, flexible_requests_enabled, quote_mode",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -40,7 +44,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
 
   const { data: services } = await supabaseAdmin
     .from("services")
-    .select("id, name, description, qualification_note")
+    .select("id, name, description, qualification_note, included_items, excluded_items")
     .eq("business_id", business.id)
     .eq("active", true)
     .order("name", { ascending: true });
@@ -53,11 +57,15 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     serviceArea: business.service_area ?? null,
     privacyPolicyUrl: business.privacy_policy_url ?? null,
     flexibleRequestsEnabled: business.flexible_requests_enabled !== false,
+    // Unknown / missing mode never fails open into the AI experience.
+    quoteMode: resolveQuoteMode(business.quote_mode),
     services: (services ?? []).map((service) => ({
       id: service.id,
       name: service.name,
       description: service.description ?? null,
       qualification_note: service.qualification_note ?? null,
+      included_items: service.included_items ?? null,
+      excluded_items: service.excluded_items ?? null,
     })),
   };
 }

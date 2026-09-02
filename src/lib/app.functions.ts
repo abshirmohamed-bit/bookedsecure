@@ -114,6 +114,24 @@ export const getLead = createServerFn({ method: "GET" })
       .eq("lead_id", data.leadId)
       .maybeSingle();
 
+    // AI web-chat transcript (separate table from SMS messages, so it can never
+    // be mistaken for a sent message).
+    const { data: webConversation } = await supabaseAdmin
+      .from("web_conversations")
+      .select("id, status, requires_owner_review, unsupported_request, service_name_snapshot, consent_outcome, created_at")
+      .eq("lead_id", data.leadId)
+      .eq("business_id", app.businessId)
+      .maybeSingle();
+    const webChatMessages = webConversation
+      ? ((
+          await supabaseAdmin
+            .from("web_conversation_messages")
+            .select("role, body, created_at")
+            .eq("conversation_id", webConversation.id)
+            .order("created_at", { ascending: true })
+        ).data ?? [])
+      : [];
+
     const [notifications, automationJobs] = await Promise.all([
       supabaseAdmin
         .from("notifications")
@@ -136,6 +154,8 @@ export const getLead = createServerFn({ method: "GET" })
       lead: lead.data,
       messages: messages.data ?? [],
       conversation,
+      webConversation: webConversation ?? null,
+      webChatMessages,
       ai: ai.data ?? null,
       job: job.data ?? null,
       services: services.data ?? [],
@@ -559,6 +579,32 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
       entityId: app.businessId,
     });
     return { ok: true };
+  });
+
+/** Owner-only switch between the manual quote form and the AI quote conversation. */
+export const saveQuotePageMode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ quote_mode: z.enum(["manual_sms", "ai_chat"]) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    const { error } = await supabaseAdmin
+      .from("businesses")
+      .update({ quote_mode: data.quote_mode })
+      .eq("id", app.businessId);
+    if (error) throw new Error(error.message);
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "quote_page_mode_changed",
+      entityType: "business",
+      entityId: app.businessId,
+      metadata: { quote_mode: data.quote_mode },
+    });
+    return { ok: true as const };
   });
 
 export const getSmsSetup = createServerFn({ method: "GET" })

@@ -175,6 +175,7 @@ export const getPublicQuoteForm = createServerFn({ method: "GET" })
       serviceArea: tenant.serviceArea,
       privacyPolicyUrl: tenant.privacyPolicyUrl,
       flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
+      quoteMode: tenant.quoteMode,
       services: tenant.services,
     };
   });

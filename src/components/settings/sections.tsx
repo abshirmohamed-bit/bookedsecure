@@ -6,8 +6,15 @@ import {
   getSettings,
   saveAutomationRule,
   saveBusinessSettings,
+  saveQuotePageMode,
   saveService,
 } from "@/lib/app.functions";
+import {
+  QUOTE_MODES,
+  QUOTE_MODE_LABELS,
+  resolveQuoteMode,
+  type QuoteMode,
+} from "@/lib/quote-mode";
 
 /**
  * Shared settings building blocks. The underlying server functions and
@@ -548,6 +555,86 @@ export function TeamList({
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/**
+ * Quote page settings. Switching mode changes only what the public page renders;
+ * the manual form, its SMS behaviour and the AI conversation are separate paths
+ * and neither is altered by the other.
+ */
+export function QuotePageModeCard({
+  quoteMode,
+  slug,
+  readOnly,
+}: {
+  quoteMode: string | null;
+  slug: string | null;
+  readOnly: boolean;
+}) {
+  const save = useServerFn(saveQuotePageMode);
+  const queryClient = useQueryClient();
+  const current = resolveQuoteMode(quoteMode);
+  const [selected, setSelected] = useState<QuoteMode>(current);
+
+  const mutation = useMutation({
+    mutationFn: (mode: QuoteMode) => save({ data: { quote_mode: mode } }),
+    onSuccess: async () => {
+      toast.success("Quote page mode updated");
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <section className="panel p-4">
+      <h2 className="text-sm font-semibold">Quote page</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Choose what customers see at {slug ? `/quote/${slug}` : "your public quote link"}.
+      </p>
+
+      <div className="mt-4 space-y-2">
+        {QUOTE_MODES.map((mode) => (
+          <label
+            key={mode}
+            className={`flex cursor-pointer gap-3 rounded-md border p-3 text-sm ${
+              selected === mode ? "border-primary" : "border-input"
+            }`}
+          >
+            <input
+              type="radio"
+              name="quote-mode"
+              value={mode}
+              checked={selected === mode}
+              disabled={readOnly}
+              onChange={() => setSelected(mode)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+            />
+            <span>
+              <span className="block font-medium">{QUOTE_MODE_LABELS[mode]}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {mode === "manual_sms"
+                  ? "The current step-by-step form. Behaviour is unchanged, including SMS acknowledgement when it is switched on."
+                  : "A guided chat that explains your listed services and collects details. No SMS is sent from this conversation, and no price or booking is ever confirmed."}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {!readOnly && (
+        <button
+          disabled={selected === current || mutation.isPending}
+          onClick={() => mutation.mutate(selected)}
+          className="mt-4 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {mutation.isPending ? "Saving…" : "Save quote page mode"}
+        </button>
+      )}
+      {readOnly && (
+        <p className="mt-3 text-xs text-muted-foreground">Only the business owner can change this.</p>
+      )}
     </section>
   );
 }

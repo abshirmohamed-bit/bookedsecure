@@ -475,6 +475,7 @@ export type Database = {
           quiet_hours_end: number
           quiet_hours_start: number
           quote_form_active: boolean
+          quote_mode: string
           service_area: string | null
           slug: string | null
           sms_credential_mode: string
@@ -497,6 +498,7 @@ export type Database = {
           quiet_hours_end?: number
           quiet_hours_start?: number
           quote_form_active?: boolean
+          quote_mode?: string
           service_area?: string | null
           slug?: string | null
           sms_credential_mode?: string
@@ -519,6 +521,7 @@ export type Database = {
           quiet_hours_end?: number
           quiet_hours_start?: number
           quote_form_active?: boolean
+          quote_mode?: string
           service_area?: string | null
           slug?: string | null
           sms_credential_mode?: string
@@ -1983,6 +1986,125 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      web_conversation_messages: {
+        Row: {
+          body: string
+          business_id: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          body: string
+          business_id: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_conversation_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_conversation_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "web_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      web_conversations: {
+        Row: {
+          business_id: string
+          collected: Json
+          completed_at: string | null
+          consent_outcome: string | null
+          created_at: string
+          id: string
+          lead_id: string | null
+          requires_owner_review: boolean
+          selected_service_id: string | null
+          service_name_snapshot: string | null
+          status: string
+          unsupported_request: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          collected?: Json
+          completed_at?: string | null
+          consent_outcome?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          requires_owner_review?: boolean
+          selected_service_id?: string | null
+          service_name_snapshot?: string | null
+          status?: string
+          unsupported_request?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          collected?: Json
+          completed_at?: string | null
+          consent_outcome?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          requires_owner_review?: boolean
+          selected_service_id?: string | null
+          service_name_snapshot?: string | null
+          status?: string
+          unsupported_request?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "web_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "web_conversations_selected_service_id_fkey"
+            columns: ["selected_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webhook_events: {
         Row: {
