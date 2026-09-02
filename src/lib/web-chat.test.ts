@@ -77,7 +77,9 @@ describe("web chat step machine", () => {
       ["name", "Sam"],
       ["mobile", "0447 852 565"],
       ["email", "skip"],
+      ["review", "yes"],
       ["consent", "granted"],
+
     ];
     for (const [expectedStep, answer] of answers) {
       expect(nextStep(collected)).toBe(expectedStep);
