@@ -82,3 +82,21 @@ export function serviceFullText(detail: string | null | undefined): string {
     .filter((part) => part.length > 0)
     .join("\n");
 }
+
+/**
+ * Display-only filter for the stored long introduction turn. The message stays
+ * persisted server-side (nothing is deleted); the opening conversation simply
+ * leads with the short instruction instead of the legal/technical preamble.
+ */
+export function isVerboseIntro(body: string): boolean {
+  const text = body.toLowerCase();
+  return text.includes("online quote assistant") && text.includes("can't confirm prices");
+}
+
+/** Short, de-emphasised secondary line for a service row in the initial list. */
+export function serviceShortDescription(detail: string | null | undefined, limit = 80): string {
+  const { summary } = serviceCardContent(detail);
+  if (!summary) return "";
+  const flat = summary.replace(/…$/, "").trim();
+  return flat.length > limit ? `${flat.slice(0, limit).trimEnd()}…` : flat;
+}
