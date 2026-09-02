@@ -260,6 +260,13 @@ function LeadDetail() {
 
 
 
+      {data.webConversation && (
+        <WebChatTranscript
+          conversation={data.webConversation}
+          messages={data.webChatMessages}
+        />
+      )}
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <section className="panel flex flex-col">
           <h2 className="border-b border-border px-4 py-3 text-sm font-semibold">Conversation</h2>
@@ -810,6 +817,67 @@ function ImportedSourcePanel({
           </div>
         ))}
       </dl>
+    </section>
+  );
+}
+
+/**
+ * Read-only transcript of the public AI quote conversation. These turns were
+ * never sent as SMS; they are stored separately from the messaging thread.
+ */
+function WebChatTranscript({
+  conversation,
+  messages,
+}: {
+  conversation: {
+    status: string;
+    requires_owner_review: boolean;
+    unsupported_request: string | null;
+    service_name_snapshot: string | null;
+    consent_outcome: string | null;
+  };
+  messages: { role: string; body: string; created_at: string }[];
+}) {
+  return (
+    <section className="panel p-4" aria-label="AI quote conversation">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-semibold">AI quote conversation</h2>
+        <span className="rounded-md border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+          {conversation.status}
+        </span>
+        {conversation.requires_owner_review && (
+          <span className="rounded-md border border-destructive px-2 py-0.5 text-[11px] text-destructive">
+            Needs your review
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Captured on your public quote page. No SMS was sent from this conversation.
+        {conversation.service_name_snapshot
+          ? ` Requested service: ${conversation.service_name_snapshot}.`
+          : ""}
+        {conversation.unsupported_request
+          ? ` Described request: “${conversation.unsupported_request}”.`
+          : ""}
+        {conversation.consent_outcome ? ` Consent: ${conversation.consent_outcome}.` : ""}
+      </p>
+      <div className="mt-3 max-h-80 space-y-2 overflow-y-auto">
+        {messages.length === 0 && <p className="text-sm text-muted-foreground">No turns recorded.</p>}
+        {messages.map((message, index) => (
+          <div
+            key={`${index}-${message.created_at}`}
+            className={message.role === "customer" ? "flex justify-end" : "flex justify-start"}
+          >
+            <p
+              className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                message.role === "customer" ? "bg-primary text-primary-foreground" : "bg-secondary"
+              }`}
+            >
+              {message.body}
+            </p>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
