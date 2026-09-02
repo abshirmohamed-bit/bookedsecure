@@ -328,24 +328,38 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
 
 
-              {/* Final review — confirm, or type a change to any detail */}
+              {/* Final review — every field individually changeable */}
               {!finished && !busy && !pending && prompt?.kind === "review" && (
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-4 space-y-3 rounded-xl border border-border bg-card/60 p-3">
+                  <ul className="divide-y divide-border">
+                    {(prompt.fields ?? []).map((field) => (
+                      <li
+                        key={field.step}
+                        className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-xs text-muted-foreground">{field.label}</span>
+                          <span className="block break-words text-sm">{field.value}</span>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => send(`change:${field.step}`, `Change my ${field.label.toLowerCase()}`)}
+                          className="min-h-9 shrink-0 rounded-full border border-border px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                          aria-label={`Change ${field.label}`}
+                        >
+                          Change
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => send("confirmed", "That all looks right")}
-                    className="min-h-11 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    className="min-h-11 w-full rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                   >
                     That all looks right
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => requestAnimationFrame(() => input.current?.focus())}
-                    className="min-h-11 rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                  >
-                    I want to change something
                   </button>
                 </div>
               )}

@@ -49,12 +49,16 @@ export type WebChatCollected = {
   reviewed?: boolean | null;
 };
 
+export type WebChatReviewField = { step: WebChatStep; label: string; value: string };
+
 export type WebChatPrompt = {
   step: WebChatStep;
   text: string;
   kind: "choice" | "text" | "consent" | "review";
   optional?: boolean;
   options?: { value: string; label: string; detail: string | null }[];
+  /** Present on the review step: every captured field, each individually changeable. */
+  fields?: WebChatReviewField[];
 };
 
 export function welcomeMessage(tenant: WebChatTenant): string {
@@ -91,15 +95,15 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
 }
 
 /** Labelled summary of everything captured, for the final review step. */
-export function reviewSummary(collected: WebChatCollected): { label: string; value: string }[] {
+export function reviewSummary(collected: WebChatCollected): WebChatReviewField[] {
   return [
-    { label: "Service", value: collected.service_name ?? collected.typed_request ?? "Not sure yet" },
-    { label: "Vehicle", value: collected.vehicle_type ?? "—" },
-    { label: "Suburb", value: collected.suburb ?? "—" },
-    { label: "Condition or concerns", value: collected.concerns ?? "—" },
-    { label: "Name", value: collected.name ?? "—" },
-    { label: "Mobile", value: collected.mobile_number ?? "—" },
-    { label: "Email", value: collected.email ?? "Not provided" },
+    { step: "service", label: "Service", value: collected.service_name ?? collected.typed_request ?? "Not sure yet" },
+    { step: "vehicle", label: "Vehicle", value: collected.vehicle_type ?? "—" },
+    { step: "suburb", label: "Suburb", value: collected.suburb ?? "—" },
+    { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "—" },
+    { step: "name", label: "Name", value: collected.name ?? "—" },
+    { step: "mobile", label: "Mobile", value: collected.mobile_number ?? "—" },
+    { step: "email", label: "Email", value: collected.email ?? "Not provided" },
   ];
 }
 
@@ -157,7 +161,7 @@ export function promptFor(
     case "email":
       return { step, kind: "text", optional: true, text: "Email address? This one's optional — you can skip it." };
     case "review":
-      return { step, kind: "review", text: reviewMessage(collected) };
+      return { step, kind: "review", text: reviewMessage(collected), fields: reviewSummary(collected) };
     case "consent":
       return {
         step,

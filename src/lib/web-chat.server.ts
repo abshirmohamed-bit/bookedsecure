@@ -23,8 +23,10 @@ import {
 } from "@/lib/web-chat";
 import {
   AMBIGUOUS_CORRECTION_MESSAGE,
+  FIELD_LABELS,
   detectCorrection,
   hasCorrectionCue,
+  parseChangeDirective,
 } from "@/lib/web-chat-correction";
 
 const MAX_MESSAGES = 60;
@@ -191,7 +193,12 @@ export async function replyToWebChat(input: {
   // in the transcript; only the stored field value changes (latest wins).
   const correction = detectCorrection(collected, step, input.answer, chatTenant);
   if (correction.kind !== "none") {
-    const echo = input.answer.slice(0, 500);
+    const directive = parseChangeDirective(input.answer);
+    // The customer's own words stay in the transcript verbatim; only the
+    // review-step button directive is shown as readable text.
+    const echo = directive
+      ? `Change my ${FIELD_LABELS[directive]}`
+      : input.answer.slice(0, 500);
     await addMessage(tenant.businessId, conversation.id, "customer", echo);
 
     if (correction.kind === "clarify" || correction.kind === "invalid") {
