@@ -140,7 +140,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
   const showComposer =
     !finished &&
-    (prompt?.kind === "text" || describing || onServiceStep || (!prompt && conversationId !== null));
+    (prompt?.kind === "text" || prompt?.kind === "review" || describing || onServiceStep || (!prompt && conversationId !== null));
   const canSend = !busy && draft.trim().length > 0;
 
   const customerBubble = (body: string) => (
@@ -328,6 +328,28 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
 
 
+              {/* Final review — confirm, or type a change to any detail */}
+              {!finished && !busy && !pending && prompt?.kind === "review" && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => send("confirmed", "That all looks right")}
+                    className="min-h-11 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    That all looks right
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => requestAnimationFrame(() => input.current?.focus())}
+                    className="min-h-11 rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    I want to change something
+                  </button>
+                </div>
+              )}
+
               {/* Consent */}
               {!finished && !busy && !pending && prompt?.kind === "consent" && (
                 <div className="mt-4 space-y-3 rounded-xl border border-border bg-card/60 p-3">
@@ -418,7 +440,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   placeholder={
                     onServiceStep
                       ? "Or describe what you need…"
-                      : prompt?.optional
+                      : prompt?.kind === "review"
+                        ? "Tell me what to change…"
+                        : prompt?.optional
                         ? "Type your answer or “skip”"
                         : "Type your answer…"
                   }
