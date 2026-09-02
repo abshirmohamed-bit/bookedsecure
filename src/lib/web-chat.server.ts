@@ -702,14 +702,18 @@ async function handleBookingSelection(input: {
     .eq("business_id", businessId);
 
   const prompt = promptFor("booking", chatTenant, retry);
-  await addMessage(businessId, conversation.id, "assistant", BOOKING_CONFLICT_MESSAGE);
+  // An expired hold and a slot taken by someone else are different situations,
+  // so the customer is told which one actually happened.
+  const retryMessage =
+    commit.reason === "offer_expired" ? BOOKING_EXPIRED_MESSAGE : BOOKING_CONFLICT_MESSAGE;
+  await addMessage(businessId, conversation.id, "assistant", retryMessage);
   return {
     conversationId: conversation.id,
     status: "active",
     messages: [
       ...turns,
       { role: "customer", body: echo },
-      { role: "assistant", body: BOOKING_CONFLICT_MESSAGE },
+      { role: "assistant", body: retryMessage },
     ],
     prompt,
     requiresOwnerReview: conversation.requiresOwnerReview,
