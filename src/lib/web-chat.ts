@@ -12,6 +12,7 @@ export const WEB_CHAT_STEPS = [
   "name",
   "mobile",
   "email",
+  "review",
   "consent",
 ] as const;
 export type WebChatStep = (typeof WEB_CHAT_STEPS)[number];
@@ -44,12 +45,14 @@ export type WebChatCollected = {
   mobile_number?: string | null;
   email?: string | null;
   consent?: "granted" | "declined" | null;
+  /** Set once the customer has confirmed the final review summary. */
+  reviewed?: boolean | null;
 };
 
 export type WebChatPrompt = {
   step: WebChatStep;
   text: string;
-  kind: "choice" | "text" | "consent";
+  kind: "choice" | "text" | "consent" | "review";
   optional?: boolean;
   options?: { value: string; label: string; detail: string | null }[];
 };
@@ -82,11 +85,38 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
   if (!(collected.name ?? "").trim()) return "name";
   if (!collected.mobile_number) return "mobile";
   if (collected.email === undefined) return "email";
+  if (!collected.reviewed) return "review";
   if (!collected.consent) return "consent";
   return null;
 }
 
-export function promptFor(step: WebChatStep, tenant: WebChatTenant): WebChatPrompt {
+/** Labelled summary of everything captured, for the final review step. */
+export function reviewSummary(collected: WebChatCollected): { label: string; value: string }[] {
+  return [
+    { label: "Service", value: collected.service_name ?? collected.typed_request ?? "Not sure yet" },
+    { label: "Vehicle", value: collected.vehicle_type ?? "—" },
+    { label: "Suburb", value: collected.suburb ?? "—" },
+    { label: "Condition or concerns", value: collected.concerns ?? "—" },
+    { label: "Name", value: collected.name ?? "—" },
+    { label: "Mobile", value: collected.mobile_number ?? "—" },
+    { label: "Email", value: collected.email ?? "Not provided" },
+  ];
+}
+
+export function reviewMessage(collected: WebChatCollected): string {
+  const lines = reviewSummary(collected).map((row) => `${row.label}: ${row.value}`);
+  return [
+    "Here's what I have so far:",
+    ...lines,
+    "Want to change anything before we send this to the team? Just tell me what to update — for example “change my suburb to Parramatta”.",
+  ].join("\n");
+}
+
+export function promptFor(
+  step: WebChatStep,
+  tenant: WebChatTenant,
+  collected: WebChatCollected = {},
+): WebChatPrompt {
   switch (step) {
     case "service":
       return {
@@ -126,6 +156,8 @@ export function promptFor(step: WebChatStep, tenant: WebChatTenant): WebChatProm
       return { step, kind: "text", text: "What's the best Australian mobile number for the team to reply on?" };
     case "email":
       return { step, kind: "text", optional: true, text: "Email address? This one's optional — you can skip it." };
+    case "review":
+      return { step, kind: "review", text: reviewMessage(collected) };
     case "consent":
       return {
         step,
@@ -203,6 +235,17 @@ export function applyAnswer(
       }
       next.email = value;
       return { ok: true, collected: next, echo: value };
+    }
+    case "review": {
+      if (/^(yes|yep|yeah|confirm|confirmed|correct|all good|looks good|looks right|that'?s right|send it|good|ok(ay)?|no changes|nothing)\b/i.test(value)) {
+        next.reviewed = true;
+        return { ok: true, collected: next, echo: "That all looks right" };
+      }
+      return {
+        ok: false,
+        error:
+          "No problem — which detail should I change? For example “change my suburb to Parramatta” or “my name is Abshiro”.",
+      };
     }
     case "consent": {
       const granted = value === "granted" || value.toLowerCase() === "yes";
