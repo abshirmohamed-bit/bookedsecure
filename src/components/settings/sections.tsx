@@ -51,10 +51,13 @@ type SettingsDataWithBusiness = Omit<SettingsData, "business"> & {
 export function SettingsPageBody({
   heading,
   description,
+  actions,
   children,
 }: {
   heading: string;
   description: string;
+  /** Optional header controls (e.g. dialog triggers), rendered opposite the heading. */
+  actions?: (data: SettingsDataWithBusiness) => React.ReactNode;
   children: (data: SettingsDataWithBusiness) => React.ReactNode;
 }) {
 
@@ -62,9 +65,16 @@ export function SettingsPageBody({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold">{heading}</h1>
-        <p className="text-xs text-muted-foreground">{description}</p>
+      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold">{heading}</h1>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+        {actions && data?.business ? (
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            {actions(data as SettingsDataWithBusiness)}
+          </div>
+        ) : null}
       </div>
       {isLoading && <p className="text-sm text-muted-foreground">Loading settings…</p>}
       {error && <p className="text-sm text-destructive">{(error as Error).message}</p>}
@@ -75,6 +85,7 @@ export function SettingsPageBody({
     </div>
   );
 }
+
 
 const TEXT_FIELDS = {
   name: "Business name",
