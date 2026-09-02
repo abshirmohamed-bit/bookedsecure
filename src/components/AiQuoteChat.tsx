@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Loader2, RotateCcw, Send, ShieldCheck, User } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
-import { replyQuoteConversation, startQuoteConversation } from "@/lib/web-chat.functions";
+import {
+  replyQuoteConversation,
+  resumeQuoteConversation,
+  startQuoteConversation,
+} from "@/lib/web-chat.functions";
 import { isVerboseIntro } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
 
@@ -31,6 +35,7 @@ type Pending = { answer: string; label: string; step: string | null };
 export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const start = useServerFn(startQuoteConversation);
   const reply = useServerFn(replyQuoteConversation);
+  const resume = useServerFn(resumeQuoteConversation);
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -59,11 +64,26 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     setStarting(true);
     setError(null);
     try {
+      // Refresh-safe: an in-progress conversation for this tenant is resumed so
+      // any corrections the customer already made are still there.
+      const storageKey = `bookedsecure:chat:${tenant.slug}`;
+      const saved = typeof window === "undefined" ? null : window.sessionStorage.getItem(storageKey);
+      if (saved) {
+        const resumed = await resume({ data: { slug: tenant.slug, conversation_id: saved } });
+        if (resumed.ok) {
+          setConversationId(resumed.state.conversationId);
+          setTurns(resumed.state.messages);
+          setPrompt(resumed.state.prompt);
+          return;
+        }
+        window.sessionStorage.removeItem(storageKey);
+      }
       const result = await start({ data: { slug: tenant.slug, company: "" } });
       if (!result.ok) {
         setError(result.error);
         return;
       }
+      window.sessionStorage.setItem(storageKey, result.state.conversationId);
       setConversationId(result.state.conversationId);
       setTurns(result.state.messages);
       setPrompt(result.state.prompt);
@@ -124,6 +144,10 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
       setPrompt(result.state.prompt);
       setPending(null);
       setDescribing(false);
+      if (result.state.declined || result.state.completed) {
+        // Finished conversations are not resumable; a refresh starts fresh.
+        window.sessionStorage.removeItem(`bookedsecure:chat:${tenant.slug}`);
+      }
       if (result.state.declined) setFinished("declined");
       else if (result.state.completed) setFinished("completed");
     } catch {

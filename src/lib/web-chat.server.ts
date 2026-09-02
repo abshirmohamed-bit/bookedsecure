@@ -84,6 +84,41 @@ async function loadTurns(conversationId: string): Promise<WebChatTurn[]> {
   return (data ?? []).map((row) => ({ role: row.role as WebChatTurn["role"], body: row.body }));
 }
 
+/**
+ * Rehydrates an existing conversation after a page refresh, so corrected values
+ * are never lost. Tenant-scoped: a conversation id from another business, or a
+ * tenant that is no longer in AI mode, resolves to null and a fresh chat starts.
+ */
+export async function resumeWebChat(slug: string, conversationId: string): Promise<WebChatState | null> {
+  const tenant = await resolvePublicTenant(slug);
+  if (!tenant || tenant.quoteMode !== "ai_chat") return null;
+
+  const { data: conversation } = await supabaseAdmin
+    .from("web_conversations")
+    .select("id, status, collected, requires_owner_review")
+    .eq("id", conversationId)
+    .eq("business_id", tenant.businessId)
+    .maybeSingle();
+  if (!conversation || conversation.status !== "active") return null;
+
+  const chatTenant = toChatTenant(tenant);
+  const collected = (conversation.collected ?? {}) as WebChatCollected;
+  const turns = await loadTurns(conversation.id);
+  if (turns.length === 0 || turns.length > MAX_MESSAGES) return null;
+
+  const step = nextStep(collected);
+  return {
+    conversationId: conversation.id,
+    status: conversation.status,
+    messages: turns,
+    prompt: step ? promptFor(step, chatTenant, collected) : null,
+    requiresOwnerReview: conversation.requires_owner_review,
+    completed: false,
+    declined: false,
+    duplicate: false,
+  };
+}
+
 /** Starts a conversation for an AI-mode tenant. Returns null for unknown/manual tenants. */
 export async function startWebChat(slug: string): Promise<WebChatState | null> {
   const tenant = await resolvePublicTenant(slug);
