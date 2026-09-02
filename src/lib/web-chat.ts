@@ -1,0 +1,249 @@
+// Pure state machine for the public AI quote conversation.
+// No database, no network, no model call — every prompt is derived from the
+// tenant's own approved data, so nothing here can invent a service or a price.
+
+import { normaliseAuMobile } from "@/lib/domain";
+
+export const WEB_CHAT_STEPS = [
+  "service",
+  "vehicle",
+  "suburb",
+  "concerns",
+  "name",
+  "mobile",
+  "email",
+  "consent",
+] as const;
+export type WebChatStep = (typeof WEB_CHAT_STEPS)[number];
+
+export const FLEXIBLE_CHOICE = "__other__";
+
+export type WebChatService = {
+  id: string;
+  name: string;
+  description: string | null;
+  included_items: string | null;
+  excluded_items: string | null;
+  qualification_note: string | null;
+};
+
+export type WebChatTenant = {
+  name: string;
+  flexibleRequestsEnabled: boolean;
+  services: WebChatService[];
+};
+
+export type WebChatCollected = {
+  service_id?: string | null;
+  service_name?: string | null;
+  typed_request?: string | null;
+  vehicle_type?: string | null;
+  suburb?: string | null;
+  concerns?: string | null;
+  name?: string | null;
+  mobile_number?: string | null;
+  email?: string | null;
+  consent?: "granted" | "declined" | null;
+};
+
+export type WebChatPrompt = {
+  step: WebChatStep;
+  text: string;
+  kind: "choice" | "text" | "consent";
+  optional?: boolean;
+  options?: { value: string; label: string; detail: string | null }[];
+};
+
+export function welcomeMessage(tenant: WebChatTenant): string {
+  return [
+    `Hi — you're chatting with ${tenant.name}'s online quote assistant.`,
+    "I can explain the services we offer, take your vehicle details and pass everything to the team for review.",
+    "I can't confirm prices or bookings here — the owner reviews every enquiry and replies to you directly.",
+  ].join(" ");
+}
+
+export function serviceDetail(service: WebChatService): string | null {
+  const parts = [
+    service.description?.trim() || null,
+    service.included_items?.trim() ? `Includes: ${service.included_items.trim()}` : null,
+    service.excluded_items?.trim() ? `Not included: ${service.excluded_items.trim()}` : null,
+    service.qualification_note?.trim() || null,
+  ].filter(Boolean) as string[];
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** First step that still needs an answer, or null when the conversation is complete. */
+export function nextStep(collected: WebChatCollected): WebChatStep | null {
+  if (collected.consent === "declined") return null;
+  if (!collected.service_id && !(collected.typed_request ?? "").trim()) return "service";
+  if (!(collected.vehicle_type ?? "").trim()) return "vehicle";
+  if (!(collected.suburb ?? "").trim()) return "suburb";
+  if (!(collected.concerns ?? "").trim()) return "concerns";
+  if (!(collected.name ?? "").trim()) return "name";
+  if (!collected.mobile_number) return "mobile";
+  if (collected.email === undefined) return "email";
+  if (!collected.consent) return "consent";
+  return null;
+}
+
+export function promptFor(step: WebChatStep, tenant: WebChatTenant): WebChatPrompt {
+  switch (step) {
+    case "service":
+      return {
+        step,
+        kind: "choice",
+        text: "Which of our services are you interested in? If you're not sure, choose “Something else” and describe what you need.",
+        options: [
+          ...tenant.services.map((service) => ({
+            value: service.id,
+            label: service.name,
+            detail: serviceDetail(service),
+          })),
+          ...(tenant.flexibleRequestsEnabled
+            ? [
+                {
+                  value: FLEXIBLE_CHOICE,
+                  label: "Something else or not sure",
+                  detail: "Describe it and the owner will review your request.",
+                },
+              ]
+            : []),
+        ],
+      };
+    case "vehicle":
+      return { step, kind: "text", text: "What type of vehicle is it? (make, model or body type)" };
+    case "suburb":
+      return { step, kind: "text", text: "Which suburb is the vehicle in?" };
+    case "concerns":
+      return {
+        step,
+        kind: "text",
+        text: "How's the condition, and what's your main concern? (for example swirls, pet hair, water spots)",
+      };
+    case "name":
+      return { step, kind: "text", text: "What's your name?" };
+    case "mobile":
+      return { step, kind: "text", text: "What's the best Australian mobile number for the team to reply on?" };
+    case "email":
+      return { step, kind: "text", optional: true, text: "Email address? This one's optional — you can skip it." };
+    case "consent":
+      return {
+        step,
+        kind: "consent",
+        text: `Last step: do you agree to ${tenant.name} contacting you about this enquiry, including by SMS? Reply STOP at any time to opt out.`,
+      };
+  }
+}
+
+export type ApplyResult =
+  | { ok: true; collected: WebChatCollected; echo: string }
+  | { ok: false; error: string };
+
+export function applyAnswer(
+  collected: WebChatCollected,
+  step: WebChatStep,
+  raw: string,
+  tenant: WebChatTenant,
+): ApplyResult {
+  const value = raw.trim().slice(0, 500);
+  const next: WebChatCollected = { ...collected };
+
+  switch (step) {
+    case "service": {
+      if (value === FLEXIBLE_CHOICE) {
+        if (!tenant.flexibleRequestsEnabled) return { ok: false, error: "Please choose one of the listed services." };
+        next.service_id = null;
+        next.service_name = null;
+        next.typed_request = "Not sure yet — described below";
+        return { ok: true, collected: next, echo: "Something else or not sure" };
+      }
+      const service = tenant.services.find((entry) => entry.id === value);
+      if (service) {
+        next.service_id = service.id;
+        next.service_name = service.name;
+        next.typed_request = null;
+        return { ok: true, collected: next, echo: service.name };
+      }
+      if (value.length < 2) return { ok: false, error: "Please choose a service or describe what you need." };
+      if (!tenant.flexibleRequestsEnabled) return { ok: false, error: "Please choose one of the listed services." };
+      next.service_id = null;
+      next.service_name = null;
+      next.typed_request = value;
+      return { ok: true, collected: next, echo: value };
+    }
+    case "vehicle":
+      if (value.length < 2) return { ok: false, error: "Please tell me the vehicle type." };
+      next.vehicle_type = value;
+      return { ok: true, collected: next, echo: value };
+    case "suburb":
+      if (value.length < 2) return { ok: false, error: "Please tell me the suburb." };
+      next.suburb = value;
+      return { ok: true, collected: next, echo: value };
+    case "concerns":
+      if (value.length < 2) return { ok: false, error: "A short description of the condition helps the team." };
+      next.concerns = value;
+      return { ok: true, collected: next, echo: value };
+    case "name":
+      if (value.length < 2) return { ok: false, error: "Please tell me your name." };
+      next.name = value;
+      return { ok: true, collected: next, echo: value };
+    case "mobile": {
+      const mobile = normaliseAuMobile(value);
+      if (!mobile) return { ok: false, error: "That doesn't look like an Australian mobile number." };
+      next.mobile_number = mobile;
+      return { ok: true, collected: next, echo: mobile };
+    }
+    case "email": {
+      if (value === "" || value.toLowerCase() === "skip") {
+        next.email = null;
+        return { ok: true, collected: next, echo: "No email" };
+      }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) || value.length > 120) {
+        return { ok: false, error: "That email doesn't look right — or say “skip”." };
+      }
+      next.email = value;
+      return { ok: true, collected: next, echo: value };
+    }
+    case "consent": {
+      const granted = value === "granted" || value.toLowerCase() === "yes";
+      next.consent = granted ? "granted" : "declined";
+      return { ok: true, collected: next, echo: granted ? "Yes, that's fine" : "No thanks" };
+    }
+  }
+}
+
+export type WebChatOutcome = {
+  requiresOwnerReview: boolean;
+  unsupportedRequest: string | null;
+};
+
+/**
+ * A typed / unmatched request is never treated as an approved service: it is
+ * recorded verbatim and routed to the owner for review.
+ */
+export function resolveOutcome(collected: WebChatCollected): WebChatOutcome {
+  const typed = (collected.typed_request ?? "").trim();
+  if (collected.service_id) return { requiresOwnerReview: false, unsupportedRequest: null };
+  return { requiresOwnerReview: true, unsupportedRequest: typed.length > 0 ? typed : null };
+}
+
+export function completionMessage(tenant: WebChatTenant, outcome: WebChatOutcome): string {
+  if (outcome.requiresOwnerReview) {
+    return [
+      `Thanks — I've passed your request to ${tenant.name} for review.`,
+      "Because what you've described isn't a straight match for one of our listed services, the owner will look at it personally and get back to you.",
+      "Nothing is booked or confirmed yet.",
+    ].join(" ");
+  }
+  return [
+    `Thanks — ${tenant.name} has your enquiry with all the details.`,
+    "The team will review it and reply to you directly.",
+    "Nothing is booked or confirmed yet.",
+  ].join(" ");
+}
+
+export const DECLINED_MESSAGE =
+  "No problem — without consent we can't contact you about this enquiry, so I haven't passed your details on. You're welcome to call the business directly instead.";
+
+export const DUPLICATE_MESSAGE =
+  "It looks like we already have a very recent enquiry from this mobile number, so I haven't created a second one. The team will be in touch about the first one.";
