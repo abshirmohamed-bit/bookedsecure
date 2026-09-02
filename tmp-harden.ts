@@ -71,10 +71,10 @@ async function snapshot(leadIds: string[]) {
   };
 }
 
-const MOBILE_A = "+61447850001";
-const MOBILE_B = "+61447850002";
-const MOBILE_C = "+61447850003";
-const MOBILE_D = "+61447850004";
+const MOBILE_A = "+61447850011";
+const MOBILE_B = "+61447850012";
+const MOBILE_C = "+61447850013";
+const MOBILE_D = "+61447850014";
 
 // ---- Scenario 1: slot conflict -------------------------------------------
 const a = await drive(MOBILE_A, "Harden A");
