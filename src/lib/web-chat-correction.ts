@@ -195,6 +195,18 @@ export function detectCorrection(
 ): CorrectionResult {
   const text = raw.trim();
   if (text.length === 0) return { kind: "none" };
+
+  // Deterministic review-step directive: change exactly this field, no guessing.
+  const directive = parseChangeDirective(text);
+  if (directive) {
+    return {
+      kind: "reask",
+      field: directive,
+      collected: clearField(collected, directive),
+      message: `No problem — let's update your ${FIELD_LABELS[directive]}.`,
+    };
+  }
+
   if (!hasCorrectionCue(text)) return { kind: "none" };
 
   const already = filledSteps(collected);
