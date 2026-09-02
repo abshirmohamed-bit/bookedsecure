@@ -88,3 +88,24 @@ export const replyQuoteConversation = createServerFn({ method: "POST" })
       return { ok: false as const, error: "We couldn't send that. Please try again shortly." };
     }
   });
+
+/** Rehydrates an in-progress conversation after a refresh (no new conversation row). */
+export const resumeQuoteConversation = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ slug: z.string().min(1).max(60), conversation_id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { allowPublicFormAttempt } = await import("@/lib/rate-limit.server");
+    if (!(await allowPublicFormAttempt(`chatresume:${clientIp()}`, { perMinute: 12, perHour: 60 }))) {
+      return { ok: false as const, error: "Too many requests from this device. Please try again shortly." };
+    }
+    const { resumeWebChat } = await import("@/lib/web-chat.server");
+    try {
+      const state = await resumeWebChat(data.slug, data.conversation_id);
+      if (!state) return { ok: false as const, error: "No conversation to resume." };
+      return { ok: true as const, state };
+    } catch (error) {
+      console.error("[web-chat] resume failed", error);
+      return { ok: false as const, error: "No conversation to resume." };
+    }
+  });

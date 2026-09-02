@@ -207,7 +207,18 @@ export function detectCorrection(
     };
   }
 
-  if (!hasCorrectionCue(text)) return { kind: "none" };
+  // No explicit cue word. A plain restatement ("my mobile is 0470 111 222") is
+  // still a correction, but only when it is NOT a valid answer to the question
+  // that is currently open — a genuine answer always wins, so a phrase like
+  // "the car is dirty" while the condition question is open is never hijacked.
+  if (!hasCorrectionCue(text)) {
+    const activeAnswer = applyAnswer(collected, activeStep, text, tenant);
+    if (activeAnswer.ok) return { kind: "none" };
+    const restated = CORRECTABLE_STEPS.some((field) =>
+      new RegExp(`\\b(?:${FIELD_WORD_SOURCE[field]})\\b\\s*(?:is|are|=|:)`, "i").test(text),
+    );
+    if (!restated) return { kind: "none" };
+  }
 
   const already = filledSteps(collected);
   const named = namedFields(text).filter((field) => field !== activeStep || already.includes(field));
