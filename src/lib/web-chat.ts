@@ -3,6 +3,11 @@
 // tenant's own approved data, so nothing here can invent a service or a price.
 
 import { normaliseAuMobile } from "@/lib/domain";
+import {
+  BOOKING_PROMPT_TEXT,
+  NO_SLOT_CHOICE,
+  type PilotOffer,
+} from "@/lib/web-chat-booking";
 
 export const WEB_CHAT_STEPS = [
   "service",
@@ -14,6 +19,7 @@ export const WEB_CHAT_STEPS = [
   "email",
   "review",
   "consent",
+  "booking",
 ] as const;
 export type WebChatStep = (typeof WEB_CHAT_STEPS)[number];
 
@@ -47,6 +53,11 @@ export type WebChatCollected = {
   consent?: "granted" | "declined" | null;
   /** Set once the customer has confirmed the final review summary. */
   reviewed?: boolean | null;
+  /** Pilot booking step: server-generated offers, set only by the server. */
+  pilot_offers?: PilotOffer[] | null;
+  booking_offered?: boolean | null;
+  booking_selected?: string | null;
+  booking_declined?: boolean | null;
 };
 
 export type WebChatReviewField = { step: WebChatStep; label: string; value: string };
@@ -60,6 +71,7 @@ export type WebChatPrompt = {
   /** Present on the review step: every captured field, each individually changeable. */
   fields?: WebChatReviewField[];
 };
+
 
 export function welcomeMessage(tenant: WebChatTenant): string {
   return [
@@ -91,8 +103,17 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
   if (collected.email === undefined) return "email";
   if (!collected.reviewed) return "review";
   if (!collected.consent) return "consent";
+  // Pilot booking step, only once the server has offered real slots.
+  if (
+    collected.booking_offered === true &&
+    !collected.booking_selected &&
+    collected.booking_declined !== true
+  ) {
+    return "booking";
+  }
   return null;
 }
+
 
 /** Labelled summary of everything captured, for the final review step. */
 export function reviewSummary(collected: WebChatCollected): WebChatReviewField[] {
@@ -168,8 +189,23 @@ export function promptFor(
         kind: "consent",
         text: `Last step: do you agree to ${tenant.name} contacting you about this enquiry, including by SMS? Reply STOP at any time to opt out.`,
       };
+    case "booking":
+      return {
+        step,
+        kind: "choice",
+        text: BOOKING_PROMPT_TEXT,
+        options: [
+          ...(collected.pilot_offers ?? []).map((offer) => ({
+            value: offer.offer_id,
+            label: offer.label,
+            detail: null,
+          })),
+          { value: NO_SLOT_CHOICE, label: "None of these work", detail: null },
+        ],
+      };
   }
 }
+
 
 export type ApplyResult =
   | { ok: true; collected: WebChatCollected; echo: string }
@@ -260,7 +296,22 @@ export function applyAnswer(
       next.consent = granted ? "granted" : "declined";
       return { ok: true, collected: next, echo: granted ? "Yes, that's fine" : "No thanks" };
     }
+    case "booking": {
+      if (value === NO_SLOT_CHOICE) {
+        next.booking_declined = true;
+        next.booking_selected = null;
+        return { ok: true, collected: next, echo: "None of these work" };
+      }
+      // Only an offer the server itself generated for this conversation is valid:
+      // a substituted, stale or cross-tenant id never reaches the commit path.
+      const offer = (collected.pilot_offers ?? []).find((entry) => entry.offer_id === value);
+      if (!offer) return { ok: false, error: "Please choose one of the times shown." };
+      next.booking_selected = offer.offer_id;
+      next.booking_declined = false;
+      return { ok: true, collected: next, echo: offer.label };
+    }
   }
+
 }
 
 export type WebChatOutcome = {

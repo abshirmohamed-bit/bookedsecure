@@ -2241,6 +2241,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      commit_web_chat_booking: {
+        Args: {
+          p_business_id: string
+          p_idempotency_key: string
+          p_lead_id: string
+          p_offer_id: string
+        }
+        Returns: Json
+      }
       record_blocked_sms_segments: {
         Args: { p_period_id: string; p_segments: number }
         Returns: undefined

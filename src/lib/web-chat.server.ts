@@ -28,6 +28,12 @@ import {
   hasCorrectionCue,
   parseChangeDirective,
 } from "@/lib/web-chat-correction";
+import {
+  BOOKING_CONFLICT_MESSAGE,
+  BOOKING_UNAVAILABLE_MESSAGE,
+  bookingDeclinedMessage,
+} from "@/lib/web-chat-booking";
+
 
 const MAX_MESSAGES = 60;
 
@@ -221,6 +227,24 @@ export async function replyToWebChat(input: {
       duplicate: false,
     };
   }
+  // Pilot booking step. Handled on its own branch: the answer is an offer id the
+  // server itself generated, so correction parsing and field validation do not
+  // apply. No SMS, no provider call and no automation is triggered here.
+  if (step === "booking") {
+    return await handleBookingSelection({
+      tenant,
+      chatTenant,
+      conversation: {
+        id: conversation.id,
+        leadId: conversation.lead_id ?? null,
+        requiresOwnerReview: conversation.requires_owner_review,
+      },
+      collected,
+      answer: input.answer,
+      turns,
+    });
+  }
+
 
   // Mid-conversation correction. Handled BEFORE the active question is
   // validated, so "actually put it as Abshiro for my name" is never run through
@@ -420,7 +444,57 @@ export async function replyToWebChat(input: {
     duplicate = result.duplicate;
   }
 
+  // Full Detail pilot: the server computes real appointment options and the
+  // conversation stays open on the booking step. Anything outside the pilot
+  // falls through to the existing completion below, unchanged.
+  if (leadId && !duplicate) {
+    const { openBookingStep } = await import("@/lib/web-chat-booking.server");
+    const booking = await openBookingStep({
+      businessId: tenant.businessId,
+      slug: tenant.slug,
+      leadId,
+    });
+    if (booking.offered) {
+      const withOffers: WebChatCollected = {
+        ...next,
+        pilot_offers: booking.offers,
+        booking_offered: true,
+      };
+      await supabaseAdmin
+        .from("web_conversations")
+        .update({
+          collected: withOffers as never,
+          lead_id: leadId,
+          selected_service_id: next.service_id ?? null,
+          service_name_snapshot: next.service_name ?? null,
+          requires_owner_review: outcome.requiresOwnerReview,
+          unsupported_request: outcome.unsupportedRequest,
+          consent_outcome: "granted",
+        })
+        .eq("id", conversation.id)
+        .eq("business_id", tenant.businessId);
+
+      const bookingPrompt = promptFor("booking", chatTenant, withOffers);
+      await addMessage(tenant.businessId, conversation.id, "assistant", bookingPrompt.text);
+      return {
+        conversationId: conversation.id,
+        status: "active",
+        messages: [
+          ...turns,
+          { role: "customer", body: applied.echo },
+          { role: "assistant", body: bookingPrompt.text },
+        ],
+        prompt: bookingPrompt,
+        requiresOwnerReview: outcome.requiresOwnerReview,
+        completed: false,
+        declined: false,
+        duplicate: false,
+      };
+    }
+  }
+
   const closing = duplicate ? DUPLICATE_MESSAGE : completionMessage(chatTenant, outcome);
+
   await supabaseAdmin
     .from("web_conversations")
     .update({
@@ -447,5 +521,141 @@ export async function replyToWebChat(input: {
     completed: true,
     declined: false,
     duplicate,
+  };
+}
+
+/**
+ * Booking step handler.
+ *
+ * The customer's answer is one of the offer ids the server generated for THIS
+ * conversation. Everything is re-checked server-side: tenant, lead, offer and
+ * live availability. On a conflict the customer's message stays in the
+ * transcript and fresh options are returned — the conversation never restarts.
+ *
+ * No SMS, no `messages` row, no provider call, no AI usage event and no
+ * automation job is created anywhere on this path.
+ */
+async function handleBookingSelection(input: {
+  tenant: PublicTenant;
+  chatTenant: WebChatTenant;
+  conversation: { id: string; leadId: string | null; requiresOwnerReview: boolean };
+  collected: WebChatCollected;
+  answer: string;
+  turns: WebChatTurn[];
+}): Promise<WebChatState> {
+  const { tenant, chatTenant, conversation, collected, turns } = input;
+  const businessId = tenant.businessId;
+
+  const applied = applyAnswer(collected, "booking", input.answer, chatTenant);
+  if (!applied.ok) {
+    const prompt = promptFor("booking", chatTenant, collected);
+    await addMessage(businessId, conversation.id, "assistant", applied.error);
+    return {
+      conversationId: conversation.id,
+      status: "active",
+      messages: [...turns, { role: "assistant", body: applied.error }],
+      prompt,
+      requiresOwnerReview: conversation.requiresOwnerReview,
+      completed: false,
+      declined: false,
+      duplicate: false,
+      error: applied.error,
+    };
+  }
+
+  const echo = applied.echo;
+  await addMessage(businessId, conversation.id, "customer", echo);
+  const next = applied.collected;
+
+  async function complete(body: string, stored: WebChatCollected): Promise<WebChatState> {
+    await supabaseAdmin
+      .from("web_conversations")
+      .update({
+        collected: stored as never,
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", conversation.id)
+      .eq("business_id", businessId);
+    await addMessage(businessId, conversation.id, "assistant", body);
+    return {
+      conversationId: conversation.id,
+      status: "completed",
+      messages: [...turns, { role: "customer", body: echo }, { role: "assistant", body }],
+      prompt: null,
+      requiresOwnerReview: conversation.requiresOwnerReview,
+      completed: true,
+      declined: false,
+      duplicate: false,
+    };
+  }
+
+  // "None of these work": the lead stays captured, no job is created, no SMS.
+  if (next.booking_declined === true) {
+    return await complete(bookingDeclinedMessage(tenant.name), next);
+  }
+
+  const offerId = next.booking_selected!;
+  if (!conversation.leadId) {
+    return await complete(BOOKING_UNAVAILABLE_MESSAGE, { ...collected, booking_declined: true });
+  }
+
+  const { commitWebChatBooking, bookingConfirmationText, refreshBookingOffers } = await import(
+    "@/lib/web-chat-booking.server"
+  );
+  const commit = await commitWebChatBooking({
+    businessId,
+    leadId: conversation.leadId,
+    conversationId: conversation.id,
+    offerId,
+  });
+
+  if (commit.ok) {
+    const body = await bookingConfirmationText({
+      businessId,
+      leadId: conversation.leadId,
+      slotStart: commit.slotStart,
+    });
+    // The conversation is completed only after the booking commit succeeded.
+    return await complete(body, next);
+  }
+
+  // Conflict / expiry: recompute options and stay on the booking step.
+  const fresh = await refreshBookingOffers({ businessId, leadId: conversation.leadId });
+  if (fresh.length === 0) {
+    return await complete(BOOKING_UNAVAILABLE_MESSAGE, {
+      ...collected,
+      booking_declined: true,
+    });
+  }
+
+  const retry: WebChatCollected = {
+    ...collected,
+    pilot_offers: fresh,
+    booking_offered: true,
+    booking_selected: null,
+    booking_declined: false,
+  };
+  await supabaseAdmin
+    .from("web_conversations")
+    .update({ collected: retry as never })
+    .eq("id", conversation.id)
+    .eq("business_id", businessId);
+
+  const prompt = promptFor("booking", chatTenant, retry);
+  await addMessage(businessId, conversation.id, "assistant", BOOKING_CONFLICT_MESSAGE);
+  return {
+    conversationId: conversation.id,
+    status: "active",
+    messages: [
+      ...turns,
+      { role: "customer", body: echo },
+      { role: "assistant", body: BOOKING_CONFLICT_MESSAGE },
+    ],
+    prompt,
+    requiresOwnerReview: conversation.requiresOwnerReview,
+    completed: false,
+    declined: false,
+    duplicate: false,
   };
 }

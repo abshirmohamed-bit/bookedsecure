@@ -9,6 +9,7 @@ import {
 } from "@/lib/web-chat.functions";
 import { isVerboseIntro } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
+import { NO_SLOT_CHOICE } from "@/lib/web-chat-booking";
 
 type Turn = { role: "customer" | "assistant" | "system"; body: string };
 
@@ -110,6 +111,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
   const onServiceStep = prompt?.step === "service" && prompt.kind === "choice";
   const serviceOptions = onServiceStep ? (prompt?.options ?? []) : [];
+  const onBookingStep = prompt?.step === "booking" && prompt.kind === "choice";
+  const bookingOptions = onBookingStep ? (prompt?.options ?? []) : [];
+
 
   /**
    * Single-flight send. The customer bubble is appended before the request, the
@@ -387,6 +391,35 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   </button>
                 </div>
               )}
+
+              {/* Pilot booking step — every time shown is server-computed */}
+              {!finished && !busy && !pending && onBookingStep && bookingOptions.length > 0 && (
+                <div className="mt-4 space-y-2 rounded-xl border border-border bg-card/60 p-3">
+                  {bookingOptions
+                    .filter((option) => option.value !== NO_SLOT_CHOICE)
+                    .map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => send(option.value, option.label)}
+                        aria-label={`Book ${option.label}`}
+                        className="min-h-11 w-full rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => send(NO_SLOT_CHOICE, "None of these work")}
+                    className="min-h-11 w-full rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    None of these work
+                  </button>
+                </div>
+              )}
+
 
               {/* Consent */}
               {!finished && !busy && !pending && prompt?.kind === "consent" && (
