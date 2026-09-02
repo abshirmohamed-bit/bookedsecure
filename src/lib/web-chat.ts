@@ -49,12 +49,16 @@ export type WebChatCollected = {
   reviewed?: boolean | null;
 };
 
+export type WebChatReviewField = { step: WebChatStep; label: string; value: string };
+
 export type WebChatPrompt = {
   step: WebChatStep;
   text: string;
   kind: "choice" | "text" | "consent" | "review";
   optional?: boolean;
   options?: { value: string; label: string; detail: string | null }[];
+  /** Present on the review step: every captured field, each individually changeable. */
+  fields?: WebChatReviewField[];
 };
 
 export function welcomeMessage(tenant: WebChatTenant): string {
