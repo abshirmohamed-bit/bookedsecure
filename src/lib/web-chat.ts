@@ -95,15 +95,15 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
 }
 
 /** Labelled summary of everything captured, for the final review step. */
-export function reviewSummary(collected: WebChatCollected): { label: string; value: string }[] {
+export function reviewSummary(collected: WebChatCollected): WebChatReviewField[] {
   return [
-    { label: "Service", value: collected.service_name ?? collected.typed_request ?? "Not sure yet" },
-    { label: "Vehicle", value: collected.vehicle_type ?? "—" },
-    { label: "Suburb", value: collected.suburb ?? "—" },
-    { label: "Condition or concerns", value: collected.concerns ?? "—" },
-    { label: "Name", value: collected.name ?? "—" },
-    { label: "Mobile", value: collected.mobile_number ?? "—" },
-    { label: "Email", value: collected.email ?? "Not provided" },
+    { step: "service", label: "Service", value: collected.service_name ?? collected.typed_request ?? "Not sure yet" },
+    { step: "vehicle", label: "Vehicle", value: collected.vehicle_type ?? "—" },
+    { step: "suburb", label: "Suburb", value: collected.suburb ?? "—" },
+    { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "—" },
+    { step: "name", label: "Name", value: collected.name ?? "—" },
+    { step: "mobile", label: "Mobile", value: collected.mobile_number ?? "—" },
+    { step: "email", label: "Email", value: collected.email ?? "Not provided" },
   ];
 }
 
