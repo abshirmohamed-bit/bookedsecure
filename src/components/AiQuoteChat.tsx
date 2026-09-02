@@ -328,7 +328,6 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
 
 
-              {/* Final review — confirm, or type a change to any detail */}
               {/* Final review — every field individually changeable */}
               {!finished && !busy && !pending && prompt?.kind === "review" && (
                 <div className="mt-4 space-y-3 rounded-xl border border-border bg-card/60 p-3">
