@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Loader2, RotateCcw, Send, ShieldCheck, User } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
 import { replyQuoteConversation, startQuoteConversation } from "@/lib/web-chat.functions";
-import { isVerboseIntro, serviceShortDescription } from "@/lib/web-chat-presentation";
+import { isVerboseIntro } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
 
 type Turn = { role: "customer" | "assistant" | "system"; body: string };
