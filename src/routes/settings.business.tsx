@@ -45,6 +45,46 @@ function BusinessSettingsPage() {
       <SettingsPageBody
         heading="Business settings"
         description="How your business is described to customers, and the services you offer."
+        actions={(data) => (
+          <>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                  Bookable availability
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[85vh] w-[95vw] overflow-y-auto sm:max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Bookable availability</DialogTitle>
+                  <DialogDescription>
+                    Working windows used to work out appointment times for customers.
+                  </DialogDescription>
+                </DialogHeader>
+                <AvailabilityEditor
+                  availability={data.availability}
+                  timezone={data.business.timezone}
+                  readOnly={data.role !== "owner"}
+                />
+              </DialogContent>
+            </Dialog>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                  Approved services
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[85vh] w-[95vw] overflow-y-auto sm:max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Approved services</DialogTitle>
+                  <DialogDescription>
+                    The only services the assistant is allowed to mention or quote from.
+                  </DialogDescription>
+                </DialogHeader>
+                <ServicesEditor services={data.services} readOnly={data.role !== "owner"} />
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
       >
         {(data) => (
           <>
@@ -66,15 +106,10 @@ function BusinessSettingsPage() {
               slug={data.business.slug}
               readOnly={data.role !== "owner"}
             />
-            <AvailabilityEditor
-              availability={data.availability}
-              timezone={data.business.timezone}
-              readOnly={data.role !== "owner"}
-            />
-            <ServicesEditor services={data.services} readOnly={data.role !== "owner"} />
           </>
         )}
       </SettingsPageBody>
+
     </AppShell>
   );
 }
