@@ -44,6 +44,151 @@ function toWindows(value: unknown): AvailabilityWindow[] {
   });
 }
 
+/**
+ * Presentation-only helpers. Stored values stay exactly as before:
+ * minutes for durations, whole days for the booking window.
+ */
+type RuleField = "slot_minutes" | "lead_time_minutes" | "horizon_days" | "offer_ttl_minutes";
+
+type Rule = {
+  field: RuleField;
+  label: string;
+  tip: string;
+  unit: "minutes" | "days";
+  presets: number[];
+  format: (value: number) => string;
+};
+
+function formatDuration(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "Not set";
+  if (minutes % 1440 === 0) {
+    const days = minutes / 1440;
+    return days === 1 ? "24 hours" : `${days} days`;
+  }
+  if (minutes < 60) return `${minutes} minutes`;
+  const hours = minutes / 60;
+  const text = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, "");
+  return `${text} ${hours === 1 ? "hour" : "hours"}`;
+}
+
+const RULES: Rule[] = [
+  {
+    field: "slot_minutes",
+    label: "Appointment duration",
+    tip: "How long each job takes, used to space out offered times.",
+    unit: "minutes",
+    presets: [60, 90, 120, 180],
+    format: formatDuration,
+  },
+  {
+    field: "lead_time_minutes",
+    label: "Earliest booking",
+    tip: "The soonest an offered appointment can start from now.",
+    unit: "minutes",
+    presets: [60, 120, 240, 1440],
+    format: (value) => (value === 1440 ? "Tomorrow" : `${formatDuration(value)} from now`),
+  },
+  {
+    field: "horizon_days",
+    label: "Booking window",
+    tip: "How far into the future appointment times can be offered.",
+    unit: "days",
+    presets: [3, 7, 14, 30],
+    format: (value) => `Next ${value} ${value === 1 ? "day" : "days"}`,
+  },
+  {
+    field: "offer_ttl_minutes",
+    label: "Customer response time",
+    tip: "How long an offered time is held before it expires.",
+    unit: "minutes",
+    presets: [30, 60, 120, 240],
+    format: formatDuration,
+  },
+];
+
+function RuleCard({
+  rule,
+  value,
+  readOnly,
+  onChange,
+}: {
+  rule: Rule;
+  value: number;
+  readOnly: boolean;
+  onChange: (value: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [custom, setCustom] = useState(false);
+  const isPreset = rule.presets.includes(value);
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setCustom(false);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={readOnly}
+          className="rounded-lg border border-input bg-background p-3 text-left transition-colors hover:border-primary/50 disabled:opacity-60"
+        >
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {rule.label}
+            <Info className="h-3.5 w-3.5 shrink-0" aria-hidden title={rule.tip} />
+          </span>
+          <span className="mt-1 block text-sm font-medium text-foreground">
+            {rule.format(value)}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-1.5">
+        <div className="space-y-0.5">
+          {rule.presets.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => {
+                onChange(preset);
+                setOpen(false);
+              }}
+              className={`block w-full rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-muted ${
+                value === preset ? "bg-muted font-medium" : ""
+              }`}
+            >
+              {rule.format(preset)}
+            </button>
+          ))}
+          {custom || !isPreset ? (
+            <label className="block px-2.5 pb-1 pt-2 text-xs text-muted-foreground">
+              Custom ({rule.unit})
+              <input
+                type="number"
+                min={0}
+                autoFocus={custom}
+                value={value}
+                onChange={(event) => onChange(Number(event.target.value))}
+                className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
+              />
+            </label>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCustom(true)}
+              className="block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted"
+            >
+              Custom…
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+
 export function AvailabilityEditor({
   availability,
   timezone,
