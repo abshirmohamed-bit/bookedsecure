@@ -145,6 +145,9 @@ export type CorrectionResult =
   /** A replacement value was given but failed the field's own validation. */
   | { kind: "invalid"; field: CorrectableStep; message: string };
 
+export const AMBIGUOUS_CORRECTION_MESSAGE =
+  "Sorry — I want to get this right. Which detail should I update: your name, vehicle, suburb, condition, mobile number or email? For example “change my suburb to Parramatta”.";
+
 export function clarifyMessage(fields: CorrectableStep[]): string {
   const labels = (fields.length >= 2 ? fields : filledFallback()).map((field) => FIELD_LABELS[field]);
   return `Sorry — I want to get this right. Do you want me to update your ${labels

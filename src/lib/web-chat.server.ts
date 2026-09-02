@@ -21,6 +21,11 @@ import {
   type WebChatPrompt,
   type WebChatTenant,
 } from "@/lib/web-chat";
+import {
+  AMBIGUOUS_CORRECTION_MESSAGE,
+  detectCorrection,
+  hasCorrectionCue,
+} from "@/lib/web-chat-correction";
 
 const MAX_MESSAGES = 60;
 
@@ -91,7 +96,7 @@ export async function startWebChat(slug: string): Promise<WebChatState | null> {
   if (error || !conversation) throw new Error("Could not start the conversation.");
 
   const greeting = welcomeMessage(chatTenant);
-  const first = promptFor("service", chatTenant);
+  const first = promptFor("service", chatTenant, {});
   await addMessage(tenant.businessId, conversation.id, "assistant", greeting);
   await addMessage(tenant.businessId, conversation.id, "assistant", first.text);
 
@@ -172,8 +177,68 @@ export async function replyToWebChat(input: {
       conversationId: conversation.id,
       status: conversation.status,
       messages: turns,
-      prompt: promptFor(step, chatTenant),
+      prompt: promptFor(step, chatTenant, collected),
       requiresOwnerReview: conversation.requires_owner_review,
+      completed: false,
+      declined: false,
+      duplicate: false,
+    };
+  }
+
+  // Mid-conversation correction. Handled BEFORE the active question is
+  // validated, so "actually put it as Abshiro for my name" is never run through
+  // Australian mobile-number validation. The original customer message is kept
+  // in the transcript; only the stored field value changes (latest wins).
+  const correction = detectCorrection(collected, step, input.answer, chatTenant);
+  if (correction.kind !== "none") {
+    const echo = input.answer.slice(0, 500);
+    await addMessage(tenant.businessId, conversation.id, "customer", echo);
+
+    if (correction.kind === "clarify" || correction.kind === "invalid") {
+      await addMessage(tenant.businessId, conversation.id, "assistant", correction.message);
+      return {
+        conversationId: conversation.id,
+        status: "active",
+        messages: [...turns, { role: "customer", body: echo }, { role: "assistant", body: correction.message }],
+        prompt: promptFor(step, chatTenant, collected),
+        requiresOwnerReview: conversation.requires_owner_review,
+        completed: false,
+        declined: false,
+        duplicate: false,
+        error: correction.message,
+      };
+    }
+
+    const corrected = correction.collected;
+    const correctedOutcome = resolveOutcome(corrected);
+    await supabaseAdmin
+      .from("web_conversations")
+      .update({
+        collected: corrected as never,
+        selected_service_id: corrected.service_id ?? null,
+        service_name_snapshot: corrected.service_name ?? null,
+        requires_owner_review: correctedOutcome.requiresOwnerReview,
+        unsupported_request: correctedOutcome.unsupportedRequest,
+      })
+      .eq("id", conversation.id)
+      .eq("business_id", tenant.businessId);
+
+    await addMessage(tenant.businessId, conversation.id, "assistant", correction.message);
+    const resumeStep = nextStep(corrected);
+    const resumePrompt = resumeStep ? promptFor(resumeStep, chatTenant, corrected) : null;
+    if (resumePrompt) await addMessage(tenant.businessId, conversation.id, "assistant", resumePrompt.text);
+
+    return {
+      conversationId: conversation.id,
+      status: "active",
+      messages: [
+        ...turns,
+        { role: "customer", body: echo },
+        { role: "assistant", body: correction.message },
+        ...(resumePrompt ? [{ role: "assistant" as const, body: resumePrompt.text }] : []),
+      ],
+      prompt: resumePrompt,
+      requiresOwnerReview: correctedOutcome.requiresOwnerReview,
       completed: false,
       declined: false,
       duplicate: false,
@@ -182,23 +247,24 @@ export async function replyToWebChat(input: {
 
   const applied = applyAnswer(collected, step, input.answer, chatTenant);
   if (!applied.ok) {
-    const prompt = promptFor(step, chatTenant);
+    const prompt = promptFor(step, chatTenant, collected);
+    const errorText = hasCorrectionCue(input.answer) ? AMBIGUOUS_CORRECTION_MESSAGE : applied.error;
     await addMessage(tenant.businessId, conversation.id, "customer", input.answer.slice(0, 500));
-    await addMessage(tenant.businessId, conversation.id, "assistant", applied.error);
+    await addMessage(tenant.businessId, conversation.id, "assistant", errorText);
     return {
       conversationId: conversation.id,
       status: "active",
       messages: [
         ...turns,
         { role: "customer", body: input.answer.slice(0, 500) },
-        { role: "assistant", body: applied.error },
+        { role: "assistant", body: errorText },
       ],
       prompt,
       requiresOwnerReview: false,
       completed: false,
       declined: false,
       duplicate: false,
-      error: applied.error,
+      error: errorText,
     };
   }
 
@@ -246,7 +312,7 @@ export async function replyToWebChat(input: {
       .eq("id", conversation.id)
       .eq("business_id", tenant.businessId);
 
-    const prompt = promptFor(followUp, chatTenant);
+    const prompt = promptFor(followUp, chatTenant, next);
     const detail =
       followUp === "vehicle" && next.service_name
         ? `Great — ${next.service_name}. I'll pass the details to the team for review; nothing is priced or booked here.`
