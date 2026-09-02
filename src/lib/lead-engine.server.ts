@@ -246,9 +246,14 @@ export type CaptureInput = {
   requires_owner_review?: boolean | undefined;
   lead_origin?: string | null | undefined;
   source_metadata?: Record<string, unknown> | null | undefined;
+  /**
+   * Capture channel. "web" is the AI web-chat path: the lead is created but no
+   * acknowledgement or follow-up SMS is ever queued for it.
+   */
+  channel?: "sms" | "web" | undefined;
   /** Deterministic submission key; retries reuse the existing lead instead of rewriting it. */
   external_id?: string | null | undefined;
-};
+
 
 export type CaptureResult = {
   leadId: string;
