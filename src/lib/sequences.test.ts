@@ -99,6 +99,18 @@ describe("selectSequence — context mapping", () => {
     );
   });
 
+  it("post-booking state never selects outbound messaging or a handoff", () => {
+    for (const ctx of LEAD_CONTEXTS) {
+      const d = selectSequence(base(ctx, { bookingStatus: "scheduled" }));
+      if (d.sequence !== "booking_confirmation_followup") continue;
+      expect(d.consentRequired).toBe("none_no_outbound");
+      expect(d.handoff).toBe(false);
+      expect(d.wouldSend).toBe(false);
+    }
+    const booked = selectSequence(base("booked_lead", { bookingStatus: "scheduled" }));
+    expect(booked.consentRequired).toBe("none_no_outbound");
+  });
+
   it("sparse contexts always require neutral language", () => {
     for (const ctx of ["contact_only_unqualified", "manually_added_contact", "cold_lead"] as const) {
       expect(selectSequence(base(ctx)).neutralLanguageRequired).toBe(true);
