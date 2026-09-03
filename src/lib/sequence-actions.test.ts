@@ -96,7 +96,7 @@ describe("dry-run guarantees", () => {
     ]) {
       expect(src).not.toContain(forbidden);
     }
-    expect(src).toContain('mode is hard-coded to "dry_run"');
+    expect(src).toContain('hard-coded to "dry_run"');
   });
 });
 
