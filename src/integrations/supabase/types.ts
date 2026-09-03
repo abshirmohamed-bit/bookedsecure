@@ -14,6 +14,122 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_actions: {
+        Row: {
+          action_kind: string
+          activation_id: string | null
+          attempt_count: number
+          blocked_reason: string | null
+          business_id: string
+          campaign_id: string | null
+          claimed_at: string | null
+          completed_at: string | null
+          created_at: string
+          failure_reason: string | null
+          id: string
+          idempotency_key: string
+          lead_id: string | null
+          max_attempts: number
+          mode: string
+          plan_snapshot: Json | null
+          result_kind: string | null
+          result_ref: string | null
+          rollback_actor: string | null
+          rollback_reason: string | null
+          rolled_back_at: string | null
+          scheduled_for: string | null
+          sequence_id: string
+          status: string
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_kind: string
+          activation_id?: string | null
+          attempt_count?: number
+          blocked_reason?: string | null
+          business_id: string
+          campaign_id?: string | null
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          idempotency_key: string
+          lead_id?: string | null
+          max_attempts?: number
+          mode?: string
+          plan_snapshot?: Json | null
+          result_kind?: string | null
+          result_ref?: string | null
+          rollback_actor?: string | null
+          rollback_reason?: string | null
+          rolled_back_at?: string | null
+          scheduled_for?: string | null
+          sequence_id: string
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_kind?: string
+          activation_id?: string | null
+          attempt_count?: number
+          blocked_reason?: string | null
+          business_id?: string
+          campaign_id?: string | null
+          claimed_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          idempotency_key?: string
+          lead_id?: string | null
+          max_attempts?: number
+          mode?: string
+          plan_snapshot?: Json | null
+          result_kind?: string | null
+          result_ref?: string | null
+          rollback_actor?: string | null
+          rollback_reason?: string | null
+          rolled_back_at?: string | null
+          scheduled_for?: string | null
+          sequence_id?: string
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_actions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_actions_campaign_fk"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "sequence_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_actions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_actions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_outputs: {
         Row: {
           approved_at: string | null
@@ -188,6 +304,7 @@ export type Database = {
       }
       automation_jobs: {
         Row: {
+          agent_action_id: string | null
           attempt_count: number
           business_id: string
           created_at: string
@@ -201,11 +318,14 @@ export type Database = {
           next_attempt_at: string | null
           payload: Json | null
           run_at: string
+          sequence_id: string | null
+          sequence_step_template_id: string | null
           status: string
           step: number
           updated_at: string
         }
         Insert: {
+          agent_action_id?: string | null
           attempt_count?: number
           business_id: string
           created_at?: string
@@ -219,11 +339,14 @@ export type Database = {
           next_attempt_at?: string | null
           payload?: Json | null
           run_at?: string
+          sequence_id?: string | null
+          sequence_step_template_id?: string | null
           status?: string
           step?: number
           updated_at?: string
         }
         Update: {
+          agent_action_id?: string | null
           attempt_count?: number
           business_id?: string
           created_at?: string
@@ -237,11 +360,20 @@ export type Database = {
           next_attempt_at?: string | null
           payload?: Json | null
           run_at?: string
+          sequence_id?: string | null
+          sequence_step_template_id?: string | null
           status?: string
           step?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "automation_jobs_agent_action_id_fkey"
+            columns: ["agent_action_id"]
+            isOneToOne: false
+            referencedRelation: "agent_actions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "automation_jobs_business_id_fkey"
             columns: ["business_id"]
@@ -352,6 +484,8 @@ export type Database = {
           accepted_at: string | null
           accepted_message_id: string | null
           business_id: string
+          confirmation_message_id: string | null
+          confirmation_sms_sent_at: string | null
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string
@@ -371,6 +505,8 @@ export type Database = {
           accepted_at?: string | null
           accepted_message_id?: string | null
           business_id: string
+          confirmation_message_id?: string | null
+          confirmation_sms_sent_at?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -390,6 +526,8 @@ export type Database = {
           accepted_at?: string | null
           accepted_message_id?: string | null
           business_id?: string
+          confirmation_message_id?: string | null
+          confirmation_sms_sent_at?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string
@@ -418,6 +556,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_offers_confirmation_message_id_fkey"
+            columns: ["confirmation_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
           {
@@ -459,6 +604,15 @@ export type Database = {
       }
       businesses: {
         Row: {
+          agent_daily_send_cap: number
+          agent_enabled: boolean
+          agent_execution_opted_in_at: string | null
+          agent_execution_opted_in_by: string | null
+          agent_hourly_send_cap: number
+          agent_kill_switch_at: string | null
+          agent_kill_switch_by: string | null
+          agent_kill_switch_reason: string | null
+          agent_max_leads_per_activation: number
           automation_enabled: boolean
           created_at: string
           default_sms_provider: string
@@ -482,6 +636,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_daily_send_cap?: number
+          agent_enabled?: boolean
+          agent_execution_opted_in_at?: string | null
+          agent_execution_opted_in_by?: string | null
+          agent_hourly_send_cap?: number
+          agent_kill_switch_at?: string | null
+          agent_kill_switch_by?: string | null
+          agent_kill_switch_reason?: string | null
+          agent_max_leads_per_activation?: number
           automation_enabled?: boolean
           created_at?: string
           default_sms_provider?: string
@@ -505,6 +668,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_daily_send_cap?: number
+          agent_enabled?: boolean
+          agent_execution_opted_in_at?: string | null
+          agent_execution_opted_in_by?: string | null
+          agent_hourly_send_cap?: number
+          agent_kill_switch_at?: string | null
+          agent_kill_switch_by?: string | null
+          agent_kill_switch_reason?: string | null
+          agent_max_leads_per_activation?: number
           automation_enabled?: boolean
           created_at?: string
           default_sms_provider?: string
@@ -531,6 +703,8 @@ export type Database = {
       }
       commercial_config: {
         Row: {
+          agent_global_kill_switch_at: string | null
+          agent_global_kill_switch_reason: string | null
           billing_interval: string
           cancellation_terms: string
           configuration_version: number
@@ -552,6 +726,8 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          agent_global_kill_switch_at?: string | null
+          agent_global_kill_switch_reason?: string | null
           billing_interval?: string
           cancellation_terms?: string
           configuration_version?: number
@@ -573,6 +749,8 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          agent_global_kill_switch_at?: string | null
+          agent_global_kill_switch_reason?: string | null
           billing_interval?: string
           cancellation_terms?: string
           configuration_version?: number
@@ -1303,6 +1481,7 @@ export type Database = {
       }
       messages: {
         Row: {
+          agent_action_id: string | null
           attempt_count: number
           automation_stopped: boolean
           body: string
@@ -1337,8 +1516,11 @@ export type Database = {
           segments: number
           sender_id: string | null
           sent_at: string | null
+          sequence_id: string | null
+          template_id: string | null
         }
         Insert: {
+          agent_action_id?: string | null
           attempt_count?: number
           automation_stopped?: boolean
           body: string
@@ -1373,8 +1555,11 @@ export type Database = {
           segments?: number
           sender_id?: string | null
           sent_at?: string | null
+          sequence_id?: string | null
+          template_id?: string | null
         }
         Update: {
+          agent_action_id?: string | null
           attempt_count?: number
           automation_stopped?: boolean
           body?: string
@@ -1409,8 +1594,17 @@ export type Database = {
           segments?: number
           sender_id?: string | null
           sent_at?: string | null
+          sequence_id?: string | null
+          template_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_agent_action_id_fkey"
+            columns: ["agent_action_id"]
+            isOneToOne: false
+            referencedRelation: "agent_actions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_business_id_fkey"
             columns: ["business_id"]
@@ -1712,6 +1906,83 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "profiles_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sequence_campaigns: {
+        Row: {
+          business_id: string
+          campaign_approved_at: string | null
+          campaign_approved_by: string | null
+          created_at: string
+          disabled_at: string | null
+          disabled_reason: string | null
+          execution_authorisation_kind: string | null
+          execution_authorised_at: string | null
+          execution_authorised_by: string | null
+          id: string
+          max_leads: number
+          name: string
+          scope_kind: string
+          scope_lead_ids: string[]
+          sequence_approved_at: string | null
+          sequence_approved_by: string | null
+          sequence_id: string
+          status: string
+          template_version: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          campaign_approved_at?: string | null
+          campaign_approved_by?: string | null
+          created_at?: string
+          disabled_at?: string | null
+          disabled_reason?: string | null
+          execution_authorisation_kind?: string | null
+          execution_authorised_at?: string | null
+          execution_authorised_by?: string | null
+          id?: string
+          max_leads?: number
+          name: string
+          scope_kind?: string
+          scope_lead_ids?: string[]
+          sequence_approved_at?: string | null
+          sequence_approved_by?: string | null
+          sequence_id: string
+          status?: string
+          template_version?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          campaign_approved_at?: string | null
+          campaign_approved_by?: string | null
+          created_at?: string
+          disabled_at?: string | null
+          disabled_reason?: string | null
+          execution_authorisation_kind?: string | null
+          execution_authorised_at?: string | null
+          execution_authorised_by?: string | null
+          id?: string
+          max_leads?: number
+          name?: string
+          scope_kind?: string
+          scope_lead_ids?: string[]
+          sequence_approved_at?: string | null
+          sequence_approved_by?: string | null
+          sequence_id?: string
+          status?: string
+          template_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sequence_campaigns_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
