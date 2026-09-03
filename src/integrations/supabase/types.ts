@@ -1073,9 +1073,15 @@ export type Database = {
         Row: {
           approved_service_id: string | null
           assigned_to: string | null
+          booking_status: string
           business_id: string
           consent_record: Json | null
+          consent_source: string | null
+          consent_status: string
+          context_verified_at: string | null
           created_at: string
+          current_sequence: string | null
+          customer_status: string
           deleted_at: string | null
           deleted_by: string | null
           deletion_reason: string | null
@@ -1099,12 +1105,15 @@ export type Database = {
           last_sms_failure_code: string | null
           last_sms_failure_reason: string | null
           last_successful_delivery_at: string | null
+          lead_context: string
           lead_origin: string | null
           main_concerns: string | null
+          manual_entry_by: string | null
           mobile_number: string
           name: string
           notes: string | null
           opted_out_at: string | null
+          quote_status: string
           reachability_evidence: string | null
           reachability_evidence_at: string | null
           reachability_state: string
@@ -1125,13 +1134,23 @@ export type Database = {
           utm_campaign: string | null
           utm_source: string | null
           vehicle_type: string | null
+          verified_concern: string | null
+          verified_service_id: string | null
+          verified_suburb: string | null
+          verified_vehicle: string | null
         }
         Insert: {
           approved_service_id?: string | null
           assigned_to?: string | null
+          booking_status?: string
           business_id: string
           consent_record?: Json | null
+          consent_source?: string | null
+          consent_status?: string
+          context_verified_at?: string | null
           created_at?: string
+          current_sequence?: string | null
+          customer_status?: string
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
@@ -1155,12 +1174,15 @@ export type Database = {
           last_sms_failure_code?: string | null
           last_sms_failure_reason?: string | null
           last_successful_delivery_at?: string | null
+          lead_context?: string
           lead_origin?: string | null
           main_concerns?: string | null
+          manual_entry_by?: string | null
           mobile_number: string
           name: string
           notes?: string | null
           opted_out_at?: string | null
+          quote_status?: string
           reachability_evidence?: string | null
           reachability_evidence_at?: string | null
           reachability_state?: string
@@ -1181,13 +1203,23 @@ export type Database = {
           utm_campaign?: string | null
           utm_source?: string | null
           vehicle_type?: string | null
+          verified_concern?: string | null
+          verified_service_id?: string | null
+          verified_suburb?: string | null
+          verified_vehicle?: string | null
         }
         Update: {
           approved_service_id?: string | null
           assigned_to?: string | null
+          booking_status?: string
           business_id?: string
           consent_record?: Json | null
+          consent_source?: string | null
+          consent_status?: string
+          context_verified_at?: string | null
           created_at?: string
+          current_sequence?: string | null
+          customer_status?: string
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
@@ -1211,12 +1243,15 @@ export type Database = {
           last_sms_failure_code?: string | null
           last_sms_failure_reason?: string | null
           last_successful_delivery_at?: string | null
+          lead_context?: string
           lead_origin?: string | null
           main_concerns?: string | null
+          manual_entry_by?: string | null
           mobile_number?: string
           name?: string
           notes?: string | null
           opted_out_at?: string | null
+          quote_status?: string
           reachability_evidence?: string | null
           reachability_evidence_at?: string | null
           reachability_state?: string
@@ -1237,6 +1272,10 @@ export type Database = {
           utm_campaign?: string | null
           utm_source?: string | null
           vehicle_type?: string | null
+          verified_concern?: string | null
+          verified_service_id?: string | null
+          verified_suburb?: string | null
+          verified_vehicle?: string | null
         }
         Relationships: [
           {
@@ -1251,6 +1290,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_verified_service_id_fkey"
+            columns: ["verified_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
