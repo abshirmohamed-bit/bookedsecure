@@ -55,14 +55,21 @@ function seed(): FakeDb {
       {
         business_id: PILOT_BUSINESS_ID,
         active: true,
-        slot_minutes: 120,
         lead_time_minutes: 120,
         horizon_days: 7,
         offer_ttl_minutes: 120,
         weekly_windows: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, start: "08:00", end: "18:00" })),
       },
     ],
-    services: [{ id: SERVICE_ID, business_id: PILOT_BUSINESS_ID, name: "Full Interior Detail", active: true }],
+    services: [
+      {
+        id: SERVICE_ID,
+        business_id: PILOT_BUSINESS_ID,
+        name: "Full Interior Detail",
+        active: true,
+        duration_minutes: 120,
+      },
+    ],
     leads: [lead(LEAD_A), lead(LEAD_B), lead(FOREIGN_LEAD, OTHER_BUSINESS)],
     conversations: [],
     booking_offers: [],

@@ -314,7 +314,6 @@ export type Database = {
           horizon_days: number
           lead_time_minutes: number
           offer_ttl_minutes: number
-          slot_minutes: number
           updated_at: string
           weekly_windows: Json
         }
@@ -325,7 +324,6 @@ export type Database = {
           horizon_days?: number
           lead_time_minutes?: number
           offer_ttl_minutes?: number
-          slot_minutes?: number
           updated_at?: string
           weekly_windows?: Json
         }
@@ -336,7 +334,6 @@ export type Database = {
           horizon_days?: number
           lead_time_minutes?: number
           offer_ttl_minutes?: number
-          slot_minutes?: number
           updated_at?: string
           weekly_windows?: Json
         }
@@ -1682,6 +1679,7 @@ export type Database = {
           business_id: string
           created_at: string
           description: string | null
+          duration_minutes: number | null
           excluded_items: string | null
           id: string
           included_items: string | null
@@ -1694,6 +1692,7 @@ export type Database = {
           business_id: string
           created_at?: string
           description?: string | null
+          duration_minutes?: number | null
           excluded_items?: string | null
           id?: string
           included_items?: string | null
@@ -1706,6 +1705,7 @@ export type Database = {
           business_id?: string
           created_at?: string
           description?: string | null
+          duration_minutes?: number | null
           excluded_items?: string | null
           id?: string
           included_items?: string | null

@@ -31,6 +31,7 @@ const eligible = {
   approvedServiceId: "710cdf04-aae0-48e3-b84a-0e01ccec1da8",
   serviceName: "Full Interior Detail",
   serviceActive: true,
+  serviceDurationMinutes: 120 as number | null,
   availabilityActive: true,
   slotCount: 3,
 };
@@ -68,6 +69,9 @@ describe("pilot scope", () => {
     expect(isPilotEligible({ ...eligible, slug: "other" })).toBe(false);
     expect(isPilotEligible({ ...eligible, serviceName: "Exterior Wash" })).toBe(false);
     expect(isPilotEligible({ ...eligible, serviceActive: false })).toBe(false);
+    expect(isPilotEligible({ ...eligible, serviceDurationMinutes: null })).toBe(false);
+    expect(isPilotEligible({ ...eligible, serviceDurationMinutes: 0 })).toBe(false);
+    expect(isPilotEligible({ ...eligible, serviceDurationMinutes: -30 })).toBe(false);
     expect(isPilotEligible({ ...eligible, availabilityActive: false })).toBe(false);
     expect(isPilotEligible({ ...eligible, slotCount: 0 })).toBe(false);
     expect(isPilotEligible({ ...eligible, approvedServiceId: null })).toBe(false);

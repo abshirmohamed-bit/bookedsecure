@@ -13,6 +13,7 @@ export type BookingBlockReason =
   | "lead_status_blocked"
   | "automation_paused"
   | "availability_inactive"
+  | "service_duration_missing"
   | "no_slots_available"
   | "offer_not_found"
   | "no_customer_selection"
@@ -26,6 +27,8 @@ export const BOOKING_BLOCK_LABELS: Record<BookingBlockReason, string> = {
   lead_status_blocked: "The lead status does not allow booking.",
   automation_paused: "Automation is paused for this conversation (owner takeover).",
   availability_inactive: "Bookable availability is switched off in Business settings.",
+  service_duration_missing:
+    "The approved service has no appointment duration set, so nothing can be booked.",
   no_slots_available: "No valid appointment options are available.",
   offer_not_found: "That appointment option does not exist for this lead.",
   no_customer_selection: "The customer has not explicitly chosen one of the offered times.",
@@ -84,12 +87,19 @@ export function assessOfferGeneration(input: {
   lead: BookingLead;
   conversation?: BookingConversation;
   availabilityActive: boolean;
+  /** The approved service's own duration. No business-wide fallback exists. */
+  serviceDurationMinutes?: number | null;
   slotCount: number;
 }): BookingDecision {
   const blocked = baseGuards(input);
   if (blocked) return { allowed: false, reason: blocked, needsHumanReview: true };
   if (!input.availabilityActive)
     return { allowed: false, reason: "availability_inactive", needsHumanReview: true };
+  if (
+    input.serviceDurationMinutes !== undefined &&
+    (!Number.isInteger(input.serviceDurationMinutes) || Number(input.serviceDurationMinutes) <= 0)
+  )
+    return { allowed: false, reason: "service_duration_missing", needsHumanReview: true };
   if (input.lead.sms_suppressed_at)
     return { allowed: false, reason: "sms_suppressed", needsHumanReview: true };
   if (input.slotCount === 0)

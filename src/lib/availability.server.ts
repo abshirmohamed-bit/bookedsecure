@@ -28,7 +28,7 @@ import {
 } from "@/lib/booking";
 
 const AVAILABILITY_COLUMNS =
-  "business_id, active, slot_minutes, lead_time_minutes, horizon_days, offer_ttl_minutes, weekly_windows";
+  "business_id, active, lead_time_minutes, horizon_days, offer_ttl_minutes, weekly_windows";
 
 const OFFER_COLUMNS =
   "id, business_id, lead_id, service_id, service_name_snapshot, slot_start, slot_end, timezone, status, expires_at, accepted_at, accepted_message_id, confirmed_at, job_id, created_at";
@@ -53,7 +53,6 @@ export type OfferRow = {
 
 export const DEFAULT_AVAILABILITY = {
   active: false,
-  slot_minutes: 120,
   lead_time_minutes: 120,
   horizon_days: 7,
   offer_ttl_minutes: 120,
@@ -79,7 +78,6 @@ export async function loadAvailabilityConfig(businessId: string): Promise<Availa
   return {
     timezone: business?.timezone ?? "Australia/Sydney",
     active: Boolean(row.active),
-    slotMinutes: Number(row.slot_minutes ?? 120),
     leadTimeMinutes: Number(row.lead_time_minutes ?? 120),
     horizonDays: Number(row.horizon_days ?? 7),
     offerTtlMinutes: Number(row.offer_ttl_minutes ?? 120),
@@ -87,6 +85,30 @@ export async function loadAvailabilityConfig(businessId: string): Promise<Availa
     quietHoursStart: Number(business?.quiet_hours_start ?? 21),
     quietHoursEnd: Number(business?.quiet_hours_end ?? 8),
   };
+}
+
+/**
+ * Appointment length for a booking, taken ONLY from the approved service row.
+ *
+ * There is no business-wide fallback: a missing, non-positive or inactive
+ * service duration means nothing is bookable. The value is never accepted from
+ * the browser, the customer, AI text, price guidance or the description.
+ */
+export async function loadServiceDurationMinutes(
+  businessId: string,
+  serviceId: string | null | undefined,
+): Promise<number | null> {
+  if (!serviceId) return null;
+  const { data } = await supabaseAdmin
+    .from("services")
+    .select("id, active, duration_minutes")
+    .eq("id", serviceId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!data || data.active !== true) return null;
+  const minutes = Number(data.duration_minutes);
+  if (!Number.isInteger(minutes) || minutes <= 0) return null;
+  return minutes;
 }
 
 /** Slot starts already taken by this tenant: booked jobs and taken offers. */
@@ -178,6 +200,11 @@ export async function getBookingView(input: { businessId: string; leadId: string
   offers: OfferRow[];
 }> {
   const config = await loadAvailabilityConfig(input.businessId);
+  const { lead } = await loadLeadAndConversation(input.businessId, input.leadId);
+  const slotMinutes = await loadServiceDurationMinutes(
+    input.businessId,
+    lead?.approved_service_id ?? null,
+  );
   const [occupied, offers] = await Promise.all([
     occupiedSlotStarts(input.businessId),
     supabaseAdmin
@@ -189,7 +216,9 @@ export async function getBookingView(input: { businessId: string; leadId: string
   ]);
   return {
     config,
-    slots: resolveAvailableSlots({ config, now: new Date(), occupiedStarts: occupied }),
+    slots: slotMinutes
+      ? resolveAvailableSlots({ config, slotMinutes, now: new Date(), occupiedStarts: occupied })
+      : [],
     offers: (offers.data ?? []) as OfferRow[],
   };
 }
@@ -213,9 +242,20 @@ export async function generateBookingOffers(input: {
     };
 
   const config = await loadAvailabilityConfig(input.businessId);
+  const slotMinutes = await loadServiceDurationMinutes(
+    input.businessId,
+    lead.approved_service_id,
+  );
+  if (!slotMinutes)
+    return {
+      ok: false,
+      decision: { allowed: false, reason: "service_duration_missing", needsHumanReview: true },
+      offers: [],
+    };
   const occupied = await occupiedSlotStarts(input.businessId);
   const slots = resolveAvailableSlots({
     config,
+    slotMinutes,
     now: new Date(),
     occupiedStarts: occupied,
     limit: MAX_OFFERED_SLOTS,
@@ -226,6 +266,7 @@ export async function generateBookingOffers(input: {
     lead,
     conversation,
     availabilityActive: config.active,
+    serviceDurationMinutes: slotMinutes,
     slotCount: slots.length,
   });
   if (!decision.allowed) return { ok: false, decision, offers: [] };
@@ -524,10 +565,16 @@ export async function confirmBooking(input: {
   }
 
   const config = await loadAvailabilityConfig(input.businessId);
+  // Slot length comes from the offer's own approved service, re-read server side.
+  const slotMinutes = await loadServiceDurationMinutes(
+    input.businessId,
+    offer?.service_id ?? lead.approved_service_id,
+  );
   const occupied = await occupiedSlotStarts(input.businessId, input.offerId);
-  const revalidated = offer
+  const revalidated = offer && slotMinutes
     ? isSlotStillAvailable({
         config,
+        slotMinutes,
         now: new Date(),
         occupiedStarts: occupied,
         slotStart: offer.slot_start,

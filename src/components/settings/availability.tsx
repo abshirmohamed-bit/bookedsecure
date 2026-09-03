@@ -15,7 +15,6 @@ import { WEEKDAY_LABELS, type AvailabilityWindow } from "@/lib/availability";
  */
 export type AvailabilityRow = {
   active: boolean;
-  slot_minutes: number;
   lead_time_minutes: number;
   horizon_days: number;
   offer_ttl_minutes: number;
@@ -24,7 +23,6 @@ export type AvailabilityRow = {
 
 const EMPTY: AvailabilityRow = {
   active: false,
-  slot_minutes: 120,
   lead_time_minutes: 120,
   horizon_days: 7,
   offer_ttl_minutes: 120,
@@ -48,7 +46,7 @@ function toWindows(value: unknown): AvailabilityWindow[] {
  * Presentation-only helpers. Stored values stay exactly as before:
  * minutes for durations, whole days for the booking window.
  */
-type RuleField = "slot_minutes" | "lead_time_minutes" | "horizon_days" | "offer_ttl_minutes";
+type RuleField = "lead_time_minutes" | "horizon_days" | "offer_ttl_minutes";
 
 type Rule = {
   field: RuleField;
@@ -59,7 +57,7 @@ type Rule = {
   format: (value: number) => string;
 };
 
-function formatDuration(minutes: number): string {
+export function formatDuration(minutes: number): string {
   if (!Number.isFinite(minutes) || minutes <= 0) return "Not set";
   if (minutes % 1440 === 0) {
     const days = minutes / 1440;
@@ -72,14 +70,6 @@ function formatDuration(minutes: number): string {
 }
 
 const RULES: Rule[] = [
-  {
-    field: "slot_minutes",
-    label: "Appointment duration",
-    tip: "How long each job takes, used to space out offered times.",
-    unit: "minutes",
-    presets: [60, 90, 120, 180],
-    format: formatDuration,
-  },
   {
     field: "lead_time_minutes",
     label: "Earliest booking",
@@ -206,7 +196,6 @@ export function AvailabilityEditor({
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     active: Boolean(initial.active),
-    slot_minutes: Number(initial.slot_minutes ?? 120),
     lead_time_minutes: Number(initial.lead_time_minutes ?? 120),
     horizon_days: Number(initial.horizon_days ?? 7),
     offer_ttl_minutes: Number(initial.offer_ttl_minutes ?? 120),
@@ -229,7 +218,8 @@ export function AvailabilityEditor({
     <section className="panel p-4">
       <h2 className="text-sm font-semibold">Bookable availability</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Appointment times are worked out by the system from these windows in {timezone}. Quiet hours,
+        Appointment times are worked out by the system from these windows in {timezone}, using each
+        approved service's own appointment duration. Quiet hours,
         already-booked jobs and times too soon from now are always excluded. Times are only ever sent
         to a customer when you choose to offer them.
       </p>

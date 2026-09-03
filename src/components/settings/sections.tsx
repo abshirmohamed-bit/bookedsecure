@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
+import { formatDuration } from "@/components/settings/availability";
 import {
   getSettings,
   saveAutomationRule,
@@ -279,12 +280,87 @@ export function ProviderStatus({
 export type Service = {
   id: string;
   name: string;
+  /** Appointment length in minutes. Required for a service to be active/bookable. */
+  duration_minutes: number | null;
   description: string | null;
   price_guidance: string | null;
   included_items: string | null;
   excluded_items: string | null;
   active: boolean;
 };
+
+const DURATION_PRESETS = [60, 90, 120, 180, 240] as const;
+
+/** A service is only active/bookable with a positive appointment duration. */
+export function isValidDuration(value: number | null | undefined): boolean {
+  return Number.isInteger(value) && Number(value) >= 15 && Number(value) <= 1440;
+}
+
+function DurationField({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (minutes: number) => void;
+}) {
+  const preset = DURATION_PRESETS.includes(Number(value) as never);
+  const [custom, setCustom] = useState(!preset);
+  return (
+    <div className="text-xs">
+      <span className="mb-1 block text-muted-foreground">
+        Appointment duration <span className="text-destructive">*</span>
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {DURATION_PRESETS.map((minutes) => (
+          <button
+            key={minutes}
+            type="button"
+            onClick={() => {
+              setCustom(false);
+              onChange(minutes);
+            }}
+            className={`rounded-md border px-2.5 py-1.5 ${
+              !custom && Number(value) === minutes
+                ? "border-primary bg-primary/10 font-medium text-foreground"
+                : "border-input text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {formatDuration(minutes)}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setCustom(true)}
+          className={`rounded-md border px-2.5 py-1.5 ${
+            custom
+              ? "border-primary bg-primary/10 font-medium text-foreground"
+              : "border-input text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Custom
+        </button>
+      </div>
+      {custom && (
+        <label className="mt-1.5 block">
+          <span className="text-muted-foreground">Minutes (15–1440)</span>
+          <input
+            type="number"
+            min={15}
+            max={1440}
+            value={value ?? ""}
+            onChange={(event) => onChange(Number(event.target.value))}
+            className="mt-1 w-32 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+          />
+        </label>
+      )}
+      {!isValidDuration(value) && (
+        <p className="mt-1 text-destructive">
+          Set an appointment duration — a service cannot be active or bookable without one.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function ServicesEditor({ services, readOnly }: { services: Service[]; readOnly: boolean }) {
   const save = useServerFn(saveService);
@@ -299,6 +375,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
           name: service.name,
           description: service.description,
           price_guidance: service.price_guidance,
+          duration_minutes: Number(service.duration_minutes ?? 0),
           included_items: service.included_items,
           excluded_items: service.excluded_items,
           active: service.active,
@@ -322,6 +399,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
               setEditing({
                 id: "",
                 name: "",
+                duration_minutes: 120,
                 description: "",
                 price_guidance: "",
                 included_items: "",
@@ -360,6 +438,14 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
             <p className="mt-1 text-xs text-muted-foreground">
               Price guidance: {service.price_guidance || "not provided"}
             </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Appointment duration:{" "}
+              {isValidDuration(service.duration_minutes) ? (
+                formatDuration(Number(service.duration_minutes))
+              ) : (
+                <span className="text-destructive">not set — cannot be active or booked</span>
+              )}
+            </p>
           </div>
         ))}
       </div>
@@ -384,6 +470,10 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
               />
             </label>
           ))}
+          <DurationField
+            value={editing.duration_minutes}
+            onChange={(minutes) => setEditing({ ...editing, duration_minutes: minutes })}
+          />
           <label className="flex items-center gap-2 text-xs">
             <input
               type="checkbox"
@@ -401,7 +491,11 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
               Cancel
             </button>
             <button
-              disabled={editing.name.length < 2 || mutation.isPending}
+              disabled={
+                editing.name.length < 2 ||
+                !isValidDuration(editing.duration_minutes) ||
+                mutation.isPending
+              }
               onClick={() => mutation.mutate(editing)}
               className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
             >
