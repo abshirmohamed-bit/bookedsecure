@@ -569,8 +569,20 @@ export async function sendSms(input: {
   senderId?: string | undefined;
   /** Trigger for observability: manual, quote_page, inbound_follow_up, automation. */
   source?: MessageSource | undefined;
+  /** Optional agent-sequence attribution (metadata only — never authorises a send). */
+  sequenceId?: string | null | undefined;
+  actionKind?: string | null | undefined;
+  agentActionId?: string | null | undefined;
+  templateId?: string | null | undefined;
 }): Promise<SendSmsResult> {
+  // Attribution is validated before anything else: a malformed reference must
+  // never reach the carrier, the ledger or the usage accounting.
+  const validated = normaliseAgentAttribution(input);
+  if (!validated.ok) return { sent: false, retriable: false, reason: validated.reason };
+  const attribution = validated.attribution;
+
   const business = await getBusiness(input.businessId);
+
   const { data: lead } = await supabaseAdmin
     .from("leads")
     .select(
