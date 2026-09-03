@@ -26,6 +26,10 @@ import {
   UNKNOWN_STATUS,
 } from "@/lib/sms/dispatch";
 import { isUniqueViolation } from "@/lib/sms/webhook.server";
+import {
+  messageAttributionColumns,
+  normaliseAgentAttribution,
+} from "@/lib/agent-attribution";
 import { evaluateQuietHoursGate, QUIET_HOURS_BLOCKED_CODE } from "@/lib/sms/quiet-hours";
 import { resolveAcknowledgementTemplate } from "@/lib/acknowledgement-contract";
 
@@ -792,6 +796,7 @@ export async function sendSms(input: {
           segments,
           attempt_count: prior.attempt_count + 1,
           message_source: messageSource,
+          ...messageAttributionColumns(attribution),
         })
         .eq("id", prior.id);
       messageId = prior.id;
@@ -817,6 +822,7 @@ export async function sendSms(input: {
         attempt_count: 1,
         message_source: messageSource,
         delivery_event_count: 0,
+        ...messageAttributionColumns(attribution),
       })
       .select("id")
       .single();
