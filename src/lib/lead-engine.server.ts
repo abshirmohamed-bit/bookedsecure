@@ -598,7 +598,32 @@ export async function sendSms(input: {
   if (lead.status === "invalid")
     return { sent: false, retriable: false, reason: "Lead number is invalid." };
 
+  // A supplied agent action reference must exist for THIS tenant. Unknown or
+  // cross-tenant references are refused outright: nothing is sent, nothing is
+  // written, no attribution is stored.
+  if (attribution.agentActionId) {
+    const { data: action } = await supabaseAdmin
+      .from("agent_actions")
+      .select("id, business_id, lead_id")
+      .eq("id", attribution.agentActionId)
+      .eq("business_id", input.businessId)
+      .maybeSingle();
+    if (!action)
+      return {
+        sent: false,
+        retriable: false,
+        reason: "Unknown agent action reference for this business — nothing was sent.",
+      };
+    if (action.lead_id && action.lead_id !== input.leadId)
+      return {
+        sent: false,
+        retriable: false,
+        reason: "Agent action reference belongs to a different lead — nothing was sent.",
+      };
+  }
+
   const automated = input.kind === "acknowledgement" || input.kind === "follow_up";
+
 
   // A permanent delivery failure suppresses future *automated* SMS to this lead.
   // Manual owner-initiated messages stay possible, deliberately.
