@@ -73,8 +73,8 @@ export async function planLeadSequence(input: {
   const quiet = evaluateQuietHoursGate(
     {
       timezone: availability.timezone,
-      quietHoursStart: availability.quietHoursStart,
-      quietHoursEnd: availability.quietHoursEnd,
+      quiet_hours_start: availability.quietHoursStart,
+      quiet_hours_end: availability.quietHoursEnd,
     },
     now,
   );
@@ -87,16 +87,16 @@ export async function planLeadSequence(input: {
     leadContext,
     consentStatus,
     bookingStatus,
-    explicitBookingIntent: signals.explicitBookingIntent,
-    requestedHuman: signals.requestedHuman,
-    requestedQuote: signals.requestedQuote,
-    unsupportedRequest: signals.unsupportedRequest,
-    conflictingContext: signals.conflictingContext || lead.requires_owner_review === true,
-    toolFailure: signals.toolFailure,
-    tenantTakeover: signals.tenantTakeover,
+    explicitBookingIntent: signals.explicitBookingIntent === true,
+    requestedHuman: signals.requestedHuman === true,
+    requestedQuote: signals.requestedQuote === true,
+    unsupportedRequest: signals.unsupportedRequest === true,
+    conflictingContext: signals.conflictingContext === true || lead.requires_owner_review === true,
+    toolFailure: signals.toolFailure === true,
+    tenantTakeover: signals.tenantTakeover === true,
     automationPaused: conversation?.automation_paused === true,
     agentEnabled: business?.automation_enabled !== false,
-    hasInboundReply: signals.hasInboundReply,
+    hasInboundReply: signals.hasInboundReply === true,
     hasBookingLink: availability.active,
   });
 
