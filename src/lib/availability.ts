@@ -25,7 +25,6 @@ export type AvailabilityConfig = {
   /** Tenant timezone (IANA). Required — never defaulted silently. */
   timezone: string;
   active: boolean;
-  slotMinutes: number;
   leadTimeMinutes: number;
   horizonDays: number;
   offerTtlMinutes: number;
@@ -180,6 +179,12 @@ function weekdayOf(date: { year: number; month: number; day: number }): number {
 
 export type ResolveInput = {
   config: AvailabilityConfig;
+  /**
+   * Appointment length in minutes. Always the selected approved service's
+   * server-side `duration_minutes` — there is no business-wide fallback and it
+   * is never taken from the browser, the customer or model text.
+   */
+  slotMinutes: number;
   now: Date;
   /** ISO starts already taken for this tenant (booked jobs + accepted offers). */
   occupiedStarts?: readonly string[];
@@ -192,11 +197,12 @@ export type ResolveInput = {
  */
 export function resolveAvailableSlots(input: ResolveInput): AvailableSlot[] {
   const { config, now } = input;
+  const slotMinutes = input.slotMinutes;
   if (!config.active) return [];
   if (!isValidTimezone(config.timezone)) return [];
   const windows = parseWeeklyWindows(config.weeklyWindows);
   if (windows.length === 0) return [];
-  if (!Number.isInteger(config.slotMinutes) || config.slotMinutes <= 0) return [];
+  if (!Number.isInteger(slotMinutes) || slotMinutes <= 0) return [];
 
   const occupied = new Set(
     (input.occupiedStarts ?? []).map((value) => new Date(value).toISOString()),
@@ -214,14 +220,14 @@ export function resolveAvailableSlots(input: ResolveInput): AvailableSlot[] {
       const windowEnd = parseTimeOfDay(window.end)!;
       for (
         let minutes = windowStart;
-        minutes + config.slotMinutes <= windowEnd;
-        minutes += config.slotMinutes
+        minutes + slotMinutes <= windowEnd;
+        minutes += slotMinutes
       ) {
         if (slots.length >= limit) break;
         const start = zonedWallClockToUtc(config.timezone, date.year, date.month, date.day, minutes);
         if (!start) continue; // non-existent local time (DST gap)
         if (start.getTime() < earliest) continue;
-        const end = new Date(start.getTime() + config.slotMinutes * 60_000);
+        const end = new Date(start.getTime() + slotMinutes * 60_000);
 
         // Quiet hours apply to the whole appointment window, in tenant time.
         const startHour = zonedParts(config.timezone, start).hour;

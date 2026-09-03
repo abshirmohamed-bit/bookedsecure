@@ -523,7 +523,7 @@ export const getSettings = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("booking_availability")
         .select(
-          "active, slot_minutes, lead_time_minutes, horizon_days, offer_ttl_minutes, weekly_windows",
+          "active, lead_time_minutes, horizon_days, offer_ttl_minutes, weekly_windows",
         )
         .eq("business_id", app.businessId)
         .maybeSingle(),
@@ -719,6 +719,8 @@ export const saveService = createServerFn({ method: "POST" })
         price_guidance: z.string().max(200).nullable(),
         included_items: z.string().max(600).nullable(),
         excluded_items: z.string().max(600).nullable(),
+        // Required appointment length for this service. Bookings use only this.
+        duration_minutes: z.number().int().min(15).max(1440),
         active: z.boolean(),
       })
       .parse(input),
@@ -811,7 +813,6 @@ export const saveAvailabilitySettings = createServerFn({ method: "POST" })
     z
       .object({
         active: z.boolean(),
-        slot_minutes: z.number().int().min(30).max(480),
         lead_time_minutes: z.number().int().min(0).max(10080),
         horizon_days: z.number().int().min(1).max(30),
         offer_ttl_minutes: z.number().int().min(15).max(1440),
@@ -846,7 +847,7 @@ export const saveAvailabilitySettings = createServerFn({ method: "POST" })
       {
         business_id: app.businessId,
         active: data.active,
-        slot_minutes: data.slot_minutes,
+        
         lead_time_minutes: data.lead_time_minutes,
         horizon_days: data.horizon_days,
         offer_ttl_minutes: data.offer_ttl_minutes,

@@ -15,6 +15,7 @@ import { isSlotStillAvailable } from "@/lib/availability";
 import {
   generateBookingOffers,
   loadAvailabilityConfig,
+  loadServiceDurationMinutes,
   occupiedSlotStarts,
   type OfferRow,
 } from "@/lib/availability.server";
@@ -67,20 +68,23 @@ export async function openBookingStep(input: {
 
   const { data: service } = await supabaseAdmin
     .from("services")
-    .select("id, name, active")
+    .select("id, name, active, duration_minutes")
     .eq("id", lead.approved_service_id)
     .eq("business_id", input.businessId)
     .maybeSingle();
   if (!service) return { offered: false };
 
   const config = await loadAvailabilityConfig(input.businessId);
+  // Appointment length is the approved service's own duration, read server side.
+  const slotMinutes = await loadServiceDurationMinutes(input.businessId, service.id);
 
   // Slots come from the tenant's own configuration, evaluated in the tenant
   // timezone. The eligibility gate also needs the live slot count.
   const occupied = await occupiedSlotStarts(input.businessId);
   const { resolveAvailableSlots, MAX_OFFERED_SLOTS } = await import("@/lib/availability");
-  const preview = resolveAvailableSlots({
+  const preview = slotMinutes === null ? [] : resolveAvailableSlots({
     config,
+    slotMinutes,
     now: new Date(),
     occupiedStarts: occupied,
     limit: MAX_OFFERED_SLOTS,
@@ -92,6 +96,7 @@ export async function openBookingStep(input: {
     approvedServiceId: lead.approved_service_id,
     serviceName: service.name,
     serviceActive: service.active === true,
+    serviceDurationMinutes: slotMinutes,
     availabilityActive: config.active,
     slotCount: preview.length,
   });
@@ -149,6 +154,11 @@ export async function rehydrateBookingOffers(input: {
   if (booked) return { state: "already_booked", slotStart: booked.slot_start };
 
   const config = await loadAvailabilityConfig(input.businessId);
+  const slotMinutes = await loadServiceDurationMinutes(
+    input.businessId,
+    lead.approved_service_id,
+  );
+  if (slotMinutes === null) return { state: "unavailable" };
   const occupied = await occupiedSlotStarts(input.businessId);
   const now = new Date();
 
@@ -157,6 +167,7 @@ export async function rehydrateBookingOffers(input: {
     if (new Date(row.expires_at).getTime() <= now.getTime()) return false;
     return isSlotStillAvailable({
       config,
+      slotMinutes,
       now,
       occupiedStarts: occupied,
       slotStart: row.slot_start,
@@ -230,9 +241,16 @@ export async function commitWebChatBooking(input: {
   }
 
   const config = await loadAvailabilityConfig(input.businessId);
+  // Duration is re-derived from the approved service; the client never supplies it.
+  const slotMinutes = await loadServiceDurationMinutes(
+    input.businessId,
+    lead.approved_service_id,
+  );
+  if (slotMinutes === null) return { ok: false, reason: "service_duration_missing" };
   const occupied = await occupiedSlotStarts(input.businessId, offerRow.id);
   const revalidated = isSlotStillAvailable({
     config,
+    slotMinutes,
     now: new Date(),
     occupiedStarts: occupied,
     slotStart: offerRow.slot_start,

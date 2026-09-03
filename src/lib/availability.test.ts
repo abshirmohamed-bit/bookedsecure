@@ -13,7 +13,6 @@ function config(overrides: Partial<AvailabilityConfig> = {}): AvailabilityConfig
   return {
     timezone: SYDNEY,
     active: true,
-    slotMinutes: 120,
     leadTimeMinutes: 60,
     horizonDays: 7,
     offerTtlMinutes: 120,
@@ -52,7 +51,8 @@ describe("timezone and DST conversion", () => {
   it("keeps offered slots at the configured wall-clock hour across the DST boundary", () => {
     // Sydney DST begins Sun 5 Oct 2025. Offering across that week must keep 09:00 local.
     const slots = resolveAvailableSlots({
-      config: config({ horizonDays: 14, slotMinutes: 360 }),
+      config: config({ horizonDays: 14 }),
+      slotMinutes: 360,
       now: new Date("2025-10-01T00:00:00.000Z"),
       occupiedStarts: [],
       limit: 20,
@@ -71,6 +71,7 @@ describe("timezone and DST conversion", () => {
 
   it("returns no slots for an invalid timezone rather than guessing", () => {
     const slots = resolveAvailableSlots({
+      slotMinutes: 120,
       config: config({ timezone: "Not/AZone" }),
       now: new Date("2025-07-14T00:00:00.000Z"),
       occupiedStarts: [],
@@ -82,6 +83,7 @@ describe("timezone and DST conversion", () => {
 describe("operating hours", () => {
   it("only offers slots inside configured weekly windows", () => {
     const slots = resolveAvailableSlots({
+      slotMinutes: 120,
       config: config(),
       now: new Date("2025-07-14T00:00:00.000Z"),
       occupiedStarts: [],
@@ -99,7 +101,8 @@ describe("operating hours", () => {
   it("never offers a slot that would run past the end of the window", () => {
     // 09:00-15:00 with 4h slots fits 09:00 and 11:00 only (13:00 would end 17:00).
     const slots = resolveAvailableSlots({
-      config: config({ slotMinutes: 240, horizonDays: 1 }),
+      config: config({ horizonDays: 1 }),
+      slotMinutes: 240,
       now: new Date("2025-07-14T00:00:00.000Z"), // Monday in Sydney
       occupiedStarts: [],
       limit: 10,
@@ -112,7 +115,8 @@ describe("operating hours", () => {
   it("offers nothing when there are no weekly windows", () => {
     expect(
       resolveAvailableSlots({
-        config: config({ weeklyWindows: [] }),
+        slotMinutes: 120,
+      config: config({ weeklyWindows: [] }),
         now: new Date("2025-07-14T00:00:00.000Z"),
         occupiedStarts: [],
       }),
@@ -122,6 +126,7 @@ describe("operating hours", () => {
   it("respects minimum notice and never offers a slot in the past", () => {
     const now = new Date("2025-07-14T00:30:00.000Z"); // 10:30 Monday Sydney
     const slots = resolveAvailableSlots({
+      slotMinutes: 120,
       config: config({ leadTimeMinutes: 240, horizonDays: 2 }),
       now,
       occupiedStarts: [],
@@ -139,9 +144,9 @@ describe("operating hours", () => {
       // Window spans into quiet hours (21:00 start).
       config: config({
         weeklyWindows: [{ weekday: 1, start: "18:00", end: "23:00" }],
-        slotMinutes: 60,
         horizonDays: 8,
       }),
+      slotMinutes: 60,
       now: new Date("2025-07-13T00:00:00.000Z"),
       occupiedStarts: [],
       limit: 10,
@@ -157,6 +162,7 @@ describe("operating hours", () => {
 describe("occupied slot exclusion", () => {
   it("drops slots already taken by a booked job or accepted offer", () => {
     const base = resolveAvailableSlots({
+      slotMinutes: 120,
       config: config(),
       now: new Date("2025-07-14T00:00:00.000Z"),
       occupiedStarts: [],
@@ -164,6 +170,7 @@ describe("occupied slot exclusion", () => {
     });
     const taken = base[0]!.start;
     const filtered = resolveAvailableSlots({
+      slotMinutes: 120,
       config: config(),
       now: new Date("2025-07-14T00:00:00.000Z"),
       occupiedStarts: [taken],
@@ -174,6 +181,7 @@ describe("occupied slot exclusion", () => {
 
   it("limits the number of offered options", () => {
     const slots = resolveAvailableSlots({
+      slotMinutes: 120,
       config: config({ horizonDays: 14 }),
       now: new Date("2025-07-14T00:00:00.000Z"),
       occupiedStarts: [],
@@ -185,8 +193,9 @@ describe("occupied slot exclusion", () => {
 describe("re-validation at the moment of booking", () => {
   it("confirms a slot that is still free", () => {
     const now = new Date("2025-07-14T00:00:00.000Z");
-    const slot = resolveAvailableSlots({ config: config(), now, occupiedStarts: [], limit: 1 })[0]!;
+    const slot = resolveAvailableSlots({ config: config(), slotMinutes: 120, now, occupiedStarts: [], limit: 1 })[0]!;
     const result = isSlotStillAvailable({
+      slotMinutes: 120,
       config: config(),
       now,
       occupiedStarts: [],
@@ -198,8 +207,9 @@ describe("re-validation at the moment of booking", () => {
 
   it("rejects a slot that was taken in the meantime (race condition)", () => {
     const now = new Date("2025-07-14T00:00:00.000Z");
-    const slot = resolveAvailableSlots({ config: config(), now, occupiedStarts: [], limit: 1 })[0]!;
+    const slot = resolveAvailableSlots({ config: config(), slotMinutes: 120, now, occupiedStarts: [], limit: 1 })[0]!;
     const result = isSlotStillAvailable({
+      slotMinutes: 120,
       config: config(),
       now,
       occupiedStarts: [slot.start],
@@ -210,8 +220,9 @@ describe("re-validation at the moment of booking", () => {
 
   it("rejects a slot that no longer matches availability, e.g. windows changed", () => {
     const now = new Date("2025-07-14T00:00:00.000Z");
-    const slot = resolveAvailableSlots({ config: config(), now, occupiedStarts: [], limit: 1 })[0]!;
+    const slot = resolveAvailableSlots({ config: config(), slotMinutes: 120, now, occupiedStarts: [], limit: 1 })[0]!;
     const result = isSlotStillAvailable({
+      slotMinutes: 120,
       config: config({ weeklyWindows: [{ weekday: 6, start: "09:00", end: "12:00" }] }),
       now,
       occupiedStarts: [],
@@ -222,8 +233,9 @@ describe("re-validation at the moment of booking", () => {
 
   it("rejects a slot that is now in the past", () => {
     const now = new Date("2025-07-14T00:00:00.000Z");
-    const slot = resolveAvailableSlots({ config: config(), now, occupiedStarts: [], limit: 1 })[0]!;
+    const slot = resolveAvailableSlots({ config: config(), slotMinutes: 120, now, occupiedStarts: [], limit: 1 })[0]!;
     const result = isSlotStillAvailable({
+      slotMinutes: 120,
       config: config(),
       now: new Date("2025-07-21T00:00:00.000Z"),
       occupiedStarts: [],

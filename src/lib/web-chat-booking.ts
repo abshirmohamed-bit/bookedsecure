@@ -37,6 +37,8 @@ export function isPilotEligible(input: {
   approvedServiceId: string | null | undefined;
   serviceName: string | null | undefined;
   serviceActive: boolean;
+  /** The approved service's own server-side duration in minutes. */
+  serviceDurationMinutes: number | null | undefined;
   availabilityActive: boolean;
   slotCount: number;
 }): boolean {
@@ -45,6 +47,11 @@ export function isPilotEligible(input: {
   if (!input.approvedServiceId) return false;
   if (!input.serviceActive) return false;
   if (!isPilotServiceName(input.serviceName)) return false;
+  if (
+    !Number.isInteger(input.serviceDurationMinutes) ||
+    Number(input.serviceDurationMinutes) <= 0
+  )
+    return false;
   if (!input.availabilityActive) return false;
   return input.slotCount > 0;
 }
