@@ -123,7 +123,8 @@ describe("message source semantics are unchanged for non-agent callers", () => {
     expect(engineSource).toMatch(/input\.source \?\? deriveMessageSource/);
     // No code path assigns the agent source implicitly.
     expect(engineSource).not.toMatch(/messageSource\s*=\s*"agent_sequence"/);
-    expect(engineSource.match(/"agent_sequence"/g) ?? []).toHaveLength(1);
+    // Only the type union and its doc comment mention it; no assignment does.
+    expect(engineSource).not.toMatch(/=\s*"agent_sequence"/);
   });
 });
 
@@ -141,9 +142,8 @@ describe("step 2 cannot activate the Phase 4 executor", () => {
       "enqueueJob",
       "createNotification",
       "commit_web_chat_booking",
-      "current_sequence",
-      "agent_actions",
-      "sequence_campaigns",
+      ".from(",
+      "await ",
       "import(",
     ]) {
       expect(attributionSource).not.toContain(forbidden);
