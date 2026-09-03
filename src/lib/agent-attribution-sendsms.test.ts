@@ -107,7 +107,7 @@ function builder(name: string) {
 
   const settle = (single: boolean) => {
     if (mode === "insert") {
-      const inserted = { id: `${name}-${table(name).length + 1}`, ...payload };
+      const inserted: Row = { id: `${name}-${table(name).length + 1}`, ...payload };
       // Unique (business_id, idempotency_key) on messages.
       if (
         name === "messages" &&
