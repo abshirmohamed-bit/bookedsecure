@@ -321,7 +321,7 @@ export function planSequenceActions(input: {
             "Phase 3 plans only: no provider call and no message row.",
           ],
           eligible: false,
-          blockedReason: contentBlocked ?? "consent_not_granted",
+          blockedReason: contentBlocked,
           neutralLanguageRequired: neutral,
         }),
       );
@@ -349,7 +349,7 @@ export function planSequenceActions(input: {
           "Booking confirmation is NOT planned here: it stays owned by commitWebChatBooking.",
         ],
         eligible: false,
-        blockedReason: blocked,
+        blockedReason: blocked === "consent_not_granted" && consentSatisfied ? null : blocked,
         neutralLanguageRequired: neutral,
       }),
     );
@@ -374,7 +374,11 @@ export function planSequenceActions(input: {
             "Phase 3 plans only: no timer is written and no job is enqueued.",
           ],
           eligible: false,
-          blockedReason: facts.quietHoursNow ? "quiet_hours" : "consent_not_granted",
+          blockedReason: facts.quietHoursNow
+            ? "quiet_hours"
+            : consentSatisfied
+              ? null
+              : "consent_not_granted",
           neutralLanguageRequired: neutral,
         }),
       );
