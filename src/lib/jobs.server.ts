@@ -7,6 +7,12 @@
 // is interrupted (e.g. the visitor closes the browser mid-submission).
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { AUTOMATION_STOP_STATUSES } from "@/lib/domain";
+import {
+  attributionFromJobRow,
+  jobAttributionColumns,
+  normaliseAgentAttribution,
+  type AgentAttributionInput,
+} from "@/lib/agent-attribution";
 
 export type JobType = "acknowledgement" | "follow_up" | "owner_alert";
 
@@ -28,10 +34,13 @@ export type JobRow = {
   status: string;
   attempt_count: number;
   max_attempts: number;
+  sequence_id?: string | null;
+  agent_action_id?: string | null;
+  sequence_step_template_id?: string | null;
 };
 
 const JOB_COLUMNS =
-  "id, business_id, lead_id, job_type, step, idempotency_key, payload, status, attempt_count, max_attempts";
+  "id, business_id, lead_id, job_type, step, idempotency_key, payload, status, attempt_count, max_attempts, sequence_id, agent_action_id, sequence_step_template_id";
 
 /** Creates a job unless one with the same idempotency key already exists. */
 export async function enqueueJob(input: {
@@ -42,7 +51,11 @@ export async function enqueueJob(input: {
   idempotencyKey: string;
   payload?: Record<string, unknown>;
   runAt?: Date;
-}): Promise<{ job: JobRow | null; created: boolean }> {
+  /** Optional agent-sequence attribution (metadata only — never activates anything). */
+  attribution?: AgentAttributionInput | undefined;
+}): Promise<{ job: JobRow | null; created: boolean; reason?: string }> {
+  const validated = normaliseAgentAttribution(input.attribution);
+  if (!validated.ok) return { job: null, created: false, reason: validated.reason };
   const { data: existing } = await supabaseAdmin
     .from("automation_jobs")
     .select(JOB_COLUMNS)
@@ -60,6 +73,7 @@ export async function enqueueJob(input: {
       idempotency_key: input.idempotencyKey,
       payload: (input.payload ?? null) as never,
       run_at: (input.runAt ?? new Date()).toISOString(),
+      ...jobAttributionColumns(validated.attribution),
     })
     .select(JOB_COLUMNS)
     .maybeSingle();
@@ -196,6 +210,10 @@ async function performJob(job: JobRow): Promise<Outcome> {
     kind: job.job_type === "acknowledgement" ? "acknowledgement" : "follow_up",
     idempotencyKey: job.idempotency_key,
     respectAutomation: true,
+    // Attribution passthrough: a job created with attribution hands exactly the
+    // same values to the outbound path. Jobs without attribution pass nulls,
+    // which is byte-identical to the legacy call.
+    ...attributionFromJobRow(job),
   });
 
   if (result.sent) return { ok: true };
