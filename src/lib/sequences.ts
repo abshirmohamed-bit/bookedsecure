@@ -145,13 +145,19 @@ export function selectSequence(input: SequenceDecisionInput): SequenceDecision {
         );
   }
 
-  // 13: booking lifecycle.
+  // 13: booking lifecycle. Terminal, passive state.
+  //
+  // `booking_confirmation_followup` represents *being booked*. It never pushes a
+  // booking again and never owns a confirmation sequence: the single booking
+  // confirmation SMS is sent once, idempotently, by the booking commit path
+  // after the server confirms the booking. Therefore this state selects no
+  // outbound messaging at all.
   if (input.bookingStatus === "scheduled" || ctx === "booked_lead")
     return d(
       "booking_confirmation_followup",
-      "Booking already scheduled — confirmation follow-up only",
+      "Booking already scheduled — post-booking state only, no outbound sequence (confirmation SMS is sent once by the booking commit path)",
       "certain",
-      "existing_consent_required",
+      "none_no_outbound",
     );
 
   // 14: context-driven selection.
