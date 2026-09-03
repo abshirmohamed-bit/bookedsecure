@@ -518,18 +518,24 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
   };
 }
 
-/** Where an outbound SMS came from. Persisted on the message for reporting. */
+/**
+ * Where an outbound SMS came from. Persisted on the message for reporting.
+ *
+ * `agent_sequence` is attribution-only and is NEVER derived: it appears solely
+ * when a caller passes it explicitly (Phase 4 attribution plumbing).
+ */
 export type MessageSource =
   | "manual"
   | "approved_reply"
   | "quote_page"
   | "inbound_enquiry"
-  | "automation";
+  | "automation"
+  | "agent_sequence";
 
 export function deriveMessageSource(
   kind: "acknowledgement" | "follow_up" | "manual" | "approved_reply",
   leadOrigin: string | null | undefined,
-): MessageSource {
+): Exclude<MessageSource, "agent_sequence"> {
   if (kind === "manual") return "manual";
   if (kind === "approved_reply") return "approved_reply";
   if (kind === "follow_up") return "automation";
@@ -537,6 +543,7 @@ export function deriveMessageSource(
     ? "quote_page"
     : "inbound_enquiry";
 }
+
 
 export type SendSmsResult = {
   sent: boolean;
