@@ -26,6 +26,10 @@ import {
   UNKNOWN_STATUS,
 } from "@/lib/sms/dispatch";
 import { isUniqueViolation } from "@/lib/sms/webhook.server";
+import {
+  messageAttributionColumns,
+  normaliseAgentAttribution,
+} from "@/lib/agent-attribution";
 import { evaluateQuietHoursGate, QUIET_HOURS_BLOCKED_CODE } from "@/lib/sms/quiet-hours";
 import { resolveAcknowledgementTemplate } from "@/lib/acknowledgement-contract";
 
@@ -518,18 +522,24 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
   };
 }
 
-/** Where an outbound SMS came from. Persisted on the message for reporting. */
+/**
+ * Where an outbound SMS came from. Persisted on the message for reporting.
+ *
+ * `agent_sequence` is attribution-only and is NEVER derived: it appears solely
+ * when a caller passes it explicitly (Phase 4 attribution plumbing).
+ */
 export type MessageSource =
   | "manual"
   | "approved_reply"
   | "quote_page"
   | "inbound_enquiry"
-  | "automation";
+  | "automation"
+  | "agent_sequence";
 
 export function deriveMessageSource(
   kind: "acknowledgement" | "follow_up" | "manual" | "approved_reply",
   leadOrigin: string | null | undefined,
-): MessageSource {
+): Exclude<MessageSource, "agent_sequence"> {
   if (kind === "manual") return "manual";
   if (kind === "approved_reply") return "approved_reply";
   if (kind === "follow_up") return "automation";
@@ -537,6 +547,7 @@ export function deriveMessageSource(
     ? "quote_page"
     : "inbound_enquiry";
 }
+
 
 export type SendSmsResult = {
   sent: boolean;
@@ -562,8 +573,20 @@ export async function sendSms(input: {
   senderId?: string | undefined;
   /** Trigger for observability: manual, quote_page, inbound_follow_up, automation. */
   source?: MessageSource | undefined;
+  /** Optional agent-sequence attribution (metadata only — never authorises a send). */
+  sequenceId?: string | null | undefined;
+  actionKind?: string | null | undefined;
+  agentActionId?: string | null | undefined;
+  templateId?: string | null | undefined;
 }): Promise<SendSmsResult> {
+  // Attribution is validated before anything else: a malformed reference must
+  // never reach the carrier, the ledger or the usage accounting.
+  const validated = normaliseAgentAttribution(input);
+  if (!validated.ok) return { sent: false, retriable: false, reason: validated.reason };
+  const attribution = validated.attribution;
+
   const business = await getBusiness(input.businessId);
+
   const { data: lead } = await supabaseAdmin
     .from("leads")
     .select(
@@ -579,7 +602,32 @@ export async function sendSms(input: {
   if (lead.status === "invalid")
     return { sent: false, retriable: false, reason: "Lead number is invalid." };
 
+  // A supplied agent action reference must exist for THIS tenant. Unknown or
+  // cross-tenant references are refused outright: nothing is sent, nothing is
+  // written, no attribution is stored.
+  if (attribution.agentActionId) {
+    const { data: action } = await supabaseAdmin
+      .from("agent_actions")
+      .select("id, business_id, lead_id")
+      .eq("id", attribution.agentActionId)
+      .eq("business_id", input.businessId)
+      .maybeSingle();
+    if (!action)
+      return {
+        sent: false,
+        retriable: false,
+        reason: "Unknown agent action reference for this business — nothing was sent.",
+      };
+    if (action.lead_id && action.lead_id !== input.leadId)
+      return {
+        sent: false,
+        retriable: false,
+        reason: "Agent action reference belongs to a different lead — nothing was sent.",
+      };
+  }
+
   const automated = input.kind === "acknowledgement" || input.kind === "follow_up";
+
 
   // A permanent delivery failure suppresses future *automated* SMS to this lead.
   // Manual owner-initiated messages stay possible, deliberately.
@@ -748,6 +796,7 @@ export async function sendSms(input: {
           segments,
           attempt_count: prior.attempt_count + 1,
           message_source: messageSource,
+          ...messageAttributionColumns(attribution),
         })
         .eq("id", prior.id);
       messageId = prior.id;
@@ -773,6 +822,7 @@ export async function sendSms(input: {
         attempt_count: 1,
         message_source: messageSource,
         delivery_event_count: 0,
+        ...messageAttributionColumns(attribution),
       })
       .select("id")
       .single();
