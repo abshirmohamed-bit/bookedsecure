@@ -64,7 +64,15 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<G
       .eq("business_id", input.businessId)
       .eq("lead_id", input.leadId)
       .maybeSingle(),
+    supabaseAdmin
+      .from("messages")
+      .select("id, direction, message_kind, message_source, created_at")
+      .eq("business_id", input.businessId)
+      .eq("lead_id", input.leadId)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
+
 
   const lead = leadRes.data;
   const business = businessRes.data;
