@@ -17,6 +17,12 @@
  */
 
 import { normaliseAuMobile } from "@/lib/domain";
+import {
+  applyAnswer,
+  type WebChatCollected,
+  type WebChatStep,
+  type WebChatTenant,
+} from "@/lib/web-chat";
 
 export type IntakeService = { id: string; name: string };
 
@@ -499,3 +505,59 @@ export function unmatchedServiceMessage(businessName: string): string {
 
 export const UNSUPPORTED_REQUEST_MESSAGE =
   "I can only help with bookings here. If you'd like to book a service, tell me what you need and where the vehicle is and I'll take it from there.";
+
+// ---------------------------------------------------------------------------
+// Applying an extraction to the collected state
+// ---------------------------------------------------------------------------
+
+/**
+ * Applies every extracted value through the SAME validation the step-by-step
+ * questions use. A value that fails validation is simply not stored — it is
+ * never coerced, and the field stays open so the customer can supply it.
+ */
+export function applyIntake(
+  collected: WebChatCollected,
+  extraction: IntakeExtraction,
+  tenant: WebChatTenant,
+): { collected: WebChatCollected; applied: IntakeField[] } {
+  let next: WebChatCollected = { ...collected };
+  const applied: IntakeField[] = [];
+
+  const put = (step: WebChatStep, value: string, field: IntakeField | null) => {
+    const result = applyAnswer(next, step, value, tenant);
+    if (!result.ok) return;
+    next = result.collected;
+    if (field && !applied.includes(field)) applied.push(field);
+  };
+
+  if (extraction.service && !next.service_id) put("service", extraction.service.id, "service");
+  if (extraction.vehicle && !(next.vehicle_type ?? "").trim()) put("vehicle", extraction.vehicle, "vehicle");
+  if (extraction.location && !(next.suburb ?? "").trim()) put("suburb", extraction.location, "location");
+  if (extraction.name && !(next.name ?? "").trim()) put("name", extraction.name, "name");
+  if (extraction.mobile && !next.mobile_number) put("mobile", extraction.mobile, "mobile");
+  if (extraction.email && next.email === undefined) put("email", extraction.email, null);
+
+  const preference = [
+    extraction.preferredDate ? `preferred day ${extraction.preferredDate}` : null,
+    extraction.preferredTime ? `preferred time ${extraction.preferredTime}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const noteParts = [extraction.notes, preference].filter((part): part is string => Boolean(part));
+  if (noteParts.length > 0 && !(next.concerns ?? "").trim())
+    put("concerns", noteParts.join(" — "), "concerns");
+
+  return { collected: next, applied };
+}
+
+/** Fields still outstanding, in the order the conversation should ask them. */
+export function outstandingFields(collected: WebChatCollected): IntakeField[] {
+  const fields: IntakeField[] = [];
+  if (!collected.service_id && !(collected.typed_request ?? "").trim()) fields.push("service");
+  if (!(collected.vehicle_type ?? "").trim()) fields.push("vehicle");
+  if (!(collected.suburb ?? "").trim()) fields.push("location");
+  if (!(collected.concerns ?? "").trim()) fields.push("concerns");
+  if (!(collected.name ?? "").trim()) fields.push("name");
+  if (!collected.mobile_number) fields.push("mobile");
+  return fields;
+}
