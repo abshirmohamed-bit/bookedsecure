@@ -82,6 +82,21 @@ async function del(client: any, leadIds: string[], requestId: string, extra: any
   });
 }
 
+type LeadRow = {
+  id: string;
+  status: string;
+  booking_status: string;
+  quote_status: string;
+  customer_status: string;
+  consent_status: string;
+  requires_owner_review: boolean;
+  deleted_at: string | null;
+};
+
+function leadRow(db: { leads: Record<string, any>[] }, id: string): LeadRow {
+  return db.leads.find((row) => row["id"] === id) as unknown as LeadRow;
+}
+
 const R = (n: number) => `33333333-3333-4333-8333-00000000000${n}`;
 
 describe("booking-aware soft deletion", () => {
@@ -90,7 +105,7 @@ describe("booking-aware soft deletion", () => {
     const client = createFakeSupabase(db as never);
     const result = await del(client, [UNBOOKED], R(1));
     expect(result.deleted).toBe(1);
-    const row = db.leads.find((l) => l.id === UNBOOKED)!;
+    const row = leadRow(db, UNBOOKED);
     expect(row.deleted_at).toBeTruthy();
     expect(row.status).toBe("new");
     expect(row.booking_status).toBe("none");
@@ -103,7 +118,7 @@ describe("booking-aware soft deletion", () => {
     const db = freshDb();
     const client = createFakeSupabase(db as never);
     await del(client, [OFFERED], R(2));
-    const row = db.leads.find((l) => l.id === OFFERED)!;
+    const row = leadRow(db, OFFERED);
     expect(row.deleted_at).toBeTruthy();
     expect(row.booking_status).toBe("scheduled");
     expect(row.status).toBe("scheduled");
@@ -116,7 +131,7 @@ describe("booking-aware soft deletion", () => {
     const db = freshDb();
     const client = createFakeSupabase(db as never);
     await del(client, [JOBBED], R(3));
-    const row = db.leads.find((l) => l.id === JOBBED)!;
+    const row = leadRow(db, JOBBED);
     expect(row.status).toBe("scheduled");
     expect(row.booking_status).toBe("scheduled");
     expect(db.jobs).toHaveLength(1);
@@ -151,7 +166,7 @@ describe("booking-aware soft deletion", () => {
     const db = freshDb();
     const client = createFakeSupabase(db as never);
     await del(client, [OFFERED], R(4));
-    const row = db.leads.find((l) => l.id === OFFERED)!;
+    const row = leadRow(db, OFFERED);
     expect(reactivationBlocked(row)).toBe(true);
     // Deleted alone blocks, booked alone blocks, neither does not.
     expect(reactivationBlocked({ deleted_at: "2026-09-04T00:00:00Z", booking_status: "none" })).toBe(true);
@@ -164,7 +179,7 @@ describe("booking-aware soft deletion", () => {
     const client = createFakeSupabase(db as never);
     await del(client, [OFFERED], R(5));
     // Simulate drift while deleted.
-    const row = db.leads.find((l) => l.id === OFFERED)!;
+    const row = leadRow(db, OFFERED);
     row.status = "new";
     row.booking_status = "none";
     const restored = await restoreLeads(client, {
@@ -197,8 +212,8 @@ describe("booking-aware soft deletion", () => {
     expect(result.deleted).toBe(1);
     expect(result.failures.map((f) => f.leadId)).toEqual([OFFERED]);
     expect(result.failures[0]!.reason).toBe(BOOKED_DELETION_BLOCK_REASON);
-    expect(db.leads.find((l) => l.id === OFFERED)!.deleted_at).toBeNull();
-    expect(db.leads.find((l) => l.id === UNBOOKED)!.deleted_at).toBeTruthy();
+    expect(leadRow(db, OFFERED).deleted_at).toBeNull();
+    expect(leadRow(db, UNBOOKED).deleted_at).toBeTruthy();
     expect(deletionBlockedByBooking({ leadId: OFFERED, hasConfirmedOffer: true, hasScheduledJob: false, booked: true })).toBe(false);
   });
 
@@ -208,7 +223,7 @@ describe("booking-aware soft deletion", () => {
     const result = await del(client, [FOREIGN], R(8));
     expect(result.deleted).toBe(0);
     expect(result.failures[0]!.reason).toBe("Lead not found for this business");
-    const foreign = db.leads.find((l) => l.id === FOREIGN)!;
+    const foreign = leadRow(db, FOREIGN);
     expect(foreign.deleted_at).toBeNull();
     expect(foreign.status).toBe("new");
     const restore = await restoreLeads(client, {
@@ -240,9 +255,9 @@ describe("booking-aware soft deletion", () => {
     expect(db.booking_offers).toHaveLength(3);
     expect(db.jobs).toHaveLength(1);
     for (const row of db.leads) {
-      expect(row.consent_status).toBe("granted");
-      expect(row.requires_owner_review).toBe(false);
-      expect(row.quote_status).toBe("in_progress");
+      expect(row["consent_status"]).toBe("granted");
+      expect(row["requires_owner_review"]).toBe(false);
+      expect(row["quote_status"]).toBe("in_progress");
     }
   });
 });
