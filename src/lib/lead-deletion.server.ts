@@ -16,6 +16,13 @@ import {
   type DeletionResult,
 } from "@/lib/lead-deletion";
 import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
+import {
+  authoritativeBookingState,
+  bookingPreservationColumns,
+  deletionBlockedByBooking,
+  BOOKED_DELETION_BLOCK_REASON,
+} from "@/lib/lead-deletion-booking";
+import type { LeadBookingProjection, LeadBookingState } from "@/lib/booking-projection";
 
 type Client = SupabaseClient<Database>;
 
