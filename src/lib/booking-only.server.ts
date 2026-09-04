@@ -7,13 +7,7 @@
 // message it can produce is the server-composed operational confirmation,
 // idempotent on the confirmed offer.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { bookingConfirmationIdempotencyKey, buildBookingConfirmationMessage } from "@/lib/booking";
-import {
-  BOOKING_ONLY_ALLOWED_TEMPLATE,
-  confirmationSmsDecision,
-  isBookingOnlyTenant,
-  ownerBookingAlert,
-} from "@/lib/booking-only-mode";
+import { isBookingOnlyTenant, ownerBookingAlert } from "@/lib/booking-only-mode";
 import { slotLabel } from "@/lib/web-chat-booking";
 
 export type BookingOnlyFinalizeResult = {
