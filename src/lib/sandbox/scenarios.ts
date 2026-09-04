@@ -112,7 +112,7 @@ export const SANDBOX_SCENARIOS: readonly SandboxFixture[] = [
     scenarioId: "S04_suppressed",
     description: "Suppressed lead.",
     leadFixtureId: "fixture-04-suppressed",
-    lead: lead({ consentStatus: "suppressed", suppressed: true, phone: "+61400000004" }),
+    lead: lead({ consentStatus: "granted", suppressed: true, phone: "+61400000004" }),
   }),
   base({
     scenarioId: "S05_owner_review_required",
