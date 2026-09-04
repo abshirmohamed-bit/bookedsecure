@@ -42,6 +42,13 @@ export type ProvenanceInput = {
   hasScheduledJob?: boolean;
   /** True only when a web_conversations row exists for this lead. */
   hasQuoteChatConversation?: boolean;
+  /**
+   * True only when `classifyCompletedQuoteLead` (see quote-classification.ts)
+   * confirmed a completed public quote conversation with an approved service,
+   * customer, vehicle, suburb and explicit SMS consent, no confirmed booking
+   * and no scheduled job. Declining offered slots does NOT clear this flag.
+   */
+  completedQuoteActiveEnquiry?: boolean;
   /** Verified only when the customer supplied it themselves. */
   approved_service_id?: string | null;
   vehicle_type?: string | null;
