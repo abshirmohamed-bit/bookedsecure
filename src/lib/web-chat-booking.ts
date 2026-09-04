@@ -28,8 +28,14 @@ export function isPilotServiceName(name: string | null | undefined): boolean {
 }
 
 /**
- * Pilot eligibility. Every condition must hold; anything else completes the
- * conversation exactly as it does today, with no booking step.
+ * Booking eligibility.
+ *
+ * Under booking-only production mode the tenant may take a booking for ANY of
+ * its approved, active services that has a server-side appointment duration —
+ * the deterministic availability function still decides the times. Outside
+ * booking-only mode the original single-service pilot scope applies. Every
+ * other condition must hold in both cases; anything else completes the
+ * conversation with no booking step.
  */
 export function isPilotEligible(input: {
   businessId: string;
@@ -41,12 +47,14 @@ export function isPilotEligible(input: {
   serviceDurationMinutes: number | null | undefined;
   availabilityActive: boolean;
   slotCount: number;
+  /** True when the tenant is authorised for booking-only production mode. */
+  bookingOnlyTenant?: boolean;
 }): boolean {
   if (input.businessId !== PILOT_BUSINESS_ID) return false;
   if (input.slug.toLowerCase() !== PILOT_TENANT_SLUG) return false;
   if (!input.approvedServiceId) return false;
   if (!input.serviceActive) return false;
-  if (!isPilotServiceName(input.serviceName)) return false;
+  if (input.bookingOnlyTenant !== true && !isPilotServiceName(input.serviceName)) return false;
   if (
     !Number.isInteger(input.serviceDurationMinutes) ||
     Number(input.serviceDurationMinutes) <= 0
@@ -55,6 +63,7 @@ export function isPilotEligible(input: {
   if (!input.availabilityActive) return false;
   return input.slotCount > 0;
 }
+
 
 /** Tenant-local, human-readable slot label. The tenant timezone, never the browser's. */
 export function slotLabel(slotStart: string, timezone: string): string {

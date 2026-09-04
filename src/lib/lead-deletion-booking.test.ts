@@ -122,7 +122,7 @@ describe("booking-aware soft deletion", () => {
     expect(row.deleted_at).toBeTruthy();
     expect(row.booking_status).toBe("scheduled");
     expect(row.status).toBe("scheduled");
-    expect(row.customer_status).toBe("booked_lead");
+    expect(row.customer_status).toBe("prospect");
     // Offer records are untouched.
     expect(db.booking_offers.find((o) => o.lead_id === OFFERED)!.status).toBe("confirmed");
   });
@@ -159,7 +159,7 @@ describe("booking-aware soft deletion", () => {
         { status: "new", booking_status: "none", quote_status: "in_progress", customer_status: "prospect" },
         state,
       ),
-    ).toEqual({ status: "scheduled", booking_status: "scheduled", customer_status: "booked_lead" });
+    ).toEqual({ status: "scheduled", booking_status: "scheduled", customer_status: "prospect" });
   });
 
   it("4. a deleted booked lead remains blocked from reactivation", async () => {

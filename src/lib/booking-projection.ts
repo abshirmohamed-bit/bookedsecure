@@ -31,9 +31,12 @@ export function projectLeadAfterBookingCommit(current: LeadBookingState): LeadBo
   return {
     status: "scheduled",
     booking_status: "scheduled",
-    // A returning customer stays a previous customer; anyone else is now booked.
+    // A returning customer stays a previous customer; anyone else is now a
+    // booked prospect ("prospect" is the canonical stored customer status —
+    // `booked_lead` is a lead *context*, not a customer status).
     customer_status:
-      current.customer_status === "previous_customer" ? "previous_customer" : "booked_lead",
+      current.customer_status === "previous_customer" ? "previous_customer" : "prospect",
+
   };
 }
 
