@@ -160,7 +160,9 @@ export function localTimeIn(timezone: string, at: Date): string {
   }).format(at);
 }
 
-const STEP_MS = 15 * 60 * 1000;
+// One-minute resolution, so a deferred send resumes exactly on the boundary
+// (08:00 tenant-local) rather than at the next coarse step.
+const STEP_MS = 60 * 1000;
 
 /**
  * First instant at or after `at` that falls outside the tenant's quiet-hours
