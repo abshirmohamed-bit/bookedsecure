@@ -16,6 +16,13 @@ import {
   type DeletionResult,
 } from "@/lib/lead-deletion";
 import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
+import {
+  authoritativeBookingState,
+  bookingPreservationColumns,
+  deletionBlockedByBooking,
+  BOOKED_DELETION_BLOCK_REASON,
+} from "@/lib/lead-deletion-booking";
+import type { LeadBookingProjection, LeadBookingState } from "@/lib/booking-projection";
 
 type Client = SupabaseClient<Database>;
 
@@ -31,6 +38,95 @@ type RequestRow = {
   failed_count: number;
   failures: unknown;
 };
+
+type BookingFacts = {
+  offers: { lead_id: string; status: string | null }[];
+  jobs: { lead_id: string; completion_status: string | null }[];
+  /** Booking projection columns, per lead, read straight from `leads`. */
+  projections: Map<string, LeadBookingState>;
+};
+
+const EMPTY_BOOKING_FACTS: BookingFacts = { offers: [], jobs: [], projections: new Map() };
+
+/** Reads the AUTHORITATIVE booking tables, tenant-scoped and read-only. */
+async function loadBookingFacts(
+  client: Client,
+  businessId: string,
+  leadIds: string[],
+): Promise<BookingFacts> {
+  if (leadIds.length === 0) return EMPTY_BOOKING_FACTS;
+  const [{ data: offers }, { data: jobs }, { data: leads }] = await Promise.all([
+    client
+      .from("booking_offers")
+      .select("lead_id, status")
+      .eq("business_id", businessId)
+      .in("lead_id", leadIds),
+    client
+      .from("jobs")
+      .select("lead_id, completion_status")
+      .eq("business_id", businessId)
+      .in("lead_id", leadIds),
+    client
+      .from("leads")
+      .select("id, status, booking_status, quote_status, customer_status")
+      .eq("business_id", businessId)
+      .in("id", leadIds),
+  ]);
+  const projections = new Map<string, LeadBookingState>();
+  for (const row of (leads ?? []) as unknown as (LeadBookingState & { id: string })[]) {
+    projections.set(row.id, {
+      status: String(row.status ?? "new"),
+      booking_status: String(row.booking_status ?? "none"),
+      quote_status: String(row.quote_status ?? "in_progress"),
+      customer_status: String(row.customer_status ?? "prospect"),
+    });
+  }
+  return {
+    offers: (offers ?? []) as BookingFacts["offers"],
+    jobs: (jobs ?? []) as BookingFacts["jobs"],
+    projections,
+  };
+}
+
+/** Booked leads keep their scheduled projection; unbooked leads are untouched. */
+function preservationFor(leadId: string, facts: BookingFacts): LeadBookingProjection | null {
+  const authoritative = authoritativeBookingState({
+    leadId,
+    offers: facts.offers,
+    jobs: facts.jobs,
+  });
+  const current =
+    facts.projections.get(leadId) ??
+    ({
+      status: "new",
+      booking_status: "none",
+      quote_status: "in_progress",
+      customer_status: "prospect",
+    } satisfies LeadBookingState);
+  return bookingPreservationColumns(current, authoritative);
+}
+
+/**
+ * Writes back the scheduled projection for every booked lead in `leadIds`.
+ * Tenant- and lead-scoped, booking columns only — never consent, quote status,
+ * owner review, offers, jobs, messages or automation.
+ */
+async function preserveBookingProjections(
+  client: Client,
+  businessId: string,
+  leadIds: string[],
+  facts: BookingFacts,
+): Promise<void> {
+  for (const leadId of leadIds) {
+    const columns: LeadBookingProjection | null = preservationFor(leadId, facts);
+    if (!columns) continue;
+    await client
+      .from("leads")
+      .update(columns)
+      .eq("business_id", businessId)
+      .eq("id", leadId);
+  }
+}
 
 async function loadTenantLeads(
   client: Client,
@@ -81,6 +177,8 @@ export async function softDeleteLeads(
     leadIds: string[];
     reason?: string | null;
     allowProtected?: boolean;
+    /** Product policy: refuse leads with a confirmed offer or scheduled job. */
+    blockBookedLeads?: boolean;
   },
 ): Promise<DeletionResult> {
   const requestedIds = normaliseSelection(input.leadIds);
@@ -136,7 +234,33 @@ export async function softDeleteLeads(
   const failures = [...plan.failures];
   let deleted = 0;
 
-  if (plan.toDelete.length > 0) {
+  // Authoritative booking tables, not the lead's projection columns.
+  const bookingFacts = await loadBookingFacts(client, input.businessId, plan.toDelete);
+
+  const deletable: string[] = [];
+  for (const leadId of plan.toDelete) {
+    const authoritative = authoritativeBookingState({
+      leadId,
+      offers: bookingFacts.offers,
+      jobs: bookingFacts.jobs,
+    });
+    if (
+      deletionBlockedByBooking(
+        authoritative,
+        input.blockBookedLeads === undefined ? {} : { blockBookedLeads: input.blockBookedLeads },
+      )
+    ) {
+      failures.push({
+        leadId,
+        name: tenantLeads.find((lead) => lead.id === leadId)?.name ?? null,
+        reason: BOOKED_DELETION_BLOCK_REASON,
+      });
+      continue;
+    }
+    deletable.push(leadId);
+  }
+
+  if (deletable.length > 0) {
     const { data: updated, error } = await client
       .from("leads")
       .update({
@@ -147,20 +271,22 @@ export async function softDeleteLeads(
       })
       .eq("business_id", input.businessId)
       .is("deleted_at", null)
-      .in("id", plan.toDelete)
+      .in("id", deletable)
       .select("id");
     if (error) {
-      for (const leadId of plan.toDelete) {
+      for (const leadId of deletable) {
         failures.push({ leadId, name: null, reason: "Database rejected the update" });
       }
     } else {
       deleted = (updated ?? []).length;
       const done = new Set((updated ?? []).map((row) => row.id));
-      for (const leadId of plan.toDelete) {
+      for (const leadId of deletable) {
         if (!done.has(leadId)) {
           failures.push({ leadId, name: null, reason: "Lead was not updated" });
         }
       }
+      // Booked leads keep the scheduled projection the booking tables prove.
+      await preserveBookingProjections(client, input.businessId, Array.from(done), bookingFacts);
     }
   }
 
@@ -255,6 +381,10 @@ export async function restoreLeads(
       name: null,
       reason: "Not a deleted lead for this business",
     }));
+
+  // A restored lead keeps the booking projection its booking tables prove.
+  const restoreFacts = await loadBookingFacts(client, input.businessId, Array.from(done));
+  await preserveBookingProjections(client, input.businessId, Array.from(done), restoreFacts);
 
   await client.from("audit_events").insert({
     business_id: input.businessId,

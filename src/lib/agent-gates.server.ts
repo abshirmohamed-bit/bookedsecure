@@ -45,7 +45,7 @@ export type AuthorisationInput = {
 };
 
 const LEAD_COLUMNS =
-  "id, business_id, consent_status, opted_out_at, sms_suppressed_at, reachability_state, requires_owner_review, booking_status, lead_context, lead_origin, source_channel";
+  "id, business_id, consent_status, opted_out_at, sms_suppressed_at, reachability_state, requires_owner_review, booking_status, deleted_at, lead_context, lead_origin, source_channel";
 
 /** Outbound messages authored by a human rather than by automation. */
 const MANUAL_MESSAGE_KINDS = new Set(["manual"]);
@@ -209,6 +209,7 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<A
       (campaign.execution_authorisation_kind as "canary" | "bounded_batch" | null) ?? null,
 
     requiresOwnerReview: lead.requires_owner_review === true,
+    leadDeleted: Boolean((lead as { deleted_at?: string | null }).deleted_at),
     consentGranted: consentStatus === "granted",
     consentCaptureAction: input.actionKind === "capture_consent",
     consentDeclined: consentStatus === "declined",
