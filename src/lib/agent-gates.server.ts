@@ -30,14 +30,33 @@ export type AuthorisationInput = {
 };
 
 const LEAD_COLUMNS =
-  "id, business_id, consent_status, opted_out_at, sms_suppressed_at, reachability_state, requires_owner_review, booking_status";
+  "id, business_id, consent_status, opted_out_at, sms_suppressed_at, reachability_state, requires_owner_review, booking_status, lead_context";
+
+/** Outbound messages authored by a human rather than by automation. */
+const MANUAL_MESSAGE_KINDS = new Set(["manual"]);
+const MANUAL_MESSAGE_SOURCES = new Set(["manual", "owner", "owner_manual"]);
+
+function isManualOutbound(row: {
+  direction?: string | null;
+  message_kind?: string | null;
+  message_source?: string | null;
+}): boolean {
+  if (row.direction !== "outbound") return false;
+  return (
+    MANUAL_MESSAGE_KINDS.has(row.message_kind ?? "") ||
+    MANUAL_MESSAGE_SOURCES.has(row.message_source ?? "")
+  );
+}
+
 
 export async function authoriseAgentAction(input: AuthorisationInput): Promise<GateResult> {
   const now = input.now ?? new Date();
   const hourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
   const dayStart = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  const [leadRes, businessRes, campaignRes, configRes, conversationRes] = await Promise.all([
+  const [leadRes, businessRes, campaignRes, configRes, conversationRes, historyRes] =
+    await Promise.all([
+
     supabaseAdmin.from("leads").select(LEAD_COLUMNS).eq("id", input.leadId).maybeSingle(),
     supabaseAdmin
       .from("businesses")
@@ -64,7 +83,15 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<G
       .eq("business_id", input.businessId)
       .eq("lead_id", input.leadId)
       .maybeSingle(),
+    supabaseAdmin
+      .from("messages")
+      .select("id, direction, message_kind, message_source, created_at")
+      .eq("business_id", input.businessId)
+      .eq("lead_id", input.leadId)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
+
 
   const lead = leadRes.data;
   const business = businessRes.data;
@@ -118,6 +145,19 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<G
   const consentStatus = lead.consent_status ?? "unknown";
   const scopeLeadIds = (campaign.scope_lead_ids ?? []) as string[];
 
+  // Human-handling signals, newest first.
+  const history = (historyRes.data ?? []) as {
+    direction: string | null;
+    message_kind: string | null;
+    message_source: string | null;
+    created_at: string | null;
+  }[];
+  const latestOutbound = history.find((m) => m.direction === "outbound") ?? null;
+  const lastManualOutboundAt = history.find(isManualOutbound)?.created_at ?? null;
+  const lastInboundReplyAt = history.find((m) => m.direction === "inbound")?.created_at ?? null;
+
+
+
   const facts: GateFacts = {
     actionKind: input.actionKind,
     businessId: input.businessId,
@@ -163,7 +203,17 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<G
     maxLeadsPerActivation: business.agent_max_leads_per_activation ?? 0,
 
     planStillCurrent: input.planStillCurrent,
+
+    conversationStatus: conversationRes.data?.status ?? null,
+    lastManualOutboundAt,
+    latestOutboundIsManual: latestOutbound ? isManualOutbound(latestOutbound) : false,
+    lastInboundReplyAt,
+    ownerReviewFlag:
+      lead.requires_owner_review === true || (lead.lead_context ?? null) === "owner_review",
+    humanTakeoverActive: conversationRes.data?.status === "owner_handling",
+    nowIso: now.toISOString(),
   };
+
 
   return resolveExecutionMode({
     requestedMode: input.requestedMode,

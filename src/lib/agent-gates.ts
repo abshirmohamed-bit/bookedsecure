@@ -44,8 +44,67 @@ export const GATE_IDS = [
   "activation_lead_cap",
   "plan_freshness",
   "tenant_scope",
+  "owner_review",
 ] as const;
 export type GateId = (typeof GATE_IDS)[number];
+
+/**
+ * How recently a manual outbound message counts as the owner actively handling
+ * the conversation. Applies to agent execution eligibility only; manual
+ * messaging behaviour is untouched.
+ */
+export const MANUAL_OUTBOUND_RECENCY_HOURS = 72;
+
+/** Human-handling facts. All optional: absent facts never block. */
+export type OwnerHandlingFacts = {
+  /** `conversations.status` for this lead, if a conversation row exists. */
+  conversationStatus?: string | null;
+  /** Most recent manual (human-authored) outbound message timestamp. */
+  lastManualOutboundAt?: string | null;
+  /** True when the newest outbound message on the conversation is manual. */
+  latestOutboundIsManual?: boolean;
+  /** Newest inbound customer reply timestamp. */
+  lastInboundReplyAt?: string | null;
+  /** An owner-review flag is present on the lead or conversation. */
+  ownerReviewFlag?: boolean;
+  /** A human takeover event is currently active. */
+  humanTakeoverActive?: boolean;
+  /** Evaluation instant; defaults to now. */
+  nowIso?: string;
+};
+
+const time = (value: string | null | undefined): number | null => {
+  if (!value) return null;
+  const t = Date.parse(value);
+  return Number.isFinite(t) ? t : null;
+};
+
+/**
+ * Pure owner-handling evaluation. Any human involvement signal blocks agent
+ * execution with `owner_review`; it never changes manual messaging.
+ */
+export function evaluateOwnerHandling(facts: OwnerHandlingFacts): readonly GateFailure[] {
+  const out: GateFailure[] = [];
+  const add = (detail: string) => out.push({ gate: "owner_review", detail });
+
+  const now = time(facts.nowIso) ?? Date.now();
+  const manualAt = time(facts.lastManualOutboundAt);
+  const replyAt = time(facts.lastInboundReplyAt);
+  const manualIsRecent =
+    manualAt !== null && now - manualAt <= MANUAL_OUTBOUND_RECENCY_HOURS * 60 * 60 * 1000;
+
+  if (facts.conversationStatus === "owner_handling") add("conversation status is owner_handling");
+  if (facts.conversationStatus === "needs_attention" && manualIsRecent)
+    add("conversation needs attention and has recent manual outbound activity");
+  if (facts.latestOutboundIsManual === true) add("latest outbound message is manual");
+  if (manualAt !== null && replyAt !== null && manualAt > replyAt)
+    add("owner manually contacted the lead after the latest inbound reply");
+  if (facts.ownerReviewFlag === true) add("owner review flag is present");
+  if (facts.humanTakeoverActive === true) add("a human takeover event is active");
+
+  return out;
+}
+
 
 /** Action kinds that put an SMS on the wire. `capture_consent` is one of them. */
 export const OUTBOUND_ACTION_KINDS: readonly ActionKind[] = ["capture_consent", "send_message"];
@@ -104,7 +163,8 @@ export type GateFacts = {
 
   /** Re-plan equality: the plan must still be the current plan. */
   planStillCurrent: boolean;
-};
+} & OwnerHandlingFacts;
+
 
 export type GateResult = {
   mode: ExecutionMode;
@@ -183,6 +243,10 @@ export function evaluateActivationGates(facts: GateFacts): readonly GateFailure[
     fail("activation_lead_cap", "activation exceeds the tenant lead cap");
 
   if (!facts.planStillCurrent) fail("plan_freshness", "plan is stale — re-plan before executing");
+
+  // Human involvement blocks agent execution only; manual messaging is untouched.
+  f.push(...evaluateOwnerHandling(facts));
+
 
   return f;
 }

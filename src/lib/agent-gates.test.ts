@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   EXECUTION_MODES,
   GATE_IDS,
+  MANUAL_OUTBOUND_RECENCY_HOURS,
   OUTBOUND_ACTION_KINDS,
+  evaluateOwnerHandling,
   evaluateActivationGates,
   resolveExecutionMode,
   type GateFacts,
@@ -211,5 +213,77 @@ describe("activation gates", () => {
     );
     expect(failures.length).toBeGreaterThanOrEqual(3);
     expect(failures.every((f) => f.detail.length > 0)).toBe(true);
+  });
+});
+
+describe("owner-handling gate (agent execution eligibility only)", () => {
+  const NOW = "2026-09-04T09:00:00Z";
+  const recent = "2026-09-03T05:08:00Z";
+  const old = "2026-08-01T05:08:00Z";
+
+  const ownerCases: [string, Partial<GateFacts>][] = [
+    ["conversation is owner_handling", { conversationStatus: "owner_handling" }],
+    [
+      "needs_attention with recent manual outbound",
+      { conversationStatus: "needs_attention", lastManualOutboundAt: recent },
+    ],
+    ["latest outbound is manual", { latestOutboundIsManual: true }],
+    [
+      "owner messaged after the latest inbound reply",
+      { lastManualOutboundAt: recent, lastInboundReplyAt: "2026-09-01T08:32:58Z" },
+    ],
+    ["owner review flag present", { ownerReviewFlag: true }],
+    ["human takeover active", { humanTakeoverActive: true }],
+  ];
+
+  for (const [label, override] of ownerCases) {
+    it(`blocks with owner_review: ${label}`, () => {
+      const facts = passingFacts({ nowIso: NOW, ...override });
+      const failures = evaluateActivationGates(facts);
+      expect(failures.map((f) => f.gate)).toContain("owner_review");
+      expect(evaluateOwnerHandling(facts).length).toBeGreaterThan(0);
+      expect(
+        resolveExecutionMode({ requestedMode: "live", serverVerifiedGateFailures: failures }),
+      ).toMatchObject({ mode: "dry_run", allowed: false });
+    });
+  }
+
+  it("does not block when no human involvement signal is present", () => {
+    expect(
+      evaluateOwnerHandling({
+        nowIso: NOW,
+        conversationStatus: "active",
+        lastManualOutboundAt: null,
+        latestOutboundIsManual: false,
+        lastInboundReplyAt: "2026-09-01T08:32:58Z",
+      }),
+    ).toEqual([]);
+    expect(evaluateActivationGates(passingFacts({ nowIso: NOW }))).toEqual([]);
+  });
+
+  it("treats stale manual outbound on needs_attention as not recent", () => {
+    const failures = evaluateOwnerHandling({
+      nowIso: NOW,
+      conversationStatus: "needs_attention",
+      lastManualOutboundAt: old,
+      lastInboundReplyAt: "2026-09-02T00:00:00Z",
+    });
+    expect(failures).toEqual([]);
+    expect(MANUAL_OUTBOUND_RECENCY_HOURS).toBe(72);
+  });
+
+  it("does not block when the inbound reply is newer than the manual outbound", () => {
+    expect(
+      evaluateOwnerHandling({
+        nowIso: NOW,
+        conversationStatus: "active",
+        lastManualOutboundAt: "2026-09-01T00:00:00Z",
+        lastInboundReplyAt: "2026-09-02T00:00:00Z",
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps owner_review in the stable gate vocabulary", () => {
+    expect(GATE_IDS).toContain("owner_review");
   });
 });
