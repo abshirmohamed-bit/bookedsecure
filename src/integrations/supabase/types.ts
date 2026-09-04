@@ -1925,7 +1925,12 @@ export type Database = {
           execution_authorised_at: string | null
           execution_authorised_by: string | null
           id: string
+          lead_context: string | null
           max_leads: number
+          max_recipients: number | null
+          max_segments: number | null
+          max_sends: number | null
+          message_path: string | null
           name: string
           scope_kind: string
           scope_lead_ids: string[]
@@ -1933,6 +1938,7 @@ export type Database = {
           sequence_approved_by: string | null
           sequence_id: string
           status: string
+          template_id: string | null
           template_version: number
           updated_at: string
         }
@@ -1947,7 +1953,12 @@ export type Database = {
           execution_authorised_at?: string | null
           execution_authorised_by?: string | null
           id?: string
+          lead_context?: string | null
           max_leads?: number
+          max_recipients?: number | null
+          max_segments?: number | null
+          max_sends?: number | null
+          message_path?: string | null
           name: string
           scope_kind?: string
           scope_lead_ids?: string[]
@@ -1955,6 +1966,7 @@ export type Database = {
           sequence_approved_by?: string | null
           sequence_id: string
           status?: string
+          template_id?: string | null
           template_version?: number
           updated_at?: string
         }
@@ -1969,7 +1981,12 @@ export type Database = {
           execution_authorised_at?: string | null
           execution_authorised_by?: string | null
           id?: string
+          lead_context?: string | null
           max_leads?: number
+          max_recipients?: number | null
+          max_segments?: number | null
+          max_sends?: number | null
+          message_path?: string | null
           name?: string
           scope_kind?: string
           scope_lead_ids?: string[]
@@ -1977,6 +1994,7 @@ export type Database = {
           sequence_approved_by?: string | null
           sequence_id?: string
           status?: string
+          template_id?: string | null
           template_version?: number
           updated_at?: string
         }
