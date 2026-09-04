@@ -132,7 +132,7 @@ export const SANDBOX_SCENARIOS: readonly SandboxFixture[] = [
     description: "Lead with prior outbound SMS for the same intent.",
     leadFixtureId: "fixture-07-prior-outbound",
     lead: lead({ phone: "+61400000007" }),
-    priorOutboundKeys: ["seq:00000000-0000-4000-8000-000000000001:fixture-07-prior-outbound:quote_chat_completion:content"],
+    priorOutboundKeys: ["seq:00000000-0000-4000-8000-000000000001:fixture-07-prior-outbound:quote_chat_completion:step1"],
   }),
   base({
     scenarioId: "S08_quiet_hours",
