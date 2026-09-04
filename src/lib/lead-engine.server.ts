@@ -307,7 +307,10 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     }
   }
 
+  const capturedConsentAt = new Date().toISOString();
+
   const { data: lead, error } = await supabaseAdmin
+
     .from("leads")
     .insert({
       business_id: businessId,
