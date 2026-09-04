@@ -36,7 +36,7 @@ export const FIELD_LABELS: Record<CorrectableStep, string> = {
 const CUE =
   /\b(actually|instead|change|changed|correct|correction|update|updated|i\s+meant|i\s+mean|sorry|wrong|incorrect|rather|scratch\s+that|go\s+back|previous\s+answer|put\s+it|put\s+my|make\s+it|use\s+this|use\s+my|should\s+be|not\s+that)\b/i;
 
-const FIELD_WORDS: Record<CorrectableStep, RegExp> = {
+export const FIELD_WORDS: Record<CorrectableStep, RegExp> = {
   name: /\b(names?)\b/i,
   mobile: /\b(mobile|phone|number|numbers|cell|digits)\b/i,
   email: /\b(e-?mails?|email\s+address)\b/i,

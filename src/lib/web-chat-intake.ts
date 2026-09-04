@@ -17,6 +17,7 @@
  */
 
 import { normaliseAuMobile } from "@/lib/domain";
+import { FIELD_LABELS, FIELD_WORDS, extractCorrectionValue, type CorrectableStep } from "@/lib/web-chat-correction";
 import {
   applyAnswer,
   type WebChatCollected,
@@ -609,4 +610,60 @@ export function outstandingFields(collected: WebChatCollected): IntakeField[] {
   if (!(collected.name ?? "").trim()) fields.push("name");
   if (!collected.mobile_number) fields.push("mobile");
   return fields;
+}
+
+// ---------------------------------------------------------------------------
+// Multi-field change directives
+// ---------------------------------------------------------------------------
+
+export type FieldUpdate = { field: CorrectableStep; value: string; echo: string };
+
+/**
+ * "change the vehicle to a Mazda CX-5 and the suburb to Bankstown".
+ *
+ * The message is split into clauses so each named field gets ONLY its own value
+ * — the value of one field can never bleed into another. Every value still goes
+ * through that field's own validation; a clause that fails validation is
+ * reported, not stored.
+ */
+export function applyFieldDirectives(
+  raw: string,
+  collected: WebChatCollected,
+  tenant: WebChatTenant,
+): { collected: WebChatCollected; updates: FieldUpdate[]; invalid: { field: CorrectableStep; error: string }[] } {
+  const clauses = raw
+    .split(/\s*(?:,|;|\.|\band\b|\balso\b|\bplus\b)\s*/i)
+    .map((clause) => clause.trim())
+    .filter((clause) => clause.length > 0);
+
+  let next: WebChatCollected = { ...collected };
+  const updates: FieldUpdate[] = [];
+  const invalid: { field: CorrectableStep; error: string }[] = [];
+
+  for (const clause of clauses) {
+    const fields = (Object.keys(FIELD_WORDS) as CorrectableStep[]).filter((field) =>
+      FIELD_WORDS[field].test(clause),
+    );
+    // A clause naming two fields is not split further — ambiguous clauses are skipped.
+    if (fields.length !== 1) continue;
+    const field = fields[0]!;
+    if (updates.some((update) => update.field === field)) continue;
+    const value = extractCorrectionValue(clause, field) ?? extractCorrectionValue(`actually ${clause}`, field);
+    if (!value) continue;
+    const applied = applyAnswer({ ...next, reviewed: false }, field, value, tenant);
+    if (!applied.ok) {
+      invalid.push({ field, error: applied.error });
+      continue;
+    }
+    next = applied.collected;
+    updates.push({ field, value, echo: applied.echo });
+  }
+
+  return { collected: next, updates, invalid };
+}
+
+export function fieldUpdateMessage(updates: FieldUpdate[]): string {
+  const parts = updates.map((update) => `your ${FIELD_LABELS[update.field]} to ${update.echo}`);
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
+  return `Got it — I've updated ${list}.`;
 }
