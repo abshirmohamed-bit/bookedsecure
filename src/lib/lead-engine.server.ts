@@ -13,6 +13,8 @@ import {
   renderTemplate,
   type LeadStatus,
 } from "@/lib/domain";
+import { buildConsentPromotion } from "@/lib/consent-promotion";
+
 
 import { countSegments } from "@/lib/sms/segments";
 import { getProvider, type ResolvedSender } from "@/lib/sms/provider.server";
