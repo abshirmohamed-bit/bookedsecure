@@ -119,6 +119,10 @@ export function classifyLeadContext(input: ProvenanceInput): LeadContext {
   if (input.requires_owner_review === true) return "owner_review";
   if (booking === "completed") return "previous_customer";
   if (booking === "scheduled") return "booked_lead";
+  // A completed public quote conversation is an active enquiry, even when the
+  // customer declined every offered slot: declining slots is not evidence of a
+  // cold contact.
+  if (input.completedQuoteActiveEnquiry === true) return "active_form_enquiry";
   if (input.hasQuoteChatConversation) return "quote_chat_lead";
   if (input.lead_origin === CRM_IMPORT_ORIGIN) {
     return verified.hasVerifiedContext ? "verified_historical_enquiry" : "contact_only_unqualified";
