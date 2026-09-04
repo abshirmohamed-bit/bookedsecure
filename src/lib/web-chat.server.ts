@@ -34,6 +34,17 @@ import {
   BOOKING_UNAVAILABLE_MESSAGE,
   bookingDeclinedMessage,
 } from "@/lib/web-chat-booking";
+import {
+  UNSUPPORTED_REQUEST_MESSAGE,
+  ambiguityMessage,
+  applyIntake,
+  extractIntake,
+  groupedMissingMessage,
+  outstandingFields,
+  parseApprovedLocations,
+  unmatchedServiceMessage,
+} from "@/lib/web-chat-intake";
+
 
 
 const MAX_MESSAGES = 60;
