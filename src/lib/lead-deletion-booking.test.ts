@@ -199,7 +199,7 @@ describe("booking-aware soft deletion", () => {
     const client = createFakeSupabase(db as never);
     await del(client, [OFFERED, JOBBED], R(6));
     for (const id of [OFFERED, JOBBED]) {
-      const row = db.leads.find((l) => l.id === id)!;
+      const row = leadRow(db, id);
       expect(row.status).not.toBe("new");
       expect(row.booking_status).not.toBe("none");
     }
