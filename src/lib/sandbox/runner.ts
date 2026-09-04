@@ -219,6 +219,7 @@ export function sandboxPlan(fixture: SandboxFixture): { decision: SequenceDecisi
 function classifyOutcome(input: {
   failures: readonly GateFailure[];
   duplicate: boolean;
+  consentEvidence: boolean;
   serviceIsListed: boolean;
   bookingCommitFailed: boolean;
   bookingConflict: boolean;
@@ -227,7 +228,9 @@ function classifyOutcome(input: {
   const has = (gates: readonly GateId[]) => input.failures.some((f) => gates.includes(f.gate));
   if (!input.serviceIsListed || input.bookingCommitFailed || has(STATE_GATES))
     return "SANDBOX_BLOCKED_STATE_INCONSISTENCY";
-  if (has(CONSENT_GATES)) return "SANDBOX_BLOCKED_CONSENT";
+  // No stored consent evidence blocks outreach even when the planner would
+  // plan a consent-capture message: consent is never inferred from a CRM row.
+  if (!input.consentEvidence || has(CONSENT_GATES)) return "SANDBOX_BLOCKED_CONSENT";
   if (has(OWNER_REVIEW_GATES)) return "SANDBOX_BLOCKED_OWNER_REVIEW";
   if (has(REACHABILITY_GATES)) return "SANDBOX_BLOCKED_REACHABILITY";
   if (input.bookingConflict || has(["booking_conflict"])) return "SANDBOX_BLOCKED_BOOKING";
@@ -380,6 +383,7 @@ export function createSandboxRun(input?: {
       const outcome = classifyOutcome({
         failures,
         duplicate,
+        consentEvidence: fixture.lead.consentStatus === "granted",
         serviceIsListed: fixture.serviceIsListed,
         bookingCommitFailed: booking.commitFailed && fixture.bookingBehaviour === "commit_failure",
         bookingConflict: facts.hasConflictingBooking === true || fixture.lead.bookingStatus === "scheduled",
@@ -477,7 +481,7 @@ export function createSandboxRun(input?: {
         wouldCreateJob: eligible && booking.wouldCreateJob,
         wouldSend: eligible && Boolean(rendered) && !duplicate,
         didSend: false,
-        duplicateSuppressed: recorded?.duplicateSuppressed ?? duplicate,
+        duplicateSuppressed: (recorded?.duplicateSuppressed ?? false) || duplicate,
         plan,
       };
 
