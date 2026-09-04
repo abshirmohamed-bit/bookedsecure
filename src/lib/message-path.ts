@@ -281,6 +281,7 @@ export function buildOutboundDecision(input: {
     booking_result: bookingResult,
     source_attribution: facts.sourceAttribution,
     idempotency_key: facts.idempotencyKey,
+    exemption_failures: exemption.failures,
     eligible,
     // A replay of the same idempotency key never produces a second send.
     wouldSend: eligible && input.alreadySent !== true,
