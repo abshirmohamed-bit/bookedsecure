@@ -163,7 +163,8 @@ export type GateFacts = {
 
   /** Re-plan equality: the plan must still be the current plan. */
   planStillCurrent: boolean;
-};
+} & OwnerHandlingFacts;
+
 
 export type GateResult = {
   mode: ExecutionMode;
@@ -242,6 +243,10 @@ export function evaluateActivationGates(facts: GateFacts): readonly GateFailure[
     fail("activation_lead_cap", "activation exceeds the tenant lead cap");
 
   if (!facts.planStillCurrent) fail("plan_freshness", "plan is stale — re-plan before executing");
+
+  // Human involvement blocks agent execution only; manual messaging is untouched.
+  f.push(...evaluateOwnerHandling(facts));
+
 
   return f;
 }
