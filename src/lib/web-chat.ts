@@ -147,7 +147,7 @@ export function promptFor(
       return {
         step,
         kind: "choice",
-        text: "Which of our services are you interested in? If you're not sure, choose “Something else” and describe what you need.",
+        text: "Tell me what you need in your own words — for example “ceramic coating for my Mazda in Punchbowl next Tuesday”. You can also pick a service below.",
         options: [
           ...tenant.services.map((service) => ({
             value: service.id,
