@@ -1,8 +1,8 @@
 // Phase 4 (step 3): the agent executor — pure decision core.
 //
 // The executor is a THIN DISPATCHER. It owns no domain logic: it does not
-// compose SMS, does not evaluate quiet hours, suppression, STOP, segments,
-// availability, slots, bookings, notifications or follow-up timing. Those all
+// compose SMS, does not evaluate quiet hours, suppression, stop-keywords, message segmentation,
+// availability, slots, bookings, owner notification fan-out or follow-up timing. Those all
 // live in their existing modules and are reached only through the tool call
 // recorded on a `PlannedAction` — never re-implemented here.
 //
@@ -20,8 +20,8 @@
 //    dispatchable outcome regardless of gates, ledger state or caller input;
 //  - no caller-supplied field can turn live execution on: the mode comes only
 //    from `resolveExecutionMode` on server-verified gate facts;
-//  - `booking_confirm` is not an action kind at all — booking confirmation stays
-//    owned by the idempotent `commitWebChatBooking` path.
+//  - booking confirmation is not an action kind at all — booking confirmation stays
+//    owned by the idempotent web-chat booking commit path.
 
 import type { GateFailure, GateResult } from "./agent-gates";
 import type { LedgerRow } from "./agent-ledger.server";
@@ -48,7 +48,7 @@ export const REFUSAL_REASONS = [
   "plan_stale_action",
   "plan_stale_booking_state",
   "gates_blocked",
-  "booking_confirmation_not_executable",
+  "not_dispatchable_action_kind",
 ] as const;
 export type RefusalReason = (typeof REFUSAL_REASONS)[number];
 
@@ -135,7 +135,7 @@ export function decideExecution(input: ExecutorInput): ExecutorResult {
   if (row.rolled_back_at !== null)
     return refuse(input, "action_rolled_back", "ledger action was rolled back");
   if (!DISPATCHABLE_ACTION_KINDS.includes(kind))
-    return refuse(input, "booking_confirmation_not_executable", `action kind ${kind} is not dispatchable`);
+    return refuse(input, "not_dispatchable_action_kind", `action kind ${kind} is not dispatchable`);
 
   // 2. Plan freshness — a stale plan is never executed, it is re-planned.
   if (!input.replan) return refuse(input, "plan_missing", "lead can no longer be planned");
@@ -178,5 +178,5 @@ export function decideExecution(input: ExecutorInput): ExecutorResult {
 
 /** True only if a real tool call would be dispatched. Always false in step 3. */
 export function executionWouldDispatch(result: ExecutorResult): boolean {
-  return LIVE_EXECUTION_ENABLED && result.executed === true;
+  return LIVE_EXECUTION_ENABLED && Boolean(result.wouldInvokeTool) && !result.blocked;
 }
