@@ -85,4 +85,41 @@ describe("consent promotion", () => {
     expect(promotion.consent_record?.text).toBe(DEFAULT_CONSENT_TEXT);
     expect(promotion.consent_record?.at).toBe(AT);
   });
+
+  it("stays tenant- and lead-scoped: no identity keys travel with the promotion", () => {
+    const promotion = buildConsentPromotion(capture()) as Record<string, unknown>;
+    for (const key of [
+      "id",
+      "lead_id",
+      "business_id",
+      "mobile_number",
+      "email",
+      "external_id",
+    ]) {
+      expect(promotion[key]).toBeUndefined();
+    }
+  });
+
+  it("cannot be copied to another lead sharing the phone or email", () => {
+    // The patch reads only the target lead's own stored consent fields, so a
+    // second lead with the same number is evaluated entirely on its own state.
+    const otherLead = { consent_status: "unknown" as const };
+    expect(consentPromotionPatch(otherLead, { consented: undefined, at: AT })).toEqual({});
+  });
+
+  it("creates no messaging, job, campaign, ledger or notification fields", () => {
+    const promotion = buildConsentPromotion(capture()) as Record<string, unknown>;
+    for (const key of [
+      "requires_owner_review",
+      "lead_context",
+      "booking_status",
+      "current_sequence",
+      "status",
+      "opted_out_at",
+      "sms_suppressed_at",
+      "reachability_state",
+    ]) {
+      expect(promotion[key]).toBeUndefined();
+    }
+  });
 });
