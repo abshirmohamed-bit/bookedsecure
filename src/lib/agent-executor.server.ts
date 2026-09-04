@@ -3,7 +3,7 @@
 // Thin dispatcher only. This module loads state through EXISTING loaders,
 // re-plans through the existing dry-run planner, re-evaluates the existing
 // gates, resolves the ledger row, and then refuses because live execution is
-// disabled. It contains no SMS composition, quiet-hour, suppression, STOP,
+// disabled. It contains no SMS composition, quiet-hour, suppression, stop-keywords,
 // segment, availability, slot, booking, notification or follow-up-timing logic,
 // and it calls no provider.
 //
