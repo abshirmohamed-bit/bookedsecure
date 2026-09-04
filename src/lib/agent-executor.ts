@@ -48,7 +48,7 @@ export const REFUSAL_REASONS = [
   "plan_stale_action",
   "plan_stale_booking_state",
   "gates_blocked",
-  "booking_confirmation_not_executable",
+  "not_dispatchable_action_kind",
 ] as const;
 export type RefusalReason = (typeof REFUSAL_REASONS)[number];
 
@@ -135,7 +135,7 @@ export function decideExecution(input: ExecutorInput): ExecutorResult {
   if (row.rolled_back_at !== null)
     return refuse(input, "action_rolled_back", "ledger action was rolled back");
   if (!DISPATCHABLE_ACTION_KINDS.includes(kind))
-    return refuse(input, "booking_confirmation_not_executable", `action kind ${kind} is not dispatchable`);
+    return refuse(input, "not_dispatchable_action_kind", `action kind ${kind} is not dispatchable`);
 
   // 2. Plan freshness — a stale plan is never executed, it is re-planned.
   if (!input.replan) return refuse(input, "plan_missing", "lead can no longer be planned");
