@@ -167,6 +167,33 @@ export function parseApprovedLocations(serviceArea: string | null | undefined): 
     .filter((entry) => entry.length >= 2 && !/^\d+\s*km/i.test(entry));
 }
 
+/**
+ * The suburb the customer actually stated, when it is not in the tenant's
+ * approved-location list. Read verbatim from their own words — the approved list
+ * is used to detect ambiguity, never to discard a suburb the customer gave.
+ */
+export function statedSuburb(raw: string, excluded: string[] = []): string | null {
+  const banned = new Set([
+    ...excluded.map((entry) => entry.toLowerCase()),
+    ...VEHICLE_MAKES,
+    ...VEHICLE_TYPES,
+  ]);
+  const patterns = [
+    /\bsuburb\s*(?:is|=|:)\s*([A-Za-z][A-Za-z'\-]+(?:\s+[A-Za-z][A-Za-z'\-]+)?)/i,
+    /\b(?:in|at|around|near|based\s+in|located\s+in)\s+([A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+)?)/,
+    /^([A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+)?)\s*[,.]/,
+  ];
+  for (const pattern of patterns) {
+    const value = pattern.exec(raw)?.[1]?.trim();
+    if (!value) continue;
+    const lower = value.toLowerCase();
+    if (banned.has(lower)) continue;
+    if (value.length < 3) continue;
+    return value;
+  }
+  return null;
+}
+
 export function matchApprovedLocation(raw: string, locations: string[]): LocationMatch {
   const lower = raw.toLowerCase();
   const hits = locations.filter((location) =>
@@ -369,6 +396,17 @@ export function extractMobile(raw: string): string | null {
   return null;
 }
 
+/** Trims trailing clauses that belong to another field (mobile, email, name). */
+function stripOtherFieldClauses(raw: string): string {
+  return raw
+    .replace(/,?\s*(?:and\s+)?(?:my|the)?\s*(?:mobile|phone|number|cell)\b[^.;!?]*/i, "")
+    .replace(/,?\s*(?:and\s+)?(?:my|the)?\s*e-?mail\b[^.;!?]*/i, "")
+    .replace(/,?\s*(?:and\s+)?my\s+name\s+is\b[^.;!?]*/i, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[,;\s]+$/, "")
+    .trim();
+}
+
 export function extractNotes(raw: string): string | null {
   const patterns = [
     /\b(?:please\s+)?(?:add|note)\s+that\s+([^.;!?]{4,200})/i,
@@ -376,8 +414,9 @@ export function extractNotes(raw: string): string | null {
     /\b(?:there\s+(?:is|are)|it\s+has|has)\s+((?:some\s+)?(?:existing\s+)?[^.;!?]{4,200})/i,
   ];
   for (const pattern of patterns) {
-    const value = pattern.exec(raw)?.[1]?.trim();
-    if (value && value.length >= 4) return value;
+    const captured = pattern.exec(raw)?.[1]?.trim();
+    const value = captured ? stripOtherFieldClauses(captured) : "";
+    if (value.length >= 4) return value;
   }
   return null;
 }
@@ -419,7 +458,15 @@ export function extractIntake(raw: string, tenant: IntakeTenant, now: Date): Int
   if (timeMatch.kind === "ambiguous") ambiguities.push({ field: "time", options: timeMatch.options });
 
   const service = serviceMatch.kind === "one" ? serviceMatch.service : null;
-  const location = locationMatch.kind === "one" ? locationMatch.location : null;
+  const name = extractName(text);
+  const vehicle = extractVehicle(text);
+  // Approved match first; otherwise the suburb the customer stated themselves.
+  const location =
+    locationMatch.kind === "one"
+      ? locationMatch.location
+      : locationMatch.kind === "none"
+        ? statedSuburb(text, [name ?? "", vehicle ?? ""].filter(Boolean))
+        : null;
 
   const extraction: IntakeExtraction = {
     intent: "unclear",
@@ -427,10 +474,10 @@ export function extractIntake(raw: string, tenant: IntakeTenant, now: Date): Int
     location,
     preferredDate: dateMatch.kind === "one" ? dateMatch.date : null,
     preferredTime: timeMatch.kind === "one" ? timeMatch.time : null,
-    name: extractName(text),
+    name,
     mobile: extractMobile(text),
     email: extractEmail(text),
-    vehicle: extractVehicle(text),
+    vehicle,
     notes: extractNotes(text),
     ambiguities,
     unmatched: {
