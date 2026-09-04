@@ -184,7 +184,7 @@ afterEach(() => {
   vi.resetModules();
 });
 
-describe("pilot booking offers", { timeout: 20000 }, () => {
+describe("pilot booking offers",  () => {
   it("offers server-computed Sydney slots inside the tenant's working windows", async () => {
     const { openBookingStep } = await bookingServer();
     const result = await openBookingStep({ businessId: PILOT_BUSINESS_ID, slug: "glocast", leadId: LEAD_A });
