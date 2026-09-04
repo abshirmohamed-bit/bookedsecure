@@ -152,6 +152,17 @@ export type GateFacts = {
   automationPaused: boolean;
   hasConflictingBooking: boolean;
   quietHoursNow: boolean;
+  /**
+   * Policy path for this message. Defaults to `sequence_follow_up`, which
+   * always enforces quiet hours.
+   */
+  messagePath?: "new_lead_response" | "sequence_follow_up";
+  /**
+   * Server-verified new-lead-response exemption (see `message-path.ts`). Only a
+   * granted exemption on the new-lead path may run inside quiet hours; it never
+   * relaxes any other gate.
+   */
+  quietHoursExemptionGranted?: boolean;
 
   /** Limits. */
   sentToday: number;
@@ -228,7 +239,17 @@ export function evaluateActivationGates(facts: GateFacts): readonly GateFailure[
       fail("consent", "consent has not been granted");
     if (facts.consentCaptureAction && facts.consentGranted)
       fail("consent", "consent already granted; consent capture is unnecessary");
-    if (facts.quietHoursNow) fail("quiet_hours", "inside quiet hours — defer, do not drop");
+    if (facts.quietHoursNow) {
+      const exempt =
+        facts.messagePath === "new_lead_response" && facts.quietHoursExemptionGranted === true;
+      if (!exempt)
+        fail(
+          "quiet_hours",
+          facts.messagePath === "new_lead_response"
+            ? "inside quiet hours — new-lead response did not meet every exemption condition"
+            : "inside quiet hours — sequence follow-up deferred, not dropped",
+        );
+    }
     if (facts.dailySendCap <= 0) fail("daily_volume_limit", "daily send cap is not configured");
     else if (facts.sentToday >= facts.dailySendCap)
       fail("daily_volume_limit", "daily send cap reached");
