@@ -382,6 +382,10 @@ export async function restoreLeads(
       reason: "Not a deleted lead for this business",
     }));
 
+  // A restored lead keeps the booking projection its booking tables prove.
+  const restoreFacts = await loadBookingFacts(client, input.businessId, Array.from(done));
+  await preserveBookingProjections(client, input.businessId, Array.from(done), restoreFacts);
+
   await client.from("audit_events").insert({
     business_id: input.businessId,
     user_id: input.actorUserId,
