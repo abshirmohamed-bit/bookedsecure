@@ -42,6 +42,13 @@ export type ProvenanceInput = {
   hasScheduledJob?: boolean;
   /** True only when a web_conversations row exists for this lead. */
   hasQuoteChatConversation?: boolean;
+  /**
+   * True only when `classifyCompletedQuoteLead` (see quote-classification.ts)
+   * confirmed a completed public quote conversation with an approved service,
+   * customer, vehicle, suburb and explicit SMS consent, no confirmed booking
+   * and no scheduled job. Declining offered slots does NOT clear this flag.
+   */
+  completedQuoteActiveEnquiry?: boolean;
   /** Verified only when the customer supplied it themselves. */
   approved_service_id?: string | null;
   vehicle_type?: string | null;
@@ -112,6 +119,10 @@ export function classifyLeadContext(input: ProvenanceInput): LeadContext {
   if (input.requires_owner_review === true) return "owner_review";
   if (booking === "completed") return "previous_customer";
   if (booking === "scheduled") return "booked_lead";
+  // A completed public quote conversation is an active enquiry, even when the
+  // customer declined every offered slot: declining slots is not evidence of a
+  // cold contact.
+  if (input.completedQuoteActiveEnquiry === true) return "active_form_enquiry";
   if (input.hasQuoteChatConversation) return "quote_chat_lead";
   if (input.lead_origin === CRM_IMPORT_ORIGIN) {
     return verified.hasVerifiedContext ? "verified_historical_enquiry" : "contact_only_unqualified";
