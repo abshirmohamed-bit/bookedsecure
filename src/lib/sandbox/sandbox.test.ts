@@ -78,6 +78,11 @@ describe("sandbox scenario coverage", () => {
     expect(r.ownerReview.blocked).toBe(false);
     expect(r.wouldSend).toBe(true);
     expect(r.didSend).toBe(false);
+    expect(r.attribution).toEqual({
+      sequence_id: r.sequenceId,
+      template_id: r.templateId,
+      agent_action_id: null,
+    });
   });
 });
 
