@@ -316,6 +316,25 @@ export async function replyToWebChat(input: {
     });
   }
 
+  // Natural-language intake. A single free-text message may carry several
+  // details ("ceramic coating for my Mazda in Punchbowl next Tuesday"). Each
+  // value is matched only against this tenant's approved services and
+  // locations, or parsed from the customer's own words, and stored through the
+  // same validation the individual questions use. Whatever is still missing is
+  // then asked for TOGETHER — never one rigid question at a time — and any
+  // genuine ambiguity is put back to the customer instead of guessed.
+  const intakeBranch = await maybeHandleIntake({
+    tenant,
+    chatTenant,
+    conversationId: conversation.id,
+    requiresOwnerReview: conversation.requires_owner_review,
+    collected,
+    step,
+    answer: input.answer,
+    turns,
+  });
+  if (intakeBranch) return intakeBranch;
+
 
   // Mid-conversation correction. Handled BEFORE the active question is
   // validated, so "actually put it as Abshiro for my name" is never run through
