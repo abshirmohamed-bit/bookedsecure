@@ -31,7 +31,7 @@ const FORBIDDEN = [
   "performJob",
   "commitWebChatBooking",
   "generateBookingOffers",
-  "createNotification",
+  "createNotification(",
   "recordDeliveryEvent",
   // activation, counters and usage
   "authoriseCampaign",

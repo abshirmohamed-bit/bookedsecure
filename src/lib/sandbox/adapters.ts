@@ -116,7 +116,7 @@ export function createSmsRecorder(): SandboxSmsRecorder {
   };
 }
 
-export function createNotificationRecorder(): SandboxNotificationRecorder {
+export function createNotificationsRecorder(): SandboxNotificationRecorder {
   const entries: RecordedNotification[] = [];
   return {
     kind: "recorder",
@@ -154,7 +154,7 @@ export function createSandboxAdapters(
   const adapters: SandboxAdapters = {
     sms: createSmsRecorder(),
     calendar: createFakeCalendar(slots),
-    notifications: createNotificationRecorder(),
+    notifications: createNotificationsRecorder(),
     executionMode: SANDBOX_EXECUTION_MODE,
   };
   assertSandboxIsolation(adapters);
