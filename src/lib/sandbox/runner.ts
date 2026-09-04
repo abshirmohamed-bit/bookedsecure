@@ -20,7 +20,7 @@ import {
   type GateFailure,
   type GateId,
 } from "../agent-gates";
-import { normaliseAgentAttribution } from "../agent-attribution";
+import { messageAttributionColumns, normaliseAgentAttribution } from "../agent-attribution";
 import { renderAgentMessage, AGENT_TEMPLATE_VERSION } from "../agent-templates";
 import { assessBookingConfirmation, assessOfferGeneration, type BookingDecision } from "../booking";
 import { evaluateQuietHoursGate, type QuietHoursGate } from "../sms/quiet-hours";
@@ -177,6 +177,15 @@ function evaluateQuietHours(fixture: SandboxFixture): QuietHoursGate {
     { timezone: SANDBOX_TIMEZONE, quiet_hours_start: 20, quiet_hours_end: 8 },
     new Date(fixture.nowIso),
   );
+}
+
+/** Plan action kind -> the attribution kind persisted in production. */
+function attributionActionKind(action: PlannedAction | null): string | null {
+  if (!action) return null;
+  if (action.kind === "send_message" || action.kind === "offer_booking") return "send_sms";
+  if (action.kind === "capture_consent") return "capture_consent";
+  if (action.kind === "handoff") return "handoff";
+  return "none_no_outbound";
 }
 
 function firstMessagingAction(plan: SequencePlan): PlannedAction | null {
@@ -405,8 +414,10 @@ export function createSandboxRun(input?: {
       const attribution = normaliseAgentAttribution({
         sequenceId: plan.sequence,
         templateId: action?.templateId ?? null,
-        actionKind: action && action.kind !== "no_action" ? action.kind : null,
+        actionKind: attributionActionKind(action),
       });
+      if (!attribution.ok) throw new Error(`Sandbox attribution invalid: ${attribution.reason}`);
+      const attributionColumns = messageAttributionColumns(attribution.attribution);
 
       // Recorder capture: happens for every run, eligible or blocked, and never
       // sends. A blocked run records `wouldSend: false`.
@@ -450,11 +461,7 @@ export function createSandboxRun(input?: {
         substitutions: rendered?.substitutions ?? [],
         segments: rendered?.segmentInfo.segments ?? 0,
         messageSource,
-        attribution: {
-          sequence_id: attribution.ok ? attribution.attribution.sequenceId : null,
-          template_id: attribution.ok ? attribution.attribution.templateId : null,
-          agent_action_id: null,
-        },
+        attribution: attributionColumns,
         idempotencyKey,
         gatesPassed: passedGates(GATE_IDS, failures),
         gatesFailed: failures,
