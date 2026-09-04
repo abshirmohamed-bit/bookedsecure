@@ -2,7 +2,7 @@
 //
 // The executor is a THIN DISPATCHER. It owns no domain logic: it does not
 // compose SMS, does not evaluate quiet hours, suppression, stop-keywords, message segmentation,
-// availability, slots, bookings, notifications or follow-up timing. Those all
+// availability, slots, bookings, owner notification fan-out or follow-up timing. Those all
 // live in their existing modules and are reached only through the tool call
 // recorded on a `PlannedAction` — never re-implemented here.
 //
