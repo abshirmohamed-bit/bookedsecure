@@ -145,6 +145,19 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<G
   const consentStatus = lead.consent_status ?? "unknown";
   const scopeLeadIds = (campaign.scope_lead_ids ?? []) as string[];
 
+  // Human-handling signals, newest first.
+  const history = (historyRes.data ?? []) as {
+    direction: string | null;
+    message_kind: string | null;
+    message_source: string | null;
+    created_at: string | null;
+  }[];
+  const latestOutbound = history.find((m) => m.direction === "outbound") ?? null;
+  const lastManualOutboundAt = history.find(isManualOutbound)?.created_at ?? null;
+  const lastInboundReplyAt = history.find((m) => m.direction === "inbound")?.created_at ?? null;
+
+
+
   const facts: GateFacts = {
     actionKind: input.actionKind,
     businessId: input.businessId,
