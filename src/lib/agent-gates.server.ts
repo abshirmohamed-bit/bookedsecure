@@ -203,7 +203,17 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<G
     maxLeadsPerActivation: business.agent_max_leads_per_activation ?? 0,
 
     planStillCurrent: input.planStillCurrent,
+
+    conversationStatus: conversationRes.data?.status ?? null,
+    lastManualOutboundAt,
+    latestOutboundIsManual: latestOutbound ? isManualOutbound(latestOutbound) : false,
+    lastInboundReplyAt,
+    ownerReviewFlag:
+      lead.requires_owner_review === true || (lead.lead_context ?? null) === "owner_review",
+    humanTakeoverActive: conversationRes.data?.status === "owner_handling",
+    nowIso: now.toISOString(),
   };
+
 
   return resolveExecutionMode({
     requestedMode: input.requestedMode,
