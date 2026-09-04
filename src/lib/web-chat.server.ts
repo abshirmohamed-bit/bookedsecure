@@ -570,6 +570,14 @@ export async function replyToWebChat(input: {
     })
     .eq("id", conversation.id)
     .eq("business_id", tenant.businessId);
+  if (leadId) {
+    const { applyCompletedQuoteClassification } = await import("@/lib/quote-classification.server");
+    await applyCompletedQuoteClassification({
+      businessId: tenant.businessId,
+      conversationId: conversation.id,
+      leadId,
+    });
+  }
   await addMessage(tenant.businessId, conversation.id, "assistant", closing);
 
   return {
@@ -637,6 +645,14 @@ async function handleBookingSelection(input: {
       })
       .eq("id", conversation.id)
       .eq("business_id", businessId);
+    if (conversation.leadId) {
+      const { applyCompletedQuoteClassification } = await import("@/lib/quote-classification.server");
+      await applyCompletedQuoteClassification({
+        businessId,
+        conversationId: conversation.id,
+        leadId: conversation.leadId,
+      });
+    }
     await addMessage(businessId, conversation.id, "assistant", body);
     return {
       conversationId: conversation.id,
