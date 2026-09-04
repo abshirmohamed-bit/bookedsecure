@@ -210,7 +210,33 @@ export async function softDeleteLeads(
   const failures = [...plan.failures];
   let deleted = 0;
 
-  if (plan.toDelete.length > 0) {
+  // Authoritative booking tables, not the lead's projection columns.
+  const bookingFacts = await loadBookingFacts(client, input.businessId, plan.toDelete);
+
+  const deletable: string[] = [];
+  for (const leadId of plan.toDelete) {
+    const authoritative = authoritativeBookingState({
+      leadId,
+      offers: bookingFacts.offers,
+      jobs: bookingFacts.jobs,
+    });
+    if (
+      deletionBlockedByBooking(
+        authoritative,
+        input.blockBookedLeads === undefined ? {} : { blockBookedLeads: input.blockBookedLeads },
+      )
+    ) {
+      failures.push({
+        leadId,
+        name: tenantLeads.find((lead) => lead.id === leadId)?.name ?? null,
+        reason: BOOKED_DELETION_BLOCK_REASON,
+      });
+      continue;
+    }
+    deletable.push(leadId);
+  }
+
+  if (deletable.length > 0) {
     const { data: updated, error } = await client
       .from("leads")
       .update({
@@ -221,20 +247,22 @@ export async function softDeleteLeads(
       })
       .eq("business_id", input.businessId)
       .is("deleted_at", null)
-      .in("id", plan.toDelete)
+      .in("id", deletable)
       .select("id");
     if (error) {
-      for (const leadId of plan.toDelete) {
+      for (const leadId of deletable) {
         failures.push({ leadId, name: null, reason: "Database rejected the update" });
       }
     } else {
       deleted = (updated ?? []).length;
       const done = new Set((updated ?? []).map((row) => row.id));
-      for (const leadId of plan.toDelete) {
+      for (const leadId of deletable) {
         if (!done.has(leadId)) {
           failures.push({ leadId, name: null, reason: "Lead was not updated" });
         }
       }
+      // Booked leads keep the scheduled projection the booking tables prove.
+      await preserveBookingProjections(client, input.businessId, Array.from(done), bookingFacts);
     }
   }
 
