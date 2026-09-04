@@ -139,11 +139,13 @@ export function matchApprovedService(raw: string, services: IntakeService[]): Se
 
   if (scored.length === 0) return { kind: "none" };
 
-  const best = Math.max(...scored.map((entry) => entry.score));
-  // A single weak token ("detail" alone against "Full Detail" + "Interior
-  // Detail") is not a match — it is an ambiguity to clarify.
-  const leaders = scored.filter((entry) => entry.score === best);
-  if (best < 0.5) return { kind: "none" };
+  // Only reasonably complete matches count at all.
+  const candidates = scored.filter((entry) => entry.score >= 0.5);
+  if (candidates.length === 0) return { kind: "none" };
+  // Two approved services matching the same number of the customer's words
+  // ("interior and exterior detail") is an ambiguity to ask about, never a guess.
+  const bestHits = Math.max(...candidates.map((entry) => entry.hits ?? 0));
+  const leaders = candidates.filter((entry) => (entry.hits ?? 0) === bestHits);
   if (leaders.length > 1) return { kind: "ambiguous", services: leaders.map((entry) => entry.service) };
   return { kind: "one", service: leaders[0]!.service };
 }
@@ -231,8 +233,8 @@ export function resolvePreferredDate(
   if (named.length === 1) {
     const target = WEEKDAYS.indexOf(named[0]!);
     let delta = (target - today.weekday + 7) % 7;
+    // "next Tuesday" in everyday Australian use means the upcoming Tuesday.
     if (delta === 0) delta = 7;
-    if (/\bnext\s+\w+\b/i.test(lower) && delta < 7) delta += 7;
     return { kind: "one", date: addDays(today.date, delta) };
   }
 
