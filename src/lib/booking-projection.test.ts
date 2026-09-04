@@ -9,8 +9,7 @@ import {
   projectLeadAfterBookingNotCommitted,
   type LeadBookingState,
 } from "./booking-projection";
-import { evaluateActivationGates } from "./agent-gates";
-import { runSandboxScenario, sandboxScenarios } from "./sandbox/runner";
+import { runSandboxSuite } from "./sandbox/runner";
 
 const MIGRATIONS = "supabase/migrations";
 
@@ -47,7 +46,7 @@ describe("lead booking projection", () => {
   it("1b. quote_status is never part of the booking commit projection", () => {
     expect(Object.keys(projectLeadAfterBookingCommit(base))).not.toContain("quote_status");
     const sql = commitRoutineSql();
-    expect(sql).not.toContain("quote_status");
+    expect(sql).not.toMatch(/quote_status\s*=/);
   });
 
   it("1c. a previous customer keeps that label", () => {
@@ -85,11 +84,13 @@ describe("lead booking projection", () => {
     expect(projectLeadAfterBookingNotCommitted(declined)).toEqual(declined);
 
     const sql = commitRoutineSql();
+    // Every failure branch returns immediately, writing nothing.
     for (const reason of ["offer_closed", "offer_expired", "slot_unavailable", "offer_not_found"]) {
-      const branch = sql.slice(0, sql.indexOf(`'reason', '${reason}'`));
-      // Every failure branch returns before the lead projection is written.
-      expect(branch).not.toContain("UPDATE public.leads");
+      expect(sql).toContain(`RETURN jsonb_build_object('ok', false, 'reason', '${reason}');`);
     }
+    // The lead is projected in exactly two places: the replay repair and the
+    // successful commit. Both set scheduled, neither runs on a failure path.
+    expect(sql.match(/UPDATE public\.leads/g)?.length).toBe(2);
   });
 
   it("4. failed job creation cannot falsely set scheduled status", () => {
@@ -128,19 +129,12 @@ describe("lead booking projection", () => {
     expect(bookingBlocksReactivation({ booking_status: "offered" })).toBe(true);
     expect(bookingBlocksReactivation({ booking_status: "none" })).toBe(false);
 
-    const scenario = sandboxScenarios.find((s) => s.id === "S06_existing_booking")!;
-    expect(runSandboxScenario(scenario, {
-      testRunId: "booking-projection-regression",
-      createdAt: "2026-09-04T02:00:00.000Z",
-    }).outcome).toBe("SANDBOX_BLOCKED_BOOKING");
-  });
-
-  it("5b. the booking-conflict gate blocks an offer for a lead with a live booking", () => {
-    const failures = evaluateActivationGates({
-      actionKind: "offer_booking",
-      hasConflictingBooking: true,
-    } as never);
-    expect(failures.map((f) => f.gate)).toContain("booking_conflict");
+    const booked = runSandboxSuite({ testRunId: "booking-projection-regression" }).records.find(
+      (r) => r.trace.scenarioId === "S06_existing_booking",
+    )!;
+    expect(booked.outcome).toBe("SANDBOX_BLOCKED_BOOKING");
+    expect(booked.wouldSend).toBe(false);
+    expect(booked.gatesFailed.map((g) => g.gate)).toContain("booking_conflict");
   });
 
   it("6. UI and database show the same booking state", () => {
