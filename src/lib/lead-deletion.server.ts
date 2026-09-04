@@ -32,6 +32,73 @@ type RequestRow = {
   failures: unknown;
 };
 
+type BookingFacts = {
+  offers: { lead_id: string; status: string | null }[];
+  jobs: { lead_id: string; completion_status: string | null }[];
+  /** Booking projection columns, per lead, read straight from `leads`. */
+  projections: Map<string, LeadBookingState>;
+};
+
+const EMPTY_BOOKING_FACTS: BookingFacts = { offers: [], jobs: [], projections: new Map() };
+
+/** Reads the AUTHORITATIVE booking tables, tenant-scoped and read-only. */
+async function loadBookingFacts(
+  client: Client,
+  businessId: string,
+  leadIds: string[],
+): Promise<BookingFacts> {
+  if (leadIds.length === 0) return EMPTY_BOOKING_FACTS;
+  const [{ data: offers }, { data: jobs }, { data: leads }] = await Promise.all([
+    client
+      .from("booking_offers")
+      .select("lead_id, status")
+      .eq("business_id", businessId)
+      .in("lead_id", leadIds),
+    client
+      .from("jobs")
+      .select("lead_id, completion_status")
+      .eq("business_id", businessId)
+      .in("lead_id", leadIds),
+    client
+      .from("leads")
+      .select("id, status, booking_status, quote_status, customer_status")
+      .eq("business_id", businessId)
+      .in("id", leadIds),
+  ]);
+  const projections = new Map<string, LeadBookingState>();
+  for (const row of (leads ?? []) as unknown as (LeadBookingState & { id: string })[]) {
+    projections.set(row.id, {
+      status: String(row.status ?? "new"),
+      booking_status: String(row.booking_status ?? "none"),
+      quote_status: String(row.quote_status ?? "in_progress"),
+      customer_status: String(row.customer_status ?? "prospect"),
+    });
+  }
+  return {
+    offers: (offers ?? []) as BookingFacts["offers"],
+    jobs: (jobs ?? []) as BookingFacts["jobs"],
+    projections,
+  };
+}
+
+/** Booked leads keep their scheduled projection; unbooked leads are untouched. */
+function preservationFor(leadId: string, facts: BookingFacts): LeadBookingProjection | null {
+  const authoritative = authoritativeBookingState({
+    leadId,
+    offers: facts.offers,
+    jobs: facts.jobs,
+  });
+  const current =
+    facts.projections.get(leadId) ??
+    ({
+      status: "new",
+      booking_status: "none",
+      quote_status: "in_progress",
+      customer_status: "prospect",
+    } satisfies LeadBookingState);
+  return bookingPreservationColumns(current, authoritative);
+}
+
 async function loadTenantLeads(
   client: Client,
   businessId: string,
