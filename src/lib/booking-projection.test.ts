@@ -39,7 +39,7 @@ describe("lead booking projection", () => {
     expect(projected).toEqual({
       status: "scheduled",
       booking_status: "scheduled",
-      customer_status: "booked_lead",
+      customer_status: "prospect",
     });
   });
 

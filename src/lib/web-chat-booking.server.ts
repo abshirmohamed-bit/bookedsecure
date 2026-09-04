@@ -90,6 +90,7 @@ export async function openBookingStep(input: {
     limit: MAX_OFFERED_SLOTS,
   });
 
+  const { isBookingOnlyTenant } = await import("@/lib/booking-only-mode");
   const eligible = isPilotEligible({
     businessId: input.businessId,
     slug: input.slug,
@@ -99,8 +100,10 @@ export async function openBookingStep(input: {
     serviceDurationMinutes: slotMinutes,
     availabilityActive: config.active,
     slotCount: preview.length,
+    bookingOnlyTenant: isBookingOnlyTenant(input.businessId),
   });
   if (!eligible) return { offered: false };
+
 
   const generated = await generateBookingOffers({
     businessId: input.businessId,

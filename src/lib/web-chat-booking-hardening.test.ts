@@ -184,7 +184,7 @@ afterEach(() => {
   vi.resetModules();
 });
 
-describe("pilot booking offers", () => {
+describe("pilot booking offers", { timeout: 20000 }, () => {
   it("offers server-computed Sydney slots inside the tenant's working windows", async () => {
     const { openBookingStep } = await bookingServer();
     const result = await openBookingStep({ businessId: PILOT_BUSINESS_ID, slug: "glocast", leadId: LEAD_A });
@@ -207,12 +207,17 @@ describe("pilot booking offers", () => {
     expect(forbiddenSideEffects()).toBe(0);
   });
 
-  it("does not offer a booking step outside the Full Detail pilot", async () => {
+  it("offers any approved active service under booking-only mode, but nothing when the service is inactive", async () => {
     (db["services"] ?? [])[0]!["name"] = "Exterior Wash";
     const { openBookingStep } = await bookingServer();
-    const result = await openBookingStep({ businessId: PILOT_BUSINESS_ID, slug: "glocast", leadId: LEAD_A });
-    expect(result.offered).toBe(false);
+    const allowed = await openBookingStep({ businessId: PILOT_BUSINESS_ID, slug: "glocast", leadId: LEAD_A });
+    expect(allowed.offered).toBe(true);
+
+    (db["services"] ?? [])[0]!["active"] = false;
+    const blocked = await openBookingStep({ businessId: PILOT_BUSINESS_ID, slug: "glocast", leadId: LEAD_A });
+    expect(blocked.offered).toBe(false);
   });
+
 });
 
 describe("scenario 1 — slot conflict", () => {

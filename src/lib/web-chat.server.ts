@@ -687,6 +687,15 @@ async function handleBookingSelection(input: {
   });
 
   if (commit.ok) {
+    // Booking-only mode: operational confirmation + owner alert, no sequence.
+    const { finalizeBookingOnlyBooking } = await import("@/lib/booking-only.server");
+    await finalizeBookingOnlyBooking({
+      businessId,
+      leadId: conversation.leadId,
+      offerId: commit.offerId,
+      slotStart: commit.slotStart,
+      replay: commit.replay,
+    });
     const body = await bookingConfirmationText({
       businessId,
       leadId: conversation.leadId,
@@ -695,6 +704,7 @@ async function handleBookingSelection(input: {
     // The conversation is completed only after the booking commit succeeded.
     return await complete(body, next);
   }
+
 
   // Conflict / expiry: recompute options and stay on the booking step.
   const fresh = await refreshBookingOffers({ businessId, leadId: conversation.leadId });
