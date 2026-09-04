@@ -155,6 +155,8 @@ export async function softDeleteLeads(
     leadIds: string[];
     reason?: string | null;
     allowProtected?: boolean;
+    /** Product policy: refuse leads with a confirmed offer or scheduled job. */
+    blockBookedLeads?: boolean;
   },
 ): Promise<DeletionResult> {
   const requestedIds = normaliseSelection(input.leadIds);
