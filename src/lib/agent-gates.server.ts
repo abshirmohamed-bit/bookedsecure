@@ -116,6 +116,8 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<A
 
   // Missing tenant, lead or campaign can never authorise live execution.
   if (!lead || !business || !campaign) {
+    const missingQuiet = { timezone: "Australia/Sydney", quiet_hours_start: 21, quiet_hours_end: 8 };
+    const missingFacts = newLeadFacts(input, null, null, null);
     return {
       mode: "dry_run",
       allowed: false,
@@ -125,6 +127,12 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<A
           detail: "required record not found",
         },
       ],
+      decision: buildOutboundDecision({
+        facts: missingFacts,
+        quietHours: missingQuiet,
+        at: now,
+        otherGatesPassed: false,
+      }),
     };
   }
 
@@ -232,8 +240,83 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<A
   };
 
 
-  return resolveExecutionMode({
-    requestedMode: input.requestedMode,
-    serverVerifiedGateFailures: evaluateActivationGates(facts),
+  // Quiet-hours policy path. Everything defaults to `sequence_follow_up`, which
+  // always enforces the tenant's quiet-hours window.
+  const newLead = newLeadFacts(input, lead, business, conversationRes.data);
+  const messagePath = classifyMessagePath(newLead);
+  const exemption = evaluateNewLeadResponseExemption(newLead);
+
+  const gateFailures = evaluateActivationGates({
+    ...facts,
+    messagePath,
+    quietHoursExemptionGranted: messagePath === "new_lead_response" && exemption.granted,
   });
+
+  const decision = buildOutboundDecision({
+    facts: newLead,
+    quietHours: {
+      timezone: availability.timezone,
+      quiet_hours_start: availability.quietHoursStart,
+      quiet_hours_end: availability.quietHoursEnd,
+    },
+    at: now,
+    otherGatesPassed: gateFailures.every((failure) => failure.gate === "quiet_hours"),
+  });
+
+  return {
+    ...resolveExecutionMode({
+      requestedMode: input.requestedMode,
+      serverVerifiedGateFailures: gateFailures,
+    }),
+    decision,
+  };
+}
+
+/** Server-verified new-lead-response facts. Nothing here comes from the client. */
+function newLeadFacts(
+  input: AuthorisationInput,
+  lead: {
+    id?: string;
+    consent_status?: string | null;
+    opted_out_at?: string | null;
+    sms_suppressed_at?: string | null;
+    requires_owner_review?: boolean | null;
+    booking_status?: string | null;
+    lead_origin?: string | null;
+    source_channel?: string | null;
+  } | null,
+  business: {
+    quote_form_active?: boolean | null;
+    agent_kill_switch_at?: string | null;
+  } | null,
+  conversation: { status?: string | null; automation_paused?: boolean | null } | null,
+): NewLeadResponseFacts {
+  const consentGranted = (lead?.consent_status ?? "unknown") === "granted";
+  const customerInitiated =
+    lead?.lead_origin === "ai_web_chat" ||
+    lead?.source_channel === "website" ||
+    lead?.source_channel === "hosted_page";
+  return {
+    customerInitiated,
+    quoteFlowActive: business?.quote_form_active === true,
+    directResponseToCurrentEnquiry: input.directResponseToCurrentEnquiry === true,
+    consentGranted,
+    consentLeadId: consentGranted ? (lead?.id ?? null) : null,
+    leadId: input.leadId,
+    optedOut: Boolean(lead?.opted_out_at),
+    suppressed: Boolean(lead?.sms_suppressed_at),
+    requiresOwnerReview: lead?.requires_owner_review === true,
+    humanTakeoverActive: conversation?.status === "owner_handling",
+    automationPaused: conversation?.automation_paused === true,
+    templateId: input.templateId ?? null,
+    templateVersion: input.templateVersion ?? 0,
+    promotional: false,
+    serviceRelated: true,
+    alreadyBooked: (lead?.booking_status ?? "none") === "scheduled",
+    tenantKillSwitchAt: business?.agent_kill_switch_at ?? null,
+    globalKillSwitchAt: null,
+    idempotencyKey: input.idempotencyKey ?? null,
+    sourceAttribution: input.sourceAttribution ?? null,
+    sequenceId: null,
+  };
 }
