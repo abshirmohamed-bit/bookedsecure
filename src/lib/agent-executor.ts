@@ -178,5 +178,5 @@ export function decideExecution(input: ExecutorInput): ExecutorResult {
 
 /** True only if a real tool call would be dispatched. Always false in step 3. */
 export function executionWouldDispatch(result: ExecutorResult): boolean {
-  return LIVE_EXECUTION_ENABLED && result.executed === true;
+  return LIVE_EXECUTION_ENABLED && Boolean(result.wouldInvokeTool) && !result.blocked;
 }
