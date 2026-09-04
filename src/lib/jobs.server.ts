@@ -14,7 +14,7 @@ import {
   type AgentAttributionInput,
 } from "@/lib/agent-attribution";
 
-export type JobType = "acknowledgement" | "follow_up" | "owner_alert";
+export type JobType = "acknowledgement" | "follow_up" | "owner_alert" | "booking_confirmation";
 
 /** Bounded retry: attempt 1 immediately, then +5 min, then +30 min. */
 export const RETRY_DELAYS_MINUTES = [5, 30];
@@ -196,6 +196,24 @@ async function performJob(job: JobRow): Promise<Outcome> {
       idempotencyKey: job.idempotency_key,
     });
     return { ok: true, ...(result.created ? {} : { note: "Notification already existed." }) };
+  }
+
+  // Released operational booking confirmation. Eligibility, consent, callback
+  // number and idempotency are all re-evaluated at release time.
+  if (job.job_type === "booking_confirmation") {
+    const offerId = String(payload["offer_id"] ?? "");
+    if (!offerId || !job.lead_id)
+      return { ok: false, retriable: false, reason: "Booking confirmation job is missing its booking." };
+    const { deliverBookingConfirmation } = await import("@/lib/booking-confirmation.server");
+    const result = await deliverBookingConfirmation({
+      businessId: job.business_id,
+      leadId: job.lead_id,
+      offerId,
+      fromRelease: true,
+    });
+    if (result.sent || result.outcome === "duplicate_suppressed") return { ok: true, note: result.reason };
+    if (result.outcome === "failed") return { ok: false, retriable: true, reason: result.reason };
+    return { ok: false, retriable: false, reason: result.reason };
   }
 
   // SMS jobs share the single outbound path (opt-out, caps, sender, idempotency).
