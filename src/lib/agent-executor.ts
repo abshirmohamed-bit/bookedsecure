@@ -21,7 +21,7 @@
 //  - no caller-supplied field can turn live execution on: the mode comes only
 //    from `resolveExecutionMode` on server-verified gate facts;
 //  - booking confirmation is not an action kind at all — booking confirmation stays
-//    owned by the idempotent `commitWebChatBooking` path.
+//    owned by the idempotent web-chat booking commit path.
 
 import type { GateFailure, GateResult } from "./agent-gates";
 import type { LedgerRow } from "./agent-ledger.server";
