@@ -334,16 +334,18 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       ...(input.lead_origin ? { lead_origin: input.lead_origin } : {}),
       ...(input.source_metadata ? { source_metadata: input.source_metadata as never } : {}),
       ...(input.external_id ? { external_id: input.external_id } : {}),
-      consent_record: input.consent
-        ? {
-            consented: true,
-            at: new Date().toISOString(),
-            text: input.consent_text ?? "Consent given on quote form",
-            source_channel: input.source_channel ?? "unknown",
-            source_form: input.source_form ?? null,
-            form_url: input.consent_source_url ?? null,
-          }
-        : null,
+      // Consent promotion is branch-independent: the same canonical fields are
+      // written for listed-service, unlisted/recommendation, owner-review and
+      // contact-only submissions alike.
+      ...buildConsentPromotion({
+        consented: input.consent,
+        consentText: input.consent_text,
+        sourceChannel: input.source_channel,
+        sourceForm: input.source_form,
+        formUrl: input.consent_source_url,
+        at: capturedConsentAt,
+      }),
+
     })
     .select("id")
     .single();
