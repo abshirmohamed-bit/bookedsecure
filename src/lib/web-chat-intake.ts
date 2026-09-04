@@ -173,8 +173,36 @@ export function parseApprovedLocations(serviceArea: string | null | undefined): 
  * approved-location list. Read verbatim from their own words — the approved list
  * is used to detect ambiguity, never to discard a suburb the customer gave.
  */
+/** Openers that look like a capitalised suburb but never are. */
+const DISCOURSE_WORDS = [
+  "actually",
+  "sorry",
+  "hi",
+  "hey",
+  "hello",
+  "thanks",
+  "thank you",
+  "yes",
+  "yeah",
+  "no",
+  "nope",
+  "please",
+  "also",
+  "ok",
+  "okay",
+  "change",
+  "book",
+  "booking",
+  "morning",
+  "afternoon",
+  "evening",
+  "today",
+  "tomorrow",
+];
+
 export function statedSuburb(raw: string, excluded: string[] = []): string | null {
   const banned = new Set([
+    ...DISCOURSE_WORDS,
     ...excluded.map((entry) => entry.toLowerCase()),
     ...VEHICLE_MAKES,
     ...VEHICLE_TYPES,
