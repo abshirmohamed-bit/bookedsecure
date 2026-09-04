@@ -114,6 +114,9 @@ describe("agent action ledger", () => {
     }
     // The requested mode is advisory input only; the decision comes from gates.
     expect(gatesSource).toContain("requestedMode: input.requestedMode");
-    expect(gatesSource).toContain("serverVerifiedGateFailures: evaluateActivationGates(facts)");
+    // Gate failures are evaluated from server-verified facts and handed
+    // straight to the mode resolver.
+    expect(gatesSource).toContain("evaluateActivationGates({");
+    expect(gatesSource).toContain("serverVerifiedGateFailures: gateFailures");
   });
 });
