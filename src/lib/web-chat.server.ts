@@ -10,6 +10,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { resolvePublicTenant, type PublicTenant } from "@/lib/quote-form.server";
 import {
   DECLINED_MESSAGE,
+  FLEXIBLE_CHOICE,
   DUPLICATE_MESSAGE,
   applyAnswer,
   completionMessage,
@@ -774,6 +775,112 @@ async function handleBookingSelection(input: {
     ],
     prompt,
     requiresOwnerReview: conversation.requiresOwnerReview,
+    completed: false,
+    declined: false,
+    duplicate: false,
+  };
+}
+
+/**
+ * Natural-language intake branch.
+ *
+ * Returns a state only when the customer's message genuinely carried more than
+ * the single open question — otherwise it returns null and the existing
+ * step-by-step handling proceeds unchanged.
+ */
+async function maybeHandleIntake(args: {
+  tenant: PublicTenant;
+  chatTenant: WebChatTenant;
+  conversationId: string;
+  requiresOwnerReview: boolean;
+  collected: WebChatCollected;
+  step: string;
+  answer: string;
+  turns: WebChatTurn[];
+}): Promise<WebChatState | null> {
+  const { tenant, chatTenant, collected, step, turns } = args;
+  const raw = args.answer.trim();
+  const collectionSteps = ["service", "vehicle", "suburb", "concerns", "name", "mobile"];
+  if (!collectionSteps.includes(step)) return null;
+  if (raw.length < 3) return null;
+  if (parseChangeDirective(raw)) return null;
+  // Button/option answers are handled by the normal path.
+  if (tenant.services.some((service) => service.id === raw) || raw === FLEXIBLE_CHOICE) return null;
+
+  const extraction = extractIntake(
+    raw,
+    {
+      timezone: "Australia/Sydney",
+      services: tenant.services.map((service) => ({ id: service.id, name: service.name })),
+      locations: parseApprovedLocations(tenant.serviceArea),
+    },
+    new Date(),
+  );
+
+  const { collected: next, applied } = applyIntake(collected, extraction, chatTenant);
+  const ambiguity = extraction.ambiguities[0] ?? null;
+  const multiField = applied.length >= 2;
+  if (!ambiguity && extraction.intent !== "unsupported" && !multiField) return null;
+
+  const echo = raw.slice(0, 500);
+  await addMessage(tenant.businessId, args.conversationId, "customer", echo);
+
+  if (extraction.intent === "unsupported") {
+    await addMessage(tenant.businessId, args.conversationId, "assistant", UNSUPPORTED_REQUEST_MESSAGE);
+    return {
+      conversationId: args.conversationId,
+      status: "active",
+      messages: [
+        ...turns,
+        { role: "customer", body: echo },
+        { role: "assistant", body: UNSUPPORTED_REQUEST_MESSAGE },
+      ],
+      prompt: promptFor(step as never, chatTenant, collected),
+      requiresOwnerReview: args.requiresOwnerReview,
+      completed: false,
+      declined: false,
+      duplicate: false,
+    };
+  }
+
+  const outcome = resolveOutcome(next);
+  await supabaseAdmin
+    .from("web_conversations")
+    .update({
+      collected: next as never,
+      selected_service_id: next.service_id ?? null,
+      service_name_snapshot: next.service_name ?? null,
+      requires_owner_review: outcome.requiresOwnerReview,
+      unsupported_request: outcome.unsupportedRequest,
+    })
+    .eq("id", args.conversationId)
+    .eq("business_id", tenant.businessId);
+
+  const outstanding = outstandingFields(next);
+  const replies: string[] = [];
+  if (ambiguity) replies.push(ambiguityMessage(ambiguity));
+  else if (outstanding.includes("service") && extraction.unmatched.service)
+    replies.push(unmatchedServiceMessage(tenant.name));
+
+  const resumeStep = nextStep(next);
+  const grouped = ambiguity ? null : groupedMissingMessage(outstanding);
+  if (grouped) replies.push(grouped);
+
+  const prompt = resumeStep ? promptFor(resumeStep, chatTenant, next) : null;
+  if (!grouped && !ambiguity && prompt) replies.push(prompt.text);
+
+  for (const reply of replies) await addMessage(tenant.businessId, args.conversationId, "assistant", reply);
+
+  return {
+    conversationId: args.conversationId,
+    status: "active",
+    messages: [
+      ...turns,
+      { role: "customer", body: echo },
+      ...replies.map((body) => ({ role: "assistant" as const, body })),
+    ],
+    prompt: prompt ?? null,
+    requiresOwnerReview: outcome.requiresOwnerReview,
     completed: false,
     declined: false,
     duplicate: false,
