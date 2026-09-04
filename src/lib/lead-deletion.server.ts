@@ -106,6 +106,28 @@ function preservationFor(leadId: string, facts: BookingFacts): LeadBookingProjec
   return bookingPreservationColumns(current, authoritative);
 }
 
+/**
+ * Writes back the scheduled projection for every booked lead in `leadIds`.
+ * Tenant- and lead-scoped, booking columns only — never consent, quote status,
+ * owner review, offers, jobs, messages or automation.
+ */
+async function preserveBookingProjections(
+  client: Client,
+  businessId: string,
+  leadIds: string[],
+  facts: BookingFacts,
+): Promise<void> {
+  for (const leadId of leadIds) {
+    const columns: LeadBookingProjection | null = preservationFor(leadId, facts);
+    if (!columns) continue;
+    await client
+      .from("leads")
+      .update(columns)
+      .eq("business_id", businessId)
+      .eq("id", leadId);
+  }
+}
+
 async function loadTenantLeads(
   client: Client,
   businessId: string,
