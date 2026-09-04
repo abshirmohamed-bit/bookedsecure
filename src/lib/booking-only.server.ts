@@ -75,53 +75,17 @@ export async function finalizeBookingOnlyBooking(input: {
   const label = slotLabel(offer.slot_start, timezone);
   const serviceName = offer.service_name_snapshot ?? lead.service_name_snapshot ?? null;
 
-  let smsSent = false;
-  let smsSkippedReason: string | null = null;
-  const decision = confirmationSmsDecision({
-    consentStatus: lead.consent_status,
-    optedOutAt: lead.opted_out_at,
-    smsSuppressedAt: lead.sms_suppressed_at,
-    mobileNumber: lead.mobile_number,
+  // Operational confirmation: consent-gated, versioned template, tenant
+  // callback number, queued to the end of quiet hours instead of dropped.
+  const { deliverBookingConfirmation } = await import("@/lib/booking-confirmation.server");
+  const confirmation = await deliverBookingConfirmation({
+    businessId: input.businessId,
+    leadId: input.leadId,
+    offerId: offer.id,
   });
+  const smsSent = confirmation.sent;
+  const smsSkippedReason = confirmation.sent ? null : confirmation.outcome;
 
-  if (!decision.allowed) {
-    smsSkippedReason = decision.reason;
-  } else if (offer.confirmation_sms_sent_at) {
-    // Already delivered for this booking — a replay must not send again.
-    smsSkippedReason = "already_sent";
-  } else {
-    const body = buildBookingConfirmationMessage({
-      name: lead.name,
-      businessName: business?.name ?? "our team",
-      serviceName,
-      slotLabel: label,
-    });
-    const { sendSms } = await import("@/lib/lead-engine.server");
-    const sms = await sendSms({
-      businessId: input.businessId,
-      leadId: input.leadId,
-      body,
-      kind: "manual",
-      respectAutomation: false,
-      userId: null,
-      source: "quote_page",
-      templateId: BOOKING_ONLY_ALLOWED_TEMPLATE,
-      idempotencyKey: bookingConfirmationIdempotencyKey(offer.id),
-    });
-    smsSent = Boolean(sms.sent);
-    if (sms.sent || sms.duplicate) {
-      await supabaseAdmin
-        .from("booking_offers")
-        .update({
-          confirmation_sms_sent_at: new Date().toISOString(),
-          ...(sms.messageId ? { confirmation_message_id: sms.messageId } : {}),
-        })
-        .eq("id", offer.id)
-        .eq("business_id", input.businessId);
-    } else {
-      smsSkippedReason = sms.reason ?? "not_sent";
-    }
-  }
 
   const alert = ownerBookingAlert({
     businessId: input.businessId,
