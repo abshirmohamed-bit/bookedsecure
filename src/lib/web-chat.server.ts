@@ -37,6 +37,8 @@ import {
 } from "@/lib/web-chat-booking";
 import {
   UNSUPPORTED_REQUEST_MESSAGE,
+  applyFieldDirectives,
+  fieldUpdateMessage,
   ambiguityMessage,
   applyIntake,
   extractIntake,
@@ -324,6 +326,20 @@ export async function replyToWebChat(input: {
   // same validation the individual questions use. Whatever is still missing is
   // then asked for TOGETHER — never one rigid question at a time — and any
   // genuine ambiguity is put back to the customer instead of guessed.
+  // Multi-field change directive ("change the vehicle to a Mazda CX-5 and the
+  // suburb to Bankstown"). Each clause updates exactly one field with its own
+  // value, so no value bleeds across fields and no field is silently dropped.
+  const directiveBranch = await maybeHandleFieldDirectives({
+    tenant,
+    chatTenant,
+    conversationId: conversation.id,
+    collected,
+    step,
+    answer: input.answer,
+    turns,
+  });
+  if (directiveBranch) return directiveBranch;
+
   const intakeBranch = await maybeHandleIntake({
     tenant,
     chatTenant,
@@ -868,6 +884,68 @@ async function maybeHandleIntake(args: {
 
   const prompt = resumeStep ? promptFor(resumeStep, chatTenant, next) : null;
   if (!grouped && !ambiguity && prompt) replies.push(prompt.text);
+
+  for (const reply of replies) await addMessage(tenant.businessId, args.conversationId, "assistant", reply);
+
+  return {
+    conversationId: args.conversationId,
+    status: "active",
+    messages: [
+      ...turns,
+      { role: "customer", body: echo },
+      ...replies.map((body) => ({ role: "assistant" as const, body })),
+    ],
+    prompt: prompt ?? null,
+    requiresOwnerReview: outcome.requiresOwnerReview,
+    completed: false,
+    declined: false,
+    duplicate: false,
+  };
+}
+
+/**
+ * Applies a change directive that names two or more fields. Returns null when
+ * fewer than two fields were updated, leaving single-field corrections to the
+ * existing correction path.
+ */
+async function maybeHandleFieldDirectives(args: {
+  tenant: PublicTenant;
+  chatTenant: WebChatTenant;
+  conversationId: string;
+  collected: WebChatCollected;
+  step: string;
+  answer: string;
+  turns: WebChatTurn[];
+}): Promise<WebChatState | null> {
+  const { tenant, chatTenant, collected, turns } = args;
+  const raw = args.answer.trim();
+  if (raw.length < 6 || parseChangeDirective(raw)) return null;
+
+  const { collected: next, updates } = applyFieldDirectives(raw, collected, chatTenant);
+  if (updates.length < 2) return null;
+
+  const echo = raw.slice(0, 500);
+  await addMessage(tenant.businessId, args.conversationId, "customer", echo);
+
+  const outcome = resolveOutcome(next);
+  await supabaseAdmin
+    .from("web_conversations")
+    .update({
+      collected: next as never,
+      selected_service_id: next.service_id ?? null,
+      service_name_snapshot: next.service_name ?? null,
+      requires_owner_review: outcome.requiresOwnerReview,
+      unsupported_request: outcome.unsupportedRequest,
+    })
+    .eq("id", args.conversationId)
+    .eq("business_id", tenant.businessId);
+
+  const replies = [fieldUpdateMessage(updates)];
+  const resumeStep = nextStep(next);
+  const grouped = groupedMissingMessage(outstandingFields(next));
+  const prompt = resumeStep ? promptFor(resumeStep, chatTenant, next) : null;
+  if (grouped) replies.push(grouped);
+  else if (prompt) replies.push(prompt.text);
 
   for (const reply of replies) await addMessage(tenant.businessId, args.conversationId, "assistant", reply);
 

@@ -17,6 +17,7 @@
  */
 
 import { normaliseAuMobile } from "@/lib/domain";
+import { FIELD_LABELS, FIELD_WORDS, extractCorrectionValue, type CorrectableStep } from "@/lib/web-chat-correction";
 import {
   applyAnswer,
   type WebChatCollected,
@@ -165,6 +166,61 @@ export function parseApprovedLocations(serviceArea: string | null | undefined): 
     .split(/[,/|;\n]+/)
     .map((entry) => entry.trim())
     .filter((entry) => entry.length >= 2 && !/^\d+\s*km/i.test(entry));
+}
+
+/**
+ * The suburb the customer actually stated, when it is not in the tenant's
+ * approved-location list. Read verbatim from their own words — the approved list
+ * is used to detect ambiguity, never to discard a suburb the customer gave.
+ */
+/** Openers that look like a capitalised suburb but never are. */
+const DISCOURSE_WORDS = [
+  "actually",
+  "sorry",
+  "hi",
+  "hey",
+  "hello",
+  "thanks",
+  "thank you",
+  "yes",
+  "yeah",
+  "no",
+  "nope",
+  "please",
+  "also",
+  "ok",
+  "okay",
+  "change",
+  "book",
+  "booking",
+  "morning",
+  "afternoon",
+  "evening",
+  "today",
+  "tomorrow",
+];
+
+export function statedSuburb(raw: string, excluded: string[] = []): string | null {
+  const banned = new Set([
+    ...DISCOURSE_WORDS,
+    ...excluded.map((entry) => entry.toLowerCase()),
+    ...VEHICLE_MAKES,
+    ...VEHICLE_TYPES,
+  ]);
+  const patterns = [
+    /\bsuburb\s*(?:is|=|:)\s*([A-Za-z][A-Za-z'\-]+(?:\s+[A-Za-z][A-Za-z'\-]+)?)/i,
+    /\b(?:in|at|around|near|based\s+in|located\s+in)\s+([A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+)?)/,
+    /^([A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+)?)\s*[,.]/,
+  ];
+  for (const pattern of patterns) {
+    const value = pattern.exec(raw)?.[1]?.trim();
+    if (!value) continue;
+    const lower = value.toLowerCase();
+    if (banned.has(lower)) continue;
+    if (value.length < 3) continue;
+    return value;
+  }
+  return null;
 }
 
 export function matchApprovedLocation(raw: string, locations: string[]): LocationMatch {
@@ -369,6 +425,17 @@ export function extractMobile(raw: string): string | null {
   return null;
 }
 
+/** Trims trailing clauses that belong to another field (mobile, email, name). */
+function stripOtherFieldClauses(raw: string): string {
+  return raw
+    .replace(/,?\s*(?:and\s+)?(?:my|the)?\s*(?:mobile|phone|number|cell)\b[^.;!?]*/i, "")
+    .replace(/,?\s*(?:and\s+)?(?:my|the)?\s*e-?mail\b[^.;!?]*/i, "")
+    .replace(/,?\s*(?:and\s+)?my\s+name\s+is\b[^.;!?]*/i, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/[,;\s]+$/, "")
+    .trim();
+}
+
 export function extractNotes(raw: string): string | null {
   const patterns = [
     /\b(?:please\s+)?(?:add|note)\s+that\s+([^.;!?]{4,200})/i,
@@ -376,8 +443,9 @@ export function extractNotes(raw: string): string | null {
     /\b(?:there\s+(?:is|are)|it\s+has|has)\s+((?:some\s+)?(?:existing\s+)?[^.;!?]{4,200})/i,
   ];
   for (const pattern of patterns) {
-    const value = pattern.exec(raw)?.[1]?.trim();
-    if (value && value.length >= 4) return value;
+    const captured = pattern.exec(raw)?.[1]?.trim();
+    const value = captured ? stripOtherFieldClauses(captured) : "";
+    if (value.length >= 4) return value;
   }
   return null;
 }
@@ -419,7 +487,15 @@ export function extractIntake(raw: string, tenant: IntakeTenant, now: Date): Int
   if (timeMatch.kind === "ambiguous") ambiguities.push({ field: "time", options: timeMatch.options });
 
   const service = serviceMatch.kind === "one" ? serviceMatch.service : null;
-  const location = locationMatch.kind === "one" ? locationMatch.location : null;
+  const name = extractName(text);
+  const vehicle = extractVehicle(text);
+  // Approved match first; otherwise the suburb the customer stated themselves.
+  const location =
+    locationMatch.kind === "one"
+      ? locationMatch.location
+      : locationMatch.kind === "none"
+        ? statedSuburb(text, [name ?? "", vehicle ?? ""].filter(Boolean))
+        : null;
 
   const extraction: IntakeExtraction = {
     intent: "unclear",
@@ -427,10 +503,10 @@ export function extractIntake(raw: string, tenant: IntakeTenant, now: Date): Int
     location,
     preferredDate: dateMatch.kind === "one" ? dateMatch.date : null,
     preferredTime: timeMatch.kind === "one" ? timeMatch.time : null,
-    name: extractName(text),
+    name,
     mobile: extractMobile(text),
     email: extractEmail(text),
-    vehicle: extractVehicle(text),
+    vehicle,
     notes: extractNotes(text),
     ambiguities,
     unmatched: {
@@ -562,4 +638,60 @@ export function outstandingFields(collected: WebChatCollected): IntakeField[] {
   if (!(collected.name ?? "").trim()) fields.push("name");
   if (!collected.mobile_number) fields.push("mobile");
   return fields;
+}
+
+// ---------------------------------------------------------------------------
+// Multi-field change directives
+// ---------------------------------------------------------------------------
+
+export type FieldUpdate = { field: CorrectableStep; value: string; echo: string };
+
+/**
+ * "change the vehicle to a Mazda CX-5 and the suburb to Bankstown".
+ *
+ * The message is split into clauses so each named field gets ONLY its own value
+ * — the value of one field can never bleed into another. Every value still goes
+ * through that field's own validation; a clause that fails validation is
+ * reported, not stored.
+ */
+export function applyFieldDirectives(
+  raw: string,
+  collected: WebChatCollected,
+  tenant: WebChatTenant,
+): { collected: WebChatCollected; updates: FieldUpdate[]; invalid: { field: CorrectableStep; error: string }[] } {
+  const clauses = raw
+    .split(/\s*(?:,|;|\.|\band\b|\balso\b|\bplus\b)\s*/i)
+    .map((clause) => clause.trim())
+    .filter((clause) => clause.length > 0);
+
+  let next: WebChatCollected = { ...collected };
+  const updates: FieldUpdate[] = [];
+  const invalid: { field: CorrectableStep; error: string }[] = [];
+
+  for (const clause of clauses) {
+    const fields = (Object.keys(FIELD_WORDS) as CorrectableStep[]).filter((field) =>
+      FIELD_WORDS[field].test(clause),
+    );
+    // A clause naming two fields is not split further — ambiguous clauses are skipped.
+    if (fields.length !== 1) continue;
+    const field = fields[0]!;
+    if (updates.some((update) => update.field === field)) continue;
+    const value = extractCorrectionValue(clause, field) ?? extractCorrectionValue(`actually ${clause}`, field);
+    if (!value) continue;
+    const applied = applyAnswer({ ...next, reviewed: false }, field, value, tenant);
+    if (!applied.ok) {
+      invalid.push({ field, error: applied.error });
+      continue;
+    }
+    next = applied.collected;
+    updates.push({ field, value, echo: applied.echo });
+  }
+
+  return { collected: next, updates, invalid };
+}
+
+export function fieldUpdateMessage(updates: FieldUpdate[]): string {
+  const parts = updates.map((update) => `your ${FIELD_LABELS[update.field]} to ${update.echo}`);
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
+  return `Got it — I've updated ${list}.`;
 }
