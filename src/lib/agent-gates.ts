@@ -142,6 +142,8 @@ export type GateFacts = {
 
   /** Lead eligibility. */
   requiresOwnerReview: boolean;
+  /** True when the lead is soft-deleted; a deleted lead is never contacted. */
+  leadDeleted?: boolean;
   consentGranted: boolean;
   consentCaptureAction: boolean;
   consentDeclined: boolean;
@@ -226,6 +228,7 @@ export function evaluateActivationGates(facts: GateFacts): readonly GateFailure[
     fail("execution_authorisation", "authorisation kind must be canary or bounded_batch");
 
   if (facts.requiresOwnerReview) fail("lead_eligibility", "lead requires owner review");
+  if (facts.leadDeleted === true) fail("lead_eligibility", "lead is deleted");
   if (facts.optedOut) fail("opt_out", "lead has opted out");
   if (facts.suppressed) fail("suppression", "lead is suppressed");
   if (facts.tenantTakeover) fail("tenant_takeover", "owner has taken over the conversation");
