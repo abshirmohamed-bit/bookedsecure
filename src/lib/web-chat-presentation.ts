@@ -93,6 +93,26 @@ export function isVerboseIntro(body: string): boolean {
   return text.includes("online quote assistant") && text.includes("can't confirm prices");
 }
 
+/**
+ * Display-only filter for the stored opening turns (assistant introduction and
+ * the service-step instruction). Both stay persisted server-side; the opening
+ * conversation shows a single concise message with the service list instead.
+ */
+export function isSuppressedOpeningTurn(body: string): boolean {
+  const text = body.toLowerCase();
+  if (text.includes("online quote assistant")) return true;
+  return text.includes("in your own words") && text.includes("pick a service below");
+}
+
+/** Tenant service area trimmed for the opening line, e.g. "Sydney metro". */
+export function shortServiceArea(area: string | null | undefined): string {
+  const raw = (area ?? "").trim();
+  if (!raw) return "";
+  const head = raw.split(/\s*[(–—:]/)[0] ?? raw;
+  return head.replace(/[,;]\s*$/, "").trim();
+}
+
+
 /** Short, de-emphasised secondary line for a service row in the initial list. */
 export function serviceShortDescription(detail: string | null | undefined, limit = 80): string {
   const { summary } = serviceCardContent(detail);
