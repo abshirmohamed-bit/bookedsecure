@@ -56,6 +56,7 @@ describe("post-booking change requests", () => {
     expect(result.collected.email).toBe("sam.new@example.com");
     expect(result.requiresOwnerReview).toBe(false);
     expect(result.message).toContain("booking is unchanged");
+    expect(result.message.startsWith("Got it")).toBe(true);
   });
 
   it("asks again when nothing actionable is present", () => {

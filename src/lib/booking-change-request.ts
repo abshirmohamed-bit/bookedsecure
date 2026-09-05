@@ -99,6 +99,7 @@ export function evaluateBookingChangeRequest(input: {
     };
 
   const affectsBooking = updates.some((update) => BOOKING_AFFECTING_FIELDS.includes(update.field));
+  // `fieldUpdateMessage` is already a complete sentence, so it is not re-prefixed.
   const echo = fieldUpdateMessage(updates);
   return {
     kind: "detail_update",
@@ -106,7 +107,7 @@ export function evaluateBookingChangeRequest(input: {
     updates,
     requiresOwnerReview: affectsBooking,
     message: affectsBooking
-      ? `Thanks — I've updated ${echo}. ${reviewSentence(input.tenantName)}`
-      : `Thanks — I've updated ${echo}. Your booking is unchanged.`,
+      ? `${echo} ${reviewSentence(input.tenantName)}`
+      : `${echo} Your booking is unchanged.`,
   };
 }
