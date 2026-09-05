@@ -103,7 +103,11 @@ describe("mid-conversation corrections", () => {
     const result = detectCorrection(allCollected(), "review", "actually change the service to Exterior Detail", tenant);
     expect(result.kind).toBe("applied");
     if (result.kind !== "applied") return;
-    expect(result.collected.typed_request).toMatch(/Exterior Detail/i);
+    // "Exterior Detail" is one of the tenant's approved services, so the
+    // correction lands on that service rather than an owner-review request.
+    expect(result.collected.service_id).toBe("22222222-2222-2222-2222-222222222222");
+    expect(result.collected.service_name).toBe("Exterior Detail");
+    expect(result.collected.typed_request ?? null).toBeNull();
   });
 
   it("asks a clarification question when the correction is ambiguous", () => {

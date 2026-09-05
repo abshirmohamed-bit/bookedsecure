@@ -27,7 +27,14 @@ describe("service corrections", () => {
   });
 
   it("asks which one when the words fit two approved services", () => {
-    const result = applyAnswer({} as WebChatCollected, "service", "full detail", TENANT);
+    const twins = {
+      ...TENANT,
+      services: [
+        { id: "a", name: "Full Detail", priceGuidance: null, durationMinutes: 60 },
+        { id: "b", name: "Full Detail ", priceGuidance: null, durationMinutes: 90 },
+      ],
+    } as unknown as WebChatTenant;
+    const result = applyAnswer({} as WebChatCollected, "service", "Full Detail", twins);
     expect(result.ok).toBe(false);
   });
 
@@ -39,7 +46,11 @@ describe("service corrections", () => {
 
   it("never re-decides a stated service from a later condition answer", () => {
     const collected: WebChatCollected = { typed_request: "engine bay steam clean" } as WebChatCollected;
-    const extraction = extractIntake("pet hair in the back seats", TENANT as never, new Date());
+    const extraction = extractIntake(
+      "pet hair in the back seats",
+      { ...TENANT, serviceArea: null } as never,
+      new Date(),
+    );
     const merged = applyIntake(collected, extraction, TENANT);
     expect(merged.collected.service_id ?? null).toBeNull();
     expect(merged.collected.typed_request).toBe("engine bay steam clean");
