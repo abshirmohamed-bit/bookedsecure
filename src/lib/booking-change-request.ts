@@ -10,7 +10,7 @@
 
 import { applyAnswer, type WebChatCollected, type WebChatTenant } from "@/lib/web-chat";
 import { FIELD_LABELS, hasCorrectionCue, type CorrectableStep } from "@/lib/web-chat-correction";
-import { applyFieldDirectives, fieldUpdateMessage } from "@/lib/web-chat-intake";
+import { applyFieldDirectives, fieldUpdateMessage, type FieldUpdate } from "@/lib/web-chat-intake";
 
 /** Fields whose new value changes what the crew turns up to, so the owner must see it. */
 export const BOOKING_AFFECTING_FIELDS: CorrectableStep[] = ["service", "suburb", "vehicle"];
@@ -27,7 +27,7 @@ export type ChangeRequestOutcome = {
   kind: "unclear" | "detail_update" | "reschedule";
   collected: WebChatCollected;
   /** Fields updated on the canonical record (never the booking rows). */
-  updates: { field: CorrectableStep; value: string }[];
+  updates: FieldUpdate[];
   /** True when the owner must confirm before anything about the visit changes. */
   requiresOwnerReview: boolean;
   message: string;
@@ -51,7 +51,7 @@ export function evaluateBookingChangeRequest(input: {
   tenantName: string;
 }): ChangeRequestOutcome {
   const raw = input.raw.trim();
-  const base = { collected: input.collected, updates: [] as { field: CorrectableStep; value: string }[] };
+  const base = { collected: input.collected, updates: [] as FieldUpdate[] };
 
   if (raw.length === 0)
     return { ...base, kind: "unclear", requiresOwnerReview: false, message: CHANGE_REQUEST_UNCLEAR };
@@ -83,7 +83,7 @@ export function evaluateBookingChangeRequest(input: {
       const applied = applyAnswer(collected, field, match[1].trim(), input.tenant);
       if (!applied.ok) continue;
       collected = applied.collected;
-      updates.push({ field, value: match[1].trim() });
+      updates.push({ field, value: match[1].trim(), echo: match[1].trim() });
       break;
     }
   }
