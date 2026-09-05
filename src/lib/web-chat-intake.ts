@@ -437,6 +437,35 @@ function stripOtherFieldClauses(raw: string): string {
     .trim();
 }
 
+/** Condition words customers use; the clause around one is their concern. */
+const CONCERN_WORDS = [
+  "pet hair",
+  "dog hair",
+  "cat hair",
+  "swirl",
+  "swirls",
+  "scratch",
+  "scratches",
+  "water spot",
+  "water spots",
+  "stain",
+  "stains",
+  "odour",
+  "odor",
+  "smell",
+  "mould",
+  "mold",
+  "tree sap",
+  "bird dropping",
+  "oxidation",
+  "fade",
+  "faded",
+  "mud",
+  "sand",
+  "spill",
+  "crumbs",
+];
+
 export function extractNotes(raw: string): string | null {
   const patterns = [
     /\b(?:please\s+)?(?:add|note)\s+that\s+([^.;!?]{4,200})/i,
@@ -447,6 +476,12 @@ export function extractNotes(raw: string): string | null {
     const captured = pattern.exec(raw)?.[1]?.trim();
     const value = captured ? stripOtherFieldClauses(captured) : "";
     if (value.length >= 4) return value;
+  }
+  // A clause that names a condition word is the customer's own description.
+  for (const clause of raw.split(/[,;.!?]/)) {
+    const trimmed = stripOtherFieldClauses(clause.trim());
+    const lower = trimmed.toLowerCase();
+    if (trimmed.length >= 4 && CONCERN_WORDS.some((word) => lower.includes(word))) return trimmed;
   }
   return null;
 }
