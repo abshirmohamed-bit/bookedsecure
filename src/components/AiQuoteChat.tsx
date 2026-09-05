@@ -166,9 +166,12 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     void submit({ answer, label: label ?? answer, step: prompt?.step ?? null });
   }
 
+  // A booked customer keeps the message box so they can ask for a change; the
+  // request goes to the business for review and never moves the booking itself.
   const showComposer =
-    !finished &&
-    (prompt?.kind === "text" || prompt?.kind === "review" || describing || onServiceStep || (!prompt && conversationId !== null));
+    finished === "completed" ||
+    (!finished &&
+    (prompt?.kind === "text" || prompt?.kind === "review" || describing || onServiceStep || (!prompt && conversationId !== null)));
   const canSend = !busy && draft.trim().length > 0;
 
   const customerBubble = (body: string) => (
@@ -509,7 +512,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   placeholder={
-                    onServiceStep
+                    finished === "completed"
+                      ? "Need to change something? Tell me here…"
+                      : onServiceStep
                       ? "Or describe what you need…"
                       : prompt?.kind === "review"
                         ? "Tell me what to change…"
