@@ -76,14 +76,16 @@ export function evaluateBookingChangeRequest(input: {
   if (updates.length === 0) {
     for (const field of ["service", "vehicle", "suburb", "concerns", "name", "mobile", "email"] as CorrectableStep[]) {
       const match = new RegExp(
-        `\\b(?:${FIELD_LABELS[field].split(" ")[0]}|${field})\\b[^a-z0-9]{0,12}(?:to|is|=|:)\\s+([^,;.]+)`,
+        `\\b(?:${FIELD_LABELS[field].split(" ")[0]}|${field})\\b[^a-z0-9]{0,12}(?:to|is|=|:)\\s+([^,;]+)`,
         "i",
       ).exec(raw);
       if (!match?.[1]) continue;
-      const applied = applyAnswer(collected, field, match[1].trim(), input.tenant);
+      // A trailing sentence stop is punctuation, not part of the value.
+      const value = match[1].trim().replace(/\.$/, "");
+      const applied = applyAnswer(collected, field, value, input.tenant);
       if (!applied.ok) continue;
       collected = applied.collected;
-      updates.push({ field, value: match[1].trim(), echo: match[1].trim() });
+      updates.push({ field, value, echo: value });
       break;
     }
   }
