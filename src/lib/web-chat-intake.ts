@@ -381,6 +381,7 @@ export function extractName(raw: string): string | null {
   const patterns = [
     /\bmy\s+name\s+(?:is|'s)\s+([A-Za-z][A-Za-z'\-]*(?:\s+[A-Za-z][A-Za-z'\-]*){0,2})/i,
     /\b(?:i\s*am|i'?m|this\s+is|it'?s)\s+([A-Z][A-Za-z'\-]*(?:\s+[A-Z][A-Za-z'\-]*){0,2})\b/,
+    /\b(?:booking\s+name|under\s+the\s+name|name)\s*(?:is|:|-)?\s+([A-Z][A-Za-z'\-]*(?:\s+[A-Z][A-Za-z'\-]*){0,2})\b/,
   ];
   for (const pattern of patterns) {
     const value = pattern.exec(raw)?.[1]?.trim();
