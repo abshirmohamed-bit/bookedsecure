@@ -85,7 +85,41 @@ export function webChatBookingIdempotencyKey(conversationId: string, offerId: st
   return `webchat_booking:${conversationId}:${offerId}`;
 }
 
-export const BOOKING_PROMPT_TEXT = "Pick a time that suits. I'll book you in on the spot.";
+export const BOOKING_PROMPT_TEXT =
+  "These are the real times we have open. Pick the one that suits and I'll show it back to you before anything is locked in.";
+
+/** Explicit final-confirmation choices for the held slot. */
+export const BOOKING_CONFIRM_CHOICE = "__confirm__";
+export const BOOKING_CHANGE_CHOICE = "__change__";
+
+/**
+ * Final summary shown before ANY booking is created. Nothing is written to the
+ * calendar until the customer confirms this back.
+ */
+export function bookingConfirmMessage(input: {
+  businessName: string;
+  serviceName: string | null | undefined;
+  suburb: string | null | undefined;
+  vehicle: string | null | undefined;
+  slotLabel: string;
+}): string {
+  const lines = [
+    `Service: ${(input.serviceName ?? "").trim() || "as discussed"}`,
+    `Time: ${input.slotLabel}`,
+  ];
+  const vehicle = (input.vehicle ?? "").trim();
+  if (vehicle) lines.push(`Vehicle: ${vehicle}`);
+  const suburb = (input.suburb ?? "").trim();
+  if (suburb) lines.push(`Suburb: ${suburb}`);
+  return [
+    `Before I lock anything in, here's the booking with ${input.businessName}:`,
+    ...lines,
+    "Shall I confirm this?",
+  ].join("\n");
+}
+
+export const BOOKING_CHANGE_MESSAGE =
+  "No problem — nothing has been booked. Here are the times that are open right now.";
 
 export const BOOKING_CONFLICT_MESSAGE =
   "Sorry — that time was just taken while we were talking. Here are the times that are still open.";

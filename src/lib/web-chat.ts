@@ -4,7 +4,10 @@
 
 import { normaliseAuMobile } from "@/lib/domain";
 import {
+  BOOKING_CHANGE_CHOICE,
+  BOOKING_CONFIRM_CHOICE,
   BOOKING_PROMPT_TEXT,
+  bookingConfirmMessage,
   NO_SLOT_CHOICE,
   type PilotOffer,
 } from "@/lib/web-chat-booking";
@@ -20,6 +23,7 @@ export const WEB_CHAT_STEPS = [
   "review",
   "consent",
   "booking",
+  "booking_confirm",
 ] as const;
 export type WebChatStep = (typeof WEB_CHAT_STEPS)[number];
 
@@ -37,6 +41,8 @@ export type WebChatService = {
 export type WebChatTenant = {
   name: string;
   flexibleRequestsEnabled: boolean;
+  /** True when this tenant takes real bookings in the conversation. */
+  bookingEnabled?: boolean;
   services: WebChatService[];
 };
 
@@ -58,6 +64,8 @@ export type WebChatCollected = {
   booking_offered?: boolean | null;
   booking_selected?: string | null;
   booking_declined?: boolean | null;
+  /** Set only when the customer has explicitly confirmed the held slot. */
+  booking_confirmed?: boolean | null;
 };
 
 export type WebChatReviewField = { step: WebChatStep; label: string; value: string };
@@ -76,8 +84,12 @@ export type WebChatPrompt = {
 export function welcomeMessage(tenant: WebChatTenant): string {
   return [
     `Hi — you're chatting with ${tenant.name}'s online quote assistant.`,
-    "I can explain the services we offer, take your vehicle details and pass everything to the team for review.",
-    "I can't confirm prices or bookings here — the owner reviews every enquiry and replies to you directly.",
+    tenant.bookingEnabled === true
+      ? "Tell me what you need and I'll take a few details, then show you the times we actually have open."
+      : "I can explain the services we offer, take your vehicle details and pass everything to the team for review.",
+    tenant.bookingEnabled === true
+      ? "I can't quote a price here — the team confirms pricing with you directly."
+      : "I can't confirm prices or bookings here — the owner reviews every enquiry and replies to you directly.",
   ].join(" ");
 }
 
@@ -110,6 +122,15 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
     collected.booking_declined !== true
   ) {
     return "booking";
+  }
+  // Explicit final confirmation: a selected slot is only a hold until the
+  // customer confirms the summary back. No booking exists before this.
+  if (
+    collected.booking_selected &&
+    collected.booking_confirmed !== true &&
+    collected.booking_declined !== true
+  ) {
+    return "booking_confirm";
   }
   return null;
 }
@@ -203,6 +224,26 @@ export function promptFor(
           { value: NO_SLOT_CHOICE, label: "None of these work", detail: null },
         ],
       };
+    case "booking_confirm": {
+      const held = (collected.pilot_offers ?? []).find(
+        (offer) => offer.offer_id === collected.booking_selected,
+      );
+      return {
+        step,
+        kind: "choice",
+        text: bookingConfirmMessage({
+          businessName: tenant.name,
+          serviceName: collected.service_name ?? collected.typed_request ?? null,
+          suburb: collected.suburb ?? null,
+          vehicle: collected.vehicle_type ?? null,
+          slotLabel: held?.label ?? "the time you picked",
+        }),
+        options: [
+          { value: BOOKING_CONFIRM_CHOICE, label: "Yes, confirm this booking", detail: null },
+          { value: BOOKING_CHANGE_CHOICE, label: "Pick a different time", detail: null },
+        ],
+      };
+    }
   }
 }
 
@@ -266,7 +307,9 @@ export function applyAnswer(
       return { ok: true, collected: next, echo: mobile };
     }
     case "email": {
-      if (value === "" || value.toLowerCase() === "skip") {
+      // The customer's own words for "I don't have one" are accepted as a skip —
+      // they are never stored as an email address.
+      if (value === "" || /^(skip|none|nope?|no|no email|n\/a|na|nil)$/i.test(value)) {
         next.email = null;
         return { ok: true, collected: next, echo: "No email" };
       }
@@ -308,7 +351,29 @@ export function applyAnswer(
       if (!offer) return { ok: false, error: "Please choose one of the times shown." };
       next.booking_selected = offer.offer_id;
       next.booking_declined = false;
+      next.booking_confirmed = false;
       return { ok: true, collected: next, echo: offer.label };
+    }
+    case "booking_confirm": {
+      if (
+        value === BOOKING_CONFIRM_CHOICE ||
+        /^(yes|yep|yeah|confirm(ed)?|ok(ay)?|book it|go ahead|please do)\b/i.test(value)
+      ) {
+        next.booking_confirmed = true;
+        return { ok: true, collected: next, echo: "Yes, confirm this booking" };
+      }
+      if (
+        value === BOOKING_CHANGE_CHOICE ||
+        /\b(different|another|change|other)\s+(time|slot|day)\b|^(no|nope)\b/i.test(value)
+      ) {
+        next.booking_selected = null;
+        next.booking_confirmed = false;
+        return { ok: true, collected: next, echo: "Pick a different time" };
+      }
+      return {
+        ok: false,
+        error: "Just to be safe — should I confirm that time, or would you rather pick a different one?",
+      };
     }
   }
 
