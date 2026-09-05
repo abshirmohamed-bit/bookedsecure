@@ -7,7 +7,7 @@ import {
   resumeQuoteConversation,
   startQuoteConversation,
 } from "@/lib/web-chat.functions";
-import { isVerboseIntro } from "@/lib/web-chat-presentation";
+import { isSuppressedOpeningTurn, shortServiceArea } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
 import { BOOKING_CHANGE_CHOICE, BOOKING_CONFIRM_CHOICE, NO_SLOT_CHOICE } from "@/lib/web-chat-booking";
 
@@ -105,9 +105,13 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [turns.length, busy, prompt?.step, finished, describing, pending?.answer, error]);
 
-  // Display-only: the stored long introduction is not shown in the opening
-  // conversation; the short instruction leads instead.
-  const visibleTurns = useMemo(() => turns.filter((turn) => !isVerboseIntro(turn.body)), [turns]);
+  // Display-only: the stored introduction and service-step instruction are not
+  // shown; one concise opening message with the service list leads instead.
+  const visibleTurns = useMemo(
+    () => turns.filter((turn) => !isSuppressedOpeningTurn(turn.body)),
+    [turns],
+  );
+
 
   const onServiceStep = prompt?.step === "service" && prompt.kind === "choice";
   const serviceOptions = onServiceStep ? (prompt?.options ?? []) : [];
