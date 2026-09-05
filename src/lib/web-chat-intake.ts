@@ -644,7 +644,11 @@ export function applyIntake(
     if (field && !applied.includes(field)) applied.push(field);
   };
 
-  if (extraction.service && !next.service_id) put("service", extraction.service.id, "service");
+  // A service already chosen or already stated is never re-decided by a later
+  // answer to a different question ("pet hair in the back seats" is a condition,
+  // not a new service).
+  if (extraction.service && !next.service_id && !(next.typed_request ?? "").trim())
+    put("service", extraction.service.id, "service");
   if (extraction.vehicle && !(next.vehicle_type ?? "").trim()) put("vehicle", extraction.vehicle, "vehicle");
   if (extraction.location && !(next.suburb ?? "").trim()) put("suburb", extraction.location, "location");
   if (extraction.name && !(next.name ?? "").trim()) put("name", extraction.name, "name");
