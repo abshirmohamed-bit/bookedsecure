@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyFieldDirectives,
   applyIntake,
   extractIntake,
+  extractNotes,
+  fieldUpdateMessage,
   groupedMissingMessage,
   matchApprovedLocation,
   matchApprovedService,
@@ -9,6 +12,7 @@ import {
   parseApprovedLocations,
   resolvePreferredDate,
   resolvePreferredTime,
+  statedSuburb,
   type IntakeTenant,
 } from "@/lib/web-chat-intake";
 import type { WebChatTenant } from "@/lib/web-chat";
@@ -186,5 +190,49 @@ describe("grouped collection", () => {
     const extraction = extractIntake("ceramic coating in Bankstown", tenant, now);
     const { collected } = applyIntake({ suburb: "Punchbowl" }, extraction, chatTenant);
     expect(collected.suburb).toBe("Punchbowl");
+  });
+});
+
+describe("stated suburb and multi-field directives", () => {
+  it("keeps a suburb the customer stated even when it is not in the approved list", () => {
+    const intake = extractIntake("Ceramic coating in Punchbowl for my Toyota RAV4", IntakeTenant, now);
+    expect(intake.location).toBe("Punchbowl");
+  });
+
+  it("reads a suburb given as the opening word", () => {
+    expect(statedSuburb("Punchbowl, there is some swirl marks on the paint")).toBe("Punchbowl");
+  });
+
+  it("never reads a discourse opener or a vehicle as a suburb", () => {
+    expect(statedSuburb("Actually, change the vehicle to a Mazda CX-5")).toBeNull();
+    expect(statedSuburb("Mazda CX-5, please")).toBeNull();
+  });
+
+  it("does not swallow the mobile number into the vehicle condition note", () => {
+    expect(extractNotes("there is some swirl marks on the paint, my mobile is 0400 000 111")).toBe(
+      "some swirl marks on the paint",
+    );
+  });
+
+  it("applies every field named in a multi-field change without values bleeding across fields", () => {
+    const start = applyIntake(
+      { reviewed: false, vehicle_type: "Toyota RAV4", suburb: "Punchbowl" } as never,
+      { intent: "booking" } as never,
+      IntakeTenant,
+    ).collected;
+    const result = applyFieldDirectives(
+      "Actually, change the vehicle to a Mazda CX-5 and the suburb to Bankstown.",
+      start,
+      IntakeTenant,
+    );
+    expect(result.updates.map((update) => update.field)).toEqual(["vehicle", "suburb"]);
+    expect(result.collected.vehicle_type).toBe("Mazda CX-5");
+    expect(result.collected.suburb).toBe("Bankstown");
+    expect(fieldUpdateMessage(result.updates)).toContain("Mazda CX-5");
+  });
+
+  it("leaves single-field changes to the correction path", () => {
+    const result = applyFieldDirectives("Actually make it a Mazda CX-5", { reviewed: false } as never, IntakeTenant);
+    expect(result.updates.length).toBeLessThan(2);
   });
 });
