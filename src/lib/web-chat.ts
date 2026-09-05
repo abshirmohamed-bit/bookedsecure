@@ -306,7 +306,25 @@ export function applyAnswer(
         return { ok: true, collected: next, echo: service.name };
       }
       if (value.length < 2) return { ok: false, error: "Please choose a service or describe what you need." };
+      // A restated or corrected service that names one of the tenant's own
+      // approved services is that service — it never becomes a free-text
+      // request, so booking stays available.
+      const named = serviceByName(value, tenant.services);
+      if (named.kind === "one") {
+        next.service_id = named.service.id;
+        next.service_name = named.service.name;
+        next.typed_request = null;
+        return { ok: true, collected: next, echo: named.service.name };
+      }
+      if (named.kind === "ambiguous") {
+        const names = named.services.map((service) => service.name);
+        return {
+          ok: false,
+          error: `Which one did you mean: ${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}?`,
+        };
+      }
       if (!tenant.flexibleRequestsEnabled) return { ok: false, error: "Please choose one of the listed services." };
+
       next.service_id = null;
       next.service_name = null;
       next.typed_request = value;
