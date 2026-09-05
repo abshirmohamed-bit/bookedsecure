@@ -32,7 +32,11 @@ import {
   messageAttributionColumns,
   normaliseAgentAttribution,
 } from "@/lib/agent-attribution";
-import { evaluateQuietHoursGate, QUIET_HOURS_BLOCKED_CODE } from "@/lib/sms/quiet-hours";
+import {
+  evaluateQuietHoursGate,
+  isQuietHoursExemptTransactional,
+  QUIET_HOURS_BLOCKED_CODE,
+} from "@/lib/sms/quiet-hours";
 import { resolveAcknowledgementTemplate } from "@/lib/acknowledgement-contract";
 
 
@@ -687,7 +691,30 @@ export async function sendSms(input: {
   // than an internal audit event. Scheduling of a later attempt stays with the
   // existing callers (job retry / follow-up deferral) — nothing is queued here.
   const quietHours = evaluateQuietHoursGate(business, new Date());
-  if (quietHours.blocked) {
+  // One narrow exemption: the operational booking-confirmation template. A
+  // customer who has just booked must be told immediately, at any hour. The
+  // exemption is template-scoped, so promotional copy, sequence steps and AI
+  // replies stay fully blocked inside the window.
+  const transactionalExempt = isQuietHoursExemptTransactional({
+    templateId: input.templateId ?? null,
+    kind: input.kind,
+  });
+  if (quietHours.blocked && transactionalExempt) {
+    await audit({
+      businessId: input.businessId,
+      eventType: "sms_quiet_hours_exempt_transactional",
+      entityType: "lead",
+      entityId: lead.id,
+      metadata: {
+        kind: input.kind,
+        source: messageSource,
+        template_id: input.templateId ?? null,
+        local_hour: quietHours.localHour,
+        timezone: business.timezone,
+      },
+    });
+  }
+  if (quietHours.blocked && !transactionalExempt) {
     await audit({
       businessId: input.businessId,
       eventType: "sms_blocked_quiet_hours",

@@ -41,3 +41,21 @@ export function evaluateQuietHoursGate(settings: QuietHoursSettings, at: Date): 
     reason: `Quiet hours (${settings.quiet_hours_start}:00–${settings.quiet_hours_end}:00 ${settings.timezone}) — nothing was sent.`,
   };
 }
+
+/**
+ * Operational, customer-triggered transactional messages that must never be
+ * held back by the tenant's quiet window. The allow-list is deliberately
+ * template-scoped: only the versioned booking-confirmation template qualifies,
+ * and only on the operational (non-automated) send path. Nothing promotional,
+ * no sequence step and no AI-authored copy can ever be exempt.
+ */
+export const QUIET_HOURS_EXEMPT_TEMPLATE_IDS = ["booking_confirmation.v2"] as const;
+
+export function isQuietHoursExemptTransactional(input: {
+  templateId: string | null | undefined;
+  kind: string;
+}): boolean {
+  if (input.kind !== "manual") return false;
+  const id = (input.templateId ?? "").trim();
+  return (QUIET_HOURS_EXEMPT_TEMPLATE_IDS as readonly string[]).includes(id);
+}

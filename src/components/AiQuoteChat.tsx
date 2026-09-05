@@ -9,7 +9,7 @@ import {
 } from "@/lib/web-chat.functions";
 import { isVerboseIntro } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
-import { NO_SLOT_CHOICE } from "@/lib/web-chat-booking";
+import { BOOKING_CHANGE_CHOICE, BOOKING_CONFIRM_CHOICE, NO_SLOT_CHOICE } from "@/lib/web-chat-booking";
 
 type Turn = { role: "customer" | "assistant" | "system"; body: string };
 
@@ -113,6 +113,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const serviceOptions = onServiceStep ? (prompt?.options ?? []) : [];
   const onBookingStep = prompt?.step === "booking" && prompt.kind === "choice";
   const bookingOptions = onBookingStep ? (prompt?.options ?? []) : [];
+  const onBookingConfirmStep = prompt?.step === "booking_confirm" && prompt.kind === "choice";
 
 
   /**
@@ -419,6 +420,28 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                     className="min-h-11 w-full rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                   >
                     None of these work
+                  </button>
+                </div>
+              )}
+
+              {/* Final confirmation — nothing is booked until this is pressed */}
+              {!finished && !busy && !pending && onBookingConfirmStep && (
+                <div className="mt-4 space-y-2 rounded-xl border border-border bg-card/60 p-3">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => send(BOOKING_CONFIRM_CHOICE, "Yes, confirm this booking")}
+                    className="min-h-11 w-full rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    Yes, confirm this booking
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => send(BOOKING_CHANGE_CHOICE, "Pick a different time")}
+                    className="min-h-11 w-full rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  >
+                    Pick a different time
                   </button>
                 </div>
               )}

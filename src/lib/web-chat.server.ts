@@ -29,7 +29,9 @@ import {
   hasCorrectionCue,
   parseChangeDirective,
 } from "@/lib/web-chat-correction";
+import { isBookingOnlyTenant } from "@/lib/booking-only-mode";
 import {
+  BOOKING_CHANGE_MESSAGE,
   BOOKING_CONFLICT_MESSAGE,
   BOOKING_EXPIRED_MESSAGE,
   BOOKING_UNAVAILABLE_MESSAGE,
@@ -70,6 +72,7 @@ function toChatTenant(tenant: PublicTenant): WebChatTenant {
   return {
     name: tenant.name,
     flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
+    bookingEnabled: isBookingOnlyTenant(tenant.businessId),
     services: tenant.services.map((service) => ({
       id: service.id,
       name: service.name,
@@ -134,7 +137,7 @@ export async function resumeWebChat(slug: string, conversationId: string): Promi
   // Booking step: the offer list stored on the conversation is display state and
   // may be stale. Re-derive it from the database and live availability so a
   // resumed conversation can only ever select a slot that is still bookable.
-  if (step === "booking" && conversation.lead_id) {
+  if ((step === "booking" || step === "booking_confirm") && conversation.lead_id) {
     const { rehydrateBookingOffers } = await import("@/lib/web-chat-booking.server");
     const rehydrated = await rehydrateBookingOffers({
       businessId: tenant.businessId,
@@ -323,8 +326,9 @@ export async function replyToWebChat(input: {
   // Pilot booking step. Handled on its own branch: the answer is an offer id the
   // server itself generated, so correction parsing and field validation do not
   // apply. No SMS, no provider call and no automation is triggered here.
-  if (step === "booking") {
+  if (step === "booking" || step === "booking_confirm") {
     return await handleBookingSelection({
+      step,
       tenant,
       chatTenant,
       conversation: {
@@ -670,6 +674,7 @@ export async function replyToWebChat(input: {
  * automation job is created anywhere on this path.
  */
 async function handleBookingSelection(input: {
+  step: "booking" | "booking_confirm";
   tenant: PublicTenant;
   chatTenant: WebChatTenant;
   conversation: { id: string; leadId: string | null; requiresOwnerReview: boolean };
@@ -680,9 +685,9 @@ async function handleBookingSelection(input: {
   const { tenant, chatTenant, conversation, collected, turns } = input;
   const businessId = tenant.businessId;
 
-  const applied = applyAnswer(collected, "booking", input.answer, chatTenant);
+  const applied = applyAnswer(collected, input.step, input.answer, chatTenant);
   if (!applied.ok) {
-    const prompt = promptFor("booking", chatTenant, collected);
+    const prompt = promptFor(input.step, chatTenant, collected);
     await addMessage(businessId, conversation.id, "assistant", applied.error);
     return {
       conversationId: conversation.id,
@@ -737,7 +742,60 @@ async function handleBookingSelection(input: {
     return await complete(bookingDeclinedMessage(tenant.name), next);
   }
 
-  const offerId = next.booking_selected!;
+  /** Persists the draft state and stays in the conversation with a prompt. */
+  async function stay(
+    stored: WebChatCollected,
+    message: string,
+    promptStep: "booking" | "booking_confirm",
+  ): Promise<WebChatState> {
+    await supabaseAdmin
+      .from("web_conversations")
+      .update({ collected: stored as never })
+      .eq("id", conversation.id)
+      .eq("business_id", businessId);
+    await addMessage(businessId, conversation.id, "assistant", message);
+    return {
+      conversationId: conversation.id,
+      status: "active",
+      messages: [...turns, { role: "customer", body: echo }, { role: "assistant", body: message }],
+      prompt: promptFor(promptStep, chatTenant, stored),
+      requiresOwnerReview: conversation.requiresOwnerReview,
+      completed: false,
+      declined: false,
+      duplicate: false,
+    };
+  }
+
+  // Selecting a time is a HOLD, never a booking. The customer sees the full
+  // summary and must confirm it back before anything is created.
+  if (input.step === "booking") {
+    const prompt = promptFor("booking_confirm", chatTenant, next);
+    return await stay(next, prompt.text, "booking_confirm");
+  }
+
+  // "Pick a different time": the hold is released in the conversation and fresh
+  // live options are recomputed. Still no booking, no SMS, no owner alert.
+  if (next.booking_confirmed !== true) {
+    if (!conversation.leadId) {
+      return await complete(BOOKING_UNAVAILABLE_MESSAGE, { ...collected, booking_declined: true });
+    }
+    const { refreshBookingOffers } = await import("@/lib/web-chat-booking.server");
+    const fresh = await refreshBookingOffers({ businessId, leadId: conversation.leadId });
+    if (fresh.length === 0) {
+      return await complete(BOOKING_UNAVAILABLE_MESSAGE, { ...collected, booking_declined: true });
+    }
+    const reopened: WebChatCollected = {
+      ...next,
+      pilot_offers: fresh,
+      booking_offered: true,
+      booking_selected: null,
+      booking_confirmed: false,
+      booking_declined: false,
+    };
+    return await stay(reopened, BOOKING_CHANGE_MESSAGE, "booking");
+  }
+
+  const offerId = collected.booking_selected ?? next.booking_selected!;
   if (!conversation.leadId) {
     return await complete(BOOKING_UNAVAILABLE_MESSAGE, { ...collected, booking_declined: true });
   }
@@ -786,6 +844,7 @@ async function handleBookingSelection(input: {
     pilot_offers: fresh,
     booking_offered: true,
     booking_selected: null,
+    booking_confirmed: false,
     booking_declined: false,
   };
   await supabaseAdmin

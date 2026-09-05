@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  BOOKING_CHANGE_CHOICE,
+  BOOKING_CONFIRM_CHOICE,
   NO_SLOT_CHOICE,
   PILOT_BUSINESS_ID,
   PILOT_TENANT_SLUG,
@@ -109,12 +111,44 @@ describe("booking step machine", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("records a valid selection and closes the step", () => {
+  it("holds a valid selection and requires an explicit confirmation", () => {
     const result = applyAnswer(consented(), "booking", "offer-b", tenant);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.collected.booking_selected).toBe("offer-b");
-    expect(nextStep(result.collected)).toBeNull();
+    expect(result.collected.booking_confirmed).toBe(false);
+    // A held slot is a draft: the conversation moves to the confirmation step
+    // and no booking exists until the customer confirms.
+    expect(nextStep(result.collected)).toBe("booking_confirm");
+  });
+
+  it("only closes the step once the customer confirms the summary", () => {
+    const held = applyAnswer(consented(), "booking", "offer-b", tenant);
+    expect(held.ok).toBe(true);
+    if (!held.ok) return;
+
+    const summary = promptFor("booking_confirm", tenant, held.collected);
+    expect(summary.text).toContain("Before I lock anything in");
+    expect((summary.options ?? []).map((option) => option.value)).toEqual([
+      BOOKING_CONFIRM_CHOICE,
+      BOOKING_CHANGE_CHOICE,
+    ]);
+
+    const unclear = applyAnswer(held.collected, "booking_confirm", "hmm", tenant);
+    expect(unclear.ok).toBe(false);
+
+    const changed = applyAnswer(held.collected, "booking_confirm", BOOKING_CHANGE_CHOICE, tenant);
+    expect(changed.ok).toBe(true);
+    if (changed.ok) {
+      expect(changed.collected.booking_selected).toBeNull();
+      expect(nextStep(changed.collected)).toBe("booking");
+    }
+
+    const confirmed = applyAnswer(held.collected, "booking_confirm", BOOKING_CONFIRM_CHOICE, tenant);
+    expect(confirmed.ok).toBe(true);
+    if (!confirmed.ok) return;
+    expect(confirmed.collected.booking_confirmed).toBe(true);
+    expect(nextStep(confirmed.collected)).toBeNull();
   });
 
   it("lets the customer decline without booking", () => {

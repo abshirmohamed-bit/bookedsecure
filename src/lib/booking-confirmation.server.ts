@@ -1,5 +1,4 @@
-// Operational booking-confirmation SMS: send now, or queue for release at the
-// end of the tenant's quiet window.
+// Operational booking-confirmation SMS: sent immediately after a booking is committed.
 //
 // Runs only after a booking has been committed (confirmed offer + job). It
 // never creates, moves or cancels a booking, never starts a sequence, never
@@ -8,8 +7,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   BOOKING_CONFIRMATION_TEMPLATE_ID,
-  confirmationJobIdempotencyKey,
-  confirmationReleaseAt,
   evaluateConfirmationEligibility,
   renderBookingConfirmation,
   resolveTenantCallbackNumber,
@@ -59,9 +56,8 @@ export async function deliverBookingConfirmation(input: {
   offerId: string;
   /** Set when called from the release job: never re-queue, just decide. */
   fromRelease?: boolean;
-  now?: Date;
+  now?: Date | undefined;
 }): Promise<ConfirmationResult> {
-  const now = input.now ?? new Date();
   const [{ data: lead }, { data: business }, { data: offer }] = await Promise.all([
     supabaseAdmin
       .from("leads")
@@ -113,37 +109,12 @@ export async function deliverBookingConfirmation(input: {
 
   const timezone = offer.timezone ?? business.timezone;
 
-  // Overnight bookings wait for the tenant's quiet window to end — the
-  // confirmation is never dropped and never sent inside quiet hours.
-  if (!input.fromRelease) {
-    const release = confirmationReleaseAt(
-      {
-        timezone: business.timezone,
-        quiet_hours_start: business.quiet_hours_start,
-        quiet_hours_end: business.quiet_hours_end,
-      },
-      now,
-    );
-    if (release) {
-      const { enqueueJob } = await import("@/lib/jobs.server");
-      await enqueueJob({
-        businessId: input.businessId,
-        leadId: input.leadId,
-        jobType: "booking_confirmation",
-        idempotencyKey: confirmationJobIdempotencyKey(offer.id),
-        payload: { offer_id: offer.id },
-        runAt: release,
-      });
-      const queuedFor = release.toISOString();
-      await record({ ...input, outcome: "queued_quiet_hours", reason: decision.reason, queuedFor });
-      return {
-        ...base,
-        outcome: "queued_quiet_hours",
-        queuedFor,
-        reason: `Quiet hours — confirmation queued for ${queuedFor}.`,
-      };
-    }
-  }
+  // The booking confirmation is transactional: the customer has just booked and
+  // is told immediately, at any hour. Quiet hours never hold it back and it is
+  // never queued — the outbound path carries a template-scoped exemption for
+  // this one message. Promotional copy and sequence steps remain blocked.
+
+
 
   const callbackNumber = resolveTenantCallbackNumber(business)!;
   const { body, templateId } = renderBookingConfirmation({
