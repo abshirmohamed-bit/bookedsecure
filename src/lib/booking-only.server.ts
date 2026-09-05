@@ -89,6 +89,16 @@ export async function finalizeBookingOnlyBooking(input: {
     serviceName,
     slotLabel: label,
   });
+  // Resting state for a booked customer: a confirmed booking means this lead is
+  // a booked lead, never a cold contact-only record. Projection only — booking
+  // rows stay authoritative and no sequence is planned.
+  await supabaseAdmin
+    .from("leads")
+    .update({ lead_context: "booked_lead", context_verified_at: new Date().toISOString() })
+    .eq("id", input.leadId)
+    .eq("business_id", input.businessId)
+    .neq("lead_context", "booked_lead");
+
   const { createNotification } = await import("@/lib/jobs.server");
   const notified = await createNotification({
     businessId: input.businessId,
