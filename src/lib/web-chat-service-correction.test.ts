@@ -48,7 +48,7 @@ describe("service corrections", () => {
     const collected: WebChatCollected = { typed_request: "engine bay steam clean" } as WebChatCollected;
     const extraction = extractIntake(
       "pet hair in the back seats",
-      { ...TENANT, serviceArea: null } as never,
+      { ...TENANT, locations: [], timezone: "Australia/Sydney" } as never,
       new Date(),
     );
     const merged = applyIntake(collected, extraction, TENANT);
