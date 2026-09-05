@@ -265,12 +265,18 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                       />
                       <div className="max-w-[85%] space-y-2.5 rounded-2xl rounded-bl-md bg-secondary px-3.5 py-3 text-sm leading-relaxed text-secondary-foreground">
                         <p>
-                          We offer a range of services
-                          {tenant.serviceArea ? ` across ${tenant.serviceArea}` : ""}, including:
+                          Hi, we offer a range of services
+                          {shortServiceArea(tenant.serviceArea)
+                            ? ` across ${shortServiceArea(tenant.serviceArea)}`
+                            : ""}
+                          , including:
                         </p>
                         <ul className="space-y-1">
                           {serviceOptions.map((option) => {
                             const isFlexible = option.value === FLEXIBLE_CHOICE;
+                            const label = isFlexible
+                              ? "Something else or not sure? Type your request below."
+                              : option.label;
                             return (
                               <li key={option.value} className="flex items-start gap-2">
                                 <span
@@ -282,7 +288,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                   disabled={busy}
                                   aria-label={
                                     isFlexible
-                                      ? "Something else or not sure — describe your own request"
+                                      ? "Something else or not sure — type your own request"
                                       : `Choose ${option.label}`
                                   }
                                   onClick={() => {
@@ -297,16 +303,16 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                   }}
                                   className={`-mx-1 rounded-lg px-1 text-left font-semibold underline decoration-dotted decoration-1 underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
                                     selected === option.value ? "text-primary" : ""
-                                  } ${isFlexible ? "font-medium italic" : ""}`}
+                                  } ${isFlexible ? "font-normal italic no-underline" : ""}`}
                                 >
-                                  {option.label}
+                                  {label}
                                 </button>
                               </li>
                             );
                           })}
                         </ul>
-                        <p>Are you mainly looking to clean up the interior, the exterior, or both?</p>
                       </div>
+
                     </li>
                   )}
 
