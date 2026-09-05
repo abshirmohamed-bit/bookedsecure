@@ -261,6 +261,24 @@ export async function replyToWebChat(input: {
   const turns = await loadTurns(conversation.id);
 
   if (conversation.status !== "active" || turns.length > MAX_MESSAGES) {
+    // A confirmed booking is historical. A later message can still update the
+    // customer's own details, but it never moves, rebooks or cancels the slot —
+    // anything that would affect the visit goes to the owner for review.
+    const change =
+      conversation.status === "completed" && conversation.lead_id && turns.length <= MAX_MESSAGES
+        ? await handleBookingChangeRequest({
+            tenant,
+            chatTenant,
+            conversationId: conversation.id,
+            leadId: conversation.lead_id,
+            collected,
+            answer: input.answer,
+            turns,
+            requiresOwnerReview: conversation.requires_owner_review,
+          })
+        : null;
+    if (change) return change;
+
     return {
       conversationId: conversation.id,
       status: conversation.status,
@@ -272,6 +290,7 @@ export async function replyToWebChat(input: {
       duplicate: false,
     };
   }
+
 
   const step = nextStep(collected);
   if (!step) {
