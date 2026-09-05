@@ -983,3 +983,106 @@ async function maybeHandleFieldDirectives(args: {
     duplicate: false,
   };
 }
+
+/**
+ * Handles a customer message that arrives after the booking was confirmed.
+ *
+ * Detail updates are written to the conversation and to the canonical lead
+ * fields; the confirmed offer and job rows are never touched. Anything that
+ * affects what the crew turns up to — or any reschedule/cancel wording — flags
+ * the lead for owner review and raises one de-duplicated owner alert.
+ */
+async function handleBookingChangeRequest(args: {
+  tenant: PublicTenant;
+  chatTenant: WebChatTenant;
+  conversationId: string;
+  leadId: string;
+  collected: WebChatCollected;
+  answer: string;
+  turns: WebChatTurn[];
+  requiresOwnerReview: boolean;
+}): Promise<WebChatState | null> {
+  const { evaluateBookingChangeRequest } = await import("@/lib/booking-change-request");
+  const outcome = evaluateBookingChangeRequest({
+    collected: args.collected,
+    raw: args.answer,
+    tenant: args.chatTenant,
+    tenantName: args.tenant.name,
+  });
+
+  const echo = args.answer.trim().slice(0, 500);
+  if (echo.length === 0) return null;
+
+  await addMessage(args.tenant.businessId, args.conversationId, "customer", echo);
+
+  if (outcome.updates.length > 0) {
+    const next = outcome.collected;
+    await supabaseAdmin
+      .from("web_conversations")
+      .update({
+        collected: next as never,
+        ...(outcome.requiresOwnerReview ? { requires_owner_review: true } : {}),
+      })
+      .eq("id", args.conversationId)
+      .eq("business_id", args.tenant.businessId);
+
+    // Canonical lead detail fields only — booking rows stay authoritative.
+    await supabaseAdmin
+      .from("leads")
+      .update({
+        ...(next.suburb ? { suburb: next.suburb } : {}),
+        ...(next.vehicle_type ? { vehicle_type: next.vehicle_type } : {}),
+        ...(next.concerns ? { main_concerns: next.concerns } : {}),
+        ...(next.name ? { name: next.name } : {}),
+        ...(next.email ? { email: next.email } : {}),
+        ...(outcome.requiresOwnerReview ? { requires_owner_review: true } : {}),
+      })
+      .eq("id", args.leadId)
+      .eq("business_id", args.tenant.businessId);
+  } else if (outcome.requiresOwnerReview) {
+    await supabaseAdmin
+      .from("web_conversations")
+      .update({ requires_owner_review: true })
+      .eq("id", args.conversationId)
+      .eq("business_id", args.tenant.businessId);
+    await supabaseAdmin
+      .from("leads")
+      .update({ requires_owner_review: true })
+      .eq("id", args.leadId)
+      .eq("business_id", args.tenant.businessId);
+  }
+
+  if (outcome.requiresOwnerReview) {
+    const { createNotification } = await import("@/lib/jobs.server");
+    await createNotification({
+      businessId: args.tenant.businessId,
+      leadId: args.leadId,
+      kind: "booking_change_request",
+      title: "Change requested after booking",
+      body: echo,
+      metadata: {
+        conversation_id: args.conversationId,
+        kind: outcome.kind,
+        updates: outcome.updates,
+      },
+      idempotencyKey: `booking_change_request:${args.conversationId}:${echo.slice(0, 120)}`,
+    });
+  }
+
+  await addMessage(args.tenant.businessId, args.conversationId, "assistant", outcome.message);
+
+  return {
+    conversationId: args.conversationId,
+    status: "completed",
+    messages: [
+      ...args.turns,
+      { role: "customer", body: echo },
+      { role: "assistant", body: outcome.message },
+    ],
+    prompt: null,
+    requiresOwnerReview: args.requiresOwnerReview || outcome.requiresOwnerReview,
+    completed: true,
+    declined: false,
+    duplicate: false,
+  };
+}
