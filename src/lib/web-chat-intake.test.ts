@@ -195,7 +195,7 @@ describe("grouped collection", () => {
 
 describe("stated suburb and multi-field directives", () => {
   it("keeps a suburb the customer stated even when it is not in the approved list", () => {
-    const intake = extractIntake("Ceramic coating in Punchbowl for my Toyota RAV4", IntakeTenant, now);
+    const intake = extractIntake("Ceramic coating in Punchbowl for my Toyota RAV4", tenant, now);
     expect(intake.location).toBe("Punchbowl");
   });
 
@@ -218,12 +218,12 @@ describe("stated suburb and multi-field directives", () => {
     const start = applyIntake(
       { reviewed: false, vehicle_type: "Toyota RAV4", suburb: "Punchbowl" } as never,
       { intent: "booking" } as never,
-      IntakeTenant,
+      chatTenant,
     ).collected;
     const result = applyFieldDirectives(
       "Actually, change the vehicle to a Mazda CX-5 and the suburb to Bankstown.",
       start,
-      IntakeTenant,
+      chatTenant,
     );
     expect(result.updates.map((update) => update.field)).toEqual(["vehicle", "suburb"]);
     expect(result.collected.vehicle_type).toBe("Mazda CX-5");
@@ -232,7 +232,7 @@ describe("stated suburb and multi-field directives", () => {
   });
 
   it("leaves single-field changes to the correction path", () => {
-    const result = applyFieldDirectives("Actually make it a Mazda CX-5", { reviewed: false } as never, IntakeTenant);
+    const result = applyFieldDirectives("Actually make it a Mazda CX-5", { reviewed: false } as never, chatTenant);
     expect(result.updates.length).toBeLessThan(2);
   });
 });
