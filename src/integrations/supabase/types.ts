@@ -621,6 +621,8 @@ export type Database = {
           logo_url: string | null
           name: string
           opening_hours: string | null
+          owner_notification_name: string | null
+          owner_notification_number: string | null
           phone_number: string | null
           privacy_policy_url: string | null
           quiet_hours_end: number
@@ -653,6 +655,8 @@ export type Database = {
           logo_url?: string | null
           name: string
           opening_hours?: string | null
+          owner_notification_name?: string | null
+          owner_notification_number?: string | null
           phone_number?: string | null
           privacy_policy_url?: string | null
           quiet_hours_end?: number
@@ -685,6 +689,8 @@ export type Database = {
           logo_url?: string | null
           name?: string
           opening_hours?: string | null
+          owner_notification_name?: string | null
+          owner_notification_number?: string | null
           phone_number?: string | null
           privacy_policy_url?: string | null
           quiet_hours_end?: number
@@ -1512,12 +1518,14 @@ export type Database = {
           provider_message_id: string | null
           provider_raw_status: string | null
           received_at: string | null
+          recipient_role: string
           reconciled_at: string | null
           segments: number
           sender_id: string | null
           sent_at: string | null
           sequence_id: string | null
           template_id: string | null
+          to_number: string | null
         }
         Insert: {
           agent_action_id?: string | null
@@ -1551,12 +1559,14 @@ export type Database = {
           provider_message_id?: string | null
           provider_raw_status?: string | null
           received_at?: string | null
+          recipient_role?: string
           reconciled_at?: string | null
           segments?: number
           sender_id?: string | null
           sent_at?: string | null
           sequence_id?: string | null
           template_id?: string | null
+          to_number?: string | null
         }
         Update: {
           agent_action_id?: string | null
@@ -1590,12 +1600,14 @@ export type Database = {
           provider_message_id?: string | null
           provider_raw_status?: string | null
           received_at?: string | null
+          recipient_role?: string
           reconciled_at?: string | null
           segments?: number
           sender_id?: string | null
           sent_at?: string | null
           sequence_id?: string | null
           template_id?: string | null
+          to_number?: string | null
         }
         Relationships: [
           {
