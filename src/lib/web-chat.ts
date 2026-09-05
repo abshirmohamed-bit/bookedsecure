@@ -248,7 +248,35 @@ export function promptFor(
 }
 
 
+/**
+ * Names an approved service from the customer's own words.
+ *
+ * A corrected or restated service ("change the service to Full Interior
+ * Detail") must land on the tenant's approved service, not on a free-text
+ * request that would send a perfectly ordinary booking to owner review.
+ * Deterministic name matching only — never a guess, never a new service.
+ */
+function serviceByName(
+  value: string,
+  services: WebChatTenant["services"],
+): { kind: "one"; service: WebChatTenant["services"][number] } | { kind: "ambiguous"; services: WebChatTenant["services"] } | { kind: "none" } {
+  const norm = (input: string) => input.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const target = norm(value);
+  if (target.length < 3) return { kind: "none" };
+  const exact = services.filter((service) => norm(service.name) === target);
+  if (exact.length === 1) return { kind: "one", service: exact[0]! };
+  if (exact.length > 1) return { kind: "ambiguous", services: exact };
+  const contained = services.filter((service) => {
+    const name = norm(service.name);
+    return name.length >= 3 && (target.includes(name) || name.includes(target));
+  });
+  if (contained.length === 1) return { kind: "one", service: contained[0]! };
+  if (contained.length > 1) return { kind: "ambiguous", services: contained };
+  return { kind: "none" };
+}
+
 export type ApplyResult =
+
   | { ok: true; collected: WebChatCollected; echo: string }
   | { ok: false; error: string };
 
@@ -278,7 +306,25 @@ export function applyAnswer(
         return { ok: true, collected: next, echo: service.name };
       }
       if (value.length < 2) return { ok: false, error: "Please choose a service or describe what you need." };
+      // A restated or corrected service that names one of the tenant's own
+      // approved services is that service — it never becomes a free-text
+      // request, so booking stays available.
+      const named = serviceByName(value, tenant.services);
+      if (named.kind === "one") {
+        next.service_id = named.service.id;
+        next.service_name = named.service.name;
+        next.typed_request = null;
+        return { ok: true, collected: next, echo: named.service.name };
+      }
+      if (named.kind === "ambiguous") {
+        const names = named.services.map((service) => service.name);
+        return {
+          ok: false,
+          error: `Which one did you mean: ${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}?`,
+        };
+      }
       if (!tenant.flexibleRequestsEnabled) return { ok: false, error: "Please choose one of the listed services." };
+
       next.service_id = null;
       next.service_name = null;
       next.typed_request = value;
