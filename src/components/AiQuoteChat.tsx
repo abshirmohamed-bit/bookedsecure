@@ -301,9 +301,14 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                     }
                                     send(option.value, option.label);
                                   }}
-                                  className={`-mx-1 rounded-lg px-1 text-left font-semibold underline decoration-dotted decoration-1 underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
+                                  className={`-mx-1 rounded-lg px-1 text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
                                     selected === option.value ? "text-primary" : ""
-                                  } ${isFlexible ? "font-normal italic no-underline" : ""}`}
+                                  } ${
+                                    isFlexible
+                                      ? "font-normal italic text-muted-foreground"
+                                      : "font-semibold underline decoration-dotted decoration-1 underline-offset-4"
+                                  }`}
+
                                 >
                                   {label}
                                 </button>
