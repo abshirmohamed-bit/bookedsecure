@@ -60,6 +60,28 @@ export function hasCorrectionCue(raw: string): boolean {
   return CUE.test(raw);
 }
 
+/**
+ * Explicit "change this" intent. Merely STATING a field ("my name is Abshir",
+ * "my number is 0466...") is information, not a change request, and must reach
+ * the intake/AI extraction path instead of the multi-field directive parser.
+ */
+const CHANGE_INTENT = [
+  /\b(?:change|update|correct|replace|swap|amend|edit|fix)\b/i,
+  /\bactually\b/i,
+  /\b(?:i\s+meant|i\s+mean|scratch\s+that|go\s+back|not\s+that|instead\s+of)\b/i,
+  /\b(?:make|set|put|use)\s+(?:it|that|this|the|my)\b/i,
+  /\bshould\s+be\b/i,
+  /\binstead\b/i,
+  /\bnot\s+\w+[,.]/i,
+  /\bsorry\b/i,
+  /\bwrong\b/i,
+  /\bincorrect\b/i,
+];
+
+export function hasExplicitChangeIntent(raw: string): boolean {
+  return CHANGE_INTENT.some((pattern) => pattern.test(raw));
+}
+
 function namedFields(raw: string): CorrectableStep[] {
   return CORRECTABLE_STEPS.filter((step) => FIELD_WORDS[step].test(raw));
 }
