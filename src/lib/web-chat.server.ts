@@ -53,7 +53,17 @@ import {
   aiCorrectionMessage,
   resolveIntake,
 } from "@/lib/web-chat-ai-extraction";
+import {
+  acknowledgeFields,
+  answerQuestion,
+  assembleReply,
+  isConversationalIntakeTenant,
+  uncertainServiceMessage,
+  unsupportedAnswer,
+  type AnswerFacts,
+} from "@/lib/web-chat-conversation";
 import { extractWithAi, type AiExtractor } from "@/lib/web-chat-ai-extraction.server";
+
 
 
 
