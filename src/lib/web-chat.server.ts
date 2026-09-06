@@ -63,17 +63,6 @@ import { extractWithAi, type AiExtractor } from "@/lib/web-chat-ai-extraction.se
 
 const MAX_MESSAGES = 60;
 
-/**
- * Cheap gate before the single model call: a one-word answer to the open
- * question cannot carry another field, so it stays on the deterministic path.
- */
-function mayCarryMultipleFields(raw: string): boolean {
-  if (/[,;]/.test(raw)) return true;
-  if (/\b(?:my|the)\s+(?:name|number|mobile|phone|email)\b/i.test(raw)) return true;
-  if (/(?:\+?61[\s-]?4|\b0[\s-]?4)[\d\s-]{7,}/.test(raw)) return true;
-  if (/[^@\s]+@[^@\s]+\.[a-z]{2,}/i.test(raw)) return true;
-  return raw.split(/\s+/).filter(Boolean).length >= 4;
-}
 
 
 export type WebChatTurn = { role: "customer" | "assistant" | "system"; body: string };
