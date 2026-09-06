@@ -416,8 +416,13 @@ export async function resolveIntake(args: {
   let corrections: AiCorrection[] = [];
   let aiUsed = false;
   let calls = 0;
+  // Deterministic fallback signals, used whenever the model is unavailable or
+  // its output is unusable. They never write state.
+  let question: QuestionTopic | null = null;
+  let uncertain = looksUncertain(args.raw);
+  let unsupported = false;
 
-  if (mayCarryMultipleFields(args.raw)) {
+  if (shouldInterpret(args.raw)) {
     calls = 1;
     let ai: WebChatAiExtraction | null = null;
     try {
@@ -446,7 +451,21 @@ export async function resolveIntake(args: {
       );
       working = corrected.collected;
       corrections = corrected.applied;
+      question = parsed.data.question_topic;
+      uncertain = uncertain || parsed.data.uncertain;
+      unsupported = parsed.data.unsupported;
     }
+  }
+
+  // No usable interpretation: classify deterministically rather than silently
+  // treating a question as an answer.
+  if (!question && (looksLikeQuestion(args.raw) || uncertain)) {
+    question = classifyQuestionTopic(args.raw);
+  }
+
+  // Uncertainty NEVER satisfies the service field: the phrase is not a service.
+  if (uncertain && !args.collected.service_id) {
+    extraction = { ...extraction, service: null };
   }
 
   // Precedence: a confirmed service is trusted, never re-resolved from later text.
@@ -468,5 +487,9 @@ export async function resolveIntake(args: {
     aiUsed,
     beyondOpenStep,
     calls,
+    question,
+    uncertain,
+    unsupported: unsupported || extraction.intent === "unsupported",
   };
 }
+
