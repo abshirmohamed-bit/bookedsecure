@@ -361,6 +361,12 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     proposedOffer
       ? `- The only offer wording you may use is "${proposedOffer}". Never invent another discount, dollar amount, fee or deadline.`
       : "",
+    proposedOffer
+      ? "- Never name, guess or imply a service this contact has had or wants: you do not know it. Keep the offer wording generic."
+      : "",
+    quoteLink
+      ? `- Include this exact link once so they can tell you what they need: ${quoteLink}`
+      : "",
     settingsContext,
     buildApprovedFactsContext(approvedFacts),
   ]
