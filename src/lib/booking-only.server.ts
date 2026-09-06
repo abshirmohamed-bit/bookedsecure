@@ -14,6 +14,8 @@ export type BookingOnlyFinalizeResult = {
   smsSent: boolean;
   smsSkippedReason: string | null;
   ownerAlerted: boolean;
+  ownerSmsSent: boolean;
+  ownerSmsOutcome: string | null;
   sequenceStarted: false;
 };
 
@@ -32,6 +34,8 @@ export async function finalizeBookingOnlyBooking(input: {
     smsSent: false,
     smsSkippedReason: null,
     ownerAlerted: false,
+    ownerSmsSent: false,
+    ownerSmsOutcome: null,
     sequenceStarted: false,
   };
   if (!isBookingOnlyTenant(input.businessId)) {
@@ -110,10 +114,30 @@ export async function finalizeBookingOnlyBooking(input: {
     idempotencyKey: alert.idempotencyKey,
   });
 
+  // Owner notification SMS: immediately after the committed booking, keyed to
+  // the confirmed booking, in addition to (never instead of) the dashboard
+  // alert. A failure here never rolls back the booking or the customer SMS.
+  let ownerSmsSent = false;
+  let ownerSmsOutcome: string | null = null;
+  try {
+    const { deliverOwnerBookingConfirmation } = await import("@/lib/owner-notification.server");
+    const owner = await deliverOwnerBookingConfirmation({
+      businessId: input.businessId,
+      leadId: input.leadId,
+      offerId: offer.id,
+    });
+    ownerSmsSent = owner.sent;
+    ownerSmsOutcome = owner.outcome;
+  } catch {
+    ownerSmsOutcome = "failed";
+  }
+
   return {
     smsSent,
     smsSkippedReason,
     ownerAlerted: notified.created,
+    ownerSmsSent,
+    ownerSmsOutcome,
     sequenceStarted: false,
   };
 }

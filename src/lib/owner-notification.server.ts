@@ -10,7 +10,7 @@ import { getProvider } from "@/lib/sms/provider.server";
 import { resolveEffectiveProviderName } from "@/lib/sms/resolution";
 import { resolveSender } from "@/lib/lead-engine.server";
 import { countSegments } from "@/lib/sms/segments";
-import { RESERVED_STATUS } from "@/lib/sms/dispatch";
+import { RESERVED_STATUS, canReuseOutboundRow } from "@/lib/sms/dispatch";
 import {
   OWNER_BOOKING_CONFIRMED_TEMPLATE_ID,
   evaluateOwnerNotificationEligibility,
@@ -114,7 +114,7 @@ export async function deliverOwnerBookingConfirmation(input: {
     .eq("business_id", input.businessId)
     .eq("idempotency_key", idempotencyKey)
     .maybeSingle();
-  if (prior && prior.delivery_status !== "failed") {
+  if (prior && !canReuseOutboundRow(prior.delivery_status)) {
     await audit({
       ...input,
       outcome: "duplicate_suppressed",

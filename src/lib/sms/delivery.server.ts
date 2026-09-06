@@ -67,7 +67,7 @@ export async function applyDeliveryEvent(
   const { data: message } = await client
     .from("messages")
     .select(
-      "id, business_id, lead_id, conversation_id, direction, delivery_status, delivery_event_count, last_provider_event_id, provider",
+      "id, business_id, lead_id, conversation_id, direction, delivery_status, delivery_event_count, last_provider_event_id, provider, recipient_role",
     )
     .eq("business_id", event.businessId)
     .eq("provider_message_id", event.providerMessageId)
@@ -158,8 +158,13 @@ export async function applyDeliveryEvent(
 
   await client.from("messages").update(update as never).eq("id", message.id);
 
+  // An owner-addressed alert is not customer reachability evidence: its
+  // delivery outcome is recorded on the message row only and never suppresses
+  // the customer or moves the lead's delivery state.
+  const ownerAddressed = (message as { recipient_role?: string | null }).recipient_role === "owner";
+
   let automationStopped = false;
-  if (classification?.suppressLead) {
+  if (!ownerAddressed && classification?.suppressLead) {
     automationStopped = await suppressLeadForPermanentFailure(client, {
       businessId: event.businessId,
       leadId: message.lead_id,
@@ -172,7 +177,8 @@ export async function applyDeliveryEvent(
     }
   }
 
-  await rollUpLeadDeliveryState(client, {
+  if (!ownerAddressed)
+    await rollUpLeadDeliveryState(client, {
     businessId: event.businessId,
     leadId: message.lead_id,
     messageId: message.id,
