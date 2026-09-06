@@ -47,16 +47,15 @@ export function classifyReactivationCandidate(facts: ReactivationFacts): Reactiv
 export const DEFAULT_REACTIVATION_PERCENT = 15;
 
 /**
- * Proposed offer wording, built from this tenant's own active services. The
- * owner always edits and approves it before anything is sent.
+ * Proposed offer wording. Deliberately generic: for a dormant contact we do not
+ * know which service they had or want, so the offer never names one. The owner
+ * always edits and approves it before anything is sent.
  */
-export function proposeOffer(input: {
-  serviceNames?: string[] | null;
-  percent?: number;
-}): string {
-  const percent = Number.isFinite(input.percent) ? Number(input.percent) : DEFAULT_REACTIVATION_PERCENT;
-  const first = (input.serviceNames ?? []).map((n) => n.trim()).filter(Boolean)[0];
-  return first ? `${percent}% off your next ${first}` : `${percent}% off your next service`;
+export function proposeOffer(input?: { percent?: number }): string {
+  const percent = Number.isFinite(input?.percent)
+    ? Number(input?.percent)
+    : DEFAULT_REACTIVATION_PERCENT;
+  return `${percent}% off your next enquiry`;
 }
 
 export const OFFER_MAX_LENGTH = 120;
@@ -75,25 +74,33 @@ function firstName(name: string | null | undefined): string | null {
 
 /**
  * The customer-facing reactivation message. Neutral about history: it never
- * claims a previous job, quote or conversation.
+ * claims a previous job, quote or conversation, and never names a service the
+ * contact has not asked for. When the tenant has a public quote page, the
+ * message carries that tenant's own link.
  */
 export function renderReactivationMessage(input: {
   businessName: string;
   leadName?: string | null;
   offerText: string;
+  quoteUrl?: string | null;
   signature?: string | null;
 }): string {
   const name = firstName(input.leadName);
   const offer = normaliseOffer(input.offerText).replace(/[.!]+$/, "");
   const signature = typeof input.signature === "string" ? input.signature.trim() : "";
+  const quoteUrl = typeof input.quoteUrl === "string" ? input.quoteUrl.trim() : "";
   const parts = [
     name ? `Hi ${name}, it's ${input.businessName}.` : `Hi, it's ${input.businessName}.`,
     `We're offering ${offer}.`,
-    "Reply YES if you'd like us to get you sorted, or STOP to opt out.",
+    quoteUrl
+      ? `Tap the link and let us know what you need: ${quoteUrl}`
+      : "Reply YES if you'd like us to get you sorted, or STOP to opt out.",
   ];
+  if (quoteUrl) parts.push("Reply STOP to opt out.");
   if (signature) parts.push(signature);
   return sanitiseCustomerText(parts.join(" ")).slice(0, REACTIVATION_MAX_LENGTH).trim();
 }
+
 
 // Never allowed in a reactivation message, regardless of the approved offer.
 const BANNED_PATTERNS = [
