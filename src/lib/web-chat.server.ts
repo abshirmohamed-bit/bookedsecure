@@ -932,48 +932,31 @@ export async function maybeHandleIntake(args: {
     locations: parseApprovedLocations(tenant.serviceArea),
   };
 
-  // Deterministic pass first: it is the fallback signal and never overrides the
-  // stronger structured extraction below.
-  const regexExtraction = extractIntake(raw, intakeTenant, new Date());
+  // Understanding: one structured AI extraction call per customer message,
+  // folded over the deterministic regex pass, then every candidate validated and
+  // merged by the deterministic layer. Control never moves to the model.
+  const resolved = await resolveIntake({
+    raw,
+    collected,
+    chatTenant,
+    intakeTenant,
+    step,
+    turns,
+    businessName: tenant.name,
+    extract: args.extractor ?? ((context) => extractWithAi(tenant.businessId, context)),
+  });
 
-  let extraction = regexExtraction;
-  let working = collected;
-  let corrections: AiCorrection[] = [];
-
-  // Exactly one model call per customer message, and only when the message
-  // could plausibly carry more than the single open field.
-  if (mayCarryMultipleFields(raw)) {
-    const extract = args.extractor ?? ((context) => extractWithAi(tenant.businessId, context));
-    const ai = await extract({
-      businessName: tenant.name,
-      services: intakeTenant.services.map((service) => service.name),
-      locations: intakeTenant.locations,
-      collected,
-      outstanding: outstandingFields(collected),
-      openStep: step,
-      turns,
-      message: raw,
-    });
-    if (ai) {
-      extraction = mergeAiExtraction(regexExtraction, ai, intakeTenant);
-      const corrected = applyAiCorrections(collected, ai.corrections, chatTenant, ai.ambiguous_fields);
-      working = corrected.collected;
-      corrections = corrected.applied;
-    }
-  }
-
-  const { collected: next, applied } = applyIntake(working, extraction, chatTenant);
+  const { extraction, collected: next, applied, corrections, beyondOpenStep } = resolved;
   const ambiguity = extraction.ambiguities[0] ?? null;
   // A single validated field is enough when it reaches BEYOND the open question:
-  // the old "fewer than two fields" discard threw that information away.
-  const openField = stepToIntakeField(step);
-  const beyondOpenStep = applied.some((field) => field !== openField) || corrections.length > 0;
+  // the old "fewer than two fields" rule discarded that information.
   if (
     !ambiguity &&
     extraction.intent !== "unsupported" &&
     applied.length < 2 &&
     !beyondOpenStep
   )
+
     return null;
 
 
