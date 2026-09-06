@@ -287,7 +287,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
       supabaseAdmin
         .from("businesses")
         .select(
-          "name, service_area, timezone, opening_hours, quiet_hours_start, quiet_hours_end, sms_signature, privacy_policy_url",
+          "name, slug, service_area, timezone, opening_hours, quiet_hours_start, quiet_hours_end, sms_signature, privacy_policy_url",
         )
         .eq("id", input.businessId)
         .single(),
