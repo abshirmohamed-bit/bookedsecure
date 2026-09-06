@@ -428,22 +428,35 @@ export function applyAnswer(
       next.typed_request = value;
       return { ok: true, collected: next, echo: value };
     }
-    case "vehicle":
+    case "vehicle": {
       if (value.length < 2) return { ok: false, error: "Please tell me the vehicle type." };
+      const rejection = shapeRejection("vehicle", value);
+      if (rejection) return { ok: false, error: rejection };
       next.vehicle_type = value;
       return { ok: true, collected: next, echo: value };
-    case "suburb":
+    }
+    case "suburb": {
       if (value.length < 2) return { ok: false, error: "Please tell me the suburb." };
+      const rejection = shapeRejection("suburb", value);
+      if (rejection) return { ok: false, error: rejection };
       next.suburb = value;
       return { ok: true, collected: next, echo: value };
-    case "concerns":
+    }
+    case "concerns": {
       if (value.length < 2) return { ok: false, error: "A short description of the condition helps the team." };
+      const rejection = shapeRejection("concerns", value);
+      if (rejection) return { ok: false, error: rejection };
       next.concerns = value;
       return { ok: true, collected: next, echo: value };
-    case "name":
+    }
+    case "name": {
       if (value.length < 2) return { ok: false, error: "Please tell me your name." };
+      const rejection = shapeRejection("name", value);
+      if (rejection) return { ok: false, error: rejection };
       next.name = value;
       return { ok: true, collected: next, echo: value };
+    }
+
     case "mobile": {
       const mobile = normaliseAuMobile(value);
       if (!mobile) return { ok: false, error: "That doesn't look like an Australian mobile number." };
