@@ -7,7 +7,7 @@ import {
   resumeQuoteConversation,
   startQuoteConversation,
 } from "@/lib/web-chat.functions";
-import { isSuppressedOpeningTurn, shortServiceArea } from "@/lib/web-chat-presentation";
+import { isSuppressedOpeningTurn } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
 import { BOOKING_CHANGE_CHOICE, BOOKING_CONFIRM_CHOICE, NO_SLOT_CHOICE } from "@/lib/web-chat-booking";
 
@@ -248,8 +248,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   );
                 })}
 
-                {/* One natural assistant message: intro line, the tenant's own
-                    selectable service list, then a single follow-up question. */}
+                {/* One assistant message: a single short welcome line followed by
+                    the tenant's own selectable service list. */}
                 {!busy &&
                   !pending &&
                   !finished &&
@@ -264,13 +264,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                         className="rounded-full"
                       />
                       <div className="max-w-[85%] space-y-2.5 rounded-2xl rounded-bl-md bg-secondary px-3.5 py-3 text-sm leading-relaxed text-secondary-foreground">
-                        <p>
-                          Hi, we offer a range of services
-                          {shortServiceArea(tenant.serviceArea)
-                            ? ` across ${shortServiceArea(tenant.serviceArea)}`
-                            : ""}
-                          , including:
-                        </p>
+                        <p>{`Hi, welcome to ${tenant.name}. Choose a service or tell us what you need.`}</p>
                         <ul className="space-y-1">
                           {serviceOptions.map((option) => {
                             const isFlexible = option.value === FLEXIBLE_CHOICE;
@@ -288,7 +282,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                   disabled={busy}
                                   aria-label={
                                     isFlexible
-                                      ? "Something else or not sure — type your own request"
+                                      ? "Something else or not sure, type your own request"
                                       : `Choose ${option.label}`
                                   }
                                   onClick={() => {
@@ -335,7 +329,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                           className="rounded-full"
                         />
                         <p className="max-w-[85%] rounded-2xl rounded-bl-md bg-secondary px-3.5 py-2.5 text-sm leading-relaxed text-secondary-foreground">
-                          No worries — tell me what you need in your own words below.
+                          No worries, tell me what you need in your own words below.
                         </p>
                       </li>
                     )}
