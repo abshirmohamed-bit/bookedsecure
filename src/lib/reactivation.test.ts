@@ -5,6 +5,8 @@ import {
   guardReactivationMessage,
   proposeOffer,
   renderReactivationMessage,
+  renderReactivationReminder,
+  shouldSendReactivationReminder,
   type ReactivationFacts,
 } from "@/lib/reactivation";
 import { factsFromLead } from "@/lib/reactivation.server";
