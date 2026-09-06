@@ -14,6 +14,7 @@ import {
   type LeadStatus,
 } from "@/lib/domain";
 import { buildConsentPromotion } from "@/lib/consent-promotion";
+import { mergeReturningLead } from "@/lib/returning-lead";
 import { followUpSuppressedByBooking } from "@/lib/booking-projection";
 
 
