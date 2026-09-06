@@ -175,6 +175,15 @@ export function mergeAiExtraction(
   const ambiguous = new Set<AiExtractionField>(ai.ambiguous_fields);
   const next: IntakeExtraction = { ...base, ambiguities: [...base.ambiguities], unmatched: { ...base.unmatched } };
 
+  // A field the model flagged as ambiguous stays UNRESOLVED: the weaker regex
+  // guess for it is dropped rather than silently stored.
+  if (ambiguous.has("service")) next.service = null;
+  if (ambiguous.has("suburb")) next.location = null;
+  if (ambiguous.has("vehicle")) next.vehicle = null;
+  if (ambiguous.has("name")) next.name = null;
+  if (ambiguous.has("mobile")) next.mobile = null;
+  if (ambiguous.has("concerns")) next.notes = null;
+
   // Service: only ever an entry in this tenant's approved catalogue.
   const serviceText = ambiguous.has("service") ? null : trimmed(ai.service);
   if (serviceText) {
