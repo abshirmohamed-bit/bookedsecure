@@ -123,11 +123,16 @@ describe("number roles stay separate", () => {
     expect(readFileSync("src/lib/lead-engine.server.ts", "utf8")).toContain(
       "provider.sendMessage({ to: lead.mobile_number, body: input.body, sender })",
     );
-    // The customer-facing callback number is the business phone, never the owner field.
+    // The customer-facing callback number is the tenant's own saved mobile,
+    // with the public callback number only as a fallback.
     expect(resolveTenantCallbackNumber({ phone_number: GLOCAST_SENDER })).toBe(GLOCAST_SENDER);
-    expect(readFileSync("src/lib/booking-confirmation.ts", "utf8")).not.toContain(
-      "owner_notification_number",
-    );
+    expect(
+      resolveTenantCallbackNumber({
+        phone_number: GLOCAST_SENDER,
+        owner_notification_number: OWNER_NUMBER,
+      }),
+    ).toBe(OWNER_NUMBER);
+
     expect(BOOKING_CONFIRMATION_TEMPLATE_V2).toContain("{{customer_callback_number}}");
     expect(CUSTOMER_NUMBER).not.toBe(OWNER_NUMBER);
   });
