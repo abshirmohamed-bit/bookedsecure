@@ -24,6 +24,7 @@ import {
   matchApprovedLocation,
   matchApprovedService,
   outstandingFields,
+  preserveConfirmedService,
   trimNameTail,
   type IntakeExtraction,
   type IntakeField,
