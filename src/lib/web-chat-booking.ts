@@ -96,14 +96,39 @@ export const BOOKING_PROMPT_TEXT =
  * that matches zero or more than one offer returns null and the customer is
  * asked again.
  */
+function canonicalTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    // "9am" / "12pm" -> "9 am"
+    .replace(/(\d)\s*(am|pm)\b/g, "$1 $2")
+    // "9:00" -> "9", "9:30" -> "9 30"
+    .replace(/\b(\d{1,2}):00\b/g, "$1")
+    .replace(/\b(\d{1,2}):(\d{2})\b/g, "$1 $2")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .map((token) => {
+      const day = WEEKDAYS.find((name) => name.startsWith(token) && token.length >= 3);
+      if (day) return day.slice(0, 3);
+      const month = MONTHS.find((name) => name.startsWith(token) && token.length >= 3);
+      if (month) return month.slice(0, 3);
+      return token.replace(/^0(?=\d)/, "");
+    })
+    .filter((token) => token.length > 0);
+}
+
+const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+const MONTHS = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
 export function matchOfferByText(text: string, offers: readonly PilotOffer[]): PilotOffer | null {
-  const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9:]+/g, " ").replace(/\s+/g, " ").trim();
-  const said = norm(text);
+  const said = text.toLowerCase().trim();
   if (!said || offers.length === 0) return null;
 
   // "the first one", "option 2", "3"
   const ordinal = said.match(/\b(?:option\s*)?(first|1st|1|second|2nd|2|third|3rd|3|fourth|4th|4|last)\b/);
-  if (ordinal) {
+  if (ordinal && !/\b(am|pm)\b/.test(said)) {
     const word = ordinal[1]!;
     const index =
       word === "last"
@@ -115,21 +140,20 @@ export function matchOfferByText(text: string, offers: readonly PilotOffer[]): P
             : ["third", "3rd", "3"].includes(word)
               ? 2
               : 3;
-    if (said.split(" ").length <= 4 && index >= 0 && index < offers.length) return offers[index]!;
+    if (said.split(/\s+/).length <= 4 && index >= 0 && index < offers.length) return offers[index]!;
   }
 
   // Otherwise every distinguishing token the customer said (weekday, day
   // number, month, time) must appear in exactly one offer label.
-  const tokens = said
-    .split(" ")
-    .filter((token) => token.length > 0 && !STOP_WORDS.has(token));
+  const tokens = canonicalTokens(said).filter((token) => !STOP_WORDS.has(token));
   if (tokens.length === 0) return null;
   const matches = offers.filter((offer) => {
-    const label = norm(offer.label);
-    return tokens.every((token) => label.includes(token) || label.includes(token.replace(/^0/, "")));
+    const label = canonicalTokens(offer.label);
+    return tokens.every((token) => label.includes(token));
   });
   return matches.length === 1 ? matches[0]! : null;
 }
+
 
 const STOP_WORDS = new Set([
   "the", "a", "at", "on", "in", "for", "please", "pls", "thanks", "ok", "okay", "yes", "yeah",
