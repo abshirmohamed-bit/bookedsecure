@@ -10,13 +10,13 @@ import {
 export const Route = createFileRoute("/settings/messaging")({
   head: () => ({
     meta: [
-      { title: "Messaging — Glocast SMS Lead Response" },
+      { title: "Messaging — BookedSecure" },
       {
         name: "description",
         content:
           "Sending number, SMS signature, quiet hours and the SMS provider used to reply to detailing enquiries.",
       },
-      { property: "og:title", content: "Messaging — Glocast SMS Lead Response" },
+      { property: "og:title", content: "Messaging — BookedSecure" },
       {
         property: "og:description",
         content: "Control how and when SMS replies are sent to customers.",

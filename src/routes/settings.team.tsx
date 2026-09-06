@@ -5,15 +5,15 @@ import { SettingsPageBody, TeamList } from "@/components/settings/sections";
 export const Route = createFileRoute("/settings/team")({
   head: () => ({
     meta: [
-      { title: "Team access — Glocast SMS Lead Response" },
+      { title: "Team access — BookedSecure" },
       {
         name: "description",
-        content: "See who can view and respond to Glocast detailing enquiries in this workspace.",
+        content: "See who can view and respond to detailing enquiries in this workspace.",
       },
-      { property: "og:title", content: "Team access — Glocast SMS Lead Response" },
+      { property: "og:title", content: "Team access — BookedSecure" },
       {
         property: "og:description",
-        content: "People with access to the Glocast lead workspace.",
+        content: "People with access to the lead workspace.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

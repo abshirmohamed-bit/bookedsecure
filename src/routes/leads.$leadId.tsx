@@ -32,13 +32,13 @@ import { BookingPanel } from "@/components/BookingPanel";
 export const Route = createFileRoute("/leads/$leadId")({
   head: () => ({
     meta: [
-      { title: "Lead conversation — Glocast SMS Lead Response" },
+      { title: "Lead conversation — BookedSecure" },
       {
         name: "description",
         content:
           "Review the SMS conversation, AI summary and suggested reply for a Glocast detailing enquiry, and record the completed job.",
       },
-      { property: "og:title", content: "Lead conversation — Glocast SMS Lead Response" },
+      { property: "og:title", content: "Lead conversation — BookedSecure" },
       {
         property: "og:description",
         content: "Approve replies, pause automation and record completed-job revenue.",

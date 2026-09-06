@@ -7,15 +7,15 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — Glocast Lead Response" },
+      { title: "Sign in — BookedSecure" },
       {
         name: "description",
-        content: "Sign in to the Glocast SMS lead response dashboard to manage detailing enquiries.",
+        content: "Sign in to your SMS lead response dashboard to manage detailing enquiries.",
       },
-      { property: "og:title", content: "Sign in — Glocast Lead Response" },
+      { property: "og:title", content: "Sign in — BookedSecure" },
       {
         property: "og:description",
-        content: "Team access to Glocast lead capture, SMS follow-up and completed-job reporting.",
+        content: "Team access to lead capture, SMS follow-up and completed-job reporting.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -72,7 +72,7 @@ function AuthPage() {
             G
           </div>
           <div>
-            <h1 className="text-base font-semibold">Glocast Lead Response</h1>
+            <h1 className="text-base font-semibold">BookedSecure</h1>
             <p className="text-xs text-muted-foreground">Team access only</p>
           </div>
         </div>

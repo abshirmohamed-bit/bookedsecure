@@ -22,13 +22,13 @@ import {
 export const Route = createFileRoute("/settings/business")({
   head: () => ({
     meta: [
-      { title: "Business settings — Glocast SMS Lead Response" },
+      { title: "Business settings — BookedSecure" },
       {
         name: "description",
         content:
           "Business name, service area, opening hours and the approved detailing service catalogue used in quotes.",
       },
-      { property: "og:title", content: "Business settings — Glocast SMS Lead Response" },
+      { property: "og:title", content: "Business settings — BookedSecure" },
       {
         property: "og:description",
         content: "Manage business details and the approved service catalogue.",

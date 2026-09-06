@@ -5,13 +5,13 @@ import { LeadsWorkspace } from "@/components/LeadsWorkspace";
 export const Route = createFileRoute("/leads/")({
   head: () => ({
     meta: [
-      { title: "Leads — Glocast SMS Lead Response" },
+      { title: "Leads — BookedSecure" },
       {
         name: "description",
         content:
-          "The Glocast lead workspace: enquiries needing a reply, follow-up status and completed-job revenue.",
+          "The lead workspace: enquiries needing a reply, follow-up status and completed-job revenue.",
       },
-      { property: "og:title", content: "Leads — Glocast SMS Lead Response" },
+      { property: "og:title", content: "Leads — BookedSecure" },
       {
         property: "og:description",
         content: "See which detailing enquiries need attention and how they are converting.",

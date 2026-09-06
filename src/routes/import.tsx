@@ -101,13 +101,13 @@ import {
 export const Route = createFileRoute("/import")({
   head: () => ({
     meta: [
-      { title: "CRM lead import preview — Glocast" },
+      { title: "CRM lead import preview — BookedSecure" },
       {
         name: "description",
         content:
-          "Upload a historical CRM CSV and preview how each row maps to Glocast leads before anything is imported.",
+          "Upload a historical CRM CSV and preview how each row maps to your leads before anything is imported.",
       },
-      { property: "og:title", content: "CRM lead import preview — Glocast" },
+      { property: "og:title", content: "CRM lead import preview — BookedSecure" },
       {
         property: "og:description",
         content: "Preview-only CRM CSV mapping, validation and duplicate detection.",

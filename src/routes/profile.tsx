@@ -7,13 +7,13 @@ import { SettingsPageBody } from "@/components/settings/sections";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Your profile — Glocast SMS Lead Response" },
+      { title: "Your profile — BookedSecure" },
       {
         name: "description",
         content:
-          "Your sign-in email, role and the business workspace you are currently operating in Glocast SMS Lead Response.",
+          "Your sign-in email, role and the business workspace you are currently operating in BookedSecure.",
       },
-      { property: "og:title", content: "Your profile — Glocast SMS Lead Response" },
+      { property: "og:title", content: "Your profile — BookedSecure" },
       {
         property: "og:description",
         content: "Your account details and current business workspace.",

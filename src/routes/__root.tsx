@@ -79,14 +79,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Glocast SMS Lead Response" },
+      { title: "BookedSecure" },
       {
         name: "description",
         content:
-          "Fast SMS responses, guided qualification and completed-job tracking for Glocast mobile detailing enquiries.",
+          "Fast SMS responses, guided qualification and completed-job tracking for mobile detailing enquiries.",
       },
-      { name: "author", content: "Glocast" },
-      { property: "og:title", content: "Glocast SMS Lead Response" },
+      { name: "author", content: "BookedSecure" },
+      { property: "og:title", content: "BookedSecure" },
       {
         property: "og:description",
         content: "Respond to detailing enquiries in minutes and track completed-job revenue by source.",
