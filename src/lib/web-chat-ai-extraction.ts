@@ -72,6 +72,13 @@ export const WebChatAiExtractionSchema = z.object({
   uncertain: z.boolean(),
   /** The request is outside what this chat handles. */
   unsupported: z.boolean(),
+  /**
+   * The model's natural wording for this turn: acknowledge what landed, answer
+   * what was asked, and ask for at most the one thing still needed. It is
+   * PHRASING ONLY — every claim in it is filtered by the server before the
+   * customer reads it, and it can never change state.
+   */
+  reply: z.string().nullable(),
 });
 
 
@@ -86,7 +93,9 @@ export const WebChatAiExtractionParseSchema = WebChatAiExtractionSchema.extend({
   question_topic: z.enum(QUESTION_TOPICS).nullable().catch(null).default(null),
   uncertain: z.boolean().catch(false).default(false),
   unsupported: z.boolean().catch(false).default(false),
+  reply: z.string().nullable().catch(null).default(null),
 });
+
 
 /** Maps a conversation step to the intake field it fills. */
 export function stepToIntakeField(step: string): IntakeField | null {
