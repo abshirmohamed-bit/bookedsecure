@@ -19,6 +19,13 @@ import { z } from "zod";
 import { normaliseAuMobile } from "@/lib/domain";
 import { applyAnswer, type WebChatCollected, type WebChatStep, type WebChatTenant } from "@/lib/web-chat";
 import {
+  QUESTION_TOPICS,
+  classifyQuestionTopic,
+  looksLikeQuestion,
+  looksUncertain,
+  type QuestionTopic,
+} from "@/lib/web-chat-conversation";
+import {
   applyIntake,
   extractIntake,
   matchApprovedLocation,
@@ -30,6 +37,7 @@ import {
   type IntakeField,
   type IntakeTenant,
 } from "@/lib/web-chat-intake";
+
 
 export const AI_EXTRACTION_FIELDS = [
   "service",
@@ -118,7 +126,7 @@ export const AI_EXTRACTION_TURNS = 6;
 export function buildAiExtractionSystem(context: AiExtractionContext): string {
   return [
     `You read customer messages for ${context.businessName}, an Australian mobile car detailing business.`,
-    "You are an extraction assistant, not the decision maker. The server controls every business action.",
+    "You interpret language only. The server decides everything: approved services, service area, availability, prices, consent, bookings, messages.",
     "Rules you must never break:",
     "- Read the ENTIRE customer message and extract every field it supplies, regardless of which question was last asked.",
     "- Return only information the customer actually stated. Never guess, infer or invent a value.",
@@ -128,11 +136,19 @@ export function buildAiExtractionSystem(context: AiExtractionContext): string {
     "- If the customer changes a value they gave earlier, list it in corrections with the new value.",
     "- If a value is genuinely ambiguous, list the field in ambiguous_fields and leave its value null.",
     "- Never ask for a field that is already present and valid in the current state.",
-    "- Reply with the JSON object only, using null for anything the customer did not state.",
+    "A message is not automatically an answer to the open question. Classify it as well as extracting from it:",
+    "- Set question_topic when the customer asked something, using the closest topic. Otherwise null.",
+    "- Set uncertain true when the customer is stuck choosing (\"something else\", \"not sure\", \"you tell me\", \"what do you recommend\") rather than supplying a value.",
+    "- Set unsupported true only when the request is outside detailing enquiries entirely.",
+    "- Uncertainty, a question or a refusal NEVER satisfies a field. Leave that field null, and still extract every other valid value in the message.",
+    "- Extract valid values even when the message also contains a question or uncertainty. Never discard them.",
+    "You never write the customer's reply. The server composes every sentence they read.",
+    "Reply with the JSON object only, using null for anything the customer did not state.",
     `Approved services: ${context.services.length > 0 ? context.services.join(", ") : "(none configured)"}`,
     `Approved locations: ${context.locations.length > 0 ? context.locations.join(", ") : "(none configured)"}`,
   ].join("\n");
 }
+
 
 export function buildAiExtractionPrompt(context: AiExtractionContext): string {
   const state = {
