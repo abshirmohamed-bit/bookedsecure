@@ -269,6 +269,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
         .from("messages")
         .select("direction, body, created_at")
         .eq("lead_id", input.leadId)
+        .neq("recipient_role", "owner")
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("services")
