@@ -158,7 +158,42 @@ export function reviewMessage(collected: WebChatCollected): string {
   ].join("\n");
 }
 
+/**
+ * Every customer-facing prompt leaves this module through `promptFor`, which
+ * applies the shared punctuation sanitizer. Booking logic is unaffected: only
+ * display text passes through it.
+ */
 export function promptFor(
+  step: WebChatStep,
+  tenant: WebChatTenant,
+  collected: WebChatCollected = {},
+): WebChatPrompt {
+  const prompt = buildPrompt(step, tenant, collected);
+  return {
+    ...prompt,
+    text: sanitiseCustomerText(prompt.text),
+    ...(prompt.options
+      ? {
+          options: prompt.options.map((option) => ({
+            ...option,
+            label: sanitiseCustomerText(option.label),
+            detail: option.detail === null ? null : sanitiseCustomerText(option.detail),
+          })),
+        }
+      : {}),
+    ...(prompt.fields
+      ? {
+          fields: prompt.fields.map((field) => ({
+            ...field,
+            label: sanitiseCustomerText(field.label),
+            value: typeof field.value === "string" ? sanitiseCustomerText(field.value) : field.value,
+          })),
+        }
+      : {}),
+  };
+}
+
+function buildPrompt(
   step: WebChatStep,
   tenant: WebChatTenant,
   collected: WebChatCollected = {},
