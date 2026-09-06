@@ -24,6 +24,7 @@ import {
   matchApprovedLocation,
   matchApprovedService,
   outstandingFields,
+  preserveConfirmedService,
   trimNameTail,
   type IntakeExtraction,
   type IntakeField,
@@ -403,6 +404,10 @@ export async function resolveIntake(args: {
       corrections = corrected.applied;
     }
   }
+
+  // Precedence: a confirmed service is trusted, never re-resolved from later text.
+  const serviceCorrected = corrections.some((entry) => entry.field === "service");
+  if (!serviceCorrected) extraction = preserveConfirmedService(extraction, args.collected);
 
   const merged = applyIntake(working, extraction, args.chatTenant, {
     origin: aiUsed ? "extracted" : "customer",

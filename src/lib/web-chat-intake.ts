@@ -127,29 +127,96 @@ type ServiceMatch =
   | { kind: "one"; service: IntakeService }
   | { kind: "ambiguous"; services: IntakeService[] };
 
+function normaliseServiceName(input: string): string {
+  return input.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/**
+ * Service resolution precedence, strongest evidence first:
+ * 1. exact normalised catalogue match,
+ * 2. the catalogue name stated verbatim in the message, accepted only when no
+ *    wording OUTSIDE that phrase points at a different approved service,
+ * 3. partial token overlap — the only place a tie becomes a clarification.
+ */
 export function matchApprovedService(raw: string, services: IntakeService[]): ServiceMatch {
+  const target = normaliseServiceName(raw);
+
+  const exact = services.filter((service) => normaliseServiceName(service.name) === target);
+  if (exact.length === 1) return { kind: "one", service: exact[0]! };
+
   const messageStems = stems(raw);
   const scored = services
     .map((service) => {
       const tokens = serviceTokens(service.name);
-      if (tokens.length === 0) return { service, score: 0 };
-      const hits = tokens.filter((token) => messageStems.has(token)).length;
-      return { service, score: hits / tokens.length, hits };
+      if (tokens.length === 0) return { service, score: 0, hits: [] as string[] };
+      const hits = tokens.filter((token) => messageStems.has(token));
+      return { service, score: hits.length / tokens.length, hits };
     })
     .filter((entry) => entry.score > 0);
+
+  // Verbatim catalogue phrase, longest first.
+  const phrase = services
+    .filter((service) => {
+      const name = normaliseServiceName(service.name);
+      return name.length >= 3 && target.includes(name);
+    })
+    .sort((a, b) => normaliseServiceName(b.name).length - normaliseServiceName(a.name).length);
+  if (phrase.length > 0) {
+    const longest = normaliseServiceName(phrase[0]!.name).length;
+    const tied = phrase.filter((service) => normaliseServiceName(service.name).length === longest);
+    if (tied.length === 1) {
+      const chosen = tied[0]!;
+      const phraseTokens = new Set(serviceTokens(chosen.name));
+      // Evidence for another service that lies outside the stated phrase keeps
+      // this genuinely ambiguous ("interior and exterior detail").
+      const rival = scored.some(
+        (entry) =>
+          entry.service.id !== chosen.id &&
+          entry.score >= 0.5 &&
+          entry.hits.some((token) => !phraseTokens.has(token)),
+      );
+      if (!rival) return { kind: "one", service: chosen };
+    }
+  }
 
   if (scored.length === 0) return { kind: "none" };
 
   // Only reasonably complete matches count at all.
   const candidates = scored.filter((entry) => entry.score >= 0.5);
   if (candidates.length === 0) return { kind: "none" };
+
   // Two approved services matching the same number of the customer's words
   // ("interior and exterior detail") is an ambiguity to ask about, never a guess.
-  const bestHits = Math.max(...candidates.map((entry) => entry.hits ?? 0));
-  const leaders = candidates.filter((entry) => (entry.hits ?? 0) === bestHits);
+  const bestHits = Math.max(...candidates.map((entry) => entry.hits.length));
+  const leaders = candidates.filter((entry) => entry.hits.length === bestHits);
   if (leaders.length > 1) return { kind: "ambiguous", services: leaders.map((entry) => entry.service) };
   return { kind: "one", service: leaders[0]!.service };
 }
+
+
+/**
+ * A service the customer already confirmed (a button press, or an earlier
+ * resolved answer) is never re-resolved from later narrative text: the later
+ * mention is dropped, so no clarification is asked and no value is overwritten.
+ * An explicit correction is handled by the correction path, not here.
+ */
+export function preserveConfirmedService(
+  extraction: IntakeExtraction,
+  collected: WebChatCollected,
+): IntakeExtraction {
+  const confirmed = Boolean(collected.service_id) || Boolean((collected.typed_request ?? "").trim());
+  if (!confirmed) return extraction;
+  const ambiguities = extraction.ambiguities.filter((entry) => entry.field !== "service");
+  const next: IntakeExtraction = {
+    ...extraction,
+    service: null,
+    ambiguities,
+    unmatched: { ...extraction.unmatched, service: null },
+  };
+  if (next.intent === "ambiguous" && ambiguities.length === 0) next.intent = "booking";
+  return next;
+}
+
 
 // ---------------------------------------------------------------------------
 // Approved-location matching
