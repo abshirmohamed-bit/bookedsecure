@@ -282,6 +282,12 @@ export async function commitWebChatBooking(input: {
   if (result.ok !== true || !result.job_id || !result.offer_id || !result.slot_start) {
     return { ok: false, reason: result.reason ?? "commit_failed" };
   }
+  // The booking is confirmed, so any pending follow-up timer is void. Idempotent.
+  await supabaseAdmin
+    .from("conversations")
+    .update({ next_follow_up_at: null })
+    .eq("business_id", input.businessId)
+    .eq("lead_id", input.leadId);
   return {
     ok: true,
     replay: result.replay === true,

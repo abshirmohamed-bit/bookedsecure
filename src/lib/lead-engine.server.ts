@@ -14,6 +14,7 @@ import {
   type LeadStatus,
 } from "@/lib/domain";
 import { buildConsentPromotion } from "@/lib/consent-promotion";
+import { followUpSuppressedByBooking } from "@/lib/booking-projection";
 
 
 import { countSegments } from "@/lib/sms/segments";
@@ -994,6 +995,22 @@ async function scheduleNextFollowUp(input: {
     .maybeSingle();
   if (!conversation) return;
 
+  // A confirmed booking ends the sequence: the customer already has the
+  // confirmation and the owner already has the alert.
+  const { data: bookingState } = await supabaseAdmin
+    .from("leads")
+    .select("status, booking_status")
+    .eq("id", input.leadId)
+    .eq("business_id", input.businessId)
+    .maybeSingle();
+  if (bookingState && followUpSuppressedByBooking(bookingState)) {
+    await supabaseAdmin
+      .from("conversations")
+      .update({ last_message_at: new Date().toISOString(), next_follow_up_at: null })
+      .eq("id", conversation.id);
+    return;
+  }
+
   // Next *enabled* step: disabled steps are skipped, not treated as the end.
   const { data: rule } = await supabaseAdmin
     .from("automation_rules")
@@ -1301,10 +1318,21 @@ export async function processDueFollowUps(): Promise<{
 
     const { data: lead } = await supabaseAdmin
       .from("leads")
-      .select("id, name, status, opted_out_at")
+      .select("id, name, status, opted_out_at, booking_status")
       .eq("id", conversation.lead_id)
       .maybeSingle();
     if (!lead) continue;
+
+    // Confirmed booking: stop chasing, and clear the timer for good.
+    if (followUpSuppressedByBooking(lead)) {
+      await supabaseAdmin
+        .from("conversations")
+        .update({ next_follow_up_at: null })
+        .eq("id", conversation.id);
+      skipped.push({ leadId: lead.id, reason: "Booking confirmed — follow-ups stopped." });
+      continue;
+    }
+
 
     // The job now owns this step; clear the conversation timer so the same
     // step is not queued twice. Retries live on the job row.

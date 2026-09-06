@@ -69,6 +69,18 @@ export function bookingStateLabel(current: Pick<LeadBookingState, "booking_statu
   }
 }
 
+/**
+ * A confirmed (or completed) booking ends the chase entirely: the customer has
+ * already had the confirmation SMS and the owner has been alerted, so there is
+ * nothing left for a follow-up sequence to chase. Pure policy, no side effects.
+ */
+export function followUpSuppressedByBooking(
+  current: Pick<LeadBookingState, "booking_status"> & { status?: string },
+): boolean {
+  if (current.booking_status === "scheduled" || current.booking_status === "completed") return true;
+  return current.status === "scheduled" || current.status === "booked";
+}
+
 /** A lead whose booking is live can never enter an outbound reactivation canary. */
 export function bookingBlocksReactivation(current: Pick<LeadBookingState, "booking_status">): boolean {
   return current.booking_status === "scheduled" || current.booking_status === "offered";
