@@ -11,10 +11,10 @@
  * conversation context or an audit record; canonical fields may only receive
  * validated, field-specific values.
  *
- * The `it.fails` blocks below are deliberate tripwires: they pass today because
- * the invariant is VIOLATED, and they start failing the moment containment
- * lands. When that happens, convert each one from `it.fails` to `it` — that is
- * the signal the defect is fixed, not a broken test.
+ * Containment has landed: the former `it.fails` tripwires are now normal
+ * assertions. Failure mode 2 (raw sentence written into a canonical field) is
+ * fixed and asserted. Failure mode 1 (supplied details re-asked) is documented
+ * as current behaviour and is the subject of the next, extraction phase.
  */
 
 import { describe, expect, it } from "vitest";
