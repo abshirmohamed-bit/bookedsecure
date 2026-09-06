@@ -3,6 +3,7 @@
 // tenant's own approved data, so nothing here can invent a service or a price.
 
 import { normaliseAuMobile } from "@/lib/domain";
+import { sanitiseCustomerText } from "@/lib/customer-text";
 import {
   BOOKING_CHANGE_CHOICE,
   BOOKING_CONFIRM_CHOICE,
@@ -154,11 +155,46 @@ export function reviewMessage(collected: WebChatCollected): string {
   return [
     "Here's what I have so far:",
     ...lines,
-    "Want to change anything before we send this to the team? Just tell me what to update — for example “change my suburb to Parramatta”.",
+    "Want to change anything before we send this to the team? Just tell me what to update, for example “change my suburb to Parramatta”.",
   ].join("\n");
 }
 
+/**
+ * Every customer-facing prompt leaves this module through `promptFor`, which
+ * applies the shared punctuation sanitizer. Booking logic is unaffected: only
+ * display text passes through it.
+ */
 export function promptFor(
+  step: WebChatStep,
+  tenant: WebChatTenant,
+  collected: WebChatCollected = {},
+): WebChatPrompt {
+  const prompt = buildPrompt(step, tenant, collected);
+  return {
+    ...prompt,
+    text: sanitiseCustomerText(prompt.text),
+    ...(prompt.options
+      ? {
+          options: prompt.options.map((option) => ({
+            ...option,
+            label: sanitiseCustomerText(option.label),
+            detail: option.detail === null ? null : sanitiseCustomerText(option.detail),
+          })),
+        }
+      : {}),
+    ...(prompt.fields
+      ? {
+          fields: prompt.fields.map((field) => ({
+            ...field,
+            label: sanitiseCustomerText(field.label),
+            value: typeof field.value === "string" ? sanitiseCustomerText(field.value) : field.value,
+          })),
+        }
+      : {}),
+  };
+}
+
+function buildPrompt(
   step: WebChatStep,
   tenant: WebChatTenant,
   collected: WebChatCollected = {},

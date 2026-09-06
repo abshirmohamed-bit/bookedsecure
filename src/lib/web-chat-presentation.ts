@@ -1,3 +1,5 @@
+import { sanitiseCustomerText } from "@/lib/customer-text";
+
 /**
  * Presentation-only helpers for the public AI quote conversation.
  *
@@ -10,7 +12,9 @@
 /** Collapse whitespace and strip raw checklist/bullet syntax for display. */
 export function cleanDisplayText(raw: string | null | undefined): string {
   if (typeof raw !== "string") return "";
-  return raw
+  // Display safety net for the punctuation policy: dashes used as punctuation
+  // never reach the customer, hyphenated words and links are untouched.
+  return sanitiseCustomerText(raw)
     .replace(/\r/g, "\n")
     .split("\n")
     .map((line) => line.replace(/^\s*(?:[-*•–]|\[\s*[xX ]?\s*\]|\d+[.)])\s*/, "").trim())

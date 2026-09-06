@@ -49,6 +49,7 @@ import {
   parseApprovedLocations,
   unmatchedServiceMessage,
 } from "@/lib/web-chat-intake";
+import { sanitiseCustomerText } from "@/lib/customer-text";
 
 
 
@@ -94,7 +95,8 @@ async function addMessage(
     business_id: businessId,
     conversation_id: conversationId,
     role,
-    body: body.slice(0, 2000),
+    // Persisted transcript lines are customer-facing text.
+    body: sanitiseCustomerText(body).slice(0, 2000),
   });
 }
 

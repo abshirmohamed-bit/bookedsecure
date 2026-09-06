@@ -13,6 +13,7 @@ import {
   parseAnalysisPayload,
   type Analysis,
 } from "@/lib/ai-analysis-contract";
+import { CUSTOMER_PUNCTUATION_INSTRUCTION, sanitiseCustomerText } from "@/lib/customer-text";
 import {
   buildApprovedFacts,
   buildApprovedFactsContext,
@@ -112,7 +113,11 @@ export function guardReply(
     return !bad;
   });
   const cleaned = safe.join(" ").trim();
-  return { reply: cleaned.length > 0 ? cleaned : FALLBACK_REPLY, flagged };
+  // Customer-facing boundary: punctuation is sanitised here, after guarding.
+  return {
+    reply: sanitiseCustomerText(cleaned.length > 0 ? cleaned : FALLBACK_REPLY),
+    flagged,
+  };
 }
 
 export const ANALYSIS_MODEL = "google/gemini-3.7-flash";
@@ -318,6 +323,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     "- Never state, quote, estimate or imply a price, dollar figure, discount or deal.",
     "- Never promise availability, dates, times or confirm a booking.",
     "- Never recommend a service that is not in the approved service catalogue.",
+    `- ${CUSTOMER_PUNCTUATION_INSTRUCTION}`,
     "- Never give mechanical, safety or insurance advice, and never invent details.",
     "- If information is missing, say the owner will confirm it.",
     "- Business Settings are operational context only. They are NEVER a source of pricing language.",
