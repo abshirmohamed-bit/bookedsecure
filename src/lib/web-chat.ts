@@ -3,6 +3,7 @@
 // tenant's own approved data, so nothing here can invent a service or a price.
 
 import { normaliseAuMobile } from "@/lib/domain";
+import { sanitiseCustomerText } from "@/lib/customer-text";
 import {
   BOOKING_CHANGE_CHOICE,
   BOOKING_CONFIRM_CHOICE,
