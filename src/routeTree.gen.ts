@@ -36,6 +36,7 @@ import { Route as ApiPublicSmsInboundRouteImport } from './routes/api/public/sms
 import { Route as ApiPublicSmsSinchRouteImport } from './routes/api/public/sms/sinch'
 import { Route as ApiPublicSmsStatusRouteImport } from './routes/api/public/sms/status'
 import { Route as ApiPublicSmsTelnyxRouteImport } from './routes/api/public/sms/telnyx'
+import { Route as ApiPublicTenantLogoBusinessIdRouteImport } from './routes/api/public/tenant-logo.$businessId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -174,6 +175,12 @@ const ApiPublicSmsTelnyxRoute = ApiPublicSmsTelnyxRouteImport.update({
   path: '/api/public/sms/telnyx',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTenantLogoBusinessIdRoute =
+  ApiPublicTenantLogoBusinessIdRouteImport.update({
+    id: '/api/public/tenant-logo/$businessId',
+    path: '/api/public/tenant-logo/$businessId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
+  '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -231,6 +239,7 @@ export interface FileRoutesByTo {
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
+  '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -261,6 +270,7 @@ export interface FileRoutesById {
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
+  '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -292,6 +302,7 @@ export interface FileRouteTypes {
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
+    | '/api/public/tenant-logo/$businessId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
+    | '/api/public/tenant-logo/$businessId'
   id:
     | '__root__'
     | '/'
@@ -349,6 +361,7 @@ export interface FileRouteTypes {
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
+    | '/api/public/tenant-logo/$businessId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -374,6 +387,7 @@ export interface RootRouteChildren {
   ApiPublicSmsSinchRoute: typeof ApiPublicSmsSinchRoute
   ApiPublicSmsStatusRoute: typeof ApiPublicSmsStatusRoute
   ApiPublicSmsTelnyxRoute: typeof ApiPublicSmsTelnyxRoute
+  ApiPublicTenantLogoBusinessIdRoute: typeof ApiPublicTenantLogoBusinessIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -567,6 +581,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSmsTelnyxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/tenant-logo/$businessId': {
+      id: '/api/public/tenant-logo/$businessId'
+      path: '/api/public/tenant-logo/$businessId'
+      fullPath: '/api/public/tenant-logo/$businessId'
+      preLoaderRoute: typeof ApiPublicTenantLogoBusinessIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -613,6 +634,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSmsSinchRoute: ApiPublicSmsSinchRoute,
   ApiPublicSmsStatusRoute: ApiPublicSmsStatusRoute,
   ApiPublicSmsTelnyxRoute: ApiPublicSmsTelnyxRoute,
+  ApiPublicTenantLogoBusinessIdRoute: ApiPublicTenantLogoBusinessIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
