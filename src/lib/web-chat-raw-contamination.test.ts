@@ -177,7 +177,7 @@ describe("merge and missing-field guarantees", () => {
       suburb: "Punchbowl",
       vehicle_type: "Mazda 3",
     };
-    const extraction = extractIntake("my name is Abshir and my number is 0466907824", intakeTenant, now);
+    const extraction = extractIntake("my name is Abshir, 0466907824", intakeTenant, now);
     const { collected } = applyIntake(start, extraction, chatTenant);
     expect(collected.suburb).toBe("Punchbowl");
     expect(collected.vehicle_type).toBe("Mazda 3");
