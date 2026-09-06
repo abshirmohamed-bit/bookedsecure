@@ -70,7 +70,9 @@ export async function deliverBookingConfirmation(input: {
       .maybeSingle(),
     supabaseAdmin
       .from("businesses")
-      .select("name, timezone, phone_number, quiet_hours_start, quiet_hours_end")
+      .select(
+        "name, timezone, phone_number, owner_notification_number, quiet_hours_start, quiet_hours_end",
+      )
       .eq("id", input.businessId)
       .maybeSingle(),
     supabaseAdmin
@@ -100,6 +102,7 @@ export async function deliverBookingConfirmation(input: {
     smsSuppressedAt: lead.sms_suppressed_at,
     mobileNumber: lead.mobile_number,
     tenantCallbackNumber: business.phone_number,
+    ownerNotificationNumber: business.owner_notification_number,
   });
 
   if (!decision.sendable) {
