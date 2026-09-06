@@ -58,7 +58,14 @@ export const WebChatAiExtractionSchema = z.object({
   corrections: z.array(z.object({ field: z.enum(AI_EXTRACTION_FIELDS), value: z.string() })),
   ambiguous_fields: z.array(z.enum(AI_EXTRACTION_FIELDS)),
   still_missing: z.array(z.enum(AI_EXTRACTION_FIELDS)),
+  /** The customer asked something: which supported topic, or null. */
+  question_topic: z.enum(QUESTION_TOPICS).nullable(),
+  /** The customer is stuck choosing rather than supplying a value. */
+  uncertain: z.boolean(),
+  /** The request is outside what this chat handles. */
+  unsupported: z.boolean(),
 });
+
 
 export type WebChatAiExtraction = z.infer<typeof WebChatAiExtractionSchema>;
 
