@@ -618,6 +618,7 @@ export type Database = {
           default_sms_provider: string
           flexible_requests_enabled: boolean
           id: string
+          logo_storage_path: string | null
           logo_url: string | null
           name: string
           opening_hours: string | null
@@ -652,6 +653,7 @@ export type Database = {
           default_sms_provider?: string
           flexible_requests_enabled?: boolean
           id?: string
+          logo_storage_path?: string | null
           logo_url?: string | null
           name: string
           opening_hours?: string | null
@@ -686,6 +688,7 @@ export type Database = {
           default_sms_provider?: string
           flexible_requests_enabled?: boolean
           id?: string
+          logo_storage_path?: string | null
           logo_url?: string | null
           name?: string
           opening_hours?: string | null
