@@ -151,7 +151,7 @@ describe("final review step", () => {
       "abshir",
       "+61447852565",
       "Not provided",
-      "Want to change anything",
+      "tell me what to change",
     ]) {
       expect(text).toContain(fragment);
     }
