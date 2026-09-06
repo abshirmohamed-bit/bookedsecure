@@ -679,10 +679,11 @@ export const INTAKE_FIELD_QUESTIONS: Record<IntakeField, string> = {
 export function groupedMissingMessage(fields: IntakeField[]): string | null {
   if (fields.length === 0) return null;
   return [
-    "I can help with that booking. I still need:",
+    "Got it. Just need:",
     ...fields.map((field) => `- ${INTAKE_FIELD_QUESTIONS[field]}`),
   ].join("\n");
 }
+
 
 export function ambiguityMessage(ambiguity: IntakeAmbiguity): string {
   const options = ambiguity.options;
