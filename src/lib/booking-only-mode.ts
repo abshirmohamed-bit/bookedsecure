@@ -7,14 +7,19 @@
 // follow-up sequences, no reactivation, no promotional SMS, no AI free-form
 // outbound, and no AI authority over prices, discounts, fees or owner settings.
 
-/** Tenants explicitly authorised for booking-only production mode. */
-export const BOOKING_ONLY_TENANTS: readonly string[] = [
-  "11111111-1111-1111-1111-111111111111", // Glocast
-];
+/**
+ * Booking-only production mode is the platform default for every tenant,
+ * present and future. A tenant id may be listed here to opt OUT (for example
+ * while a workspace is being set up); the list is empty in normal operation.
+ */
+export const BOOKING_ONLY_EXCLUDED_TENANTS: readonly string[] = [];
 
 export function isBookingOnlyTenant(businessId: string): boolean {
-  return BOOKING_ONLY_TENANTS.includes(businessId);
+  const id = (businessId ?? "").trim();
+  if (id.length === 0) return false;
+  return !BOOKING_ONLY_EXCLUDED_TENANTS.includes(id);
 }
+
 
 /**
  * The only outbound message this mode may ever produce: the server-composed
