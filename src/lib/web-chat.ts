@@ -223,29 +223,30 @@ function buildPrompt(
         ],
       };
     case "vehicle":
-      return { step, kind: "text", text: "What type of vehicle is it? (make, model or body type)" };
+      return { step, kind: "text", text: "What's the vehicle? (make and model)" };
     case "suburb":
-      return { step, kind: "text", text: "Which suburb is the vehicle in?" };
+      return { step, kind: "text", text: "Which suburb is it in?" };
     case "concerns":
       return {
         step,
         kind: "text",
-        text: "How's the condition, and what's your main concern? (for example swirls, pet hair, water spots)",
+        text: "Anything we should know about the condition? (swirls, pet hair, water spots)",
       };
     case "name":
-      return { step, kind: "text", text: "What's your name?" };
+      return { step, kind: "text", text: "And your name?" };
     case "mobile":
-      return { step, kind: "text", text: "What's the best Australian mobile number for the team to reply on?" };
+      return { step, kind: "text", text: "Best mobile number to reply on?" };
     case "email":
-      return { step, kind: "text", optional: true, text: "Email address? This one's optional — you can skip it." };
+      return { step, kind: "text", optional: true, text: "Email? Optional, say skip if you'd rather not." };
     case "review":
       return { step, kind: "review", text: reviewMessage(collected), fields: reviewSummary(collected) };
     case "consent":
       return {
         step,
         kind: "consent",
-        text: `Last step: do you agree to ${tenant.name} contacting you about this enquiry, including by SMS? Reply STOP at any time to opt out.`,
+        text: `Last thing: happy for ${tenant.name} to contact you about this, including by SMS? Reply STOP any time to opt out.`,
       };
+
     case "booking":
       return {
         step,
