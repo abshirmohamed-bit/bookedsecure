@@ -62,6 +62,7 @@ function ai(overrides: Partial<WebChatAiExtraction> = {}): WebChatAiExtraction {
     question_topic: null,
     uncertain: false,
     unsupported: false,
+    reply: null,
     ...overrides,
   };
 }
