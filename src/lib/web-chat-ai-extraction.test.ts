@@ -62,6 +62,7 @@ function ai(overrides: Partial<WebChatAiExtraction> = {}): WebChatAiExtraction {
     question_topic: null,
     uncertain: false,
     unsupported: false,
+    reply: null,
     ...overrides,
   };
 }
@@ -120,13 +121,13 @@ describe("prompt and context", () => {
     expect(prompt).toContain(AUBURN);
   });
 
-  it("skips the model for a one-word answer and calls it once for a rich message", async () => {
+  it("interprets every real message exactly once, one-word answers included", async () => {
     expect(mayCarryMultipleFields("Auburn")).toBe(false);
     expect(mayCarryMultipleFields(AUBURN)).toBe(true);
 
     const short = await resolve("Auburn", {}, auburnExtraction);
-    expect(short.extract).toHaveBeenCalledTimes(0);
-    expect(short.result.calls).toBe(0);
+    expect(short.extract).toHaveBeenCalledTimes(1);
+    expect(short.result.calls).toBe(1);
 
     const rich = await resolve(AUBURN, {}, auburnExtraction);
     expect(rich.extract).toHaveBeenCalledTimes(1);

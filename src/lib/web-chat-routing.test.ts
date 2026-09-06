@@ -54,6 +54,7 @@ function ai(overrides: Partial<WebChatAiExtraction> = {}): WebChatAiExtraction {
     question_topic: null,
     uncertain: false,
     unsupported: false,
+    reply: null,
     ...overrides,
   };
 }
@@ -206,9 +207,9 @@ describe("explicit directives still work", () => {
 });
 
 describe("AI call budget", () => {
-  it("a one-word answer makes no AI call", async () => {
+  it("a one-word answer is interpreted too, with a single AI call", async () => {
     const result = await route("Auburn", {}, ai({ suburb: "Auburn" }));
-    expect(result.calls).toBe(0);
+    expect(result.calls).toBe(1);
   });
 
   it("one eligible message makes exactly one AI call", async () => {

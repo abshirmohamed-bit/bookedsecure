@@ -17,10 +17,12 @@
 
 import { z } from "zod";
 import { normaliseAuMobile } from "@/lib/domain";
+import { CUSTOMER_PUNCTUATION_INSTRUCTION } from "@/lib/customer-text";
 import { applyAnswer, type WebChatCollected, type WebChatStep, type WebChatTenant } from "@/lib/web-chat";
 import {
   QUESTION_TOPICS,
   classifyQuestionTopic,
+  guardConversationalReply,
   looksLikeQuestion,
   looksUncertain,
   type QuestionTopic,
@@ -72,6 +74,13 @@ export const WebChatAiExtractionSchema = z.object({
   uncertain: z.boolean(),
   /** The request is outside what this chat handles. */
   unsupported: z.boolean(),
+  /**
+   * The model's natural wording for this turn: acknowledge what landed, answer
+   * what was asked, and ask for at most the one thing still needed. It is
+   * PHRASING ONLY — every claim in it is filtered by the server before the
+   * customer reads it, and it can never change state.
+   */
+  reply: z.string().nullable(),
 });
 
 
@@ -86,7 +95,9 @@ export const WebChatAiExtractionParseSchema = WebChatAiExtractionSchema.extend({
   question_topic: z.enum(QUESTION_TOPICS).nullable().catch(null).default(null),
   uncertain: z.boolean().catch(false).default(false),
   unsupported: z.boolean().catch(false).default(false),
+  reply: z.string().nullable().catch(null).default(null),
 });
+
 
 /** Maps a conversation step to the intake field it fills. */
 export function stepToIntakeField(step: string): IntakeField | null {
@@ -153,8 +164,20 @@ export function buildAiExtractionSystem(context: AiExtractionContext): string {
     "- Set unsupported true only when the request is outside detailing enquiries entirely.",
     "- Uncertainty, a question or a refusal NEVER satisfies a field. Leave that field null, and still extract every other valid value in the message.",
     "- Extract valid values even when the message also contains a question or uncertainty. Never discard them.",
-    "You never write the customer's reply. The server composes every sentence they read.",
+    "You also write the wording of the reply, in the `reply` field. Voice and rules for it:",
+    "- Sound like a friendly, competent human on the other end of a text message. Warm, plain Australian English, no corporate tone, no emojis, no exclamation marks stacked up.",
+    "- Keep it to one or two short sentences, under 240 characters total.",
+    "- Shape: briefly acknowledge what they just told you, answer what they asked, then ask for at most ONE thing that is still missing. Never ask for two things at once.",
+    "- Never re-ask anything already present in the current state. Reference it naturally instead (\"Got the Hilux in Auburn\").",
+    "- When they change their mind about something they already gave, acknowledge the change naturally (\"No worries, changed it to Cabramatta\") and carry on.",
+    "- When they say they want something not on the list, be welcoming about it: acknowledge, then ask what they need done, in their words.",
+    "- When they are unsure which service, name the approved services from the list below and offer to help them pick.",
+    "- Never state or imply a price, a cost, a date, a time, availability, an appointment, a booking or a confirmation, even if asked directly. Say the team confirms that, then move the conversation on.",
+    "- Never name a service that is not in the approved list, and never invent any detail about the customer or the business.",
+    `- ${CUSTOMER_PUNCTUATION_INSTRUCTION}`,
+    "The server still decides everything: it validates every value, chooses the next question, and filters your reply. Write phrasing, not decisions.",
     "Reply with the JSON object only, using null for anything the customer did not state.",
+
     `Approved services: ${context.services.length > 0 ? context.services.join(", ") : "(none configured)"}`,
     `Approved locations: ${context.locations.length > 0 ? context.locations.join(", ") : "(none configured)"}`,
   ].join("\n");
@@ -188,6 +211,7 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
     context.message,
     "",
     "Extract every field this message supplies, list any corrections to previously collected values, and list the fields still missing afterwards.",
+    "Then write `reply`: your natural wording for this turn, following the voice rules.",
   ].join("\n");
 }
 
@@ -373,10 +397,10 @@ export function mayCarryMultipleFields(raw: string): boolean {
 export function shouldInterpret(raw: string): boolean {
   const text = raw.trim();
   if (text.length === 0) return false;
-  if (looksUncertain(text)) return true;
-  if (text.includes("?")) return true;
-  if (looksLikeQuestion(text) && text.split(/\s+/).filter(Boolean).length >= 3) return true;
-  return mayCarryMultipleFields(text);
+  // Every real typed message is interpreted now: the model reads it and writes
+  // the wording, and a one-word answer is exactly where the old shape gates
+  // dropped both the understanding and the natural reply.
+  return true;
 }
 
 export type ResolvedIntake = {
@@ -395,6 +419,8 @@ export type ResolvedIntake = {
   uncertain: boolean;
   /** Outside what this chat handles. */
   unsupported: boolean;
+  /** Model-written wording for this turn, already guarded. Null when unusable. */
+  reply: string | null;
 };
 
 
@@ -432,6 +458,7 @@ export async function resolveIntake(args: {
   let question: QuestionTopic | null = null;
   let uncertain = looksUncertain(args.raw);
   let unsupported = false;
+  let reply: string | null = null;
 
   if (shouldInterpret(args.raw)) {
     calls = 1;
@@ -465,6 +492,8 @@ export async function resolveIntake(args: {
       question = parsed.data.question_topic;
       uncertain = uncertain || parsed.data.uncertain;
       unsupported = parsed.data.unsupported;
+      // Phrasing only: every claim in it is filtered before the customer reads it.
+      reply = guardConversationalReply(parsed.data.reply);
     }
   }
 
@@ -501,6 +530,7 @@ export async function resolveIntake(args: {
     question,
     uncertain,
     unsupported: unsupported || extraction.intent === "unsupported",
+    reply,
   };
 }
 

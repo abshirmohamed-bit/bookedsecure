@@ -12,9 +12,11 @@ import {
   answerQuestion,
   assembleReply,
   classifyQuestionTopic,
+  guardConversationalReply,
   isConversationalIntakeTenant,
   looksLikeQuestion,
   looksUncertain,
+  replyAsksSomething,
   uncertainServiceMessage,
   unsupportedAnswer,
   type AnswerFacts,
@@ -173,9 +175,48 @@ describe("reply assembly", () => {
   });
 });
 
-describe("per-tenant flag", () => {
-  it("is enabled for Glocast only", () => {
+describe("availability", () => {
+  it("is enabled for every tenant", () => {
     expect(isConversationalIntakeTenant("11111111-1111-1111-1111-111111111111")).toBe(true);
-    expect(isConversationalIntakeTenant("22222222-2222-2222-2222-222222222222")).toBe(false);
+    expect(isConversationalIntakeTenant("22222222-2222-2222-2222-222222222222")).toBe(true);
+  });
+});
+
+describe("guardConversationalReply", () => {
+  it("keeps friendly phrasing", () => {
+    expect(guardConversationalReply("No worries, changed it to Cabramatta. What is the vehicle?")).toBe(
+      "No worries, changed it to Cabramatta. What is the vehicle?",
+    );
+  });
+
+  it("strips a price claim but keeps the rest", () => {
+    expect(guardConversationalReply("Got the Hilux. That is $250. What suburb are you in?")).toBe(
+      "Got the Hilux. What suburb are you in?",
+    );
+  });
+
+  it("strips a time or availability promise", () => {
+    expect(guardConversationalReply("We can come tomorrow at 9am.")).toBeNull();
+    expect(guardConversationalReply("We have availability this week.")).toBeNull();
+  });
+
+  it("strips a booking confirmation", () => {
+    expect(guardConversationalReply("You are booked in. Thanks!")).toBe("Thanks!");
+  });
+
+  it("removes dashes and caps the length", () => {
+    expect(guardConversationalReply("Got it \u2014 nice one.")).not.toContain("\u2014");
+    const long = guardConversationalReply("a".repeat(400));
+    expect((long ?? "").length).toBeLessThanOrEqual(240);
+  });
+
+  it("returns null for empty wording", () => {
+    expect(guardConversationalReply(null)).toBeNull();
+    expect(guardConversationalReply("   ")).toBeNull();
+  });
+
+  it("detects whether the wording already asks something", () => {
+    expect(replyAsksSomething("What is the vehicle?")).toBe(true);
+    expect(replyAsksSomething("Got it.")).toBe(false);
   });
 });
