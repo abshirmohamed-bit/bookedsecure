@@ -105,6 +105,7 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<A
       .select("id, direction, message_kind, message_source, created_at")
       .eq("business_id", input.businessId)
       .eq("lead_id", input.leadId)
+      .neq("recipient_role", "owner")
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
@@ -152,12 +153,14 @@ export async function authoriseAgentAction(input: AuthorisationInput): Promise<A
       .select("id", { count: "exact", head: true })
       .eq("business_id", input.businessId)
       .eq("direction", "outbound")
+      .neq("recipient_role", "owner")
       .gte("created_at", dayStart),
     supabaseAdmin
       .from("messages")
       .select("id", { count: "exact", head: true })
       .eq("business_id", input.businessId)
       .eq("direction", "outbound")
+      .neq("recipient_role", "owner")
       .gte("created_at", hourAgo),
     supabaseAdmin
       .from("jobs")

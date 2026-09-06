@@ -92,6 +92,7 @@ export const getLead = createServerFn({ method: "GET" })
         .from("messages")
         .select("*")
         .eq("lead_id", data.leadId)
+        .neq("recipient_role", "owner")
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("ai_outputs")
