@@ -86,7 +86,57 @@ export function webChatBookingIdempotencyKey(conversationId: string, offerId: st
 }
 
 export const BOOKING_PROMPT_TEXT =
-  "These are the real times we have open. Pick the one that suits and I'll show it back to you before anything is locked in.";
+  "Here are the times open right now. Pick one and I'll show it back before anything is locked in.";
+
+/**
+ * Deterministic match from typed words to ONE offered slot.
+ *
+ * Typing must work as well as tapping, but control stays deterministic: the
+ * text is only ever mapped onto an offer the server itself generated. Anything
+ * that matches zero or more than one offer returns null and the customer is
+ * asked again.
+ */
+export function matchOfferByText(text: string, offers: readonly PilotOffer[]): PilotOffer | null {
+  const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9:]+/g, " ").replace(/\s+/g, " ").trim();
+  const said = norm(text);
+  if (!said || offers.length === 0) return null;
+
+  // "the first one", "option 2", "3"
+  const ordinal = said.match(/\b(?:option\s*)?(first|1st|1|second|2nd|2|third|3rd|3|fourth|4th|4|last)\b/);
+  if (ordinal) {
+    const word = ordinal[1]!;
+    const index =
+      word === "last"
+        ? offers.length - 1
+        : ["first", "1st", "1"].includes(word)
+          ? 0
+          : ["second", "2nd", "2"].includes(word)
+            ? 1
+            : ["third", "3rd", "3"].includes(word)
+              ? 2
+              : 3;
+    if (said.split(" ").length <= 4 && index >= 0 && index < offers.length) return offers[index]!;
+  }
+
+  // Otherwise every distinguishing token the customer said (weekday, day
+  // number, month, time) must appear in exactly one offer label.
+  const tokens = said
+    .split(" ")
+    .filter((token) => token.length > 0 && !STOP_WORDS.has(token));
+  if (tokens.length === 0) return null;
+  const matches = offers.filter((offer) => {
+    const label = norm(offer.label);
+    return tokens.every((token) => label.includes(token) || label.includes(token.replace(/^0/, "")));
+  });
+  return matches.length === 1 ? matches[0]! : null;
+}
+
+const STOP_WORDS = new Set([
+  "the", "a", "at", "on", "in", "for", "please", "pls", "thanks", "ok", "okay", "yes", "yeah",
+  "lets", "let", "s", "do", "book", "me", "i", "ll", "will", "take", "that", "one", "time",
+  "slot", "works", "work", "suits", "suit", "good", "fine", "can", "we", "you", "my",
+]);
+
 
 /** Explicit final-confirmation choices for the held slot. */
 export const BOOKING_CONFIRM_CHOICE = "__confirm__";
