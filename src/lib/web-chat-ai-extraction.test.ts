@@ -59,6 +59,9 @@ function ai(overrides: Partial<WebChatAiExtraction> = {}): WebChatAiExtraction {
     corrections: [],
     ambiguous_fields: [],
     still_missing: [],
+    question_topic: null,
+    uncertain: false,
+    unsupported: false,
     ...overrides,
   };
 }

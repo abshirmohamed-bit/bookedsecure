@@ -230,5 +230,8 @@ export function acknowledgeFields(values: { label: IntakeField; value: string }[
 /** Deflection used when a question has no supporting tenant fact. */
 export function unsupportedAnswer(facts: AnswerFacts): string {
   const list = serviceList(facts);
-  return list ? `${CANNOT_CONFIRM} Which service would you like?` : CANNOT_CONFIRM;
+  return list && facts.outstanding.includes("service")
+    ? `${CANNOT_CONFIRM} Which service would you like?`
+    : CANNOT_CONFIRM;
 }
+
