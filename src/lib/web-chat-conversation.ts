@@ -236,3 +236,54 @@ export function unsupportedAnswer(facts: AnswerFacts): string {
     : CANNOT_CONFIRM;
 }
 
+
+// ---------------------------------------------------------------------------
+// Model-written reply text (guarded)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sentences a model-written reply may never contain. A reply that promises a
+ * price, a time, availability or a booking is not phrasing, it is a business
+ * decision, and only the server makes those.
+ */
+const REPLY_BANNED_PATTERNS: RegExp[] = [
+  /\$\s?\d/,
+  /\b\d+\s?(?:dollars|aud)\b/i,
+  /\b(?:price|cost|costs|quote|charge|fee|fees|deposit|discount)\b/i,
+  /\b(?:today|tonight|tomorrow|this (?:morning|afternoon|evening|weekend)|next week|this week)\b/i,
+  /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i,
+  /\b\d{1,2}(?::\d{2})?\s?(?:am|pm)\b/i,
+  /\bavailab/i,
+  /\bbooked\b|\bbooking is confirmed\b|\bconfirmed your booking\b|\bslot\b|\bappointment\b/i,
+  /\bguarantee/i,
+];
+
+/** Longest model-written reply the customer ever reads. */
+const REPLY_MAX_CHARS = 240;
+
+/**
+ * Keeps the model's phrasing, drops its claims.
+ *
+ * Sentence-by-sentence: anything touching price, time, availability or a
+ * booking is removed rather than trusted, the rest is punctuation-sanitised and
+ * length-capped. Returns null when nothing safe survives, so the caller falls
+ * back to the deterministic sentences.
+ */
+export function guardConversationalReply(raw: string | null | undefined): string | null {
+  const text = (raw ?? "").replace(/\s+/g, " ").trim();
+  if (text.length === 0) return null;
+  const safe = text
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => !REPLY_BANNED_PATTERNS.some((pattern) => pattern.test(sentence)))
+    .join(" ")
+    .trim();
+  if (safe.length === 0) return null;
+  const capped = safe.length > REPLY_MAX_CHARS ? `${safe.slice(0, REPLY_MAX_CHARS).trimEnd()}` : safe;
+  const cleaned = sanitiseCustomerText(capped).trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+/** True when the reply already asks the customer something. */
+export function replyAsksSomething(reply: string): boolean {
+  return reply.includes("?");
+}
