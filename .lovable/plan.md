@@ -1,172 +1,65 @@
-# Phase 4 — Step 5: single-lead canary (plan only, not activated)
+# AI-led conversation, deterministic booking
 
-The boundary tests requested in the last review are added and green
-(`src/lib/agent-executor-boundary.test.ts`, 18 tests; full suite 1027 passed,
-typecheck and build clean). Nothing below runs until it is separately approved.
+Goal: the chat listens and answers like a person, while every business fact and every booking stays server-controlled. Rolled out per tenant, Glocast first.
 
-## 1. Tenant
+## What changes for the customer
 
-- Business: **Glocast** — `11111111-1111-1111-1111-111111111111`
-- Timezone `Australia/Sydney`; quiet hours 21:00 → 08:00 local.
-- Caps for the canary only: daily 1, hourly 1, max leads per activation 1.
-- `agent_enabled` and `agent_execution_opted_in_at` set by the owner in the UI,
-  not by migration.
+- A message can carry several details at once and all of them are kept, in any order, with typos.
+- A question gets an answer, then the chat asks only for what is still missing.
+- "I need something else", "not sure", "you tell me" bring up the service list instead of being filed as the service.
+- Replies stay one or two sentences.
 
-## 2. Lead
+## What does not change
 
-- Lead ID: **`ed39e7ca-88b5-4bba-b18b-5e04557adcd9`** (Usamah Ahmed)
-- Mobile `+61447852565`
-- `lead_context = active_form_enquiry`, `context_verified_at` set
-- `consent_status = granted`, `consent_source = hosted_page`
-- `quote_status = in_progress`, `booking_status = none`, `customer_status = unknown`
-- `reachability_state = reachable_recently`, not suppressed, not opted out,
-  `requires_owner_review = false`, `deleted_at` null
+Approved services, service area, available times, prices, consent, booking creation, confirmation messages, owner alerts and tenant separation stay exactly as they are today. Nothing the model says can book, price, or promise a time.
 
-Chosen because consent is recorded at source, context is verified, there is no
-booking (so no confirmation path is involved) and the number has recent
-delivery evidence.
+## Phase 1 — Understanding contract (no visible change)
 
-## 3. Campaign and sequence
+Widen the interpretation output from "fields only" to five signals:
 
-One `sequence_campaigns` row, created by the owner through the Step 4 approval
-screen:
+- `fields` — values understood in the message
+- `question` — the customer asked something, plus its topic
+- `uncertainty` — they are stuck choosing
+- `correction` — explicit change intent
+- `unsupported` — outside what we handle
 
-- `sequence_id = active_enquiry_qualification`
-- `scope_kind = explicit_lead_ids`, `scope_lead_ids = [ed39e7ca-…]` (exactly one)
-- `status = authorised`, `campaign_approved_at` and `sequence_approved_at` set
-- `execution_authorisation_kind = canary`, `execution_authorised_at` set
-- `max_leads = 1`, `approved_template_version = 1`
+Dropped from the original spec: the 12-intent enum (collapsed to the five above), `acknowledgement`, `response_guidance`, `confidence`. Confirmation, consent and time selection stay fully deterministic and are never classified by the model.
 
-## 4. Action, template and message
+Also: a single understood field now counts (today it is discarded unless two or more arrive), and routing is decided by message shape, not word count, so short-but-loaded messages like "auburn ta" or "i need something else" still get understood.
 
-One outbound action only: `send_message` via `sendSms`.
+Nothing is rendered from this yet. Behind flag, off.
 
-- Template ID `active_enquiry_qualification_step`, **version 1**
-- Rendered message (exact, 151 chars, GSM-7 only, no emoji, no link):
+## Phase 2 — Deterministic answerer
 
-```text
-Hi Usamah, it's Glocast Detailing. You asked us about a detail for your car. Can you reply with your suburb and preferred day so we can quote it? Thanks
-```
+A server-side answerer that replies only from facts already on file:
 
-- Substitution is limited to server-verified values: first name from
-  `leads.name`, business name from `businesses.name`. Nothing else is
-  interpolated; no model generates customer-visible text.
-- Step 5 adds a versioned template-body registry (`src/lib/sequence-templates.ts`)
-  so this copy is a constant, checked by the existing neutral-language guard and
-  bound to version 1.
+- which services are approved, and their descriptions if present
+- whether a suburb is in the service area
+- what is still needed, and what happens next
+- how to pick a time, what consent means, what to confirm
 
-No `offer_booking`, `schedule_follow_up`, `capture_consent`, `handoff` or
-`booking_confirm`. Follow-up steps 2 and 3 remain planned-only.
+No fact on file means a short honest deflection, never a guess. Symptom-to-service suggestions are allowed only when they resolve to exactly one approved service; otherwise the customer is asked to describe what needs attention.
 
-## 5. Consent and provenance basis
+## Phase 3 — Reply assembly
 
-- Consent: hosted quote page submission — `consent_status = granted`,
-  `consent_source = hosted_page`, `consent_record` retained on the lead.
-- Provenance: `active_form_enquiry` with `context_verified_at` set, so the copy
-  may reference the enquiry itself. It still implies no prior quote, booking,
-  service or discount.
+One reply per turn, composed by the server in a fixed order: brief acknowledgement of what landed, the answer if a question was asked, then the single next missing requirement. Passes through the existing guard that strips prices, dates and availability claims. Any model-drafted wording is treated as untrusted input to this step, never as the reply.
 
-## 6. Segments and cost
+## Phase 4 — Failure behaviour
 
-- 151 GSM-7 characters → **1 segment**; the sender ID adds no body characters.
-- Expected cost: one outbound segment on the Glocast Telnyx number.
-- The existing segment cap check must record 1 and refuse anything above 1.
+Malformed, empty, contradictory or slow interpretation: keep existing state, advance nothing, book nothing, send nothing, fall back to the current question, log internally.
 
-## 7. Quiet hours
+## Phase 5 — Flag and canary
 
-- Send window 09:00–18:00 Sydney, inside 08:00–21:00 → the `quiet_hours` gate
-  **passes**.
-- Run outside that window and the gate defers rather than drops: the executor
-  returns `gates_blocked` with `quiet_hours`, and the operator re-runs next
-  morning with the same idempotency key.
+Per-tenant flag, default off. Enable for Glocast only, walk the eleven transcripts below on the live quote page, then decide on wider rollout.
 
-## 8. Idempotency key
+## Verification
 
-```text
-seq:11111111-1111-1111-1111-111111111111:ed39e7ca-88b5-4bba-b18b-5e04557adcd9:active_enquiry_qualification:step1
-```
+Transcripts demonstrated end to end: button-selected service, typed service, "I need something else", "not sure what I need", a question containing a suburb, a full multi-field message, an explicit correction, an ambiguous service, a typed time, consent, final confirmation.
 
-Unique on `(business_id, mode, idempotency_key)`. The preview row is
-`mode = dry_run`; the canary row is a separate `mode = live` row.
+Tests added for: uncertainty phrases never becoming a service, questions answered, fields preserved alongside questions, multi-detail extraction, corrections, a confirmed service never re-resolved, ambiguity staying unresolved, valid state never cleared by empty output, no repeated questions, exactly one interpretation call per eligible message, malformed/empty/timeout safety, typed times matching only live server slots, consent and confirmation never inferred, no booking/SMS/alert/lead side effects, tenant isolation and idempotency intact.
 
-## 9. Expected ledger transitions
+Then full suite, typecheck, production build.
 
-1. Owner previews → `dry_run` row `planned`, plan snapshot stored.
-2. Owner presses Execute once → `live` row inserted `planned` (write-ahead,
-   before any provider call).
-3. Executor claims → `planned` → `claimed` via the conditional update, scoped by
-   business, mode and `rolled_back_at is null`.
-4. Provider accepts → `succeeded`, `result_kind = message`,
-   `result_ref = messages.id`, `attempt_count = 1`.
-5. Provider rejects → `failed` with `failure_reason`; retry allowed to
-   `max_attempts = 3` on the same key, never a second message.
-6. Any gate failing at recheck → `blocked` with the gate id in `blocked_reason`,
-   no provider call.
+## Expected outcome
 
-## 10. Provider and message attribution
-
-- Provider Telnyx, Glocast sender number, simulation off for this one send.
-- `messages` row: `direction = outbound`, `business_id`, `lead_id`,
-  `sequence_id = active_enquiry_qualification`,
-  `template_id = active_enquiry_qualification_step`,
-  `agent_action_id = <live ledger row id>`, `source = agent_sequence`.
-- No `automation_jobs` row: execution is manual, no scheduler.
-
-## 11. Delivery verification
-
-- Provider message id recorded on the `messages` row.
-- The status webhook must move it `queued` → `sent` → `delivered`, updating
-  `last_outbound_sms_status`, `last_outbound_sms_at`, `last_delivered_sms_at`.
-- Verify exactly one `messages` row for the key, one ledger row `succeeded`, one
-  provider request in the SMS log, all three attribution columns populated, and
-  the customer receiving the exact copy above.
-
-## 12. Required canary tests (before and after the send)
-
-- **Replay**: press Execute again with the same key → ledger stays `succeeded`,
-  no second claim, no second `messages` row, no provider call.
-- **Reply abandonment**: simulate an inbound reply before any later step →
-  automation pauses for that lead and remaining planned actions move to
-  `abandoned`; no further outbound.
-- **Kill switch**: tenant switch on, then global switch on → Execute returns
-  `gates_blocked` naming `tenant_kill_switch` / `global_kill_switch`, no
-  provider call.
-- **Stale plan**: set `booking_status = scheduled` → `plan_stale_booking_state`.
-- **Opt-out**: mark the lead opted out → `gates_blocked` with `opt_out`.
-
-## 13. Rollback procedure
-
-1. Owner toggles the tenant kill switch — immediate, stops everything further.
-2. `rollbackActivation(activation_id, reason, actor)` marks all non-`succeeded`
-   rows `rolled_back` with reason, actor and timestamp, and writes
-   `agent_activation_rolled_back` to the audit log. Nothing is deleted; the
-   delivered message and its history stay intact.
-3. Campaign `status` → `disabled`, `campaign_disabled_at` set.
-4. `agent_execution_opted_in_at` cleared, caps back to 0.
-5. If the customer objects, add suppression and record the opt-out.
-
-Rollback cannot recall a delivered SMS — which is why the canary is one lead.
-
-## 14. Success criteria
-
-- Exactly one provider call, one `messages` row, one `succeeded` ledger row.
-- Delivered copy matches the approved text byte-for-byte; 1 segment.
-- Attribution columns populated; delivery webhook reaches `delivered`.
-- Replay, reply-abandonment and kill-switch tests all behave as specified.
-- No booking, follow-up job, scheduler run or other lead touched;
-  `current_sequence` written for this single lead only, after a successful send.
-
-## 15. Failure criteria (stop and roll back)
-
-- Any second outbound message, duplicate claim, or retry storm.
-- Any message to a lead outside `scope_lead_ids`.
-- Body differing from the approved copy, or more than 1 segment.
-- A send inside quiet hours, or after opt-out/suppression.
-- Any booking, job, notification or campaign write this plan did not specify.
-- A ledger row left `claimed` with no `succeeded`/`failed` resolution.
-
-## 16. Constraints restated
-
-One hand-picked lead, one approved outbound action, manual execution only, no
-scheduler, no broad campaign, no batch, no autonomous booking. Nothing is sent
-until this plan is separately reviewed and explicitly approved.
+Fewer abandoned conversations because the chat stops re-asking and starts answering. Same booking guarantees as today. If the interpretation layer fails or is flagged off, behaviour falls back to exactly the current step machine.
