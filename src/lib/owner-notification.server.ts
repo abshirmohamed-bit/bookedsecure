@@ -9,7 +9,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getProvider } from "@/lib/sms/provider.server";
 import { resolveEffectiveProviderName } from "@/lib/sms/resolution";
 import { resolveSender } from "@/lib/lead-engine.server";
-import { countSegments } from "@/lib/domain";
+import { countSegments } from "@/lib/sms/segments";
+import { RESERVED_STATUS } from "@/lib/sms/dispatch";
 import {
   OWNER_BOOKING_CONFIRMED_TEMPLATE_ID,
   evaluateOwnerNotificationEligibility,
@@ -75,7 +76,7 @@ export async function deliverOwnerBookingConfirmation(input: {
       .maybeSingle(),
     supabaseAdmin
       .from("businesses")
-      .select("name, timezone, owner_notification_name, owner_notification_number")
+      .select("name, timezone, default_sms_provider, owner_notification_name, owner_notification_number")
       .eq("id", input.businessId)
       .maybeSingle(),
     supabaseAdmin
@@ -155,14 +156,7 @@ export async function deliverOwnerBookingConfirmation(input: {
     };
   }
   const provider = getProvider(
-    resolveEffectiveProviderName(
-      (await supabaseAdmin
-        .from("businesses")
-        .select("default_sms_provider")
-        .eq("id", input.businessId)
-        .maybeSingle()).data?.default_sms_provider,
-      sender.provider,
-    ),
+    resolveEffectiveProviderName(business.default_sms_provider, sender.provider),
   );
 
   const { segments } = countSegments(body);
@@ -174,7 +168,7 @@ export async function deliverOwnerBookingConfirmation(input: {
     await supabaseAdmin
       .from("messages")
       .update({
-        delivery_status: "reserved",
+        delivery_status: RESERVED_STATUS,
         body,
         provider: provider.name,
         sender_id: sender.id,
@@ -199,7 +193,7 @@ export async function deliverOwnerBookingConfirmation(input: {
         to_number: ownerNumber,
         recipient_role: "owner",
         segments,
-        delivery_status: "reserved",
+        delivery_status: RESERVED_STATUS,
         message_kind: "manual",
         idempotency_key: idempotencyKey,
         template_id: templateId,
