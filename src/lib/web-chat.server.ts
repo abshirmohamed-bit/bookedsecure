@@ -42,8 +42,6 @@ import {
   applyFieldDirectives,
   fieldUpdateMessage,
   ambiguityMessage,
-  applyIntake,
-  extractIntake,
   groupedMissingMessage,
   outstandingFields,
   parseApprovedLocations,
