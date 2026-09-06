@@ -127,12 +127,42 @@ type ServiceMatch =
   | { kind: "one"; service: IntakeService }
   | { kind: "ambiguous"; services: IntakeService[] };
 
+function normaliseServiceName(input: string): string {
+  return input.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/**
+ * Service resolution precedence, strongest evidence first:
+ * 1. exact normalised catalogue match,
+ * 2. the catalogue name appearing verbatim in the message (longest wins),
+ * 3. a service whose every word the customer used (full token coverage),
+ * 4. partial token overlap — the only place a tie becomes a clarification.
+ */
 export function matchApprovedService(raw: string, services: IntakeService[]): ServiceMatch {
+  const target = normaliseServiceName(raw);
+
+  const exact = services.filter((service) => normaliseServiceName(service.name) === target);
+  if (exact.length === 1) return { kind: "one", service: exact[0]! };
+
+  if (target.length >= 3) {
+    const phrase = services
+      .filter((service) => {
+        const name = normaliseServiceName(service.name);
+        return name.length >= 3 && target.includes(name);
+      })
+      .sort((a, b) => normaliseServiceName(b.name).length - normaliseServiceName(a.name).length);
+    if (phrase.length > 0) {
+      const longest = normaliseServiceName(phrase[0]!.name).length;
+      const tied = phrase.filter((service) => normaliseServiceName(service.name).length === longest);
+      if (tied.length === 1) return { kind: "one", service: tied[0]! };
+    }
+  }
+
   const messageStems = stems(raw);
   const scored = services
     .map((service) => {
       const tokens = serviceTokens(service.name);
-      if (tokens.length === 0) return { service, score: 0 };
+      if (tokens.length === 0) return { service, score: 0, hits: 0 };
       const hits = tokens.filter((token) => messageStems.has(token)).length;
       return { service, score: hits / tokens.length, hits };
     })
@@ -143,13 +173,43 @@ export function matchApprovedService(raw: string, services: IntakeService[]): Se
   // Only reasonably complete matches count at all.
   const candidates = scored.filter((entry) => entry.score >= 0.5);
   if (candidates.length === 0) return { kind: "none" };
+
+  // A service the customer named in full beats one they only partly named.
+  const complete = candidates.filter((entry) => entry.score === 1);
+  if (complete.length === 1) return { kind: "one", service: complete[0]!.service };
+  const pool = complete.length > 1 ? complete : candidates;
+
   // Two approved services matching the same number of the customer's words
   // ("interior and exterior detail") is an ambiguity to ask about, never a guess.
-  const bestHits = Math.max(...candidates.map((entry) => entry.hits ?? 0));
-  const leaders = candidates.filter((entry) => (entry.hits ?? 0) === bestHits);
+  const bestHits = Math.max(...pool.map((entry) => entry.hits));
+  const leaders = pool.filter((entry) => entry.hits === bestHits);
   if (leaders.length > 1) return { kind: "ambiguous", services: leaders.map((entry) => entry.service) };
   return { kind: "one", service: leaders[0]!.service };
 }
+
+/**
+ * A service the customer already confirmed (a button press, or an earlier
+ * resolved answer) is never re-resolved from later narrative text: the later
+ * mention is dropped, so no clarification is asked and no value is overwritten.
+ * An explicit correction is handled by the correction path, not here.
+ */
+export function preserveConfirmedService(
+  extraction: IntakeExtraction,
+  collected: WebChatCollected,
+): IntakeExtraction {
+  const confirmed = Boolean(collected.service_id) || Boolean((collected.typed_request ?? "").trim());
+  if (!confirmed) return extraction;
+  const ambiguities = extraction.ambiguities.filter((entry) => entry.field !== "service");
+  const next: IntakeExtraction = {
+    ...extraction,
+    service: null,
+    ambiguities,
+    unmatched: { ...extraction.unmatched, service: null },
+  };
+  if (next.intent === "ambiguous" && ambiguities.length === 0) next.intent = "booking";
+  return next;
+}
+
 
 // ---------------------------------------------------------------------------
 // Approved-location matching
