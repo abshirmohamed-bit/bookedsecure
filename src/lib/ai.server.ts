@@ -321,8 +321,9 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     !["suburb", "vehicle_type", "main_concerns", "service_intent", "approved_service_id"].some(
       (field) => typeof leadFacts[field] === "string" && (leadFacts[field] as string).trim().length > 0,
     );
-  const proposedOffer = isDormantContact
-    ? proposeOffer({ serviceNames: (services ?? []).map((service) => service.name) })
+  const proposedOffer = isDormantContact ? proposeOffer() : null;
+  const quoteLink = isDormantContact
+    ? tenantQuoteLink((business as { slug?: string | null } | null)?.slug ?? null)
     : null;
 
   const requestType = (lead as { request_type?: string | null }).request_type ?? null;
