@@ -9,6 +9,7 @@ import {
   BOOKING_CONFIRM_CHOICE,
   BOOKING_PROMPT_TEXT,
   bookingConfirmMessage,
+  matchOfferByText,
   NO_SLOT_CHOICE,
   type PilotOffer,
 } from "@/lib/web-chat-booking";
