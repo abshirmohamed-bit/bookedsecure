@@ -5,7 +5,8 @@
 // reactivation, promotional message or AI-authored copy, and it never replaces
 // the dashboard booking-confirmed alert.
 
-import { firstName, normaliseAuMobile, renderTemplate } from "@/lib/domain";
+import { firstName, renderTemplate } from "@/lib/domain";
+import { normaliseOwnerNotificationNumber } from "@/lib/owner-phone";
 import { formatConfirmationDateTime } from "@/lib/booking-confirmation";
 
 /** Versioned, fixed-field owner template. */
@@ -49,7 +50,8 @@ export function resolveOwnerNotificationNumber(
 ): string | null {
   const raw = (business?.owner_notification_number ?? "").trim();
   if (!raw) return null;
-  return normaliseAuMobile(raw);
+  // Mobile only: a landline cannot receive the owner alert.
+  return normaliseOwnerNotificationNumber(raw);
 }
 
 /**
@@ -77,7 +79,7 @@ export function evaluateOwnerNotificationEligibility(
       reason: "This business has no owner notification number stored.",
     };
   }
-  if (!normaliseAuMobile(raw)) {
+  if (!normaliseOwnerNotificationNumber(raw)) {
     return {
       outcome: "blocked_invalid_owner_number",
       sendable: false,
