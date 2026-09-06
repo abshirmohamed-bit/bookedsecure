@@ -15,6 +15,7 @@ import {
 } from "@/lib/ai-analysis-contract";
 import { CUSTOMER_PUNCTUATION_INSTRUCTION, sanitiseCustomerText } from "@/lib/customer-text";
 import { guardReactivationMessage, proposeOffer } from "@/lib/reactivation";
+import { tenantQuoteLink } from "@/lib/reactivation.server";
 import {
   buildApprovedFacts,
   buildApprovedFactsContext,

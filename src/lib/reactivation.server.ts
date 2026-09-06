@@ -284,7 +284,7 @@ export async function draftReactivationCampaign(input: {
   const [{ data: business }, { data: services }] = await Promise.all([
     supabaseAdmin
       .from("businesses")
-      .select("name, sms_signature")
+      .select("name, slug, sms_signature")
       .eq("id", input.businessId)
       .single(),
     supabaseAdmin
@@ -296,6 +296,7 @@ export async function draftReactivationCampaign(input: {
 
   const businessName = business?.name ?? "our team";
   const serviceNames = (services ?? []).map((s) => s.name as string).filter(Boolean);
+  const quoteUrl = tenantQuoteLink((business as { slug?: string | null } | null)?.slug ?? null);
 
   const { candidates, excluded } = await loadReactivationCandidates(input.businessId);
   const scoped = candidates.slice(0, input.maxLeads ?? 200);
@@ -342,6 +343,7 @@ export async function draftReactivationCampaign(input: {
       businessName,
       leadName: candidate.name,
       offerText: offer.offer,
+      quoteUrl,
       signature: business?.sms_signature ?? null,
     });
     const guarded = guardReactivationMessage(rendered, offer.offer);
