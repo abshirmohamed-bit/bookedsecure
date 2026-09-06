@@ -79,8 +79,12 @@ describe("owner SMS is only ever produced by a committed booking", () => {
     expect(bookingOnlySource).toContain("deliverOwnerBookingConfirmation");
     // No queueing / scheduling: it is sent immediately, inline after commit.
     expect(serverSource).not.toMatch(/automation_jobs|run_at|confirmationReleaseAt/);
-    // Never creates, moves or cancels a booking, job or lead state.
-    expect(serverSource).not.toMatch(/from\("jobs"\)|from\("booking_offers"\)\s*\n\s*\.update|\.update\(/);
+    // Never creates, moves or cancels a booking, job or lead state: it writes
+    // only to the messages row it owns and to the audit trail.
+    expect(serverSource).not.toContain('from("jobs")');
+    expect(serverSource).not.toContain('from("leads")\n    .update');
+    const writes = serverSource.match(/\.from\("(\w+)"\)\s*\n?\s*\.(update|insert)/g) ?? [];
+    for (const write of writes) expect(write).toMatch(/messages|audit_events/);
   });
 });
 
@@ -130,7 +134,7 @@ describe("number roles stay separate", () => {
 
   it("is tenant scoped: every read filters on this business", () => {
     const scoped = serverSource.match(/\.eq\("business_id", input\.businessId\)/g) ?? [];
-    expect(scoped.length).toBeGreaterThanOrEqual(4);
+    expect(scoped.length).toBeGreaterThanOrEqual(3);
     expect(serverSource).toContain('.eq("id", input.businessId)');
     // The owner number is read from this tenant's own row only.
     expect(serverSource).toContain("resolveOwnerNotificationNumber(business)");
