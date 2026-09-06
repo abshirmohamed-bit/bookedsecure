@@ -17,10 +17,12 @@
 
 import { z } from "zod";
 import { normaliseAuMobile } from "@/lib/domain";
+import { CUSTOMER_PUNCTUATION_INSTRUCTION } from "@/lib/customer-text";
 import { applyAnswer, type WebChatCollected, type WebChatStep, type WebChatTenant } from "@/lib/web-chat";
 import {
   QUESTION_TOPICS,
   classifyQuestionTopic,
+  guardConversationalReply,
   looksLikeQuestion,
   looksUncertain,
   type QuestionTopic,
@@ -209,6 +211,7 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
     context.message,
     "",
     "Extract every field this message supplies, list any corrections to previously collected values, and list the fields still missing afterwards.",
+    "Then write `reply`: your natural wording for this turn, following the voice rules.",
   ].join("\n");
 }
 
@@ -394,10 +397,10 @@ export function mayCarryMultipleFields(raw: string): boolean {
 export function shouldInterpret(raw: string): boolean {
   const text = raw.trim();
   if (text.length === 0) return false;
-  if (looksUncertain(text)) return true;
-  if (text.includes("?")) return true;
-  if (looksLikeQuestion(text) && text.split(/\s+/).filter(Boolean).length >= 3) return true;
-  return mayCarryMultipleFields(text);
+  // Every real typed message is interpreted now: the model reads it and writes
+  // the wording, and a one-word answer is exactly where the old shape gates
+  // dropped both the understanding and the natural reply.
+  return true;
 }
 
 export type ResolvedIntake = {
@@ -416,6 +419,8 @@ export type ResolvedIntake = {
   uncertain: boolean;
   /** Outside what this chat handles. */
   unsupported: boolean;
+  /** Model-written wording for this turn, already guarded. Null when unusable. */
+  reply: string | null;
 };
 
 
@@ -453,6 +458,7 @@ export async function resolveIntake(args: {
   let question: QuestionTopic | null = null;
   let uncertain = looksUncertain(args.raw);
   let unsupported = false;
+  let reply: string | null = null;
 
   if (shouldInterpret(args.raw)) {
     calls = 1;
@@ -486,6 +492,8 @@ export async function resolveIntake(args: {
       question = parsed.data.question_topic;
       uncertain = uncertain || parsed.data.uncertain;
       unsupported = parsed.data.unsupported;
+      // Phrasing only: every claim in it is filtered before the customer reads it.
+      reply = guardConversationalReply(parsed.data.reply);
     }
   }
 
@@ -522,6 +530,7 @@ export async function resolveIntake(args: {
     question,
     uncertain,
     unsupported: unsupported || extraction.intent === "unsupported",
+    reply,
   };
 }
 
