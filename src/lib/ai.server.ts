@@ -13,8 +13,8 @@ import {
   parseAnalysisPayload,
   type Analysis,
 } from "@/lib/ai-analysis-contract";
-import {
 import { CUSTOMER_PUNCTUATION_INSTRUCTION, sanitiseCustomerText } from "@/lib/customer-text";
+import {
   buildApprovedFacts,
   buildApprovedFactsContext,
   hasApprovedPrice,
