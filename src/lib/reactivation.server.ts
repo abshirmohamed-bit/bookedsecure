@@ -13,6 +13,9 @@ import {
   normaliseOffer,
   proposeOffer,
   renderReactivationMessage,
+  renderReactivationReminder,
+  shouldSendReactivationReminder,
+  REACTIVATION_REMINDER_DELAY_DAYS,
   type ReactivationFacts,
 } from "@/lib/reactivation";
 import { tenantQuoteUrl } from "@/lib/tenant-nav";
@@ -531,4 +534,138 @@ export async function approveReactivationCampaign(input: {
   });
 
   return { sent, failed, skipped: 0, results };
+}
+
+/**
+ * The one automatic win-back reminder, three days after the approved first
+ * message. Universal for every tenant: eligibility, wording and the tenant's
+ * own quote link all come from that tenant's own data.
+ *
+ * Anything that counts as engagement cancels it, and every send still goes
+ * through `sendSms`, so opt-out, suppression, quiet hours and caps apply.
+ */
+export async function processDueReactivationReminders(now: Date = new Date()): Promise<{
+  sent: number;
+  skipped: Array<{ leadId: string; reason: string }>;
+}> {
+  const cutoff = new Date(
+    now.getTime() - REACTIVATION_REMINDER_DELAY_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const { data: candidates } = await supabaseAdmin
+    .from("reactivation_drafts")
+    .select("id, business_id, lead_id, sent_at, campaign_id")
+    .eq("status", "sent")
+    .not("sent_at", "is", null)
+    .lte("sent_at", cutoff)
+    .order("sent_at", { ascending: true })
+    .limit(200);
+
+  const skipped: Array<{ leadId: string; reason: string }> = [];
+  let sent = 0;
+
+  for (const draft of candidates ?? []) {
+    const businessId = draft.business_id as string;
+    const leadId = draft.lead_id as string;
+    const sentAt = draft.sent_at ? new Date(draft.sent_at as string) : null;
+    const reminderKey = `reactivation-reminder:${draft.id}`;
+
+    const [{ data: reminder }, { data: lead }, { data: inbound }, { data: chat }, { data: campaign }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("messages")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("idempotency_key", reminderKey)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("leads")
+          .select("id, name, booking_status, opted_out_at, sms_suppressed_at, deleted_at")
+          .eq("id", leadId)
+          .eq("business_id", businessId)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("messages")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("lead_id", leadId)
+          .eq("direction", "inbound")
+          .limit(1)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("web_conversations")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("lead_id", leadId)
+          .limit(1)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("reactivation_campaigns")
+          .select("offer_text, status")
+          .eq("id", draft.campaign_id as string)
+          .eq("business_id", businessId)
+          .maybeSingle(),
+      ]);
+
+    if (!lead || !campaign) {
+      skipped.push({ leadId, reason: "Campaign or lead no longer available." });
+      continue;
+    }
+
+    const decision = shouldSendReactivationReminder({
+      sentAt,
+      now,
+      reminderAlreadySent: Boolean(reminder?.id),
+      hasInboundReply: Boolean(inbound?.id),
+      hasQuoteChat: Boolean(chat?.id),
+      hasBooking: (lead.booking_status ?? "none") !== "none",
+      optedOut: Boolean(lead.opted_out_at),
+      suppressed: Boolean(lead.sms_suppressed_at),
+      deleted: Boolean(lead.deleted_at),
+    });
+    if (!decision.send) {
+      skipped.push({ leadId, reason: decision.reason });
+      continue;
+    }
+
+    const { data: business } = await supabaseAdmin
+      .from("businesses")
+      .select("name, slug, sms_signature")
+      .eq("id", businessId)
+      .maybeSingle();
+    if (!business) {
+      skipped.push({ leadId, reason: "Business not found." });
+      continue;
+    }
+
+    const body = guardReactivationMessage(
+      renderReactivationReminder({
+        businessName: business.name,
+        leadName: lead.name,
+        offerText: campaign.offer_text as string,
+        quoteUrl: tenantQuoteLink(business.slug),
+        signature: business.sms_signature,
+      }),
+      campaign.offer_text as string,
+    );
+    if (body.text.trim().length < 2) {
+      skipped.push({ leadId, reason: "Reminder content could not be sent as written." });
+      continue;
+    }
+
+    const { sendSms } = await import("@/lib/lead-engine.server");
+    const result = await sendSms({
+      businessId,
+      leadId,
+      body: body.text,
+      kind: "approved_reply",
+      idempotencyKey: reminderKey,
+      respectAutomation: true,
+      source: "automation",
+    });
+    if (result.sent) sent += 1;
+    else skipped.push({ leadId, reason: result.reason ?? "Not sent." });
+  }
+
+  return { sent, skipped };
 }

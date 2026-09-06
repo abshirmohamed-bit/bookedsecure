@@ -101,6 +101,69 @@ export function renderReactivationMessage(input: {
   return sanitiseCustomerText(parts.join(" ")).slice(0, REACTIVATION_MAX_LENGTH).trim();
 }
 
+/**
+ * One reminder only, three days after the first win-back message. Anything that
+ * counts as engagement (a reply, a quote chat, a booking, an opt-out or a
+ * suppressed number) cancels it permanently.
+ */
+export const REACTIVATION_REMINDER_DELAY_DAYS = 3;
+
+export type ReminderFacts = {
+  /** When the first win-back message went out. */
+  sentAt: Date | null;
+  now: Date;
+  /** A reminder has already gone out for this contact. */
+  reminderAlreadySent: boolean;
+  hasInboundReply: boolean;
+  hasQuoteChat: boolean;
+  hasBooking: boolean;
+  optedOut: boolean;
+  suppressed: boolean;
+  deleted: boolean;
+};
+
+export function shouldSendReactivationReminder(
+  facts: ReminderFacts,
+): { send: true } | { send: false; reason: string } {
+  if (!facts.sentAt) return { send: false, reason: "First message was never sent." };
+  if (facts.reminderAlreadySent) return { send: false, reason: "Reminder already sent." };
+  if (facts.deleted) return { send: false, reason: "Lead is deleted." };
+  if (facts.optedOut) return { send: false, reason: "Lead has opted out." };
+  if (facts.suppressed) return { send: false, reason: "Number is suppressed." };
+  if (facts.hasInboundReply) return { send: false, reason: "Customer already replied." };
+  if (facts.hasQuoteChat) return { send: false, reason: "Customer started an enquiry." };
+  if (facts.hasBooking) return { send: false, reason: "Lead already has a booking." };
+  const dueAt = facts.sentAt.getTime() + REACTIVATION_REMINDER_DELAY_DAYS * 24 * 60 * 60 * 1000;
+  if (facts.now.getTime() < dueAt) return { send: false, reason: "Not due yet." };
+  return { send: true };
+}
+
+/**
+ * The single reminder. Shorter than the first message, makes no new promise and
+ * repeats the same tenant-approved offer verbatim.
+ */
+export function renderReactivationReminder(input: {
+  businessName: string;
+  leadName?: string | null;
+  offerText: string;
+  quoteUrl?: string | null;
+  signature?: string | null;
+}): string {
+  const name = firstName(input.leadName);
+  const offer = normaliseOffer(input.offerText).replace(/[.!]+$/, "");
+  const signature = typeof input.signature === "string" ? input.signature.trim() : "";
+  const quoteUrl = typeof input.quoteUrl === "string" ? input.quoteUrl.trim() : "";
+  const parts = [
+    name ? `Hi ${name}, ${input.businessName} again.` : `Hi, ${input.businessName} again.`,
+    `Just checking you saw our ${offer}.`,
+    quoteUrl ? `Tell us what you need here: ${quoteUrl}` : "Reply YES if you'd like a hand.",
+    "Reply STOP to opt out.",
+  ];
+  if (signature) parts.push(signature);
+  return sanitiseCustomerText(parts.join(" ")).slice(0, REACTIVATION_MAX_LENGTH).trim();
+}
+
+
 
 // Never allowed in a reactivation message, regardless of the approved offer.
 const BANNED_PATTERNS = [

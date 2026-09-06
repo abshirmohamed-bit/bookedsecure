@@ -5,6 +5,8 @@ import {
   guardReactivationMessage,
   proposeOffer,
   renderReactivationMessage,
+  renderReactivationReminder,
+  shouldSendReactivationReminder,
   type ReactivationFacts,
 } from "@/lib/reactivation";
 import { factsFromLead } from "@/lib/reactivation.server";
@@ -248,5 +250,57 @@ describe("approval policy", () => {
     expect(checkApproval({ attested: true, campaignStatus: "draft", approvedDraftCount: 2 })).toEqual({
       ok: true,
     });
+  });
+});
+
+describe("win-back reminder policy", () => {
+  const base = {
+    sentAt: new Date("2026-09-01T00:00:00Z"),
+    now: new Date("2026-09-04T01:00:00Z"),
+    reminderAlreadySent: false,
+    hasInboundReply: false,
+    hasQuoteChat: false,
+    hasBooking: false,
+    optedOut: false,
+    suppressed: false,
+    deleted: false,
+  };
+
+  it("sends exactly one reminder three days after the first message", () => {
+    expect(shouldSendReactivationReminder(base).send).toBe(true);
+    expect(shouldSendReactivationReminder({ ...base, reminderAlreadySent: true }).send).toBe(false);
+  });
+
+  it("waits until the delay has passed", () => {
+    expect(
+      shouldSendReactivationReminder({ ...base, now: new Date("2026-09-03T12:00:00Z") }).send,
+    ).toBe(false);
+  });
+
+  it("cancels on any engagement, opt-out, suppression or booking", () => {
+    for (const override of [
+      { hasInboundReply: true },
+      { hasQuoteChat: true },
+      { hasBooking: true },
+      { optedOut: true },
+      { suppressed: true },
+      { deleted: true },
+      { sentAt: null },
+    ]) {
+      expect(shouldSendReactivationReminder({ ...base, ...override }).send).toBe(false);
+    }
+  });
+
+  it("repeats the approved offer, keeps the opt-out line and promises nothing new", () => {
+    const text = renderReactivationReminder({
+      businessName: "Any Detailing Co",
+      leadName: "Diana Smith",
+      offerText: "15% off your next enquiry",
+      quoteUrl: "https://example.com/quote/any",
+    });
+    expect(text).toContain("Hi Diana");
+    expect(text).toContain("15% off your next enquiry");
+    expect(text).toContain("Reply STOP to opt out.");
+    expect(guardReactivationMessage(text, "15% off your next enquiry").flagged).toEqual([]);
   });
 });

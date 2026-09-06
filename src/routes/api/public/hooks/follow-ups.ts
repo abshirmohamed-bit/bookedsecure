@@ -18,8 +18,11 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         }
 
         const { processDueFollowUps } = await import("@/lib/lead-engine.server");
+        const { processDueReactivationReminders } = await import("@/lib/reactivation.server");
         const result = await processDueFollowUps();
-        return Response.json(result);
+        const reminders = await processDueReactivationReminders();
+        return Response.json({ ...result, reminders });
+
       },
     },
   },
