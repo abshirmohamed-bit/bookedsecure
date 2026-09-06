@@ -9,6 +9,7 @@ import {
   BOOKING_CONFIRM_CHOICE,
   BOOKING_PROMPT_TEXT,
   bookingConfirmMessage,
+  matchOfferByText,
   NO_SLOT_CHOICE,
   type PilotOffer,
 } from "@/lib/web-chat-booking";
@@ -153,11 +154,12 @@ export function reviewSummary(collected: WebChatCollected): WebChatReviewField[]
 export function reviewMessage(collected: WebChatCollected): string {
   const lines = reviewSummary(collected).map((row) => `${row.label}: ${row.value}`);
   return [
-    "Here's what I have so far:",
+    "Quick check:",
     ...lines,
-    "Want to change anything before we send this to the team? Just tell me what to update, for example “change my suburb to Parramatta”.",
+    "All right? Or tell me what to change, for example “suburb to Parramatta”.",
   ].join("\n");
 }
+
 
 /**
  * Every customer-facing prompt leaves this module through `promptFor`, which
@@ -223,29 +225,30 @@ function buildPrompt(
         ],
       };
     case "vehicle":
-      return { step, kind: "text", text: "What type of vehicle is it? (make, model or body type)" };
+      return { step, kind: "text", text: "What's the vehicle? (make and model)" };
     case "suburb":
-      return { step, kind: "text", text: "Which suburb is the vehicle in?" };
+      return { step, kind: "text", text: "Which suburb is it in?" };
     case "concerns":
       return {
         step,
         kind: "text",
-        text: "How's the condition, and what's your main concern? (for example swirls, pet hair, water spots)",
+        text: "Anything we should know about the condition? (swirls, pet hair, water spots)",
       };
     case "name":
-      return { step, kind: "text", text: "What's your name?" };
+      return { step, kind: "text", text: "And your name?" };
     case "mobile":
-      return { step, kind: "text", text: "What's the best Australian mobile number for the team to reply on?" };
+      return { step, kind: "text", text: "Best mobile number to reply on?" };
     case "email":
-      return { step, kind: "text", optional: true, text: "Email address? This one's optional — you can skip it." };
+      return { step, kind: "text", optional: true, text: "Email? Optional, say skip if you'd rather not." };
     case "review":
       return { step, kind: "review", text: reviewMessage(collected), fields: reviewSummary(collected) };
     case "consent":
       return {
         step,
         kind: "consent",
-        text: `Last step: do you agree to ${tenant.name} contacting you about this enquiry, including by SMS? Reply STOP at any time to opt out.`,
+        text: `Last thing: happy for ${tenant.name} to contact you about this, including by SMS? Reply STOP any time to opt out.`,
       };
+
     case "booking":
       return {
         step,
@@ -506,25 +509,42 @@ export function applyAnswer(
       };
     }
     case "consent": {
-      const granted = value === "granted" || value.toLowerCase() === "yes";
-      next.consent = granted ? "granted" : "declined";
-      return { ok: true, collected: next, echo: granted ? "Yes, that's fine" : "No thanks" };
+      if (value === "granted" || /^(yes|yep|yeah|yup|sure|ok(ay)?|fine|of course|that'?s fine|no worries|all good|go ahead|agreed?|i (do|agree))\b/i.test(value)) {
+        next.consent = "granted";
+        return { ok: true, collected: next, echo: "Yes, that's fine" };
+      }
+      if (value === "declined" || /^(no|nope|nah|no thanks?|don'?t|do not|rather not|opt out|stop)\b/i.test(value)) {
+        next.consent = "declined";
+        return { ok: true, collected: next, echo: "No thanks" };
+      }
+      // Consent is never inferred from an unclear reply.
+      return { ok: false, error: "Just so I'm sure: is it OK for us to contact you about this? Yes or no is fine." };
     }
     case "booking": {
-      if (value === NO_SLOT_CHOICE) {
+      if (
+        value === NO_SLOT_CHOICE ||
+        /\b(none of (these|them)|none work|nothing works|no good|another day|different day)\b/i.test(value)
+      ) {
         next.booking_declined = true;
         next.booking_selected = null;
         return { ok: true, collected: next, echo: "None of these work" };
       }
       // Only an offer the server itself generated for this conversation is valid:
       // a substituted, stale or cross-tenant id never reaches the commit path.
-      const offer = (collected.pilot_offers ?? []).find((entry) => entry.offer_id === value);
-      if (!offer) return { ok: false, error: "Please choose one of the times shown." };
+      const offers = collected.pilot_offers ?? [];
+      const offer =
+        offers.find((entry) => entry.offer_id === value) ?? matchOfferByText(value, offers);
+      if (!offer)
+        return {
+          ok: false,
+          error: `Which one suits: ${offers.map((entry) => entry.label).join(", ")}?`,
+        };
       next.booking_selected = offer.offer_id;
       next.booking_declined = false;
       next.booking_confirmed = false;
       return { ok: true, collected: next, echo: offer.label };
     }
+
     case "booking_confirm": {
       if (
         value === BOOKING_CONFIRM_CHOICE ||
@@ -568,17 +588,16 @@ export function resolveOutcome(collected: WebChatCollected): WebChatOutcome {
 export function completionMessage(tenant: WebChatTenant, outcome: WebChatOutcome): string {
   if (outcome.requiresOwnerReview) {
     return [
-      `Thanks — I've passed your request to ${tenant.name} for review.`,
-      "Because what you've described isn't a straight match for one of our listed services, the owner will look at it personally and get back to you.",
-      "Nothing is booked or confirmed yet.",
+      `Thanks, that's with ${tenant.name} now.`,
+      "It isn't a straight match for a listed service, so the owner will look at it and get back to you. Nothing is booked yet.",
     ].join(" ");
   }
   return [
-    `Thanks — ${tenant.name} has your enquiry with all the details.`,
-    "The team will review it and reply to you directly.",
-    "Nothing is booked or confirmed yet.",
+    `Thanks, ${tenant.name} has your details.`,
+    "The team will reply to you directly. Nothing is booked yet.",
   ].join(" ");
 }
+
 
 export const DECLINED_MESSAGE =
   "No problem — without consent we can't contact you about this enquiry, so I haven't passed your details on. You're welcome to call the business directly instead.";

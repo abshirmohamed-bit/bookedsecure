@@ -200,8 +200,11 @@ describe("failure mode 2 — raw-message contamination of canonical fields", () 
 
   it("a free-text sentence at the consent step never grants consent", () => {
     const result = applyAnswer({}, "consent", AUBURN, chatTenant);
-    expect(result.ok && result.collected.consent).toBe("declined");
+    // Consent is never inferred either way from an unclear reply.
+    expect(result.ok).toBe(false);
+    expect(result.ok && result.collected.consent).not.toBe("granted");
   });
+
 
   it("date and time preferences cannot be contaminated: they are never canonical fields", () => {
     const extraction = extractIntake(AUBURN, intakeTenant, now);

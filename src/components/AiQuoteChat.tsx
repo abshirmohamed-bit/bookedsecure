@@ -173,10 +173,13 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
   // A booked customer keeps the message box so they can ask for a change; the
   // request goes to the business for review and never moves the booking itself.
+  // Typing is available at every step, including the time list, consent and the
+  // final confirmation: the buttons are a shortcut, never the only way through.
   const showComposer =
     finished === "completed" ||
     (!finished &&
-    (prompt?.kind === "text" || prompt?.kind === "review" || describing || onServiceStep || (!prompt && conversationId !== null)));
+      (prompt !== null || describing || conversationId !== null));
+
   const canSend = !busy && draft.trim().length > 0;
 
   const customerBubble = (body: string) => (
@@ -550,10 +553,17 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                       ? "Or describe what you need…"
                       : prompt?.kind === "review"
                         ? "Tell me what to change…"
-                        : prompt?.optional
-                        ? "Type your answer or “skip”"
-                        : "Type your answer…"
+                        : onBookingStep
+                          ? "Or type a time, like “Friday 9am”…"
+                          : onBookingConfirmStep
+                            ? "Or type yes to confirm…"
+                            : prompt?.kind === "consent"
+                              ? "Or type yes or no…"
+                              : prompt?.optional
+                              ? "Type your answer or “skip”"
+                              : "Type your answer…"
                   }
+
                   maxLength={500}
                   className="min-h-11 min-w-0 flex-1 rounded-full border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label="Your answer"
