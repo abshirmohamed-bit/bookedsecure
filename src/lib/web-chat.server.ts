@@ -359,16 +359,28 @@ export async function replyToWebChat(input: {
   // Multi-field change directive ("change the vehicle to a Mazda CX-5 and the
   // suburb to Bankstown"). Each clause updates exactly one field with its own
   // value, so no value bleeds across fields and no field is silently dropped.
-  const directiveBranch = await maybeHandleFieldDirectives({
-    tenant,
-    chatTenant,
-    conversationId: conversation.id,
-    collected,
-    step,
-    answer: input.answer,
-    turns,
-  });
-  if (directiveBranch) return directiveBranch;
+  // Ordering: understanding first. The directive parser only runs BEFORE intake
+  // when the customer expressed EXPLICIT change intent ("change my suburb to
+  // Parramatta"). A first-turn narrative that merely mentions a name or number
+  // is information, so it must reach intake/AI extraction and never be claimed
+  // — and partially discarded — by the directive parser.
+  const explicitChange = hasExplicitChangeIntent(input.answer);
+
+  const runDirectives = () =>
+    maybeHandleFieldDirectives({
+      tenant,
+      chatTenant,
+      conversationId: conversation.id,
+      collected,
+      step,
+      answer: input.answer,
+      turns,
+    });
+
+  if (explicitChange) {
+    const directiveBranch = await runDirectives();
+    if (directiveBranch) return directiveBranch;
+  }
 
   const intakeBranch = await maybeHandleIntake({
     tenant,
@@ -381,6 +393,11 @@ export async function replyToWebChat(input: {
     turns,
   });
   if (intakeBranch) return intakeBranch;
+
+  if (!explicitChange) {
+    const directiveBranch = await runDirectives();
+    if (directiveBranch) return directiveBranch;
+  }
 
 
   // Mid-conversation correction. Handled BEFORE the active question is
