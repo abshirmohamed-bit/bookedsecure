@@ -15,6 +15,17 @@ import {
   renderReactivationMessage,
   type ReactivationFacts,
 } from "@/lib/reactivation";
+import { tenantQuoteUrl } from "@/lib/tenant-nav";
+
+/**
+ * The tenant's own public quote-page link, built from that tenant's slug.
+ * Universal: no tenant is special-cased, and a tenant without a usable slug
+ * simply gets a message with no link instead of another tenant's page.
+ */
+export function tenantQuoteLink(slug: string | null | undefined): string | null {
+  const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+  return tenantQuoteUrl(origin, slug);
+}
 
 const LEAD_COLUMNS =
   "id, name, mobile_number, email, booking_status, verified_service_id, verified_vehicle, verified_suburb, verified_concern, vehicle_type, suburb, main_concerns, approved_service_id, opted_out_at, sms_suppressed_at, deleted_at, lead_origin, created_at";
