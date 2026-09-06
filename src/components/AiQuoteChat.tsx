@@ -282,7 +282,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                   disabled={busy}
                                   aria-label={
                                     isFlexible
-                                      ? "Something else or not sure — type your own request"
+                                      ? "Something else or not sure, type your own request"
                                       : `Choose ${option.label}`
                                   }
                                   onClick={() => {
@@ -329,7 +329,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                           className="rounded-full"
                         />
                         <p className="max-w-[85%] rounded-2xl rounded-bl-md bg-secondary px-3.5 py-2.5 text-sm leading-relaxed text-secondary-foreground">
-                          No worries — tell me what you need in your own words below.
+                          No worries, tell me what you need in your own words below.
                         </p>
                       </li>
                     )}

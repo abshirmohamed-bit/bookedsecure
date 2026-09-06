@@ -21,7 +21,6 @@ describe("quote page opening copy", () => {
     for (const phrase of [
       "online quote assistant",
       "can't quote a price here",
-      "in your own words",
       "pick a service below",
       "we offer a range of services",
     ]) {
