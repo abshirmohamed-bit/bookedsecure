@@ -10,23 +10,24 @@
  * honest deflection rather than a guess.
  */
 
+import { sanitiseCustomerText } from "@/lib/customer-text";
 import type { IntakeField } from "@/lib/web-chat-intake";
 
 // ---------------------------------------------------------------------------
-// Per-tenant flag (Phase 5)
+// Availability (all tenants)
 // ---------------------------------------------------------------------------
 
 /**
- * Tenants whose public chat answers questions and handles uncertainty.
- * Every other tenant keeps exactly the previous step-machine behaviour.
+ * Conversational intake is now the behaviour of the public chat for EVERY
+ * tenant: questions are answered from that tenant's own configured facts, and
+ * uncertainty is never stored as a value. There is no per-tenant flag, because
+ * nothing here is tenant-specific — every sentence is composed from the facts
+ * passed in for the tenant being served.
  */
-export const CONVERSATIONAL_INTAKE_TENANTS: readonly string[] = [
-  "11111111-1111-1111-1111-111111111111", // Glocast
-];
-
-export function isConversationalIntakeTenant(businessId: string): boolean {
-  return CONVERSATIONAL_INTAKE_TENANTS.includes(businessId);
+export function isConversationalIntakeTenant(_businessId: string): boolean {
+  return true;
 }
+
 
 // ---------------------------------------------------------------------------
 // Question topics
