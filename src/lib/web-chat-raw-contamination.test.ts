@@ -107,8 +107,9 @@ describe("failure mode 1 — supplied details are re-asked", () => {
     expect(outstanding).toContain("concerns");
   });
 
-  it("still swallows the clause after the name", () => {
-    expect(extractIntake(AUBURN, intakeTenant, now).name?.toLowerCase()).toContain(" and my");
+  it("no longer swallows the clause after the name", () => {
+    // Was: "abshir and my". The capture now stops at the first connective.
+    expect(extractIntake(AUBURN, intakeTenant, now).name).toBe("Abshir");
   });
 });
 

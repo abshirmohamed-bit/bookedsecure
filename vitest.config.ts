@@ -8,6 +8,10 @@ import path from "node:path";
  */
 export default defineConfig({
   test: {
+    // Opt-in only: `canary/` hits the real AI gateway, so it is never part of
+    // the default suite. Run it explicitly with:
+    //   bunx vitest run canary/ai-extraction.canary.test.ts --exclude ''
+    exclude: ["node_modules/**", "dist/**", "canary/**"],
     testTimeout: 30000,
     hookTimeout: 30000,
   },

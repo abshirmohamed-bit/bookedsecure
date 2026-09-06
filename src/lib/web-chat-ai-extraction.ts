@@ -24,6 +24,7 @@ import {
   matchApprovedLocation,
   matchApprovedService,
   outstandingFields,
+  trimNameTail,
   type IntakeExtraction,
   type IntakeField,
   type IntakeTenant,
@@ -212,7 +213,8 @@ export function mergeAiExtraction(
   if (vehicle) next.vehicle = vehicle;
 
   const name = ambiguous.has("name") ? null : trimmed(ai.name);
-  if (name) next.name = name;
+  // Stored the way a person writes their name, never as raw lower case.
+  if (name) next.name = trimNameTail(name) || name;
 
   const mobile = ambiguous.has("mobile") ? null : normaliseAuMobile(trimmed(ai.mobile) ?? "");
   if (mobile) next.mobile = mobile;
@@ -402,7 +404,9 @@ export async function resolveIntake(args: {
     }
   }
 
-  const merged = applyIntake(working, extraction, args.chatTenant);
+  const merged = applyIntake(working, extraction, args.chatTenant, {
+    origin: aiUsed ? "extracted" : "customer",
+  });
   const openField = stepToIntakeField(args.step);
   const beyondOpenStep =
     merged.applied.some((field) => field !== openField) || corrections.length > 0;
