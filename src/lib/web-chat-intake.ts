@@ -135,8 +135,7 @@ function normaliseServiceName(input: string): string {
  * Service resolution precedence, strongest evidence first:
  * 1. exact normalised catalogue match,
  * 2. the catalogue name appearing verbatim in the message (longest wins),
- * 3. a service whose every word the customer used (full token coverage),
- * 4. partial token overlap — the only place a tie becomes a clarification.
+ * 3. partial token overlap — the only place a tie becomes a clarification.
  */
 export function matchApprovedService(raw: string, services: IntakeService[]): ServiceMatch {
   const target = normaliseServiceName(raw);
@@ -174,10 +173,7 @@ export function matchApprovedService(raw: string, services: IntakeService[]): Se
   const candidates = scored.filter((entry) => entry.score >= 0.5);
   if (candidates.length === 0) return { kind: "none" };
 
-  // A service the customer named in full beats one they only partly named.
-  const complete = candidates.filter((entry) => entry.score === 1);
-  if (complete.length === 1) return { kind: "one", service: complete[0]!.service };
-  const pool = complete.length > 1 ? complete : candidates;
+  const pool = candidates;
 
   // Two approved services matching the same number of the customer's words
   // ("interior and exterior detail") is an ambiguity to ask about, never a guess.
