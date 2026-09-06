@@ -44,6 +44,8 @@ export type ConfirmationFacts = {
   mobileNumber: string | null | undefined;
   /** The tenant's own configured customer-facing callback number. */
   tenantCallbackNumber: string | null | undefined;
+  /** The tenant's saved business/personal mobile (Account details). */
+  ownerNotificationNumber?: string | null | undefined;
 };
 
 export type ConfirmationDecision = {
@@ -52,16 +54,29 @@ export type ConfirmationDecision = {
   reason: string;
 };
 
-/**
- * The tenant's customer-facing callback number, validated. There is no
- * platform-wide default: a missing or invalid number blocks the send.
- */
-export function resolveTenantCallbackNumber(
-  business: { phone_number?: string | null } | null | undefined,
-): string | null {
-  const raw = (business?.phone_number ?? "").trim();
+function validAuContactNumber(value: string | null | undefined): string | null {
+  const raw = (value ?? "").trim();
   if (!raw) return null;
   return normaliseAuMobile(raw) ?? (/^\+61[2-9]\d{8}$/.test(raw) ? raw : null);
+}
+
+/**
+ * The number customers are told to call on the confirmation SMS. This is the
+ * tenant's own physical business/personal mobile saved in Account details
+ * ("Mobile number"); the public callback number is only a fallback when no
+ * owner mobile is stored. Never the platform sending line by default, and
+ * never a platform-wide default: no valid number blocks the send.
+ */
+export function resolveTenantCallbackNumber(
+  business:
+    | { phone_number?: string | null; owner_notification_number?: string | null }
+    | null
+    | undefined,
+): string | null {
+  return (
+    validAuContactNumber(business?.owner_notification_number) ??
+    validAuContactNumber(business?.phone_number)
+  );
 }
 
 /** Single eligibility decision for an operational booking confirmation. */
@@ -103,7 +118,12 @@ export function evaluateConfirmationEligibility(facts: ConfirmationFacts): Confi
       reason: "Customer consent for SMS is not recorded.",
     };
   }
-  if (!resolveTenantCallbackNumber({ phone_number: facts.tenantCallbackNumber ?? null })) {
+  if (
+    !resolveTenantCallbackNumber({
+      phone_number: facts.tenantCallbackNumber ?? null,
+      owner_notification_number: facts.ownerNotificationNumber ?? null,
+    })
+  ) {
     return {
       outcome: "blocked_missing_callback_number",
       sendable: false,
