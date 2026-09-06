@@ -61,7 +61,7 @@ const BANNED_PATTERNS = [
 ];
 
 const FALLBACK_REPLY =
-  "Thanks for those details. The Glocast team will confirm the right service and pricing with you shortly.";
+  "Thanks for those details. The team will confirm the right service and pricing with you shortly.";
 
 /** Formatting-only normalisation. Never changes the underlying claim. */
 function normalisePriceText(value: string): string {
