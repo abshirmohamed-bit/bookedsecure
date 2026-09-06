@@ -311,7 +311,80 @@ function serviceByName(
   return { kind: "none" };
 }
 
+/**
+ * CONTAINMENT GUARD — data integrity, not response quality.
+ *
+ * A raw multi-clause customer message must never be written directly into a
+ * single canonical field. When the multi-field intake pass declines a message,
+ * the whole sentence reaches `applyAnswer` for the one open step; without this
+ * guard it would be stored verbatim as the suburb, vehicle, name or condition
+ * and travel on into the CRM, the owner alert and the customer text.
+ *
+ * The guard is shape-only: no model, no network, no new dependency. It rejects
+ * values that are clearly a whole message rather than a field value, and never
+ * mutates state — the raw text survives only in the conversation transcript.
+ */
+const CROSS_FIELD_MARKER =
+  /\b(?:my|the)?\s*(?:name|number|mobile|phone|email)\s+(?:is|are)\b|\bcall me on\b|\bring me on\b|\btext me on\b|\bcontact me on\b|\bmy name'?s\b/i;
+const AU_PHONE_LIKE = /(?:\+?61[\s-]?4|\b0[\s-]?4)[\d\s-]{7,}/;
+const EMAIL_LIKE = /[^@\s]+@[^@\s]+\.[a-z]{2,}/i;
+
+function clauses(text: string): string[] {
+  return text
+    .split(/[,;]|\b(?:and then|and also)\b/i)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+/** Evidence the value carries a different field than the one being answered. */
+function carriesOtherFields(value: string): boolean {
+  return CROSS_FIELD_MARKER.test(value) || AU_PHONE_LIKE.test(value) || EMAIL_LIKE.test(value);
+}
+
+const SHAPE_LIMITS: Record<"suburb" | "name" | "vehicle", number> = {
+  suburb: 40,
+  name: 40,
+  vehicle: 60,
+};
+
+function shapeRejection(step: "suburb" | "vehicle" | "name" | "concerns", value: string): string | null {
+  if (carriesOtherFields(value)) {
+    switch (step) {
+      case "suburb":
+        return "Just the suburb is fine — for example “Auburn”.";
+      case "vehicle":
+        return "Just the vehicle is fine — for example “Mazda 3”.";
+      case "name":
+        return "Just your first name is fine — for example “Abshir”.";
+      case "concerns":
+        return "A short description of the condition is all I need here — I'll ask for your details next.";
+    }
+  }
+  const parts = clauses(value);
+  if (step === "concerns") {
+    // Descriptive prose is welcome. Only a list of unrelated fragments — the
+    // shape of a whole message stuffed into one field — is refused.
+    const average = parts.reduce((sum, part) => sum + part.length, 0) / Math.max(parts.length, 1);
+    if (parts.length >= 3 && average < 25) {
+      return "Tell me a little about the condition in your own words and I'll take the other details after.";
+    }
+    return null;
+  }
+  if (value.length > SHAPE_LIMITS[step] || parts.length >= 3) {
+    switch (step) {
+      case "suburb":
+        return "Just the suburb is fine — for example “Auburn”.";
+      case "vehicle":
+        return "Just the vehicle is fine — for example “Mazda 3”.";
+      case "name":
+        return "Just your first name is fine — for example “Abshir”.";
+    }
+  }
+  return null;
+}
+
 export type ApplyResult =
+
 
   | { ok: true; collected: WebChatCollected; echo: string }
   | { ok: false; error: string };
