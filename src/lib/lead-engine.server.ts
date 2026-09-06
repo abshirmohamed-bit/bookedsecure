@@ -1318,10 +1318,21 @@ export async function processDueFollowUps(): Promise<{
 
     const { data: lead } = await supabaseAdmin
       .from("leads")
-      .select("id, name, status, opted_out_at")
+      .select("id, name, status, opted_out_at, booking_status")
       .eq("id", conversation.lead_id)
       .maybeSingle();
     if (!lead) continue;
+
+    // Confirmed booking: stop chasing, and clear the timer for good.
+    if (followUpSuppressedByBooking(lead)) {
+      await supabaseAdmin
+        .from("conversations")
+        .update({ next_follow_up_at: null })
+        .eq("id", conversation.id);
+      skipped.push({ leadId: lead.id, reason: "Booking confirmed — follow-ups stopped." });
+      continue;
+    }
+
 
     // The job now owns this step; clear the conversation timer so the same
     // step is not queued twice. Retries live on the job row.
