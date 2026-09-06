@@ -169,7 +169,7 @@ export function ReactivationPanel() {
                       <>
                         <button
                           onClick={() => {
-                            saving.mutate({ draftId: row.id, body: editing[row.id] });
+                            saving.mutate({ draftId: row.id, body: editing[row.id] ?? row.body });
                             setEditing((current) => {
                               const next = { ...current };
                               delete next[row.id];

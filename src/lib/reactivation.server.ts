@@ -361,7 +361,7 @@ export async function updateReactivationDraft(input: {
   body?: string;
   status?: "draft" | "skipped";
 }): Promise<{ ok: true }> {
-  const patch: Record<string, unknown> = {};
+  const patch: { body?: string; edited?: boolean; status?: "draft" | "skipped" } = {};
   if (typeof input.body === "string") {
     const { data: draft } = await supabaseAdmin
       .from("reactivation_drafts")
@@ -377,10 +377,10 @@ export async function updateReactivationDraft(input: {
       .maybeSingle();
     const guarded = guardReactivationMessage(input.body, campaign?.offer_text ?? "");
     if (guarded.text.trim().length < 2) throw new Error("That message could not be used as written.");
-    patch["body"] = guarded.text;
-    patch["edited"] = true;
+    patch.body = guarded.text;
+    patch.edited = true;
   }
-  if (input.status) patch["status"] = input.status;
+  if (input.status) patch.status = input.status;
   if (Object.keys(patch).length === 0) return { ok: true };
 
   const { error } = await supabaseAdmin
