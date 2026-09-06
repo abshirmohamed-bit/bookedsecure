@@ -120,12 +120,12 @@ describe("pilot eligibility requires a valid service duration", () => {
     expect(isPilotEligible(base)).toBe(true);
   });
 
-  it("rejects a missing duration, an inactive service and another tenant", () => {
+  it("rejects a missing duration or an inactive service, for any tenant", () => {
     expect(isPilotEligible({ ...base, serviceDurationMinutes: null })).toBe(false);
     expect(isPilotEligible({ ...base, serviceActive: false })).toBe(false);
     expect(isPilotEligible({ ...base, businessId: "22222222-2222-2222-2222-222222222222" })).toBe(
-      false,
+      true,
     );
-    expect(isPilotEligible({ ...base, slug: "other-tenant" })).toBe(false);
+    expect(isPilotEligible({ ...base, slug: "other-tenant" })).toBe(true);
   });
 });

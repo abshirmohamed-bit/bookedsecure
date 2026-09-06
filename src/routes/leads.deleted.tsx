@@ -25,13 +25,13 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 export const Route = createFileRoute("/leads/deleted")({
   head: () => ({
     meta: [
-      { title: "Deleted leads — Glocast SMS Lead Response" },
+      { title: "Deleted leads — BookedSecure" },
       {
         name: "description",
         content:
-          "Owner-only recovery view: review leads removed from the Glocast inbox and restore them in place with their original history intact.",
+          "Owner-only recovery view: review leads removed from the lead inbox and restore them in place with their original history intact.",
       },
-      { property: "og:title", content: "Deleted leads — Glocast SMS Lead Response" },
+      { property: "og:title", content: "Deleted leads — BookedSecure" },
       {
         property: "og:description",
         content: "Review and restore removed detailing leads without losing any history.",

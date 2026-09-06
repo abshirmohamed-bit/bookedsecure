@@ -67,8 +67,11 @@ describe("pilot scope", () => {
 
   it("requires every condition", () => {
     expect(isPilotEligible(eligible)).toBe(true);
-    expect(isPilotEligible({ ...eligible, businessId: "other" })).toBe(false);
-    expect(isPilotEligible({ ...eligible, slug: "other" })).toBe(false);
+    // Tenant-neutral: any tenant with its own approved service qualifies.
+    expect(isPilotEligible({ ...eligible, businessId: "other-tenant" })).toBe(true);
+    expect(isPilotEligible({ ...eligible, slug: "other-tenant" })).toBe(true);
+    expect(isPilotEligible({ ...eligible, businessId: "" })).toBe(false);
+    expect(isPilotEligible({ ...eligible, slug: "" })).toBe(false);
     expect(isPilotEligible({ ...eligible, serviceName: "Exterior Wash" })).toBe(false);
     expect(isPilotEligible({ ...eligible, serviceActive: false })).toBe(false);
     expect(isPilotEligible({ ...eligible, serviceDurationMinutes: null })).toBe(false);

@@ -14,11 +14,18 @@ import {
 const GLOCAST = "11111111-1111-1111-1111-111111111111";
 
 describe("booking-only tenant scope", () => {
-  it("authorises only Glocast", () => {
+  it("applies to every tenant, present and future", () => {
     expect(isBookingOnlyTenant(GLOCAST)).toBe(true);
-    expect(isBookingOnlyTenant("22222222-2222-2222-2222-222222222222")).toBe(false);
+    expect(isBookingOnlyTenant("22222222-2222-2222-2222-222222222222")).toBe(true);
+    expect(isBookingOnlyTenant("99999999-9999-9999-9999-999999999999")).toBe(true);
+  });
+
+  it("never treats a missing tenant id as authorised", () => {
+    expect(isBookingOnlyTenant("")).toBe(false);
+    expect(isBookingOnlyTenant("   ")).toBe(false);
   });
 });
+
 
 describe("disabled capabilities", () => {
   it("keeps every campaign / promotional / AI-authority capability disabled", () => {

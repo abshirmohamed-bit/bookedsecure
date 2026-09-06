@@ -10,13 +10,13 @@ import { SOURCE_LABELS, formatCurrency, formatMinutes } from "@/lib/domain";
 export const Route = createFileRoute("/analytics")({
   head: () => ({
     meta: [
-      { title: "Analytics — Glocast SMS Lead Response" },
+      { title: "Analytics — BookedSecure" },
       {
         name: "description",
         content:
-          "Funnel, response time and completed-job revenue by source channel for Glocast detailing enquiries.",
+          "Funnel, response time and completed-job revenue by source channel for detailing enquiries.",
       },
-      { property: "og:title", content: "Analytics — Glocast SMS Lead Response" },
+      { property: "og:title", content: "Analytics — BookedSecure" },
       {
         property: "og:description",
         content: "Compare Meta, website and hosted-page leads on completed jobs and revenue.",
