@@ -63,6 +63,8 @@ function replaceDashes(segment: string): string {
 /** Sanitises one customer-facing string. Safe to call repeatedly. */
 export function sanitiseCustomerText(text: string): string {
   if (typeof text !== "string" || text.length === 0) return text;
+  // A standalone dash is an "empty value" placeholder, not punctuation.
+  if (/^[\s\u2014\u2013-]+$/.test(text)) return text;
 
   const protectedTokens: string[] = [];
   const masked = text.replace(PROTECTED, (match) => {
