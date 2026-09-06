@@ -384,10 +384,29 @@ export function extractName(raw: string): string | null {
     /\b(?:booking\s+name|under\s+the\s+name|name)(?:\s+is|\s*[:\-])?\s+([A-Z][A-Za-z'\-]*(?:\s+[A-Z][A-Za-z'\-]*){0,2})\b/,
   ];
   for (const pattern of patterns) {
-    const value = pattern.exec(raw)?.[1]?.trim();
+    const value = trimNameTail(pattern.exec(raw)?.[1]?.trim() ?? "");
     if (value && value.length >= 2) return value;
   }
   return null;
+}
+
+/**
+ * A greedy capture can swallow the start of the NEXT clause ("abshir and my").
+ * Only the leading name tokens are kept: the first connective / field word ends
+ * the name, so another clause can never bleed into it.
+ */
+const NAME_TAIL_STOP = new Set([
+  "and","my","the","is","im","i","a","an","number","mobile","phone","email","its","it",
+  "please","also","plus","but","in","at","for","from","with","car","vehicle","name",
+]);
+
+export function trimNameTail(value: string): string {
+  const kept: string[] = [];
+  for (const token of value.split(/\s+/).filter(Boolean)) {
+    if (NAME_TAIL_STOP.has(token.toLowerCase())) break;
+    kept.push(token);
+  }
+  return titleCase(kept.join(" ").replace(/[\s.,;:]+$/, "").trim());
 }
 
 export function extractVehicle(raw: string): string | null {
@@ -633,12 +652,19 @@ export function applyIntake(
   collected: WebChatCollected,
   extraction: IntakeExtraction,
   tenant: WebChatTenant,
+  /**
+   * "extracted" means the values were already separated per field by the
+   * structured extraction pass, so the raw-message shape heuristic does not
+   * apply to them. Every other guard (contact markers, field markers, length)
+   * still applies exactly as before.
+   */
+  options?: { origin?: "customer" | "extracted" },
 ): { collected: WebChatCollected; applied: IntakeField[] } {
   let next: WebChatCollected = { ...collected };
   const applied: IntakeField[] = [];
 
   const put = (step: WebChatStep, value: string, field: IntakeField | null) => {
-    const result = applyAnswer(next, step, value, tenant);
+    const result = applyAnswer(next, step, value, tenant, { origin: options?.origin ?? "customer" });
     if (!result.ok) return;
     next = result.collected;
     if (field && !applied.includes(field)) applied.push(field);

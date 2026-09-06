@@ -357,10 +357,17 @@ const FIELD_HINT: Record<"suburb" | "vehicle" | "name" | "concerns", string> = {
   concerns: "A short description of the condition is all I need here, I'll take your details next.",
 };
 
-function shapeRejection(step: "suburb" | "vehicle" | "name" | "concerns", value: string): string | null {
+function shapeRejection(
+  step: "suburb" | "vehicle" | "name" | "concerns",
+  value: string,
+  origin: AnswerOrigin = "customer",
+): string | null {
   if (carriesOtherFields(step, value)) return FIELD_HINT[step];
   const parts = clauseParts(value);
   if (step === "concerns") {
+    // An extracted note has already been separated from the other fields, so
+    // the "whole message stuffed into one field" heuristic does not apply.
+    if (origin === "extracted") return null;
     // Descriptive prose is welcome. Only a list of unrelated fragments, the
     // shape of a whole message stuffed into one field, is refused.
     const average = parts.reduce((sum, part) => sum + part.length, 0) / Math.max(parts.length, 1);
@@ -378,12 +385,17 @@ export type ApplyResult =
   | { ok: true; collected: WebChatCollected; echo: string }
   | { ok: false; error: string };
 
+/** Where a value came from: a customer keystroke, or structured extraction. */
+export type AnswerOrigin = "customer" | "extracted";
+
 export function applyAnswer(
   collected: WebChatCollected,
   step: WebChatStep,
   raw: string,
   tenant: WebChatTenant,
+  options?: { origin?: AnswerOrigin },
 ): ApplyResult {
+  const origin: AnswerOrigin = options?.origin ?? "customer";
   const value = raw.trim().slice(0, 500);
   const next: WebChatCollected = { ...collected };
 
@@ -436,15 +448,17 @@ export function applyAnswer(
       return { ok: true, collected: next, echo: value };
     }
     case "suburb": {
-      if (value.length < 2) return { ok: false, error: "Please tell me the suburb." };
-      const rejection = shapeRejection("suburb", value);
+      // Trailing sentence punctuation is never part of a suburb name.
+      const suburb = value.replace(/[\s.,;:]+$/, "");
+      if (suburb.length < 2) return { ok: false, error: "Please tell me the suburb." };
+      const rejection = shapeRejection("suburb", suburb);
       if (rejection) return { ok: false, error: rejection };
-      next.suburb = value;
-      return { ok: true, collected: next, echo: value };
+      next.suburb = suburb;
+      return { ok: true, collected: next, echo: suburb };
     }
     case "concerns": {
       if (value.length < 2) return { ok: false, error: "A short description of the condition helps the team." };
-      const rejection = shapeRejection("concerns", value);
+      const rejection = shapeRejection("concerns", value, origin);
       if (rejection) return { ok: false, error: rejection };
       next.concerns = value;
       return { ok: true, collected: next, echo: value };
