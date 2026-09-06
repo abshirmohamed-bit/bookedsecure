@@ -7,7 +7,7 @@ vi.mock("@ai-sdk/openai-compatible", () => ({ createOpenAICompatible: () => () =
 vi.mock("ai", () => ({ generateText: () => { throw new Error("no live AI calls in tests"); }, Output: { object: () => ({}) } }));
 
 const FALLBACK =
-  "Thanks for those details. The Glocast team will confirm the right service and pricing with you shortly.";
+  "Thanks for those details. The team will confirm the right service and pricing with you shortly.";
 
 const { guardReply } = await import("@/lib/ai.server");
 
