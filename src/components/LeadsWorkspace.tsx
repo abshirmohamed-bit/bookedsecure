@@ -34,6 +34,8 @@ import {
   type DeletionResult,
 } from "@/lib/lead-deletion";
 import { softDeleteLeadsRequest } from "@/lib/lead-deletion.functions";
+import { draftReactivation } from "@/lib/reactivation.functions";
+import { ReactivationPanel } from "@/components/ReactivationPanel";
 
 type DashboardResult = Awaited<ReturnType<typeof getDashboard>>;
 type InboxLeadRow = DashboardResult["leads"][number];
@@ -71,11 +73,21 @@ export function LeadsWorkspace() {
     setSelection([]);
   }
 
+  const drafting = useServerFn(draftReactivation);
+  // Running due follow-ups also refreshes the dormant-lead win-back draft.
+  // Drafting sends nothing: the owner still approves every message.
   const followUps = useMutation({
-    mutationFn: () => runFollowUps(),
-    onSuccess: (result) => {
-      toast.success(`Follow-ups processed: ${result.sent} sent, ${result.skipped.length} skipped`);
+    mutationFn: async () => {
+      const result = await runFollowUps();
+      const campaign = await drafting({ data: { offerText: null } });
+      return { result, drafted: campaign.drafts.length };
+    },
+    onSuccess: ({ result, drafted }) => {
+      toast.success(
+        `Follow-ups processed: ${result.sent} sent, ${result.skipped.length} skipped · ${drafted} win-back messages drafted for your approval`,
+      );
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["reactivation"] });
     },
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
@@ -202,6 +214,12 @@ export function LeadsWorkspace() {
           <p className="text-xs text-muted-foreground">Refreshing metrics…</p>
         </section>
       )}
+
+      <ReactivationPanel />
+
+
+
+
 
 
       <section className="panel">

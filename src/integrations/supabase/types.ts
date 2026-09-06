@@ -1928,6 +1928,143 @@ export type Database = {
           },
         ]
       }
+      reactivation_campaigns: {
+        Row: {
+          ai_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          attested_at: string | null
+          business_id: string
+          cancelled_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          offer_source: string
+          offer_text: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          attested_at?: string | null
+          business_id: string
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          offer_source?: string
+          offer_text: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          attested_at?: string | null
+          business_id?: string
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          offer_source?: string
+          offer_text?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reactivation_campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reactivation_drafts: {
+        Row: {
+          body: string
+          business_id: string
+          campaign_id: string
+          created_at: string
+          edited: boolean
+          id: string
+          lead_id: string
+          message_id: string | null
+          send_reason: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          business_id: string
+          campaign_id: string
+          created_at?: string
+          edited?: boolean
+          id?: string
+          lead_id: string
+          message_id?: string | null
+          send_reason?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          campaign_id?: string
+          created_at?: string
+          edited?: boolean
+          id?: string
+          lead_id?: string
+          message_id?: string | null
+          send_reason?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reactivation_drafts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reactivation_drafts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "reactivation_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reactivation_drafts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reactivation_drafts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reactivation_drafts_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sequence_campaigns: {
         Row: {
           business_id: string
