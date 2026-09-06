@@ -992,7 +992,9 @@ export async function maybeHandleIntake(args: {
 
   const outstanding = outstandingFields(next);
   const replies: string[] = [];
+  if (corrections.length > 0) replies.push(aiCorrectionMessage(corrections));
   if (ambiguity) replies.push(ambiguityMessage(ambiguity));
+
   else if (outstanding.includes("service") && extraction.unmatched.service)
     replies.push(unmatchedServiceMessage(tenant.name));
 
