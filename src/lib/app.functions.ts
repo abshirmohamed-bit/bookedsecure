@@ -459,8 +459,13 @@ export const runFollowUpsNow = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { processDueFollowUps } = await import("@/lib/lead-engine.server");
+    const { processDueReactivationReminders } = await import("@/lib/reactivation.server");
     await requireAppContext(context.supabase, context.userId);
-    return await processDueFollowUps();
+    const result = await processDueFollowUps();
+    // The single automatic win-back reminder rides the same due pass.
+    const reminders = await processDueReactivationReminders();
+    return { ...result, reminders };
+
   });
 
 export const simulateInboundReply = createServerFn({ method: "POST" })
