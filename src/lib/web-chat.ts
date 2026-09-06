@@ -153,11 +153,12 @@ export function reviewSummary(collected: WebChatCollected): WebChatReviewField[]
 export function reviewMessage(collected: WebChatCollected): string {
   const lines = reviewSummary(collected).map((row) => `${row.label}: ${row.value}`);
   return [
-    "Here's what I have so far:",
+    "Quick check:",
     ...lines,
-    "Want to change anything before we send this to the team? Just tell me what to update, for example “change my suburb to Parramatta”.",
+    "All right? Or tell me what to change, for example “suburb to Parramatta”.",
   ].join("\n");
 }
+
 
 /**
  * Every customer-facing prompt leaves this module through `promptFor`, which
@@ -569,17 +570,16 @@ export function resolveOutcome(collected: WebChatCollected): WebChatOutcome {
 export function completionMessage(tenant: WebChatTenant, outcome: WebChatOutcome): string {
   if (outcome.requiresOwnerReview) {
     return [
-      `Thanks — I've passed your request to ${tenant.name} for review.`,
-      "Because what you've described isn't a straight match for one of our listed services, the owner will look at it personally and get back to you.",
-      "Nothing is booked or confirmed yet.",
+      `Thanks, that's with ${tenant.name} now.`,
+      "It isn't a straight match for a listed service, so the owner will look at it and get back to you. Nothing is booked yet.",
     ].join(" ");
   }
   return [
-    `Thanks — ${tenant.name} has your enquiry with all the details.`,
-    "The team will review it and reply to you directly.",
-    "Nothing is booked or confirmed yet.",
+    `Thanks, ${tenant.name} has your details.`,
+    "The team will reply to you directly. Nothing is booked yet.",
   ].join(" ");
 }
+
 
 export const DECLINED_MESSAGE =
   "No problem — without consent we can't contact you about this enquiry, so I haven't passed your details on. You're welcome to call the business directly instead.";
