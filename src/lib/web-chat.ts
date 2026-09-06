@@ -312,7 +312,7 @@ function serviceByName(
 }
 
 /**
- * CONTAINMENT GUARD — data integrity, not response quality.
+ * CONTAINMENT GUARD, data integrity rather than response quality.
  *
  * A raw multi-clause customer message must never be written directly into a
  * single canonical field. When the multi-field intake pass declines a message,
@@ -322,23 +322,26 @@ function serviceByName(
  *
  * The guard is shape-only: no model, no network, no new dependency. It rejects
  * values that are clearly a whole message rather than a field value, and never
- * mutates state — the raw text survives only in the conversation transcript.
+ * mutates state, so the raw text survives only in the conversation transcript.
  */
-const CROSS_FIELD_MARKER =
-  /\b(?:my|the)?\s*(?:name|number|mobile|phone|email)\s+(?:is|are)\b|\bcall me on\b|\bring me on\b|\btext me on\b|\bcontact me on\b|\bmy name'?s\b/i;
+const NAME_MARKER = /\b(?:my|the)\s+name\s+(?:is|was)\b|\bmy name'?s\b|\bname\s+is\b/i;
+const CONTACT_MARKER =
+  /\b(?:my|the)?\s*(?:number|mobile|phone|email)\s+(?:is|are)\b|\b(?:call|ring|text|contact)\s+me\s+on\b/i;
 const AU_PHONE_LIKE = /(?:\+?61[\s-]?4|\b0[\s-]?4)[\d\s-]{7,}/;
 const EMAIL_LIKE = /[^@\s]+@[^@\s]+\.[a-z]{2,}/i;
 
-function clauses(text: string): string[] {
+function clauseParts(text: string): string[] {
   return text
     .split(/[,;]|\b(?:and then|and also)\b/i)
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 }
 
-/** Evidence the value carries a different field than the one being answered. */
-function carriesOtherFields(value: string): boolean {
-  return CROSS_FIELD_MARKER.test(value) || AU_PHONE_LIKE.test(value) || EMAIL_LIKE.test(value);
+/** Evidence the value carries a field other than the one being answered. */
+function carriesOtherFields(step: "suburb" | "vehicle" | "name" | "concerns", value: string): boolean {
+  if (CONTACT_MARKER.test(value) || AU_PHONE_LIKE.test(value) || EMAIL_LIKE.test(value)) return true;
+  // "my name is ..." is a perfectly good answer at the name step itself.
+  return step !== "name" && NAME_MARKER.test(value);
 }
 
 const SHAPE_LIMITS: Record<"suburb" | "name" | "vehicle", number> = {
@@ -347,41 +350,27 @@ const SHAPE_LIMITS: Record<"suburb" | "name" | "vehicle", number> = {
   vehicle: 60,
 };
 
+const FIELD_HINT: Record<"suburb" | "vehicle" | "name" | "concerns", string> = {
+  suburb: "Just the suburb is fine, for example Auburn.",
+  vehicle: "Just the vehicle is fine, for example Mazda 3.",
+  name: "Just your first name is fine, for example Abshir.",
+  concerns: "A short description of the condition is all I need here, I'll take your details next.",
+};
+
 function shapeRejection(step: "suburb" | "vehicle" | "name" | "concerns", value: string): string | null {
-  if (carriesOtherFields(value)) {
-    switch (step) {
-      case "suburb":
-        return "Just the suburb is fine — for example “Auburn”.";
-      case "vehicle":
-        return "Just the vehicle is fine — for example “Mazda 3”.";
-      case "name":
-        return "Just your first name is fine — for example “Abshir”.";
-      case "concerns":
-        return "A short description of the condition is all I need here — I'll ask for your details next.";
-    }
-  }
-  const parts = clauses(value);
+  if (carriesOtherFields(step, value)) return FIELD_HINT[step];
+  const parts = clauseParts(value);
   if (step === "concerns") {
-    // Descriptive prose is welcome. Only a list of unrelated fragments — the
-    // shape of a whole message stuffed into one field — is refused.
+    // Descriptive prose is welcome. Only a list of unrelated fragments, the
+    // shape of a whole message stuffed into one field, is refused.
     const average = parts.reduce((sum, part) => sum + part.length, 0) / Math.max(parts.length, 1);
-    if (parts.length >= 3 && average < 25) {
-      return "Tell me a little about the condition in your own words and I'll take the other details after.";
-    }
+    if (parts.length >= 3 && average < 25) return FIELD_HINT.concerns;
     return null;
   }
-  if (value.length > SHAPE_LIMITS[step] || parts.length >= 3) {
-    switch (step) {
-      case "suburb":
-        return "Just the suburb is fine — for example “Auburn”.";
-      case "vehicle":
-        return "Just the vehicle is fine — for example “Mazda 3”.";
-      case "name":
-        return "Just your first name is fine — for example “Abshir”.";
-    }
-  }
+  if (value.length > SHAPE_LIMITS[step] || parts.length >= 3) return FIELD_HINT[step];
   return null;
 }
+
 
 export type ApplyResult =
 
