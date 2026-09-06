@@ -58,6 +58,7 @@ import {
   answerQuestion,
   assembleReply,
   isConversationalIntakeTenant,
+  replyAsksSomething,
   uncertainServiceMessage,
   unsupportedAnswer,
   type AnswerFacts,
@@ -968,6 +969,9 @@ export async function maybeHandleIntake(args: {
     uncertain,
     unsupported,
   } = resolved;
+  // Model-written wording for this turn, already stripped of any price, time,
+  // availability or booking claim. Null falls back to the fixed sentences.
+  const modelReply = resolved.reply;
   const ambiguity = extraction.ambiguities[0] ?? null;
   // Per-tenant flag: only an enabled tenant answers questions and handles
   // uncertainty. Everyone else keeps the previous step-machine behaviour.
@@ -1071,11 +1075,21 @@ export async function maybeHandleIntake(args: {
     else if (prompt) ask = prompt.text;
   }
 
-  const replies = assembleReply({
-    acknowledgement: corrections.length > 0 ? aiCorrectionMessage(corrections) : acknowledgement,
-    answer,
-    ask,
-  });
+  // The model's wording replaces the fixed acknowledgement/answer sentences when
+  // it survived guarding; when it already asks something, the server's own ask
+  // is dropped so the customer reads one question, not two. An ambiguity ask is
+  // never dropped: that one is a control decision, not phrasing.
+  const replies = modelReply
+    ? assembleReply({
+        acknowledgement: modelReply,
+        answer: null,
+        ask: ambiguity || !replyAsksSomething(modelReply) ? ask : null,
+      })
+    : assembleReply({
+        acknowledgement: corrections.length > 0 ? aiCorrectionMessage(corrections) : acknowledgement,
+        answer,
+        ask,
+      });
 
   for (const reply of replies) await addMessage(tenant.businessId, args.conversationId, "assistant", reply);
 
