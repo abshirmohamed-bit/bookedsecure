@@ -155,7 +155,7 @@ export function reviewMessage(collected: WebChatCollected): string {
   return [
     "Here's what I have so far:",
     ...lines,
-    "Want to change anything before we send this to the team? Just tell me what to update — for example “change my suburb to Parramatta”.",
+    "Want to change anything before we send this to the team? Just tell me what to update, for example “change my suburb to Parramatta”.",
   ].join("\n");
 }
 
