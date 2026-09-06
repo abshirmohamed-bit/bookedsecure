@@ -86,31 +86,34 @@ describe("failure mode 1 — supplied details are re-asked", () => {
     expect(applied).toEqual(["name", "mobile"]);
   });
 
-  it.fails("suburb Auburn is extracted from the lowercase message", () => {
-    expect(extractIntake(AUBURN, intakeTenant, now).location).toBe("auburn");
+  // The four assertions below record the extraction gap that containment does
+  // NOT fix: the suburb and condition are still not read out of a lowercase,
+  // informally phrased message, so those fields are asked for again. They are
+  // normal assertions of today's behaviour, to be inverted in the extraction
+  // phase (structured multi-field extraction + post-merge missing fields).
+  it("does not yet read suburb Auburn from the lowercase message", () => {
+    expect(extractIntake(AUBURN, intakeTenant, now).location).toBeNull();
   });
 
-  it.fails("the vehicle condition is extracted from the message", () => {
-    expect(extractIntake(AUBURN, intakeTenant, now).notes).toBeTruthy();
+  it("does not yet read the vehicle condition from the message", () => {
+    expect(extractIntake(AUBURN, intakeTenant, now).notes).toBeNull();
   });
 
-  it.fails("neither suburb nor condition is asked for again", () => {
+  it("still asks for suburb and condition again", () => {
     const extraction = extractIntake(AUBURN, intakeTenant, now);
     const { collected } = applyIntake({ service_id: "s2", service_name: "Full Interior Detail" }, extraction, chatTenant);
     const outstanding = outstandingFields(collected);
-    expect(outstanding).not.toContain("location");
-    expect(outstanding).not.toContain("concerns");
+    expect(outstanding).toContain("location");
+    expect(outstanding).toContain("concerns");
   });
 
-  it.fails("extracts the name without swallowing the following clause", () => {
-    // Currently returns "abshir and my".
-    expect(extractIntake(AUBURN, intakeTenant, now).name?.toLowerCase()).not.toContain(" and my");
+  it("still swallows the clause after the name", () => {
+    expect(extractIntake(AUBURN, intakeTenant, now).name?.toLowerCase()).toContain(" and my");
   });
-
 });
 
 // ---------------------------------------------------------------------------
-// Failure mode 2: the raw sentence lands in a canonical field
+// Failure mode 2: the raw sentence lands in a canonical field — CONTAINED
 // ---------------------------------------------------------------------------
 
 describe("failure mode 2 — raw-message contamination of canonical fields", () => {
@@ -122,21 +125,62 @@ describe("failure mode 2 — raw-message contamination of canonical fields", () 
   ];
 
   for (const field of contaminable) {
-    it(`documents that the ${field.step} step currently stores the raw sentence`, () => {
+    it(`the ${field.step} step rejects the Auburn message instead of storing it`, () => {
       const result = applyAnswer({}, field.step, AUBURN, chatTenant);
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      expect(looksLikeRawSentence(field.read(result.collected))).toBe(true);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.length).toBeGreaterThan(0);
     });
 
-    it.fails(`the ${field.step} field never receives a raw multi-clause sentence`, () => {
+    it(`the ${field.step} field never receives a raw multi-clause sentence`, () => {
       for (const message of MULTI_CLAUSE) {
         const result = applyAnswer({}, field.step, message, chatTenant);
         if (!result.ok) continue;
         expect(looksLikeRawSentence(field.read(result.collected))).toBe(false);
       }
     });
+
+    it(`a rejected ${field.step} answer leaves existing state untouched`, () => {
+      const start: WebChatCollected = {
+        service_id: "s2",
+        service_name: "Full Interior Detail",
+        suburb: "Punchbowl",
+        vehicle_type: "Mazda 3",
+        concerns: "wet carpet",
+        name: "Abshir",
+        mobile_number: "+61466907824",
+      };
+      const snapshot = JSON.stringify(start);
+      const result = applyAnswer(start, field.step, AUBURN, chatTenant);
+      expect(result.ok).toBe(false);
+      expect(JSON.stringify(start)).toBe(snapshot);
+    });
   }
+
+  it("accepts a normal suburb, vehicle and name", () => {
+    const suburb = applyAnswer({}, "suburb", "Auburn", chatTenant);
+    expect(suburb.ok && suburb.collected.suburb).toBe("Auburn");
+    const vehicle = applyAnswer({}, "vehicle", "2018 Mazda 3 hatchback", chatTenant);
+    expect(vehicle.ok && vehicle.collected.vehicle_type).toBe("2018 Mazda 3 hatchback");
+    const name = applyAnswer({}, "name", "Abshir", chatTenant);
+    expect(name.ok && name.collected.name).toBe("Abshir");
+    const stated = applyAnswer({}, "name", "my name is Abshir", chatTenant);
+    expect(stated.ok).toBe(true);
+  });
+
+  it("accepts a legitimate long, descriptive concern", () => {
+    const description =
+      "The carpets are stained from spilled coffee and there is dog hair right through the back seats, the boot also smells musty after I left a window open in the rain";
+    const result = applyAnswer({}, "concerns", description, chatTenant);
+    expect(result.ok && result.collected.concerns).toBe(description);
+  });
+
+  it("rejects a concern description that absorbs a phone number or email", () => {
+    expect(applyAnswer({}, "concerns", "seats are wet, call me on 0466 907 824", chatTenant).ok).toBe(false);
+    expect(applyAnswer({}, "concerns", "seats are wet, email me at jo@example.com", chatTenant).ok).toBe(false);
+    expect(applyAnswer({}, "suburb", "auburn, my number is 0466907824", chatTenant).ok).toBe(false);
+    expect(applyAnswer({}, "vehicle", "mazda 3, my name is Jo", chatTenant).ok).toBe(false);
+  });
 
   it("free-text service requests are recorded verbatim by design and routed to owner review", () => {
     // typed_request is an audit field, not a canonical service: service_id stays null.
@@ -164,6 +208,7 @@ describe("failure mode 2 — raw-message contamination of canonical fields", () 
     expect(extraction.preferredTime).toBeNull();
   });
 });
+
 
 // ---------------------------------------------------------------------------
 // Behaviour that must hold either way
