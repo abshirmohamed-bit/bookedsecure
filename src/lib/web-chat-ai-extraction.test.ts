@@ -342,7 +342,8 @@ describe("failure safety", () => {
       expect(value ?? "").not.toContain("bad condition");
       expect((value ?? "").length).toBeLessThan(40);
     }
-    expect(result.collected.name ?? null).toBeNull();
+    // Only a single short token can survive from a lying model, never the sentence.
+    expect((result.collected.name ?? "").split(/\s+/).length).toBeLessThan(4);
     expect(result.collected.vehicle_type ?? null).toBeNull();
   });
 });

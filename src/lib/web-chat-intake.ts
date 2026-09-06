@@ -406,7 +406,7 @@ export function trimNameTail(value: string): string {
     if (NAME_TAIL_STOP.has(token.toLowerCase())) break;
     kept.push(token);
   }
-  return titleCase(kept.join(" ").trim());
+  return titleCase(kept.join(" ").replace(/[\s.,;:]+$/, "").trim());
 }
 
 export function extractVehicle(raw: string): string | null {
