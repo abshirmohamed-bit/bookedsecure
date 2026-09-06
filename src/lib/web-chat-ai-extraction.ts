@@ -19,8 +19,11 @@ import { z } from "zod";
 import { normaliseAuMobile } from "@/lib/domain";
 import { applyAnswer, type WebChatCollected, type WebChatStep, type WebChatTenant } from "@/lib/web-chat";
 import {
+  applyIntake,
+  extractIntake,
   matchApprovedLocation,
   matchApprovedService,
+  outstandingFields,
   type IntakeExtraction,
   type IntakeField,
   type IntakeTenant,
@@ -298,4 +301,110 @@ export function aiCorrectionMessage(applied: AiCorrection[]): string {
   const parts = applied.map((entry) => `your ${labels[entry.field]} to ${entry.to}`);
   const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
   return `Got it, I've updated ${list}.`;
+}
+
+// ---------------------------------------------------------------------------
+// Orchestration (pure: no database, no network of its own)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cheap gate before the single model call: a one-word answer to the open
+ * question cannot carry another field, so it stays on the deterministic path.
+ */
+export function mayCarryMultipleFields(raw: string): boolean {
+  if (/[,;]/.test(raw)) return true;
+  if (/\b(?:my|the)\s+(?:name|number|mobile|phone|email)\b/i.test(raw)) return true;
+  if (/(?:\+?61[\s-]?4|\b0[\s-]?4)[\d\s-]{7,}/.test(raw)) return true;
+  if (/[^@\s]+@[^@\s]+\.[a-z]{2,}/i.test(raw)) return true;
+  return raw.split(/\s+/).filter(Boolean).length >= 4;
+}
+
+export type ResolvedIntake = {
+  extraction: IntakeExtraction;
+  collected: WebChatCollected;
+  applied: IntakeField[];
+  corrections: AiCorrection[];
+  aiUsed: boolean;
+  /** True when a validated value reached beyond the currently open question. */
+  beyondOpenStep: boolean;
+  /** Number of model calls made for this message. Always 0 or 1. */
+  calls: number;
+};
+
+/**
+ * Understanding then control, in that order:
+ * 1. deterministic regex pass (fallback / supplementary signal),
+ * 2. at most ONE structured AI extraction call, folded over it,
+ * 3. supported corrections applied through field validation,
+ * 4. remaining candidates merged by `applyIntake`, which preserves fields
+ *    already collected and revalidates every value.
+ *
+ * A failed, missing or unusable AI result changes nothing: the regex result is
+ * used exactly as before.
+ */
+export async function resolveIntake(args: {
+  raw: string;
+  collected: WebChatCollected;
+  chatTenant: WebChatTenant;
+  intakeTenant: IntakeTenant;
+  step: string;
+  turns: { role: string; body: string }[];
+  businessName: string;
+  extract: (context: AiExtractionContext) => Promise<WebChatAiExtraction | null>;
+  now?: Date;
+}): Promise<ResolvedIntake> {
+  const regexExtraction = extractIntake(args.raw, args.intakeTenant, args.now ?? new Date());
+
+  let extraction = regexExtraction;
+  let working = args.collected;
+  let corrections: AiCorrection[] = [];
+  let aiUsed = false;
+  let calls = 0;
+
+  if (mayCarryMultipleFields(args.raw)) {
+    calls = 1;
+    let ai: WebChatAiExtraction | null = null;
+    try {
+      ai = await args.extract({
+        businessName: args.businessName,
+        services: args.intakeTenant.services.map((service) => service.name),
+        locations: args.intakeTenant.locations,
+        collected: args.collected,
+        outstanding: outstandingFields(args.collected),
+        openStep: args.step,
+        turns: args.turns,
+        message: args.raw,
+      });
+    } catch {
+      ai = null;
+    }
+    const parsed = ai ? WebChatAiExtractionSchema.safeParse(ai) : null;
+    if (parsed?.success) {
+      aiUsed = true;
+      extraction = mergeAiExtraction(regexExtraction, parsed.data, args.intakeTenant);
+      const corrected = applyAiCorrections(
+        args.collected,
+        parsed.data.corrections,
+        args.chatTenant,
+        parsed.data.ambiguous_fields,
+      );
+      working = corrected.collected;
+      corrections = corrected.applied;
+    }
+  }
+
+  const merged = applyIntake(working, extraction, args.chatTenant);
+  const openField = stepToIntakeField(args.step);
+  const beyondOpenStep =
+    merged.applied.some((field) => field !== openField) || corrections.length > 0;
+
+  return {
+    extraction,
+    collected: merged.collected,
+    applied: merged.applied,
+    corrections,
+    aiUsed,
+    beyondOpenStep,
+    calls,
+  };
 }

@@ -52,10 +52,7 @@ import {
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import {
   aiCorrectionMessage,
-  applyAiCorrections,
-  mergeAiExtraction,
-  stepToIntakeField,
-  type AiCorrection,
+  resolveIntake,
 } from "@/lib/web-chat-ai-extraction";
 import { extractWithAi, type AiExtractor } from "@/lib/web-chat-ai-extraction.server";
 
