@@ -27,6 +27,7 @@ import {
   FIELD_LABELS,
   detectCorrection,
   hasCorrectionCue,
+  hasExplicitChangeIntent,
   parseChangeDirective,
 } from "@/lib/web-chat-correction";
 import { isBookingOnlyTenant } from "@/lib/booking-only-mode";
