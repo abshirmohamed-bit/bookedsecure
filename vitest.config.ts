@@ -8,10 +8,14 @@ import path from "node:path";
  */
 export default defineConfig({
   test: {
-    // Opt-in only: `canary/` hits the real AI gateway, so it is never part of
-    // the default suite. Run it explicitly with:
-    //   bunx vitest run canary/ai-extraction.canary.test.ts --exclude 'node_modules/**'
-    exclude: ["node_modules/**", "dist/**", "canary/**"],
+    // Opt-in only: `canary/` makes real Lovable AI gateway calls, so it is
+    // never part of the default suite. Run it explicitly with:
+    //   RUN_AI_CANARY=1 bunx vitest run canary/ai-extraction.canary.test.ts
+    exclude: [
+      "node_modules/**",
+      "dist/**",
+      ...(process.env["RUN_AI_CANARY"] === "1" ? [] : ["canary/**"]),
+    ],
     testTimeout: 30000,
     hookTimeout: 30000,
   },
