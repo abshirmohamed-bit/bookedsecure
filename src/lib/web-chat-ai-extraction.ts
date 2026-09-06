@@ -77,6 +77,17 @@ export const WebChatAiExtractionSchema = z.object({
 
 export type WebChatAiExtraction = z.infer<typeof WebChatAiExtractionSchema>;
 
+/**
+ * Parsing schema. The wire schema above stays strict, but a response (or a test
+ * fixture) that omits the newer classification fields is still usable: they
+ * default to "nothing detected" rather than discarding the whole extraction.
+ */
+export const WebChatAiExtractionParseSchema = WebChatAiExtractionSchema.extend({
+  question_topic: z.enum(QUESTION_TOPICS).nullable().catch(null).default(null),
+  uncertain: z.boolean().catch(false).default(false),
+  unsupported: z.boolean().catch(false).default(false),
+});
+
 /** Maps a conversation step to the intake field it fills. */
 export function stepToIntakeField(step: string): IntakeField | null {
   switch (step) {
@@ -439,7 +450,7 @@ export async function resolveIntake(args: {
     } catch {
       ai = null;
     }
-    const parsed = ai ? WebChatAiExtractionSchema.safeParse(ai) : null;
+    const parsed = ai ? WebChatAiExtractionParseSchema.safeParse(ai) : null;
     if (parsed?.success) {
       aiUsed = true;
       extraction = mergeAiExtraction(regexExtraction, parsed.data, args.intakeTenant);
