@@ -508,25 +508,42 @@ export function applyAnswer(
       };
     }
     case "consent": {
-      const granted = value === "granted" || value.toLowerCase() === "yes";
-      next.consent = granted ? "granted" : "declined";
-      return { ok: true, collected: next, echo: granted ? "Yes, that's fine" : "No thanks" };
+      if (value === "granted" || /^(yes|yep|yeah|yup|sure|ok(ay)?|fine|of course|that'?s fine|no worries|all good|go ahead|agreed?|i (do|agree))\b/i.test(value)) {
+        next.consent = "granted";
+        return { ok: true, collected: next, echo: "Yes, that's fine" };
+      }
+      if (value === "declined" || /^(no|nope|nah|no thanks?|don'?t|do not|rather not|opt out|stop)\b/i.test(value)) {
+        next.consent = "declined";
+        return { ok: true, collected: next, echo: "No thanks" };
+      }
+      // Consent is never inferred from an unclear reply.
+      return { ok: false, error: "Just so I'm sure: is it OK for us to contact you about this? Yes or no is fine." };
     }
     case "booking": {
-      if (value === NO_SLOT_CHOICE) {
+      if (
+        value === NO_SLOT_CHOICE ||
+        /\b(none of (these|them)|none work|nothing works|no good|another day|different day)\b/i.test(value)
+      ) {
         next.booking_declined = true;
         next.booking_selected = null;
         return { ok: true, collected: next, echo: "None of these work" };
       }
       // Only an offer the server itself generated for this conversation is valid:
       // a substituted, stale or cross-tenant id never reaches the commit path.
-      const offer = (collected.pilot_offers ?? []).find((entry) => entry.offer_id === value);
-      if (!offer) return { ok: false, error: "Please choose one of the times shown." };
+      const offers = collected.pilot_offers ?? [];
+      const offer =
+        offers.find((entry) => entry.offer_id === value) ?? matchOfferByText(value, offers);
+      if (!offer)
+        return {
+          ok: false,
+          error: `Which one suits: ${offers.map((entry) => entry.label).join(", ")}?`,
+        };
       next.booking_selected = offer.offer_id;
       next.booking_declined = false;
       next.booking_confirmed = false;
       return { ok: true, collected: next, echo: offer.label };
     }
+
     case "booking_confirm": {
       if (
         value === BOOKING_CONFIRM_CHOICE ||
