@@ -115,7 +115,7 @@ describe("service precedence", () => {
   });
 
   it("asks which one when two approved services are genuinely plausible", () => {
-    const match = matchApprovedService("interior and exterior detail", INTAKE_TENANT.services);
+    const match = matchApprovedService("i just want a full detail please", INTAKE_TENANT.services);
     expect(match.kind).toBe("ambiguous");
   });
 
