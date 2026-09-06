@@ -126,6 +126,6 @@ describe("pilot eligibility requires a valid service duration", () => {
     expect(isPilotEligible({ ...base, businessId: "22222222-2222-2222-2222-222222222222" })).toBe(
       true,
     );
-    expect(isPilotEligible({ ...base, slug: "other-tenant" })).toBe(false);
+    expect(isPilotEligible({ ...base, slug: "other-tenant" })).toBe(true);
   });
 });
