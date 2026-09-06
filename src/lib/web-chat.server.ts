@@ -884,7 +884,7 @@ async function handleBookingSelection(input: {
  * the single open question — otherwise it returns null and the existing
  * step-by-step handling proceeds unchanged.
  */
-async function maybeHandleIntake(args: {
+export async function maybeHandleIntake(args: {
   tenant: PublicTenant;
   chatTenant: WebChatTenant;
   conversationId: string;
@@ -893,6 +893,8 @@ async function maybeHandleIntake(args: {
   step: string;
   answer: string;
   turns: WebChatTurn[];
+  /** Injected in tests. Production uses the single Lovable AI extraction call. */
+  extractor?: AiExtractor;
 }): Promise<WebChatState | null> {
   const { tenant, chatTenant, collected, step, turns } = args;
   const raw = args.answer.trim();
@@ -903,20 +905,56 @@ async function maybeHandleIntake(args: {
   // Button/option answers are handled by the normal path.
   if (tenant.services.some((service) => service.id === raw) || raw === FLEXIBLE_CHOICE) return null;
 
-  const extraction = extractIntake(
-    raw,
-    {
-      timezone: "Australia/Sydney",
-      services: tenant.services.map((service) => ({ id: service.id, name: service.name })),
-      locations: parseApprovedLocations(tenant.serviceArea),
-    },
-    new Date(),
-  );
+  const intakeTenant = {
+    timezone: "Australia/Sydney",
+    services: tenant.services.map((service) => ({ id: service.id, name: service.name })),
+    locations: parseApprovedLocations(tenant.serviceArea),
+  };
 
-  const { collected: next, applied } = applyIntake(collected, extraction, chatTenant);
+  // Deterministic pass first: it is the fallback signal and never overrides the
+  // stronger structured extraction below.
+  const regexExtraction = extractIntake(raw, intakeTenant, new Date());
+
+  let extraction = regexExtraction;
+  let working = collected;
+  let corrections: AiCorrection[] = [];
+
+  // Exactly one model call per customer message, and only when the message
+  // could plausibly carry more than the single open field.
+  if (mayCarryMultipleFields(raw)) {
+    const extract = args.extractor ?? ((context) => extractWithAi(tenant.businessId, context));
+    const ai = await extract({
+      businessName: tenant.name,
+      services: intakeTenant.services.map((service) => service.name),
+      locations: intakeTenant.locations,
+      collected,
+      outstanding: outstandingFields(collected),
+      openStep: step,
+      turns,
+      message: raw,
+    });
+    if (ai) {
+      extraction = mergeAiExtraction(regexExtraction, ai, intakeTenant);
+      const corrected = applyAiCorrections(collected, ai.corrections, chatTenant, ai.ambiguous_fields);
+      working = corrected.collected;
+      corrections = corrected.applied;
+    }
+  }
+
+  const { collected: next, applied } = applyIntake(working, extraction, chatTenant);
   const ambiguity = extraction.ambiguities[0] ?? null;
-  const multiField = applied.length >= 2;
-  if (!ambiguity && extraction.intent !== "unsupported" && !multiField) return null;
+  // A single validated field is enough when it reaches BEYOND the open question:
+  // the old "fewer than two fields" discard threw that information away.
+  const openField = stepToIntakeField(step);
+  const beyondOpenStep = applied.some((field) => field !== openField) || corrections.length > 0;
+  if (
+    !ambiguity &&
+    extraction.intent !== "unsupported" &&
+    applied.length < 2 &&
+    !beyondOpenStep
+  )
+    return null;
+
 
   const echo = raw.slice(0, 500);
   await addMessage(tenant.businessId, args.conversationId, "customer", echo);
