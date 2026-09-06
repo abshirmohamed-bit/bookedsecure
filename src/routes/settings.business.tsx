@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { AvailabilityEditor } from "@/components/settings/availability";
+import { TenantAccountPanel } from "@/components/settings/TenantAccountPanel";
 import {
   BusinessSettingsForm,
   QuotePageModeCard,
@@ -101,6 +102,7 @@ function BusinessSettingsPage() {
                 "timezone",
               ]}
             />
+            <TenantAccountPanel />
             <QuotePageModeCard
               quoteMode={data.business.quote_mode}
               slug={data.business.slug}
