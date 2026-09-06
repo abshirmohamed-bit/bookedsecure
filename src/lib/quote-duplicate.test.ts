@@ -183,15 +183,17 @@ describe("duplicate protection in captureLead", () => {
     expect(db["leads"]!.length).toBe(1);
   });
 
-  it("accepts a new enquiry once the 30-minute window has passed", async () => {
+  it("reuses the same contact's record once the 30-minute window has passed", async () => {
     db["leads"]!.push(
       leadRow({ created_at: new Date(Date.now() - 31 * 60 * 1000).toISOString() }),
     );
     client = createFakeSupabase(db);
     const result = await capture({});
     expect(result.duplicate).toBe(false);
-    expect(db["leads"]!.length).toBe(2);
+    // Continuity: one profile per contact, enriched rather than duplicated.
+    expect(db["leads"]!.length).toBe(1);
   });
+
 
   it("creates no lead, conversation, job, message, consent, usage or notification on a duplicate", async () => {
     db["leads"]!.push(leadRow());
