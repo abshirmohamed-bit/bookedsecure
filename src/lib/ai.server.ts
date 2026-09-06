@@ -15,6 +15,7 @@ import {
 } from "@/lib/ai-analysis-contract";
 import { CUSTOMER_PUNCTUATION_INSTRUCTION, sanitiseCustomerText } from "@/lib/customer-text";
 import { guardReactivationMessage, proposeOffer } from "@/lib/reactivation";
+import { tenantQuoteLink } from "@/lib/reactivation.server";
 import {
   buildApprovedFacts,
   buildApprovedFactsContext,
@@ -287,7 +288,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
       supabaseAdmin
         .from("businesses")
         .select(
-          "name, service_area, timezone, opening_hours, quiet_hours_start, quiet_hours_end, sms_signature, privacy_policy_url",
+          "name, slug, service_area, timezone, opening_hours, quiet_hours_start, quiet_hours_end, sms_signature, privacy_policy_url",
         )
         .eq("id", input.businessId)
         .single(),
@@ -321,8 +322,9 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     !["suburb", "vehicle_type", "main_concerns", "service_intent", "approved_service_id"].some(
       (field) => typeof leadFacts[field] === "string" && (leadFacts[field] as string).trim().length > 0,
     );
-  const proposedOffer = isDormantContact
-    ? proposeOffer({ serviceNames: (services ?? []).map((service) => service.name) })
+  const proposedOffer = isDormantContact ? proposeOffer() : null;
+  const quoteLink = isDormantContact
+    ? tenantQuoteLink((business as { slug?: string | null } | null)?.slug ?? null)
     : null;
 
   const requestType = (lead as { request_type?: string | null }).request_type ?? null;
@@ -359,6 +361,12 @@ export async function analyseLead(input: { businessId: string; leadId: string })
       : "",
     proposedOffer
       ? `- The only offer wording you may use is "${proposedOffer}". Never invent another discount, dollar amount, fee or deadline.`
+      : "",
+    proposedOffer
+      ? "- Never name, guess or imply a service this contact has had or wants: you do not know it. Keep the offer wording generic."
+      : "",
+    quoteLink
+      ? `- Include this exact link once so they can tell you what they need: ${quoteLink}`
       : "",
     settingsContext,
     buildApprovedFactsContext(approvedFacts),

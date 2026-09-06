@@ -15,6 +15,17 @@ import {
   renderReactivationMessage,
   type ReactivationFacts,
 } from "@/lib/reactivation";
+import { tenantQuoteUrl } from "@/lib/tenant-nav";
+
+/**
+ * The tenant's own public quote-page link, built from that tenant's slug.
+ * Universal: no tenant is special-cased, and a tenant without a usable slug
+ * simply gets a message with no link instead of another tenant's page.
+ */
+export function tenantQuoteLink(slug: string | null | undefined): string | null {
+  const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+  return tenantQuoteUrl(origin, slug);
+}
 
 const LEAD_COLUMNS =
   "id, name, mobile_number, email, booking_status, verified_service_id, verified_vehicle, verified_suburb, verified_concern, vehicle_type, suburb, main_concerns, approved_service_id, opted_out_at, sms_suppressed_at, deleted_at, lead_origin, created_at";
@@ -125,15 +136,17 @@ export async function loadReactivationCandidates(
 }
 
 /**
- * Asks the model for offer wording built only from this tenant's services.
- * Any failure falls back to the deterministic proposal.
+ * Asks the model for generic offer wording. A dormant contact has no known
+ * service history, so the offer must never name a service: any proposal that
+ * mentions one of the tenant's service names is rejected in favour of the
+ * deterministic generic offer. Any failure also falls back to it.
  */
 export async function proposeOfferWithAi(input: {
   businessId: string;
   businessName: string;
-  serviceNames: string[];
+  serviceNames?: string[];
 }): Promise<{ offer: string; source: "ai_proposed" | "owner_edited"; notes: string | null }> {
-  const fallback = proposeOffer({ serviceNames: input.serviceNames });
+  const fallback = proposeOffer();
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) return { offer: fallback, source: "ai_proposed", notes: null };
 
@@ -156,14 +169,11 @@ export async function proposeOfferWithAi(input: {
       system: [
         "You propose one short reactivation offer line for an Australian mobile detailing business.",
         "Output the offer only: no greeting, no sign-off, no quotes, under 12 words.",
-        "It must be a percentage discount on one of the listed services, or on 'your next service' when no services are listed.",
+        "It must be a percentage discount on a generic next enquiry or next service.",
+        "Never name a specific service: the customer's service history is unknown.",
         "Never state a dollar amount, fee, deposit, date, time or availability.",
       ].join("\n"),
-      prompt: [
-        `Business: ${input.businessName}`,
-        `Active services: ${input.serviceNames.length > 0 ? input.serviceNames.join(", ") : "none listed"}`,
-        `Example shape: ${fallback}`,
-      ].join("\n"),
+      prompt: [`Business: ${input.businessName}`, `Example shape: ${fallback}`].join("\n"),
     });
 
     await recordAiUsage({
@@ -175,12 +185,18 @@ export async function proposeOfferWithAi(input: {
     });
 
     const proposed = normaliseOffer((result.text ?? "").replace(/^["'\s]+|["'\s.]+$/g, ""));
-    const usable = proposed.length > 4 && /\d+\s?%/.test(proposed) ? proposed : fallback;
+    const namesService = (input.serviceNames ?? []).some((name) => {
+      const trimmed = name.trim().toLowerCase();
+      return trimmed.length > 2 && proposed.toLowerCase().includes(trimmed);
+    });
+    const usable =
+      proposed.length > 4 && /\d+\s?%/.test(proposed) && !namesService ? proposed : fallback;
     return { offer: usable, source: "ai_proposed", notes: null };
   } catch {
     return { offer: fallback, source: "ai_proposed", notes: null };
   }
 }
+
 
 export type ReactivationCampaignView = {
   campaign: {
@@ -273,7 +289,7 @@ export async function draftReactivationCampaign(input: {
   const [{ data: business }, { data: services }] = await Promise.all([
     supabaseAdmin
       .from("businesses")
-      .select("name, sms_signature")
+      .select("name, slug, sms_signature")
       .eq("id", input.businessId)
       .single(),
     supabaseAdmin
@@ -285,6 +301,7 @@ export async function draftReactivationCampaign(input: {
 
   const businessName = business?.name ?? "our team";
   const serviceNames = (services ?? []).map((s) => s.name as string).filter(Boolean);
+  const quoteUrl = tenantQuoteLink((business as { slug?: string | null } | null)?.slug ?? null);
 
   const { candidates, excluded } = await loadReactivationCandidates(input.businessId);
   const scoped = candidates.slice(0, input.maxLeads ?? 200);
@@ -331,6 +348,7 @@ export async function draftReactivationCampaign(input: {
       businessName,
       leadName: candidate.name,
       offerText: offer.offer,
+      quoteUrl,
       signature: business?.sms_signature ?? null,
     });
     const guarded = guardReactivationMessage(rendered, offer.offer);
