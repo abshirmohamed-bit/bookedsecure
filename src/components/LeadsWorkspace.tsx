@@ -201,7 +201,11 @@ export function LeadsWorkspace() {
         <section className="panel px-4 py-3" role="status">
           <p className="text-xs text-muted-foreground">Refreshing metrics…</p>
         </section>
+      )}
+
       <ReactivationPanel />
+
+
 
 
 
