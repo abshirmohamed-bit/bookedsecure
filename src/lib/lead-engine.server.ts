@@ -14,6 +14,7 @@ import {
   type LeadStatus,
 } from "@/lib/domain";
 import { buildConsentPromotion } from "@/lib/consent-promotion";
+import { followUpSuppressedByBooking } from "@/lib/booking-projection";
 
 
 import { countSegments } from "@/lib/sms/segments";
