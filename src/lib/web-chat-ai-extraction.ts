@@ -354,6 +354,20 @@ export function mayCarryMultipleFields(raw: string): boolean {
   return raw.split(/\s+/).filter(Boolean).length >= 4;
 }
 
+/**
+ * Routing decision, by message SHAPE rather than word count: a short message
+ * can still be a question ("prices?") or uncertainty ("something else"), and
+ * discarding those is exactly the fault this layer exists to remove.
+ */
+export function shouldInterpret(raw: string): boolean {
+  const text = raw.trim();
+  if (text.length === 0) return false;
+  if (looksUncertain(text)) return true;
+  if (text.includes("?")) return true;
+  if (looksLikeQuestion(text) && text.split(/\s+/).filter(Boolean).length >= 3) return true;
+  return mayCarryMultipleFields(text);
+}
+
 export type ResolvedIntake = {
   extraction: IntakeExtraction;
   collected: WebChatCollected;
@@ -364,7 +378,14 @@ export type ResolvedIntake = {
   beyondOpenStep: boolean;
   /** Number of model calls made for this message. Always 0 or 1. */
   calls: number;
+  /** Supported question the customer asked, or null. */
+  question: QuestionTopic | null;
+  /** The customer is stuck choosing rather than answering. */
+  uncertain: boolean;
+  /** Outside what this chat handles. */
+  unsupported: boolean;
 };
+
 
 /**
  * Understanding then control, in that order:
