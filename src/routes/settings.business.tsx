@@ -97,7 +97,6 @@ function BusinessSettingsPage() {
                 "name",
                 "service_area",
                 "opening_hours",
-                "logo_url",
                 "privacy_policy_url",
                 "timezone",
               ]}

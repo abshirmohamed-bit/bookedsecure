@@ -20,8 +20,13 @@ import {
 import { TENANT_LOGO_BUCKET, tenantLogoPath, validateLogoUpload } from "@/lib/tenant-logo";
 import { sanitiseLogoUrl } from "@/lib/tenant-branding";
 
-/** Ten years: the object is private, the URL is stable branding. */
-const LOGO_URL_TTL_SECONDS = 60 * 60 * 24 * 365 * 10;
+/**
+ * The stored file stays private; the browser reads it through the app's own
+ * public logo route, so the saved address is short, stable and never expires.
+ */
+function logoDisplayUrl(businessId: string, version: string): string {
+  return `/api/public/tenant-logo/${businessId}?v=${version}`;
+}
 
 function requireOwnerRole(app: AppContext): void {
   if (app.role !== "owner") {
@@ -145,24 +150,22 @@ export async function storeTenantLogo(
     .eq("id", app.businessId)
     .single();
 
-  const path = tenantLogoPath(app.businessId, validation.extension, crypto.randomUUID());
+  const unique = crypto.randomUUID();
+  const path = tenantLogoPath(app.businessId, validation.extension, unique);
   const upload = await supabaseAdmin.storage
     .from(TENANT_LOGO_BUCKET)
     .upload(path, bytes, { contentType: validation.contentType, upsert: false });
   if (upload.error) throw new Error("The logo could not be uploaded. Your current logo is unchanged.");
 
-  const signed = await supabaseAdmin.storage
-    .from(TENANT_LOGO_BUCKET)
-    .createSignedUrl(path, LOGO_URL_TTL_SECONDS);
-  const signedUrl = sanitiseLogoUrl(signed.data?.signedUrl ?? null);
-  if (!signedUrl) {
+  const displayUrl = sanitiseLogoUrl(logoDisplayUrl(app.businessId, unique));
+  if (!displayUrl) {
     await supabaseAdmin.storage.from(TENANT_LOGO_BUCKET).remove([path]);
     throw new Error("The logo could not be published. Your current logo is unchanged.");
   }
 
   const { error } = await supabaseAdmin
     .from("businesses")
-    .update({ logo_url: signedUrl, logo_storage_path: path })
+    .update({ logo_url: displayUrl, logo_storage_path: path })
     .eq("id", app.businessId);
   if (error) {
     await supabaseAdmin.storage.from(TENANT_LOGO_BUCKET).remove([path]);
@@ -185,7 +188,7 @@ export async function storeTenantLogo(
     metadata: { replaced: Boolean(previous) },
   });
 
-  return { ok: true, logoUrl: signedUrl };
+  return { ok: true, logoUrl: displayUrl };
 }
 
 export async function clearTenantLogo(app: AppContext): Promise<{ ok: true }> {
