@@ -14,6 +14,7 @@ import {
   type Analysis,
 } from "@/lib/ai-analysis-contract";
 import { CUSTOMER_PUNCTUATION_INSTRUCTION, sanitiseCustomerText } from "@/lib/customer-text";
+import { guardReactivationMessage, proposeOffer } from "@/lib/reactivation";
 import {
   buildApprovedFacts,
   buildApprovedFactsContext,
@@ -311,6 +312,19 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     services: (services ?? []) as never,
   });
 
+  // Dormant/imported contact: no conversation and no enquiry details on record.
+  // The analysis then drafts a reactivation message with a proposed offer built
+  // from this tenant's own services. It still needs owner approval to send.
+  const leadFacts = lead as Record<string, unknown>;
+  const isDormantContact =
+    (messages ?? []).length === 0 &&
+    !["suburb", "vehicle_type", "main_concerns", "service_intent", "approved_service_id"].some(
+      (field) => typeof leadFacts[field] === "string" && (leadFacts[field] as string).trim().length > 0,
+    );
+  const proposedOffer = isDormantContact
+    ? proposeOffer({ serviceNames: (services ?? []).map((service) => service.name) })
+    : null;
+
   const requestType = (lead as { request_type?: string | null }).request_type ?? null;
   const serviceSnapshot = (lead as { service_name_snapshot?: string | null }).service_name_snapshot ?? null;
   const flexibleText = (lead as { flexible_request_text?: string | null }).flexible_request_text ?? null;
@@ -339,6 +353,12 @@ export async function analyseLead(input: { businessId: string; leadId: string })
       : "- The customer did not choose an approved service. Do not pick one for them; ask what they need and say the owner will confirm the right option.",
     ownerReview
       ? "- This is a flexible or open request the owner must handle personally. Your reply may only acknowledge and clarify; never propose a specific service or next step."
+      : "",
+    proposedOffer
+      ? `- This contact has no conversation and no enquiry details on record. Treat it as a dormant contact: draft a short reactivation SMS that stays neutral about any past job, quote or enquiry, offers exactly "${proposedOffer}" and nothing more, invites a reply, and mentions replying STOP to opt out.`
+      : "",
+    proposedOffer
+      ? `- The only offer wording you may use is "${proposedOffer}". Never invent another discount, dollar amount, fee or deadline.`
       : "",
     settingsContext,
     buildApprovedFactsContext(approvedFacts),
@@ -418,7 +438,12 @@ export async function analyseLead(input: { businessId: string; leadId: string })
 
   const parsed = result.analysis;
 
-  const guarded = guardReply(parsed.suggested_reply, approvedFacts);
+  const guarded = proposedOffer
+    ? (() => {
+        const result = guardReactivationMessage(parsed.suggested_reply, proposedOffer);
+        return { reply: result.text, flagged: result.flagged };
+      })()
+    : guardReply(parsed.suggested_reply, approvedFacts);
   const analysis: Analysis = {
     ...parsed,
     suggested_reply: guarded.reply,
