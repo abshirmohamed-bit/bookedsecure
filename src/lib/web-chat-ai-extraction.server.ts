@@ -12,6 +12,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, Output } from "ai";
 import { ANALYSIS_MODEL } from "@/lib/ai.server";
 import {
+  WebChatAiExtractionParseSchema,
   WebChatAiExtractionSchema,
   buildAiExtractionPrompt,
   buildAiExtractionSystem,
@@ -57,7 +58,7 @@ export async function extractWithAi(
       outputTokens: result.usage?.outputTokens ?? 0,
     });
 
-    const parsed = WebChatAiExtractionSchema.safeParse(
+    const parsed = WebChatAiExtractionParseSchema.safeParse(
       (result as unknown as { output?: unknown }).output,
     );
     return parsed.success ? parsed.data : null;

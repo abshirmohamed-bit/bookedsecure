@@ -53,7 +53,17 @@ import {
   aiCorrectionMessage,
   resolveIntake,
 } from "@/lib/web-chat-ai-extraction";
+import {
+  acknowledgeFields,
+  answerQuestion,
+  assembleReply,
+  isConversationalIntakeTenant,
+  uncertainServiceMessage,
+  unsupportedAnswer,
+  type AnswerFacts,
+} from "@/lib/web-chat-conversation";
 import { extractWithAi, type AiExtractor } from "@/lib/web-chat-ai-extraction.server";
+
 
 
 
@@ -948,24 +958,31 @@ export async function maybeHandleIntake(args: {
     extract: args.extractor ?? ((context) => extractWithAi(tenant.businessId, context)),
   });
 
-  const { extraction, collected: next, applied, corrections, beyondOpenStep } = resolved;
+  const {
+    extraction,
+    collected: next,
+    applied,
+    corrections,
+    beyondOpenStep,
+    question,
+    uncertain,
+    unsupported,
+  } = resolved;
   const ambiguity = extraction.ambiguities[0] ?? null;
-  // A single validated field is enough when it reaches BEYOND the open question:
-  // the old "fewer than two fields" rule discarded that information.
-  if (
-    !ambiguity &&
-    extraction.intent !== "unsupported" &&
-    applied.length < 2 &&
-    !beyondOpenStep
-  )
-
+  // Per-tenant flag: only an enabled tenant answers questions and handles
+  // uncertainty. Everyone else keeps the previous step-machine behaviour.
+  const conversational = isConversationalIntakeTenant(tenant.businessId);
+  const answeringTurn = conversational && (question !== null || uncertain);
+  // A single validated field is now enough — the old "fewer than two fields"
+  // rule discarded understanding the model had already produced.
+  if (!ambiguity && !unsupported && !answeringTurn && applied.length === 0 && !beyondOpenStep) {
     return null;
-
+  }
 
   const echo = raw.slice(0, 500);
   await addMessage(tenant.businessId, args.conversationId, "customer", echo);
 
-  if (extraction.intent === "unsupported") {
+  if (unsupported && applied.length === 0) {
     await addMessage(tenant.businessId, args.conversationId, "assistant", UNSUPPORTED_REQUEST_MESSAGE);
     return {
       conversationId: args.conversationId,
@@ -997,19 +1014,68 @@ export async function maybeHandleIntake(args: {
     .eq("business_id", tenant.businessId);
 
   const outstanding = outstandingFields(next);
-  const replies: string[] = [];
-  if (corrections.length > 0) replies.push(aiCorrectionMessage(corrections));
-  if (ambiguity) replies.push(ambiguityMessage(ambiguity));
 
-  else if (outstanding.includes("service") && extraction.unmatched.service)
-    replies.push(unmatchedServiceMessage(tenant.name));
+  // Every answer is composed from facts this tenant already configured.
+  const facts: AnswerFacts = {
+    businessName: tenant.name,
+    services: chatTenant.services.map((service) => ({
+      name: service.name,
+      description: service.description,
+    })),
+    locations: intakeTenant.locations,
+    outstanding,
+    bookingEnabled: chatTenant.bookingEnabled === true,
+    suburb: next.suburb ?? null,
+  };
+
+  let answer: string | null = null;
+  if (conversational) {
+    if (question) answer = answerQuestion(question, facts);
+    if (!answer && uncertain && outstanding.includes("service")) {
+      answer = uncertainServiceMessage(facts);
+    }
+    // A question with no supporting tenant fact is deflected honestly.
+    if (!answer && question) answer = unsupportedAnswer(facts);
+  }
+
+  // Acknowledge only values that were validated and stored this turn.
+  const acknowledgement =
+    conversational && corrections.length === 0
+      ? acknowledgeFields(
+          applied.map((field) => ({
+            label: field,
+            value:
+              field === "vehicle"
+                ? next.vehicle_type ?? ""
+                : field === "location"
+                  ? next.suburb ?? ""
+                  : field === "name"
+                    ? next.name ?? ""
+                    : field === "mobile"
+                      ? next.mobile_number ?? ""
+                      : "",
+          })),
+        )
+      : null;
 
   const resumeStep = nextStep(next);
-  const grouped = ambiguity ? null : groupedMissingMessage(outstanding);
-  if (grouped) replies.push(grouped);
-
   const prompt = resumeStep ? promptFor(resumeStep, chatTenant, next) : null;
-  if (!grouped && !ambiguity && prompt) replies.push(prompt.text);
+
+  let ask: string | null = null;
+  if (ambiguity) ask = ambiguityMessage(ambiguity);
+  else if (outstanding.includes("service") && extraction.unmatched.service && !answer)
+    ask = unmatchedServiceMessage(tenant.name);
+  else {
+    const grouped = groupedMissingMessage(outstanding);
+    if (grouped) ask = acknowledgement || answer ? grouped.replace(/^Got it\.\s*/, "") : grouped;
+    else if (prompt) ask = prompt.text;
+  }
+
+  const replies = assembleReply({
+    acknowledgement: corrections.length > 0 ? aiCorrectionMessage(corrections) : acknowledgement,
+    answer,
+    ask,
+  });
 
   for (const reply of replies) await addMessage(tenant.businessId, args.conversationId, "assistant", reply);
 
@@ -1028,6 +1094,7 @@ export async function maybeHandleIntake(args: {
     duplicate: false,
   };
 }
+
 
 /**
  * Applies a change directive that names two or more fields. Returns null when

@@ -4,6 +4,8 @@
 
 import { normaliseAuMobile } from "@/lib/domain";
 import { sanitiseCustomerText } from "@/lib/customer-text";
+import { looksUncertain, uncertainServiceMessage } from "@/lib/web-chat-conversation";
+
 import {
   BOOKING_CHANGE_CHOICE,
   BOOKING_CONFIRM_CHOICE,
@@ -437,11 +439,23 @@ export function applyAnswer(
         };
       }
       if (!tenant.flexibleRequestsEnabled) return { ok: false, error: "Please choose one of the listed services." };
+      // "I need something else", "not sure", "you tell me": uncertainty is not a
+      // service request and is never stored as one.
+      if (looksUncertain(value)) {
+        return { ok: false, error: uncertainServiceMessage({
+          businessName: tenant.name,
+          services: tenant.services.map((service) => ({ name: service.name, description: service.description })),
+          locations: [],
+          outstanding: [],
+          bookingEnabled: tenant.bookingEnabled === true,
+        }) };
+      }
 
       next.service_id = null;
       next.service_name = null;
       next.typed_request = value;
       return { ok: true, collected: next, echo: value };
+
     }
     case "vehicle": {
       if (value.length < 2) return { ok: false, error: "Please tell me the vehicle type." };

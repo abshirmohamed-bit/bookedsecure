@@ -19,6 +19,13 @@ import { z } from "zod";
 import { normaliseAuMobile } from "@/lib/domain";
 import { applyAnswer, type WebChatCollected, type WebChatStep, type WebChatTenant } from "@/lib/web-chat";
 import {
+  QUESTION_TOPICS,
+  classifyQuestionTopic,
+  looksLikeQuestion,
+  looksUncertain,
+  type QuestionTopic,
+} from "@/lib/web-chat-conversation";
+import {
   applyIntake,
   extractIntake,
   matchApprovedLocation,
@@ -30,6 +37,7 @@ import {
   type IntakeField,
   type IntakeTenant,
 } from "@/lib/web-chat-intake";
+
 
 export const AI_EXTRACTION_FIELDS = [
   "service",
@@ -58,9 +66,27 @@ export const WebChatAiExtractionSchema = z.object({
   corrections: z.array(z.object({ field: z.enum(AI_EXTRACTION_FIELDS), value: z.string() })),
   ambiguous_fields: z.array(z.enum(AI_EXTRACTION_FIELDS)),
   still_missing: z.array(z.enum(AI_EXTRACTION_FIELDS)),
+  /** The customer asked something: which supported topic, or null. */
+  question_topic: z.enum(QUESTION_TOPICS).nullable(),
+  /** The customer is stuck choosing rather than supplying a value. */
+  uncertain: z.boolean(),
+  /** The request is outside what this chat handles. */
+  unsupported: z.boolean(),
 });
 
+
 export type WebChatAiExtraction = z.infer<typeof WebChatAiExtractionSchema>;
+
+/**
+ * Parsing schema. The wire schema above stays strict, but a response (or a test
+ * fixture) that omits the newer classification fields is still usable: they
+ * default to "nothing detected" rather than discarding the whole extraction.
+ */
+export const WebChatAiExtractionParseSchema = WebChatAiExtractionSchema.extend({
+  question_topic: z.enum(QUESTION_TOPICS).nullable().catch(null).default(null),
+  uncertain: z.boolean().catch(false).default(false),
+  unsupported: z.boolean().catch(false).default(false),
+});
 
 /** Maps a conversation step to the intake field it fills. */
 export function stepToIntakeField(step: string): IntakeField | null {
@@ -111,7 +137,7 @@ export const AI_EXTRACTION_TURNS = 6;
 export function buildAiExtractionSystem(context: AiExtractionContext): string {
   return [
     `You read customer messages for ${context.businessName}, an Australian mobile car detailing business.`,
-    "You are an extraction assistant, not the decision maker. The server controls every business action.",
+    "You interpret language only. The server decides everything: approved services, service area, availability, prices, consent, bookings, messages.",
     "Rules you must never break:",
     "- Read the ENTIRE customer message and extract every field it supplies, regardless of which question was last asked.",
     "- Return only information the customer actually stated. Never guess, infer or invent a value.",
@@ -121,11 +147,19 @@ export function buildAiExtractionSystem(context: AiExtractionContext): string {
     "- If the customer changes a value they gave earlier, list it in corrections with the new value.",
     "- If a value is genuinely ambiguous, list the field in ambiguous_fields and leave its value null.",
     "- Never ask for a field that is already present and valid in the current state.",
-    "- Reply with the JSON object only, using null for anything the customer did not state.",
+    "A message is not automatically an answer to the open question. Classify it as well as extracting from it:",
+    "- Set question_topic when the customer asked something, using the closest topic. Otherwise null.",
+    "- Set uncertain true when the customer is stuck choosing (\"something else\", \"not sure\", \"you tell me\", \"what do you recommend\") rather than supplying a value.",
+    "- Set unsupported true only when the request is outside detailing enquiries entirely.",
+    "- Uncertainty, a question or a refusal NEVER satisfies a field. Leave that field null, and still extract every other valid value in the message.",
+    "- Extract valid values even when the message also contains a question or uncertainty. Never discard them.",
+    "You never write the customer's reply. The server composes every sentence they read.",
+    "Reply with the JSON object only, using null for anything the customer did not state.",
     `Approved services: ${context.services.length > 0 ? context.services.join(", ") : "(none configured)"}`,
     `Approved locations: ${context.locations.length > 0 ? context.locations.join(", ") : "(none configured)"}`,
   ].join("\n");
 }
+
 
 export function buildAiExtractionPrompt(context: AiExtractionContext): string {
   const state = {
@@ -331,6 +365,20 @@ export function mayCarryMultipleFields(raw: string): boolean {
   return raw.split(/\s+/).filter(Boolean).length >= 4;
 }
 
+/**
+ * Routing decision, by message SHAPE rather than word count: a short message
+ * can still be a question ("prices?") or uncertainty ("something else"), and
+ * discarding those is exactly the fault this layer exists to remove.
+ */
+export function shouldInterpret(raw: string): boolean {
+  const text = raw.trim();
+  if (text.length === 0) return false;
+  if (looksUncertain(text)) return true;
+  if (text.includes("?")) return true;
+  if (looksLikeQuestion(text) && text.split(/\s+/).filter(Boolean).length >= 3) return true;
+  return mayCarryMultipleFields(text);
+}
+
 export type ResolvedIntake = {
   extraction: IntakeExtraction;
   collected: WebChatCollected;
@@ -341,7 +389,14 @@ export type ResolvedIntake = {
   beyondOpenStep: boolean;
   /** Number of model calls made for this message. Always 0 or 1. */
   calls: number;
+  /** Supported question the customer asked, or null. */
+  question: QuestionTopic | null;
+  /** The customer is stuck choosing rather than answering. */
+  uncertain: boolean;
+  /** Outside what this chat handles. */
+  unsupported: boolean;
 };
+
 
 /**
  * Understanding then control, in that order:
@@ -372,8 +427,13 @@ export async function resolveIntake(args: {
   let corrections: AiCorrection[] = [];
   let aiUsed = false;
   let calls = 0;
+  // Deterministic fallback signals, used whenever the model is unavailable or
+  // its output is unusable. They never write state.
+  let question: QuestionTopic | null = null;
+  let uncertain = looksUncertain(args.raw);
+  let unsupported = false;
 
-  if (mayCarryMultipleFields(args.raw)) {
+  if (shouldInterpret(args.raw)) {
     calls = 1;
     let ai: WebChatAiExtraction | null = null;
     try {
@@ -390,7 +450,7 @@ export async function resolveIntake(args: {
     } catch {
       ai = null;
     }
-    const parsed = ai ? WebChatAiExtractionSchema.safeParse(ai) : null;
+    const parsed = ai ? WebChatAiExtractionParseSchema.safeParse(ai) : null;
     if (parsed?.success) {
       aiUsed = true;
       extraction = mergeAiExtraction(regexExtraction, parsed.data, args.intakeTenant);
@@ -402,7 +462,21 @@ export async function resolveIntake(args: {
       );
       working = corrected.collected;
       corrections = corrected.applied;
+      question = parsed.data.question_topic;
+      uncertain = uncertain || parsed.data.uncertain;
+      unsupported = parsed.data.unsupported;
     }
+  }
+
+  // No usable interpretation: classify deterministically rather than silently
+  // treating a question as an answer.
+  if (!question && (looksLikeQuestion(args.raw) || uncertain)) {
+    question = classifyQuestionTopic(args.raw);
+  }
+
+  // Uncertainty NEVER satisfies the service field: the phrase is not a service.
+  if (uncertain && !args.collected.service_id) {
+    extraction = { ...extraction, service: null };
   }
 
   // Precedence: a confirmed service is trusted, never re-resolved from later text.
@@ -424,5 +498,9 @@ export async function resolveIntake(args: {
     aiUsed,
     beyondOpenStep,
     calls,
+    question,
+    uncertain,
+    unsupported: unsupported || extraction.intent === "unsupported",
   };
 }
+
