@@ -124,3 +124,16 @@ export function serviceShortDescription(detail: string | null | undefined, limit
   const flat = summary.replace(/…$/, "").trim();
   return flat.length > limit ? `${flat.slice(0, limit).trimEnd()}…` : flat;
 }
+
+/**
+ * True when the customer explicitly asks to see the service list again.
+ * Once they type their own request the list stays hidden, so an off-list
+ * request is not answered with the very list they just stepped outside of.
+ */
+export function asksForServiceList(text: string): boolean {
+  const t = text.toLowerCase();
+  if (!/\b(service|services|option|options|list|offer|offers|do you do|provide)\b/.test(t)) {
+    return false;
+  }
+  return /\b(what|which|show|see|list|any|got|have|available|options)\b/.test(t);
+}

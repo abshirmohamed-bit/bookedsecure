@@ -547,7 +547,7 @@ export async function replyToWebChat(input: {
     const prompt = promptFor(followUp, chatTenant, next);
     const detail =
       followUp === "vehicle" && next.service_name
-        ? `Great — ${next.service_name}. I'll pass the details to the team for review; nothing is priced or booked here.`
+        ? `Great, ${next.service_name}. I'll pass the details to the team for review; nothing is priced or booked here.`
         : null;
     if (detail) await addMessage(tenant.businessId, conversation.id, "assistant", detail);
     await addMessage(tenant.businessId, conversation.id, "assistant", prompt.text);

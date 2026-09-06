@@ -7,7 +7,7 @@ import {
   resumeQuoteConversation,
   startQuoteConversation,
 } from "@/lib/web-chat.functions";
-import { isSuppressedOpeningTurn } from "@/lib/web-chat-presentation";
+import { asksForServiceList, isSuppressedOpeningTurn } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
 import { BOOKING_CHANGE_CHOICE, BOOKING_CONFIRM_CHOICE, NO_SLOT_CHOICE } from "@/lib/web-chat-booking";
 
@@ -50,6 +50,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const [selected, setSelected] = useState<string | null>(null);
   /** Local-only: the customer chose "Something else" and is describing it. */
   const [describing, setDescribing] = useState(false);
+  /** Local-only: the customer typed their own request, so the service list
+   *  stays hidden until they ask to see it again. */
+  const [listHidden, setListHidden] = useState(false);
   /** Optimistic customer bubble; survives errors so the message never vanishes. */
   const [pending, setPending] = useState<Pending | null>(null);
   const inFlight = useRef(false);
@@ -114,7 +117,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
 
   const onServiceStep = prompt?.step === "service" && prompt.kind === "choice";
-  const serviceOptions = onServiceStep ? (prompt?.options ?? []) : [];
+  const serviceOptions = onServiceStep && !listHidden ? (prompt?.options ?? []) : [];
   const onBookingStep = prompt?.step === "booking" && prompt.kind === "choice";
   const bookingOptions = onBookingStep ? (prompt?.options ?? []) : [];
   const onBookingConfirmStep = prompt?.step === "booking_confirm" && prompt.kind === "choice";
@@ -292,6 +295,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                     setSelected(option.value);
                                     if (isFlexible) {
                                       setDescribing(true);
+                                      setListHidden(true);
                                       setError(null);
                                       requestAnimationFrame(() => input.current?.focus());
                                       return;
@@ -539,6 +543,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (!canSend) return;
+                  setListHidden(!asksForServiceList(draft));
                   send(draft);
                 }}
               >
