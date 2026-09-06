@@ -99,39 +99,43 @@ describe("dormant-lead classification", () => {
 });
 
 describe("offer proposal", () => {
-  it("uses the tenant's own first active service", () => {
-    expect(proposeOffer({ serviceNames: ["Full Interior Detail", "Wash"] })).toBe(
-      "15% off your next Full Interior Detail",
-    );
-  });
-
-  it("falls back to a neutral wording when no services exist", () => {
-    expect(proposeOffer({ serviceNames: [] })).toBe("15% off your next service");
+  it("stays generic and never names a service", () => {
+    expect(proposeOffer()).toBe("15% off your next enquiry");
   });
 
   it("honours a custom percentage", () => {
-    expect(proposeOffer({ serviceNames: null, percent: 20 })).toBe("20% off your next service");
+    expect(proposeOffer({ percent: 20 })).toBe("20% off your next enquiry");
   });
 });
 
 describe("message render", () => {
+  const quoteUrl = "https://bookedsecure.lovable.app/quote/glocast";
   const rendered = renderReactivationMessage({
     businessName: "Acme Detailing",
     leadName: "bdeir smith",
-    offerText: "15% off your next Full Interior Detail",
+    offerText: "15% off your next enquiry",
+    quoteUrl,
   });
 
   it("greets by first name and names the tenant", () => {
     expect(rendered.startsWith("Hi bdeir, it's Acme Detailing.")).toBe(true);
   });
 
-  it("stays neutral about history and offers an opt-out", () => {
+  it("includes the tenant's own quote page link and an opt-out", () => {
+    expect(rendered).toContain(quoteUrl);
+    expect(rendered).toMatch(/Reply STOP to opt out/);
+  });
+
+  it("never names a service", () => {
+    expect(rendered).not.toMatch(/interior|exterior|pet hair|detail\b/i);
+  });
+
+  it("stays neutral about history", () => {
     expect(rendered).not.toMatch(/last time|again|previous|welcome back/i);
-    expect(rendered).toMatch(/STOP to opt out/);
   });
 
   it("survives its own guard unchanged", () => {
-    const guarded = guardReactivationMessage(rendered, "15% off your next Full Interior Detail");
+    const guarded = guardReactivationMessage(rendered, "15% off your next enquiry");
     expect(guarded.flagged).toEqual([]);
     expect(guarded.text).toBe(rendered);
   });
@@ -143,11 +147,32 @@ describe("message render", () => {
   it("works without a name", () => {
     const anon = renderReactivationMessage({
       businessName: "Acme Detailing",
-      offerText: "15% off your next service",
+      offerText: "15% off your next enquiry",
+      quoteUrl,
     });
     expect(anon.startsWith("Hi, it's Acme Detailing.")).toBe(true);
   });
+
+  it("falls back to a reply prompt when the tenant has no quote page", () => {
+    const noLink = renderReactivationMessage({
+      businessName: "Acme Detailing",
+      offerText: "15% off your next enquiry",
+    });
+    expect(noLink).not.toMatch(/https?:/);
+    expect(noLink).toMatch(/STOP to opt out/);
+  });
+
+  it("uses each tenant's own link, never another tenant's", () => {
+    const other = renderReactivationMessage({
+      businessName: "Shine Co",
+      offerText: "15% off your next enquiry",
+      quoteUrl: "https://bookedsecure.lovable.app/quote/shine-co",
+    });
+    expect(other).toContain("/quote/shine-co");
+    expect(other).not.toContain("glocast");
+  });
 });
+
 
 describe("content guard", () => {
   const offer = "15% off your next detail";
