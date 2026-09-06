@@ -316,72 +316,139 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
 
   const capturedConsentAt = new Date().toISOString();
 
-  const { data: lead, error } = await supabaseAdmin
+  const consentPatch = buildConsentPromotion({
+    consented: input.consent,
+    consentText: input.consent_text,
+    sourceChannel: input.source_channel,
+    sourceForm: input.source_form,
+    formUrl: input.consent_source_url,
+    at: capturedConsentAt,
+  });
 
-    .from("leads")
-    .insert({
-      business_id: businessId,
-      name: input.name,
-      mobile_number: mobile ?? input.mobile_number,
-      email: input.email ?? null,
-      suburb: input.suburb ?? null,
-      vehicle_type: input.vehicle_type ?? null,
-      last_cleaned_at: input.last_cleaned_at ?? null,
-      main_concerns: input.main_concerns ?? null,
-      service_intent: input.service_intent ?? null,
-      source_channel: input.source_channel ?? "unknown",
-      source_campaign: input.source_campaign ?? null,
-      source_form: input.source_form ?? null,
-      utm_source: input.utm_source ?? null,
-      utm_campaign: input.utm_campaign ?? null,
-      status,
-      readiness_classification: "new",
-      request_type: input.request_type ?? null,
-      approved_service_id: input.approved_service_id ?? null,
-      service_name_snapshot: input.service_name_snapshot ?? null,
-      flexible_request_text: input.flexible_request_text ?? null,
-      requires_owner_review: input.requires_owner_review ?? false,
-      ...(input.lead_origin ? { lead_origin: input.lead_origin } : {}),
-      ...(input.source_metadata ? { source_metadata: input.source_metadata as never } : {}),
-      ...(input.external_id ? { external_id: input.external_id } : {}),
-      // Consent promotion is branch-independent: the same canonical fields are
-      // written for listed-service, unlisted/recommendation, owner-review and
-      // contact-only submissions alike.
-      ...buildConsentPromotion({
-        consented: input.consent,
-        consentText: input.consent_text,
-        sourceChannel: input.source_channel,
-        sourceForm: input.source_form,
-        formUrl: input.consent_source_url,
-        at: capturedConsentAt,
-      }),
+  const enquiryFields = {
+    name: input.name,
+    email: input.email ?? null,
+    suburb: input.suburb ?? null,
+    vehicle_type: input.vehicle_type ?? null,
+    last_cleaned_at: input.last_cleaned_at ?? null,
+    main_concerns: input.main_concerns ?? null,
+    service_intent: input.service_intent ?? null,
+    request_type: input.request_type ?? null,
+    approved_service_id: input.approved_service_id ?? null,
+    service_name_snapshot: input.service_name_snapshot ?? null,
+    flexible_request_text: input.flexible_request_text ?? null,
+    external_id: input.external_id ?? null,
+    source_channel: input.source_channel ?? "unknown",
+    source_form: input.source_form ?? null,
+    source_campaign: input.source_campaign ?? null,
+    utm_source: input.utm_source ?? null,
+    utm_campaign: input.utm_campaign ?? null,
+    lead_origin: input.lead_origin ?? null,
+    requires_owner_review: input.requires_owner_review ?? false,
+    source_metadata: (input.source_metadata ?? null) as Record<string, unknown> | null,
+  };
 
-    })
-    .select("id")
-    .single();
-
-  if (error || !lead) {
-    // Concurrent retry lost the race on the unique (business_id, external_id) index:
-    // read back the winning lead rather than creating or modifying anything.
-    if (input.external_id && error?.code === "23505") {
-      const { data: raced } = await supabaseAdmin
+  // A contact who already exists (an imported/dormant lead, or an earlier
+  // enquiry) keeps their own record: the new enquiry enriches that profile
+  // instead of creating a second one, so history is never split.
+  let leadId: string | null = null;
+  if (mobile) {
+    const { data: returning } = await supabaseAdmin
+      .from("leads")
+      .select(
+        "id, name, email, suburb, vehicle_type, last_cleaned_at, main_concerns, service_intent, request_type, approved_service_id, service_name_snapshot, flexible_request_text, external_id",
+      )
+      .eq("business_id", businessId)
+      .eq("mobile_number", mobile)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (returning?.id) {
+      const patch = mergeReturningLead(returning, enquiryFields);
+      await supabaseAdmin
         .from("leads")
-        .select("id")
-        .eq("business_id", businessId)
-        .eq("external_id", input.external_id)
-        .maybeSingle();
-      if (raced?.id) {
-        return { leadId: raced.id, duplicate: true, acknowledgementSent: false };
-      }
+        .update({ ...patch, ...consentPatch } as never)
+        .eq("id", returning.id)
+        .eq("business_id", businessId);
+      leadId = returning.id;
     }
-    throw new Error(error?.message ?? "Could not create lead");
   }
 
-  await supabaseAdmin.from("conversations").insert({
-    business_id: businessId,
-    lead_id: lead.id,
-    status: "open",
-  });
+  if (!leadId) {
+    const { data: lead, error } = await supabaseAdmin
+
+      .from("leads")
+      .insert({
+        business_id: businessId,
+        name: input.name,
+        mobile_number: mobile ?? input.mobile_number,
+        email: input.email ?? null,
+        suburb: input.suburb ?? null,
+        vehicle_type: input.vehicle_type ?? null,
+        last_cleaned_at: input.last_cleaned_at ?? null,
+        main_concerns: input.main_concerns ?? null,
+        service_intent: input.service_intent ?? null,
+        source_channel: input.source_channel ?? "unknown",
+        source_campaign: input.source_campaign ?? null,
+        source_form: input.source_form ?? null,
+        utm_source: input.utm_source ?? null,
+        utm_campaign: input.utm_campaign ?? null,
+        status,
+        readiness_classification: "new",
+        request_type: input.request_type ?? null,
+        approved_service_id: input.approved_service_id ?? null,
+        service_name_snapshot: input.service_name_snapshot ?? null,
+        flexible_request_text: input.flexible_request_text ?? null,
+        requires_owner_review: input.requires_owner_review ?? false,
+        ...(input.lead_origin ? { lead_origin: input.lead_origin } : {}),
+        ...(input.source_metadata ? { source_metadata: input.source_metadata as never } : {}),
+        ...(input.external_id ? { external_id: input.external_id } : {}),
+        // Consent promotion is branch-independent: the same canonical fields are
+        // written for listed-service, unlisted/recommendation, owner-review and
+        // contact-only submissions alike.
+        ...consentPatch,
+
+      })
+      .select("id")
+      .single();
+
+    if (error || !lead) {
+      // Concurrent retry lost the race on the unique (business_id, external_id) index:
+      // read back the winning lead rather than creating or modifying anything.
+      if (input.external_id && error?.code === "23505") {
+        const { data: raced } = await supabaseAdmin
+          .from("leads")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("external_id", input.external_id)
+          .maybeSingle();
+        if (raced?.id) {
+          return { leadId: raced.id, duplicate: true, acknowledgementSent: false };
+        }
+      }
+      throw new Error(error?.message ?? "Could not create lead");
+    }
+    leadId = lead.id;
+  }
+
+  const lead = { id: leadId };
+
+  const { data: openConversation } = await supabaseAdmin
+    .from("conversations")
+    .select("id")
+    .eq("business_id", businessId)
+    .eq("lead_id", lead.id)
+    .limit(1)
+    .maybeSingle();
+  if (!openConversation?.id) {
+    await supabaseAdmin.from("conversations").insert({
+      business_id: businessId,
+      lead_id: lead.id,
+      status: "open",
+    });
+  }
+
 
   if (input.consent) {
     await recordConsentEvent({
