@@ -110,11 +110,11 @@ export function HomeHero() {
 
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 pb-20 text-center">
         <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
-          Ask about your business.
+          Sell it with their emotions. Let them justify with logic.
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground">
-          Leads, bookings, replies and win-back campaigns — answered from your own records. Nothing
-          is sent or changed from here.
+          Funnel new leads from your ads with a shareable quote page, or upload old contacts and
+          re-engage them — one place to capture, answer and win back every enquiry.
         </p>
 
         <form
