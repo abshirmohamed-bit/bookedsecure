@@ -57,7 +57,7 @@ function isEmpty(value: unknown): boolean {
   return value === null || value === undefined || (typeof value === "string" && value.trim() === "");
 }
 
-function usableName(value: unknown): boolean {
+export function usableName(value: unknown): boolean {
   if (typeof value !== "string") return false;
   const trimmed = value.trim();
   return trimmed.length > 1 && !PLACEHOLDER_NAMES.has(trimmed.toLowerCase());

@@ -82,7 +82,11 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
         }
         window.sessionStorage.removeItem(storageKey);
       }
-      const result = await start({ data: { slug: tenant.slug, company: "" } });
+      // A campaign link carries the contact's private token (?c=…) so the chat
+      // recognises them and never re-asks details we already have.
+      const campaignToken =
+        typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("c");
+      const result = await start({ data: { slug: tenant.slug, company: "", c: campaignToken } });
       if (!result.ok) {
         setError(result.error);
         return;

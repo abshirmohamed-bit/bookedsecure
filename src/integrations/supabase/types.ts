@@ -1300,6 +1300,7 @@ export type Database = {
           name: string
           notes: string | null
           opted_out_at: string | null
+          public_token: string
           quote_status: string
           reachability_evidence: string | null
           reachability_evidence_at: string | null
@@ -1370,6 +1371,7 @@ export type Database = {
           name: string
           notes?: string | null
           opted_out_at?: string | null
+          public_token?: string
           quote_status?: string
           reachability_evidence?: string | null
           reachability_evidence_at?: string | null
@@ -1440,6 +1442,7 @@ export type Database = {
           name?: string
           notes?: string | null
           opted_out_at?: string | null
+          public_token?: string
           quote_status?: string
           reachability_evidence?: string | null
           reachability_evidence_at?: string | null

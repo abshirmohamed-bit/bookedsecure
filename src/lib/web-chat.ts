@@ -5,6 +5,7 @@
 import { normaliseAuMobile } from "@/lib/domain";
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import { looksUncertain, uncertainServiceMessage } from "@/lib/web-chat-conversation";
+import { usableName } from "@/lib/returning-lead";
 
 import {
   BOOKING_CHANGE_CHOICE,
@@ -108,6 +109,27 @@ export function serviceDetail(service: WebChatService): string | null {
     service.qualification_note?.trim() || null,
   ].filter(Boolean) as string[];
   return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/**
+ * Details already on file for a contact arriving via their own campaign link.
+ * The campaign could only have been sent because name/number (and usually
+ * email) already exist, so those steps are prefilled and never re-asked.
+ * A placeholder name ("web visitor", "unknown", …) is NOT prefilled — the
+ * name step still runs so a real name is captured.
+ */
+export function campaignPrefill(lead: {
+  name?: string | null;
+  mobile_number?: string | null;
+  email?: string | null;
+}): Pick<WebChatCollected, "name" | "mobile_number" | "email"> | null {
+  const mobile = (lead.mobile_number ?? "").trim();
+  if (!mobile) return null;
+  return {
+    name: usableName(lead.name) ? (lead.name as string).trim() : null,
+    mobile_number: mobile,
+    email: (lead.email ?? "").trim() || null,
+  };
 }
 
 /** First step that still needs an answer, or null when the conversation is complete. */

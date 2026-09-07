@@ -7,6 +7,7 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  campaignQuoteUrl,
   checkApproval,
   classifyReactivationCandidate,
   guardReactivationMessage,
@@ -31,7 +32,7 @@ export function tenantQuoteLink(slug: string | null | undefined): string | null 
 }
 
 const LEAD_COLUMNS =
-  "id, name, mobile_number, email, booking_status, verified_service_id, verified_vehicle, verified_suburb, verified_concern, vehicle_type, suburb, main_concerns, approved_service_id, opted_out_at, sms_suppressed_at, deleted_at, lead_origin, created_at";
+  "id, name, mobile_number, email, booking_status, verified_service_id, verified_vehicle, verified_suburb, verified_concern, vehicle_type, suburb, main_concerns, approved_service_id, opted_out_at, sms_suppressed_at, deleted_at, lead_origin, created_at, public_token";
 
 export type ReactivationCandidate = {
   leadId: string;
@@ -39,6 +40,7 @@ export type ReactivationCandidate = {
   mobileNumber: string;
   email: string | null;
   createdAt: string | null;
+  publicToken: string | null;
 };
 
 type LeadRow = {
@@ -59,6 +61,7 @@ type LeadRow = {
   sms_suppressed_at: string | null;
   deleted_at: string | null;
   created_at: string | null;
+  public_token?: string | null;
 };
 
 export function factsFromLead(
@@ -130,6 +133,7 @@ export async function loadReactivationCandidates(
         mobileNumber: row.mobile_number ?? "",
         email: row.email,
         createdAt: row.created_at,
+        publicToken: row.public_token ?? null,
       });
     } else {
       excluded += 1;
@@ -351,7 +355,7 @@ export async function draftReactivationCampaign(input: {
       businessName,
       leadName: candidate.name,
       offerText: offer.offer,
-      quoteUrl,
+      quoteUrl: campaignQuoteUrl(quoteUrl, candidate.publicToken),
       signature: business?.sms_signature ?? null,
     });
     const guarded = guardReactivationMessage(rendered, offer.offer);
@@ -580,7 +584,7 @@ export async function processDueReactivationReminders(now: Date = new Date()): P
           .maybeSingle(),
         supabaseAdmin
           .from("leads")
-          .select("id, name, booking_status, opted_out_at, sms_suppressed_at, deleted_at")
+          .select("id, name, booking_status, opted_out_at, sms_suppressed_at, deleted_at, public_token")
           .eq("id", leadId)
           .eq("business_id", businessId)
           .maybeSingle(),
@@ -643,7 +647,7 @@ export async function processDueReactivationReminders(now: Date = new Date()): P
         businessName: business.name,
         leadName: lead.name,
         offerText: campaign.offer_text as string,
-        quoteUrl: tenantQuoteLink(business.slug),
+        quoteUrl: campaignQuoteUrl(tenantQuoteLink(business.slug), lead.public_token as string | null),
         signature: business.sms_signature,
       }),
       campaign.offer_text as string,

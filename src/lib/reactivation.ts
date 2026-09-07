@@ -6,6 +6,22 @@
 
 import { sanitiseCustomerText } from "@/lib/customer-text";
 
+/**
+ * Personal campaign link: the contact's private token lets the quote page
+ * recognise them, so they are never re-asked for details we already have.
+ * Without a token the plain link is returned unchanged.
+ */
+export function campaignQuoteUrl(
+  quoteUrl: string | null | undefined,
+  publicToken: string | null | undefined,
+): string | null {
+  const base = typeof quoteUrl === "string" ? quoteUrl.trim() : "";
+  if (!base) return null;
+  const token = typeof publicToken === "string" ? publicToken.trim() : "";
+  if (!token) return base;
+  return `${base}${base.includes("?") ? "&" : "?"}c=${encodeURIComponent(token)}`;
+}
+
 /** Everything the classifier may look at. All server-observed facts. */
 export type ReactivationFacts = {
   /** Any customer-facing SMS in either direction. */
