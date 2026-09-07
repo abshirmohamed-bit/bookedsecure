@@ -85,6 +85,8 @@ export type WebChatState = {
   declined: boolean;
   duplicate: boolean;
   error?: string | null;
+  /** First name of a contact recognised via their personal campaign link. */
+  returningName?: string | null;
 };
 
 function toChatTenant(tenant: PublicTenant): WebChatTenant {
@@ -268,6 +270,13 @@ export async function startWebChat(slug: string, campaignToken?: string | null):
   await addMessage(tenant.businessId, conversation.id, "assistant", greeting);
   await addMessage(tenant.businessId, conversation.id, "assistant", first.text);
 
+  // A recognised returning contact is greeted by (first) name.
+  const returningName = (() => {
+    const first2 = (prefill.name ?? "").trim().split(/\s+/)[0] ?? "";
+    if (!first2) return null;
+    return first2.charAt(0).toUpperCase() + first2.slice(1);
+  })();
+
   return {
     conversationId: conversation.id,
     status: "active",
@@ -280,6 +289,7 @@ export async function startWebChat(slug: string, campaignToken?: string | null):
     completed: false,
     declined: false,
     duplicate: false,
+    returningName,
   };
 }
 
