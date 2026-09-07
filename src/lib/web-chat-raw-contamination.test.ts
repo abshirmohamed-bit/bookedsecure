@@ -250,7 +250,7 @@ describe("merge and missing-field guarantees", () => {
       now,
     );
     const { collected } = applyIntake({}, extraction, chatTenant);
-    expect(outstandingFields(collected)).toEqual(["concerns", "mobile"]);
+    expect(outstandingFields(collected)).toEqual(["address", "concerns", "mobile"]);
     expect(nextStep(collected)).toBe("concerns");
   });
 
@@ -263,6 +263,7 @@ describe("merge and missing-field guarantees", () => {
       concerns: "wet carpet",
       name: "Abshir",
       mobile_number: "+61466907824",
+      service_address: "12 Smith St",
     };
     expect(outstandingFields(collected)).toEqual([]);
   });

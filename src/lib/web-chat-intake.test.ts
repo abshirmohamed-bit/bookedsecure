@@ -168,7 +168,7 @@ describe("grouped collection", () => {
     expect(applied).toContain("location");
     expect(collected.service_id).toBe("s1");
     expect(collected.suburb).toBe("Punchbowl");
-    expect(outstandingFields(collected)).toEqual(["name", "mobile"]);
+    expect(outstandingFields(collected)).toEqual(["address", "name", "mobile"]);
   });
 
   it("asks the remaining fields together, not one at a time", () => {
