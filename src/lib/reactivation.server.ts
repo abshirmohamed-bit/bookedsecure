@@ -31,7 +31,7 @@ export function tenantQuoteLink(slug: string | null | undefined): string | null 
 }
 
 const LEAD_COLUMNS =
-  "id, name, mobile_number, email, booking_status, verified_service_id, verified_vehicle, verified_suburb, verified_concern, vehicle_type, suburb, main_concerns, approved_service_id, opted_out_at, sms_suppressed_at, deleted_at, lead_origin, created_at";
+  "id, name, mobile_number, email, booking_status, verified_service_id, verified_vehicle, verified_suburb, verified_concern, vehicle_type, suburb, main_concerns, approved_service_id, opted_out_at, sms_suppressed_at, deleted_at, lead_origin, created_at, public_token";
 
 export type ReactivationCandidate = {
   leadId: string;
@@ -39,6 +39,7 @@ export type ReactivationCandidate = {
   mobileNumber: string;
   email: string | null;
   createdAt: string | null;
+  publicToken: string | null;
 };
 
 type LeadRow = {
@@ -59,6 +60,7 @@ type LeadRow = {
   sms_suppressed_at: string | null;
   deleted_at: string | null;
   created_at: string | null;
+  public_token: string | null;
 };
 
 export function factsFromLead(
@@ -130,6 +132,7 @@ export async function loadReactivationCandidates(
         mobileNumber: row.mobile_number ?? "",
         email: row.email,
         createdAt: row.created_at,
+        publicToken: row.public_token,
       });
     } else {
       excluded += 1;
