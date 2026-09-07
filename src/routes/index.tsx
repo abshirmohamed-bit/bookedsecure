@@ -1,32 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
-import { LeadsWorkspace } from "@/components/LeadsWorkspace";
+import { HomeHero } from "@/components/home/HomeHero";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Lead inbox — BookedSecure" },
+      { title: "BookedSecure — ask about your business" },
       {
         name: "description",
         content:
-          "Today's detailing enquiries, SMS follow-up status and completed-job revenue by source channel.",
+          "Ask about leads, bookings, replies and win-back campaigns, answered from your own records. Read-only: nothing is sent or changed.",
       },
-      { property: "og:title", content: "Lead inbox — BookedSecure" },
+      { property: "og:title", content: "BookedSecure — ask about your business" },
       {
         property: "og:description",
-        content: "Respond faster to detailing enquiries and track completed jobs by source.",
+        content: "Read-only answers about your leads, bookings, replies and win-back campaigns.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: DashboardPage,
+  component: HomePage,
 });
 
-function DashboardPage() {
-  return (
-    <AppShell title="Leads">
-      <LeadsWorkspace />
-    </AppShell>
-  );
+function HomePage() {
+  return <HomeHero />;
 }
