@@ -43,6 +43,7 @@ function ai(overrides: Partial<WebChatAiExtraction> = {}): WebChatAiExtraction {
     service: null,
     vehicle: null,
     suburb: null,
+    address: null,
     condition: null,
     concerns: null,
     name: null,

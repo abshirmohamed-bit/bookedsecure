@@ -117,6 +117,7 @@ const FIELD_WORD: Record<IntakeField, string> = {
   service: "the service",
   vehicle: "the vehicle",
   location: "the suburb",
+  address: "the street address",
   concerns: "the condition",
   name: "your name",
   mobile: "your mobile number",
