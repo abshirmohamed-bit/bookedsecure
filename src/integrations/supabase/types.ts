@@ -1307,6 +1307,7 @@ export type Database = {
           readiness_classification: string | null
           request_type: string | null
           requires_owner_review: boolean
+          service_address: string | null
           service_intent: string | null
           service_name_snapshot: string | null
           sms_suppressed_at: string | null
@@ -1376,6 +1377,7 @@ export type Database = {
           readiness_classification?: string | null
           request_type?: string | null
           requires_owner_review?: boolean
+          service_address?: string | null
           service_intent?: string | null
           service_name_snapshot?: string | null
           sms_suppressed_at?: string | null
@@ -1445,6 +1447,7 @@ export type Database = {
           readiness_classification?: string | null
           request_type?: string | null
           requires_owner_review?: boolean
+          service_address?: string | null
           service_intent?: string | null
           service_name_snapshot?: string | null
           sms_suppressed_at?: string | null
@@ -2684,6 +2687,7 @@ export type Database = {
           reachability_evidence_at: string | null
           reachability_state: string | null
           readiness_classification: string | null
+          service_address: string | null
           service_intent: string | null
           sms_suppressed_at: string | null
           sms_suppression_reason: string | null
