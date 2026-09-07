@@ -20,6 +20,7 @@ export const WEB_CHAT_STEPS = [
   "service",
   "vehicle",
   "suburb",
+  "address",
   "concerns",
   "name",
   "mobile",
@@ -56,6 +57,8 @@ export type WebChatCollected = {
   typed_request?: string | null;
   vehicle_type?: string | null;
   suburb?: string | null;
+  /** Full street address the service is performed at. */
+  service_address?: string | null;
   concerns?: string | null;
   name?: string | null;
   mobile_number?: string | null;
@@ -113,6 +116,7 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
   if (!collected.service_id && !(collected.typed_request ?? "").trim()) return "service";
   if (!(collected.vehicle_type ?? "").trim()) return "vehicle";
   if (!(collected.suburb ?? "").trim()) return "suburb";
+  if (!(collected.service_address ?? "").trim()) return "address";
   if (!(collected.concerns ?? "").trim()) return "concerns";
   if (!(collected.name ?? "").trim()) return "name";
   if (!collected.mobile_number) return "mobile";
@@ -146,6 +150,7 @@ export function reviewSummary(collected: WebChatCollected): WebChatReviewField[]
     { step: "service", label: "Service", value: collected.service_name ?? collected.typed_request ?? "Not sure yet" },
     { step: "vehicle", label: "Vehicle", value: collected.vehicle_type ?? "—" },
     { step: "suburb", label: "Suburb", value: collected.suburb ?? "—" },
+    { step: "address", label: "Address", value: collected.service_address ?? "—" },
     { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "—" },
     { step: "name", label: "Name", value: collected.name ?? "—" },
     { step: "mobile", label: "Mobile", value: collected.mobile_number ?? "—" },
@@ -230,6 +235,12 @@ function buildPrompt(
       return { step, kind: "text", text: "What's the vehicle? (make and model)" };
     case "suburb":
       return { step, kind: "text", text: "Which suburb is it in?" };
+    case "address":
+      return {
+        step,
+        kind: "text",
+        text: "What's the street address we should come to? (number and street)",
+      };
     case "concerns":
       return {
         step,
@@ -343,7 +354,10 @@ function clauseParts(text: string): string[] {
 }
 
 /** Evidence the value carries a field other than the one being answered. */
-function carriesOtherFields(step: "suburb" | "vehicle" | "name" | "concerns", value: string): boolean {
+function carriesOtherFields(
+  step: "suburb" | "vehicle" | "name" | "concerns" | "address",
+  value: string,
+): boolean {
   if (CONTACT_MARKER.test(value) || AU_PHONE_LIKE.test(value) || EMAIL_LIKE.test(value)) return true;
   // "my name is ..." is a perfectly good answer at the name step itself.
   return step !== "name" && NAME_MARKER.test(value);
@@ -472,6 +486,19 @@ export function applyAnswer(
       if (rejection) return { ok: false, error: rejection };
       next.suburb = suburb;
       return { ok: true, collected: next, echo: suburb };
+    }
+    case "address": {
+      const address = value.replace(/[\s.,;:]+$/, "");
+      if (address.length < 4 || address.split(/\s+/).filter(Boolean).length < 2) {
+        return { ok: false, error: "Please give the street number and street name." };
+      }
+      // An address is naturally multi-word, so only foreign fields are refused.
+      if (carriesOtherFields("address", address)) {
+        return { ok: false, error: "Just the street address is fine, for example 12 Smith St." };
+      }
+      if (address.length > 160) return { ok: false, error: "Please give a shorter street address." };
+      next.service_address = address;
+      return { ok: true, collected: next, echo: address };
     }
     case "concerns": {
       if (value.length < 2) return { ok: false, error: "A short description of the condition helps the team." };
