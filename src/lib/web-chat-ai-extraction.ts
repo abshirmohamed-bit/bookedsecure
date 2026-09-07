@@ -45,6 +45,7 @@ export const AI_EXTRACTION_FIELDS = [
   "service",
   "vehicle",
   "suburb",
+  "address",
   "concerns",
   "name",
   "mobile",
@@ -60,6 +61,8 @@ export const WebChatAiExtractionSchema = z.object({
   service: z.string().nullable(),
   vehicle: z.string().nullable(),
   suburb: z.string().nullable(),
+  /** Full street address (number and street), separate from the suburb. */
+  address: z.string().nullable(),
   condition: z.string().nullable(),
   concerns: z.string().nullable(),
   name: z.string().nullable(),
@@ -108,6 +111,8 @@ export function stepToIntakeField(step: string): IntakeField | null {
       return "vehicle";
     case "suburb":
       return "location";
+    case "address":
+      return "address";
     case "concerns":
       return "concerns";
     case "name":
@@ -155,6 +160,7 @@ export function buildAiExtractionSystem(context: AiExtractionContext): string {
     "- Never invent or state a price, availability, date, time, appointment, booking confirmation, consent or vehicle detail.",
     "- Never approve or substitute a service. Only name a service that appears in the approved list below, otherwise leave service null.",
     "- Only name a suburb the customer stated. Prefer an entry from the approved locations list when it matches.",
+    "- Capture the full street address (unit/number and street name) in `address` when the customer states it, and keep the suburb in `suburb`. Never invent an address.",
     "- If the customer changes a value they gave earlier, list it in corrections with the new value.",
     "- If a value is genuinely ambiguous, list the field in ambiguous_fields and leave its value null.",
     "- Never ask for a field that is already present and valid in the current state.",
@@ -189,6 +195,7 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
     service: context.collected.service_name ?? context.collected.typed_request ?? null,
     vehicle: context.collected.vehicle_type ?? null,
     suburb: context.collected.suburb ?? null,
+    address: context.collected.service_address ?? null,
     concerns: context.collected.concerns ?? null,
     name: context.collected.name ?? null,
     mobile: context.collected.mobile_number ?? null,
@@ -239,6 +246,7 @@ export function mergeAiExtraction(
   // guess for it is dropped rather than silently stored.
   if (ambiguous.has("service")) next.service = null;
   if (ambiguous.has("suburb")) next.location = null;
+  if (ambiguous.has("address")) next.address = null;
   if (ambiguous.has("vehicle")) next.vehicle = null;
   if (ambiguous.has("name")) next.name = null;
   if (ambiguous.has("mobile")) next.mobile = null;
@@ -267,6 +275,9 @@ export function mergeAiExtraction(
         next.ambiguities.push({ field: "location", options: match.locations });
     } else next.location = suburbText;
   }
+
+  const address = ambiguous.has("address") ? null : trimmed(ai.address);
+  if (address) next.address = address;
 
   const vehicle = ambiguous.has("vehicle") ? null : trimmed(ai.vehicle);
   if (vehicle) next.vehicle = vehicle;
@@ -317,6 +328,8 @@ function currentValue(collected: WebChatCollected, field: AiExtractionField): st
       return collected.vehicle_type ?? null;
     case "suburb":
       return collected.suburb ?? null;
+    case "address":
+      return collected.service_address ?? null;
     case "concerns":
       return collected.concerns ?? null;
     case "name":
@@ -364,6 +377,7 @@ export function aiCorrectionMessage(applied: AiCorrection[]): string {
     service: "service",
     vehicle: "vehicle",
     suburb: "suburb",
+    address: "address",
     concerns: "condition notes",
     name: "name",
     mobile: "mobile number",

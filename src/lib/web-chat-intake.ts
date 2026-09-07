@@ -52,6 +52,8 @@ export type IntakeExtraction = {
   service: IntakeService | null;
   /** Approved location, or null. */
   location: string | null;
+  /** Full street address the customer stated, or null. */
+  address: string | null;
   /** ISO date (yyyy-mm-dd) in the tenant timezone, when stated. */
   preferredDate: string | null;
   /** 24h HH:MM in the tenant timezone, or a part-of-day word the customer used. */
@@ -623,6 +625,8 @@ export function extractIntake(raw: string, tenant: IntakeTenant, now: Date): Int
     intent: "unclear",
     service,
     location,
+    // A street address is never guessed from prose here; the model supplies it.
+    address: null,
     preferredDate: dateMatch.kind === "one" ? dateMatch.date : null,
     preferredTime: timeMatch.kind === "one" ? timeMatch.time : null,
     name,
