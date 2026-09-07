@@ -22,6 +22,21 @@ export function campaignQuoteUrl(
   return `${base}${base.includes("?") ? "&" : "?"}c=${encodeURIComponent(token)}`;
 }
 
+/**
+ * Short personal campaign link for SMS: a compact /b/<token> address that
+ * redirects to the contact's own tenant quote page with their token attached.
+ * Keeps customer texts short and readable; universal across tenants.
+ */
+export function campaignShortLink(
+  origin: string | null | undefined,
+  publicToken: string | null | undefined,
+): string | null {
+  const base = typeof origin === "string" ? origin.trim().replace(/\/+$/, "") : "";
+  const token = typeof publicToken === "string" ? publicToken.trim() : "";
+  if (!base || !token) return null;
+  return `${base}/b/${encodeURIComponent(token)}`;
+}
+
 /** Everything the classifier may look at. All server-observed facts. */
 export type ReactivationFacts = {
   /** Any customer-facing SMS in either direction. */
@@ -109,7 +124,7 @@ export function renderReactivationMessage(input: {
     name ? `Hi ${name}, it's ${input.businessName}.` : `Hi, it's ${input.businessName}.`,
     `We're offering ${offer}.`,
     quoteUrl
-      ? `Tap the link and let us know what you need: ${quoteUrl}`
+      ? `Book now: ${quoteUrl}`
       : "Reply YES if you'd like us to get you sorted, or STOP to opt out.",
   ];
   if (quoteUrl) parts.push("Reply STOP to opt out.");
@@ -172,7 +187,7 @@ export function renderReactivationReminder(input: {
   const parts = [
     name ? `Hi ${name}, ${input.businessName} again.` : `Hi, ${input.businessName} again.`,
     `Just checking you saw our ${offer}.`,
-    quoteUrl ? `Tell us what you need here: ${quoteUrl}` : "Reply YES if you'd like a hand.",
+    quoteUrl ? `Book now: ${quoteUrl}` : "Reply YES if you'd like a hand.",
     "Reply STOP to opt out.",
   ];
   if (signature) parts.push(signature);
