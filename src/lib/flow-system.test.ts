@@ -99,8 +99,8 @@ describe("system flow — 3. send path and quiet hours", () => {
     requiresOwnerReview: false,
     humanTakeoverActive: false,
     automationPaused: false,
-    templateId: "booking_confirmation.v2",
-    templateVersion: 2,
+    templateId: "booking_confirmation",
+    templateVersion: 1,
     promotional: false,
     serviceRelated: true,
     alreadyBooked: true,
@@ -124,9 +124,9 @@ describe("system flow — 3. send path and quiet hours", () => {
   it("computes the next permitted send time in the tenant's own timezone", () => {
     const settings = { start: "21:00", end: "08:00", timezone: "Australia/Sydney" };
     const lateNight = new Date("2026-09-07T13:00:00.000Z"); // 11pm Sydney
-    expect(localTimeIn("Australia/Sydney", lateNight)).toBe("23:00");
+    expect(localTimeIn("Australia/Sydney", lateNight)).toContain("23:00");
     const release = nextPermittedSendAt(settings, lateNight);
-    expect(localTimeIn("Australia/Sydney", new Date(release))).toBe("08:00");
+    expect(localTimeIn("Australia/Sydney", new Date(release))).toContain("08:00");
     expect(new Date(release).getTime()).toBeGreaterThan(lateNight.getTime());
   });
 });

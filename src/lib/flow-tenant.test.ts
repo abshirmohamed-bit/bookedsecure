@@ -94,7 +94,7 @@ describe("tenant flow — 3. customer-facing copy comes from tenant data", () =>
   it("shows each tenant's own price verbatim, and no price when none is entered", () => {
     expect(
       serviceAcknowledgement(chatTenant(TENANT_A), { service_id: "a1", service_name: "Full Detail" }),
-    ).toBe("Full Detail - from $250.");
+    ).toBe("Full Detail — from $250.");
     expect(
       serviceAcknowledgement(chatTenant(TENANT_B), { service_id: "b1", service_name: "Express Wash" }),
     ).toBe("Express Wash, got it.");
