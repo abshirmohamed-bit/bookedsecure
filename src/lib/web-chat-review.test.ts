@@ -38,6 +38,7 @@ function collectedAll(): WebChatCollected {
     service_name: tenant.services[0]!.name,
     vehicle_type: "Mazda 3",
     suburb: "Marrickville",
+    service_address: "12 Smith St",
     concerns: "Swirls",
     name: "Abshiro",
     mobile_number: "+61447852565",

@@ -118,7 +118,7 @@ describe("prompt and context", () => {
     expect(system).toContain("Never invent or state a price");
     expect(prompt).toContain("Ceramic Coating");
     expect(prompt).toContain("Question currently open: vehicle");
-    expect(prompt).toContain("vehicle, location, concerns, name, mobile");
+    expect(prompt).toContain("vehicle, location, address, concerns, name, mobile");
     expect(prompt).toContain(AUBURN);
   });
 
@@ -158,7 +158,7 @@ describe("the Auburn message", () => {
     const { result } = await resolve(AUBURN, {}, auburnExtraction);
     expect(result.collected.service_id ?? null).toBeNull();
     expect(result.collected.vehicle_type ?? null).toBeUndefined;
-    expect(outstandingFields(result.collected)).toEqual(["service", "vehicle"]);
+    expect(outstandingFields(result.collected)).toEqual(["service", "vehicle", "address"]);
   });
 
   it("is processed even though the open field alone would be one value", async () => {

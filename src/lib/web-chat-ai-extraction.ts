@@ -95,6 +95,8 @@ export type WebChatAiExtraction = z.infer<typeof WebChatAiExtractionSchema>;
  * default to "nothing detected" rather than discarding the whole extraction.
  */
 export const WebChatAiExtractionParseSchema = WebChatAiExtractionSchema.extend({
+  // Tolerated as absent so an older response shape still parses.
+  address: z.string().nullable().catch(null).default(null),
   question_topic: z.enum(QUESTION_TOPICS).nullable().catch(null).default(null),
   uncertain: z.boolean().catch(false).default(false),
   unsupported: z.boolean().catch(false).default(false),

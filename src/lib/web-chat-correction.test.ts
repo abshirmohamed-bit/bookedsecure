@@ -31,6 +31,7 @@ function upToMobile(): WebChatCollected {
     service_name: tenant.services[0]!.name,
     vehicle_type: "Mazda 3",
     suburb: "Marrickville",
+    service_address: "12 Smith St",
     concerns: "Swirls",
     name: "abshir",
   };

@@ -159,7 +159,7 @@ describe("the Auburn first-turn narrative", () => {
     expect(result.collected.mobile_number).toBe("+61466907824");
     expect(result.collected.service_id ?? null).toBeNull();
     expect(result.collected.vehicle_type ?? null).toBeNull();
-    expect(outstandingFields(result.collected)).toEqual(["service", "vehicle"]);
+    expect(outstandingFields(result.collected)).toEqual(["service", "vehicle", "address"]);
     for (const value of [result.collected.suburb, result.collected.name, result.collected.vehicle_type]) {
       expect((value ?? "").length).toBeLessThan(40);
       expect(value ?? "").not.toContain("my number is");

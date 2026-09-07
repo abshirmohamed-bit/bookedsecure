@@ -103,6 +103,7 @@ function ManualQuoteForm() {
     flexible_request_text: "",
     vehicle_type: "",
     suburb: "",
+    service_address: "",
     last_cleaned_at: "",
     main_concerns: "",
     name: "",
@@ -128,7 +129,12 @@ function ManualQuoteForm() {
         return tenant.flexibleRequestsEnabled && form.flexible_request_text.trim().length > 1;
       return true;
     }
-    if (step === 1) return form.vehicle_type.length > 1 && form.suburb.length > 1;
+    if (step === 1)
+      return (
+        form.vehicle_type.length > 1 &&
+        form.suburb.length > 1 &&
+        form.service_address.trim().length > 3
+      );
     if (step === 2) return form.main_concerns.trim().length > 1;
     return (
       form.name.length > 1 && normaliseAuMobile(form.mobile_number) !== null && form.consent
@@ -157,6 +163,7 @@ function ManualQuoteForm() {
           mobile_number: form.mobile_number,
           email: form.email || null,
           suburb: form.suburb,
+          service_address: form.service_address.trim() || null,
           vehicle_type: form.vehicle_type,
           last_cleaned_at: form.last_cleaned_at || null,
           main_concerns: form.main_concerns,
@@ -351,6 +358,14 @@ function ManualQuoteForm() {
                   value={form.suburb}
                   onChange={(event) => set("suburb", event.target.value)}
                   placeholder="e.g. Marrickville"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </Field>
+              <Field label="What's the street address we should come to?">
+                <input
+                  value={form.service_address}
+                  onChange={(event) => set("service_address", event.target.value)}
+                  placeholder="e.g. 12 Smith St"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
               </Field>
