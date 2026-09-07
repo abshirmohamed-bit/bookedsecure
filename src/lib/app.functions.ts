@@ -434,6 +434,7 @@ export const createManualLead = createServerFn({ method: "POST" })
         name: z.string().min(2).max(80),
         mobile_number: z.string().min(8).max(20),
         suburb: z.string().max(80).optional().nullable(),
+        service_address: z.string().max(200).optional().nullable(),
         vehicle_type: z.string().max(60).optional().nullable(),
         main_concerns: z.string().max(500).optional().nullable(),
         service_intent: z.string().max(120).optional().nullable(),

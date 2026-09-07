@@ -237,6 +237,8 @@ export type CaptureInput = {
   mobile_number: string;
   email?: string | null | undefined;
   suburb?: string | null | undefined;
+  /** Full street address where the service is performed. */
+  service_address?: string | null | undefined;
   vehicle_type?: string | null | undefined;
   last_cleaned_at?: string | null | undefined;
   main_concerns?: string | null | undefined;
@@ -330,6 +332,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     name: input.name,
     email: input.email ?? null,
     suburb: input.suburb ?? null,
+    service_address: input.service_address ?? null,
     vehicle_type: input.vehicle_type ?? null,
     last_cleaned_at: input.last_cleaned_at ?? null,
     main_concerns: input.main_concerns ?? null,
@@ -357,7 +360,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     const { data: returning } = await supabaseAdmin
       .from("leads")
       .select(
-        "id, name, email, suburb, vehicle_type, last_cleaned_at, main_concerns, service_intent, request_type, approved_service_id, service_name_snapshot, flexible_request_text, external_id",
+        "id, name, email, suburb, service_address, vehicle_type, last_cleaned_at, main_concerns, service_intent, request_type, approved_service_id, service_name_snapshot, flexible_request_text, external_id",
       )
       .eq("business_id", businessId)
       .eq("mobile_number", mobile)
@@ -386,6 +389,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
         mobile_number: mobile ?? input.mobile_number,
         email: input.email ?? null,
         suburb: input.suburb ?? null,
+        service_address: input.service_address ?? null,
         vehicle_type: input.vehicle_type ?? null,
         last_cleaned_at: input.last_cleaned_at ?? null,
         main_concerns: input.main_concerns ?? null,
@@ -484,6 +488,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       body: [
         `${input.name} · ${mobile ?? input.mobile_number}`,
         input.service_intent ? `Service: ${input.service_intent}` : null,
+        input.service_address ? `Address: ${input.service_address}` : null,
         input.suburb ? `Suburb: ${input.suburb}` : null,
         `Received: ${new Date().toISOString()}`,
       ]
@@ -494,6 +499,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
         name: input.name,
         mobile_number: mobile ?? input.mobile_number,
         service_intent: input.service_intent ?? null,
+        service_address: input.service_address ?? null,
         suburb: input.suburb ?? null,
         received_at: new Date().toISOString(),
         source_channel: input.source_channel ?? "unknown",

@@ -582,6 +582,7 @@ export async function replyToWebChat(input: {
       mobile_number: next.mobile_number ?? "",
       email: next.email ?? null,
       suburb: next.suburb ?? null,
+      service_address: next.service_address ?? null,
       vehicle_type: next.vehicle_type ?? null,
       main_concerns: next.concerns ?? null,
       service_intent: next.service_name ?? next.typed_request ?? "AI quote conversation",
@@ -932,7 +933,7 @@ export async function maybeHandleIntake(args: {
 }): Promise<WebChatState | null> {
   const { tenant, chatTenant, collected, step, turns } = args;
   const raw = args.answer.trim();
-  const collectionSteps = ["service", "vehicle", "suburb", "concerns", "name", "mobile"];
+  const collectionSteps = ["service", "vehicle", "suburb", "address", "concerns", "name", "mobile"];
   if (!collectionSteps.includes(step)) return null;
   if (raw.length < 3) return null;
   if (parseChangeDirective(raw)) return null;
@@ -1053,6 +1054,8 @@ export async function maybeHandleIntake(args: {
                 ? next.vehicle_type ?? ""
                 : field === "location"
                   ? next.suburb ?? ""
+                  : field === "address"
+                    ? next.service_address ?? ""
                   : field === "name"
                     ? next.name ?? ""
                     : field === "mobile"
@@ -1219,6 +1222,7 @@ async function handleBookingChangeRequest(args: {
       .from("leads")
       .update({
         ...(next.suburb ? { suburb: next.suburb } : {}),
+        ...(next.service_address ? { service_address: next.service_address } : {}),
         ...(next.vehicle_type ? { vehicle_type: next.vehicle_type } : {}),
         ...(next.concerns ? { main_concerns: next.concerns } : {}),
         ...(next.name ? { name: next.name } : {}),

@@ -28,6 +28,7 @@ export const LEAD_INBOX_COLUMNS = [
   "mobile_number",
   "email",
   "suburb",
+  "service_address",
   "vehicle_type",
   "service_intent",
   "source_channel",
@@ -80,6 +81,7 @@ export type LeadInboxRow = {
   mobile_number: string;
   email: Nullable;
   suburb: Nullable;
+  service_address: Nullable;
   vehicle_type: Nullable;
   service_intent: Nullable;
   source_channel: string;

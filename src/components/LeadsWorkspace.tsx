@@ -397,6 +397,9 @@ export function LeadsWorkspace() {
                     <p className="text-xs text-muted-foreground">
                       {lead.suburb ?? "Suburb unknown"} · {lead.vehicle_type ?? "Vehicle unknown"}
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      {lead.service_address ?? "Address not provided"}
+                    </p>
                   </td>
                   <td className="px-4 py-2.5 tabular text-xs text-muted-foreground">
                     {lead.mobile_number}
@@ -574,6 +577,7 @@ function AddLeadForm({ onDone }: { onDone: () => void }) {
     name: "",
     mobile_number: "",
     suburb: "",
+    service_address: "",
     vehicle_type: "",
     main_concerns: "",
     service_intent: "",
@@ -588,6 +592,7 @@ function AddLeadForm({ onDone }: { onDone: () => void }) {
         data: {
           ...form,
           suburb: form.suburb || null,
+          service_address: form.service_address || null,
           vehicle_type: form.vehicle_type || null,
           main_concerns: form.main_concerns || null,
           service_intent: form.service_intent || null,
@@ -618,6 +623,7 @@ function AddLeadForm({ onDone }: { onDone: () => void }) {
           ["name", "Name"],
           ["mobile_number", "Mobile (04XX XXX XXX)"],
           ["suburb", "Suburb"],
+          ["service_address", "Street address"],
           ["vehicle_type", "Vehicle type"],
           ["service_intent", "Service intent"],
           ["source_campaign", "Campaign / form"],
