@@ -33,6 +33,7 @@ function complete(): WebChatCollected {
     service_name: tenant.services[0]!.name,
     vehicle_type: "SUV",
     suburb: "Marrickville",
+    service_address: "12 Smith St",
     concerns: "Pet hair",
     name: "Sam",
     mobile_number: "+61447852565",
