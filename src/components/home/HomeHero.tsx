@@ -108,11 +108,11 @@ export function HomeHero() {
         </nav>
       </header>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 pb-20">
-        <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 pb-20 text-center">
+        <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
           Ask about your business.
         </h1>
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground">
           Leads, bookings, replies and win-back campaigns — answered from your own records. Nothing
           is sent or changed from here.
         </p>
@@ -122,7 +122,7 @@ export function HomeHero() {
             event.preventDefault();
             submit(question);
           }}
-          className="mt-6 rounded-2xl border border-border bg-card p-3 shadow-sm"
+          className="mt-8 rounded-2xl border border-border bg-card p-4 text-left shadow-lg"
         >
           <label className="sr-only" htmlFor="owner-question">
             Ask a question about your business
@@ -142,26 +142,84 @@ export function HomeHero() {
             placeholder="How many leads are waiting on a reply?"
             className="w-full resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
           />
-          <div className="flex items-center justify-between px-1 pt-1">
-            <span className="text-xs text-muted-foreground">
-              {loading ? "Checking your access…" : signedIn ? "Read-only answers" : "Sign in to ask"}
-            </span>
-            <button
-              type="submit"
-              aria-label="Ask"
-              disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
-              className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-            >
-              {mutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <ArrowUp className="h-4 w-4" aria-hidden="true" />
-              )}
-            </button>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={chooseFile}
+                disabled={importMutation.isPending}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60"
+              >
+                {importMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <UploadCloud className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                {importMutation.isPending ? "Checking contacts…" : "Upload old leads"}
+              </button>
+              <button
+                type="button"
+                aria-pressed={followUp}
+                onClick={() => setFollowUp((value) => !value)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs ${
+                  followUp
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+                Attach follow-up request
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                aria-label="Choose a contact file to upload"
+                accept=".csv,text/csv,.tsv,text/tab-separated-values"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  if (file.size > MAX_CSV_BYTES) {
+                    toast.error("That file is larger than 2 MB.");
+                    return;
+                  }
+                  importMutation.mutate(file);
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">
+                {loading
+                  ? "Checking your access…"
+                  : signedIn
+                    ? "Read-only answers"
+                    : "Sign in to ask"}
+              </span>
+              <button
+                type="submit"
+                aria-label="Ask"
+                disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
+                className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+              >
+                {mutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </div>
           </div>
         </form>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />
+          {followUp
+            ? "Uploaded contacts will be checked, then you'll approve a win-back follow-up before anything sends."
+            : "Upload a contact list from your old system — nothing is messaged without your approval."}
+        </p>
+
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
           {SUGGESTIONS.map((suggestion) => (
             <button
               key={suggestion}
@@ -173,6 +231,7 @@ export function HomeHero() {
             </button>
           ))}
         </div>
+
 
         {answer ? (
           <div
