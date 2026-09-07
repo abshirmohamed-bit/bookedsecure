@@ -15,7 +15,7 @@ export type PrimaryNavItem = {
 };
 
 export const PRIMARY_NAV: readonly PrimaryNavItem[] = [
-  { to: "/leads", label: "Leads", contextPaths: ["/", "/import"] },
+  { to: "/leads", label: "Leads", contextPaths: ["/dashboard", "/import"] },
   { to: "/analytics", label: "Analytics" },
 ] as const;
 
@@ -45,7 +45,7 @@ export function navBreadcrumb(pathname: string): string[] {
   if (pathname === "/import" || pathname.startsWith("/import/")) return ["Leads", "Import"];
   if (pathname === "/analytics") return ["Analytics"];
   if (pathname.startsWith("/leads/")) return ["Leads", "Conversation"];
-  if (pathname === "/leads" || pathname === "/") return ["Leads"];
+  if (pathname === "/leads" || pathname === "/dashboard") return ["Leads"];
   if (pathname === "/profile") return ["Account", "Profile"];
   if (pathname.startsWith("/settings")) {
     const section = ACCOUNT_MENU_ITEMS.find((item) => item.to === pathname);

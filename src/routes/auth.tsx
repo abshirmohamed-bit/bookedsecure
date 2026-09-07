@@ -33,7 +33,7 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && session) navigate({ to: "/", replace: true });
+    if (!loading && session) navigate({ to: "/dashboard", replace: true });
   }, [loading, session, navigate]);
 
   async function submit(event: React.FormEvent) {
@@ -55,7 +55,7 @@ function AuthPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/", replace: true });
+        navigate({ to: "/dashboard", replace: true });
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not sign in");
