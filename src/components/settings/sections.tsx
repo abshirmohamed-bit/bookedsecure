@@ -490,6 +490,15 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
             />
             Active
           </label>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={editing.campaign_eligible !== false}
+              onChange={(event) => setEditing({ ...editing, campaign_eligible: event.target.checked })}
+              className="h-4 w-4 accent-[var(--color-primary)]"
+            />
+            Include in campaign offers
+          </label>
           <div className="flex gap-2">
             <button
               onClick={() => setEditing(null)}
