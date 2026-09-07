@@ -16,7 +16,12 @@ import {
 } from "@/lib/booking-only-mode";
 import { evaluateConfirmationEligibility } from "@/lib/booking-confirmation";
 import { evaluateOwnerNotificationEligibility } from "@/lib/owner-notification";
-import { classifyMessagePath, nextPermittedSendAt, localTimeIn } from "@/lib/message-path";
+import {
+  classifyMessagePath,
+  evaluateNewLeadResponseExemption,
+  nextPermittedSendAt,
+  localTimeIn,
+} from "@/lib/message-path";
 import { decideExecution, LIVE_EXECUTION_ENABLED, executionWouldDispatch } from "@/lib/agent-executor";
 import {
   classifyReactivationCandidate,
@@ -118,11 +123,15 @@ describe("system flow — 3. send path and quiet hours", () => {
   it("treats anything promotional or indirect as a follow-up, which quiet hours hold", () => {
     expect(classifyMessagePath({ ...newLeadFacts, promotional: true })).toBe("sequence_follow_up");
     expect(classifyMessagePath({ ...newLeadFacts, directResponseToCurrentEnquiry: false })).toBe("sequence_follow_up");
-    expect(classifyMessagePath({ ...newLeadFacts, consentGranted: false })).toBe("sequence_follow_up");
+    // Consent is not part of path selection; it is a separate condition that
+    // must fail the exemption, so quiet hours still hold the message.
+    const withoutConsent = evaluateNewLeadResponseExemption({ ...newLeadFacts, consentGranted: false });
+    expect(withoutConsent.granted).toBe(false);
+    expect(withoutConsent.failures.map((f) => f.condition)).toContain("consent");
   });
 
   it("computes the next permitted send time in the tenant's own timezone", () => {
-    const settings = { start: "21:00", end: "08:00", timezone: "Australia/Sydney" };
+    const settings = { quiet_hours_start: 21, quiet_hours_end: 8, timezone: "Australia/Sydney" } as never;
     const lateNight = new Date("2026-09-07T13:00:00.000Z"); // 11pm Sydney
     expect(localTimeIn("Australia/Sydney", lateNight)).toContain("23:00");
     const release = nextPermittedSendAt(settings, lateNight);
