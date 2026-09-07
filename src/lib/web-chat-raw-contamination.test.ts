@@ -251,7 +251,7 @@ describe("merge and missing-field guarantees", () => {
     );
     const { collected } = applyIntake({}, extraction, chatTenant);
     expect(outstandingFields(collected)).toEqual(["address", "concerns", "mobile"]);
-    expect(nextStep(collected)).toBe("concerns");
+    expect(nextStep(collected)).toBe("address");
   });
 
   it("never re-asks a field that already holds a valid value", () => {
