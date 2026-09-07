@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
         property: "og:description",
         content:
           "Funnel new leads from ads with a shareable quote page, or upload existing contacts to re-engage them.",
-      }
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
