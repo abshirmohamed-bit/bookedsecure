@@ -42,6 +42,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [prompt, setPrompt] = useState<WebChatPrompt | null>(null);
   const [draft, setDraft] = useState("");
+  /** First name of a contact recognised via their personal campaign link. */
+  const [returningName, setReturningName] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +80,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
           setConversationId(resumed.state.conversationId);
           setTurns(resumed.state.messages);
           setPrompt(resumed.state.prompt);
+          setReturningName(window.sessionStorage.getItem(`${storageKey}:name`));
           return;
         }
         window.sessionStorage.removeItem(storageKey);
@@ -92,9 +95,13 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
         return;
       }
       window.sessionStorage.setItem(storageKey, result.state.conversationId);
+      if (result.state.returningName) {
+        window.sessionStorage.setItem(`${storageKey}:name`, result.state.returningName);
+      }
       setConversationId(result.state.conversationId);
       setTurns(result.state.messages);
       setPrompt(result.state.prompt);
+      setReturningName(result.state.returningName ?? null);
     } catch {
       setError("We couldn't start the conversation. Please try again.");
     } finally {
@@ -274,7 +281,11 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                         className="rounded-full"
                       />
                       <div className="max-w-[85%] space-y-2.5 rounded-2xl rounded-bl-md bg-secondary px-3.5 py-3 text-sm leading-relaxed text-secondary-foreground">
-                        <p>{`Hi, welcome to ${tenant.name}. Choose a service or tell us what you need.`}</p>
+                        <p>
+                          {returningName
+                            ? `Welcome back, ${returningName}! Thanks for choosing ${tenant.name} again. Choose a service or tell us what you need.`
+                            : `Hi, welcome to ${tenant.name}. Choose a service or tell us what you need.`}
+                        </p>
                         <ul className="space-y-1">
                           {serviceOptions.map((option) => {
                             const isFlexible = option.value === FLEXIBLE_CHOICE;
