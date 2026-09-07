@@ -36,7 +36,7 @@ export const startQuoteConversation = createServerFn({ method: "POST" })
 
     const { startWebChat } = await import("@/lib/web-chat.server");
     try {
-      const state = await startWebChat(data.slug);
+      const state = await startWebChat(data.slug, data.c ?? null);
       if (!state) return { ok: false as const, error: "This conversation is not available." };
       return { ok: true as const, state };
     } catch (error) {
