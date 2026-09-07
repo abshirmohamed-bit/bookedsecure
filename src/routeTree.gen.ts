@@ -18,6 +18,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
+import { Route as BTokenRouteImport } from './routes/b.$token'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as LeadsDeletedRouteImport } from './routes/leads.deleted'
@@ -81,6 +82,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const AdminPilotApplicationsRoute = AdminPilotApplicationsRouteImport.update({
   id: '/admin/pilot-applications',
   path: '/admin/pilot-applications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BTokenRoute = BTokenRouteImport.update({
+  id: '/b/$token',
+  path: '/b/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsIndexRoute = LeadsIndexRouteImport.update({
@@ -192,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
+  '/b/$token': typeof BTokenRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
+  '/b/$token': typeof BTokenRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
@@ -252,6 +260,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
+  '/b/$token': typeof BTokenRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
@@ -284,6 +293,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/admin/pilot-applications'
+    | '/b/$token'
     | '/leads/$leadId'
     | '/leads/deleted'
     | '/quote/$slug'
@@ -313,6 +323,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/admin/pilot-applications'
+    | '/b/$token'
     | '/leads/$leadId'
     | '/leads/deleted'
     | '/quote/$slug'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/admin/pilot-applications'
+    | '/b/$token'
     | '/leads/$leadId'
     | '/leads/deleted'
     | '/quote/$slug'
@@ -374,6 +386,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
+  BTokenRoute: typeof BTokenRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   LeadsDeletedRoute: typeof LeadsDeletedRoute
   QuoteSlugRoute: typeof QuoteSlugRoute
@@ -453,6 +466,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/pilot-applications'
       fullPath: '/admin/pilot-applications'
       preLoaderRoute: typeof AdminPilotApplicationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/b/$token': {
+      id: '/b/$token'
+      path: '/b/$token'
+      fullPath: '/b/$token'
+      preLoaderRoute: typeof BTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads/': {
@@ -621,6 +641,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRouteWithChildren,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
+  BTokenRoute: BTokenRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   LeadsDeletedRoute: LeadsDeletedRoute,
   QuoteSlugRoute: QuoteSlugRoute,
