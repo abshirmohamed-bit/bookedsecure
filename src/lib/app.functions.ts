@@ -728,6 +728,7 @@ export const saveService = createServerFn({ method: "POST" })
         excluded_items: z.string().max(600).nullable(),
         // Required appointment length for this service. Bookings use only this.
         duration_minutes: z.number().int().min(15).max(1440),
+        campaign_eligible: z.boolean(),
         active: z.boolean(),
       })
       .parse(input),

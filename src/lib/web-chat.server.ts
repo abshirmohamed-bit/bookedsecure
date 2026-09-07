@@ -18,6 +18,7 @@ import {
   nextStep,
   promptFor,
   resolveOutcome,
+  serviceAcknowledgement,
   welcomeMessage,
   type WebChatCollected,
   type WebChatPrompt,
@@ -32,6 +33,7 @@ import {
   parseChangeDirective,
 } from "@/lib/web-chat-correction";
 import { isBookingOnlyTenant } from "@/lib/booking-only-mode";
+import { campaignOfferPercent } from "@/lib/service-pricing.server";
 import {
   BOOKING_CHANGE_MESSAGE,
   BOOKING_CONFLICT_MESSAGE,
@@ -152,7 +154,10 @@ export async function resumeWebChat(slug: string, conversationId: string): Promi
   // never be turned into a second booking.
   if (!conversation || conversation.status !== "active") return null;
 
-  const chatTenant = toChatTenant(tenant);
+  const chatTenant = toChatTenant(
+    tenant,
+    await campaignOfferPercent(tenant.businessId, conversation.lead_id),
+  );
   let collected = (conversation.collected ?? {}) as WebChatCollected;
   const turns = await loadTurns(conversation.id);
   if (turns.length === 0 || turns.length > MAX_MESSAGES) return null;
@@ -255,7 +260,10 @@ export async function startWebChat(slug: string, campaignToken?: string | null):
     }
   }
 
-  const chatTenant = toChatTenant(tenant);
+  const chatTenant = toChatTenant(
+    tenant,
+    await campaignOfferPercent(tenant.businessId, returningLeadId),
+  );
   const { data: conversation, error } = await supabaseAdmin
     .from("web_conversations")
     .insert({
@@ -320,7 +328,10 @@ export async function replyToWebChat(input: {
     .maybeSingle();
   if (!conversation) return null;
 
-  const chatTenant = toChatTenant(tenant);
+  const chatTenant = toChatTenant(
+    tenant,
+    await campaignOfferPercent(tenant.businessId, conversation.lead_id),
+  );
   const collected = (conversation.collected ?? {}) as WebChatCollected;
   const turns = await loadTurns(conversation.id);
 
