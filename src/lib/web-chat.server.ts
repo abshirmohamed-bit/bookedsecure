@@ -89,8 +89,9 @@ export type WebChatState = {
   returningName?: string | null;
 };
 
-function toChatTenant(tenant: PublicTenant): WebChatTenant {
+function toChatTenant(tenant: PublicTenant, offerPercent?: number | null): WebChatTenant {
   return {
+    offerPercent: offerPercent ?? null,
     name: tenant.name,
     flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
     bookingEnabled: isBookingOnlyTenant(tenant.businessId),
@@ -101,6 +102,8 @@ function toChatTenant(tenant: PublicTenant): WebChatTenant {
       included_items: service.included_items,
       excluded_items: service.excluded_items,
       qualification_note: service.qualification_note,
+      price_guidance: service.price_guidance,
+      campaign_eligible: service.campaign_eligible,
     })),
   };
 }
