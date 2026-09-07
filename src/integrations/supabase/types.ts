@@ -2170,6 +2170,7 @@ export type Database = {
         Row: {
           active: boolean
           business_id: string
+          campaign_eligible: boolean
           created_at: string
           description: string | null
           duration_minutes: number | null
@@ -2183,6 +2184,7 @@ export type Database = {
         Insert: {
           active?: boolean
           business_id: string
+          campaign_eligible?: boolean
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
@@ -2196,6 +2198,7 @@ export type Database = {
         Update: {
           active?: boolean
           business_id?: string
+          campaign_eligible?: boolean
           created_at?: string
           description?: string | null
           duration_minutes?: number | null
