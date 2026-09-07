@@ -6,6 +6,7 @@ import { normaliseAuMobile } from "@/lib/domain";
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import { looksUncertain, uncertainServiceMessage } from "@/lib/web-chat-conversation";
 import { usableName } from "@/lib/returning-lead";
+import { servicePriceLine } from "@/lib/service-pricing";
 
 import {
   BOOKING_CHANGE_CHOICE,
@@ -42,6 +43,10 @@ export type WebChatService = {
   included_items: string | null;
   excluded_items: string | null;
   qualification_note: string | null;
+  /** Tenant-entered price guidance, shown verbatim. Null hides any price. */
+  price_guidance?: string | null;
+  /** False excludes this service from campaign discount highlighting. */
+  campaign_eligible?: boolean | null;
 };
 
 export type WebChatTenant = {
@@ -50,6 +55,8 @@ export type WebChatTenant = {
   /** True when this tenant takes real bookings in the conversation. */
   bookingEnabled?: boolean;
   services: WebChatService[];
+  /** Campaign discount percentage for this visitor, when recognised. */
+  offerPercent?: number | null;
 };
 
 export type WebChatCollected = {
@@ -101,8 +108,12 @@ export function welcomeMessage(tenant: WebChatTenant): string {
   ].join(" ");
 }
 
-export function serviceDetail(service: WebChatService): string | null {
+export function serviceDetail(
+  service: WebChatService,
+  offerPercent?: number | null,
+): string | null {
   const parts = [
+    servicePriceLine(service, offerPercent),
     service.description?.trim() || null,
     service.included_items?.trim() ? `Includes: ${service.included_items.trim()}` : null,
     service.excluded_items?.trim() ? `Not included: ${service.excluded_items.trim()}` : null,
@@ -240,7 +251,7 @@ function buildPrompt(
           ...tenant.services.map((service) => ({
             value: service.id,
             label: service.name,
-            detail: serviceDetail(service),
+            detail: serviceDetail(service, tenant.offerPercent ?? null),
           })),
           ...(tenant.flexibleRequestsEnabled
             ? [
@@ -419,6 +430,22 @@ function shapeRejection(
   return null;
 }
 
+
+/**
+ * Short acknowledgement after a service is chosen. Includes the tenant's own
+ * price guidance (and campaign discount, when it applies) so the customer sees
+ * the price alongside the next question.
+ */
+export function serviceAcknowledgement(
+  tenant: WebChatTenant,
+  collected: WebChatCollected,
+): string | null {
+  const name = collected.service_name?.trim();
+  if (!name) return null;
+  const service = tenant.services.find((entry) => entry.id === collected.service_id) ?? null;
+  const price = service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
+  return price ? `${name} — ${price}.` : `${name}, got it.`;
+}
 
 export type ApplyResult =
 

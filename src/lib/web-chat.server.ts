@@ -18,6 +18,7 @@ import {
   nextStep,
   promptFor,
   resolveOutcome,
+  serviceAcknowledgement,
   welcomeMessage,
   type WebChatCollected,
   type WebChatPrompt,
@@ -32,6 +33,7 @@ import {
   parseChangeDirective,
 } from "@/lib/web-chat-correction";
 import { isBookingOnlyTenant } from "@/lib/booking-only-mode";
+import { campaignOfferPercent } from "@/lib/service-pricing.server";
 import {
   BOOKING_CHANGE_MESSAGE,
   BOOKING_CONFLICT_MESSAGE,
@@ -89,8 +91,9 @@ export type WebChatState = {
   returningName?: string | null;
 };
 
-function toChatTenant(tenant: PublicTenant): WebChatTenant {
+function toChatTenant(tenant: PublicTenant, offerPercent?: number | null): WebChatTenant {
   return {
+    offerPercent: offerPercent ?? null,
     name: tenant.name,
     flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
     bookingEnabled: isBookingOnlyTenant(tenant.businessId),
@@ -101,6 +104,8 @@ function toChatTenant(tenant: PublicTenant): WebChatTenant {
       included_items: service.included_items,
       excluded_items: service.excluded_items,
       qualification_note: service.qualification_note,
+      price_guidance: service.price_guidance,
+      campaign_eligible: service.campaign_eligible,
     })),
   };
 }
@@ -149,7 +154,10 @@ export async function resumeWebChat(slug: string, conversationId: string): Promi
   // never be turned into a second booking.
   if (!conversation || conversation.status !== "active") return null;
 
-  const chatTenant = toChatTenant(tenant);
+  const chatTenant = toChatTenant(
+    tenant,
+    await campaignOfferPercent(tenant.businessId, conversation.lead_id),
+  );
   let collected = (conversation.collected ?? {}) as WebChatCollected;
   const turns = await loadTurns(conversation.id);
   if (turns.length === 0 || turns.length > MAX_MESSAGES) return null;
@@ -252,7 +260,10 @@ export async function startWebChat(slug: string, campaignToken?: string | null):
     }
   }
 
-  const chatTenant = toChatTenant(tenant);
+  const chatTenant = toChatTenant(
+    tenant,
+    await campaignOfferPercent(tenant.businessId, returningLeadId),
+  );
   const { data: conversation, error } = await supabaseAdmin
     .from("web_conversations")
     .insert({
@@ -317,7 +328,10 @@ export async function replyToWebChat(input: {
     .maybeSingle();
   if (!conversation) return null;
 
-  const chatTenant = toChatTenant(tenant);
+  const chatTenant = toChatTenant(
+    tenant,
+    await campaignOfferPercent(tenant.businessId, conversation.lead_id),
+  );
   const collected = (conversation.collected ?? {}) as WebChatCollected;
   const turns = await loadTurns(conversation.id);
 
@@ -585,9 +599,7 @@ export async function replyToWebChat(input: {
 
     const prompt = promptFor(followUp, chatTenant, next);
     const detail =
-      followUp === "vehicle" && next.service_name
-        ? `Great, ${next.service_name}. I'll pass the details to the team for review; nothing is priced or booked here.`
-        : null;
+      followUp === "vehicle" && next.service_name ? serviceAcknowledgement(chatTenant, next) : null;
     if (detail) await addMessage(tenant.businessId, conversation.id, "assistant", detail);
     await addMessage(tenant.businessId, conversation.id, "assistant", prompt.text);
     return {

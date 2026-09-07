@@ -13,6 +13,8 @@ export type PublicService = {
   qualification_note: string | null;
   included_items: string | null;
   excluded_items: string | null;
+  price_guidance: string | null;
+  campaign_eligible: boolean;
 };
 
 export type PublicTenant = {
@@ -44,7 +46,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
 
   const { data: services } = await supabaseAdmin
     .from("services")
-    .select("id, name, description, qualification_note, included_items, excluded_items")
+    .select("id, name, description, qualification_note, included_items, excluded_items, price_guidance, campaign_eligible")
     .eq("business_id", business.id)
     .eq("active", true)
     .order("name", { ascending: true });
@@ -66,6 +68,8 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
       qualification_note: service.qualification_note ?? null,
       included_items: service.included_items ?? null,
       excluded_items: service.excluded_items ?? null,
+      price_guidance: service.price_guidance ?? null,
+      campaign_eligible: service.campaign_eligible !== false,
     })),
   };
 }

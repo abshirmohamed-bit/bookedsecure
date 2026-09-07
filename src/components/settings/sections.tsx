@@ -284,6 +284,8 @@ export type Service = {
   duration_minutes: number | null;
   description: string | null;
   price_guidance: string | null;
+  /** Whether a campaign discount may be highlighted for this service. */
+  campaign_eligible: boolean;
   included_items: string | null;
   excluded_items: string | null;
   active: boolean;
@@ -375,6 +377,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
           name: service.name,
           description: service.description,
           price_guidance: service.price_guidance,
+          campaign_eligible: service.campaign_eligible !== false,
           duration_minutes: Number(service.duration_minutes ?? 0),
           included_items: service.included_items,
           excluded_items: service.excluded_items,
@@ -402,6 +405,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                 duration_minutes: 120,
                 description: "",
                 price_guidance: "",
+                campaign_eligible: true,
                 included_items: "",
                 excluded_items: "",
                 active: true,
@@ -437,6 +441,9 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
             <p className="mt-1 text-xs text-muted-foreground">{service.description}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Price guidance: {service.price_guidance || "not provided"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Campaign offers: {service.campaign_eligible !== false ? "included" : "excluded"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Appointment duration:{" "}
@@ -482,6 +489,15 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
               className="h-4 w-4 accent-[var(--color-primary)]"
             />
             Active
+          </label>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={editing.campaign_eligible !== false}
+              onChange={(event) => setEditing({ ...editing, campaign_eligible: event.target.checked })}
+              className="h-4 w-4 accent-[var(--color-primary)]"
+            />
+            Include in campaign offers
           </label>
           <div className="flex gap-2">
             <button
