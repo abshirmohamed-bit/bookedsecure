@@ -110,11 +110,10 @@ export function HomeHero() {
 
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 pb-20 text-center">
         <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
-          Ask about your business.
+          Stop losing leads you already paid for.
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground">
-          Leads, bookings, replies and win-back campaigns — answered from your own records. Nothing
-          is sent or changed from here.
+          Catch every ad enquiry, reply instantly, and rebook past customers — all from one place.
         </p>
 
         <form
