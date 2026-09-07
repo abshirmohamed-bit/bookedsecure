@@ -52,6 +52,8 @@ export type IntakeExtraction = {
   service: IntakeService | null;
   /** Approved location, or null. */
   location: string | null;
+  /** Full street address the customer stated, or null. */
+  address: string | null;
   /** ISO date (yyyy-mm-dd) in the tenant timezone, when stated. */
   preferredDate: string | null;
   /** 24h HH:MM in the tenant timezone, or a part-of-day word the customer used. */
@@ -623,6 +625,8 @@ export function extractIntake(raw: string, tenant: IntakeTenant, now: Date): Int
     intent: "unclear",
     service,
     location,
+    // A street address is never guessed from prose here; the model supplies it.
+    address: null,
     preferredDate: dateMatch.kind === "one" ? dateMatch.date : null,
     preferredTime: timeMatch.kind === "one" ? timeMatch.time : null,
     name,
@@ -661,12 +665,20 @@ export function extractIntake(raw: string, tenant: IntakeTenant, now: Date): Int
 // Grouped missing-field collection
 // ---------------------------------------------------------------------------
 
-export type IntakeField = "service" | "vehicle" | "location" | "concerns" | "name" | "mobile";
+export type IntakeField =
+  | "service"
+  | "vehicle"
+  | "location"
+  | "address"
+  | "concerns"
+  | "name"
+  | "mobile";
 
 export const INTAKE_FIELD_QUESTIONS: Record<IntakeField, string> = {
   service: "Which of our services would you like?",
   vehicle: "What make and model is the vehicle?",
   location: "Which suburb should we come to?",
+  address: "What is the street address we should come to?",
   concerns: "Is there anything we should know about the vehicle's condition?",
   name: "What name should the booking be under?",
   mobile: "Which mobile number should we use for the confirmation?",
@@ -745,6 +757,8 @@ export function applyIntake(
     put("service", extraction.service.id, "service");
   if (extraction.vehicle && !(next.vehicle_type ?? "").trim()) put("vehicle", extraction.vehicle, "vehicle");
   if (extraction.location && !(next.suburb ?? "").trim()) put("suburb", extraction.location, "location");
+  if (extraction.address && !(next.service_address ?? "").trim())
+    put("address", extraction.address, "address");
   if (extraction.name && !(next.name ?? "").trim()) put("name", extraction.name, "name");
   if (extraction.mobile && !next.mobile_number) put("mobile", extraction.mobile, "mobile");
   if (extraction.email && next.email === undefined) put("email", extraction.email, null);
@@ -768,6 +782,7 @@ export function outstandingFields(collected: WebChatCollected): IntakeField[] {
   if (!collected.service_id && !(collected.typed_request ?? "").trim()) fields.push("service");
   if (!(collected.vehicle_type ?? "").trim()) fields.push("vehicle");
   if (!(collected.suburb ?? "").trim()) fields.push("location");
+  if (!(collected.service_address ?? "").trim()) fields.push("address");
   if (!(collected.concerns ?? "").trim()) fields.push("concerns");
   if (!(collected.name ?? "").trim()) fields.push("name");
   if (!collected.mobile_number) fields.push("mobile");

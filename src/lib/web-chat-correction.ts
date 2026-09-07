@@ -15,6 +15,7 @@ export const CORRECTABLE_STEPS = [
   "service",
   "vehicle",
   "suburb",
+  "address",
   "concerns",
   "name",
   "mobile",
@@ -26,6 +27,7 @@ export const FIELD_LABELS: Record<CorrectableStep, string> = {
   service: "service",
   vehicle: "vehicle",
   suburb: "suburb",
+  address: "address",
   concerns: "condition or concerns",
   name: "name",
   mobile: "mobile number",
@@ -40,7 +42,8 @@ export const FIELD_WORDS: Record<CorrectableStep, RegExp> = {
   name: /\b(names?)\b/i,
   mobile: /\b(mobile|phone|number|numbers|cell|digits)\b/i,
   email: /\b(e-?mails?|email\s+address)\b/i,
-  suburb: /\b(suburb|postcode|area|location|address)\b/i,
+  suburb: /\b(suburb|postcode|area|location)\b/i,
+  address: /\b(address|street|street\s+address|unit|driveway)\b/i,
   vehicle: /\b(vehicle|car|ute|van|truck|make|model)\b/i,
   concerns: /\b(condition|concerns?|issues?|damage)\b/i,
   service: /\b(service|services|package)\b/i,
@@ -50,7 +53,8 @@ const FIELD_WORD_SOURCE: Record<CorrectableStep, string> = {
   name: "names?",
   mobile: "mobile(?:\\s+number)?|phone(?:\\s+number)?|numbers?|cell|digits",
   email: "e-?mails?(?:\\s+address)?",
-  suburb: "suburb|postcode|area|location|address",
+  suburb: "suburb|postcode|area|location",
+  address: "address|street\\s+address|street|unit",
   vehicle: "vehicle|car|ute|van|truck|make|model",
   concerns: "condition|concerns?|issues?|damage",
   service: "service|services|package",
@@ -124,6 +128,7 @@ function filledSteps(collected: WebChatCollected): CorrectableStep[] {
   if (collected.service_id || (collected.typed_request ?? "").trim()) out.push("service");
   if ((collected.vehicle_type ?? "").trim()) out.push("vehicle");
   if ((collected.suburb ?? "").trim()) out.push("suburb");
+  if ((collected.service_address ?? "").trim()) out.push("address");
   if ((collected.concerns ?? "").trim()) out.push("concerns");
   if ((collected.name ?? "").trim()) out.push("name");
   if (collected.mobile_number) out.push("mobile");

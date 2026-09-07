@@ -16,6 +16,7 @@ export type ExistingLeadFields = {
   name?: string | null;
   email?: string | null;
   suburb?: string | null;
+  service_address?: string | null;
   vehicle_type?: string | null;
   last_cleaned_at?: string | null;
   main_concerns?: string | null;
@@ -42,6 +43,7 @@ const FILL_ONLY_FIELDS = [
   "name",
   "email",
   "suburb",
+  "service_address",
   "vehicle_type",
   "last_cleaned_at",
   "main_concerns",

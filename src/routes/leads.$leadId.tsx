@@ -422,6 +422,7 @@ function LeadDetail() {
             <h2 className="text-sm font-semibold">Lead details</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <Detail label="Vehicle" value={lead.vehicle_type} />
+              <Detail label="Address" value={lead.service_address} />
               <Detail label="Suburb" value={lead.suburb} />
               <Detail label="Last cleaned" value={lead.last_cleaned_at} />
               <Detail label="Main concerns" value={lead.main_concerns} />
