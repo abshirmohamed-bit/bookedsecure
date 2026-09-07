@@ -431,6 +431,22 @@ function shapeRejection(
 }
 
 
+/**
+ * Short acknowledgement after a service is chosen. Includes the tenant's own
+ * price guidance (and campaign discount, when it applies) so the customer sees
+ * the price alongside the next question.
+ */
+export function serviceAcknowledgement(
+  tenant: WebChatTenant,
+  collected: WebChatCollected,
+): string | null {
+  const name = collected.service_name?.trim();
+  if (!name) return null;
+  const service = tenant.services.find((entry) => entry.id === collected.service_id) ?? null;
+  const price = service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
+  return price ? `${name} — ${price}.` : `${name}, got it.`;
+}
+
 export type ApplyResult =
 
 
