@@ -638,6 +638,52 @@ export async function replyToWebChat(input: {
     });
     leadId = result.leadId;
     duplicate = result.duplicate;
+  } else {
+    // Returning contact (arrived via their personal campaign link): the new
+    // enquiry's details are merged onto their OWN record — fill-only for
+    // profile fields, refreshed for the current request. No duplicate lead.
+    const { data: existing } = await supabaseAdmin
+      .from("leads")
+      .select(
+        "name, email, suburb, service_address, vehicle_type, last_cleaned_at, main_concerns, service_intent, request_type, approved_service_id, service_name_snapshot, flexible_request_text, external_id",
+      )
+      .eq("id", leadId)
+      .eq("business_id", tenant.businessId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (existing) {
+      const { mergeReturningLead } = await import("@/lib/returning-lead");
+      const patch = mergeReturningLead(existing, {
+        name: next.name ?? null,
+        email: next.email ?? null,
+        suburb: next.suburb ?? null,
+        service_address: next.service_address ?? null,
+        vehicle_type: next.vehicle_type ?? null,
+        main_concerns: next.concerns ?? null,
+        service_intent: next.service_name ?? next.typed_request ?? "AI quote conversation",
+        request_type: next.service_id ? "service" : "recommendation",
+        approved_service_id: next.service_id ?? null,
+        service_name_snapshot: next.service_name ?? null,
+        flexible_request_text: next.typed_request ?? null,
+        source_channel: "website",
+        source_form: `ai_chat:${tenant.slug}`,
+        lead_origin: "ai_web_chat",
+        requires_owner_review: outcome.requiresOwnerReview,
+        source_metadata: {
+          ai_chat: {
+            tenant_slug: tenant.slug,
+            web_conversation_id: conversation.id,
+            form_url: input.formUrl,
+            returning: true,
+          },
+        },
+      });
+      await supabaseAdmin
+        .from("leads")
+        .update(patch as never)
+        .eq("id", leadId)
+        .eq("business_id", tenant.businessId);
+    }
   }
 
   // Full Detail pilot: the server computes real appointment options and the
