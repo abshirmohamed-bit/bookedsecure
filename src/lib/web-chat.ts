@@ -5,6 +5,7 @@
 import { normaliseAuMobile } from "@/lib/domain";
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import { looksUncertain, uncertainServiceMessage } from "@/lib/web-chat-conversation";
+import { usableName } from "@/lib/returning-lead";
 
 import {
   BOOKING_CHANGE_CHOICE,

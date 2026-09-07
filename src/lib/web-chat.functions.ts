@@ -13,7 +13,14 @@ function clientIp(): string {
 /** Opens a public AI quote conversation for an AI-mode tenant. */
 export const startQuoteConversation = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ slug: z.string().min(1).max(60), company: z.string().max(200).optional().nullable() }).parse(input),
+    z
+      .object({
+        slug: z.string().min(1).max(60),
+        company: z.string().max(200).optional().nullable(),
+        // Private per-contact campaign token from the link they tapped.
+        c: z.string().uuid().optional().nullable(),
+      })
+      .parse(input),
   )
   .handler(async ({ data }) => {
     // Honeypot: bots get an ordinary-looking refusal with no signal.

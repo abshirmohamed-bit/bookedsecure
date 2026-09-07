@@ -13,6 +13,7 @@ import {
   FLEXIBLE_CHOICE,
   DUPLICATE_MESSAGE,
   applyAnswer,
+  campaignPrefill,
   completionMessage,
   nextStep,
   promptFor,
@@ -222,20 +223,48 @@ export async function resumeWebChat(slug: string, conversationId: string): Promi
 }
 
 /** Starts a conversation for an AI-mode tenant. Returns null for unknown/manual tenants. */
-export async function startWebChat(slug: string): Promise<WebChatState | null> {
+export async function startWebChat(slug: string, campaignToken?: string | null): Promise<WebChatState | null> {
   const tenant = await resolvePublicTenant(slug);
   if (!tenant || tenant.quoteMode !== "ai_chat") return null;
+
+  // A contact arriving via their own campaign link is recognised by the
+  // link's private token: details already on file (name, mobile, email) are
+  // prefilled and never re-asked, and the conversation is attached to their
+  // existing lead so the new enquiry lands on their own profile.
+  let prefill: WebChatCollected = {};
+  let returningLeadId: string | null = null;
+  if (campaignToken) {
+    const { data: lead } = await supabaseAdmin
+      .from("leads")
+      .select("id, name, mobile_number, email")
+      .eq("business_id", tenant.businessId)
+      .eq("public_token", campaignToken)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (lead) {
+      const known = campaignPrefill(lead);
+      if (known) {
+        prefill = known;
+        returningLeadId = lead.id as string;
+      }
+    }
+  }
 
   const chatTenant = toChatTenant(tenant);
   const { data: conversation, error } = await supabaseAdmin
     .from("web_conversations")
-    .insert({ business_id: tenant.businessId, status: "active", collected: {} as never })
+    .insert({
+      business_id: tenant.businessId,
+      status: "active",
+      collected: prefill as never,
+      lead_id: returningLeadId,
+    })
     .select("id")
     .single();
   if (error || !conversation) throw new Error("Could not start the conversation.");
 
   const greeting = welcomeMessage(chatTenant);
-  const first = promptFor("service", chatTenant, {});
+  const first = promptFor("service", chatTenant, prefill);
   await addMessage(tenant.businessId, conversation.id, "assistant", greeting);
   await addMessage(tenant.businessId, conversation.id, "assistant", first.text);
 
