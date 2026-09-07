@@ -153,6 +153,9 @@ function clearField(collected: WebChatCollected, field: CorrectableStep): WebCha
     case "suburb":
       next.suburb = null;
       break;
+    case "address":
+      next.service_address = null;
+      break;
     case "concerns":
       next.concerns = null;
       break;

@@ -74,6 +74,7 @@ describe("web chat step machine", () => {
       ["service", tenant.services[0]!.id],
       ["vehicle", "SUV"],
       ["suburb", "Marrickville"],
+      ["address", "12 Smith St"],
       ["concerns", "Pet hair"],
       ["name", "Sam"],
       ["mobile", "0447 852 565"],
