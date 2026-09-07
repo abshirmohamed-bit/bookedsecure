@@ -61,7 +61,7 @@ type LeadRow = {
   sms_suppressed_at: string | null;
   deleted_at: string | null;
   created_at: string | null;
-  public_token: string | null;
+  public_token?: string | null;
 };
 
 export function factsFromLead(
@@ -133,7 +133,7 @@ export async function loadReactivationCandidates(
         mobileNumber: row.mobile_number ?? "",
         email: row.email,
         createdAt: row.created_at,
-        publicToken: row.public_token,
+        publicToken: row.public_token ?? null,
       });
     } else {
       excluded += 1;
