@@ -7,6 +7,7 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  campaignQuoteUrl,
   checkApproval,
   classifyReactivationCandidate,
   guardReactivationMessage,
@@ -354,7 +355,7 @@ export async function draftReactivationCampaign(input: {
       businessName,
       leadName: candidate.name,
       offerText: offer.offer,
-      quoteUrl,
+      quoteUrl: campaignQuoteUrl(quoteUrl, candidate.publicToken),
       signature: business?.sms_signature ?? null,
     });
     const guarded = guardReactivationMessage(rendered, offer.offer);
@@ -583,7 +584,7 @@ export async function processDueReactivationReminders(now: Date = new Date()): P
           .maybeSingle(),
         supabaseAdmin
           .from("leads")
-          .select("id, name, booking_status, opted_out_at, sms_suppressed_at, deleted_at")
+          .select("id, name, booking_status, opted_out_at, sms_suppressed_at, deleted_at, public_token")
           .eq("id", leadId)
           .eq("business_id", businessId)
           .maybeSingle(),
@@ -646,7 +647,7 @@ export async function processDueReactivationReminders(now: Date = new Date()): P
         businessName: business.name,
         leadName: lead.name,
         offerText: campaign.offer_text as string,
-        quoteUrl: tenantQuoteLink(business.slug),
+        quoteUrl: campaignQuoteUrl(tenantQuoteLink(business.slug), lead.public_token as string | null),
         signature: business.sms_signature,
       }),
       campaign.offer_text as string,
