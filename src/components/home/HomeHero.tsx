@@ -1,11 +1,14 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowUp, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { ArrowUp, CalendarClock, Loader2, Paperclip, UploadCloud } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { askOwnerAssistant } from "@/lib/owner-assistant.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
+import { previewCrmImport } from "@/lib/csv-import.functions";
+import { MAX_CSV_BYTES } from "@/lib/csv-import";
 
 const SUGGESTIONS = [
   "What's waiting on a reply?",
@@ -13,6 +16,7 @@ const SUGGESTIONS = [
   "How did my last win-back campaign go?",
   "How many new leads this week?",
 ] as const;
+
 
 /**
  * Signed-in home: ask a question about your own business and get a read-only
