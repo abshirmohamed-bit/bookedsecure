@@ -8,6 +8,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   campaignQuoteUrl,
+  campaignShortLink,
   checkApproval,
   classifyReactivationCandidate,
   guardReactivationMessage,
@@ -29,6 +30,19 @@ import { tenantQuoteUrl } from "@/lib/tenant-nav";
 export function tenantQuoteLink(slug: string | null | undefined): string | null {
   const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
   return tenantQuoteUrl(origin, slug);
+}
+
+/**
+ * The customer-facing campaign link for SMS: the short /b/<token> address
+ * when the contact has a personal token (compact and readable in a text
+ * message), otherwise the tenant's plain quote-page link. Universal.
+ */
+export function campaignSmsLink(
+  slug: string | null | undefined,
+  publicToken: string | null | undefined,
+): string | null {
+  const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+  return campaignShortLink(origin, publicToken) ?? campaignQuoteUrl(tenantQuoteUrl(origin, slug), null);
 }
 
 const LEAD_COLUMNS =
