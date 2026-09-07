@@ -322,7 +322,7 @@ export async function draftReactivationCampaign(input: {
 
   const businessName = business?.name ?? "our team";
   const serviceNames = (services ?? []).map((s) => s.name as string).filter(Boolean);
-  const quoteUrl = tenantQuoteLink((business as { slug?: string | null } | null)?.slug ?? null);
+  const tenantSlug = (business as { slug?: string | null } | null)?.slug ?? null;
 
   const { candidates, excluded } = await loadReactivationCandidates(input.businessId);
   const scoped = candidates.slice(0, input.maxLeads ?? 200);
@@ -369,7 +369,7 @@ export async function draftReactivationCampaign(input: {
       businessName,
       leadName: candidate.name,
       offerText: offer.offer,
-      quoteUrl: campaignQuoteUrl(quoteUrl, candidate.publicToken),
+      quoteUrl: campaignSmsLink(tenantSlug, candidate.publicToken),
       signature: business?.sms_signature ?? null,
     });
     const guarded = guardReactivationMessage(rendered, offer.offer);
@@ -661,7 +661,7 @@ export async function processDueReactivationReminders(now: Date = new Date()): P
         businessName: business.name,
         leadName: lead.name,
         offerText: campaign.offer_text as string,
-        quoteUrl: campaignQuoteUrl(tenantQuoteLink(business.slug), lead.public_token as string | null),
+        quoteUrl: campaignSmsLink(business.slug, lead.public_token as string | null),
         signature: business.sms_signature,
       }),
       campaign.offer_text as string,
