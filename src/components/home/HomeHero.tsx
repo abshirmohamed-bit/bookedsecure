@@ -26,14 +26,33 @@ export function HomeHero() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const ask = useServerFn(askOwnerAssistant);
+  const upload = useServerFn(previewCrmImport);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
+  const [followUp, setFollowUp] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (value: string) => ask({ data: { question: value } }),
     onSuccess: (result) => setAnswer(result.answer),
     onError: (error) =>
       setAnswer(error instanceof Error ? error.message : "That question could not be answered."),
+  });
+
+  const importMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const content = await file.text();
+      return upload({ data: { filename: file.name, content } });
+    },
+    onSuccess: () => {
+      toast.success(
+        followUp
+          ? "Contacts checked. Open the import page to approve the win-back follow-up."
+          : "Contacts checked. Open the import page to review and save them.",
+      );
+      navigate({ to: "/import" });
+    },
+    onError: () => toast.error("We could not read that contact file. Nothing was saved."),
   });
 
   const signedIn = Boolean(session);
@@ -48,6 +67,15 @@ export function HomeHero() {
     setQuestion(text);
     mutation.mutate(text);
   }
+
+  function chooseFile() {
+    if (!signedIn) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    fileRef.current?.click();
+  }
+
 
   return (
     <main className="relative flex min-h-screen flex-col bg-background">
