@@ -42,6 +42,16 @@ function newId(): string {
   return Math.random().toString(36).slice(2);
 }
 
+const TEXTAREA_MAX_HEIGHT = 120;
+
+/** Grows the input up to a few lines, then lets it scroll internally. */
+function autoSize(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  const next = Math.min(el.scrollHeight, TEXTAREA_MAX_HEIGHT);
+  el.style.height = `${next}px`;
+  el.style.overflowY = el.scrollHeight > TEXTAREA_MAX_HEIGHT ? "auto" : "hidden";
+}
+
 /**
  * Signed-in home: ask about your own business, or ask for a win-back campaign or
  * a bulk status change. Answers appear in the conversation above the box, and
@@ -55,6 +65,7 @@ export function HomeHero() {
   const approve = useServerFn(approveReactivation);
   const upload = useServerFn(previewCrmImport);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
