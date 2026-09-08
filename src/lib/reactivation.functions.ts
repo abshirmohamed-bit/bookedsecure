@@ -8,14 +8,11 @@ export const getReactivationCampaign = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { loadOpenCampaign, loadReactivationCandidates } = await import("@/lib/reactivation.server");
-    const t0 = Date.now();
     const app = await requireAppContext(context.supabase, context.userId);
-    const t1 = Date.now();
     const [view, candidates] = await Promise.all([
-      loadOpenCampaign(app.businessId).then((r) => { console.log("PERF openCampaign", Date.now() - t1); return r; }),
-      loadReactivationCandidates(app.businessId).then((r) => { console.log("PERF candidates", Date.now() - t1); return r; }),
+      loadOpenCampaign(app.businessId),
+      loadReactivationCandidates(app.businessId),
     ]);
-    console.log("PERF ctx", t1 - t0, "total", Date.now() - t0);
     return { ...view, candidates: candidates.candidates.length, excluded: candidates.excluded };
   });
 
