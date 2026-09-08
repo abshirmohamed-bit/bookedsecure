@@ -170,13 +170,17 @@ export function parseOpeningHours(input: string | null | undefined): Availabilit
   if (typeof input !== "string" || !input.trim()) return [];
   const windows: AvailabilityWindow[] = [];
   const seen = new Set<string>();
+  // "7am-6pm | 7 days a week" splits into a time-only part and a day-only part,
+  // so a day statement anywhere in the text can stand in for a missing one.
+  const fallbackDays = daysFromToken(input);
 
   for (const segment of input.split(/[\n;,|•]+/)) {
     const chunk = segment.trim();
     if (!chunk) continue;
     if (/closed/i.test(chunk)) continue;
     const days = daysFromToken(chunk);
-    if (days.length === 0) continue;
+    const effectiveDays = days.length > 0 ? days : fallbackDays;
+    if (effectiveDays.length === 0) continue;
 
     const timeMatch =
       /(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*(?:-|–|—|to|until|till)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i.exec(
@@ -188,7 +192,7 @@ export function parseOpeningHours(input: string | null | undefined): Availabilit
     const end = parseClock(timeMatch[2]!, endHasMeridiem ? null : "pm");
     if (!start || !end || end <= start) continue;
 
-    for (const weekday of days) {
+    for (const weekday of effectiveDays) {
       const key = `${weekday}-${start}-${end}`;
       if (seen.has(key)) continue;
       seen.add(key);
