@@ -494,6 +494,23 @@ export function serviceAcknowledgement(
   return price ? `${name} — ${price}.` : `${name}, got it.`;
 }
 
+/**
+ * Records whether the chosen service actually has extras, and clears any extras
+ * picked for a previously chosen service. Only the tenant's own linked add-ons
+ * can ever be offered.
+ */
+function applyServiceAddons(
+  next: WebChatCollected,
+  tenant: WebChatTenant,
+  serviceId: string | null,
+): void {
+  const offered = addonsForService(tenant.addons ?? [], serviceId);
+  next.addon_ids = [];
+  next.addon_names = [];
+  next.addons_offered = offered.length > 0;
+  next.addons_done = offered.length === 0;
+}
+
 export type ApplyResult =
 
 
@@ -521,6 +538,7 @@ export function applyAnswer(
         next.service_id = null;
         next.service_name = null;
         next.typed_request = "Not sure yet — described below";
+        applyServiceAddons(next, tenant, null);
         return { ok: true, collected: next, echo: "Something else or not sure" };
       }
       const service = tenant.services.find((entry) => entry.id === value);
@@ -528,6 +546,7 @@ export function applyAnswer(
         next.service_id = service.id;
         next.service_name = service.name;
         next.typed_request = null;
+        applyServiceAddons(next, tenant, service.id);
         return { ok: true, collected: next, echo: service.name };
       }
       if (value.length < 2) return { ok: false, error: "Please choose a service or describe what you need." };
@@ -539,6 +558,7 @@ export function applyAnswer(
         next.service_id = named.service.id;
         next.service_name = named.service.name;
         next.typed_request = null;
+        applyServiceAddons(next, tenant, named.service.id);
         return { ok: true, collected: next, echo: named.service.name };
       }
       if (named.kind === "ambiguous") {
@@ -564,8 +584,37 @@ export function applyAnswer(
       next.service_id = null;
       next.service_name = null;
       next.typed_request = value;
+      applyServiceAddons(next, tenant, null);
       return { ok: true, collected: next, echo: value };
 
+    }
+    case "addons": {
+      const all = addonsForService(tenant.addons ?? [], collected.service_id ?? null);
+      const chosenIds = [...(collected.addon_ids ?? [])];
+      const chosenNames = [...(collected.addon_names ?? [])];
+      const remaining = all.filter((addon) => !chosenIds.includes(addon.id));
+
+      if (value === NO_ADDONS_CHOICE || declinesAddons(value)) {
+        next.addons_done = true;
+        return { ok: true, collected: next, echo: chosenIds.length > 0 ? "That's all" : "No extras, thanks" };
+      }
+
+      const matched = matchAddons(value, remaining);
+      if (matched.length === 0) {
+        return {
+          ok: false,
+          error: `I can add ${remaining.map((addon) => addon.name).join(", ")} — which one would you like, or say no extras?`,
+        };
+      }
+      for (const addon of matched) {
+        chosenIds.push(addon.id);
+        chosenNames.push(addon.name);
+      }
+      next.addon_ids = chosenIds;
+      next.addon_names = chosenNames;
+      // Nothing left to offer, so the step closes itself.
+      next.addons_done = chosenIds.length >= all.length;
+      return { ok: true, collected: next, echo: matched.map((addon) => addon.name).join(", ") };
     }
     case "vehicle": {
       if (value.length < 2) return { ok: false, error: "Please tell me the vehicle type." };
