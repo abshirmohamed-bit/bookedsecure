@@ -334,7 +334,9 @@ export async function draftReactivationCampaign(input: {
   const dormant =
     cutoff === null
       ? candidates
-      : candidates.filter((candidate) => new Date(candidate.createdAt).getTime() <= cutoff);
+      : candidates.filter((candidate) =>
+          candidate.createdAt ? new Date(candidate.createdAt).getTime() <= cutoff : true,
+        );
   const scoped = dormant.slice(0, input.maxLeads ?? 200);
 
   const offer =

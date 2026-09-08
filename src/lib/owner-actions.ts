@@ -93,11 +93,15 @@ function parseOlderThanDays(text: string): number | null {
 }
 
 function findStatuses(text: string): LeadStatus[] {
-  const found: LeadStatus[] = [];
+  // Ordered the way the owner said them, so the last one is the target.
+  const found: Array<{ status: LeadStatus; at: number }> = [];
   for (const entry of STATUS_WORDS) {
-    if (entry.pattern.test(text) && !found.includes(entry.status)) found.push(entry.status);
+    const match = entry.pattern.exec(text);
+    if (match && !found.some((item) => item.status === entry.status)) {
+      found.push({ status: entry.status, at: match.index });
+    }
   }
-  return found;
+  return found.sort((a, b) => a.at - b.at).map((item) => item.status);
 }
 
 /**
