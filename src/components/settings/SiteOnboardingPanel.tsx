@@ -118,6 +118,35 @@ export function SiteOnboardingPanel({ readOnly }: { readOnly: boolean }) {
             )}
           </div>
 
+          {proposal.addons.length > 0 && (
+            <div>
+              <p className="text-xs font-medium">
+                Add-on extras (
+                {proposal.addons.filter((addon) => !addon.alreadyHave).length} to add)
+              </p>
+              <ul className="mt-1 space-y-1">
+                {proposal.addons.map((addon) => (
+                  <li key={addon.name} className="text-xs">
+                    <span className="font-medium">{addon.name}</span>
+                    {addon.price_guidance ? ` — ${addon.price_guidance}` : " — no price listed"}
+                    {addon.duration_minutes ? (
+                      <span className="text-muted-foreground"> · adds {addon.duration_minutes} min</span>
+                    ) : null}
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · with {addon.serviceNames.join(", ")}
+                    </span>
+                    {addon.alreadyHave && (
+                      <span className="ml-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        already yours — kept as is
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div>
             <p className="text-xs font-medium">Bookable times ({proposal.weeklyWindows.length})</p>
             {proposal.weeklyWindows.length === 0 ? (

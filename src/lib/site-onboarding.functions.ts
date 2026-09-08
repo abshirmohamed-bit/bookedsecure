@@ -30,6 +30,19 @@ const ProposalSchema = z.object({
       }),
     )
     .max(20),
+  addons: z
+    .array(
+      z.object({
+        name: z.string().min(2).max(80),
+        description: z.string().max(600).nullable(),
+        price_guidance: z.string().max(200).nullable(),
+        duration_minutes: z.number().int().min(5).max(1440).nullable(),
+        serviceNames: z.array(z.string().max(80)).max(20),
+        alreadyHave: z.boolean(),
+      }),
+    )
+    .max(20)
+    .default([]),
   weeklyWindows: z.array(WindowSchema).max(21),
   warnings: z.array(z.string().max(300)).max(20),
 });

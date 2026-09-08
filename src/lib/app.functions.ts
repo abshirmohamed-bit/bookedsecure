@@ -511,7 +511,7 @@ export const getSettings = createServerFn({ method: "GET" })
     const { getProvider } = await import("@/lib/sms/provider.server");
     const app = await requireAppContext(context.supabase, context.userId);
 
-    const [business, services, rules, team, availability] = await Promise.all([
+    const [business, services, rules, team, availability, addons] = await Promise.all([
       supabaseAdmin.from("businesses").select("*").eq("id", app.businessId).single(),
       supabaseAdmin
         .from("services")
@@ -534,6 +534,13 @@ export const getSettings = createServerFn({ method: "GET" })
         )
         .eq("business_id", app.businessId)
         .maybeSingle(),
+      supabaseAdmin
+        .from("service_addons")
+        .select(
+          "id, name, description, price_guidance, duration_minutes, active, service_addon_links(service_id)",
+        )
+        .eq("business_id", app.businessId)
+        .order("name", { ascending: true }),
     ]);
 
     const provider = getProvider(business.data?.default_sms_provider);
@@ -547,6 +554,17 @@ export const getSettings = createServerFn({ method: "GET" })
       team: team.data ?? [],
       provider: { name: provider.name, ...balance },
       availability: availability.data ?? null,
+      addons: (addons.data ?? []).map((addon) => ({
+        id: addon.id,
+        name: addon.name,
+        description: addon.description ?? null,
+        price_guidance: addon.price_guidance ?? null,
+        duration_minutes: addon.duration_minutes ?? null,
+        active: addon.active !== false,
+        serviceIds: (
+          (addon as { service_addon_links?: { service_id: string }[] }).service_addon_links ?? []
+        ).map((link) => link.service_id),
+      })),
     };
   });
 
@@ -752,6 +770,100 @@ export const saveService = createServerFn({ method: "POST" })
         .insert({ ...fields, business_id: app.businessId });
       if (error) throw new Error(error.message);
     }
+    return { ok: true };
+  });
+
+/**
+ * Owner-only add-on service. An add-on always belongs to the caller's own
+ * business and is always linked to at least one of that business's own approved
+ * services, so it can never be offered on its own or across tenants.
+ */
+export const saveServiceAddon = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid().optional().nullable(),
+        name: z.string().min(2).max(80),
+        description: z.string().max(600).nullable(),
+        price_guidance: z.string().max(200).nullable(),
+        duration_minutes: z.number().int().min(5).max(1440).nullable(),
+        active: z.boolean(),
+        service_ids: z.array(z.string().uuid()).min(1).max(50),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+
+    // Only the caller's own approved services may be linked.
+    const { data: owned } = await supabaseAdmin
+      .from("services")
+      .select("id")
+      .eq("business_id", app.businessId)
+      .in("id", data.service_ids);
+    const serviceIds = (owned ?? []).map((service) => service.id);
+    if (serviceIds.length === 0) throw new Error("Choose at least one of your own services.");
+
+    const fields = {
+      name: data.name,
+      description: data.description,
+      price_guidance: data.price_guidance,
+      duration_minutes: data.duration_minutes,
+      active: data.active,
+    };
+
+    let addonId = data.id ?? null;
+    if (addonId) {
+      const { error } = await supabaseAdmin
+        .from("service_addons")
+        .update(fields)
+        .eq("id", addonId)
+        .eq("business_id", app.businessId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { data: created, error } = await supabaseAdmin
+        .from("service_addons")
+        .insert({ ...fields, business_id: app.businessId })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      addonId = created.id;
+    }
+
+    await supabaseAdmin
+      .from("service_addon_links")
+      .delete()
+      .eq("addon_id", addonId)
+      .eq("business_id", app.businessId);
+    const { error: linkError } = await supabaseAdmin.from("service_addon_links").insert(
+      serviceIds.map((serviceId) => ({
+        business_id: app.businessId,
+        addon_id: addonId!,
+        service_id: serviceId,
+      })),
+    );
+    if (linkError) throw new Error(linkError.message);
+    return { ok: true, id: addonId };
+  });
+
+export const deleteServiceAddon = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    const { error } = await supabaseAdmin
+      .from("service_addons")
+      .delete()
+      .eq("id", data.id)
+      .eq("business_id", app.businessId);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 

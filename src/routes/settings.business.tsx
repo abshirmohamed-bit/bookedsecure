@@ -4,6 +4,7 @@ import { AvailabilityEditor } from "@/components/settings/availability";
 import { TenantAccountPanel } from "@/components/settings/TenantAccountPanel";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
 import {
+  AddonsEditor,
   BusinessSettingsForm,
   QuotePageModeCard,
   ServicesEditor,
@@ -79,10 +80,19 @@ function BusinessSettingsPage() {
                 <DialogHeader>
                   <DialogTitle>Approved services</DialogTitle>
                   <DialogDescription>
-                    The only services the assistant is allowed to mention or quote from.
+                    The only services the assistant is allowed to mention or quote from, plus any
+                    extras customers can add to them.
                   </DialogDescription>
                 </DialogHeader>
                 <ServicesEditor services={data.services} readOnly={data.role !== "owner"} />
+                <AddonsEditor
+                  addons={data.addons}
+                  services={data.services.map((service) => ({
+                    id: service.id,
+                    name: service.name,
+                  }))}
+                  readOnly={data.role !== "owner"}
+                />
               </DialogContent>
             </Dialog>
           </>

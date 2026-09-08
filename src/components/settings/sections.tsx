@@ -9,6 +9,8 @@ import {
   saveBusinessSettings,
   saveQuotePageMode,
   saveService,
+  saveServiceAddon,
+  deleteServiceAddon,
 } from "@/lib/app.functions";
 import { QUOTE_MODES, QUOTE_MODE_LABELS, resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
 
@@ -762,6 +764,237 @@ export function QuotePageModeCard({
         <p className="mt-3 text-xs text-muted-foreground">
           Only the business owner can change this.
         </p>
+      )}
+    </section>
+  );
+}
+
+
+export type AddonDraft = {
+  id: string;
+  name: string;
+  description: string | null;
+  price_guidance: string | null;
+  duration_minutes: number | null;
+  active: boolean;
+  serviceIds: string[];
+};
+
+/**
+ * Add-on extras. Each add-on belongs to this business and must be linked to at
+ * least one of its approved services, so the assistant can only ever offer an
+ * extra alongside a service the owner approved.
+ */
+export function AddonsEditor({
+  addons,
+  services,
+  readOnly,
+}: {
+  addons: AddonDraft[];
+  services: { id: string; name: string }[];
+  readOnly: boolean;
+}) {
+  const save = useServerFn(saveServiceAddon);
+  const remove = useServerFn(deleteServiceAddon);
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState<AddonDraft | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: (addon: AddonDraft) =>
+      save({
+        data: {
+          id: addon.id || null,
+          name: addon.name,
+          description: addon.description,
+          price_guidance: addon.price_guidance,
+          duration_minutes: addon.duration_minutes,
+          active: addon.active,
+          service_ids: addon.serviceIds,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Add-on saved");
+      setEditing(null);
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const removal = useMutation({
+    mutationFn: (id: string) => remove({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Add-on removed");
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const serviceName = (id: string) => services.find((service) => service.id === id)?.name ?? "—";
+
+  return (
+    <section className="panel p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-semibold">Add-on extras</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Extras customers can add to a service. One extra can sit under several services.
+          </p>
+        </div>
+        {!readOnly && services.length > 0 && (
+          <button
+            onClick={() =>
+              setEditing({
+                id: "",
+                name: "",
+                description: "",
+                price_guidance: "",
+                duration_minutes: null,
+                active: true,
+                serviceIds: [],
+              })
+            }
+            className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            Add extra
+          </button>
+        )}
+      </div>
+
+      {services.length === 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">Add a service first, then extras for it.</p>
+      )}
+
+      <div className="mt-3 space-y-2">
+        {services.length > 0 && addons.length === 0 && (
+          <p className="text-xs text-muted-foreground">No extras added yet.</p>
+        )}
+        {addons.map((addon) => (
+          <div key={addon.id} className="rounded-md border border-border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">
+                {addon.name}{" "}
+                {!addon.active && <span className="text-xs text-muted-foreground">(inactive)</span>}
+              </p>
+              {!readOnly && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setEditing({ ...addon })}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => removal.mutate(addon.id)}
+                    disabled={removal.isPending}
+                    className="text-xs text-destructive"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Price: {addon.price_guidance || "not provided"}
+              {addon.duration_minutes ? ` · adds ${formatDuration(addon.duration_minutes)}` : ""}
+            </p>
+            {addon.description && (
+              <p className="mt-1 text-xs text-muted-foreground">{addon.description}</p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Offered with: {addon.serviceIds.map(serviceName).join(", ") || "no service yet"}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {editing && (
+        <div className="mt-4 space-y-2 rounded-md border border-primary/30 bg-secondary/40 p-3">
+          {(
+            [
+              ["name", "Name"],
+              ["price_guidance", "Price"],
+              ["description", "Description"],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="block text-xs">
+              <span className="mb-1 block text-muted-foreground">{label}</span>
+              <input
+                value={editing[key] ?? ""}
+                onChange={(event) => setEditing({ ...editing, [key]: event.target.value })}
+                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+              />
+            </label>
+          ))}
+          <label className="block text-xs">
+            <span className="mb-1 block text-muted-foreground">Extra time in minutes (optional)</span>
+            <input
+              type="number"
+              min={5}
+              max={1440}
+              value={editing.duration_minutes ?? ""}
+              onChange={(event) =>
+                setEditing({
+                  ...editing,
+                  duration_minutes: event.target.value ? Number(event.target.value) : null,
+                })
+              }
+              className="w-32 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+            />
+          </label>
+          <fieldset className="text-xs">
+            <legend className="mb-1 text-muted-foreground">
+              Offer this extra with <span className="text-destructive">*</span>
+            </legend>
+            <div className="space-y-1">
+              {services.map((service) => (
+                <label key={service.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editing.serviceIds.includes(service.id)}
+                    onChange={(event) =>
+                      setEditing({
+                        ...editing,
+                        serviceIds: event.target.checked
+                          ? [...editing.serviceIds, service.id]
+                          : editing.serviceIds.filter((id) => id !== service.id),
+                      })
+                    }
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                  />
+                  {service.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={editing.active}
+              onChange={(event) => setEditing({ ...editing, active: event.target.checked })}
+              className="h-4 w-4 accent-[var(--color-primary)]"
+            />
+            Active
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setEditing(null)}
+              className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={
+                editing.name.trim().length < 2 ||
+                editing.serviceIds.length === 0 ||
+                mutation.isPending
+              }
+              onClick={() => mutation.mutate(editing)}
+              className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              Save add-on
+            </button>
+          </div>
+        </div>
       )}
     </section>
   );
