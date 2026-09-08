@@ -177,7 +177,7 @@ export function HomeHero() {
 
   return (
     <main className="relative flex min-h-screen flex-col bg-background">
-      <header className="flex items-center justify-between px-6 py-5">
+      <header className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-5">
         <span className="text-sm font-semibold tracking-tight">BookedSecure</span>
         <nav className="flex items-center gap-2 text-sm">
           {signedIn ? (
