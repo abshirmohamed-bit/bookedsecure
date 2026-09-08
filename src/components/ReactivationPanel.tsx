@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { RefreshCcw } from "lucide-react";
 import {
   approveReactivation,
   cancelReactivation,
@@ -90,42 +91,46 @@ export function ReactivationPanel() {
   const pending = (data?.drafts ?? []).filter((row) => row.status === "draft");
 
   return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-        <div>
-          <h2 className="text-sm font-medium">Win back dormant leads</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {data
-              ? `${data.candidates} contacts with no conversation, booking or enquiry details on record.`
-              : "Checking your list…"}
-          </p>
+    <section className="panel overflow-hidden">
+      <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-success/15 text-success-foreground">
+            <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold">Win back dormant leads</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {data
+                ? `${data.candidates} contacts with no conversation, booking or enquiry details on record.`
+                : "Checking your list…"}
+            </p>
+            {!data?.campaign && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Leave the offer blank and we&apos;ll suggest one from your services. You review
+                every message before anything is sent.
+              </p>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             value={offer}
             onChange={(event) => setOffer(event.target.value)}
             placeholder="Offer, e.g. 15% off your next detail"
-            className="w-64 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+            className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs sm:w-64"
           />
           <button
             onClick={() => drafting.mutate()}
             disabled={drafting.isPending}
-            className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            className="h-8 rounded-md border border-primary/50 bg-card px-3 text-xs font-medium text-primary hover:bg-secondary disabled:opacity-60"
           >
             {data?.campaign ? "Redraft" : "Draft campaign"}
           </button>
         </div>
       </div>
 
-      {!data?.campaign && (
-        <p className="px-4 py-4 text-xs text-muted-foreground">
-          Leave the offer blank and we&apos;ll suggest one from your services. You review every
-          message before anything is sent.
-        </p>
-      )}
-
       {data?.campaign && (
-        <div className="space-y-3 px-4 py-4">
+        <div className="space-y-3 border-t border-border px-4 py-4">
           <p className="text-xs text-muted-foreground">
             Offer: <span className="font-medium text-foreground">{data.campaign.offerText}</span> ·{" "}
             {pending.length} awaiting approval
@@ -160,7 +165,9 @@ export function ReactivationPanel() {
                   <div className="mt-2 flex flex-wrap gap-2">
                     {editing[row.id] === undefined ? (
                       <button
-                        onClick={() => setEditing((current) => ({ ...current, [row.id]: row.body }))}
+                        onClick={() =>
+                          setEditing((current) => ({ ...current, [row.id]: row.body }))
+                        }
                         className="rounded-md border border-input px-2 py-1 text-[11px]"
                       >
                         Edit

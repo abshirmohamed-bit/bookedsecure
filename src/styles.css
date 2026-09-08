@@ -4,11 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Glocast operations dashboard design system.
- * Dark charcoal surfaces, restrained green signal accents, high legibility.
- * All colours are oklch tokens — never hardcode colours in components.
- */
+/* BookedSecure light operations system. All component colours remain semantic. */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -16,7 +12,8 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
-  --font-sans: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -63,46 +60,46 @@
 
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.19 0.012 160);
-  --foreground: oklch(0.96 0.006 150);
-  --surface: oklch(0.23 0.014 162);
-  --surface-foreground: oklch(0.96 0.006 150);
-  --card: oklch(0.23 0.014 162);
-  --card-foreground: oklch(0.96 0.006 150);
-  --popover: oklch(0.24 0.014 162);
-  --popover-foreground: oklch(0.96 0.006 150);
-  --primary: oklch(0.74 0.17 152);
-  --primary-foreground: oklch(0.18 0.03 160);
-  --secondary: oklch(0.28 0.015 162);
-  --secondary-foreground: oklch(0.93 0.008 150);
-  --muted: oklch(0.27 0.013 162);
-  --muted-foreground: oklch(0.7 0.014 158);
-  --accent: oklch(0.31 0.03 158);
-  --accent-foreground: oklch(0.95 0.01 150);
-  --destructive: oklch(0.62 0.19 25);
-  --destructive-foreground: oklch(0.98 0.005 100);
-  --success: oklch(0.72 0.16 152);
-  --success-foreground: oklch(0.18 0.03 160);
-  --warning: oklch(0.79 0.14 78);
-  --warning-foreground: oklch(0.2 0.03 80);
-  --info: oklch(0.7 0.1 220);
-  --info-foreground: oklch(0.18 0.03 220);
-  --border: oklch(0.3 0.014 162);
-  --input: oklch(0.31 0.014 162);
-  --ring: oklch(0.74 0.17 152);
-  --chart-1: oklch(0.74 0.17 152);
-  --chart-2: oklch(0.7 0.1 220);
-  --chart-3: oklch(0.79 0.14 78);
-  --chart-4: oklch(0.62 0.19 25);
-  --chart-5: oklch(0.7 0.014 158);
-  --sidebar: oklch(0.21 0.013 162);
-  --sidebar-foreground: oklch(0.94 0.006 150);
-  --sidebar-primary: oklch(0.74 0.17 152);
-  --sidebar-primary-foreground: oklch(0.18 0.03 160);
-  --sidebar-accent: oklch(0.28 0.015 162);
-  --sidebar-accent-foreground: oklch(0.95 0.008 150);
-  --sidebar-border: oklch(0.3 0.014 162);
-  --sidebar-ring: oklch(0.74 0.17 152);
+  --background: oklch(0.975 0.008 250);
+  --foreground: oklch(0.24 0.025 276);
+  --surface: oklch(0.99 0.003 250);
+  --surface-foreground: oklch(0.24 0.025 276);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.025 276);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.025 276);
+  --primary: oklch(0.66 0.22 300);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.955 0.024 300);
+  --secondary-foreground: oklch(0.43 0.14 300);
+  --muted: oklch(0.96 0.008 250);
+  --muted-foreground: oklch(0.53 0.025 265);
+  --accent: oklch(0.94 0.035 300);
+  --accent-foreground: oklch(0.43 0.14 300);
+  --destructive: oklch(0.72 0.17 23);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.76 0.15 174);
+  --success-foreground: oklch(0.28 0.07 174);
+  --warning: oklch(0.78 0.14 58);
+  --warning-foreground: oklch(0.32 0.07 58);
+  --info: oklch(0.78 0.12 213);
+  --info-foreground: oklch(0.3 0.08 225);
+  --border: oklch(0.9 0.012 255);
+  --input: oklch(0.87 0.014 255);
+  --ring: oklch(0.66 0.22 300);
+  --chart-1: oklch(0.66 0.22 300);
+  --chart-2: oklch(0.76 0.15 174);
+  --chart-3: oklch(0.78 0.12 213);
+  --chart-4: oklch(0.78 0.12 23);
+  --chart-5: oklch(0.65 0.22 303);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.28 0.025 276);
+  --sidebar-primary: oklch(0.66 0.22 300);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.955 0.024 300);
+  --sidebar-accent-foreground: oklch(0.43 0.14 300);
+  --sidebar-border: oklch(0.9 0.012 255);
+  --sidebar-ring: oklch(0.66 0.22 300);
   /* Public AI quote conversation only: customer bubble pair + branded header wash. */
   --chat-user: oklch(0.52 0.19 292);
   --chat-user-foreground: oklch(0.98 0.005 292);
@@ -123,7 +120,7 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
@@ -136,7 +133,8 @@
   h1,
   h2,
   h3 {
-    letter-spacing: -0.015em;
+    font-family: var(--font-heading);
+    letter-spacing: 0;
   }
 }
 
@@ -144,6 +142,7 @@
   background-color: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent);
 }
 
 @utility tabular {
