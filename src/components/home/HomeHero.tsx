@@ -206,13 +206,13 @@ export function HomeHero() {
         </nav>
       </header>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 pb-16 pt-2">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 pb-10 pt-2 sm:px-6 sm:pb-16">
         {!hasConversation ? (
-          <div className="text-center">
-            <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
+          <div className="mb-6 text-center sm:mb-8">
+            <h1 className="text-balance text-[1.75rem] font-semibold leading-[1.15] tracking-tight sm:text-5xl">
               Stop losing leads you already paid for.
             </h1>
-            <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground">
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-4">
               Catch every ad enquiry, reply instantly, and rebook past customers — all from one
               place.
             </p>
