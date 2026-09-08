@@ -267,7 +267,10 @@ export function HomeHero() {
                                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
                               >
                                 {busyId === proposal.campaignId ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                  <Loader2
+                                    className="h-3.5 w-3.5 animate-spin"
+                                    aria-hidden="true"
+                                  />
                                 ) : (
                                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                                 )}
