@@ -221,7 +221,9 @@ function SidebarLink({
   onClick,
 }: {
   to:
+    | "/dashboard"
     | "/leads"
+
     | "/analytics"
     | "/import"
     | "/settings/business"
