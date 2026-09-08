@@ -362,13 +362,13 @@ export function HomeHero() {
             placeholder="Draft a 10% win-back campaign for contacts we haven't messaged in 2 weeks"
             className="w-full resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
           />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="mt-3 space-y-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
+            <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
               <button
                 type="button"
                 onClick={chooseFile}
                 disabled={importMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60"
+                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:py-1.5"
               >
                 {importMutation.isPending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -381,14 +381,14 @@ export function HomeHero() {
                 type="button"
                 aria-pressed={followUp}
                 onClick={() => setFollowUp((value) => !value)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs ${
+                className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-2 text-xs sm:py-1.5 ${
                   followUp
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
                 }`}
               >
                 <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
-                Attach follow-up request
+                Attach follow-up
               </button>
               <input
                 ref={fileRef}
@@ -408,8 +408,8 @@ export function HomeHero() {
                 }}
               />
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <span className="min-w-0 truncate text-xs text-muted-foreground">
                 {loading
                   ? "Checking your access…"
                   : signedIn
@@ -420,7 +420,7 @@ export function HomeHero() {
                 type="submit"
                 aria-label="Ask"
                 disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
-                className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40 sm:h-9 sm:w-9"
               >
                 {mutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -432,21 +432,23 @@ export function HomeHero() {
           </div>
         </form>
 
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-          <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {followUp
-            ? "Uploaded contacts will be checked, then you'll approve a win-back follow-up before anything sends."
-            : "Upload a contact list from your old system — nothing is messaged without your approval."}
+        <p className="mt-3 flex items-start justify-center gap-1.5 text-left text-xs leading-relaxed text-muted-foreground sm:items-center sm:text-center">
+          <Paperclip className="mt-0.5 h-3.5 w-3.5 shrink-0 sm:mt-0" aria-hidden="true" />
+          <span>
+            {followUp
+              ? "Uploaded contacts will be checked, then you'll approve a win-back follow-up before anything sends."
+              : "Upload a contact list from your old system — nothing is messaged without your approval."}
+          </span>
         </p>
 
         {!hasConversation ? (
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
             {SUGGESTIONS.map((suggestion) => (
               <button
                 key={suggestion}
                 type="button"
                 onClick={() => submit(suggestion)}
-                className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="rounded-2xl border border-border px-3.5 py-2.5 text-left text-xs leading-snug text-muted-foreground hover:bg-secondary hover:text-foreground sm:rounded-full sm:py-1.5 sm:text-center"
               >
                 {suggestion}
               </button>
