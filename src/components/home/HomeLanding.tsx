@@ -54,12 +54,21 @@ export function HomeLanding() {
             </span>
             <span className="text-sm font-semibold tracking-tight">BookedSecure</span>
           </a>
-          <a
-            href="#pilot"
-            className="inline-flex min-h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Join the pilot
-          </a>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/auth"
+              className="inline-flex min-h-10 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Sign in
+            </Link>
+            <a
+              href="#pilot"
+              className="inline-flex min-h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Join the pilot
+            </a>
+          </div>
+
         </div>
       </header>
 
