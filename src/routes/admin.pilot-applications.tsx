@@ -62,7 +62,11 @@ function PilotApplications() {
   const selected = applications.find((row) => row.id === selectedId) ?? null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div>
+        <h1 className="page-heading">Pilot applications</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Review and progress early-access businesses.</p>
+      </div>
       <div className="panel space-y-3 p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <label className="block text-sm">
@@ -71,7 +75,7 @@ function PilotApplications() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Business, contact, email, phone"
-              className="mt-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="form-control mt-1.5"
             />
           </label>
           <label className="block text-sm">
@@ -79,7 +83,7 @@ function PilotApplications() {
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value as "all" | PilotStatus)}
-              className="mt-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="form-control mt-1.5"
             >
               <option value="all">All statuses</option>
               {PILOT_STATUSES.map((value) => (
@@ -94,7 +98,7 @@ function PilotApplications() {
             <select
               value={utmSource}
               onChange={(event) => setUtmSource(event.target.value)}
-              className="mt-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="form-control mt-1.5"
             >
               <option value="">Any source</option>
               {(data?.sources ?? []).map((value) => (
@@ -110,7 +114,7 @@ function PilotApplications() {
               type="date"
               value={from}
               onChange={(event) => setFrom(event.target.value)}
-              className="mt-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="form-control mt-1.5"
             />
           </label>
           <label className="block text-sm">
@@ -119,7 +123,7 @@ function PilotApplications() {
               type="date"
               value={to}
               onChange={(event) => setTo(event.target.value)}
-              className="mt-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="form-control mt-1.5"
             />
           </label>
         </div>
@@ -128,7 +132,7 @@ function PilotApplications() {
 
       <div className="panel overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+          <thead className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Business</th>
               <th className="px-4 py-3">Contact</th>
@@ -295,7 +299,7 @@ function ApplicationDetail({ application }: { application: Application }) {
 function Detail({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 break-words">{value ?? "—"}</dd>
     </div>
   );
