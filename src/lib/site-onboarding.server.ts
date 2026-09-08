@@ -14,6 +14,7 @@ import {
   buildOnboardingProposal,
   markExistingServices,
   serviceMatchKey,
+  isSameService,
   normaliseSiteUrl,
   type OnboardingProposal,
   type ScrapedSite,
@@ -27,6 +28,10 @@ const EXTRACTION_PROMPT = [
   "the opening hours exactly as written, and the list of services offered.",
   "For each service include its name, its price exactly as written on the page (including any 'from'),",
   "a one-line description, and the appointment length in minutes if stated.",
+  "Separately, list any optional add-on extras or upgrades sold on top of a service",
+  "(for example an extra treatment added to a detail), with the extra's name, its price exactly as written,",
+  "a one-line description, the extra time in minutes if stated, and the names of the services it applies to.",
+  "Do not repeat a main service as an add-on.",
   "Never invent a value. Leave a field out when the page does not state it.",
 ].join(" ");
 
@@ -47,6 +52,19 @@ const EXTRACTION_SCHEMA = {
           price: { type: "string" },
           description: { type: "string" },
           durationMinutes: { type: "number" },
+        },
+      },
+    },
+    addons: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          price: { type: "string" },
+          description: { type: "string" },
+          durationMinutes: { type: "number" },
+          appliesTo: { type: "array", items: { type: "string" } },
         },
       },
     },
@@ -115,17 +133,22 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
     openingHours: (extracted["openingHours"] as string | undefined) ?? null,
     logoUrl: branding?.logo ?? branding?.images?.logo ?? null,
     services: (extracted["services"] as ScrapedSite["services"]) ?? null,
+    addons: (extracted["addons"] as ScrapedSite["addons"]) ?? null,
   };
 
   const proposal = buildOnboardingProposal(site, url);
 
   // Show the owner up front which of their services already exist, so the
   // preview matches exactly what saving will do.
-  const { data: existing } = await supabaseAdmin
-    .from("services")
-    .select("name")
-    .eq("business_id", app.businessId);
-  return markExistingServices(proposal, (existing ?? []).map((row) => row.name));
+  const [{ data: existing }, { data: existingAddons }] = await Promise.all([
+    supabaseAdmin.from("services").select("name").eq("business_id", app.businessId),
+    supabaseAdmin.from("service_addons").select("name").eq("business_id", app.businessId),
+  ]);
+  return markExistingServices(
+    proposal,
+    (existing ?? []).map((row) => row.name),
+    (existingAddons ?? []).map((row) => row.name),
+  );
 }
 
 async function copyLogo(app: AppContext, logoUrl: string): Promise<boolean> {
@@ -152,6 +175,8 @@ export type ApplyOutcome = {
   businessUpdated: boolean;
   servicesAdded: number;
   servicesSkipped: number;
+  addonsAdded: number;
+  addonsSkipped: number;
   availabilityWindows: number;
   availabilityActive: boolean;
   logoSaved: boolean;
@@ -207,6 +232,60 @@ export async function applySiteOnboarding(
   if (skipped > 0)
     notes.push(`${skipped} service(s) you already offer were left exactly as they are.`);
 
+  // Add-on extras are attached to the tenant's OWN services — the ones just
+  // added and the ones they already had. An extra they already have is never
+  // touched, and an extra that matches no service of theirs is not saved.
+  const { data: allServices } = await supabaseAdmin
+    .from("services")
+    .select("id, name")
+    .eq("business_id", app.businessId);
+  const { data: currentAddons } = await supabaseAdmin
+    .from("service_addons")
+    .select("name")
+    .eq("business_id", app.businessId);
+  const addonTaken = new Set((currentAddons ?? []).map((row) => serviceMatchKey(row.name)));
+
+  let addonsAdded = 0;
+  let addonsSkipped = 0;
+  for (const addon of proposal.addons) {
+    if (addonTaken.has(serviceMatchKey(addon.name))) {
+      addonsSkipped += 1;
+      continue;
+    }
+    const linked = (allServices ?? []).filter((service) =>
+      addon.serviceNames.some((name) => isSameService(name, service.name)),
+    );
+    if (linked.length === 0) {
+      addonsSkipped += 1;
+      continue;
+    }
+    const { data: created, error } = await supabaseAdmin
+      .from("service_addons")
+      .insert({
+        business_id: app.businessId,
+        name: addon.name,
+        description: addon.description,
+        price_guidance: addon.price_guidance,
+        duration_minutes: addon.duration_minutes,
+        active: true,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    const { error: linkError } = await supabaseAdmin.from("service_addon_links").insert(
+      linked.map((service) => ({
+        business_id: app.businessId,
+        addon_id: created.id,
+        service_id: service.id,
+      })),
+    );
+    if (linkError) throw new Error(linkError.message);
+    addonTaken.add(serviceMatchKey(addon.name));
+    addonsAdded += 1;
+  }
+  if (addonsSkipped > 0)
+    notes.push(`${addonsSkipped} extra(s) were skipped because you already have them.`);
+
   let availabilityActive = false;
   if (proposal.weeklyWindows.length > 0) {
     const { data: business } = await supabaseAdmin
@@ -251,6 +330,7 @@ export async function applySiteOnboarding(
     metadata: {
       source_url: proposal.sourceUrl,
       services_added: rows.length,
+      addons_added: addonsAdded,
       windows: proposal.weeklyWindows.length,
       logo_saved: logoSaved,
     },
@@ -261,6 +341,8 @@ export async function applySiteOnboarding(
     businessUpdated: Object.keys(businessPatch).length > 0,
     servicesAdded: rows.length,
     servicesSkipped: skipped,
+    addonsAdded,
+    addonsSkipped,
     availabilityWindows: proposal.weeklyWindows.length,
     availabilityActive,
     logoSaved,
