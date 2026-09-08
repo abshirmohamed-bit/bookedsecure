@@ -1,0 +1,207 @@
+/**
+ * Owner action orchestration for the home-page assistant.
+ *
+ * The assistant may PROPOSE two things and nothing else: a win-back campaign
+ * (draft rows only, no sends) and a bulk lead-status change. Both are applied
+ * only when the owner confirms. Every read and write is scoped by `business_id`.
+ */
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { proposeOffer } from "@/lib/reactivation";
+import type { LeadStatus } from "@/lib/domain";
+import {
+  describeStatusChange,
+  isSafeStatusTarget,
+  parseOwnerRequest,
+  statusLabel,
+  type OwnerActionRequest,
+} from "@/lib/owner-actions";
+
+export type CampaignProposal = {
+  kind: "campaign";
+  campaignId: string;
+  offerText: string;
+  summary: string;
+  drafts: Array<{ id: string; leadName: string | null; mobileNumber: string; body: string }>;
+};
+
+export type StatusProposal = {
+  kind: "status";
+  from: LeadStatus | null;
+  to: LeadStatus;
+  count: number;
+  maxLeads: number | null;
+  summary: string;
+};
+
+export type OwnerProposal = CampaignProposal | StatusProposal;
+
+function excludeUnreachable<T>(query: T): T {
+  const q = query as unknown as {
+    is: (column: string, value: null) => unknown;
+  };
+  return q.is("opted_out_at", null).is("sms_suppressed_at", null) as unknown as T;
+}
+
+/** How many leads a status change would touch right now. */
+export async function countStatusTargets(input: {
+  businessId: string;
+  from: LeadStatus | null;
+  maxLeads: number | null;
+}): Promise<number> {
+  const ids = await statusTargetIds(input);
+  return ids.length;
+}
+
+async function statusTargetIds(input: {
+  businessId: string;
+  from: LeadStatus | null;
+  maxLeads: number | null;
+}): Promise<string[]> {
+  let query = supabaseAdmin
+    .from("leads")
+    .select("id")
+    .eq("business_id", input.businessId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+  query = excludeUnreachable(query);
+  if (input.from) query = query.eq("status", input.from);
+  if (input.maxLeads) query = query.limit(input.maxLeads);
+  else query = query.limit(2000);
+  const { data } = await query;
+  return (data ?? []).map((row) => row.id as string);
+}
+
+/** Applies a confirmed bulk status change. Sends nothing. */
+export async function applyStatusChange(input: {
+  businessId: string;
+  userId: string;
+  from: LeadStatus | null;
+  to: LeadStatus;
+  maxLeads: number | null;
+}): Promise<{ updated: number }> {
+  if (!isSafeStatusTarget(input.to)) throw new Error("That status cannot be set from here.");
+  const ids = await statusTargetIds(input);
+  if (ids.length === 0) return { updated: 0 };
+
+  const { error } = await supabaseAdmin
+    .from("leads")
+    .update({ status: input.to })
+    .eq("business_id", input.businessId)
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+
+  await supabaseAdmin.from("audit_events").insert({
+    business_id: input.businessId,
+    user_id: input.userId,
+    event_type: "lead_status_bulk_changed",
+    entity_type: "lead",
+    metadata: { from: input.from, to: input.to, count: ids.length } as never,
+  });
+
+  return { updated: ids.length };
+}
+
+/** Prepares a draft win-back campaign for the owner to review. Sends nothing. */
+export async function proposeCampaign(input: {
+  businessId: string;
+  userId: string;
+  percent: number | null;
+  maxLeads: number | null;
+  olderThanDays: number | null;
+}): Promise<CampaignProposal | null> {
+  const { draftReactivationCampaign } = await import("@/lib/reactivation.server");
+  const view = await draftReactivationCampaign({
+    businessId: input.businessId,
+    userId: input.userId,
+    offerText: input.percent ? proposeOffer({ percent: input.percent }) : null,
+    ...(input.maxLeads ? { maxLeads: input.maxLeads } : {}),
+    ...(input.olderThanDays ? { olderThanDays: input.olderThanDays } : {}),
+  });
+  if (!view.campaign) return null;
+
+  const pending = view.drafts.filter((draft) => draft.status === "draft");
+  const windowNote = input.olderThanDays
+    ? ` who have not been contacted in the last ${input.olderThanDays} day${input.olderThanDays === 1 ? "" : "s"}`
+    : "";
+  return {
+    kind: "campaign",
+    campaignId: view.campaign.id,
+    offerText: view.campaign.offerText,
+    summary:
+      pending.length === 0
+        ? "No contacts qualify for a win-back message right now."
+        : `${pending.length} contact${pending.length === 1 ? "" : "s"}${windowNote} ready to receive "${view.campaign.offerText}". Nothing sends until you approve.`,
+    drafts: pending.map((draft) => ({
+      id: draft.id,
+      leadName: draft.leadName,
+      mobileNumber: draft.mobileNumber,
+      body: draft.body,
+    })),
+  };
+}
+
+/**
+ * Turns one owner request into an answer plus any proposals. When the request
+ * is not an action, the read-only assistant answers it as before.
+ */
+export async function handleOwnerRequest(input: {
+  businessId: string;
+  userId: string;
+  question: string;
+}): Promise<{ answer: string; proposals: OwnerProposal[] }> {
+  const requests: OwnerActionRequest[] = parseOwnerRequest(input.question);
+  if (requests.length === 0) {
+    const { answerOwnerQuestion } = await import("@/lib/owner-assistant.server");
+    const result = await answerOwnerQuestion({
+      businessId: input.businessId,
+      question: input.question,
+    });
+    return { answer: result.answer, proposals: [] };
+  }
+
+  const proposals: OwnerProposal[] = [];
+  const lines: string[] = [];
+
+  for (const request of requests) {
+    if (request.kind === "draft_campaign") {
+      const proposal = await proposeCampaign({
+        businessId: input.businessId,
+        userId: input.userId,
+        percent: request.percent,
+        maxLeads: request.maxLeads,
+        olderThanDays: request.olderThanDays,
+      });
+      if (proposal) {
+        proposals.push(proposal);
+        lines.push(proposal.summary);
+      } else {
+        lines.push("I could not prepare a win-back campaign just now.");
+      }
+    } else {
+      const count = await countStatusTargets({
+        businessId: input.businessId,
+        from: request.from,
+        maxLeads: request.maxLeads,
+      });
+      if (count === 0) {
+        lines.push(
+          request.from
+            ? `No leads are currently marked ${statusLabel(request.from)}.`
+            : "No leads match that change.",
+        );
+      } else {
+        proposals.push({
+          kind: "status",
+          from: request.from,
+          to: request.to,
+          count,
+          maxLeads: request.maxLeads,
+          summary: describeStatusChange({ from: request.from, to: request.to, count }),
+        });
+        lines.push(describeStatusChange({ from: request.from, to: request.to, count }));
+      }
+    }
+  }
+
+  return { answer: lines.join(" "), proposals };
+}
