@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOnboardingProposal,
+  isSameService,
+  markExistingServices,
   normaliseAuContactNumber,
   normaliseSiteUrl,
   parseOpeningHours,
@@ -85,5 +87,51 @@ describe("buildOnboardingProposal", () => {
     expect(proposal.services).toEqual([]);
     expect(proposal.weeklyWindows).toEqual([]);
     expect(proposal.warnings.length).toBeGreaterThan(2);
+  });
+});
+
+describe("service duplicate matching", () => {
+  it("treats punctuation, word order and filler words as the same service", () => {
+    expect(isSameService("Full Detail (Interior & Exterior)", "Full Detail Interior + Exterior")).toBe(true);
+    expect(isSameService("Interior Detail", "Full Interior Detail")).toBe(true);
+    expect(isSameService("ceramic coating", "Ceramic Coating")).toBe(true);
+  });
+
+  it("keeps genuinely different services apart", () => {
+    expect(isSameService("Exterior Detail", "Full Interior Detail")).toBe(false);
+    expect(isSameService("Ceramic Coating", "Motorcycle Ceramic Coating")).toBe(false);
+    expect(isSameService("Paint Correction", "Paint Enhancement Detail")).toBe(false);
+  });
+
+  it("flags only the services a tenant already offers", () => {
+    const scraped = buildOnboardingProposal(
+      {
+        services: [
+          { name: "Exterior Detail" },
+          { name: "Full Detail (Interior & Exterior)" },
+          { name: "Headlight Restoration" },
+          { name: "Ceramic Coating" },
+          { name: "Interior Detail" },
+          { name: "Paint Correction" },
+          { name: "Motorcycle Ceramic Coating" },
+        ],
+      },
+      "https://example.com/",
+    );
+    const marked = markExistingServices(scraped, [
+      "Pet Hair & Odour Treatment",
+      "Paint Enhancement Detail",
+      "Full Interior Detail",
+      "Full Detail Interior + Exterior",
+      "Ceramic Coating",
+    ]);
+
+    expect(marked.services.filter((service) => !service.alreadyHave).map((service) => service.name)).toEqual([
+      "Exterior Detail",
+      "Headlight Restoration",
+      "Paint Correction",
+      "Motorcycle Ceramic Coating",
+    ]);
+    expect(marked.services.filter((service) => service.alreadyHave)).toHaveLength(3);
   });
 });
