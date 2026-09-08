@@ -91,13 +91,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         </div>
         <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 py-4">
           <SidebarLabel>Workspace</SidebarLabel>
-          {PRIMARY_NAV.map((item, index) => (
+          {PRIMARY_NAV.map((item) => (
             <SidebarLink
               key={item.to}
               to={item.to}
               label={item.label}
               active={isPrimaryNavActive(item, pathname)}
-              icon={index === 0 ? MessageCircle : BarChart3}
+              icon={NAV_ICONS[item.icon]}
               onClick={() => setMobileNavOpen(false)}
             />
           ))}
@@ -176,7 +176,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         <p className="min-w-0 truncate text-sm text-muted-foreground">
           <span className="hidden sm:inline">Workspace&nbsp; / &nbsp;</span>
           <span className="font-medium text-foreground">
-            {breadcrumb.at(-1) ?? title ?? "Leads"}
+            {breadcrumb.at(-1) ?? title ?? "Workspace"}
           </span>
         </p>
         <div className="ml-auto flex items-center gap-1">
