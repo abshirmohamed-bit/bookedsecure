@@ -26,6 +26,7 @@ const ProposalSchema = z.object({
         description: z.string().max(600).nullable(),
         price_guidance: z.string().max(200).nullable(),
         duration_minutes: z.number().int().min(15).max(1440),
+        alreadyHave: z.boolean(),
       }),
     )
     .max(20),

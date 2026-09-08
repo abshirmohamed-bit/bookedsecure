@@ -12,6 +12,8 @@ import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/tenant-logo";
 import { storeTenantLogo } from "@/lib/tenant-account.server";
 import {
   buildOnboardingProposal,
+  markExistingServices,
+  serviceMatchKey,
   normaliseSiteUrl,
   type OnboardingProposal,
   type ScrapedSite,
@@ -115,7 +117,15 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
     services: (extracted["services"] as ScrapedSite["services"]) ?? null,
   };
 
-  return buildOnboardingProposal(site, url);
+  const proposal = buildOnboardingProposal(site, url);
+
+  // Show the owner up front which of their services already exist, so the
+  // preview matches exactly what saving will do.
+  const { data: existing } = await supabaseAdmin
+    .from("services")
+    .select("name")
+    .eq("business_id", app.businessId);
+  return markExistingServices(proposal, (existing ?? []).map((row) => row.name));
 }
 
 async function copyLogo(app: AppContext, logoUrl: string): Promise<boolean> {
@@ -176,10 +186,10 @@ export async function applySiteOnboarding(
     .from("services")
     .select("name")
     .eq("business_id", app.businessId);
-  const taken = new Set((existingServices ?? []).map((row) => row.name.trim().toLowerCase()));
+  const taken = new Set((existingServices ?? []).map((row) => serviceMatchKey(row.name)));
 
   const rows = proposal.services
-    .filter((service) => !taken.has(service.name.trim().toLowerCase()))
+    .filter((service) => !taken.has(serviceMatchKey(service.name)))
     .map((service) => ({
       business_id: app.businessId,
       name: service.name,
@@ -194,7 +204,8 @@ export async function applySiteOnboarding(
     if (error) throw new Error(error.message);
   }
   const skipped = proposal.services.length - rows.length;
-  if (skipped > 0) notes.push(`${skipped} service(s) were already in your list and were left as they are.`);
+  if (skipped > 0)
+    notes.push(`${skipped} service(s) you already offer were left exactly as they are.`);
 
   let availabilityActive = false;
   if (proposal.weeklyWindows.length > 0) {
