@@ -33,6 +33,7 @@ import {
   parseChangeDirective,
 } from "@/lib/web-chat-correction";
 import { isBookingOnlyTenant } from "@/lib/booking-only-mode";
+import { addonsSummary } from "@/lib/service-addons";
 import { campaignOfferPercent } from "@/lib/service-pricing.server";
 import {
   BOOKING_CHANGE_MESSAGE,
@@ -647,6 +648,7 @@ export async function replyToWebChat(input: {
           tenant_slug: tenant.slug,
           web_conversation_id: conversation.id,
           form_url: input.formUrl,
+          addons: next.addon_names ?? [],
         },
       },
       request_type: next.service_id ? "service" : "recommendation",
@@ -711,6 +713,7 @@ export async function replyToWebChat(input: {
 
       // A returning contact's new enquiry is a real enquiry: it must reach the
       // owner and be trackable, exactly like a first-time capture.
+      const chosenAddonsForAlert = addonsSummary(next.addon_names ?? []);
       const returningName =
         (next.name ?? "").trim() || (existing.name ?? "").trim() || "Returning customer";
       const returningMobile =
@@ -754,6 +757,7 @@ export async function replyToWebChat(input: {
           body: [
             `${returningName}${returningMobile ? ` · ${returningMobile}` : ""}`,
             next.service_name ? `Service: ${next.service_name}` : null,
+            chosenAddonsForAlert ? `Extras: ${chosenAddonsForAlert}` : null,
             next.service_address ? `Address: ${next.service_address}` : null,
             next.suburb ? `Suburb: ${next.suburb}` : null,
             `Received: ${new Date().toISOString()}`,
@@ -772,6 +776,28 @@ export async function replyToWebChat(input: {
         },
       });
       if (alertJob.job) await runJobById(alertJob.job.id);
+    }
+  }
+
+  // Extras chosen with the service are the tenant's own add-ons. They are
+  // recorded on the lead so the owner sees them with the job, and never change
+  // pricing or the appointment length by themselves.
+  const chosenAddons = addonsSummary(next.addon_names ?? []);
+  if (leadId && chosenAddons) {
+    const { data: leadRow } = await supabaseAdmin
+      .from("leads")
+      .select("notes")
+      .eq("id", leadId)
+      .eq("business_id", tenant.businessId)
+      .maybeSingle();
+    const line = `Extras requested: ${chosenAddons}`;
+    const existingNotes = (leadRow?.notes ?? "").trim();
+    if (!existingNotes.includes(line)) {
+      await supabaseAdmin
+        .from("leads")
+        .update({ notes: existingNotes ? `${existingNotes}\n${line}` : line })
+        .eq("id", leadId)
+        .eq("business_id", tenant.businessId);
     }
   }
 
