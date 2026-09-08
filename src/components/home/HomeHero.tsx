@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowUp, CalendarClock, Check, Loader2, Paperclip, UploadCloud } from "lucide-react";
+import { ArrowUp, Check, Loader2, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,13 +10,6 @@ import { approveReactivation } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { previewCrmImport } from "@/lib/csv-import.functions";
 import { MAX_CSV_BYTES } from "@/lib/csv-import";
-
-const SUGGESTIONS = [
-  "What's waiting on a reply?",
-  "Draft a 15% win-back campaign for 10 contacts we haven't messaged in 2 weeks",
-  "Mark the leads that are new as contacted",
-  "How many new leads this week?",
-] as const;
 
 type CampaignProposal = {
   kind: "campaign";
@@ -65,7 +58,6 @@ export function HomeHero() {
   const endRef = useRef<HTMLDivElement>(null);
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [followUp, setFollowUp] = useState(false);
   const [attested, setAttested] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -102,11 +94,7 @@ export function HomeHero() {
       return upload({ data: { filename: file.name, content } });
     },
     onSuccess: () => {
-      toast.success(
-        followUp
-          ? "Contacts checked. Open the import page to approve the win-back follow-up."
-          : "Contacts checked. Open the import page to review and save them.",
-      );
+      toast.success("Contacts checked. Open the import page to review and save them.");
       navigate({ to: "/import" });
     },
     onError: () => toast.error("We could not read that contact file. Nothing was saved."),
@@ -347,78 +335,57 @@ export function HomeHero() {
           <label className="sr-only" htmlFor="owner-question">
             Ask about your business or ask for a campaign
           </label>
-          <textarea
-            id="owner-question"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                submit(question);
-              }
-            }}
-            rows={2}
-            maxLength={OWNER_ASSISTANT_MAX_QUESTION}
-            placeholder="Draft a 10% win-back campaign for contacts we haven't messaged in 2 weeks"
-            className="w-full resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
-          />
-          <div className="mt-3 space-y-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
-            <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-              <button
-                type="button"
-                onClick={chooseFile}
-                disabled={importMutation.isPending}
-                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:py-1.5"
-              >
-                {importMutation.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                ) : (
-                  <UploadCloud className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-                {importMutation.isPending ? "Checking contacts…" : "Upload old leads"}
-              </button>
-              <button
-                type="button"
-                aria-pressed={followUp}
-                onClick={() => setFollowUp((value) => !value)}
-                className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-2 text-xs sm:py-1.5 ${
-                  followUp
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
-                Attach follow-up
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                aria-label="Choose a contact file to upload"
-                accept=".csv,text/csv,.tsv,text/tab-separated-values"
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (!file) return;
-                  if (file.size > MAX_CSV_BYTES) {
-                    toast.error("That file is larger than 2 MB.");
-                    return;
-                  }
-                  importMutation.mutate(file);
-                }}
-              />
-            </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <span className="min-w-0 truncate text-xs text-muted-foreground">
-                {loading
-                  ? "Checking your access…"
-                  : signedIn
-                    ? "Nothing sends without your approval"
-                    : "Sign in to ask"}
-              </span>
+          <div className="flex items-start gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={chooseFile}
+              disabled={importMutation.isPending}
+              title="Upload old leads"
+              className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:px-3"
+            >
+              {importMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <UploadCloud className="h-4 w-4" aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">Upload</span>
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              aria-label="Choose a contact file to upload"
+              accept=".csv,text/csv,.tsv,text/tab-separated-values"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (!file) return;
+                if (file.size > MAX_CSV_BYTES) {
+                  toast.error("That file is larger than 2 MB.");
+                  return;
+                }
+                importMutation.mutate(file);
+              }}
+            />
+            <textarea
+              id="owner-question"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  submit(question);
+                }
+              }}
+              rows={2}
+              maxLength={OWNER_ASSISTANT_MAX_QUESTION}
+              placeholder="Draft a 10% win-back campaign for contacts we haven't messaged in 2 weeks"
+              className="min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <div className="flex flex-col items-center gap-1">
               <button
                 type="submit"
-                aria-label="Ask"
+                aria-label={signedIn ? "Ask" : "Sign in to ask"}
                 disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40 sm:h-9 sm:w-9"
               >
@@ -428,33 +395,19 @@ export function HomeHero() {
                   <ArrowUp className="h-4 w-4" aria-hidden="true" />
                 )}
               </button>
+              {!signedIn && !loading ? (
+                <span className="whitespace-nowrap text-[10px] leading-none text-muted-foreground">
+                  Sign in to ask
+                </span>
+              ) : null}
             </div>
           </div>
+          {signedIn && !loading ? (
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Nothing sends without your approval
+            </p>
+          ) : null}
         </form>
-
-        <p className="mt-3 flex items-start justify-center gap-1.5 text-left text-xs leading-relaxed text-muted-foreground sm:items-center sm:text-center">
-          <Paperclip className="mt-0.5 h-3.5 w-3.5 shrink-0 sm:mt-0" aria-hidden="true" />
-          <span>
-            {followUp
-              ? "Uploaded contacts will be checked, then you'll approve a win-back follow-up before anything sends."
-              : "Upload a contact list from your old system — nothing is messaged without your approval."}
-          </span>
-        </p>
-
-        {!hasConversation ? (
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
-            {SUGGESTIONS.map((suggestion) => (
-              <button
-                key={suggestion}
-                type="button"
-                onClick={() => submit(suggestion)}
-                className="rounded-2xl border border-border px-3.5 py-2.5 text-left text-xs leading-snug text-muted-foreground hover:bg-secondary hover:text-foreground sm:rounded-full sm:py-1.5 sm:text-center"
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
     </main>
   );
