@@ -18,7 +18,9 @@ export const startQuoteConversation = createServerFn({ method: "POST" })
         slug: z.string().min(1).max(60),
         company: z.string().max(200).optional().nullable(),
         // Private per-contact campaign token from the link they tapped.
-        c: z.string().uuid().optional().nullable(),
+        // Any other `c=` value (ad-platform tagging) is accepted and ignored
+        // downstream rather than failing the whole conversation.
+        c: z.string().max(200).optional().nullable(),
       })
       .parse(input),
   )

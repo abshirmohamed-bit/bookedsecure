@@ -79,12 +79,23 @@ export function LeadsWorkspace() {
   const followUps = useMutation({
     mutationFn: async () => {
       const result = await runFollowUps();
-      const campaign = await drafting({ data: { offerText: null } });
-      return { result, drafted: campaign.drafts.length };
+      // Drafting is a best-effort add-on: a drafting failure must never make
+      // the follow-ups that already ran look like they failed.
+      let drafted: number | null = null;
+      try {
+        const campaign = await drafting({ data: { offerText: null } });
+        drafted = campaign.drafts.length;
+      } catch {
+        drafted = null;
+      }
+      return { result, drafted };
     },
     onSuccess: ({ result, drafted }) => {
       toast.success(
-        `Follow-ups processed: ${result.sent} sent, ${result.skipped.length} skipped · ${drafted} win-back messages drafted for your approval`,
+        `Follow-ups processed: ${result.sent} sent, ${result.skipped.length} skipped` +
+          (drafted === null
+            ? " · win-back drafting could not run this time"
+            : ` · ${drafted} win-back messages drafted for your approval`),
       );
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reactivation"] });
