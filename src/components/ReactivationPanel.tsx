@@ -14,22 +14,12 @@ import {
 type CampaignView = Awaited<ReturnType<typeof getReactivationCampaign>>;
 
 /**
- * Owner review of the drafted reactivation campaign. Nothing here sends until
- * the owner confirms permission and approves.
+ * The dormant-contact overview query, shared by key so the Leads page can start
+ * it in parallel with its own data instead of waiting for the page to render.
  */
-export function ReactivationPanel() {
+export function useReactivationOverview() {
   const load = useServerFn(getReactivationCampaign);
-  const draft = useServerFn(draftReactivation);
-  const edit = useServerFn(editReactivationDraft);
-  const approve = useServerFn(approveReactivation);
-  const cancel = useServerFn(cancelReactivation);
-  const queryClient = useQueryClient();
-
-  const [offer, setOffer] = useState("");
-  const [attested, setAttested] = useState(false);
-  const [editing, setEditing] = useState<Record<string, string>>({});
-
-  const campaign = useQuery({
+  return useQuery({
     queryKey: ["reactivation"],
     queryFn: () => load() as Promise<CampaignView>,
     // The dormant-contact scan is the most expensive read on this page and its
@@ -40,6 +30,25 @@ export function ReactivationPanel() {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });
+}
+
+/**
+ * Owner review of the drafted reactivation campaign. Nothing here sends until
+ * the owner confirms permission and approves.
+ */
+export function ReactivationPanel() {
+  const draft = useServerFn(draftReactivation);
+  const edit = useServerFn(editReactivationDraft);
+  const approve = useServerFn(approveReactivation);
+  const cancel = useServerFn(cancelReactivation);
+  const queryClient = useQueryClient();
+
+  const [offer, setOffer] = useState("");
+  const [attested, setAttested] = useState(false);
+  const [editing, setEditing] = useState<Record<string, string>>({});
+
+  const campaign = useReactivationOverview();
+
 
 
   useEffect(() => {

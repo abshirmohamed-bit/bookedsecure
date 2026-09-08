@@ -48,7 +48,7 @@ import {
 } from "@/lib/lead-deletion";
 import { softDeleteLeadsRequest } from "@/lib/lead-deletion.functions";
 import { draftReactivation } from "@/lib/reactivation.functions";
-import { ReactivationPanel } from "@/components/ReactivationPanel";
+import { ReactivationPanel, useReactivationOverview } from "@/components/ReactivationPanel";
 import { cn } from "@/lib/utils";
 
 type DashboardResult = Awaited<ReturnType<typeof getDashboard>>;
