@@ -306,6 +306,8 @@ export async function draftReactivationCampaign(input: {
   userId: string;
   offerText?: string | null;
   maxLeads?: number;
+  /** Only contacts added at least this many days ago. */
+  olderThanDays?: number;
 }): Promise<ReactivationCampaignView & { candidates: number }> {
   const [{ data: business }, { data: services }] = await Promise.all([
     supabaseAdmin
@@ -325,7 +327,15 @@ export async function draftReactivationCampaign(input: {
   const tenantSlug = (business as { slug?: string | null } | null)?.slug ?? null;
 
   const { candidates, excluded } = await loadReactivationCandidates(input.businessId);
-  const scoped = candidates.slice(0, input.maxLeads ?? 200);
+  const cutoff =
+    typeof input.olderThanDays === "number" && input.olderThanDays > 0
+      ? Date.now() - input.olderThanDays * 24 * 60 * 60 * 1000
+      : null;
+  const dormant =
+    cutoff === null
+      ? candidates
+      : candidates.filter((candidate) => new Date(candidate.createdAt).getTime() <= cutoff);
+  const scoped = dormant.slice(0, input.maxLeads ?? 200);
 
   const offer =
     typeof input.offerText === "string" && input.offerText.trim().length > 0
