@@ -136,7 +136,7 @@ function parseClock(raw: string, meridiemHint: string | null): string | null {
 function daysFromToken(segment: string): number[] {
   const lower = segment.toLowerCase();
   const days = new Set<number>();
-  if (/\bevery ?day\b|\bdaily\b|\b7 days\b/.test(lower)) {
+  if (/\bevery ?day\b|\bdaily\b|\b7[\s-]*days?\b|\ball week\b|\bseven days\b/.test(lower)) {
     for (let day = 0; day < 7; day++) days.add(day);
     return [...days];
   }
