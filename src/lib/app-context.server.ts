@@ -37,7 +37,6 @@ export async function requireAppContext(supabase: Client, userId: string): Promi
       ? "platform_admin"
       : "staff";
 
-
   return {
     userId,
     businessId: profile.business_id,

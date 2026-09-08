@@ -23,7 +23,6 @@ export function NotificationBell() {
     refetchOnMount: false,
   });
 
-
   const mutation = useMutation({
     mutationFn: () => markRead({ data: {} }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),

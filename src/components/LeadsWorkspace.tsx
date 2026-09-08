@@ -85,7 +85,6 @@ export function LeadsWorkspace() {
   // rather than waiting for the inbox to finish rendering first.
   useReactivationOverview();
 
-
   function changeFilter(apply: () => void) {
     apply();
     setPage(1);

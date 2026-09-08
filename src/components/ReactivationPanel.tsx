@@ -49,8 +49,6 @@ export function ReactivationPanel() {
 
   const campaign = useReactivationOverview();
 
-
-
   useEffect(() => {
     const text = campaign.data?.campaign?.offerText;
     if (text && offer.length === 0) setOffer(text);
