@@ -66,6 +66,9 @@ export function HomeHero() {
   const upload = useServerFn(previewCrmImport);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (textareaRef.current) autoSize(textareaRef.current);
+  }, []);
   const endRef = useRef<HTMLDivElement>(null);
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
