@@ -43,6 +43,9 @@ export function SiteOnboardingPanel({ readOnly }: { readOnly: boolean }) {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const newServices = proposal?.services.filter((service) => !service.alreadyHave) ?? [];
+  const duplicateServices = proposal?.services.filter((service) => service.alreadyHave) ?? [];
+
   return (
     <section className="panel p-4">
       <h2 className="text-sm font-semibold">Set up from your website</h2>
@@ -87,16 +90,28 @@ export function SiteOnboardingPanel({ readOnly }: { readOnly: boolean }) {
           </dl>
 
           <div>
-            <p className="text-xs font-medium">Services ({proposal.services.length})</p>
+            <p className="text-xs font-medium">
+              Services ({newServices.length} to add
+              {duplicateServices.length > 0 ? `, ${duplicateServices.length} already yours` : ""})
+            </p>
             {proposal.services.length === 0 ? (
               <p className="text-xs text-muted-foreground">None found.</p>
             ) : (
               <ul className="mt-1 space-y-1">
-                {proposal.services.map((service) => (
+                {[...newServices, ...duplicateServices].map((service) => (
                   <li key={service.name} className="text-xs">
                     <span className="font-medium">{service.name}</span>
                     {service.price_guidance ? ` — ${service.price_guidance}` : " — no price listed"}
                     <span className="text-muted-foreground"> · {service.duration_minutes} min</span>
+                    {service.alreadyHave ? (
+                      <span className="ml-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        already yours — kept as is
+                      </span>
+                    ) : (
+                      <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                        new
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -155,7 +170,8 @@ export function SiteOnboardingPanel({ readOnly }: { readOnly: boolean }) {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Existing services are kept as they are, and your owner alert number is never changed here.
+            Services you already offer are matched by name and kept exactly as they are — only the new
+            ones are added. Your owner alert number is never changed here.
           </p>
         </div>
       )}
