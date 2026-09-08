@@ -400,7 +400,7 @@ export function HomeHero() {
               }}
               rows={1}
               maxLength={OWNER_ASSISTANT_MAX_QUESTION}
-              placeholder="Draft a 10% win-back campaign for contacts we haven't messaged in 2 weeks"
+              placeholder="Win back past customers"
               className="min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
             />
             <button
