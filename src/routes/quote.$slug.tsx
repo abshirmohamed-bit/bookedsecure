@@ -234,9 +234,9 @@ function ManualQuoteForm() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-10">
-      <div className="mx-auto max-w-md">
-        <header className="mb-6">
+    <main className="min-h-screen bg-background px-4 py-5 sm:py-10">
+      <div className="mx-auto max-w-lg">
+        <header className="brand-wash mb-4 rounded-lg border border-border p-4">
           <div className="flex items-center gap-3">
             <TenantMark name={tenant.name} logoUrl={tenant.logoUrl} />
             <div className="min-w-0">
@@ -248,7 +248,7 @@ function ManualQuoteForm() {
           </div>
         </header>
 
-        <div className="panel p-6">
+        <div className="panel overflow-hidden p-4 sm:p-6">
           <div className="mb-5 flex items-center gap-2">
             {STEPS.map((label, index) => (
               <div key={label} className="flex-1">
@@ -274,7 +274,7 @@ function ManualQuoteForm() {
                     set("request_type", event.target.value as RequestType);
                     set("service_choice", "");
                   }}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="form-control"
                 >
                   <option value="">Select an option</option>
                   {REQUEST_TYPES.map((type) => (
@@ -295,7 +295,7 @@ function ManualQuoteForm() {
                   <select
                     value={form.service_choice}
                     onChange={(event) => set("service_choice", event.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    className="form-control"
                   >
                     <option value="">Select a service</option>
                     {tenant.services.map((service) => (
@@ -327,7 +327,7 @@ function ManualQuoteForm() {
                     onChange={(event) => set("flexible_request_text", event.target.value)}
                     rows={3}
                     placeholder="Describe what you need and we'll come back to you personally."
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    className="form-control min-h-24 py-2"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
                     A person reviews these requests before any reply is sent.
@@ -343,7 +343,7 @@ function ManualQuoteForm() {
                 <select
                   value={form.vehicle_type}
                   onChange={(event) => set("vehicle_type", event.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="form-control"
                 >
                   <option value="">Select vehicle type</option>
                   {VEHICLE_TYPES.map((type) => (
@@ -358,7 +358,7 @@ function ManualQuoteForm() {
                   value={form.suburb}
                   onChange={(event) => set("suburb", event.target.value)}
                   placeholder="e.g. Marrickville"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="form-control"
                 />
               </Field>
               <Field label="What's the street address we should come to?">
@@ -366,7 +366,7 @@ function ManualQuoteForm() {
                   value={form.service_address}
                   onChange={(event) => set("service_address", event.target.value)}
                   placeholder="e.g. 12 Smith St"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="form-control"
                 />
               </Field>
             </div>
@@ -378,7 +378,7 @@ function ManualQuoteForm() {
                 <select
                   value={form.last_cleaned_at}
                   onChange={(event) => set("last_cleaned_at", event.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="form-control"
                 >
                   <option value="">Select</option>
                   {[
@@ -400,7 +400,7 @@ function ManualQuoteForm() {
                   onChange={(event) => set("main_concerns", event.target.value)}
                   rows={3}
                   placeholder="Interior, exterior, stains, odour, paint, pet hair, something else…"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="form-control min-h-24 py-2"
                 />
               </Field>
             </div>
@@ -412,7 +412,7 @@ function ManualQuoteForm() {
                 <input
                   value={form.name}
                   onChange={(event) => set("name", event.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="form-control"
                 />
               </Field>
               <Field label="Mobile number">
@@ -421,7 +421,7 @@ function ManualQuoteForm() {
                   onChange={(event) => set("mobile_number", event.target.value)}
                   placeholder="04XX XXX XXX"
                   inputMode="tel"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="form-control"
                 />
                 {form.mobile_number.length > 5 && normaliseAuMobile(form.mobile_number) === null && (
                   <p className="mt-1 text-xs text-destructive">
@@ -434,7 +434,7 @@ function ManualQuoteForm() {
                   type="email"
                   value={form.email}
                   onChange={(event) => set("email", event.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="form-control"
                 />
               </Field>
               <label className="flex gap-2 text-xs text-muted-foreground">

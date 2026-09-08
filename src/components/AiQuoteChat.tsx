@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Loader2, RotateCcw, Send, ShieldCheck, User } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
+import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
+import { Message, MessageContent } from "@/components/ai-elements/message";
+import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
 import {
   replyQuoteConversation,
   resumeQuoteConversation,
@@ -59,7 +62,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const [pending, setPending] = useState<Pending | null>(null);
   const inFlight = useRef(false);
   const bottom = useRef<HTMLDivElement | null>(null);
-  const input = useRef<HTMLInputElement | null>(null);
+  const input = useRef<HTMLTextAreaElement | null>(null);
 
   const busy = starting || sending;
 
@@ -197,24 +200,18 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const canSend = !busy && draft.trim().length > 0;
 
   const customerBubble = (body: string) => (
-    <>
-      <span
-        className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground"
-        aria-hidden="true"
-      >
-        <User className="h-3.5 w-3.5" />
-      </span>
-      <p className="max-w-[80%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-[color:var(--chat-user)] px-3.5 py-2.5 text-sm leading-relaxed text-[color:var(--chat-user-foreground)]">
-        {body}
-      </p>
-    </>
+    <Message from="user" className="ml-auto max-w-[86%]">
+      <MessageContent className="bg-[color:var(--chat-user)] px-3.5 py-2.5 text-[color:var(--chat-user-foreground)]">
+        <p className="whitespace-pre-wrap break-words leading-relaxed">{body}</p>
+      </MessageContent>
+    </Message>
   );
 
   return (
     <main className="flex h-[100dvh] w-full flex-col overflow-hidden bg-background">
       <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col overflow-hidden sm:py-6">
         {/* Branded header — standalone, stable, never scrolls with the transcript */}
-        <header className="grid w-full shrink-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 overflow-hidden border-b border-border bg-[image:var(--gradient-chat-header)] px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))] sm:rounded-2xl sm:border sm:px-6 sm:pt-4">
+        <header className="brand-wash grid w-full shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:rounded-lg sm:border sm:px-5 sm:pt-3">
           <div className="relative shrink-0">
             <TenantMark name={tenant.name} logoUrl={tenant.logoUrl} size={44} />
             <span
@@ -229,14 +226,16 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
               {tenant.serviceArea ? ` · ${tenant.serviceArea}` : ""}
             </p>
           </div>
+          <div className="hidden text-right sm:block">
+            <p className="text-[10px] font-medium text-muted-foreground">Powered securely by</p>
+            <p className="font-heading text-xs font-semibold text-primary">BookedSecure</p>
+          </div>
         </header>
 
         {/* Conversation column: ~two-thirds of the frame on desktop, full width on mobile */}
         <div className="mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden lg:w-2/3 lg:min-w-[640px] lg:max-w-[900px]">
-          <div
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6"
-            aria-live="polite"
-          >
+          <Conversation className="min-h-0 flex-1">
+            <ConversationContent className="gap-3 px-3 py-4 sm:px-6" aria-live="polite">
             <div className="w-full">
               <ul className="flex flex-col gap-3">
                 {visibleTurns.map((turn, index) => {
@@ -256,9 +255,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                             size={28}
                             className="rounded-full"
                           />
-                          <p className="max-w-[80%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-md bg-secondary px-3.5 py-2.5 text-sm leading-relaxed text-secondary-foreground">
-                            {turn.body}
-                          </p>
+                          <Message from="assistant" className="max-w-[82%]">
+                            <MessageContent><p className="whitespace-pre-wrap break-words leading-relaxed">{turn.body}</p></MessageContent>
+                          </Message>
                         </>
                       )}
                     </li>
@@ -280,7 +279,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                         size={28}
                         className="rounded-full"
                       />
-                      <div className="max-w-[85%] space-y-2.5 rounded-2xl rounded-bl-md bg-secondary px-3.5 py-3 text-sm leading-relaxed text-secondary-foreground">
+                       <div className="max-w-[88%] space-y-3 border-l-2 border-primary pl-3 text-sm leading-relaxed">
                         <p>
                           {returningName
                             ? `Welcome back, ${returningName}! Thanks for choosing ${tenant.name} again. Choose a service or tell us what you need.`
@@ -317,12 +316,12 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                     }
                                     send(option.value, option.label);
                                   }}
-                                  className={`-mx-1 rounded-lg px-1 text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
+                                   className={`w-full rounded-md border border-border bg-card px-3 py-2 text-left shadow-sm transition-colors hover:border-primary hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
                                     selected === option.value ? "text-primary" : ""
                                   } ${
                                     isFlexible
-                                      ? "font-normal italic text-muted-foreground"
-                                      : "font-semibold underline decoration-dotted decoration-1 underline-offset-4"
+                                       ? "font-normal text-muted-foreground"
+                                       : "font-semibold"
                                   }`}
 
                                 >
@@ -350,7 +349,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                           size={28}
                           className="rounded-full"
                         />
-                        <p className="max-w-[85%] rounded-2xl rounded-bl-md bg-secondary px-3.5 py-2.5 text-sm leading-relaxed text-secondary-foreground">
+                         <p className="max-w-[85%] border-l-2 border-primary pl-3 text-sm leading-relaxed">
                           No worries, tell me what you need in your own words below.
                         </p>
                       </li>
@@ -548,21 +547,22 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
               <div ref={bottom} className="h-1" />
             </div>
-          </div>
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
 
           {/* Composer — aligned with the conversation column */}
-          <div className="shrink-0 border-t border-border bg-card/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+          <div className="shrink-0 border-t border-border bg-card px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
             {showComposer && (
-              <form
-                className="flex items-end gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
+              <PromptInput
+                className="rounded-lg border-input bg-background shadow-sm"
+                onSubmit={() => {
                   if (!canSend) return;
                   setListHidden(!asksForServiceList(draft));
                   send(draft);
                 }}
               >
-                <input
+                <PromptInputTextarea
                   ref={input}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
@@ -585,28 +585,19 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   }
 
                   maxLength={500}
-                  className="min-h-11 min-w-0 flex-1 rounded-full border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="min-h-12 px-3 py-3 text-sm"
                   aria-label="Your answer"
                 />
-                <button
-                  type="submit"
-                  disabled={!canSend}
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                  aria-label={busy ? "Sending" : "Send"}
-                >
-                  {busy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Send className="h-4 w-4" aria-hidden="true" />
-                  )}
-                </button>
-              </form>
+                <PromptInputFooter className="justify-end">
+                  <PromptInputSubmit status={sending ? "submitted" : "ready"} disabled={!canSend} aria-label={busy ? "Sending" : "Send"} />
+                </PromptInputFooter>
+              </PromptInput>
             )}
 
             <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-muted-foreground">
               <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span>
-                Times shown are live and booked on the spot. Prices are confirmed by {tenant.name}.
+                Times shown are live and booked on the spot. Prices are confirmed by {tenant.name}. Powered by BookedSecure.
               </span>
             </p>
 
