@@ -215,36 +215,43 @@ export async function queryLeadInbox(
   });
   const predicates = leadFilterPredicates(input.businessId, filters);
 
-  const countQuery = applyPredicates(
-    client.from("lead_inbox_rows").select("id", { count: "exact", head: true }),
-    predicates,
-  );
-  const { count, error: countError } = await countQuery;
-  if (countError) throw new Error(countError.message);
-  const totalCount = count ?? 0;
-
-  const page = resolveRequestedPage(requested.page, totalCount, requested.pageSize);
-  const { from, to } = rangeFor({ page, pageSize: requested.pageSize });
-
-  let rowsQuery = applyPredicates(
-    client.from("lead_inbox_rows").select(LEAD_INBOX_COLUMNS),
-    predicates,
-  );
-  for (const order of orderFor(filters.scope)) {
-    rowsQuery = rowsQuery.order(order.column, { ascending: order.ascending, nullsFirst: false });
+  // One round trip: PostgREST returns the exact total count alongside the page
+  // of rows, so the inbox no longer pays for a separate counting query.
+  async function fetchPage(page: number) {
+    const { from, to } = rangeFor({ page, pageSize: requested.pageSize });
+    let rowsQuery = applyPredicates(
+      client.from("lead_inbox_rows").select(LEAD_INBOX_COLUMNS, { count: "exact" }),
+      predicates,
+    );
+    for (const order of orderFor(filters.scope)) {
+      rowsQuery = rowsQuery.order(order.column, { ascending: order.ascending, nullsFirst: false });
+    }
+    const { data, count, error } = await rowsQuery.range(from, to);
+    if (error) throw new Error(error.message);
+    return { rows: (data ?? []) as unknown as Record<string, unknown>[], totalCount: count ?? 0 };
   }
-  const { data, error } = await rowsQuery.range(from, to);
-  if (error) throw new Error(error.message);
 
-  const leads = ((data ?? []) as unknown as Record<string, unknown>[]).map(shapeLeadRow);
+  let page = requested.page;
+  let result = await fetchPage(page);
+
+  // A requested page past the end (filters changed, rows deleted) is clamped and
+  // refetched, preserving the previous behaviour of never returning a blank page.
+  const clamped = resolveRequestedPage(requested.page, result.totalCount, requested.pageSize);
+  if (clamped !== page) {
+    page = clamped;
+    result = await fetchPage(page);
+  }
+
+  const leads = result.rows.map(shapeLeadRow);
   return {
     leads,
     filters,
     page: buildPageMeta({
       page,
       pageSize: requested.pageSize,
-      totalCount,
+      totalCount: result.totalCount,
       returned: leads.length,
     }),
   };
 }
+
