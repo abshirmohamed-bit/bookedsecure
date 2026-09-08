@@ -81,6 +81,11 @@ export function LeadsWorkspace() {
     sms: smsFilter,
   });
 
+  // Started here so the dormant-contact overview loads alongside the inbox
+  // rather than waiting for the inbox to finish rendering first.
+  useReactivationOverview();
+
+
   function changeFilter(apply: () => void) {
     apply();
     setPage(1);
