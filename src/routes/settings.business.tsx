@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { AvailabilityEditor } from "@/components/settings/availability";
 import { TenantAccountPanel } from "@/components/settings/TenantAccountPanel";
+import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
 import {
   BusinessSettingsForm,
   QuotePageModeCard,
