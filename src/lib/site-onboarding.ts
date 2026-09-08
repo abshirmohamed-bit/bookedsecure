@@ -22,6 +22,15 @@ export type ScrapedService = {
   durationMinutes?: number | null;
 };
 
+export type ScrapedAddon = {
+  name?: string | null;
+  price?: string | null;
+  description?: string | null;
+  durationMinutes?: number | null;
+  /** Service names the site says this extra goes with. Empty means "any". */
+  appliesTo?: string[] | null;
+};
+
 /** Raw, untrusted shape read from the tenant's website. */
 export type ScrapedSite = {
   businessName?: string | null;
@@ -31,6 +40,7 @@ export type ScrapedSite = {
   openingHours?: string | null;
   logoUrl?: string | null;
   services?: ScrapedService[] | null;
+  addons?: ScrapedAddon[] | null;
 };
 
 export type ProposedService = {
@@ -39,6 +49,17 @@ export type ProposedService = {
   price_guidance: string | null;
   duration_minutes: number;
   /** True when the tenant already has this service, so it will be left alone. */
+  alreadyHave: boolean;
+};
+
+export type ProposedAddon = {
+  name: string;
+  description: string | null;
+  price_guidance: string | null;
+  duration_minutes: number | null;
+  /** Names of the tenant's services this extra will be offered with. */
+  serviceNames: string[];
+  /** True when the tenant already has an extra with this name. */
   alreadyHave: boolean;
 };
 
@@ -52,6 +73,7 @@ export type OnboardingProposal = {
   };
   logoUrl: string | null;
   services: ProposedService[];
+  addons: ProposedAddon[];
   weeklyWindows: AvailabilityWindow[];
   /** Plain-language notes for the owner about anything the site did not say. */
   warnings: string[];
@@ -254,13 +276,19 @@ export function isSameService(left: string, right: string): boolean {
 export function markExistingServices(
   proposal: OnboardingProposal,
   existingNames: readonly string[],
+  existingAddonNames: readonly string[] = [],
 ): OnboardingProposal {
   const existing = new Set(existingNames.map((name) => serviceMatchKey(name)));
+  const existingAddons = new Set(existingAddonNames.map((name) => serviceMatchKey(name)));
   return {
     ...proposal,
     services: proposal.services.map((service) => ({
       ...service,
       alreadyHave: existing.has(serviceMatchKey(service.name)),
+    })),
+    addons: proposal.addons.map((addon) => ({
+      ...addon,
+      alreadyHave: existingAddons.has(serviceMatchKey(addon.name)),
     })),
   };
 }
@@ -293,9 +321,54 @@ function proposeServices(raw: ScrapedService[] | null | undefined): ProposedServ
   return services;
 }
 
+/**
+ * Turns extras listed on the site into proposed add-ons, each attached to the
+ * services the site associates them with. An extra whose service cannot be
+ * matched is attached to every proposed service, which the owner can narrow
+ * before saving — nothing is ever invented.
+ */
+function proposeAddons(
+  raw: ScrapedAddon[] | null | undefined,
+  services: readonly ProposedService[],
+): ProposedAddon[] {
+  if (!Array.isArray(raw) || services.length === 0) return [];
+  const addons: ProposedAddon[] = [];
+  const names = new Set<string>();
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const name = text(entry.name, 80);
+    if (!name || name.length < 2) continue;
+    const key = serviceMatchKey(name);
+    // An extra that repeats one of the services is not an extra.
+    if (names.has(key) || services.some((service) => serviceMatchKey(service.name) === key)) continue;
+    names.add(key);
+
+    const declared = Array.isArray(entry.appliesTo) ? entry.appliesTo : [];
+    const matched = services
+      .filter((service) =>
+        declared.some((label) => typeof label === "string" && isSameService(label, service.name)),
+      )
+      .map((service) => service.name);
+
+    const duration = Number(entry.durationMinutes);
+    addons.push({
+      name,
+      description: text(entry.description, 600),
+      price_guidance: text(entry.price, 200),
+      duration_minutes:
+        Number.isInteger(duration) && duration >= 5 && duration <= 1440 ? duration : null,
+      serviceNames: matched.length > 0 ? matched : services.map((service) => service.name),
+      alreadyHave: false,
+    });
+    if (addons.length >= MAX_PROPOSED_SERVICES) break;
+  }
+  return addons;
+}
+
 /** Builds the owner-reviewable proposal from whatever the website provided. */
 export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): OnboardingProposal {
   const services = proposeServices(site.services);
+  const addons = proposeAddons(site.addons, services);
   const openingHours = text(site.openingHours, 200);
   const weeklyWindows = parseOpeningHours(openingHours);
   const serviceArea = text(site.serviceArea, 300) ?? text(site.suburb, 300);
@@ -322,6 +395,7 @@ export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): O
     },
     logoUrl,
     services,
+    addons,
     weeklyWindows,
     warnings,
   };
