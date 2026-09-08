@@ -5,4 +5,4 @@
 - [x] Rebuild the desktop shell with a persistent operations rail.
 - [x] Restyle the real metrics, campaign review, controls, and lead inbox.
 - [x] Add a mobile navigation drawer and verify desktop/mobile layouts.
-- [ ] Complete final automated checks and preview verification.
+- [x] Complete final automated checks and preview verification.
