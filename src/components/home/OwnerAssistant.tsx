@@ -179,11 +179,11 @@ export function OwnerAssistant() {
   const hasConversation = turns.length > 0;
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col">
+    <section className="mx-auto flex w-full max-w-3xl flex-col pt-4 sm:pt-8">
       <div className="flex w-full flex-1 flex-col justify-center">
         {!hasConversation ? (
           <div className="mb-6 text-center sm:mb-8">
-            <h1 className="text-balance text-[1.75rem] font-semibold leading-[1.15] tracking-tight sm:text-5xl">
+            <h1 className="text-balance font-heading text-2xl font-semibold leading-[1.15] tracking-tight sm:text-4xl">
               Stop losing leads you already paid for.
             </h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-4">
