@@ -157,10 +157,15 @@ export function LiteImportPanel({
 
 
   return (
-    <div className="space-y-6">
-      <section className="panel space-y-4 p-6" aria-label="Import your contacts">
+    <div className="space-y-5">
+      <div>
+        <h1 className="page-heading">Import contacts</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Bring old leads into one organised, reviewable workspace.</p>
+      </div>
+      <section className="panel overflow-hidden" aria-label="Import your contacts">
+        <div className="section-heading">Choose a contact file</div>
+        <div className="space-y-4 p-4 sm:p-5">
         <div>
-          <h2 className="text-base font-semibold">Import your contacts</h2>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
             Upload a contact list from your old system. We check every contact first and show you a
             simple summary before anything is saved. {LITE_NO_MESSAGES_COPY}
@@ -171,7 +176,7 @@ export function LiteImportPanel({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="flex w-full flex-col items-center gap-2 rounded-lg border border-dashed border-input bg-secondary/20 px-6 py-10 text-center hover:bg-secondary/40 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="flex w-full flex-col items-center gap-2 rounded-md border border-dashed border-primary/40 bg-secondary/35 px-6 py-10 text-center transition-colors hover:border-primary hover:bg-secondary/60 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <UploadCloud className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
           <span className="text-sm font-medium">
@@ -209,6 +214,7 @@ export function LiteImportPanel({
             <p className="text-xs">{LITE_PREPARE_SAFETY_COPY}</p>
           </div>
         ) : null}
+        </div>
 
       </section>
 

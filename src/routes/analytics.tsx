@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { BarChart3, Clock3, MessageCircleReply, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { getAnalytics } from "@/lib/app.functions";
 import { SmsDeliveryPanel } from "@/components/SmsDeliveryPanel";
@@ -62,7 +63,11 @@ function Analytics() {
   ] as const;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div>
+        <h1 className="page-heading">Analytics</h1>
+        <p className="mt-1 text-sm text-muted-foreground">See which channels turn enquiries into completed work.</p>
+      </div>
       <div className="panel grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:justify-between">
         <p className="truncate text-sm font-semibold">Reporting period</p>
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -158,10 +163,10 @@ function Analytics() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Within 5 minutes" value={`${Math.round(data.withinFiveMinutes * 100)}%`} />
-        <Stat label="Form completion" value={`${Math.round(data.formCompletionRate * 100)}%`} />
-        <Stat label="Opt-outs" value={String(data.optOuts)} />
-        <Stat label="Delivery failures" value={String(data.deliveryFailures)} />
+        <Stat icon={Clock3} tone="success" label="Within 5 minutes" value={`${Math.round(data.withinFiveMinutes * 100)}%`} />
+        <Stat icon={BarChart3} tone="info" label="Form completion" value={`${Math.round(data.formCompletionRate * 100)}%`} />
+        <Stat icon={MessageCircleReply} tone="primary" label="Opt-outs" value={String(data.optOuts)} />
+        <Stat icon={WalletCards} tone="destructive" label="Delivery failures" value={String(data.deliveryFailures)} />
       </section>
 
       <SmsDeliveryPanel />
@@ -177,11 +182,15 @@ function Analytics() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof Clock3; tone: "primary" | "success" | "info" | "destructive" }) {
+  const toneClass = { primary: "bg-primary/12 text-primary", success: "bg-success/15 text-success-foreground", info: "bg-info/15 text-info-foreground", destructive: "bg-destructive/12 text-destructive" }[tone];
   return (
-    <div className="panel px-4 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 tabular text-lg font-semibold">{value}</p>
+    <div className="panel border-t-2 border-t-current px-4 py-3">
+      <div className="flex items-center gap-2">
+        <span className={`grid h-7 w-7 place-items-center rounded-md ${toneClass}`}><Icon className="h-3.5 w-3.5" /></span>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+      <p className="mt-2 tabular font-heading text-xl font-semibold">{value}</p>
     </div>
   );
 }

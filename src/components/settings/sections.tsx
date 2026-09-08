@@ -66,10 +66,10 @@ export function SettingsPageBody({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="grid grid-cols-1 items-start gap-3 border-b border-border pb-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold">{heading}</h1>
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <h1 className="page-heading">{heading}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
         {actions && data?.business ? (
           <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -162,9 +162,10 @@ export function BusinessSettingsForm({
   });
 
   return (
-    <section className="panel p-4">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
+    <section className="panel overflow-hidden">
+      <div className="section-heading">{title}</div>
+      <div className="p-4">
+      {note && <p className="mb-4 text-xs text-muted-foreground">{note}</p>}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {textFields.map((key) => (
@@ -174,7 +175,7 @@ export function BusinessSettingsForm({
               disabled={readOnly}
               value={form[key]}
               onChange={(event) => setForm({ ...form, [key]: event.target.value })}
-              className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm disabled:opacity-60"
+              className="form-control disabled:opacity-60"
             />
           </label>
         ))}
@@ -190,7 +191,7 @@ export function BusinessSettingsForm({
                   default_sms_provider: event.target.value as "simulated" | "twilio" | "telnyx",
                 })
               }
-              className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm disabled:opacity-60"
+              className="form-control disabled:opacity-60"
             >
               <option value="simulated">Simulated (recorded, not sent)</option>
               <option value="twilio">Twilio (live SMS)</option>
@@ -211,7 +212,7 @@ export function BusinessSettingsForm({
                 onChange={(event) =>
                   setForm({ ...form, quiet_hours_start: Number(event.target.value) })
                 }
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm disabled:opacity-60"
+                className="form-control disabled:opacity-60"
               />
             </label>
             <label className="block text-xs">
@@ -223,7 +224,7 @@ export function BusinessSettingsForm({
                 disabled={readOnly}
                 value={form.quiet_hours_end}
                 onChange={(event) => setForm({ ...form, quiet_hours_end: Number(event.target.value) })}
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm disabled:opacity-60"
+                className="form-control disabled:opacity-60"
               />
             </label>
           </div>
@@ -252,6 +253,7 @@ export function BusinessSettingsForm({
           {mutation.isPending ? "Saving…" : "Save changes"}
         </button>
       )}
+      </div>
     </section>
   );
 }
@@ -262,9 +264,9 @@ export function ProviderStatus({
   provider: { name: string; ok?: boolean; detail?: string } & Record<string, unknown>;
 }) {
   return (
-    <section className="panel p-4">
-      <h2 className="text-sm font-semibold">Sending status</h2>
-      <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+    <section className="panel overflow-hidden">
+      <div className="section-heading">Sending status</div>
+      <p className="m-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span className="rounded-md border border-border px-2 py-0.5 font-medium text-foreground">
           {provider.name === "simulated" ? "Simulated mode" : "Live sending"}
         </span>
