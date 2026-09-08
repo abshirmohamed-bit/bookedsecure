@@ -97,7 +97,7 @@ async function audit(input: {
 }
 
 /** Permanent consent / opt-out history, kept separately from the lead record. */
-async function recordConsentEvent(input: {
+export async function recordConsentEvent(input: {
   businessId: string;
   leadId: string;
   eventType: "consent_given" | "opt_out" | "opt_in";
