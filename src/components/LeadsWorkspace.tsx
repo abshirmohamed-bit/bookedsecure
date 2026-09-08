@@ -439,11 +439,11 @@ export function LeadsWorkspace() {
                   </td>
                   <td className="px-3 py-2.5 text-xs text-muted-foreground">
                     <span className="inline-flex rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
-                      {leadSourceLabel(lead)}
+                      {importMethodLabel(lead) ?? leadSourceLabel(lead)}
                     </span>
-                    {importMethodLabel(lead) && (
+                    {importMethodLabel(lead) && leadSourceLabel(lead) !== "Unknown" && (
                       <p className="mt-0.5 text-[10px] text-muted-foreground/70">
-                        via {importMethodLabel(lead)}
+                        via {leadSourceLabel(lead)}
                       </p>
                     )}
                   </td>
