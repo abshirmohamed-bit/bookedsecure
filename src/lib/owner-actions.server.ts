@@ -33,7 +33,9 @@ export type StatusProposal = {
   summary: string;
 };
 
-export type OwnerProposal = CampaignProposal | StatusProposal;
+import type { AddonLinkProposal } from "@/lib/catalog-actions.server";
+
+export type OwnerProposal = CampaignProposal | StatusProposal | AddonLinkProposal;
 
 
 /** How many leads a status change would touch right now. */
@@ -143,6 +145,21 @@ export async function handleOwnerRequest(input: {
   userId: string;
   question: string;
 }): Promise<{ answer: string; proposals: OwnerProposal[] }> {
+  // Catalogue questions and add-on linking are handled deterministically first.
+  const { parseCatalogRequest } = await import("@/lib/catalog-actions");
+  const catalogRequest = parseCatalogRequest(input.question);
+  if (catalogRequest) {
+    const { answerCatalogList, proposeAddonLinks } = await import("@/lib/catalog-actions.server");
+    if (catalogRequest.kind === "list_catalog") {
+      return { answer: await answerCatalogList(input.businessId), proposals: [] };
+    }
+    const result = await proposeAddonLinks({
+      businessId: input.businessId,
+      request: catalogRequest,
+    });
+    return { answer: result.message, proposals: result.proposal ? [result.proposal] : [] };
+  }
+
   const requests: OwnerActionRequest[] = parseOwnerRequest(input.question);
   if (requests.length === 0) {
     const { answerOwnerQuestion } = await import("@/lib/owner-assistant.server");

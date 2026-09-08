@@ -48,3 +48,29 @@ export const confirmOwnerStatusChange = createServerFn({ method: "POST" })
       maxLeads: data.maxLeads,
     });
   });
+
+/** Applies an add-on linking change the owner has just confirmed on screen. */
+export const confirmAddonLinks = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        addonId: z.string().uuid(),
+        serviceIds: z.array(z.string().uuid()).min(1).max(200),
+        remove: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { applyAddonLinks } = await import("@/lib/catalog-actions.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return applyAddonLinks({
+      businessId: app.businessId,
+      userId: app.userId,
+      addonId: data.addonId,
+      serviceIds: data.serviceIds,
+      remove: data.remove,
+    });
+  });
