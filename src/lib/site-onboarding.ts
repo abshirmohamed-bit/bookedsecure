@@ -38,6 +38,8 @@ export type ProposedService = {
   description: string | null;
   price_guidance: string | null;
   duration_minutes: number;
+  /** True when the tenant already has this service, so it will be left alone. */
+  alreadyHave: boolean;
 };
 
 export type OnboardingProposal = {
@@ -203,6 +205,66 @@ export function parseOpeningHours(input: string | null | undefined): Availabilit
   return windows.sort((a, b) => (a.weekday === b.weekday ? a.start.localeCompare(b.start) : a.weekday - b.weekday));
 }
 
+/**
+ * Words that carry no meaning when telling two service names apart, so
+ * "Full Detail (Interior & Exterior)" and "Full Detail Interior + Exterior"
+ * are recognised as the same service instead of being added twice.
+ */
+const SERVICE_FILLER_WORDS = new Set([
+  "a",
+  "and",
+  "complete",
+  "detail",
+  "detailing",
+  "for",
+  "full",
+  "our",
+  "package",
+  "plus",
+  "service",
+  "services",
+  "the",
+  "treatment",
+  "with",
+]);
+
+/** Comparison key for service names: order, punctuation and filler words ignored. */
+export function serviceMatchKey(name: string): string {
+  const words = name
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/\+/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter((word) => word.length > 0 && !SERVICE_FILLER_WORDS.has(word));
+  const meaningful = words.length > 0 ? words : name.toLowerCase().replace(/[^a-z0-9]+/g, "").split("");
+  return [...new Set(meaningful)].sort().join(" ");
+}
+
+/** True when two service names describe the same service. */
+export function isSameService(left: string, right: string): boolean {
+  return serviceMatchKey(left) === serviceMatchKey(right);
+}
+
+/**
+ * Flags proposed services the tenant already has. Their existing wording,
+ * price and duration always win: onboarding only ever adds what is missing.
+ */
+export function markExistingServices(
+  proposal: OnboardingProposal,
+  existingNames: readonly string[],
+): OnboardingProposal {
+  const existing = new Set(existingNames.map((name) => serviceMatchKey(name)));
+  return {
+    ...proposal,
+    services: proposal.services.map((service) => ({
+      ...service,
+      alreadyHave: existing.has(serviceMatchKey(service.name)),
+    })),
+  };
+}
+
 function proposeServices(raw: ScrapedService[] | null | undefined): ProposedService[] {
   if (!Array.isArray(raw)) return [];
   const services: ProposedService[] = [];
@@ -211,7 +273,7 @@ function proposeServices(raw: ScrapedService[] | null | undefined): ProposedServ
     if (!entry || typeof entry !== "object") continue;
     const name = text(entry.name, 80);
     if (!name || name.length < 2) continue;
-    const key = name.toLowerCase();
+    const key = serviceMatchKey(name);
     if (names.has(key)) continue;
     names.add(key);
 
@@ -224,6 +286,7 @@ function proposeServices(raw: ScrapedService[] | null | undefined): ProposedServ
         Number.isInteger(duration) && duration >= 15 && duration <= 1440
           ? duration
           : DEFAULT_SERVICE_DURATION_MINUTES,
+      alreadyHave: false,
     });
     if (services.length >= MAX_PROPOSED_SERVICES) break;
   }
