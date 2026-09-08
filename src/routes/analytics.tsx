@@ -95,9 +95,9 @@ function Analytics() {
         </div>
       </div>
 
-      <section className="panel p-4">
-        <h2 className="text-sm font-semibold">Funnel</h2>
-        <div className="mt-3 space-y-2">
+      <section className="panel overflow-hidden">
+        <h2 className="section-heading">Funnel</h2>
+        <div className="space-y-2 p-4">
           {funnel.map(([label, value]) => (
             <div key={label} className="flex items-center gap-3">
               <span className="w-32 shrink-0 text-xs text-muted-foreground">{label}</span>
@@ -116,13 +116,13 @@ function Analytics() {
       </section>
 
       <section className="panel">
-        <h2 className="border-b border-border px-4 py-3 text-sm font-semibold">
+        <h2 className="section-heading">
           By source channel (never combined)
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
                 <th className="px-4 py-2 font-medium">Source</th>
                 <th className="px-4 py-2 font-medium">Leads</th>
                 <th className="px-4 py-2 font-medium">Median response</th>

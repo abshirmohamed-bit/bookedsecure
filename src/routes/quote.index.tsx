@@ -26,9 +26,10 @@ export const Route = createFileRoute("/quote/")({
 // to an arbitrary business.
 function QuoteIndexPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="panel w-full max-w-md p-8">
-        <h1 className="text-lg font-semibold">Choose your detailer's enquiry link</h1>
+    <main className="brand-wash flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="panel w-full max-w-md overflow-hidden">
+        <div className="border-b border-border p-5"><p className="text-xs font-semibold text-primary">BookedSecure</p><h1 className="mt-1 page-heading">Choose your detailer's enquiry link</h1></div>
+        <div className="p-5">
         <p className="mt-2 text-sm text-muted-foreground">
           Enquiry forms are specific to each business, so this page can't send a request on its own.
           Open the link your detailer gave you — it looks like{" "}
@@ -37,6 +38,7 @@ function QuoteIndexPage() {
         <p className="mt-4 text-sm text-muted-foreground">
           If you don't have the link, contact the business directly and they'll send it to you.
         </p>
+        </div>
       </div>
     </main>
   );

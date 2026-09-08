@@ -87,14 +87,18 @@ function LandingPage() {
 
       <main id="top" className="pb-24 sm:pb-0">
         {/* Hero */}
-        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-2 lg:py-20">
-          <div>
+        <section className="relative isolate min-h-[78vh] overflow-hidden">
+          <img src={heroImage} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover object-[62%_center]" aria-hidden="true" />
+          <div className="absolute inset-0 -z-10 bg-background/85" />
+          <div className="mx-auto flex min-h-[78vh] max-w-6xl items-center px-4 py-14">
+          <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground">
               Early-access pilot for Australian detailers
             </span>
-            <h1 className="mt-5 text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
-              Stop losing detailing enquiries you already paid for.
+            <h1 className="mt-5 font-heading text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+              BookedSecure
             </h1>
+            <p className="mt-3 font-heading text-2xl font-medium leading-tight sm:text-3xl">Stop losing detailing enquiries you already paid for.</p>
             <p className="mt-4 max-w-xl text-base text-muted-foreground">
               BookedSecure helps Australian detailing businesses respond faster, follow up consistently,
               and turn more enquiries into booked jobs.
@@ -111,16 +115,6 @@ function LandingPage() {
               Limited pilot spots available for Australian detailing businesses.
             </p>
           </div>
-          <div className="-mx-4 lg:mx-0">
-            <img
-              src={heroImage}
-              alt="Professional detailer machine-polishing the paintwork of a dark SUV on a residential driveway"
-              width={1600}
-              height={1200}
-              fetchPriority="high"
-              decoding="async"
-              className="aspect-[4/3] w-full object-cover object-[62%_center] sm:aspect-[16/10] sm:object-center lg:rounded-xl"
-            />
           </div>
         </section>
 
@@ -259,14 +253,14 @@ function LandingPage() {
                   <textarea
                     name="services"
                     rows={2}
-                    className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className="form-control mt-1.5 min-h-20 py-2"
                   />
                 </label>
                 <label className="block text-sm">
                   <span className="text-muted-foreground">What is your biggest follow-up challenge?</span>
                   <select
                     name="challenge"
-                    className="mt-1.5 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className="form-control mt-1.5"
                     defaultValue=""
                   >
                     <option value="">Select an option</option>
@@ -341,7 +335,7 @@ function Field({
         name={name}
         type={type}
         required={required}
-        className="mt-1.5 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="form-control mt-1.5"
       />
     </label>
   );

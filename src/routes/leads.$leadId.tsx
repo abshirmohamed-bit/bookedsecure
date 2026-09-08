@@ -150,10 +150,10 @@ function LeadDetail() {
         <ArrowLeft className="h-3.5 w-3.5" /> Back to leads
       </Link>
 
-      <header className="panel grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-4 sm:flex sm:justify-between">
+      <header className="brand-wash panel grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-4 sm:flex sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-lg font-semibold">{lead.name}</h1>
+            <h1 className="truncate font-heading text-xl font-semibold">{lead.name}</h1>
             <StatusBadge status={lead.status} />
             <ReadinessBadge readiness={lead.readiness_classification} />
           </div>
@@ -221,7 +221,7 @@ function LeadDetail() {
           <select
             value={lead.status}
             onChange={(event) => statusMutation.mutate(event.target.value)}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+            className="form-control w-auto text-xs"
           >
             {LEAD_STATUSES.filter((status) => status !== "completed").map((status) => (
               <option key={status} value={status}>
@@ -269,7 +269,7 @@ function LeadDetail() {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <section className="panel flex flex-col">
-          <h2 className="border-b border-border px-4 py-3 text-sm font-semibold">Conversation</h2>
+          <h2 className="section-heading">Conversation</h2>
           <div className="max-h-[520px] space-y-3 overflow-y-auto px-4 py-4">
             {messages.length === 0 && (
               <div className="space-y-1">
@@ -342,7 +342,7 @@ function LeadDetail() {
               onChange={(event) => setReply(event.target.value)}
               rows={3}
               placeholder="Type your reply…"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="form-control min-h-24 py-2"
             />
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11px] text-muted-foreground">
@@ -605,7 +605,7 @@ function SimulateReply({ onSubmit }: { onSubmit: (body: string) => void }) {
             value={body}
             onChange={(event) => setBody(event.target.value)}
             placeholder="e.g. Medium SUV, pet hair and odour"
-            className="min-w-0 flex-1 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+            className="form-control min-w-0 flex-1 text-xs"
           />
           <button
             onClick={() => {
@@ -691,8 +691,9 @@ function JobPanel({
   const isCompleted = job?.completion_status === "completed";
 
   return (
-    <section className="panel p-4">
-      <h2 className="text-sm font-semibold">Job & revenue</h2>
+    <section className="panel overflow-hidden">
+      <h2 className="section-heading">Job & revenue</h2>
+      <div className="p-4">
       {isCompleted ? (
         <div className="mt-3 rounded-md border border-success/40 bg-success/10 p-3 text-sm">
           <p className="font-medium text-success">
@@ -712,7 +713,7 @@ function JobPanel({
                 type="datetime-local"
                 value={scheduledAt}
                 onChange={(event) => setScheduledAt(event.target.value)}
-                className="min-w-0 flex-1 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+                className="form-control min-w-0 flex-1 text-xs"
               />
               <button
                 disabled={!scheduledAt || scheduleMutation.isPending}
@@ -730,7 +731,7 @@ function JobPanel({
               <select
                 value={form.service_id}
                 onChange={(event) => setForm({ ...form, service_id: event.target.value })}
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+                className="form-control text-xs"
               >
                 <option value="">Service performed…</option>
                 {services.map((service) => (
@@ -744,20 +745,20 @@ function JobPanel({
                 type="date"
                 value={form.completed_at}
                 onChange={(event) => setForm({ ...form, completed_at: event.target.value })}
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+                className="form-control text-xs"
               />
               <input
                 inputMode="decimal"
                 value={form.completed_value}
                 onChange={(event) => setForm({ ...form, completed_value: event.target.value })}
                 placeholder="Final amount collected (AUD)"
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+                className="form-control text-xs"
               />
               <input
                 value={form.notes}
                 onChange={(event) => setForm({ ...form, notes: event.target.value })}
                 placeholder="Notes (optional)"
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+                className="form-control text-xs"
               />
               <button
                 disabled={
@@ -774,6 +775,7 @@ function JobPanel({
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }
