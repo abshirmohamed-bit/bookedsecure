@@ -293,6 +293,25 @@ export function markExistingServices(
   };
 }
 
+const ADDON_WORDS = ["add on", "addon", "add-on", "extra", "upgrade", "optional", "additional"];
+
+/**
+ * True when a listed item reads like an extra rather than a standalone service:
+ * the site labels it as an add-on/extra/upgrade, or prices it as a top-up
+ * ("+$60", "additional $40"). Nothing else is reclassified, so a real service
+ * is never demoted on a guess.
+ */
+export function looksLikeAddon(entry: {
+  name?: string | null;
+  price?: string | null;
+  description?: string | null;
+}): boolean {
+  const label = `${entry.name ?? ""} ${entry.description ?? ""}`.toLowerCase().replace(/[^a-z0-9+ -]/g, " ");
+  if (ADDON_WORDS.some((word) => label.includes(word))) return true;
+  const price = (entry.price ?? "").trim();
+  return price.startsWith("+");
+}
+
 function proposeServices(raw: ScrapedService[] | null | undefined): ProposedService[] {
   if (!Array.isArray(raw)) return [];
   const services: ProposedService[] = [];
@@ -367,8 +386,25 @@ function proposeAddons(
 
 /** Builds the owner-reviewable proposal from whatever the website provided. */
 export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): OnboardingProposal {
-  const services = proposeServices(site.services);
-  const addons = proposeAddons(site.addons, services);
+  // Some sites list their extras in the same block as their services. Anything
+  // the page itself labels as an extra is treated as one, not as a service.
+  const listed = Array.isArray(site.services) ? site.services : [];
+  const listedServices = listed.filter((entry) => !looksLikeAddon(entry ?? {}));
+  const listedAsAddons = listed
+    .filter((entry) => looksLikeAddon(entry ?? {}))
+    .map((entry) => ({
+      name: entry?.name ?? null,
+      price: entry?.price ?? null,
+      description: entry?.description ?? null,
+      durationMinutes: entry?.durationMinutes ?? null,
+      appliesTo: null,
+    }));
+
+  const services = proposeServices(listedServices);
+  const addons = proposeAddons(
+    [...(Array.isArray(site.addons) ? site.addons : []), ...listedAsAddons],
+    services,
+  );
   const openingHours = text(site.openingHours, 200);
   const weeklyWindows = parseOpeningHours(openingHours);
   const serviceArea = text(site.serviceArea, 300) ?? text(site.suburb, 300);
