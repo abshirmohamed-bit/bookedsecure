@@ -667,7 +667,7 @@ export async function replyToWebChat(input: {
     const { data: existing } = await supabaseAdmin
       .from("leads")
       .select(
-        "name, email, suburb, service_address, vehicle_type, last_cleaned_at, main_concerns, service_intent, request_type, approved_service_id, service_name_snapshot, flexible_request_text, external_id",
+        "name, mobile_number, email, suburb, service_address, vehicle_type, last_cleaned_at, main_concerns, service_intent, request_type, approved_service_id, service_name_snapshot, flexible_request_text, external_id",
       )
       .eq("id", leadId)
       .eq("business_id", tenant.businessId)
@@ -705,6 +705,70 @@ export async function replyToWebChat(input: {
         .update(patch as never)
         .eq("id", leadId)
         .eq("business_id", tenant.businessId);
+
+      // A returning contact's new enquiry is a real enquiry: it must reach the
+      // owner and be trackable, exactly like a first-time capture.
+      const returningName =
+        (next.name ?? "").trim() || (existing.name ?? "").trim() || "Returning customer";
+      const returningMobile =
+        (next.mobile_number ?? "").trim() || (existing.mobile_number ?? "").trim() || "";
+
+      const { data: openConversation } = await supabaseAdmin
+        .from("conversations")
+        .select("id")
+        .eq("business_id", tenant.businessId)
+        .eq("lead_id", leadId)
+        .limit(1)
+        .maybeSingle();
+      if (!openConversation?.id) {
+        await supabaseAdmin.from("conversations").insert({
+          business_id: tenant.businessId,
+          lead_id: leadId,
+          status: "open",
+        });
+      }
+
+      const { recordConsentEvent } = await import("@/lib/lead-engine.server");
+      await recordConsentEvent({
+        businessId: tenant.businessId,
+        leadId,
+        eventType: "consent_given",
+        mobileNumber: returningMobile,
+        consentText,
+        source: input.formUrl ? `website | ${input.formUrl}` : "website",
+      });
+
+      // Idempotency is scoped to this conversation, so a retried finalisation
+      // never double-alerts and an older alert never suppresses this one.
+      const { enqueueJob, runJobById } = await import("@/lib/jobs.server");
+      const alertJob = await enqueueJob({
+        businessId: tenant.businessId,
+        leadId,
+        jobType: "owner_alert",
+        idempotencyKey: `webchat:${conversation.id}:owner_alert`,
+        payload: {
+          title: `Returning enquiry: ${returningName}`,
+          body: [
+            `${returningName}${returningMobile ? ` · ${returningMobile}` : ""}`,
+            next.service_name ? `Service: ${next.service_name}` : null,
+            next.service_address ? `Address: ${next.service_address}` : null,
+            next.suburb ? `Suburb: ${next.suburb}` : null,
+            `Received: ${new Date().toISOString()}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          metadata: {
+            lead_id: leadId,
+            returning: true,
+            name: returningName,
+            mobile_number: returningMobile,
+            service_intent: next.service_name ?? next.typed_request ?? null,
+            source_channel: "website",
+            web_conversation_id: conversation.id,
+          },
+        },
+      });
+      if (alertJob.job) await runJobById(alertJob.job.id);
     }
   }
 
