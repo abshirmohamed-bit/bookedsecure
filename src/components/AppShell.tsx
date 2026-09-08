@@ -6,6 +6,7 @@ import {
   Check,
   Copy,
   FileUp,
+  Inbox,
   Menu,
   MessageCircle,
   Settings,
@@ -27,6 +28,13 @@ import { getSession } from "@/lib/app.functions";
 import { cn } from "@/lib/utils";
 import { PRIMARY_NAV, isPrimaryNavActive, navBreadcrumb } from "@/lib/navigation";
 import { tenantHeaderTitle, tenantQuotePath, tenantQuoteUrl } from "@/lib/tenant-nav";
+
+/** Icon per primary nav item, keeping the navigation data module DOM-free. */
+const NAV_ICONS = {
+  assistant: Sparkles,
+  inbox: Inbox,
+  analytics: BarChart3,
+} as const;
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const { session, loading } = useAuth();

@@ -68,7 +68,6 @@ export function HomeLanding() {
               Join the pilot
             </a>
           </div>
-
         </div>
       </header>
 

@@ -23,7 +23,12 @@ export const PRIMARY_NAV: readonly PrimaryNavItem[] = [
 ] as const;
 
 export type AccountMenuItem = {
-  to: "/profile" | "/settings/business" | "/settings/messaging" | "/settings/automation" | "/settings/team";
+  to:
+    | "/profile"
+    | "/settings/business"
+    | "/settings/messaging"
+    | "/settings/automation"
+    | "/settings/team";
   label: string;
 };
 
@@ -68,17 +73,17 @@ export const ROLE_LABELS: Record<string, string> = {
 export function accountInitials(name?: string | null, email?: string | null): string {
   const source = (name ?? "").trim() || (email ?? "").trim();
   if (!source) return "?";
-  const parts = source.replace(/@.*$/, "").split(/[\s._-]+/).filter(Boolean);
+  const parts = source
+    .replace(/@.*$/, "")
+    .split(/[\s._-]+/)
+    .filter(Boolean);
   if (parts.length === 0) return source.slice(0, 1).toUpperCase();
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
   return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
 }
 
 export type AccountMenuEvent =
-  | { type: "toggle" }
-  | { type: "escape" }
-  | { type: "click_outside" }
-  | { type: "select_item" };
+  { type: "toggle" } | { type: "escape" } | { type: "click_outside" } | { type: "select_item" };
 
 /** Open/closed state machine for the account dropdown. */
 export function accountMenuReducer(open: boolean, event: AccountMenuEvent): boolean {
