@@ -2,16 +2,29 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { BriefcaseBusiness, CircleDollarSign, Clock3, MessageSquareReply, Plus, RefreshCw, Target, Trash2, Undo2, Upload, UsersRound } from "lucide-react";
+import {
+  BriefcaseBusiness,
+  CircleDollarSign,
+  Clock3,
+  MessageSquareReply,
+  Plus,
+  RefreshCw,
+  Target,
+  Trash2,
+  Undo2,
+  Upload,
+  UsersRound,
+} from "lucide-react";
 import { toast } from "sonner";
-import { DeliveryBadge, ReachabilityBadge, SmsSuppressedBadge, StatusBadge } from "@/components/StatusBadge";
+import {
+  DeliveryBadge,
+  ReachabilityBadge,
+  SmsSuppressedBadge,
+  StatusBadge,
+} from "@/components/StatusBadge";
 import { InboxPagination } from "@/components/InboxPagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
-import {
-  SMS_FILTER_LABELS,
-  SMS_LEAD_FILTERS,
-  type SmsLeadFilter,
-} from "@/lib/sms/delivery";
+import { SMS_FILTER_LABELS, SMS_LEAD_FILTERS, type SmsLeadFilter } from "@/lib/sms/delivery";
 
 import { createManualLead, getDashboard, runFollowUpsNow } from "@/lib/app.functions";
 import { useDashboard } from "@/lib/useDashboard";
@@ -107,7 +120,6 @@ export function LeadsWorkspace() {
   // Already filtered and paginated by the server: this page only.
   const leads = dashboard.leads as unknown as InboxLeadRow[];
 
-
   // Selection is always scoped to the current filtered result.
   const visibleSelection = useMemo(() => restrictToVisible(selection, leads), [selection, leads]);
   const selectedLeads = useMemo(
@@ -179,7 +191,12 @@ export function LeadsWorkspace() {
       {header}
       {metrics ? (
         <section className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
-          <Metric label="Total leads" value={String(metrics.totalLeads)} icon={UsersRound} tone="success" />
+          <Metric
+            label="Total leads"
+            value={String(metrics.totalLeads)}
+            icon={UsersRound}
+            tone="success"
+          />
           <Metric
             label="Median response"
             value={formatMinutes(metrics.medianResponseMinutes)}
@@ -187,13 +204,25 @@ export function LeadsWorkspace() {
             icon={Clock3}
             tone="info"
           />
-          <Metric label="Reply rate" value={`${Math.round(metrics.replyRate * 100)}%`} icon={MessageSquareReply} tone="lilac" />
-          <Metric label="Completed jobs" value={String(metrics.completedJobs)} icon={BriefcaseBusiness} tone="primary" />
+          <Metric
+            label="Reply rate"
+            value={`${Math.round(metrics.replyRate * 100)}%`}
+            icon={MessageSquareReply}
+            tone="lilac"
+          />
+          <Metric
+            label="Completed jobs"
+            value={String(metrics.completedJobs)}
+            icon={BriefcaseBusiness}
+            tone="primary"
+          />
           <Metric
             label="Completed revenue"
             value={formatCurrency(metrics.completedRevenue)}
             hint={
-              metrics.averageJobValue ? `Avg ${formatCurrency(metrics.averageJobValue)}` : "No jobs yet"
+              metrics.averageJobValue
+                ? `Avg ${formatCurrency(metrics.averageJobValue)}`
+                : "No jobs yet"
             }
             icon={CircleDollarSign}
             tone="success"
@@ -235,105 +264,106 @@ export function LeadsWorkspace() {
 
       <ReactivationPanel />
 
-
-
-
-
-
       <section className="panel overflow-hidden">
         <div className="border-b border-border px-4 py-3">
-          <div className="mb-3 flex items-center gap-2"><h2 className="text-sm font-semibold">Lead inbox</h2><span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">{dashboard.page?.totalCount ?? leads.length}</span></div>
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-semibold">Lead inbox</h2>
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
+              {dashboard.page?.totalCount ?? leads.length}
+            </span>
+          </div>
           <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="sr-only" htmlFor="source-filter">
-              Filter by source
-            </label>
-            <select
-              id="source-filter"
-              value={sourceFilter}
-              onChange={(event) => changeFilter(() => setSourceFilter(event.target.value))}
-              className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-            >
-              <option value="all">All sources</option>
-              {Object.entries(SOURCE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <label className="sr-only" htmlFor="sms-filter">
-              Filter by SMS delivery
-            </label>
-            <select
-              id="sms-filter"
-              value={smsFilter}
-              onChange={(event) => changeFilter(() => setSmsFilter(event.target.value as SmsLeadFilter))}
-              className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-            >
-              {SMS_LEAD_FILTERS.map((value) => (
-                <option key={value} value={value}>
-                  {SMS_FILTER_LABELS[value]}
-                </option>
-              ))}
-            </select>
-            <label className="sr-only" htmlFor="status-filter">
-              Filter by status
-            </label>
-            <select
-              id="status-filter"
-              value={statusFilter}
-              onChange={(event) => changeFilter(() => setStatusFilter(event.target.value))}
-              className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-            >
-              <option value="all">All statuses</option>
-              {LEAD_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {LEAD_STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {visibleSelection.length > 0 && (
-              <>
-                <span className="text-xs text-muted-foreground" data-testid="selected-count">
-                  {visibleSelection.length} selected
-                </span>
-                <button
-                  onClick={() => setConfirmOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-destructive/60 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Delete selected
-                </button>
-                <button
-                  onClick={() => setSelection([])}
-                  className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Clear selection
-                </button>
-              </>
-            )}
-            <Link
-              to="/leads/deleted"
-              className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <Undo2 className="h-3.5 w-3.5" aria-hidden="true" /> Deleted leads
-            </Link>
-            <button
-              onClick={() => followUps.mutate()}
-              disabled={followUps.isPending}
-              className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
-            >
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Run due follow-ups
-            </button>
-            <button
-              onClick={() => setShowAdd((current) => !current)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add lead
-            </button>
-          </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="sr-only" htmlFor="source-filter">
+                Filter by source
+              </label>
+              <select
+                id="source-filter"
+                value={sourceFilter}
+                onChange={(event) => changeFilter(() => setSourceFilter(event.target.value))}
+                className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+              >
+                <option value="all">All sources</option>
+                {Object.entries(SOURCE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <label className="sr-only" htmlFor="sms-filter">
+                Filter by SMS delivery
+              </label>
+              <select
+                id="sms-filter"
+                value={smsFilter}
+                onChange={(event) =>
+                  changeFilter(() => setSmsFilter(event.target.value as SmsLeadFilter))
+                }
+                className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+              >
+                {SMS_LEAD_FILTERS.map((value) => (
+                  <option key={value} value={value}>
+                    {SMS_FILTER_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+              <label className="sr-only" htmlFor="status-filter">
+                Filter by status
+              </label>
+              <select
+                id="status-filter"
+                value={statusFilter}
+                onChange={(event) => changeFilter(() => setStatusFilter(event.target.value))}
+                className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+              >
+                <option value="all">All statuses</option>
+                {LEAD_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {LEAD_STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {visibleSelection.length > 0 && (
+                <>
+                  <span className="text-xs text-muted-foreground" data-testid="selected-count">
+                    {visibleSelection.length} selected
+                  </span>
+                  <button
+                    onClick={() => setConfirmOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-destructive/60 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Delete selected
+                  </button>
+                  <button
+                    onClick={() => setSelection([])}
+                    className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Clear selection
+                  </button>
+                </>
+              )}
+              <Link
+                to="/leads/deleted"
+                className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Undo2 className="h-3.5 w-3.5" aria-hidden="true" /> Deleted leads
+              </Link>
+              <button
+                onClick={() => followUps.mutate()}
+                disabled={followUps.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Run due follow-ups
+              </button>
+              <button
+                onClick={() => setShowAdd((current) => !current)}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add lead
+              </button>
+            </div>
           </div>
         </div>
 
@@ -394,7 +424,10 @@ export function LeadsWorkspace() {
             </thead>
             <tbody>
               {leads.map((lead) => (
-                <tr key={lead.id} className="border-b border-border/60 transition-colors hover:bg-muted/70">
+                <tr
+                  key={lead.id}
+                  className="border-b border-border/60 transition-colors hover:bg-muted/70"
+                >
                   <td className="px-4 py-2.5">
                     <input
                       type="checkbox"
@@ -415,7 +448,11 @@ export function LeadsWorkspace() {
                     )}
                   </td>
                   <td className="px-3 py-2.5">
-                    <Link to="/leads/$leadId" params={{ leadId: lead.id }} className="hover:underline">
+                    <Link
+                      to="/leads/$leadId"
+                      params={{ leadId: lead.id }}
+                      className="hover:underline"
+                    >
                       <span className="font-medium">{lead.name}</span>
                     </Link>
                     <p className="text-xs text-muted-foreground">
@@ -548,7 +585,9 @@ export function LeadsWorkspace() {
               </label>
             )}
             <label className="mt-3 block text-xs">
-              <span className="mb-1 block text-muted-foreground">Reason (recorded in the audit trail)</span>
+              <span className="mb-1 block text-muted-foreground">
+                Reason (recorded in the audit trail)
+              </span>
               <input
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
@@ -584,11 +623,39 @@ export function LeadsWorkspace() {
   );
 }
 
-function Metric({ label, value, hint, icon: Icon, tone }: { label: string; value: string; hint?: string; icon: typeof UsersRound; tone: "primary" | "success" | "info" | "lilac" | "danger" }) {
-  const tones = { primary: "border-t-primary text-primary bg-primary/10", success: "border-t-success text-success-foreground bg-success/15", info: "border-t-info text-info-foreground bg-info/15", lilac: "border-t-secondary-foreground text-secondary-foreground bg-secondary", danger: "border-t-destructive text-destructive bg-destructive/10" };
+function Metric({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  icon: typeof UsersRound;
+  tone: "primary" | "success" | "info" | "lilac" | "danger";
+}) {
+  const tones = {
+    primary: "border-t-primary text-primary bg-primary/10",
+    success: "border-t-success text-success-foreground bg-success/15",
+    info: "border-t-info text-info-foreground bg-info/15",
+    lilac: "border-t-secondary-foreground text-secondary-foreground bg-secondary",
+    danger: "border-t-destructive text-destructive bg-destructive/10",
+  };
   return (
     <div className={cn("panel border-t-2 px-3 py-3", tones[tone].split(" ")[0])}>
-      <div className="flex items-center gap-2"><span className={cn("grid h-7 w-7 place-items-center rounded-md", tones[tone].split(" ").slice(1).join(" "))}><Icon className="h-4 w-4" aria-hidden="true" /></span><p className="text-[11px] font-medium text-muted-foreground">{label}</p></div>
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "grid h-7 w-7 place-items-center rounded-md",
+            tones[tone].split(" ").slice(1).join(" "),
+          )}
+        >
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      </div>
       <p className="mt-2 tabular font-heading text-xl font-semibold">{value}</p>
       {hint && <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{hint}</p>}
     </div>
@@ -696,7 +763,8 @@ function AddLeadForm({ onDone }: { onDone: () => void }) {
             className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]"
           />
           <span>
-            I confirm this lead has an appropriate basis for SMS contact (enquiry or consent recorded).
+            I confirm this lead has an appropriate basis for SMS contact (enquiry or consent
+            recorded).
           </span>
         </label>
         <div className="flex gap-2">

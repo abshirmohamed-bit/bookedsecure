@@ -98,18 +98,18 @@ export function ReactivationPanel() {
             <RefreshCcw className="h-4 w-4" aria-hidden="true" />
           </span>
           <div>
-          <h2 className="text-sm font-semibold">Win back dormant leads</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {data
-              ? `${data.candidates} contacts with no conversation, booking or enquiry details on record.`
-              : "Checking your list…"}
-          </p>
-          {!data?.campaign && (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Leave the offer blank and we&apos;ll suggest one from your services. You review every
-              message before anything is sent.
+            <h2 className="text-sm font-semibold">Win back dormant leads</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {data
+                ? `${data.candidates} contacts with no conversation, booking or enquiry details on record.`
+                : "Checking your list…"}
             </p>
-          )}
+            {!data?.campaign && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Leave the offer blank and we&apos;ll suggest one from your services. You review
+                every message before anything is sent.
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -165,7 +165,9 @@ export function ReactivationPanel() {
                   <div className="mt-2 flex flex-wrap gap-2">
                     {editing[row.id] === undefined ? (
                       <button
-                        onClick={() => setEditing((current) => ({ ...current, [row.id]: row.body }))}
+                        onClick={() =>
+                          setEditing((current) => ({ ...current, [row.id]: row.body }))
+                        }
                         className="rounded-md border border-input px-2 py-1 text-[11px]"
                       >
                         Edit
