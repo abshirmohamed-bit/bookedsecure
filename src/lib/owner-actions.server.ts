@@ -35,12 +35,6 @@ export type StatusProposal = {
 
 export type OwnerProposal = CampaignProposal | StatusProposal;
 
-function excludeUnreachable<T>(query: T): T {
-  const q = query as unknown as {
-    is: (column: string, value: null) => unknown;
-  };
-  return q.is("opted_out_at", null).is("sms_suppressed_at", null) as unknown as T;
-}
 
 /** How many leads a status change would touch right now. */
 export async function countStatusTargets(input: {
