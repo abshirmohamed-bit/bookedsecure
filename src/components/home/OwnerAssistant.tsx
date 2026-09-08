@@ -5,7 +5,11 @@ import { ArrowUp, Check, Loader2, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { runOwnerRequest, confirmOwnerStatusChange } from "@/lib/owner-actions.functions";
+import {
+  runOwnerRequest,
+  confirmOwnerStatusChange,
+  confirmAddonLinks,
+} from "@/lib/owner-actions.functions";
 import { approveReactivation } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { previewCrmImport } from "@/lib/csv-import.functions";
@@ -28,7 +32,17 @@ type StatusProposal = {
   summary: string;
 };
 
-type Proposal = CampaignProposal | StatusProposal;
+type AddonLinkProposal = {
+  kind: "addon_links";
+  addonId: string;
+  addonName: string;
+  serviceIds: string[];
+  serviceNames: string[];
+  remove: boolean;
+  summary: string;
+};
+
+type Proposal = CampaignProposal | StatusProposal | AddonLinkProposal;
 
 type Turn = {
   id: string;
