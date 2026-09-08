@@ -7,6 +7,15 @@ import { sanitiseCustomerText } from "@/lib/customer-text";
 import { looksUncertain, uncertainServiceMessage } from "@/lib/web-chat-conversation";
 import { usableName } from "@/lib/returning-lead";
 import { servicePriceLine } from "@/lib/service-pricing";
+import {
+  NO_ADDONS_CHOICE,
+  addonDetail,
+  addonsForService,
+  addonsPromptText,
+  declinesAddons,
+  matchAddons,
+  type ServiceAddon,
+} from "@/lib/service-addons";
 
 import {
   BOOKING_CHANGE_CHOICE,
@@ -20,6 +29,7 @@ import {
 
 export const WEB_CHAT_STEPS = [
   "service",
+  "addons",
   "vehicle",
   "suburb",
   "address",
@@ -55,6 +65,8 @@ export type WebChatTenant = {
   /** True when this tenant takes real bookings in the conversation. */
   bookingEnabled?: boolean;
   services: WebChatService[];
+  /** The tenant's own add-on extras, each linked to their approved services. */
+  addons?: ServiceAddon[];
   /** Campaign discount percentage for this visitor, when recognised. */
   offerPercent?: number | null;
 };
@@ -63,6 +75,13 @@ export type WebChatCollected = {
   service_id?: string | null;
   service_name?: string | null;
   typed_request?: string | null;
+  /** Extras chosen with the service. Only the tenant's own linked add-ons. */
+  addon_ids?: string[] | null;
+  addon_names?: string[] | null;
+  /** True when the chosen service actually has extras to offer. */
+  addons_offered?: boolean | null;
+  /** True once the customer has finished choosing (or declined) extras. */
+  addons_done?: boolean | null;
   vehicle_type?: string | null;
   suburb?: string | null;
   /** Full street address the service is performed at. */
@@ -147,6 +166,7 @@ export function campaignPrefill(lead: {
 export function nextStep(collected: WebChatCollected): WebChatStep | null {
   if (collected.consent === "declined") return null;
   if (!collected.service_id && !(collected.typed_request ?? "").trim()) return "service";
+  if (collected.addons_offered === true && collected.addons_done !== true) return "addons";
   if (!(collected.vehicle_type ?? "").trim()) return "vehicle";
   if (!(collected.suburb ?? "").trim()) return "suburb";
   if (!(collected.service_address ?? "").trim()) return "address";
@@ -181,6 +201,15 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
 export function reviewSummary(collected: WebChatCollected): WebChatReviewField[] {
   return [
     { step: "service", label: "Service", value: collected.service_name ?? collected.typed_request ?? "Not sure yet" },
+    ...((collected.addon_names ?? []).length > 0
+      ? [
+          {
+            step: "addons" as WebChatStep,
+            label: "Extras",
+            value: (collected.addon_names ?? []).join(", "),
+          },
+        ]
+      : []),
     { step: "vehicle", label: "Vehicle", value: collected.vehicle_type ?? "—" },
     { step: "suburb", label: "Suburb", value: collected.suburb ?? "—" },
     { step: "address", label: "Address", value: collected.service_address ?? "—" },
@@ -264,6 +293,24 @@ function buildPrompt(
             : []),
         ],
       };
+    case "addons": {
+      const offered = addonsForService(tenant.addons ?? [], collected.service_id ?? null).filter(
+        (addon) => !(collected.addon_ids ?? []).includes(addon.id),
+      );
+      return {
+        step,
+        kind: "choice",
+        text: addonsPromptText(offered, collected.addon_names ?? []),
+        options: [
+          ...offered.map((addon) => ({
+            value: addon.id,
+            label: addon.name,
+            detail: addonDetail(addon),
+          })),
+          { value: NO_ADDONS_CHOICE, label: "No extras, thanks", detail: null },
+        ],
+      };
+    }
     case "vehicle":
       return { step, kind: "text", text: "What's the vehicle? (make and model)" };
     case "suburb":
