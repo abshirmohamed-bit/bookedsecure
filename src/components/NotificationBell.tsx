@@ -14,8 +14,15 @@ export function NotificationBell() {
   const { data } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => fetchNotifications(),
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    // Cached across route changes: moving between pages must not re-request
+    // the same unread count on every mount.
+    staleTime: 45_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
+
 
   const mutation = useMutation({
     mutationFn: () => markRead({ data: {} }),

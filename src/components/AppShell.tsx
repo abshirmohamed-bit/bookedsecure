@@ -37,7 +37,14 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
     queryKey: ["session"],
     queryFn: () => fetchSession(),
     enabled: Boolean(session),
+    // Tenant identity for the shell rarely changes: cache it so navigating
+    // between pages does not re-resolve the business on every mount.
+    staleTime: 10 * 60_000,
+    gcTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
+
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {

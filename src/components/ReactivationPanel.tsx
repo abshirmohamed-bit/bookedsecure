@@ -32,7 +32,15 @@ export function ReactivationPanel() {
   const campaign = useQuery({
     queryKey: ["reactivation"],
     queryFn: () => load() as Promise<CampaignView>,
+    // The dormant-contact scan is the most expensive read on this page and its
+    // result barely changes minute to minute, so it is cached rather than
+    // re-run on every visit to the Leads page.
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
+
 
   useEffect(() => {
     const text = campaign.data?.campaign?.offerText;

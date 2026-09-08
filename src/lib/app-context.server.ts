@@ -14,24 +14,29 @@ export type AppContext = {
 };
 
 export async function requireAppContext(supabase: Client, userId: string): Promise<AppContext> {
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("id, business_id, name, email, active")
-    .eq("id", userId)
-    .maybeSingle();
+  // Both reads are tenant-scoped by the caller's own id, so they are safe to
+  // run together: one round trip instead of two on every authenticated call.
+  const [{ data: profile, error }, { data: roles }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, business_id, name, email, active")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase.from("user_roles").select("role").eq("user_id", userId),
+  ]);
 
   if (error) throw new Error(error.message);
   if (!profile) throw new Error("No profile found for this user.");
   if (!profile.active) throw new Error("This account has been deactivated.");
   if (!profile.business_id) throw new Error("This account is not linked to a business yet.");
 
-  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
   const roleValues = (roles ?? []).map((row) => row.role);
   const role = roleValues.includes("owner")
     ? "owner"
     : roleValues.includes("platform_admin")
       ? "platform_admin"
       : "staff";
+
 
   return {
     userId,
