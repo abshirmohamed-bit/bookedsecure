@@ -36,6 +36,7 @@ import {
 import { softDeleteLeadsRequest } from "@/lib/lead-deletion.functions";
 import { draftReactivation } from "@/lib/reactivation.functions";
 import { ReactivationPanel } from "@/components/ReactivationPanel";
+import { cn } from "@/lib/utils";
 
 type DashboardResult = Awaited<ReturnType<typeof getDashboard>>;
 type InboxLeadRow = DashboardResult["leads"][number];
@@ -403,15 +404,17 @@ export function LeadsWorkspace() {
                       className="h-4 w-4 accent-[var(--color-primary)]"
                     />
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                    {leadSourceLabel(lead)}
+                  <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                    <span className="inline-flex rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
+                      {leadSourceLabel(lead)}
+                    </span>
                     {importMethodLabel(lead) && (
-                      <p className="text-[11px] text-muted-foreground/70">
+                      <p className="mt-0.5 text-[10px] text-muted-foreground/70">
                         via {importMethodLabel(lead)}
                       </p>
                     )}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-3 py-2.5">
                     <Link to="/leads/$leadId" params={{ leadId: lead.id }} className="hover:underline">
                       <span className="font-medium">{lead.name}</span>
                     </Link>
@@ -422,13 +425,13 @@ export function LeadsWorkspace() {
                       {lead.service_address ?? "Address not provided"}
                     </p>
                   </td>
-                  <td className="px-4 py-2.5 tabular text-xs text-muted-foreground">
+                  <td className="px-3 py-2.5 tabular text-xs text-muted-foreground">
                     {lead.mobile_number}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                  <td className="px-3 py-2.5 text-xs text-muted-foreground">
                     {lead.service_intent ?? "—"}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-3 py-2.5">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <StatusBadge status={lead.status} />
                       {lead.conversation?.automation_paused && (
@@ -466,13 +469,13 @@ export function LeadsWorkspace() {
                     )}
                   </td>
 
-                  <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                  <td className="px-3 py-2.5 text-xs text-muted-foreground">
                     {new Date(lead.conversation?.last_message_at ?? lead.created_at).toLocaleString(
                       "en-AU",
                       { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" },
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular text-xs">
+                  <td className="px-3 py-2.5 text-right tabular text-xs">
                     {lead.job?.completion_status === "completed" && lead.job.completed_value
                       ? formatCurrency(Number(lead.job.completed_value))
                       : "—"}
