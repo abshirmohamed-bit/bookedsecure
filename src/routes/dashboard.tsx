@@ -1,20 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { LeadsWorkspace } from "@/components/LeadsWorkspace";
+import { OwnerAssistant } from "@/components/home/OwnerAssistant";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "Lead inbox — BookedSecure" },
+      { title: "Assistant — BookedSecure" },
       {
         name: "description",
         content:
-          "Today's detailing enquiries, SMS follow-up status and completed-job revenue by source channel.",
+          "Ask about your business or ask for a win-back campaign. Every action is proposed first and only runs once you approve it.",
       },
-      { property: "og:title", content: "Lead inbox — BookedSecure" },
+      { property: "og:title", content: "Assistant — BookedSecure" },
       {
         property: "og:description",
-        content: "Respond faster to detailing enquiries and track completed jobs by source.",
+        content: "Ask about your business or ask for a campaign — nothing sends without approval.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -25,8 +25,8 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   return (
-    <AppShell title="Leads">
-      <LeadsWorkspace />
+    <AppShell title="Assistant">
+      <OwnerAssistant />
     </AppShell>
   );
 }

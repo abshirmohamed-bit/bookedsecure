@@ -5,13 +5,13 @@ import { LeadsWorkspace } from "@/components/LeadsWorkspace";
 export const Route = createFileRoute("/leads/")({
   head: () => ({
     meta: [
-      { title: "Leads — BookedSecure" },
+      { title: "Lead inbox — BookedSecure" },
       {
         name: "description",
         content:
-          "The lead workspace: enquiries needing a reply, follow-up status and completed-job revenue.",
+          "The lead inbox: enquiries needing a reply, follow-up status and completed-job revenue.",
       },
-      { property: "og:title", content: "Leads — BookedSecure" },
+      { property: "og:title", content: "Lead inbox — BookedSecure" },
       {
         property: "og:description",
         content: "See which detailing enquiries need attention and how they are converting.",
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/leads/")({
 
 function LeadsPage() {
   return (
-    <AppShell title="Leads">
+    <AppShell title="Lead inbox">
       <LeadsWorkspace />
     </AppShell>
   );
