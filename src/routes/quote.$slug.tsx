@@ -29,10 +29,7 @@ export const Route = createFileRoute("/quote/$slug")({
     const business = loaderData?.name;
     if (!business) {
       return {
-        meta: [
-          { title: "Enquiry form unavailable" },
-          { name: "robots", content: "noindex" },
-        ],
+        meta: [{ title: "Enquiry form unavailable" }, { name: "robots", content: "noindex" }],
       };
     }
     const title = `Get a mobile detailing quote — ${business}`;
@@ -123,7 +120,8 @@ function ManualQuoteForm() {
   const stepValid = useMemo(() => {
     if (step === 0) {
       if (!form.request_type) return false;
-      if (form.request_type === "recommendation") return form.flexible_request_text.trim().length > 1;
+      if (form.request_type === "recommendation")
+        return form.flexible_request_text.trim().length > 1;
       if (!form.service_choice) return false;
       if (form.service_choice === FLEXIBLE_SERVICE_VALUE)
         return tenant.flexibleRequestsEnabled && form.flexible_request_text.trim().length > 1;
@@ -136,9 +134,7 @@ function ManualQuoteForm() {
         form.service_address.trim().length > 3
       );
     if (step === 2) return form.main_concerns.trim().length > 1;
-    return (
-      form.name.length > 1 && normaliseAuMobile(form.mobile_number) !== null && form.consent
-    );
+    return form.name.length > 1 && normaliseAuMobile(form.mobile_number) !== null && form.consent;
   }, [step, form, tenant.flexibleRequestsEnabled]);
 
   async function submit() {
@@ -423,11 +419,12 @@ function ManualQuoteForm() {
                   inputMode="tel"
                   className="form-control"
                 />
-                {form.mobile_number.length > 5 && normaliseAuMobile(form.mobile_number) === null && (
-                  <p className="mt-1 text-xs text-destructive">
-                    Please enter a valid Australian mobile number.
-                  </p>
-                )}
+                {form.mobile_number.length > 5 &&
+                  normaliseAuMobile(form.mobile_number) === null && (
+                    <p className="mt-1 text-xs text-destructive">
+                      Please enter a valid Australian mobile number.
+                    </p>
+                  )}
               </Field>
               <Field label="Email (optional)">
                 <input
@@ -445,8 +442,8 @@ function ManualQuoteForm() {
                   className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
                 />
                 <span>
-                  I agree to {tenant.name} contacting me by SMS about this enquiry. Reply STOP at any
-                  time to opt out. See our{" "}
+                  I agree to {tenant.name} contacting me by SMS about this enquiry. Reply STOP at
+                  any time to opt out. See our{" "}
                   <a
                     href={tenant.privacyPolicyUrl ?? "/privacy"}
                     className="text-primary underline"

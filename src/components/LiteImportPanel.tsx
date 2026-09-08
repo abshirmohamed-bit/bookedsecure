@@ -34,10 +34,13 @@ import {
   type LiteHoldReason,
   type LiteSyncReport,
 } from "@/lib/import-lite";
-import { getImportAutomation, runImportBoundedBatch, runImportExceptionOnly } from "@/lib/import-automation.functions";
+import {
+  getImportAutomation,
+  runImportBoundedBatch,
+  runImportExceptionOnly,
+} from "@/lib/import-automation.functions";
 import { repairCrmImportPhones } from "@/lib/csv-import.functions";
 import type { getCrmImportBatch } from "@/lib/csv-import.functions";
-
 
 type Preview = NonNullable<Awaited<ReturnType<typeof getCrmImportBatch>>>;
 
@@ -155,67 +158,71 @@ export function LiteImportPanel({
       )
     : [];
 
-
   return (
     <div className="space-y-5">
       <div>
         <h1 className="page-heading">Import contacts</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Bring old leads into one organised, reviewable workspace.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Bring old leads into one organised, reviewable workspace.
+        </p>
       </div>
       <section className="panel overflow-hidden" aria-label="Import your contacts">
         <div className="section-heading">Choose a contact file</div>
         <div className="space-y-4 p-4 sm:p-5">
-        <div>
-          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            Upload a contact list from your old system. We check every contact first and show you a
-            simple summary before anything is saved. {LITE_NO_MESSAGES_COPY}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          className="flex w-full flex-col items-center gap-2 rounded-md border border-dashed border-primary/40 bg-secondary/35 px-6 py-10 text-center transition-colors hover:border-primary hover:bg-secondary/60 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          <UploadCloud className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
-          <span className="text-sm font-medium">
-            {busy ? "Checking your contacts…" : "Choose a contact file"}
-          </span>
-          <span className="text-xs text-muted-foreground">CSV file, up to 2 MB</span>
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          aria-label="Choose a contact file to import"
-          accept=".csv,text/csv,.tsv,text/tab-separated-values"
-          className="sr-only"
-          disabled={busy}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (!file) return;
-            if (file.size > MAX_CSV_BYTES) {
-              toast.error("That file is larger than 2 MB.");
-              return;
-            }
-            onUpload(file);
-          }}
-        />
-
-        {busy ? (
-          <div role="status" className="space-y-1 text-sm text-muted-foreground">
-            <p>{preparing ? LITE_PREPARE_COPY : "Checking your contacts… this only takes a moment."}</p>
-            <ul className="space-y-0.5 text-xs">
-              {LITE_PREPARE_STEPS.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ul>
-            <p className="text-xs">{LITE_PREPARE_SAFETY_COPY}</p>
+          <div>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              Upload a contact list from your old system. We check every contact first and show you
+              a simple summary before anything is saved. {LITE_NO_MESSAGES_COPY}
+            </p>
           </div>
-        ) : null}
-        </div>
 
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="flex w-full flex-col items-center gap-2 rounded-md border border-dashed border-primary/40 bg-secondary/35 px-6 py-10 text-center transition-colors hover:border-primary hover:bg-secondary/60 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <UploadCloud className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+            <span className="text-sm font-medium">
+              {busy ? "Checking your contacts…" : "Choose a contact file"}
+            </span>
+            <span className="text-xs text-muted-foreground">CSV file, up to 2 MB</span>
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            aria-label="Choose a contact file to import"
+            accept=".csv,text/csv,.tsv,text/tab-separated-values"
+            className="sr-only"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              if (file.size > MAX_CSV_BYTES) {
+                toast.error("That file is larger than 2 MB.");
+                return;
+              }
+              onUpload(file);
+            }}
+          />
+
+          {busy ? (
+            <div role="status" className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                {preparing
+                  ? LITE_PREPARE_COPY
+                  : "Checking your contacts… this only takes a moment."}
+              </p>
+              <ul className="space-y-0.5 text-xs">
+                {LITE_PREPARE_STEPS.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ul>
+              <p className="text-xs">{LITE_PREPARE_SAFETY_COPY}</p>
+            </div>
+          ) : null}
+        </div>
       </section>
 
       {summary ? (
@@ -311,7 +318,6 @@ export function LiteImportPanel({
               ) : null}
             </div>
           ) : null}
-
         </section>
       ) : (
         <section className="panel p-6 text-center">

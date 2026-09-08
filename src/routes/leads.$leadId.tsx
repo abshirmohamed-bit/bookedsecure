@@ -159,8 +159,7 @@ function LeadDetail() {
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {lead.mobile_number}
-            {lead.email ? ` · ${lead.email}` : ""} ·{" "}
-            {leadSourceLabel(lead)}
+            {lead.email ? ` · ${lead.email}` : ""} · {leadSourceLabel(lead)}
             {importMethodLabel(lead) ? ` (via ${importMethodLabel(lead)})` : ""}
             {lead.source_campaign ? ` · ${lead.source_campaign}` : ""}
             {lead.source_form ? ` · ${lead.source_form}` : ""} ·{" "}
@@ -175,7 +174,8 @@ function LeadDetail() {
 
           {lead.opted_out_at && (
             <p className="mt-1 text-xs text-destructive">
-              Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")} — automated SMS blocked.
+              Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")} — automated SMS
+              blocked.
             </p>
           )}
 
@@ -188,9 +188,7 @@ function LeadDetail() {
               evidence={lead.reachability_evidence}
               evidenceAt={lead.reachability_evidence_at}
             />
-            {lead.sms_suppressed_at && (
-              <SmsSuppressedBadge reason={lead.sms_suppression_reason} />
-            )}
+            {lead.sms_suppressed_at && <SmsSuppressedBadge reason={lead.sms_suppression_reason} />}
             {lead.last_delivered_sms_at && (
               <span>
                 Last delivered {new Date(lead.last_delivered_sms_at).toLocaleString("en-AU")}
@@ -210,8 +208,8 @@ function LeadDetail() {
           {lead.sms_suppressed_at && (
             <p className="mt-1 text-xs text-warning">
               Automated SMS suppressed {new Date(lead.sms_suppressed_at).toLocaleString("en-AU")} —{" "}
-              {lead.sms_suppression_reason ?? "permanent delivery failure reported by the provider"}.
-              This does not prove the number is inactive. A later delivery or reply records new
+              {lead.sms_suppression_reason ?? "permanent delivery failure reported by the provider"}
+              . This does not prove the number is inactive. A later delivery or reply records new
               evidence but never resumes automation on its own — the owner must review and resume.
             </p>
           )}
@@ -258,13 +256,8 @@ function LeadDetail() {
         />
       )}
 
-
-
       {data.webConversation && (
-        <WebChatTranscript
-          conversation={data.webConversation}
-          messages={data.webChatMessages}
-        />
+        <WebChatTranscript conversation={data.webConversation} messages={data.webChatMessages} />
       )}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
@@ -331,7 +324,6 @@ function LeadDetail() {
                         : ""}
                   </p>
                 )}
-
               </div>
             ))}
           </div>
@@ -378,8 +370,8 @@ function LeadDetail() {
             </div>
             {!ai && (
               <p className="mt-3 text-xs text-muted-foreground">
-                No analysis yet. Run Analyse to extract details, summarise and draft a reply for your
-                approval.
+                No analysis yet. Run Analyse to extract details, summarise and draft a reply for
+                your approval.
               </p>
             )}
             {ai && (
@@ -509,9 +501,14 @@ function ActivityPanel({
           <p className="text-xs text-muted-foreground">No automation activity yet.</p>
         )}
         {notifications.map((item) => (
-          <div key={item.id} className="rounded-md border border-border bg-secondary/40 px-2.5 py-2">
+          <div
+            key={item.id}
+            className="rounded-md border border-border bg-secondary/40 px-2.5 py-2"
+          >
             <p className="text-xs font-medium">{item.title}</p>
-            <p className="mt-0.5 whitespace-pre-line text-[11px] text-muted-foreground">{item.body}</p>
+            <p className="mt-0.5 whitespace-pre-line text-[11px] text-muted-foreground">
+              {item.body}
+            </p>
             <p className="mt-1 text-[10px] text-muted-foreground">
               Owner alert · {when(item.created_at)} · {item.read_at ? "read" : "unread"}
             </p>
@@ -536,7 +533,6 @@ function ActivityPanel({
     </section>
   );
 }
-
 
 function Detail({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -694,87 +690,87 @@ function JobPanel({
     <section className="panel overflow-hidden">
       <h2 className="section-heading">Job & revenue</h2>
       <div className="p-4">
-      {isCompleted ? (
-        <div className="mt-3 rounded-md border border-success/40 bg-success/10 p-3 text-sm">
-          <p className="font-medium text-success">
-            Completed {formatCurrency(Number(job?.completed_value ?? 0))}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {job?.service_performed} ·{" "}
-            {job?.completed_at ? new Date(job.completed_at).toLocaleDateString("en-AU") : ""}
-          </p>
-        </div>
-      ) : (
-        <div className="mt-3 space-y-3">
-          <div className="rounded-md border border-border p-3">
-            <p className="text-xs text-muted-foreground">Scheduled (not counted as revenue)</p>
-            <div className="mt-2 flex gap-2">
-              <input
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(event) => setScheduledAt(event.target.value)}
-                className="form-control min-w-0 flex-1 text-xs"
-              />
-              <button
-                disabled={!scheduledAt || scheduleMutation.isPending}
-                onClick={() => scheduleMutation.mutate()}
-                className="rounded-md border border-input px-2.5 py-1.5 text-xs disabled:opacity-50"
-              >
-                Save
-              </button>
-            </div>
+        {isCompleted ? (
+          <div className="mt-3 rounded-md border border-success/40 bg-success/10 p-3 text-sm">
+            <p className="font-medium text-success">
+              Completed {formatCurrency(Number(job?.completed_value ?? 0))}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {job?.service_performed} ·{" "}
+              {job?.completed_at ? new Date(job.completed_at).toLocaleDateString("en-AU") : ""}
+            </p>
           </div>
+        ) : (
+          <div className="mt-3 space-y-3">
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs text-muted-foreground">Scheduled (not counted as revenue)</p>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(event) => setScheduledAt(event.target.value)}
+                  className="form-control min-w-0 flex-1 text-xs"
+                />
+                <button
+                  disabled={!scheduledAt || scheduleMutation.isPending}
+                  onClick={() => scheduleMutation.mutate()}
+                  className="rounded-md border border-input px-2.5 py-1.5 text-xs disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
 
-          <div className="rounded-md border border-border p-3">
-            <p className="text-xs text-muted-foreground">Record completed job</p>
-            <div className="mt-2 space-y-2">
-              <select
-                value={form.service_id}
-                onChange={(event) => setForm({ ...form, service_id: event.target.value })}
-                className="form-control text-xs"
-              >
-                <option value="">Service performed…</option>
-                {services.map((service) => (
-                  <option key={service.id} value={service.id}>
-                    {service.name}
-                    {service.price_guidance ? ` (${service.price_guidance})` : ""}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="date"
-                value={form.completed_at}
-                onChange={(event) => setForm({ ...form, completed_at: event.target.value })}
-                className="form-control text-xs"
-              />
-              <input
-                inputMode="decimal"
-                value={form.completed_value}
-                onChange={(event) => setForm({ ...form, completed_value: event.target.value })}
-                placeholder="Final amount collected (AUD)"
-                className="form-control text-xs"
-              />
-              <input
-                value={form.notes}
-                onChange={(event) => setForm({ ...form, notes: event.target.value })}
-                placeholder="Notes (optional)"
-                className="form-control text-xs"
-              />
-              <button
-                disabled={
-                  !form.completed_value ||
-                  Number.isNaN(Number(form.completed_value)) ||
-                  completeMutation.isPending
-                }
-                onClick={() => completeMutation.mutate()}
-                className="w-full rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {completeMutation.isPending ? "Saving…" : "Mark job completed"}
-              </button>
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs text-muted-foreground">Record completed job</p>
+              <div className="mt-2 space-y-2">
+                <select
+                  value={form.service_id}
+                  onChange={(event) => setForm({ ...form, service_id: event.target.value })}
+                  className="form-control text-xs"
+                >
+                  <option value="">Service performed…</option>
+                  {services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}
+                      {service.price_guidance ? ` (${service.price_guidance})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={form.completed_at}
+                  onChange={(event) => setForm({ ...form, completed_at: event.target.value })}
+                  className="form-control text-xs"
+                />
+                <input
+                  inputMode="decimal"
+                  value={form.completed_value}
+                  onChange={(event) => setForm({ ...form, completed_value: event.target.value })}
+                  placeholder="Final amount collected (AUD)"
+                  className="form-control text-xs"
+                />
+                <input
+                  value={form.notes}
+                  onChange={(event) => setForm({ ...form, notes: event.target.value })}
+                  placeholder="Notes (optional)"
+                  className="form-control text-xs"
+                />
+                <button
+                  disabled={
+                    !form.completed_value ||
+                    Number.isNaN(Number(form.completed_value)) ||
+                    completeMutation.isPending
+                  }
+                  onClick={() => completeMutation.mutate()}
+                  className="w-full rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  {completeMutation.isPending ? "Saving…" : "Mark job completed"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </section>
   );
@@ -865,7 +861,9 @@ function WebChatTranscript({
         {conversation.consent_outcome ? ` Consent: ${conversation.consent_outcome}.` : ""}
       </p>
       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto">
-        {messages.length === 0 && <p className="text-sm text-muted-foreground">No turns recorded.</p>}
+        {messages.length === 0 && (
+          <p className="text-sm text-muted-foreground">No turns recorded.</p>
+        )}
         {messages.map((message, index) => (
           <div
             key={`${index}-${message.created_at}`}

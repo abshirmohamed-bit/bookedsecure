@@ -200,7 +200,9 @@ function DeletedLeadsPage() {
                           type="checkbox"
                           aria-label={`Select ${lead.name}`}
                           checked={selection.includes(lead.id)}
-                          onChange={() => setSelection((current) => toggleSelection(current, lead.id))}
+                          onChange={() =>
+                            setSelection((current) => toggleSelection(current, lead.id))
+                          }
                           className="h-4 w-4 accent-[var(--color-primary)]"
                         />
                       </td>
@@ -229,7 +231,10 @@ function DeletedLeadsPage() {
                   ))}
                   {leads.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-10 text-center text-sm text-muted-foreground"
+                      >
                         Nothing has been deleted from the inbox.
                       </td>
                     </tr>
@@ -269,7 +274,9 @@ function DeletedLeadsPage() {
                     {outcome.status === "deleted" ? "Permanently deleted" : "Blocked"}
                   </span>
                   <span className="text-muted-foreground">{outcome.name ?? "Unnamed lead"}</span>
-                  <span className="tabular text-[11px] text-muted-foreground">{outcome.leadId}</span>
+                  <span className="tabular text-[11px] text-muted-foreground">
+                    {outcome.leadId}
+                  </span>
                   {outcome.reason && (
                     <span className="text-muted-foreground">— {outcome.reason}</span>
                   )}

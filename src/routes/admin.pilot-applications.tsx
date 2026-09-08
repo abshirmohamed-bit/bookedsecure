@@ -49,7 +49,13 @@ function PilotApplications() {
   const [to, setTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const filters = { status, utmSource: utmSource || null, search: search || null, from: from || null, to: to || null };
+  const filters = {
+    status,
+    utmSource: utmSource || null,
+    search: search || null,
+    from: from || null,
+    to: to || null,
+  };
   const { data, isLoading, error } = useQuery({
     queryKey: ["pilot-applications", filters],
     queryFn: () => fetchList({ data: filters }),
@@ -65,7 +71,9 @@ function PilotApplications() {
     <div className="space-y-5">
       <div>
         <h1 className="page-heading">Pilot applications</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Review and progress early-access businesses.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Review and progress early-access businesses.
+        </p>
       </div>
       <div className="panel space-y-3 p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -162,7 +170,9 @@ function PilotApplications() {
                 <td className="px-4 py-3">{row.contact_name}</td>
                 <td className="px-4 py-3">{row.email}</td>
                 <td className="px-4 py-3">{row.phone ?? "—"}</td>
-                <td className="px-4 py-3">{PILOT_STATUS_LABELS[row.status as PilotStatus] ?? row.status}</td>
+                <td className="px-4 py-3">
+                  {PILOT_STATUS_LABELS[row.status as PilotStatus] ?? row.status}
+                </td>
                 <td className="px-4 py-3">{new Date(row.submitted_at).toLocaleString()}</td>
                 <td className="px-4 py-3">{row.utm_source ?? "—"}</td>
                 <td className="px-4 py-3 max-w-[200px] truncate">{row.referrer ?? "—"}</td>
@@ -227,7 +237,9 @@ function ApplicationDetail({ application }: { application: Application }) {
         <Detail label="Submitted" value={new Date(application.submitted_at).toLocaleString()} />
         <Detail
           label="Last reviewed"
-          value={application.reviewed_at ? new Date(application.reviewed_at).toLocaleString() : null}
+          value={
+            application.reviewed_at ? new Date(application.reviewed_at).toLocaleString() : null
+          }
         />
         <Detail label="Reviewed by" value={application.reviewed_by} />
       </dl>
@@ -279,19 +291,20 @@ function ApplicationDetail({ application }: { application: Application }) {
         </button>
       </form>
 
-      <div className="border-t border-border p-5"><PilotCheckoutPanel
-        applicationId={application.id}
-        status={application.status}
-        accessState={application.access_state}
-        pilotStartedAt={application.pilot_started_at}
-        pilotEndsAt={application.pilot_ends_at}
-        paymentCompletedAt={application.payment_completed_at}
-        stripeSubscriptionId={application.stripe_subscription_id}
-        renewalPreventionConfirmed={application.renewal_prevention_confirmed}
-        renewalPreventionAttempts={application.renewal_prevention_attempts}
-        renewalPreventionLastError={application.renewal_prevention_last_error}
-      /></div>
-
+      <div className="border-t border-border p-5">
+        <PilotCheckoutPanel
+          applicationId={application.id}
+          status={application.status}
+          accessState={application.access_state}
+          pilotStartedAt={application.pilot_started_at}
+          pilotEndsAt={application.pilot_ends_at}
+          paymentCompletedAt={application.payment_completed_at}
+          stripeSubscriptionId={application.stripe_subscription_id}
+          renewalPreventionConfirmed={application.renewal_prevention_confirmed}
+          renewalPreventionAttempts={application.renewal_prevention_attempts}
+          renewalPreventionLastError={application.renewal_prevention_last_error}
+        />
+      </div>
     </div>
   );
 }

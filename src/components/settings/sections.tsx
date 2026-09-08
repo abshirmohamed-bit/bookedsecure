@@ -10,12 +10,7 @@ import {
   saveQuotePageMode,
   saveService,
 } from "@/lib/app.functions";
-import {
-  QUOTE_MODES,
-  QUOTE_MODE_LABELS,
-  resolveQuoteMode,
-  type QuoteMode,
-} from "@/lib/quote-mode";
+import { QUOTE_MODES, QUOTE_MODE_LABELS, resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
 
 /**
  * Shared settings building blocks. The underlying server functions and
@@ -61,7 +56,6 @@ export function SettingsPageBody({
   actions?: (data: SettingsDataWithBusiness) => React.ReactNode;
   children: (data: SettingsDataWithBusiness) => React.ReactNode;
 }) {
-
   const { data, isLoading, error } = useSettings();
 
   return (
@@ -86,7 +80,6 @@ export function SettingsPageBody({
     </div>
   );
 }
-
 
 const TEXT_FIELDS = {
   name: "Business name",
@@ -165,94 +158,96 @@ export function BusinessSettingsForm({
     <section className="panel overflow-hidden">
       <div className="section-heading">{title}</div>
       <div className="p-4">
-      {note && <p className="mb-4 text-xs text-muted-foreground">{note}</p>}
+        {note && <p className="mb-4 text-xs text-muted-foreground">{note}</p>}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {textFields.map((key) => (
-          <label key={key} className="block text-xs">
-            <span className="mb-1 block text-muted-foreground">{TEXT_FIELDS[key]}</span>
-            <input
-              disabled={readOnly}
-              value={form[key]}
-              onChange={(event) => setForm({ ...form, [key]: event.target.value })}
-              className="form-control disabled:opacity-60"
-            />
-          </label>
-        ))}
-        {showProvider && (
-          <label className="block text-xs">
-            <span className="mb-1 block text-muted-foreground">SMS provider</span>
-            <select
-              disabled={readOnly}
-              value={form.default_sms_provider}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  default_sms_provider: event.target.value as "simulated" | "twilio" | "telnyx",
-                })
-              }
-              className="form-control disabled:opacity-60"
-            >
-              <option value="simulated">Simulated (recorded, not sent)</option>
-              <option value="twilio">Twilio (live SMS)</option>
-              <option value="telnyx">Telnyx (live SMS)</option>
-            </select>
-          </label>
-        )}
-        {showQuietHours && (
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-xs">
-              <span className="mb-1 block text-muted-foreground">Quiet hours start</span>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {textFields.map((key) => (
+            <label key={key} className="block text-xs">
+              <span className="mb-1 block text-muted-foreground">{TEXT_FIELDS[key]}</span>
               <input
-                type="number"
-                min={0}
-                max={23}
                 disabled={readOnly}
-                value={form.quiet_hours_start}
+                value={form[key]}
+                onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+                className="form-control disabled:opacity-60"
+              />
+            </label>
+          ))}
+          {showProvider && (
+            <label className="block text-xs">
+              <span className="mb-1 block text-muted-foreground">SMS provider</span>
+              <select
+                disabled={readOnly}
+                value={form.default_sms_provider}
                 onChange={(event) =>
-                  setForm({ ...form, quiet_hours_start: Number(event.target.value) })
+                  setForm({
+                    ...form,
+                    default_sms_provider: event.target.value as "simulated" | "twilio" | "telnyx",
+                  })
                 }
                 className="form-control disabled:opacity-60"
-              />
+              >
+                <option value="simulated">Simulated (recorded, not sent)</option>
+                <option value="twilio">Twilio (live SMS)</option>
+                <option value="telnyx">Telnyx (live SMS)</option>
+              </select>
             </label>
-            <label className="block text-xs">
-              <span className="mb-1 block text-muted-foreground">Quiet hours end</span>
-              <input
-                type="number"
-                min={0}
-                max={23}
-                disabled={readOnly}
-                value={form.quiet_hours_end}
-                onChange={(event) => setForm({ ...form, quiet_hours_end: Number(event.target.value) })}
-                className="form-control disabled:opacity-60"
-              />
-            </label>
-          </div>
+          )}
+          {showQuietHours && (
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-xs">
+                <span className="mb-1 block text-muted-foreground">Quiet hours start</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={23}
+                  disabled={readOnly}
+                  value={form.quiet_hours_start}
+                  onChange={(event) =>
+                    setForm({ ...form, quiet_hours_start: Number(event.target.value) })
+                  }
+                  className="form-control disabled:opacity-60"
+                />
+              </label>
+              <label className="block text-xs">
+                <span className="mb-1 block text-muted-foreground">Quiet hours end</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={23}
+                  disabled={readOnly}
+                  value={form.quiet_hours_end}
+                  onChange={(event) =>
+                    setForm({ ...form, quiet_hours_end: Number(event.target.value) })
+                  }
+                  className="form-control disabled:opacity-60"
+                />
+              </label>
+            </div>
+          )}
+        </div>
+
+        {showAutomationSwitch && (
+          <label className="mt-4 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              disabled={readOnly}
+              checked={form.automation_enabled}
+              onChange={(event) => setForm({ ...form, automation_enabled: event.target.checked })}
+              className="h-4 w-4 accent-[var(--color-primary)]"
+            />
+            <span>Automated acknowledgement and follow-up SMS enabled</span>
+          </label>
         )}
-      </div>
 
-      {showAutomationSwitch && (
-        <label className="mt-4 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            disabled={readOnly}
-            checked={form.automation_enabled}
-            onChange={(event) => setForm({ ...form, automation_enabled: event.target.checked })}
-            className="h-4 w-4 accent-[var(--color-primary)]"
-          />
-          <span>Automated acknowledgement and follow-up SMS enabled</span>
-        </label>
-      )}
-
-      {!readOnly && (
-        <button
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
-          className="mt-4 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-60"
-        >
-          {mutation.isPending ? "Saving…" : "Save changes"}
-        </button>
-      )}
+        {!readOnly && (
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="mt-4 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-60"
+          >
+            {mutation.isPending ? "Saving…" : "Save changes"}
+          </button>
+        )}
       </div>
     </section>
   );
@@ -429,7 +424,9 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-medium">
                 {service.name}{" "}
-                {!service.active && <span className="text-xs text-muted-foreground">(inactive)</span>}
+                {!service.active && (
+                  <span className="text-xs text-muted-foreground">(inactive)</span>
+                )}
               </p>
               {!readOnly && (
                 <button
@@ -496,7 +493,9 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
             <input
               type="checkbox"
               checked={editing.campaign_eligible !== false}
-              onChange={(event) => setEditing({ ...editing, campaign_eligible: event.target.checked })}
+              onChange={(event) =>
+                setEditing({ ...editing, campaign_eligible: event.target.checked })
+              }
               className="h-4 w-4 accent-[var(--color-primary)]"
             />
             Include in campaign offers
@@ -561,8 +560,8 @@ export function RulesEditor({ rules, readOnly }: { rules: Rule[]; readOnly: bool
     <section className="panel p-4">
       <h2 className="text-sm font-semibold">SMS sequence</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Placeholders: {"{{first_name}}"}, {"{{business_name}}"}. Follow-ups stop automatically on reply
-        or opt-out.
+        Placeholders: {"{{first_name}}"}, {"{{business_name}}"}. Follow-ups stop automatically on
+        reply or opt-out.
       </p>
       <div className="mt-3 space-y-3">
         {rules.length === 0 && (
@@ -609,7 +608,9 @@ export function RulesEditor({ rules, readOnly }: { rules: Rule[]; readOnly: bool
               </div>
 
               <label className="mt-2 block text-xs">
-                <span className="mb-1 block text-muted-foreground">Delay (minutes after previous)</span>
+                <span className="mb-1 block text-muted-foreground">
+                  Delay (minutes after previous)
+                </span>
                 <input
                   type="number"
                   min={0}
@@ -668,7 +669,9 @@ export function TeamList({
         Access is managed by the business owner.
       </p>
       <ul className="mt-3 space-y-1 text-sm">
-        {team.length === 0 && <li className="text-xs text-muted-foreground">No team members yet.</li>}
+        {team.length === 0 && (
+          <li className="text-xs text-muted-foreground">No team members yet.</li>
+        )}
         {team.map((member) => (
           <li key={member.id} className="flex justify-between gap-3">
             <span>{member.name ?? member.email}</span>
@@ -756,7 +759,9 @@ export function QuotePageModeCard({
         </button>
       )}
       {readOnly && (
-        <p className="mt-3 text-xs text-muted-foreground">Only the business owner can change this.</p>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Only the business owner can change this.
+        </p>
       )}
     </section>
   );
