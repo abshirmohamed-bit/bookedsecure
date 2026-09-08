@@ -5,7 +5,11 @@ import { ArrowUp, Check, Loader2, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { runOwnerRequest, confirmOwnerStatusChange } from "@/lib/owner-actions.functions";
+import {
+  runOwnerRequest,
+  confirmOwnerStatusChange,
+  confirmAddonLinks,
+} from "@/lib/owner-actions.functions";
 import { approveReactivation } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { previewCrmImport } from "@/lib/csv-import.functions";
@@ -28,7 +32,17 @@ type StatusProposal = {
   summary: string;
 };
 
-type Proposal = CampaignProposal | StatusProposal;
+type AddonLinkProposal = {
+  kind: "addon_links";
+  addonId: string;
+  addonName: string;
+  serviceIds: string[];
+  serviceNames: string[];
+  remove: boolean;
+  summary: string;
+};
+
+type Proposal = CampaignProposal | StatusProposal | AddonLinkProposal;
 
 type Turn = {
   id: string;
@@ -63,6 +77,7 @@ export function OwnerAssistant() {
   const navigate = useNavigate();
   const ask = useServerFn(runOwnerRequest);
   const applyStatus = useServerFn(confirmOwnerStatusChange);
+  const linkAddons = useServerFn(confirmAddonLinks);
   const approve = useServerFn(approveReactivation);
   const upload = useServerFn(previewCrmImport);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -156,6 +171,27 @@ export function OwnerAssistant() {
     onSettled: () => setBusyId(null),
   });
 
+  const addonMutation = useMutation({
+    mutationFn: (input: { turnId: string; proposal: AddonLinkProposal }) =>
+      linkAddons({
+        data: {
+          addonId: input.proposal.addonId,
+          serviceIds: input.proposal.serviceIds,
+          remove: input.proposal.remove,
+        },
+      }),
+    onSuccess: (result, input) =>
+      markDone(
+        input.turnId,
+        input.proposal.remove
+          ? `Removed "${input.proposal.addonName}" from ${result.changed} service${result.changed === 1 ? "" : "s"}.`
+          : `"${input.proposal.addonName}" is now offered with ${result.changed} service${result.changed === 1 ? "" : "s"}.`,
+      ),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "That change could not be applied."),
+    onSettled: () => setBusyId(null),
+  });
+
   function submit(value: string) {
     const text = normaliseOwnerQuestion(value);
     if (!text) return;
@@ -203,7 +239,7 @@ export function OwnerAssistant() {
                   </p>
                 ) : (
                   <div className="max-w-[95%] space-y-3">
-                    <p className="rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm leading-relaxed">
+                    <p className="whitespace-pre-line rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm leading-relaxed">
                       {turn.text}
                     </p>
 
@@ -270,6 +306,43 @@ export function OwnerAssistant() {
                               </Link>
                             </div>
                           ) : null}
+                        </div>
+                      ) : proposal.kind === "addon_links" ? (
+                        <div
+                          key={`${proposal.addonId}-${proposal.remove ? "off" : "on"}`}
+                          className="rounded-2xl border border-border bg-card p-4 text-sm"
+                        >
+                          <p className="font-medium">
+                            {proposal.remove ? "Remove add-on" : "Add-on availability"} —{" "}
+                            {proposal.addonName}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">{proposal.summary}</p>
+                          <ul className="mt-2 flex flex-wrap gap-1.5">
+                            {proposal.serviceNames.map((name) => (
+                              <li
+                                key={name}
+                                className="rounded-full bg-secondary/60 px-2.5 py-1 text-xs"
+                              >
+                                {name}
+                              </li>
+                            ))}
+                          </ul>
+                          <button
+                            type="button"
+                            disabled={busyId === turn.id}
+                            onClick={() => {
+                              setBusyId(turn.id);
+                              addonMutation.mutate({ turnId: turn.id, proposal });
+                            }}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                          >
+                            {busyId === turn.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                            Confirm
+                          </button>
                         </div>
                       ) : (
                         <div
