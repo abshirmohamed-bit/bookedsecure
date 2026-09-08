@@ -90,6 +90,7 @@ function BusinessSettingsPage() {
       >
         {(data) => (
           <>
+            <SiteOnboardingPanel readOnly={data.role !== "owner"} />
             <BusinessSettingsForm
               business={data.business}
               readOnly={data.role !== "owner"}
