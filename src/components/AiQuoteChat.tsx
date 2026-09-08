@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, Loader2, RotateCcw, Send, ShieldCheck, User } from "lucide-react";
+import { AlertCircle, RotateCcw, ShieldCheck } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent } from "@/components/ai-elements/message";
@@ -392,7 +392,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
               {/* Final review — every field individually changeable */}
               {!finished && !busy && !pending && prompt?.kind === "review" && (
-                <div className="mt-4 space-y-3 rounded-xl border border-border bg-card/60 p-3">
+                <div className="mt-4 space-y-3 rounded-lg border border-border bg-card p-3 shadow-sm">
                   <ul className="divide-y divide-border">
                     {(prompt.fields ?? []).map((field) => (
                       <li
@@ -407,7 +407,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                           type="button"
                           disabled={busy}
                           onClick={() => send(`change:${field.step}`, `Change my ${field.label.toLowerCase()}`)}
-                          className="min-h-9 shrink-0 rounded-full border border-border px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                          className="min-h-9 shrink-0 rounded-md border border-border px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                           aria-label={`Change ${field.label}`}
                         >
                           Change
@@ -419,7 +419,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                     type="button"
                     disabled={busy}
                     onClick={() => send("confirmed", "That all looks right")}
-                    className="min-h-11 w-full rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    className="min-h-11 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                   >
                     That all looks right
                   </button>
@@ -428,7 +428,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
               {/* Pilot booking step — every time shown is server-computed */}
               {!finished && !busy && !pending && onBookingStep && bookingOptions.length > 0 && (
-                <div className="mt-4 space-y-2 rounded-xl border border-border bg-card/60 p-3">
+                <div className="mt-4 space-y-2 rounded-lg border border-border bg-card p-3 shadow-sm">
                   {bookingOptions
                     .filter((option) => option.value !== NO_SLOT_CHOICE)
                     .map((option) => (
@@ -438,7 +438,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                         disabled={busy}
                         onClick={() => send(option.value, option.label)}
                         aria-label={`Book ${option.label}`}
-                        className="min-h-11 w-full rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                        className="min-h-11 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                       >
                         {option.label}
                       </button>
@@ -447,7 +447,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                     type="button"
                     disabled={busy}
                     onClick={() => send(NO_SLOT_CHOICE, "None of these work")}
-                    className="min-h-11 w-full rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    className="min-h-11 w-full rounded-md border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                   >
                     None of these work
                   </button>
@@ -456,12 +456,12 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
               {/* Final confirmation — nothing is booked until this is pressed */}
               {!finished && !busy && !pending && onBookingConfirmStep && (
-                <div className="mt-4 space-y-2 rounded-xl border border-border bg-card/60 p-3">
+                <div className="mt-4 space-y-2 rounded-lg border border-border bg-card p-3 shadow-sm">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => send(BOOKING_CONFIRM_CHOICE, "Yes, confirm this booking")}
-                    className="min-h-11 w-full rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    className="min-h-11 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                   >
                     Yes, confirm this booking
                   </button>
@@ -469,7 +469,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                     type="button"
                     disabled={busy}
                     onClick={() => send(BOOKING_CHANGE_CHOICE, "Pick a different time")}
-                    className="min-h-11 w-full rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    className="min-h-11 w-full rounded-md border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                   >
                     Pick a different time
                   </button>
@@ -479,7 +479,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
               {/* Consent */}
               {!finished && !busy && !pending && prompt?.kind === "consent" && (
-                <div className="mt-4 space-y-3 rounded-xl border border-border bg-card/60 p-3">
+                <div className="mt-4 space-y-3 rounded-lg border border-border bg-card p-3 shadow-sm">
                   <p className="text-xs text-muted-foreground">
                     See our{" "}
                     <a
@@ -495,7 +495,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                       type="button"
                       disabled={busy}
                       onClick={() => send("granted", "Yes, that's fine")}
-                      className="min-h-11 flex-1 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                      className="min-h-11 flex-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                     >
                       Yes, that's fine
                     </button>
@@ -503,7 +503,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                       type="button"
                       disabled={busy}
                       onClick={() => send("declined", "No thanks")}
-                      className="min-h-11 rounded-full border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                      className="min-h-11 rounded-md border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                     >
                       No thanks
                     </button>
@@ -514,7 +514,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
               {error && (
                 <div
                   role="alert"
-                  className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+                  className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
                 >
                   <p className="flex items-start gap-2">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />

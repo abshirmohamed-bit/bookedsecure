@@ -123,7 +123,7 @@ function RuleCard({
         <button
           type="button"
           disabled={readOnly}
-          className="rounded-lg border border-input bg-background p-3 text-left transition-colors hover:border-primary/50 disabled:opacity-60"
+          className="rounded-md border border-input bg-card p-3 text-left shadow-sm transition-colors hover:border-primary/50 disabled:opacity-60"
         >
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {rule.label}
@@ -215,9 +215,10 @@ export function AvailabilityEditor({
     setWindows(windows.map((window, i) => (i === index ? { ...window, ...patch } : window)));
 
   return (
-    <section className="panel p-4">
-      <h2 className="text-sm font-semibold">Bookable availability</h2>
-      <p className="mt-1 text-xs text-muted-foreground">
+    <section className="panel overflow-hidden">
+      <div className="section-heading">Bookable availability</div>
+      <div className="p-4">
+      <p className="text-xs text-muted-foreground">
         Appointment times are worked out by the system from these windows in {timezone}, using each
         approved service's own appointment duration. Quiet hours,
         already-booked jobs and times too soon from now are always excluded. Times are only ever sent
@@ -261,7 +262,7 @@ export function AvailabilityEditor({
               disabled={readOnly}
               value={window.weekday}
               onChange={(event) => update(index, { weekday: Number(event.target.value) })}
-              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground disabled:opacity-60"
+              className="form-control w-auto disabled:opacity-60"
             >
               {WEEKDAY_LABELS.map((label, day) => (
                 <option key={label} value={day}>
@@ -274,7 +275,7 @@ export function AvailabilityEditor({
               disabled={readOnly}
               value={window.start}
               onChange={(event) => update(index, { start: event.target.value })}
-              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground disabled:opacity-60"
+              className="form-control w-auto disabled:opacity-60"
             />
             <span className="text-xs text-muted-foreground">to</span>
             <input
@@ -282,7 +283,7 @@ export function AvailabilityEditor({
               disabled={readOnly}
               value={window.end}
               onChange={(event) => update(index, { end: event.target.value })}
-              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground disabled:opacity-60"
+              className="form-control w-auto disabled:opacity-60"
             />
             {!readOnly && (
               <button
@@ -313,6 +314,7 @@ export function AvailabilityEditor({
           {mutation.isPending ? "Saving…" : "Save availability"}
         </button>
       )}
+      </div>
     </section>
   );
 }

@@ -114,8 +114,8 @@ function DeletedLeadsPage() {
       <div className="space-y-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-lg font-semibold">Deleted leads (recovery)</h1>
-            <p className="text-xs text-muted-foreground">
+            <h1 className="page-heading">Deleted leads</h1>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
               Owner-only. These leads are hidden from the active inbox and analytics. Their source,
               import history, conversations and audit trail are preserved, and restoring keeps the
               original record — nothing is re-imported or duplicated.
@@ -173,7 +173,7 @@ function DeletedLeadsPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
                     <th className="w-10 px-4 py-2 font-medium">
                       <input
                         type="checkbox"
@@ -284,7 +284,7 @@ function DeletedLeadsPage() {
             role="dialog"
             aria-modal="true"
             aria-label="Confirm permanent deletion"
-            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-foreground/25 p-4 backdrop-blur-sm"
           >
             <div className="panel mt-10 w-full max-w-2xl p-5">
               <h2 className="text-base font-semibold text-destructive">
@@ -331,7 +331,7 @@ function DeletedLeadsPage() {
                 value={phrase}
                 onChange={(event) => setPhrase(event.target.value)}
                 autoComplete="off"
-                className="mt-1 w-40 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+                className="form-control mt-1 w-40"
               />
 
               <div className="mt-5 flex flex-wrap justify-end gap-2">

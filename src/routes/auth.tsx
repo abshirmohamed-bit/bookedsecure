@@ -85,7 +85,7 @@ function AuthPage() {
       <section className="flex items-center justify-center px-4 py-10 sm:px-8">
       <div className="panel w-full max-w-sm overflow-hidden">
         <div className="border-b border-border p-5">
-        <div className="mb-6 flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
             G
           </div>
@@ -93,6 +93,7 @@ function AuthPage() {
             <h1 className="text-base font-semibold">BookedSecure</h1>
             <p className="text-xs text-muted-foreground">Team access only</p>
           </div>
+        </div>
         </div>
 
         <form onSubmit={submit} className="space-y-4 p-5">
