@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normaliseSlug } from "@/lib/tenant-slug";
 import { sanitiseLogoUrl } from "@/lib/tenant-branding";
 import { resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
+import type { ServiceAddon } from "@/lib/service-addons";
 
 export type PublicService = {
   id: string;
@@ -27,6 +28,8 @@ export type PublicTenant = {
   flexibleRequestsEnabled: boolean;
   quoteMode: QuoteMode;
   services: PublicService[];
+  /** The tenant's own active add-on extras, each linked to their services. */
+  addons: ServiceAddon[];
 };
 
 /** Resolves an active tenant with an active quote form, or null. */
@@ -51,9 +54,33 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     .eq("active", true)
     .order("name", { ascending: true });
 
+  const { data: addonRows } = await supabaseAdmin
+    .from("service_addons")
+    .select("id, name, description, price_guidance, duration_minutes, active, service_addon_links(service_id)")
+    .eq("business_id", business.id)
+    .eq("active", true)
+    .order("name", { ascending: true });
+
+  const activeServiceIds = new Set((services ?? []).map((service) => service.id));
+  const addons: ServiceAddon[] = (addonRows ?? [])
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description ?? null,
+      price_guidance: row.price_guidance ?? null,
+      duration_minutes: row.duration_minutes ?? null,
+      active: true,
+      // An add-on is only ever offered with this tenant's own active services.
+      serviceIds: ((row as { service_addon_links?: { service_id: string }[] }).service_addon_links ?? [])
+        .map((link) => link.service_id)
+        .filter((serviceId) => activeServiceIds.has(serviceId)),
+    }))
+    .filter((addon) => addon.serviceIds.length > 0);
+
   return {
     businessId: business.id,
     slug,
+    addons,
     name: business.name,
     logoUrl: sanitiseLogoUrl(business.logo_url),
     serviceArea: business.service_area ?? null,

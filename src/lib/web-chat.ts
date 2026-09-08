@@ -369,6 +369,7 @@ function buildPrompt(
           suburb: collected.suburb ?? null,
           vehicle: collected.vehicle_type ?? null,
           slotLabel: held?.label ?? "the time you picked",
+          addons: collected.addon_names ?? [],
         }),
         options: [
           { value: BOOKING_CONFIRM_CHOICE, label: "Yes, confirm this booking", detail: null },

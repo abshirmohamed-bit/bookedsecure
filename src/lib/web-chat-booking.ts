@@ -177,11 +177,15 @@ export function bookingConfirmMessage(input: {
   suburb: string | null | undefined;
   vehicle: string | null | undefined;
   slotLabel: string;
+  /** Extras the customer chose, in the tenant's own wording. */
+  addons?: readonly string[] | null;
 }): string {
   const lines = [
     `Service: ${(input.serviceName ?? "").trim() || "as discussed"}`,
     `Time: ${input.slotLabel}`,
   ];
+  const addons = (input.addons ?? []).map((name) => name.trim()).filter(Boolean);
+  if (addons.length > 0) lines.push(`Extras: ${addons.join(", ")}`);
   const vehicle = (input.vehicle ?? "").trim();
   if (vehicle) lines.push(`Vehicle: ${vehicle}`);
   const suburb = (input.suburb ?? "").trim();

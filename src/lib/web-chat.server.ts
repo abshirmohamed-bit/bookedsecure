@@ -97,6 +97,7 @@ function toChatTenant(tenant: PublicTenant, offerPercent?: number | null): WebCh
     name: tenant.name,
     flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
     bookingEnabled: isBookingOnlyTenant(tenant.businessId),
+    addons: tenant.addons ?? [],
     services: tenant.services.map((service) => ({
       id: service.id,
       name: service.name,
@@ -599,7 +600,9 @@ export async function replyToWebChat(input: {
 
     const prompt = promptFor(followUp, chatTenant, next);
     const detail =
-      followUp === "vehicle" && next.service_name ? serviceAcknowledgement(chatTenant, next) : null;
+      (followUp === "vehicle" || followUp === "addons") && next.service_name
+        ? serviceAcknowledgement(chatTenant, next)
+        : null;
     if (detail) await addMessage(tenant.businessId, conversation.id, "assistant", detail);
     await addMessage(tenant.businessId, conversation.id, "assistant", prompt.text);
     return {
