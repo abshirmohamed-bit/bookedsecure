@@ -372,42 +372,40 @@ export function HomeHero() {
             />
             <textarea
               id="owner-question"
+              ref={textareaRef}
               value={question}
-              onChange={(event) => setQuestion(event.target.value)}
+              onChange={(event) => {
+                setQuestion(event.target.value);
+                autoSize(event.target);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   submit(question);
                 }
               }}
-              rows={2}
+              rows={1}
               maxLength={OWNER_ASSISTANT_MAX_QUESTION}
               placeholder="Draft a 10% win-back campaign for contacts we haven't messaged in 2 weeks"
-              className="min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
             />
-            <div className="flex flex-col items-center gap-1">
-              <button
-                type="submit"
-                aria-label={signedIn ? "Ask" : "Sign in to ask"}
-                disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40 sm:h-9 sm:w-9"
-              >
-                {mutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <ArrowUp className="h-4 w-4" aria-hidden="true" />
-                )}
-              </button>
-              {!signedIn && !loading ? (
-                <span className="whitespace-nowrap text-[10px] leading-none text-muted-foreground">
-                  Sign in to ask
-                </span>
-              ) : null}
-            </div>
+            <button
+              type="submit"
+              aria-label={signedIn ? "Ask" : "Sign in to ask"}
+              title={signedIn ? "Ask" : "Sign in to ask"}
+              disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
+              className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+            >
+              {mutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <ArrowUp className="h-4 w-4" aria-hidden="true" />
+              )}
+            </button>
           </div>
-          {signedIn && !loading ? (
+          {!loading ? (
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              Nothing sends without your approval
+              {signedIn ? "Nothing sends without your approval" : "Sign in to ask"}
             </p>
           ) : null}
         </form>
