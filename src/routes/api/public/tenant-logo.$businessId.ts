@@ -37,7 +37,8 @@ export const Route = createFileRoute("/api/public/tenant-logo/$businessId")({
           headers: {
             "Content-Type": file.data.type || "image/png",
             // The URL carries a version marker, so the image itself is cacheable.
-            "Cache-Control": "public, max-age=86400",
+            "Cache-Control": "public, max-age=31536000, immutable",
+
           },
         });
       },
