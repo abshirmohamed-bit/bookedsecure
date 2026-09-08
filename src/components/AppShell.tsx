@@ -6,6 +6,7 @@ import {
   Check,
   Copy,
   FileUp,
+  Inbox,
   Menu,
   MessageCircle,
   Settings,
@@ -27,6 +28,13 @@ import { getSession } from "@/lib/app.functions";
 import { cn } from "@/lib/utils";
 import { PRIMARY_NAV, isPrimaryNavActive, navBreadcrumb } from "@/lib/navigation";
 import { tenantHeaderTitle, tenantQuotePath, tenantQuoteUrl } from "@/lib/tenant-nav";
+
+/** Icon per primary nav item, keeping the navigation data module DOM-free. */
+const NAV_ICONS = {
+  assistant: Sparkles,
+  inbox: Inbox,
+  analytics: BarChart3,
+} as const;
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const { session, loading } = useAuth();
@@ -91,13 +99,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         </div>
         <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 py-4">
           <SidebarLabel>Workspace</SidebarLabel>
-          {PRIMARY_NAV.map((item, index) => (
+          {PRIMARY_NAV.map((item) => (
             <SidebarLink
               key={item.to}
               to={item.to}
               label={item.label}
               active={isPrimaryNavActive(item, pathname)}
-              icon={index === 0 ? MessageCircle : BarChart3}
+              icon={NAV_ICONS[item.icon]}
               onClick={() => setMobileNavOpen(false)}
             />
           ))}
@@ -176,7 +184,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         <p className="min-w-0 truncate text-sm text-muted-foreground">
           <span className="hidden sm:inline">Workspace&nbsp; / &nbsp;</span>
           <span className="font-medium text-foreground">
-            {breadcrumb.at(-1) ?? title ?? "Leads"}
+            {breadcrumb.at(-1) ?? title ?? "Workspace"}
           </span>
         </p>
         <div className="ml-auto flex items-center gap-1">
@@ -213,7 +221,9 @@ function SidebarLink({
   onClick,
 }: {
   to:
+    | "/dashboard"
     | "/leads"
+
     | "/analytics"
     | "/import"
     | "/settings/business"

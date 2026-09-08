@@ -2,25 +2,33 @@
  * Information architecture for the app shell.
  *
  * Pure data + pure functions so navigation behaviour can be tested without a DOM.
- * Primary navigation is deliberately limited to the two daily jobs (Leads,
- * Analytics). Occasional tasks (importing CRM data, configuring the account)
+ * Primary navigation covers the daily jobs (Assistant, Lead inbox, Analytics).
+ * Occasional tasks (importing CRM data, configuring the account)
  * live inside the Leads workspace and the account menu respectively.
  */
 
 export type PrimaryNavItem = {
-  to: "/leads" | "/analytics";
+  to: "/dashboard" | "/leads" | "/analytics";
   label: string;
+  /** Icon key resolved to a component by the shell, keeping this module pure. */
+  icon: "assistant" | "inbox" | "analytics";
   /** Extra paths that should keep this item in its active state. */
   contextPaths?: readonly string[];
 };
 
 export const PRIMARY_NAV: readonly PrimaryNavItem[] = [
-  { to: "/leads", label: "Leads", contextPaths: ["/dashboard", "/import"] },
-  { to: "/analytics", label: "Analytics" },
+  { to: "/dashboard", label: "Assistant", icon: "assistant" },
+  { to: "/leads", label: "Lead inbox", icon: "inbox", contextPaths: ["/import"] },
+  { to: "/analytics", label: "Analytics", icon: "analytics" },
 ] as const;
 
 export type AccountMenuItem = {
-  to: "/profile" | "/settings/business" | "/settings/messaging" | "/settings/automation" | "/settings/team";
+  to:
+    | "/profile"
+    | "/settings/business"
+    | "/settings/messaging"
+    | "/settings/automation"
+    | "/settings/team";
   label: string;
 };
 
@@ -42,10 +50,11 @@ export function isPrimaryNavActive(item: PrimaryNavItem, pathname: string): bool
 
 /** Contextual trail shown under the header, e.g. "Leads / Import". */
 export function navBreadcrumb(pathname: string): string[] {
-  if (pathname === "/import" || pathname.startsWith("/import/")) return ["Leads", "Import"];
+  if (pathname === "/import" || pathname.startsWith("/import/")) return ["Lead inbox", "Import"];
   if (pathname === "/analytics") return ["Analytics"];
-  if (pathname.startsWith("/leads/")) return ["Leads", "Conversation"];
-  if (pathname === "/leads" || pathname === "/dashboard") return ["Leads"];
+  if (pathname.startsWith("/leads/")) return ["Lead inbox", "Conversation"];
+  if (pathname === "/leads") return ["Lead inbox"];
+  if (pathname === "/dashboard") return ["Assistant"];
   if (pathname === "/profile") return ["Account", "Profile"];
   if (pathname.startsWith("/settings")) {
     const section = ACCOUNT_MENU_ITEMS.find((item) => item.to === pathname);
@@ -64,17 +73,17 @@ export const ROLE_LABELS: Record<string, string> = {
 export function accountInitials(name?: string | null, email?: string | null): string {
   const source = (name ?? "").trim() || (email ?? "").trim();
   if (!source) return "?";
-  const parts = source.replace(/@.*$/, "").split(/[\s._-]+/).filter(Boolean);
+  const parts = source
+    .replace(/@.*$/, "")
+    .split(/[\s._-]+/)
+    .filter(Boolean);
   if (parts.length === 0) return source.slice(0, 1).toUpperCase();
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
   return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
 }
 
 export type AccountMenuEvent =
-  | { type: "toggle" }
-  | { type: "escape" }
-  | { type: "click_outside" }
-  | { type: "select_item" };
+  { type: "toggle" } | { type: "escape" } | { type: "click_outside" } | { type: "select_item" };
 
 /** Open/closed state machine for the account dropdown. */
 export function accountMenuReducer(open: boolean, event: AccountMenuEvent): boolean {

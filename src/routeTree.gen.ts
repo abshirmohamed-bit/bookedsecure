@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as HomeRouteImport } from './routes/home'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -58,6 +59,11 @@ const AuthRoute = AuthRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ImportRoute = ImportRouteImport.update({
@@ -199,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
@@ -263,6 +271,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/privacy': typeof PrivacyRoute
@@ -297,6 +306,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/auth'
     | '/dashboard'
+    | '/home'
     | '/import'
     | '/landing'
     | '/privacy'
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/auth'
     | '/dashboard'
+    | '/home'
     | '/import'
     | '/landing'
     | '/privacy'
@@ -360,6 +371,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/auth'
     | '/dashboard'
+    | '/home'
     | '/import'
     | '/landing'
     | '/privacy'
@@ -393,6 +405,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
+  HomeRoute: typeof HomeRoute
   ImportRoute: typeof ImportRoute
   LandingRoute: typeof LandingRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/import': {
@@ -656,6 +676,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
+  HomeRoute: HomeRoute,
   ImportRoute: ImportRoute,
   LandingRoute: LandingRoute,
   PrivacyRoute: PrivacyRoute,

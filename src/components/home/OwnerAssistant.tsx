@@ -53,11 +53,12 @@ function autoSize(el: HTMLTextAreaElement) {
 }
 
 /**
- * Signed-in home: ask about your own business, or ask for a win-back campaign or
- * a bulk status change. Answers appear in the conversation above the box, and
- * every action is proposed first and only runs once you approve it.
+ * The tenant's AI-led assistant: ask about your own business, or ask for a
+ * win-back campaign or a bulk status change. Answers appear in the conversation
+ * above the box, and every action is proposed first and only runs once you
+ * approve it. Rendered inside the signed-in workspace shell.
  */
-export function HomeHero() {
+export function OwnerAssistant() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const ask = useServerFn(runOwnerRequest);
@@ -178,40 +179,11 @@ export function HomeHero() {
   const hasConversation = turns.length > 0;
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-background">
-      <header className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-5">
-        <span className="text-sm font-semibold tracking-tight">BookedSecure</span>
-        <nav className="flex items-center gap-2 text-sm">
-          {signedIn ? (
-            <Link
-              to="/dashboard"
-              className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Go to leads
-            </Link>
-          ) : (
-            <>
-              <Link
-                to="/landing"
-                className="rounded-md px-3 py-2 text-muted-foreground hover:text-foreground"
-              >
-                How it works
-              </Link>
-              <Link
-                to="/auth"
-                className="rounded-md bg-primary px-3.5 py-2 font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                Sign in
-              </Link>
-            </>
-          )}
-        </nav>
-      </header>
-
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 pb-10 pt-2 sm:px-6 sm:pb-16">
+    <section className="mx-auto flex w-full max-w-3xl flex-col pt-4 sm:pt-8">
+      <div className="flex w-full flex-1 flex-col justify-center">
         {!hasConversation ? (
           <div className="mb-6 text-center sm:mb-8">
-            <h1 className="text-balance text-[1.75rem] font-semibold leading-[1.15] tracking-tight sm:text-5xl">
+            <h1 className="text-balance font-heading text-2xl font-semibold leading-[1.15] tracking-tight sm:text-4xl">
               Stop losing leads you already paid for.
             </h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-4">
@@ -424,6 +396,6 @@ export function HomeHero() {
           ) : null}
         </form>
       </div>
-    </main>
+    </section>
   );
 }

@@ -163,7 +163,7 @@ export function LeadsWorkspace() {
   const header = (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="font-heading text-2xl font-semibold">Leads</h1>
+        <h1 className="font-heading text-2xl font-semibold">Lead inbox</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           Enquiries that need a reply, follow-up status and completed jobs.
         </p>
