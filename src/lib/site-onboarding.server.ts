@@ -156,11 +156,16 @@ export async function applySiteOnboarding(
   requireOwnerRole(app);
   const notes: string[] = [];
 
-  const businessPatch: Record<string, string> = {};
-  if (proposal.business.name) businessPatch["name"] = proposal.business.name;
-  if (proposal.business.service_area) businessPatch["service_area"] = proposal.business.service_area;
-  if (proposal.business.opening_hours) businessPatch["opening_hours"] = proposal.business.opening_hours;
-  if (proposal.business.phone_number) businessPatch["phone_number"] = proposal.business.phone_number;
+  const businessPatch: {
+    name?: string;
+    service_area?: string;
+    opening_hours?: string;
+    phone_number?: string;
+  } = {};
+  if (proposal.business.name) businessPatch.name = proposal.business.name;
+  if (proposal.business.service_area) businessPatch.service_area = proposal.business.service_area;
+  if (proposal.business.opening_hours) businessPatch.opening_hours = proposal.business.opening_hours;
+  if (proposal.business.phone_number) businessPatch.phone_number = proposal.business.phone_number;
 
   if (Object.keys(businessPatch).length > 0) {
     const { error } = await supabaseAdmin.from("businesses").update(businessPatch).eq("id", app.businessId);
