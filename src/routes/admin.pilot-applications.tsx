@@ -49,7 +49,13 @@ function PilotApplications() {
   const [to, setTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const filters = { status, utmSource: utmSource || null, search: search || null, from: from || null, to: to || null };
+  const filters = {
+    status,
+    utmSource: utmSource || null,
+    search: search || null,
+    from: from || null,
+    to: to || null,
+  };
   const { data, isLoading, error } = useQuery({
     queryKey: ["pilot-applications", filters],
     queryFn: () => fetchList({ data: filters }),
@@ -65,7 +71,9 @@ function PilotApplications() {
     <div className="space-y-5">
       <div>
         <h1 className="page-heading">Pilot applications</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Review and progress early-access businesses.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Review and progress early-access businesses.
+        </p>
       </div>
       <div className="panel space-y-3 p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -162,7 +170,9 @@ function PilotApplications() {
                 <td className="px-4 py-3">{row.contact_name}</td>
                 <td className="px-4 py-3">{row.email}</td>
                 <td className="px-4 py-3">{row.phone ?? "—"}</td>
-                <td className="px-4 py-3">{PILOT_STATUS_LABELS[row.status as PilotStatus] ?? row.status}</td>
+                <td className="px-4 py-3">
+                  {PILOT_STATUS_LABELS[row.status as PilotStatus] ?? row.status}
+                </td>
                 <td className="px-4 py-3">{new Date(row.submitted_at).toLocaleString()}</td>
                 <td className="px-4 py-3">{row.utm_source ?? "—"}</td>
                 <td className="px-4 py-3 max-w-[200px] truncate">{row.referrer ?? "—"}</td>
@@ -201,15 +211,15 @@ function ApplicationDetail({ application }: { application: Application }) {
   });
 
   return (
-    <div className="panel space-y-4 p-5">
-      <div>
+    <div className="panel overflow-hidden">
+      <div className="brand-wash border-b border-border p-5">
         <h2 className="text-lg font-semibold">{application.business_name}</h2>
         <p className="text-sm text-muted-foreground">
           {application.contact_name} · {application.email} · {application.phone ?? "no phone"}
         </p>
       </div>
 
-      <dl className="grid gap-3 text-sm sm:grid-cols-2">
+      <dl className="grid gap-3 p-5 text-sm sm:grid-cols-2">
         <Detail label="Location" value={application.location} />
         <Detail
           label="Weekly enquiries"
@@ -227,13 +237,15 @@ function ApplicationDetail({ application }: { application: Application }) {
         <Detail label="Submitted" value={new Date(application.submitted_at).toLocaleString()} />
         <Detail
           label="Last reviewed"
-          value={application.reviewed_at ? new Date(application.reviewed_at).toLocaleString() : null}
+          value={
+            application.reviewed_at ? new Date(application.reviewed_at).toLocaleString() : null
+          }
         />
         <Detail label="Reviewed by" value={application.reviewed_by} />
       </dl>
 
       <form
-        className="space-y-3"
+        className="space-y-3 border-t border-border p-5"
         onSubmit={(event) => {
           event.preventDefault();
           if (
@@ -251,7 +263,7 @@ function ApplicationDetail({ application }: { application: Application }) {
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value as PilotStatus)}
-            className="mt-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring sm:max-w-xs"
+            className="form-control mt-1.5 sm:max-w-xs"
           >
             {PILOT_STATUSES.map((value) => (
               <option key={value} value={value}>
@@ -267,7 +279,7 @@ function ApplicationDetail({ application }: { application: Application }) {
             rows={4}
             onChange={(event) => setNotes(event.target.value)}
             maxLength={4000}
-            className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="form-control mt-1.5 min-h-28 py-2"
           />
         </label>
         <button
@@ -279,19 +291,20 @@ function ApplicationDetail({ application }: { application: Application }) {
         </button>
       </form>
 
-      <PilotCheckoutPanel
-        applicationId={application.id}
-        status={application.status}
-        accessState={application.access_state}
-        pilotStartedAt={application.pilot_started_at}
-        pilotEndsAt={application.pilot_ends_at}
-        paymentCompletedAt={application.payment_completed_at}
-        stripeSubscriptionId={application.stripe_subscription_id}
-        renewalPreventionConfirmed={application.renewal_prevention_confirmed}
-        renewalPreventionAttempts={application.renewal_prevention_attempts}
-        renewalPreventionLastError={application.renewal_prevention_last_error}
-      />
-
+      <div className="border-t border-border p-5">
+        <PilotCheckoutPanel
+          applicationId={application.id}
+          status={application.status}
+          accessState={application.access_state}
+          pilotStartedAt={application.pilot_started_at}
+          pilotEndsAt={application.pilot_ends_at}
+          paymentCompletedAt={application.payment_completed_at}
+          stripeSubscriptionId={application.stripe_subscription_id}
+          renewalPreventionConfirmed={application.renewal_prevention_confirmed}
+          renewalPreventionAttempts={application.renewal_prevention_attempts}
+          renewalPreventionLastError={application.renewal_prevention_last_error}
+        />
+      </div>
     </div>
   );
 }

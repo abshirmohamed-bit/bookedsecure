@@ -7,7 +7,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { saveAvailabilitySettings } from "@/lib/app.functions";
 import { WEEKDAY_LABELS, type AvailabilityWindow } from "@/lib/availability";
 
-
 /**
  * Owner-controlled bookable availability. This is the only source the server
  * uses to compute appointment options — free-text opening hours stay purely
@@ -123,14 +122,13 @@ function RuleCard({
         <button
           type="button"
           disabled={readOnly}
-          className="rounded-lg border border-input bg-background p-3 text-left transition-colors hover:border-primary/50 disabled:opacity-60"
+          className="rounded-md border border-input bg-card p-3 text-left shadow-sm transition-colors hover:border-primary/50 disabled:opacity-60"
         >
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {rule.label}
             <span title={rule.tip} className="inline-flex">
               <Info className="h-3.5 w-3.5 shrink-0" aria-label={rule.tip} />
             </span>
-
           </span>
           <span className="mt-1 block text-sm font-medium text-foreground">
             {rule.format(value)}
@@ -181,7 +179,6 @@ function RuleCard({
   );
 }
 
-
 export function AvailabilityEditor({
   availability,
   timezone,
@@ -215,104 +212,105 @@ export function AvailabilityEditor({
     setWindows(windows.map((window, i) => (i === index ? { ...window, ...patch } : window)));
 
   return (
-    <section className="panel p-4">
-      <h2 className="text-sm font-semibold">Bookable availability</h2>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Appointment times are worked out by the system from these windows in {timezone}, using each
-        approved service's own appointment duration. Quiet hours,
-        already-booked jobs and times too soon from now are always excluded. Times are only ever sent
-        to a customer when you choose to offer them.
-      </p>
+    <section className="panel overflow-hidden">
+      <div className="section-heading">Bookable availability</div>
+      <div className="p-4">
+        <p className="text-xs text-muted-foreground">
+          Appointment times are worked out by the system from these windows in {timezone}, using
+          each approved service's own appointment duration. Quiet hours, already-booked jobs and
+          times too soon from now are always excluded. Times are only ever sent to a customer when
+          you choose to offer them.
+        </p>
 
-      <label className="mt-3 flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          disabled={readOnly}
-          checked={form.active}
-          onChange={(event) => setForm({ ...form, active: event.target.checked })}
-          className="h-4 w-4 accent-[var(--color-primary)]"
-        />
-        <span>Offer appointment times to customers</span>
-      </label>
-
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {RULES.map((rule) => (
-          <RuleCard
-            key={rule.field}
-            rule={rule}
-            value={form[rule.field]}
-            readOnly={readOnly}
-            onChange={(value) => setForm({ ...form, [rule.field]: value })}
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            disabled={readOnly}
+            checked={form.active}
+            onChange={(event) => setForm({ ...form, active: event.target.checked })}
+            className="h-4 w-4 accent-[var(--color-primary)]"
           />
-        ))}
-      </div>
+          <span>Offer appointment times to customers</span>
+        </label>
 
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {RULES.map((rule) => (
+            <RuleCard
+              key={rule.field}
+              rule={rule}
+              value={form[rule.field]}
+              readOnly={readOnly}
+              onChange={(value) => setForm({ ...form, [rule.field]: value })}
+            />
+          ))}
+        </div>
 
-      <div className="mt-4 space-y-2">
-        <p className="text-xs font-medium">Weekly working windows</p>
-        {windows.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            No windows set, so no appointment times can be offered.
-          </p>
-        )}
-        {windows.map((window, index) => (
-          <div key={index} className="flex flex-wrap items-center gap-2">
-            <select
-              disabled={readOnly}
-              value={window.weekday}
-              onChange={(event) => update(index, { weekday: Number(event.target.value) })}
-              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground disabled:opacity-60"
-            >
-              {WEEKDAY_LABELS.map((label, day) => (
-                <option key={label} value={day}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <input
-              type="time"
-              disabled={readOnly}
-              value={window.start}
-              onChange={(event) => update(index, { start: event.target.value })}
-              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground disabled:opacity-60"
-            />
-            <span className="text-xs text-muted-foreground">to</span>
-            <input
-              type="time"
-              disabled={readOnly}
-              value={window.end}
-              onChange={(event) => update(index, { end: event.target.value })}
-              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground disabled:opacity-60"
-            />
-            {!readOnly && (
-              <button
-                onClick={() => setWindows(windows.filter((_, i) => i !== index))}
-                className="text-xs text-muted-foreground hover:text-foreground"
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-medium">Weekly working windows</p>
+          {windows.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No windows set, so no appointment times can be offered.
+            </p>
+          )}
+          {windows.map((window, index) => (
+            <div key={index} className="flex flex-wrap items-center gap-2">
+              <select
+                disabled={readOnly}
+                value={window.weekday}
+                onChange={(event) => update(index, { weekday: Number(event.target.value) })}
+                className="form-control w-auto disabled:opacity-60"
               >
-                Remove
-              </button>
-            )}
-          </div>
-        ))}
+                {WEEKDAY_LABELS.map((label, day) => (
+                  <option key={label} value={day}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="time"
+                disabled={readOnly}
+                value={window.start}
+                onChange={(event) => update(index, { start: event.target.value })}
+                className="form-control w-auto disabled:opacity-60"
+              />
+              <span className="text-xs text-muted-foreground">to</span>
+              <input
+                type="time"
+                disabled={readOnly}
+                value={window.end}
+                onChange={(event) => update(index, { end: event.target.value })}
+                className="form-control w-auto disabled:opacity-60"
+              />
+              {!readOnly && (
+                <button
+                  onClick={() => setWindows(windows.filter((_, i) => i !== index))}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          {!readOnly && (
+            <button
+              onClick={() => setWindows([...windows, { weekday: 1, start: "09:00", end: "16:00" }])}
+              className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Add window
+            </button>
+          )}
+        </div>
+
         {!readOnly && (
           <button
-            onClick={() => setWindows([...windows, { weekday: 1, start: "09:00", end: "16:00" }])}
-            className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="mt-4 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-60"
           >
-            Add window
+            {mutation.isPending ? "Saving…" : "Save availability"}
           </button>
         )}
       </div>
-
-      {!readOnly && (
-        <button
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
-          className="mt-4 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-60"
-        >
-          {mutation.isPending ? "Saving…" : "Save availability"}
-        </button>
-      )}
     </section>
   );
 }

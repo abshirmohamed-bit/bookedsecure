@@ -87,40 +87,41 @@ function LandingPage() {
 
       <main id="top" className="pb-24 sm:pb-0">
         {/* Hero */}
-        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-2 lg:py-20">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground">
-              Early-access pilot for Australian detailers
-            </span>
-            <h1 className="mt-5 text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
-              Stop losing detailing enquiries you already paid for.
-            </h1>
-            <p className="mt-4 max-w-xl text-base text-muted-foreground">
-              BookedSecure helps Australian detailing businesses respond faster, follow up consistently,
-              and turn more enquiries into booked jobs.
-            </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <a
-                href="#pilot"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Join the BookedSecure pilot <ArrowRight className="h-4 w-4" />
-              </a>
+        <section className="relative isolate min-h-[78vh] overflow-hidden">
+          <img
+            src={heroImage}
+            alt=""
+            className="absolute inset-0 -z-20 h-full w-full object-cover object-[62%_center]"
+            aria-hidden="true"
+          />
+          <div className="absolute inset-0 -z-10 bg-background/85" />
+          <div className="mx-auto flex min-h-[78vh] max-w-6xl items-center px-4 py-14">
+            <div className="max-w-2xl">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground">
+                Early-access pilot for Australian detailers
+              </span>
+              <h1 className="mt-5 font-heading text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+                BookedSecure
+              </h1>
+              <p className="mt-3 font-heading text-2xl font-medium leading-tight sm:text-3xl">
+                Stop losing detailing enquiries you already paid for.
+              </p>
+              <p className="mt-4 max-w-xl text-base text-muted-foreground">
+                BookedSecure helps Australian detailing businesses respond faster, follow up
+                consistently, and turn more enquiries into booked jobs.
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="#pilot"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Join the BookedSecure pilot <ArrowRight className="h-4 w-4" />
+                </a>
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Limited pilot spots available for Australian detailing businesses.
+              </p>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Limited pilot spots available for Australian detailing businesses.
-            </p>
-          </div>
-          <div className="-mx-4 lg:mx-0">
-            <img
-              src={heroImage}
-              alt="Professional detailer machine-polishing the paintwork of a dark SUV on a residential driveway"
-              width={1600}
-              height={1200}
-              fetchPriority="high"
-              decoding="async"
-              className="aspect-[4/3] w-full object-cover object-[62%_center] sm:aspect-[16/10] sm:object-center lg:rounded-xl"
-            />
           </div>
         </section>
 
@@ -184,7 +185,8 @@ function LandingPage() {
               Join the early-access pilot
             </h2>
             <p className="mt-3 text-center text-sm text-muted-foreground">
-              Register your interest below. We'll review your details and contact you about next steps.
+              Register your interest below. We'll review your details and contact you about next
+              steps.
             </p>
 
             {submitted ? (
@@ -247,28 +249,23 @@ function LandingPage() {
                   <Field label="Email address" name="email" type="email" required />
                   <Field label="Mobile number" name="mobile" type="tel" required />
                   <Field label="Business location" name="location" required />
-                  <Field
-                    label="Approx. enquiries each week"
-                    name="volume"
-                    type="number"
-                    required
-                  />
+                  <Field label="Approx. enquiries each week" name="volume" type="number" required />
                 </div>
                 <label className="block text-sm">
-                  <span className="text-muted-foreground">What type of detailing work do you provide?</span>
+                  <span className="text-muted-foreground">
+                    What type of detailing work do you provide?
+                  </span>
                   <textarea
                     name="services"
                     rows={2}
-                    className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className="form-control mt-1.5 min-h-20 py-2"
                   />
                 </label>
                 <label className="block text-sm">
-                  <span className="text-muted-foreground">What is your biggest follow-up challenge?</span>
-                  <select
-                    name="challenge"
-                    className="mt-1.5 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    defaultValue=""
-                  >
+                  <span className="text-muted-foreground">
+                    What is your biggest follow-up challenge?
+                  </span>
+                  <select name="challenge" className="form-control mt-1.5" defaultValue="">
                     <option value="">Select an option</option>
                     <option>I cannot respond quickly enough</option>
                     <option>I forget to follow up</option>
@@ -303,9 +300,9 @@ function LandingPage() {
           <p className="font-medium text-foreground">BookedSecure</p>
           <p className="mt-3">
             BookedSecure does not guarantee message delivery, customer responses, bookings, revenue
-            outcomes or legal compliance for a particular business. Businesses remain responsible for
-            obtaining appropriate customer consent and using communications in accordance with applicable
-            requirements.
+            outcomes or legal compliance for a particular business. Businesses remain responsible
+            for obtaining appropriate customer consent and using communications in accordance with
+            applicable requirements.
           </p>
         </footer>
       </main>
@@ -337,12 +334,7 @@ function Field({
   return (
     <label className="block text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <input
-        name={name}
-        type={type}
-        required={required}
-        className="mt-1.5 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-      />
+      <input name={name} type={type} required={required} className="form-control mt-1.5" />
     </label>
   );
 }

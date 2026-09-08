@@ -66,7 +66,9 @@ function Analytics() {
     <div className="space-y-5">
       <div>
         <h1 className="page-heading">Analytics</h1>
-        <p className="mt-1 text-sm text-muted-foreground">See which channels turn enquiries into completed work.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          See which channels turn enquiries into completed work.
+        </p>
       </div>
       <div className="panel grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:justify-between">
         <p className="truncate text-sm font-semibold">Reporting period</p>
@@ -95,9 +97,9 @@ function Analytics() {
         </div>
       </div>
 
-      <section className="panel p-4">
-        <h2 className="text-sm font-semibold">Funnel</h2>
-        <div className="mt-3 space-y-2">
+      <section className="panel overflow-hidden">
+        <h2 className="section-heading">Funnel</h2>
+        <div className="space-y-2 p-4">
           {funnel.map(([label, value]) => (
             <div key={label} className="flex items-center gap-3">
               <span className="w-32 shrink-0 text-xs text-muted-foreground">{label}</span>
@@ -116,13 +118,11 @@ function Analytics() {
       </section>
 
       <section className="panel">
-        <h2 className="border-b border-border px-4 py-3 text-sm font-semibold">
-          By source channel (never combined)
-        </h2>
+        <h2 className="section-heading">By source channel (never combined)</h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
                 <th className="px-4 py-2 font-medium">Source</th>
                 <th className="px-4 py-2 font-medium">Leads</th>
                 <th className="px-4 py-2 font-medium">Median response</th>
@@ -138,7 +138,9 @@ function Analytics() {
                 <tr key={row.source} className="border-b border-border/60">
                   <td className="px-4 py-2.5">{SOURCE_LABELS[row.source] ?? row.source}</td>
                   <td className="px-4 py-2.5 tabular">{row.leads}</td>
-                  <td className="px-4 py-2.5 tabular">{formatMinutes(row.medianResponseMinutes)}</td>
+                  <td className="px-4 py-2.5 tabular">
+                    {formatMinutes(row.medianResponseMinutes)}
+                  </td>
                   <td className="px-4 py-2.5 tabular">{Math.round(row.replyRate * 100)}%</td>
                   <td className="px-4 py-2.5 tabular">{row.completedJobs}</td>
                   <td className="px-4 py-2.5 tabular">{Math.round(row.completedRate * 100)}%</td>
@@ -163,14 +165,33 @@ function Analytics() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat icon={Clock3} tone="success" label="Within 5 minutes" value={`${Math.round(data.withinFiveMinutes * 100)}%`} />
-        <Stat icon={BarChart3} tone="info" label="Form completion" value={`${Math.round(data.formCompletionRate * 100)}%`} />
-        <Stat icon={MessageCircleReply} tone="primary" label="Opt-outs" value={String(data.optOuts)} />
-        <Stat icon={WalletCards} tone="destructive" label="Delivery failures" value={String(data.deliveryFailures)} />
+        <Stat
+          icon={Clock3}
+          tone="success"
+          label="Within 5 minutes"
+          value={`${Math.round(data.withinFiveMinutes * 100)}%`}
+        />
+        <Stat
+          icon={BarChart3}
+          tone="info"
+          label="Form completion"
+          value={`${Math.round(data.formCompletionRate * 100)}%`}
+        />
+        <Stat
+          icon={MessageCircleReply}
+          tone="primary"
+          label="Opt-outs"
+          value={String(data.optOuts)}
+        />
+        <Stat
+          icon={WalletCards}
+          tone="destructive"
+          label="Delivery failures"
+          value={String(data.deliveryFailures)}
+        />
       </section>
 
       <SmsDeliveryPanel />
-
 
       <p className="text-xs text-muted-foreground">
         Completed-job revenue is the sum of completed_value for jobs explicitly marked completed.
@@ -182,12 +203,29 @@ function Analytics() {
   );
 }
 
-function Stat({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof Clock3; tone: "primary" | "success" | "info" | "destructive" }) {
-  const toneClass = { primary: "bg-primary/12 text-primary", success: "bg-success/15 text-success-foreground", info: "bg-info/15 text-info-foreground", destructive: "bg-destructive/12 text-destructive" }[tone];
+function Stat({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  icon: typeof Clock3;
+  tone: "primary" | "success" | "info" | "destructive";
+}) {
+  const toneClass = {
+    primary: "bg-primary/12 text-primary",
+    success: "bg-success/15 text-success-foreground",
+    info: "bg-info/15 text-info-foreground",
+    destructive: "bg-destructive/12 text-destructive",
+  }[tone];
   return (
     <div className="panel border-t-2 border-t-current px-4 py-3">
       <div className="flex items-center gap-2">
-        <span className={`grid h-7 w-7 place-items-center rounded-md ${toneClass}`}><Icon className="h-3.5 w-3.5" /></span>
+        <span className={`grid h-7 w-7 place-items-center rounded-md ${toneClass}`}>
+          <Icon className="h-3.5 w-3.5" />
+        </span>
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
       <p className="mt-2 tabular font-heading text-xl font-semibold">{value}</p>
