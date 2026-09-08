@@ -7,7 +7,8 @@ export const getReactivationCampaign = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
-    const { loadOpenCampaign, loadReactivationCandidates } = await import("@/lib/reactivation.server");
+    const { loadOpenCampaign, loadReactivationCandidates } =
+      await import("@/lib/reactivation.server");
     const app = await requireAppContext(context.supabase, context.userId);
     const [view, candidates] = await Promise.all([
       loadOpenCampaign(app.businessId),
@@ -87,5 +88,8 @@ export const cancelReactivation = createServerFn({ method: "POST" })
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { cancelReactivationCampaign } = await import("@/lib/reactivation.server");
     const app = await requireAppContext(context.supabase, context.userId);
-    return await cancelReactivationCampaign({ businessId: app.businessId, campaignId: data.campaignId });
+    return await cancelReactivationCampaign({
+      businessId: app.businessId,
+      campaignId: data.campaignId,
+    });
   });

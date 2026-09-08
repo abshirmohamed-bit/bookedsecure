@@ -14,11 +14,29 @@ import {
 type CampaignView = Awaited<ReturnType<typeof getReactivationCampaign>>;
 
 /**
+ * The dormant-contact overview query, shared by key so the Leads page can start
+ * it in parallel with its own data instead of waiting for the page to render.
+ */
+export function useReactivationOverview() {
+  const load = useServerFn(getReactivationCampaign);
+  return useQuery({
+    queryKey: ["reactivation"],
+    queryFn: () => load() as Promise<CampaignView>,
+    // The dormant-contact scan is the most expensive read on this page and its
+    // result barely changes minute to minute, so it is cached rather than
+    // re-run on every visit to the Leads page.
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+}
+
+/**
  * Owner review of the drafted reactivation campaign. Nothing here sends until
  * the owner confirms permission and approves.
  */
 export function ReactivationPanel() {
-  const load = useServerFn(getReactivationCampaign);
   const draft = useServerFn(draftReactivation);
   const edit = useServerFn(editReactivationDraft);
   const approve = useServerFn(approveReactivation);
@@ -29,10 +47,7 @@ export function ReactivationPanel() {
   const [attested, setAttested] = useState(false);
   const [editing, setEditing] = useState<Record<string, string>>({});
 
-  const campaign = useQuery({
-    queryKey: ["reactivation"],
-    queryFn: () => load() as Promise<CampaignView>,
-  });
+  const campaign = useReactivationOverview();
 
   useEffect(() => {
     const text = campaign.data?.campaign?.offerText;
