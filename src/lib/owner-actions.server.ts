@@ -56,11 +56,11 @@ async function statusTargetIds(input: {
     .select("id")
     .eq("business_id", input.businessId)
     .is("deleted_at", null)
+    .is("opted_out_at", null)
+    .is("sms_suppressed_at", null)
     .order("created_at", { ascending: true });
-  query = excludeUnreachable(query);
   if (input.from) query = query.eq("status", input.from);
-  if (input.maxLeads) query = query.limit(input.maxLeads);
-  else query = query.limit(2000);
+  query = query.limit(input.maxLeads && input.maxLeads > 0 ? input.maxLeads : 2000);
   const { data } = await query;
   return (data ?? []).map((row) => row.id as string);
 }
