@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { Plus, RefreshCw, Trash2, Undo2, Upload } from "lucide-react";
+import { BriefcaseBusiness, CircleDollarSign, Clock3, MessageSquareReply, Plus, RefreshCw, Target, Trash2, Undo2, Upload, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { DeliveryBadge, ReachabilityBadge, SmsSuppressedBadge, StatusBadge } from "@/components/StatusBadge";
 import { InboxPagination } from "@/components/InboxPagination";
@@ -146,14 +146,14 @@ export function LeadsWorkspace() {
   const header = (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-lg font-semibold">Leads</h1>
-        <p className="text-xs text-muted-foreground">
+        <h1 className="font-heading text-2xl font-semibold">Leads</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Enquiries that need a reply, follow-up status and completed jobs.
         </p>
       </div>
       <Link
         to="/import"
-        className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-primary/50 bg-card px-3 text-xs font-medium text-primary hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <Upload className="h-3.5 w-3.5" aria-hidden="true" /> Import data
       </Link>
@@ -174,29 +174,35 @@ export function LeadsWorkspace() {
   const metrics = dashboard.metrics;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {header}
       {metrics ? (
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-          <Metric label="Total leads" value={String(metrics.totalLeads)} />
+        <section className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
+          <Metric label="Total leads" value={String(metrics.totalLeads)} icon={UsersRound} tone="success" />
           <Metric
             label="Median response"
             value={formatMinutes(metrics.medianResponseMinutes)}
             hint={`${Math.round(metrics.withinFiveMinutes * 100)}% within 5 min`}
+            icon={Clock3}
+            tone="info"
           />
-          <Metric label="Reply rate" value={`${Math.round(metrics.replyRate * 100)}%`} />
-          <Metric label="Completed jobs" value={String(metrics.completedJobs)} />
+          <Metric label="Reply rate" value={`${Math.round(metrics.replyRate * 100)}%`} icon={MessageSquareReply} tone="lilac" />
+          <Metric label="Completed jobs" value={String(metrics.completedJobs)} icon={BriefcaseBusiness} tone="primary" />
           <Metric
             label="Completed revenue"
             value={formatCurrency(metrics.completedRevenue)}
             hint={
               metrics.averageJobValue ? `Avg ${formatCurrency(metrics.averageJobValue)}` : "No jobs yet"
             }
+            icon={CircleDollarSign}
+            tone="success"
           />
           <Metric
             label="Needs follow-up"
             value={String(metrics.needsFollowUp)}
             hint={`${metrics.optOuts} opt-outs · ${metrics.deliveryFailures} failures`}
+            icon={Target}
+            tone="danger"
           />
         </section>
       ) : dashboard.metricsStatus === "error" ? (
@@ -233,9 +239,10 @@ export function LeadsWorkspace() {
 
 
 
-      <section className="panel">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 py-3 sm:flex sm:justify-between">
-          <h2 className="truncate text-sm font-semibold">Lead inbox</h2>
+      <section className="panel overflow-hidden">
+        <div className="border-b border-border px-4 py-3">
+          <div className="mb-3 flex items-center gap-2"><h2 className="text-sm font-semibold">Lead inbox</h2><span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">{dashboard.page?.totalCount ?? leads.length}</span></div>
+          <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <label className="sr-only" htmlFor="source-filter">
               Filter by source
@@ -285,6 +292,8 @@ export function LeadsWorkspace() {
               ))}
             </select>
 
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             {visibleSelection.length > 0 && (
               <>
                 <span className="text-xs text-muted-foreground" data-testid="selected-count">
@@ -324,6 +333,7 @@ export function LeadsWorkspace() {
               <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add lead
             </button>
           </div>
+          </div>
         </div>
 
         {showAdd && <AddLeadForm onDone={() => setShowAdd(false)} />}
@@ -355,7 +365,7 @@ export function LeadsWorkspace() {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-sm">
+          <table className="w-full min-w-[980px] table-fixed text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="w-10 px-4 py-2 font-medium">
@@ -372,18 +382,18 @@ export function LeadsWorkspace() {
                     className="h-4 w-4 accent-[var(--color-primary)]"
                   />
                 </th>
-                <th className="px-4 py-2 font-medium">Source</th>
-                <th className="px-4 py-2 font-medium">Customer</th>
-                <th className="px-4 py-2 font-medium">Mobile</th>
-                <th className="px-4 py-2 font-medium">Service interest</th>
-                <th className="px-4 py-2 font-medium">Status</th>
-                <th className="px-4 py-2 font-medium">Last activity</th>
-                <th className="px-4 py-2 text-right font-medium">Revenue</th>
+                <th className="w-[11%] px-3 py-2 font-medium">Source</th>
+                <th className="w-[22%] px-3 py-2 font-medium">Customer</th>
+                <th className="w-[13%] px-3 py-2 font-medium">Mobile</th>
+                <th className="w-[16%] px-3 py-2 font-medium">Service interest</th>
+                <th className="w-[20%] px-3 py-2 font-medium">Status</th>
+                <th className="w-[13%] px-3 py-2 font-medium">Last activity</th>
+                <th className="w-[8%] px-3 py-2 text-right font-medium">Revenue</th>
               </tr>
             </thead>
             <tbody>
               {leads.map((lead) => (
-                <tr key={lead.id} className="border-b border-border/60 hover:bg-secondary/40">
+                <tr key={lead.id} className="border-b border-border/60 transition-colors hover:bg-muted/70">
                   <td className="px-4 py-2.5">
                     <input
                       type="checkbox"
@@ -571,12 +581,13 @@ export function LeadsWorkspace() {
   );
 }
 
-function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Metric({ label, value, hint, icon: Icon, tone }: { label: string; value: string; hint?: string; icon: typeof UsersRound; tone: "primary" | "success" | "info" | "lilac" | "danger" }) {
+  const tones = { primary: "border-t-primary text-primary bg-primary/10", success: "border-t-success text-success-foreground bg-success/15", info: "border-t-info text-info-foreground bg-info/15", lilac: "border-t-secondary-foreground text-secondary-foreground bg-secondary", danger: "border-t-destructive text-destructive bg-destructive/10" };
   return (
-    <div className="panel px-4 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 tabular text-xl font-semibold">{value}</p>
-      {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
+    <div className={cn("panel border-t-2 px-3 py-3", tones[tone].split(" ")[0])}>
+      <div className="flex items-center gap-2"><span className={cn("grid h-7 w-7 place-items-center rounded-md", tones[tone].split(" ").slice(1).join(" "))}><Icon className="h-4 w-4" aria-hidden="true" /></span><p className="text-[11px] font-medium text-muted-foreground">{label}</p></div>
+      <p className="mt-2 tabular font-heading text-xl font-semibold">{value}</p>
+      {hint && <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
