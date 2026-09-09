@@ -245,18 +245,28 @@ export function ServiceChooser({
                 key={option.value}
                 className="min-w-[85%] shrink-0 snap-center sm:min-w-[15rem] sm:max-w-[16rem]"
               >
-                <button
-                  type="button"
-                  disabled={busy}
+                <div
+                  role="button"
+                  tabIndex={busy ? -1 : 0}
                   aria-pressed={active}
                   aria-label={`Select ${option.label}`}
-                  onClick={() => setActiveValue(active ? null : option.value)}
-                  className={`flex h-full w-full flex-col rounded-2xl border bg-card p-4 text-left transition-all disabled:opacity-50 ${
+                  onClick={() => !busy && setActiveValue(active ? null : option.value)}
+                  onKeyDown={(event) => {
+                    if (busy) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setActiveValue(active ? null : option.value);
+                    }
+                  }}
+                  className={`flex h-full w-full cursor-pointer flex-col rounded-2xl border bg-card p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    busy ? "opacity-50" : ""
+                  } ${
                     active
                       ? "-translate-y-0.5 border-primary shadow-lg shadow-primary/10 ring-1 ring-primary/40"
                       : "border-border hover:border-primary/60"
                   }`}
                 >
+
                   {card?.group && (
                     <span className="w-fit rounded bg-secondary px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-tight text-muted-foreground">
                       {card.group}
