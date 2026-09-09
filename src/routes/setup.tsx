@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Check } from "lucide-react";
@@ -32,6 +33,11 @@ function SetupPage() {
   const fetchSetup = useServerFn(getSetupState);
   const setup = useQuery({ queryKey: ["setup-state"], queryFn: () => fetchSetup() });
   const readOnly = (setup.data?.role ?? "owner") !== "owner";
+
+  // Already set up (or staff): this step has nothing to do, so go straight in.
+  useEffect(() => {
+    if (setup.data && !setup.data.needsSetup) navigate({ to: "/dashboard", replace: true });
+  }, [setup.data, navigate]);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
