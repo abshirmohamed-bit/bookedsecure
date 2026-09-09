@@ -113,15 +113,21 @@ export function SiteOnboardingPanel({
           {newServices.length > 0 && (
             <div className="mt-4 space-y-3">
               {serviceGroups.map((group) => (
-                <div key={group.label}>
-                  <h4 className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {group.label} · {group.items.length}
-                  </h4>
-                  <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                <details
+                  key={group.label}
+                  className="overflow-hidden rounded-lg border border-border bg-card"
+                >
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-xs font-semibold">
+                    <span className="min-w-0 truncate">{group.label}</span>
+                    <span className="shrink-0 text-[0.7rem] font-normal text-muted-foreground">
+                      {group.items.length}
+                    </span>
+                  </summary>
+                  <div className="grid gap-2 border-t border-border p-2 sm:grid-cols-2">
                     {group.items.map((service) => (
                       <div
                         key={service.name}
-                        className="min-w-0 rounded-lg border border-border bg-card p-2.5"
+                        className="min-w-0 rounded-lg border border-border bg-background p-2.5"
                       >
                         <p className="truncate text-xs font-semibold">{service.name}</p>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[0.7rem]">
@@ -139,8 +145,9 @@ export function SiteOnboardingPanel({
                       </div>
                     ))}
                   </div>
-                </div>
+                </details>
               ))}
+
 
               {newAddons.length > 0 && (
                 <div>
