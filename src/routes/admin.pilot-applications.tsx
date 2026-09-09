@@ -28,6 +28,19 @@ export const Route = createFileRoute("/admin/pilot-applications")({
     ],
   }),
   component: PilotApplicationsPage,
+  errorComponent: ({ error }) => (
+    <AppShell title="Pilot applications">
+      <div className="panel p-4">
+        <h1 className="page-heading">Pilot applications</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+      </div>
+    </AppShell>
+  ),
+  notFoundComponent: () => (
+    <AppShell title="Pilot applications">
+      <p className="text-sm text-muted-foreground">Page not found.</p>
+    </AppShell>
+  ),
 });
 
 type Application = Awaited<ReturnType<typeof listPilotApplications>>["applications"][number];
