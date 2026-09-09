@@ -270,11 +270,7 @@ function createQueryBuilder(table: string) {
     },
     insert(values: Row | Row[]) {
       ops.push({ kind: "insert", values: Array.isArray(values) ? values : [values] });
-      return {
-        select: () => ({
-          single: () => Promise.resolve(execute()),
-        }),
-      };
+      return builder;
     },
     update(patch: Row) {
       ops.push({ kind: "update", patch });
