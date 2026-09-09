@@ -579,11 +579,12 @@ export function serviceAcknowledgement(
   tenant: WebChatTenant,
   collected: WebChatCollected,
 ): string | null {
-  const name = collected.service_name?.trim();
-  if (!name) return null;
+  const summary = chosenServicesText(collected);
+  if (!summary) return null;
   const service = tenant.services.find((entry) => entry.id === collected.service_id) ?? null;
-  const price = service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
-  return price ? `${name} — ${price}.` : `${name}, got it.`;
+  const many = (collected.extra_service_ids ?? []).length > 0;
+  const price = !many && service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
+  return price ? `${summary} — ${price}.` : `${summary}, got it.`;
 }
 
 /**
@@ -599,9 +600,46 @@ function applyServiceAddons(
   const offered = addonsForService(tenant.addons ?? [], serviceId);
   next.addon_ids = [];
   next.addon_names = [];
+  next.extra_service_ids = [];
+  next.extra_service_names = [];
   next.addons_offered = offered.length > 0;
   next.addons_done = offered.length === 0;
 }
+
+/**
+ * The service selection made on the cards, encoded as one answer value so the
+ * existing single-answer transport is untouched. Only ids the tenant owns are
+ * ever accepted on the way back in.
+ */
+export const SERVICE_SELECTION_PREFIX = "sel:";
+
+export function encodeServiceSelection(serviceIds: string[], addonIds: string[]): string {
+  return `${SERVICE_SELECTION_PREFIX}${serviceIds.join(",")}|${addonIds.join(",")}`;
+}
+
+function parseServiceSelection(value: string): { serviceIds: string[]; addonIds: string[] } | null {
+  if (!value.startsWith(SERVICE_SELECTION_PREFIX)) return null;
+  const [rawServices = "", rawAddons = ""] = value.slice(SERVICE_SELECTION_PREFIX.length).split("|");
+  const split = (input: string) =>
+    input
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+  const serviceIds = split(rawServices);
+  if (serviceIds.length === 0) return null;
+  return { serviceIds, addonIds: split(rawAddons) };
+}
+
+/** Every chosen service in one line: the tenant's own names, nothing invented. */
+export function chosenServicesText(collected: WebChatCollected): string | null {
+  const names = [
+    ...(collected.service_name ? [collected.service_name] : []),
+    ...((collected.extra_service_names ?? []).filter(Boolean) as string[]),
+  ];
+  return names.length > 0 ? names.join(" + ") : null;
+}
+
+
 
 export type ApplyResult =
 
