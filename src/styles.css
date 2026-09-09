@@ -200,3 +200,11 @@
 @utility tabular {
   font-variant-numeric: tabular-nums;
 }
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
