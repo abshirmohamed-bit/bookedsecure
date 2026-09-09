@@ -52,18 +52,19 @@ export function SiteOnboardingPanel({
   });
 
   const newServices = proposal?.services.filter((service) => !service.alreadyHave) ?? [];
-  const duplicateServices = proposal?.services.filter((service) => service.alreadyHave) ?? [];
 
   return (
-    <section className="panel p-4">
-      <h2 className="text-sm font-semibold">Set up from your website</h2>
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <label htmlFor="website-url" className="text-sm font-semibold">
+        Your website
+      </label>
       <p className="mt-1 text-xs text-muted-foreground">
-        Enter your website address and we'll read your business name, area, phone, hours, services and
-        prices from it. You'll see everything first and nothing is saved until you confirm.
+        We read your site, then show you what we found before saving anything.
       </p>
 
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <Input
+          id="website-url"
           value={url}
           disabled={readOnly || preview.isPending}
           placeholder="yourbusiness.com.au"
@@ -74,153 +75,70 @@ export function SiteOnboardingPanel({
           type="button"
           onClick={() => preview.mutate()}
           disabled={readOnly || preview.isPending || url.trim().length < 4}
-          className="sm:w-44"
+          className="sm:w-40"
         >
-          {preview.isPending ? "Reading website…" : "Read my website"}
+          {preview.isPending ? "Reading…" : "Read my site"}
         </Button>
       </div>
 
       {readOnly && (
-        <p className="mt-2 text-xs text-muted-foreground">Only the business owner can use this.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Only the business owner can set this up.</p>
       )}
 
       {proposal && (
-        <div className="mt-4 space-y-3 rounded-md border border-border p-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            What we found
-          </h3>
-
-          <dl className="grid gap-2 sm:grid-cols-2">
-            <Fact label="Business name" value={proposal.business.name} />
-            <Fact label="Area served" value={proposal.business.service_area} />
-            <Fact label="Phone" value={proposal.business.phone_number} />
-            <Fact label="Opening hours" value={proposal.business.opening_hours} />
-          </dl>
-
-          <div>
-            <p className="text-xs font-medium">
-              Services ({newServices.length} to add
-              {duplicateServices.length > 0 ? `, ${duplicateServices.length} already yours` : ""})
-            </p>
-            {proposal.services.length === 0 ? (
-              <p className="text-xs text-muted-foreground">None found.</p>
-            ) : (
-              <ul className="mt-1 space-y-1">
-                {[...newServices, ...duplicateServices].map((service) => (
-                  <li key={service.name} className="text-xs">
-                    <span className="font-medium">{service.name}</span>
-                    {service.price_guidance ? ` — ${service.price_guidance}` : " — no price listed"}
-                    <span className="text-muted-foreground"> · {service.duration_minutes} min</span>
-                    {service.alreadyHave ? (
-                      <span className="ml-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        already yours — kept as is
-                      </span>
-                    ) : (
-                      <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
-                        new
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {proposal.addons.length > 0 && (
+        <div className="mt-5 rounded-xl border border-border bg-background p-4">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-medium">
-                Add-on extras (
-                {proposal.addons.filter((addon) => !addon.alreadyHave).length} to add)
+              <p className="text-sm font-semibold">{proposal.business.name ?? "Your website"}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {newServices.length} service{newServices.length === 1 ? "" : "s"} to add
+                {proposal.addons.length > 0
+                  ? ` · ${proposal.addons.filter((a) => !a.alreadyHave).length} extra${proposal.addons.filter((a) => !a.alreadyHave).length === 1 ? "" : "s"}`
+                  : ""}
+                {proposal.weeklyWindows.length > 0 ? ` · ${proposal.weeklyWindows.length} time windows` : ""}
               </p>
-              <ul className="mt-1 space-y-1">
-                {proposal.addons.map((addon) => (
-                  <li key={addon.name} className="text-xs">
-                    <span className="font-medium">{addon.name}</span>
-                    {addon.price_guidance ? ` — ${addon.price_guidance}` : " — no price listed"}
-                    {addon.duration_minutes ? (
-                      <span className="text-muted-foreground"> · adds {addon.duration_minutes} min</span>
-                    ) : null}
-                    <span className="text-muted-foreground">
-                      {" "}
-                      · with {addon.serviceNames.join(", ")}
-                    </span>
-                    {addon.alreadyHave && (
-                      <span className="ml-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                        already yours — kept as is
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
             </div>
-          )}
-
-          <div>
-            <p className="text-xs font-medium">Bookable times ({proposal.weeklyWindows.length})</p>
-            {proposal.weeklyWindows.length === 0 ? (
-              <p className="text-xs text-muted-foreground">None could be read from your hours.</p>
-            ) : (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {proposal.weeklyWindows
-                  .map((window) => `${WEEKDAY_LABELS[window.weekday]} ${window.start}–${window.end}`)
-                  .join(" · ")}
-              </p>
-            )}
-          </div>
-
-          {proposal.logoUrl && (
-            <div className="flex items-center gap-2">
+            {proposal.logoUrl && (
               <img
                 src={proposal.logoUrl}
-                alt="Logo found on your website"
+                alt=""
                 className="h-10 w-10 rounded-md bg-secondary object-contain"
               />
-              <span className="text-xs text-muted-foreground">Logo found on your site</span>
-            </div>
-          )}
+            )}
+          </div>
 
           {proposal.warnings.length > 0 && (
-            <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+            <ul className="mt-3 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
               {proposal.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
             </ul>
           )}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
               onClick={() => apply.mutate()}
               disabled={readOnly || apply.isPending}
             >
-              {apply.isPending ? "Saving…" : "Use these details"}
+              {apply.isPending ? "Saving…" : "Looks good — save it"}
             </Button>
             <Button
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => setProposal(null)}
+              onClick={() => {
+                setProposal(null);
+                setUrl("");
+              }}
               disabled={apply.isPending}
             >
-              Discard
+              Try another site
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Services you already offer are matched by name and kept exactly as they are — only the new
-            ones are added. Your owner alert number is never changed here.
-          </p>
         </div>
       )}
     </section>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="rounded-md border border-border p-2">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 text-sm">{value ?? "Not found"}</dd>
-    </div>
   );
 }
