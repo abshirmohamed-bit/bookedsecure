@@ -169,7 +169,7 @@ export function ServiceChooser({
               {group.label}
             </h3>
           )}
-          <div className="grid gap-2">
+          <div className="grid gap-1.5">
             {group.items.map((option) => (
               <button
                 key={option.value}
@@ -177,26 +177,26 @@ export function ServiceChooser({
                 disabled={busy}
                 aria-label={`View ${option.label}`}
                 onClick={() => setOpen(option)}
-                className="rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                className="rounded-xl border border-border bg-card p-2.5 text-left shadow-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               >
-                <p className="text-sm font-semibold">{option.label}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs">
+                <p className="text-sm font-semibold leading-tight">{option.label}</p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
                   {option.card?.price && (
-                    <span className="text-sm font-semibold text-primary">{option.card.price}</span>
+                    <span className="font-semibold text-primary">{option.card.price}</span>
                   )}
                   {option.card?.duration && (
                     <span className="inline-flex items-center gap-1 text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                      <Clock className="h-3 w-3" aria-hidden="true" />
                       {option.card.duration}
                     </span>
                   )}
                 </div>
                 {option.card?.description && (
-                  <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
+                  <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
                     {option.card.description}
                   </p>
                 )}
-                <span className="mt-2 inline-block text-xs font-medium text-primary">
+                <span className="mt-1.5 inline-block text-[11px] font-medium text-primary">
                   View details
                 </span>
               </button>
