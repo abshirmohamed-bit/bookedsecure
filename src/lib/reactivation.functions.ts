@@ -9,12 +9,22 @@ export const getReactivationCampaign = createServerFn({ method: "GET" })
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { loadOpenCampaign, loadReactivationCandidates } =
       await import("@/lib/reactivation.server");
+    const { getPlanForBusiness } = await import("@/lib/plans.server");
     const app = await requireAppContext(context.supabase, context.userId);
-    const [view, candidates] = await Promise.all([
+    const [view, candidates, plan] = await Promise.all([
       loadOpenCampaign(app.businessId),
       loadReactivationCandidates(app.businessId),
+      getPlanForBusiness(app.businessId),
     ]);
-    return { ...view, candidates: candidates.candidates.length, excluded: candidates.excluded };
+    return {
+      ...view,
+      candidates: candidates.candidates.length,
+      excluded: candidates.excluded,
+      // Reactivation is a Pro feature; the panel shows an upgrade note instead
+      // of the controls when the plan does not include it.
+      planName: plan.name,
+      reactivationEnabled: plan.reactivationEnabled,
+    };
   });
 
 /** Drafts (or refreshes) the campaign. Sends nothing. */
@@ -26,13 +36,16 @@ export const draftReactivation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { draftReactivationCampaign } = await import("@/lib/reactivation.server");
+    const { requireReactivationPlan } = await import("@/lib/plans.server");
     const app = await requireAppContext(context.supabase, context.userId);
+    await requireReactivationPlan(app.businessId);
     return await draftReactivationCampaign({
       businessId: app.businessId,
       userId: app.userId,
       offerText: data.offerText ?? null,
     });
   });
+
 
 export const editReactivationDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -71,7 +84,10 @@ export const approveReactivation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { approveReactivationCampaign } = await import("@/lib/reactivation.server");
+    const { requireReactivationPlan } = await import("@/lib/plans.server");
     const app = await requireAppContext(context.supabase, context.userId);
+    await requireReactivationPlan(app.businessId);
+
     return await approveReactivationCampaign({
       businessId: app.businessId,
       userId: app.userId,

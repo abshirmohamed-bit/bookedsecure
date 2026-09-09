@@ -104,9 +104,35 @@ export function ReactivationPanel() {
 
   const data = campaign.data;
   const pending = (data?.drafts ?? []).filter((row) => row.status === "draft");
+  // Bringing past customers back is included in the higher plan only.
+  const locked = data ? data.reactivationEnabled === false : false;
+
+  if (locked) {
+    return (
+      <section className="panel overflow-hidden px-4 py-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-secondary text-muted-foreground">
+            <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold">Win back dormant leads</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              You have {data?.candidates ?? 0} past contacts who could be invited back. Bringing
+              them back is part of the Pro plan — your {data?.planName} plan doesn&apos;t include
+              it yet.
+            </p>
+            <a href="/pricing" className="mt-2 inline-block text-xs font-medium underline">
+              See what Pro adds
+            </a>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="panel overflow-hidden">
+
       <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-success/15 text-success-foreground">
