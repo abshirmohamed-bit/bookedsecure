@@ -79,7 +79,11 @@ export type WebChatTenant = {
 export type WebChatCollected = {
   service_id?: string | null;
   service_name?: string | null;
+  /** Further approved services chosen alongside the first one. Never invented. */
+  extra_service_ids?: string[] | null;
+  extra_service_names?: string[] | null;
   typed_request?: string | null;
+
   /** Extras chosen with the service. Only the tenant's own linked add-ons. */
   addon_ids?: string[] | null;
   addon_names?: string[] | null;
@@ -109,6 +113,16 @@ export type WebChatCollected = {
 
 export type WebChatReviewField = { step: WebChatStep; label: string; value: string };
 
+/** One optional extra offered with a service: the tenant's own wording only. */
+export type WebChatCardExtra = {
+  id: string;
+  name: string;
+  price: string | null;
+  duration: string | null;
+};
+
+
+
 export type WebChatPrompt = {
   step: WebChatStep;
   text: string;
@@ -127,7 +141,7 @@ export type WebChatPrompt = {
       includes: string | null;
       excludes: string | null;
       note: string | null;
-      extras: string[];
+      extras: WebChatCardExtra[];
     } | null;
   }[];
   /** Present on the review step: every captured field, each individually changeable. */
@@ -182,10 +196,15 @@ export function serviceCard(
   service: WebChatService,
   tenant: WebChatTenant,
 ): NonNullable<NonNullable<WebChatPrompt["options"]>[number]["card"]> {
-  const extras = addonsForService(tenant.addons ?? [], service.id).map((addon) => {
-    const price = addon.price_guidance?.trim();
-    return price ? `${addon.name} (${price})` : addon.name;
-  });
+  const extras: WebChatCardExtra[] = addonsForService(tenant.addons ?? [], service.id).map(
+    (addon) => ({
+      id: addon.id,
+      name: addon.name,
+      price: addon.price_guidance?.trim() || null,
+      duration: formatMinutes(addon.duration_minutes ?? null),
+    }),
+  );
+
   return {
     group: service.category?.trim() || null,
     price: servicePriceLine(service, tenant.offerPercent ?? null),
@@ -250,7 +269,7 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
 /** Labelled summary of everything captured, for the final review step. */
 export function reviewSummary(collected: WebChatCollected): WebChatReviewField[] {
   return [
-    { step: "service", label: "Service", value: collected.service_name ?? collected.typed_request ?? "Not sure yet" },
+    { step: "service", label: "Service", value: chosenServicesText(collected) ?? collected.typed_request ?? "Not sure yet" },
     ...((collected.addon_names ?? []).length > 0
       ? [
           {
@@ -311,7 +330,13 @@ export function promptFor(
                     includes: clean(option.card.includes),
                     excludes: clean(option.card.excludes),
                     note: clean(option.card.note),
-                    extras: option.card.extras.map((extra) => sanitiseCustomerText(extra)),
+                    extras: option.card.extras.map((extra) => ({
+                      ...extra,
+                      name: sanitiseCustomerText(extra.name),
+                      price: clean(extra.price),
+                      duration: clean(extra.duration),
+                    })),
+
                   },
                 }
               : {}),
