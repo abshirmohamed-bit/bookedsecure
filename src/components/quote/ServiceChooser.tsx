@@ -6,10 +6,14 @@
  * server. Nothing is computed, ranked or invented here, and choosing a card
  * sends exactly the same option value the flat list used to send, so the
  * server state machine is untouched.
+ *
+ * Layout: a horizontal snap carousel — one card per view on a phone, two and a
+ * bit on wider screens — so the panel never grows tall and the page itself
+ * never scrolls sideways.
  */
 
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, Clock, Check, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Check, X } from "lucide-react";
 import { groupItems, hasMeaningfulGroups } from "@/lib/service-groups";
 
 export type ServiceCard = {
@@ -50,22 +54,58 @@ export function ServiceChooser({
     [services],
   );
   const showChips = hasMeaningfulGroups(groups);
-  const [activeGroup, setActiveGroup] = useState<string | null>(null);
-  const [open, setOpen] = useState<ServiceOption | null>(null);
 
-  if (open) {
-    const card = open.card ?? null;
+  const [groupLabel, setGroupLabel] = useState<string>(() => groups[0]?.label ?? "");
+  const activeGroup =
+    groups.find((group) => group.label.toLowerCase() === groupLabel.toLowerCase()) ?? groups[0];
+  const items = activeGroup?.items ?? [];
+
+  const [activeValue, setActiveValue] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ServiceOption | null>(null);
+
+  const track = useRef<HTMLDivElement | null>(null);
+  const [progress, setProgress] = useState(0);
+
+  const measure = useCallback(() => {
+    const node = track.current;
+    if (!node) return;
+    const span = node.scrollWidth - node.clientWidth;
+    setProgress(span > 0 ? node.scrollLeft / span : 0);
+  }, []);
+
+  useEffect(() => {
+    // New group means a fresh row: back to the start.
+    track.current?.scrollTo({ left: 0 });
+    setProgress(0);
+  }, [activeGroup?.label]);
+
+  const nudge = (direction: 1 | -1) => {
+    const node = track.current;
+    if (!node) return;
+    node.scrollBy({ left: direction * Math.max(240, node.clientWidth * 0.8), behavior: "smooth" });
+  };
+
+  if (detail) {
+    const card = detail.card ?? null;
     return (
-      <div className="rounded-xl border border-primary/40 bg-card p-4 shadow-sm">
-        <p className="text-base font-semibold">{open.label}</p>
+      <div className="rounded-2xl border border-primary/50 bg-card p-4 shadow-lg">
+        <button
+          type="button"
+          onClick={() => setDetail(null)}
+          className="mb-3 inline-flex items-center gap-1.5 text-[0.7rem] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          Back to options
+        </button>
+
+        <p className="text-lg font-semibold leading-tight">{detail.label}</p>
         {(card?.price || card?.duration) && (
-          <div className="mt-1 flex flex-wrap items-center gap-3 text-sm">
-            {card?.price && <span className="font-semibold text-primary">{card.price}</span>}
+          <div className="mt-2 flex flex-wrap items-baseline gap-4">
+            {card?.price && (
+              <span className="text-base font-bold text-primary">{card.price}</span>
+            )}
             {card?.duration && (
-              <span className="inline-flex items-center gap-1 text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                {card.duration}
-              </span>
+              <span className="text-xs text-muted-foreground">{card.duration}</span>
             )}
           </div>
         )}
@@ -73,33 +113,33 @@ export function ServiceChooser({
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{card.description}</p>
         )}
         {card?.includes && (
-          <div className="mt-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mt-4">
+            <p className="text-[0.7rem] font-bold uppercase tracking-widest text-primary">
               What's included
             </p>
-            <p className="mt-1 flex gap-2 text-sm text-muted-foreground">
+            <p className="mt-1.5 flex gap-2 text-sm text-muted-foreground">
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
               <span>{card.includes}</span>
             </p>
           </div>
         )}
         {card?.excludes && (
-          <div className="mt-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mt-4">
+            <p className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
               Not included
             </p>
-            <p className="mt-1 flex gap-2 text-sm text-muted-foreground">
+            <p className="mt-1.5 flex gap-2 text-sm text-muted-foreground">
               <X className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{card.excludes}</span>
             </p>
           </div>
         )}
         {card?.extras && card.extras.length > 0 && (
-          <div className="mt-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mt-4">
+            <p className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
               Optional extras
             </p>
-            <ul className="mt-1 flex flex-wrap gap-1.5">
+            <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {card.extras.map((extra) => (
                 <li
                   key={extra}
@@ -112,24 +152,23 @@ export function ServiceChooser({
           </div>
         )}
         {card?.note && <p className="mt-3 text-xs text-muted-foreground">{card.note}</p>}
-        {!card && open.detail && (
-          <p className="mt-3 text-sm text-muted-foreground">{open.detail}</p>
+        {!card && detail.detail && (
+          <p className="mt-3 text-sm text-muted-foreground">{detail.detail}</p>
         )}
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-5 flex gap-2">
           <button
             type="button"
-            onClick={() => setOpen(null)}
-            className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => setDetail(null)}
+            className="flex-1 rounded-xl border border-border bg-secondary px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-secondary/70"
           >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             Go back
           </button>
           <button
             type="button"
             disabled={busy}
-            onClick={() => onChoose(open)}
-            className="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            onClick={() => onChoose(detail)}
+            className="flex-[1.5] rounded-xl bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:bg-primary/90 active:scale-95 disabled:opacity-50"
           >
             Continue
           </button>
@@ -138,77 +177,166 @@ export function ServiceChooser({
     );
   }
 
-  const isOpen = (label: string) => activeGroup?.toLowerCase() === label.toLowerCase();
-
-  const renderCards = (items: ServiceOption[]) => (
-    <div className="grid gap-1.5">
-      {items.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          disabled={busy}
-          aria-label={`View ${option.label}`}
-          onClick={() => setOpen(option)}
-          className="rounded-xl border border-border bg-card p-2.5 text-left shadow-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-        >
-          <p className="text-sm font-semibold leading-tight">{option.label}</p>
-          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
-            {option.card?.price && (
-              <span className="font-semibold text-primary">{option.card.price}</span>
-            )}
-            {option.card?.duration && (
-              <span className="inline-flex items-center gap-1 text-muted-foreground">
-                <Clock className="h-3 w-3" aria-hidden="true" />
-                {option.card.duration}
-              </span>
-            )}
-          </div>
-          {option.card?.description && (
-            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-              {option.card.description}
-            </p>
-          )}
-          <span className="mt-1.5 inline-block text-[11px] font-medium text-primary">
-            View details
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-
   return (
-    <div className="space-y-2">
-      {showChips
-        ? groups.map((group) => {
-            const expanded = isOpen(group.label);
+    <div className="space-y-3">
+      {showChips && (
+        <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto overscroll-x-contain px-1 pb-0.5">
+          {groups.map((group) => {
+            const active = group.label.toLowerCase() === (activeGroup?.label ?? "").toLowerCase();
+            return (
+              <button
+                key={group.label}
+                type="button"
+                aria-pressed={active}
+                onClick={() => {
+                  setGroupLabel(group.label);
+                  setActiveValue(null);
+                }}
+                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-primary hover:text-foreground"
+                }`}
+              >
+                {group.label}
+                <span className="ml-1.5 opacity-60">{group.items.length}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2 px-1">
+        <h3 className="min-w-0 truncate text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
+          {activeGroup?.label}
+          <span className="ml-2 font-medium opacity-70">{items.length}</span>
+        </h3>
+        <div className="hidden shrink-0 gap-1.5 sm:flex">
+          <button
+            type="button"
+            aria-label="Previous services"
+            onClick={() => nudge(-1)}
+            className="rounded-full border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="More services"
+            onClick={() => nudge(1)}
+            className="rounded-full border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      <div className="relative">
+        <div
+          ref={track}
+          onScroll={measure}
+          className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-1"
+        >
+          {items.map((option) => {
+            const card = option.card ?? null;
+            const active = activeValue === option.value;
             return (
               <div
-                key={group.label}
-                className="overflow-hidden rounded-xl border border-border bg-card"
+                key={option.value}
+                className="min-w-[85%] shrink-0 snap-center sm:min-w-[15rem] sm:max-w-[16rem]"
               >
                 <button
                   type="button"
-                  aria-expanded={expanded}
-                  onClick={() => setActiveGroup(expanded ? null : group.label)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+                  disabled={busy}
+                  aria-pressed={active}
+                  aria-label={`Select ${option.label}`}
+                  onClick={() => setActiveValue(active ? null : option.value)}
+                  className={`flex h-full w-full flex-col rounded-2xl border bg-card p-4 text-left transition-all disabled:opacity-50 ${
+                    active
+                      ? "-translate-y-0.5 border-primary shadow-lg shadow-primary/10 ring-1 ring-primary/40"
+                      : "border-border hover:border-primary/60"
+                  }`}
                 >
-                  <span className="min-w-0 truncate text-sm font-semibold">{group.label}</span>
-                  <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-                    {group.items.length}
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
-                      aria-hidden="true"
-                    />
-                  </span>
+                  {card?.group && (
+                    <span className="w-fit rounded bg-secondary px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-tight text-muted-foreground">
+                      {card.group}
+                    </span>
+                  )}
+                  <p className="mt-3 text-sm font-semibold leading-tight">{option.label}</p>
+                  {card?.description && (
+                    <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
+                      {card.description}
+                    </p>
+                  )}
+
+                  <div className="mt-auto pt-3">
+                    <div className="flex items-end justify-between border-t border-border pt-3">
+                      <div className="min-w-0">
+                        <p className="text-[0.65rem] font-medium uppercase text-muted-foreground">
+                          Price
+                        </p>
+                        <p className="truncate text-sm font-bold text-primary">
+                          {card?.price ?? "On enquiry"}
+                        </p>
+                      </div>
+                      {card?.duration && (
+                        <div className="ml-2 shrink-0 text-right">
+                          <p className="text-[0.65rem] font-medium uppercase text-muted-foreground">
+                            Time
+                          </p>
+                          <p className="text-xs text-muted-foreground">{card.duration}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-3">
+                      {active ? (
+                        <div className="flex gap-2">
+                          <span
+                            role="button"
+                            tabIndex={-1}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setActiveValue(null);
+                            }}
+                            className="flex-1 rounded-xl border border-border bg-secondary px-2 py-2 text-center text-[0.7rem] font-semibold text-foreground"
+                          >
+                            Unselect
+                          </span>
+                          <span
+                            role="button"
+                            tabIndex={-1}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setDetail(option);
+                            }}
+                            className="flex-[1.5] rounded-xl bg-primary px-2 py-2 text-center text-[0.7rem] font-semibold text-primary-foreground shadow-lg shadow-primary/20"
+                          >
+                            View details
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="block rounded-xl border border-primary/30 bg-primary/10 px-2 py-2 text-center text-[0.7rem] font-semibold text-primary">
+                          Select service
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </button>
-                {expanded && (
-                  <div className="border-t border-border p-2">{renderCards(group.items)}</div>
-                )}
               </div>
             );
-          })
-        : groups.map((group) => <div key={group.label}>{renderCards(group.items)}</div>)}
+          })}
+        </div>
 
+        {items.length > 1 && (
+          <div className="mx-auto mt-2 h-1 w-24 overflow-hidden rounded-full bg-secondary">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${Math.round(20 + progress * 80)}%` }}
+            />
+          </div>
+        )}
+      </div>
 
       {flexible && (
         <button
@@ -222,30 +350,5 @@ export function ServiceChooser({
         </button>
       )}
     </div>
-  );
-}
-
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-card text-muted-foreground hover:border-primary hover:text-foreground"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
