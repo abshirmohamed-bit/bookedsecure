@@ -37,7 +37,7 @@ describe("texto payload normalisation", () => {
   });
 
   it("builds a send payload in E.164", () => {
-    expect(buildTextoSendPayload({ to: "0466907824", from: "0480000000", body: "hi" })).toEqual({
+    expect(buildTextoSendPayload({ to: "+61466907824", from: "+61480000000", body: "hi" })).toEqual({
       to: "+61466907824",
       message: "hi",
       sender: "+61480000000",
