@@ -1,12 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { NumberCreditsPanel } from "@/components/NumberCreditsPanel";
-import { SmsSetupPanel } from "@/components/SmsSetupPanel";
-import {
-  BusinessSettingsForm,
-  ProviderStatus,
-  SettingsPageBody,
-} from "@/components/settings/sections";
+import { MessagingOverviewCard } from "@/components/messaging/MessagingOverviewCard";
+import { MessagingAdvanced } from "@/components/messaging/MessagingAdvanced";
+import { BusinessSettingsForm, SettingsPageBody } from "@/components/settings/sections";
 
 export const Route = createFileRoute("/settings/messaging")({
   head: () => ({
