@@ -9,7 +9,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, Clock, Check, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, Clock, Check, X } from "lucide-react";
 import { groupItems, hasMeaningfulGroups } from "@/lib/service-groups";
 
 export type ServiceCard = {
@@ -138,72 +138,77 @@ export function ServiceChooser({
     );
   }
 
-  const visible =
-    activeGroup === null
-      ? groups
-      : groups.filter((group) => group.label.toLowerCase() === activeGroup.toLowerCase());
+  const isOpen = (label: string) => activeGroup?.toLowerCase() === label.toLowerCase();
+
+  const renderCards = (items: ServiceOption[]) => (
+    <div className="grid gap-1.5">
+      {items.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          disabled={busy}
+          aria-label={`View ${option.label}`}
+          onClick={() => setOpen(option)}
+          className="rounded-xl border border-border bg-card p-2.5 text-left shadow-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        >
+          <p className="text-sm font-semibold leading-tight">{option.label}</p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
+            {option.card?.price && (
+              <span className="font-semibold text-primary">{option.card.price}</span>
+            )}
+            {option.card?.duration && (
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                <Clock className="h-3 w-3" aria-hidden="true" />
+                {option.card.duration}
+              </span>
+            )}
+          </div>
+          {option.card?.description && (
+            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+              {option.card.description}
+            </p>
+          )}
+          <span className="mt-1.5 inline-block text-[11px] font-medium text-primary">
+            View details
+          </span>
+        </button>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="space-y-4">
-      {showChips && (
-        <div className="-mx-1 flex flex-wrap gap-1.5 px-1">
-          <Chip active={activeGroup === null} onClick={() => setActiveGroup(null)}>
-            All
-          </Chip>
-          {groups.map((group) => (
-            <Chip
-              key={group.label}
-              active={activeGroup?.toLowerCase() === group.label.toLowerCase()}
-              onClick={() => setActiveGroup(group.label)}
-            >
-              {group.label}
-            </Chip>
-          ))}
-        </div>
-      )}
-
-      {visible.map((group) => (
-        <div key={group.label}>
-          {showChips && (
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {group.label}
-            </h3>
-          )}
-          <div className="grid gap-1.5">
-            {group.items.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                disabled={busy}
-                aria-label={`View ${option.label}`}
-                onClick={() => setOpen(option)}
-                className="rounded-xl border border-border bg-card p-2.5 text-left shadow-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+    <div className="space-y-2">
+      {showChips
+        ? groups.map((group) => {
+            const expanded = isOpen(group.label);
+            return (
+              <div
+                key={group.label}
+                className="overflow-hidden rounded-xl border border-border bg-card"
               >
-                <p className="text-sm font-semibold leading-tight">{option.label}</p>
-                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
-                  {option.card?.price && (
-                    <span className="font-semibold text-primary">{option.card.price}</span>
-                  )}
-                  {option.card?.duration && (
-                    <span className="inline-flex items-center gap-1 text-muted-foreground">
-                      <Clock className="h-3 w-3" aria-hidden="true" />
-                      {option.card.duration}
-                    </span>
-                  )}
-                </div>
-                {option.card?.description && (
-                  <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                    {option.card.description}
-                  </p>
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() => setActiveGroup(expanded ? null : group.label)}
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+                >
+                  <span className="min-w-0 truncate text-sm font-semibold">{group.label}</span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                    {group.items.length}
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+                      aria-hidden="true"
+                    />
+                  </span>
+                </button>
+                {expanded && (
+                  <div className="border-t border-border p-2">{renderCards(group.items)}</div>
                 )}
-                <span className="mt-1.5 inline-block text-[11px] font-medium text-primary">
-                  View details
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
+              </div>
+            );
+          })
+        : groups.map((group) => <div key={group.label}>{renderCards(group.items)}</div>)}
+
 
       {flexible && (
         <button
