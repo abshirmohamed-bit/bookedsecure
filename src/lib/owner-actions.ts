@@ -58,7 +58,7 @@ export const PROTECTED_SOURCE_STATUSES: readonly LeadStatus[] = [
   "completed",
   "scheduled",
   "opted_out",
-] as unknown as readonly LeadStatus[];
+];
 
 export function isSafeStatusTarget(status: string): boolean {
   return (
