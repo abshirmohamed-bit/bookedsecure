@@ -456,7 +456,7 @@ function buildPrompt(
         kind: "choice",
         text: bookingConfirmMessage({
           businessName: tenant.name,
-          serviceName: collected.service_name ?? collected.typed_request ?? null,
+          serviceName: chosenServicesText(collected) ?? collected.typed_request ?? null,
           suburb: collected.suburb ?? null,
           vehicle: collected.vehicle_type ?? null,
           slotLabel: held?.label ?? "the time you picked",
@@ -663,6 +663,41 @@ export function applyAnswer(
 
   switch (step) {
     case "service": {
+      // Card selection: one or more of the tenant's own services, plus any of
+      // their linked extras the customer ticked. Unknown ids are dropped.
+      const selection = parseServiceSelection(value);
+      if (selection) {
+        const chosen = selection.serviceIds
+          .map((id) => tenant.services.find((entry) => entry.id === id))
+          .filter((entry): entry is WebChatService => Boolean(entry));
+        if (chosen.length === 0) {
+          return { ok: false, error: "Please choose one of the listed services." };
+        }
+        const primary = chosen[0]!;
+        const rest = chosen.slice(1);
+        const allowed = chosen.flatMap((entry) => addonsForService(tenant.addons ?? [], entry.id));
+        const extras = selection.addonIds
+          .map((id) => allowed.find((addon) => addon.id === id))
+          .filter((addon): addon is ServiceAddon => Boolean(addon));
+        next.service_id = primary.id;
+        next.service_name = primary.name;
+        next.typed_request = null;
+        next.extra_service_ids = rest.map((entry) => entry.id);
+        next.extra_service_names = rest.map((entry) => entry.name);
+        next.addon_ids = extras.map((addon) => addon.id);
+        next.addon_names = extras.map((addon) => addon.name);
+        next.addons_offered = allowed.length > 0;
+        // Extras were offered and answered on the cards, so the extras step is done.
+        next.addons_done = true;
+        const echo = [
+          chosen.map((entry) => entry.name).join(" + "),
+          extras.length > 0 ? `with ${extras.map((addon) => addon.name).join(", ")}` : null,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return { ok: true, collected: next, echo };
+      }
+
       if (value === FLEXIBLE_CHOICE) {
         if (!tenant.flexibleRequestsEnabled) return { ok: false, error: "Please choose one of the listed services." };
         next.service_id = null;
