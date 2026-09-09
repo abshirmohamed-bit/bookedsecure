@@ -33,6 +33,7 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { getCommercialConfig, getPilotForBusiness } = await import("@/lib/commercial.server");
+    const { getPlanForBusiness } = await import("@/lib/plans.server");
 
     const [account, numbers, topups, businessResult, requestsResult, config, pilot] =
       await Promise.all([
@@ -54,6 +55,10 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
         getPilotForBusiness(app.businessId),
       ]);
 
+    // The subscription plan decides the included texts, the price of extra
+    // texts, and which tools are switched on for this business.
+    const subscriptionPlan = await getPlanForBusiness(app.businessId);
+
     // Included allowance for the current billing period, from the terms this
     // business was accepted under (never the live config, which may have moved).
     const includedSegments = pilot?.includedSmsSegments ?? config.includedSmsSegments;
@@ -73,11 +78,16 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
       role: app.role,
       business: businessResult.data ?? null,
       plan: {
+        id: subscriptionPlan.id,
+        name: subscriptionPlan.name,
         currency: config.currency,
         priceMinorUnits: config.pilotPriceMinorUnits,
         billingInterval: config.billingInterval,
         includedSegments,
         usedSegments,
+        overageCents: subscriptionPlan.overageCents,
+        reactivationEnabled: subscriptionPlan.reactivationEnabled,
+        teamMemberLimit: subscriptionPlan.teamMemberLimit,
       },
       account: account
         ? {
