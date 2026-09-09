@@ -384,6 +384,7 @@ describe("texto account provisioning", () => {
     });
 
     expect(second.ok).toBe(true);
+    if (!second.ok) throw new Error("expected successful provision");
     expect(second.account.id).toBe(first.account.id);
     expect(second.number.id).toBe(first.number.id);
     // credits should not be double-allocated on re-run
