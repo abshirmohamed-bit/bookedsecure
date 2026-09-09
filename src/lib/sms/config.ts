@@ -4,11 +4,12 @@
 // knows about. It contains NO credentials and NO provider endpoints, so it is
 // safe to import from UI code.
 
-export const PROVIDER_IDS = ["simulated", "telnyx", "sinch", "twilio"] as const;
+export const PROVIDER_IDS = ["simulated", "texto", "telnyx", "sinch", "twilio"] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
   simulated: "Simulated (recorded, not sent)",
+  texto: "Texto (live SMS)",
   telnyx: "Telnyx (live SMS)",
   sinch: "Sinch Engage (not implemented yet)",
   twilio: "Twilio (legacy)",
@@ -66,6 +67,15 @@ export const PROVIDER_CAPABILITIES: Record<ProviderId, ProviderCapabilities> = {
     assignNumberToTenant: true,
     getNumberStatus: true,
     getMessageStatus: true,
+  },
+  texto: {
+    ...NONE,
+    sendMessage: true,
+    inboundWebhooks: true,
+    deliveryWebhooks: true,
+    signedWebhooks: true,
+    getMessageStatus: true,
+    getUsageData: true,
   },
   telnyx: {
     ...NONE,
