@@ -106,15 +106,12 @@ vi.mock("@/integrations/supabase/client.server", () => ({
         },
         insert(values: Row | Row[]) {
           const items = Array.isArray(values) ? values : [values];
+          const inserted: Row[] = [];
           for (const item of items) {
             const row = { ...item, id: item.id ?? makeId(`${table}_id`) };
             store[table].push(row);
+            inserted.push(row);
           }
-          // Insert returns the inserted rows; select().single() returns the last one.
-          const inserted = items.map((item) => ({
-            ...item,
-            id: (item.id ?? makeId(`${table}_id`)) as string,
-          }));
           return {
             select: () => ({
               single: () => Promise.resolve({ data: project(inserted[inserted.length - 1]) ?? null, error: null }),
