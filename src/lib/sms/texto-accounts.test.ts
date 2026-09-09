@@ -21,14 +21,31 @@ vi.mock("@/integrations/supabase/client.server", () => ({
       const rows = store[table] ?? [];
       let filtered = [...rows];
       let selected: string[] | null = null;
-      let countMode: { exact: boolean; head: boolean } | null = null;
+      let countMode = false;
       let singleValue = false;
-      let eqClauses: { column: string; value: unknown }[] = [];
 
-      const chain = {
+      function project(row: Row | null): Row | null {
+        if (!row) return null;
+        if (!selected) return row;
+        const out: Row = {};
+        for (const f of selected) {
+          if (f in row) out[f] = row[f];
+        }
+        return out;
+      }
+
+      function terminal() {
+        if (countMode) {
+          return Promise.resolve({ data: null, error: null, count: filtered.length });
+        }
+        const row = singleValue ? filtered[0] ?? null : filtered;
+        return Promise.resolve({ data: project(row), error: null });
+      }
+
+      const chain: Record<string, unknown> = {
         select(fields?: string | string[], opts?: { count?: string; head?: boolean }) {
           if (opts?.count) {
-            countMode = { exact: opts.count === "exact", head: !!opts.head };
+            countMode = true;
           } else if (typeof fields === "string") {
             selected = fields.split(",").map((s) => s.trim());
           } else if (Array.isArray(fields)) {
@@ -40,7 +57,6 @@ vi.mock("@/integrations/supabase/client.server", () => ({
         },
         eq(column: string, value: unknown) {
           filtered = filtered.filter((r) => r[column] === value);
-          eqClauses.push({ column, value });
           return chain;
         },
         is(column: string, value: unknown) {
@@ -78,28 +94,30 @@ vi.mock("@/integrations/supabase/client.server", () => ({
         },
         maybeSingle() {
           singleValue = true;
-          const row = filtered[0] ?? null;
-          const projected = selected ? project(row, selected) : row;
-          return Promise.resolve({ data: projected, error: null });
+          return terminal();
         },
         single() {
           singleValue = true;
-          const row = filtered[0] ?? null;
-          const projected = selected ? project(row, selected) : row;
-          if (!row) return Promise.resolve({ data: null, error: { message: "No rows found" } });
-          return Promise.resolve({ data: projected, error: null });
+          if (countMode) return terminal();
+          if (!filtered[0]) {
+            return Promise.resolve({ data: null, error: { message: "No rows found" } });
+          }
+          return terminal();
         },
         insert(values: Row | Row[]) {
           const items = Array.isArray(values) ? values : [values];
           for (const item of items) {
             const row = { ...item, id: item.id ?? makeId(`${table}_id`) };
             store[table].push(row);
-            filtered.push(row);
           }
+          // Insert returns the inserted rows; select().single() returns the last one.
+          const inserted = items.map((item) => ({
+            ...item,
+            id: (item.id ?? makeId(`${table}_id`)) as string,
+          }));
           return {
             select: () => ({
-              single: () =>
-                Promise.resolve({ data: filtered[filtered.length - 1] ?? null, error: null }),
+              single: () => Promise.resolve({ data: project(inserted[inserted.length - 1]) ?? null, error: null }),
             }),
           };
         },
@@ -109,39 +127,20 @@ vi.mock("@/integrations/supabase/client.server", () => ({
           }
           return {
             eq(column: string, value: unknown) {
-              // already applied through chained calls in this mock
+              // Filters have already been applied via the main chain; this
+              // just preserves the Supabase fluent shape.
+              filtered = filtered.filter((r) => r[column] === value);
               return {
                 select: () => ({
-                  single: () => Promise.resolve({ data: filtered[0] ?? null, error: null }),
+                  single: () => Promise.resolve({ data: project(filtered[0]) ?? null, error: null }),
                 }),
               };
             },
             select: () => ({
-              single: () => Promise.resolve({ data: filtered[0] ?? null, error: null }),
+              single: () => Promise.resolve({ data: project(filtered[0]) ?? null, error: null }),
             }),
           };
         },
-      };
-
-      // count/head path
-      chain.select = function (fields?: string | string[], opts?: { count?: string; head?: boolean }) {
-        if (opts?.count) {
-          countMode = { exact: opts.count === "exact", head: !!opts.head };
-        } else if (typeof fields === "string") {
-          selected = fields.split(",").map((s) => s.trim());
-        } else if (Array.isArray(fields)) {
-          selected = fields;
-        } else {
-          selected = null;
-        }
-        if (countMode) {
-          return Promise.resolve({
-            data: null,
-            error: null,
-            count: filtered.length,
-          });
-        }
-        return chain;
       };
 
       return chain;
@@ -151,15 +150,6 @@ vi.mock("@/integrations/supabase/client.server", () => ({
     },
   },
 }));
-
-function project(row: Row | null, fields: string[]): Row | null {
-  if (!row) return null;
-  const out: Row = {};
-  for (const f of fields) {
-    if (f in row) out[f] = row[f];
-  }
-  return out;
-}
 
 beforeEach(() => {
   for (const key of Object.keys(store)) {
