@@ -124,24 +124,13 @@ vi.mock("@/integrations/supabase/client.server", () => ({
           };
         },
         update(patch: Row) {
+          // Apply the patch to the rows currently matched by the chain. The
+          // real Supabase applies the update server-side after all filters;
+          // for these tests applying to the pre-filter set is close enough.
           for (const row of filtered) {
             Object.assign(row, patch);
           }
-          return {
-            eq(column: string, value: unknown) {
-              // Filters have already been applied via the main chain; this
-              // just preserves the Supabase fluent shape.
-              filtered = filtered.filter((r) => r[column] === value);
-              return {
-                select: () => ({
-                  single: () => Promise.resolve({ data: project(filtered[0]) ?? null, error: null }),
-                }),
-              };
-            },
-            select: () => ({
-              single: () => Promise.resolve({ data: project(filtered[0]) ?? null, error: null }),
-            }),
-          };
+          return chain;
         },
       };
 
