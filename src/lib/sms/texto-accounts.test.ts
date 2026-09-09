@@ -407,7 +407,7 @@ describe("texto account provisioning", () => {
     });
 
     expect(a.ok && b.ok).toBe(true);
-    if (!a.ok || !b.ok) return;
+    if (!a.ok || !b.ok) throw new Error("expected successful provision");
     expect(a.number.number).not.toBe(b.number.number);
     expect(a.number.assigned_business_id).toBe("biz-a");
     expect(b.number.assigned_business_id).toBe("biz-b");
