@@ -32,26 +32,53 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
     const { listCreditTopups } = await import("@/lib/sms/credit-topups.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [account, numbers, topups, businessResult, requestsResult] = await Promise.all([
-      getTextoAccount(app.businessId),
-      listAssignedNumbers(app.businessId),
-      listCreditTopups(app.businessId),
-      supabaseAdmin
-        .from("businesses")
-        .select("id, name, automation_enabled")
-        .eq("id", app.businessId)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("tenant_requests")
-        .select("id, kind, status, note, created_at, resolved_at")
-        .eq("business_id", app.businessId)
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
+    const { getCommercialConfig, getPilotForBusiness } = await import("@/lib/commercial.server");
+
+    const [account, numbers, topups, businessResult, requestsResult, config, pilot] =
+      await Promise.all([
+        getTextoAccount(app.businessId),
+        listAssignedNumbers(app.businessId),
+        listCreditTopups(app.businessId),
+        supabaseAdmin
+          .from("businesses")
+          .select("id, name, automation_enabled")
+          .eq("id", app.businessId)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("tenant_requests")
+          .select("id, kind, status, note, created_at, resolved_at")
+          .eq("business_id", app.businessId)
+          .order("created_at", { ascending: false })
+          .limit(5),
+        getCommercialConfig(),
+        getPilotForBusiness(app.businessId),
+      ]);
+
+    // Included allowance for the current billing period, from the terms this
+    // business was accepted under (never the live config, which may have moved).
+    const includedSegments = pilot?.includedSmsSegments ?? config.includedSmsSegments;
+    let usedSegments = 0;
+    if (pilot) {
+      const { data: period } = await supabaseAdmin
+        .from("sms_usage_periods")
+        .select("segments_used, included_segments, period_end")
+        .eq("pilot_application_id", pilot.id)
+        .order("period_start", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      usedSegments = period?.segments_used ?? 0;
+    }
 
     return {
       role: app.role,
       business: businessResult.data ?? null,
+      plan: {
+        currency: config.currency,
+        priceMinorUnits: config.pilotPriceMinorUnits,
+        billingInterval: config.billingInterval,
+        includedSegments,
+        usedSegments,
+      },
       account: account
         ? {
             creditBalance: account.credit_balance,

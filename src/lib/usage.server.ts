@@ -11,7 +11,9 @@ export type UsageLimits = {
 };
 
 const DEFAULT_LIMITS: UsageLimits = {
-  monthly_segment_cap: 2000,
+  // Matches the plan's included allowance (1,000 texts) so the safety cap and
+  // the paid allowance can never contradict each other.
+  monthly_segment_cap: 1000,
   monthly_ai_cost_cap: 25,
   alert_threshold_pct: 80,
   hard_block: true,

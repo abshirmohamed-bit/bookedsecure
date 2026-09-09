@@ -35,3 +35,25 @@ export const createPilotCheckoutSession = createServerFn({ method: "POST" })
     if (!result.clientSecret) return { error: "Stripe did not return a checkout session." };
     return { clientSecret: result.clientSecret, sessionId: result.sessionId };
   });
+
+/**
+ * The commercial terms new pilots are invited under, read from the single
+ * configuration row so no screen has to hardcode a price or allowance.
+ */
+export const getPilotTerms = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requirePlatformAdmin } = await import("@/lib/pilot.server");
+    await requirePlatformAdmin(context.supabase, context.userId);
+
+    const { getCommercialConfig } = await import("@/lib/commercial.server");
+    const config = await getCommercialConfig();
+    return {
+      currency: config.currency,
+      priceMinorUnits: config.pilotPriceMinorUnits,
+      billingInterval: config.billingInterval,
+      includedSmsSegments: config.includedSmsSegments,
+      pilotDurationDays: config.pilotDurationDays,
+      configurationVersion: config.configurationVersion,
+    };
+  });

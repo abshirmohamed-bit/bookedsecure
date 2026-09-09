@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { toast } from "sonner";
-import { createPilotCheckoutSession } from "@/lib/pilot-checkout.functions";
+import { createPilotCheckoutSession, getPilotTerms } from "@/lib/pilot-checkout.functions";
 import { getStripe, isTestModePayments } from "@/lib/stripe";
 const ACCESS_STATE_LABELS: Record<string, string> = {
   pending: "Awaiting payment",
@@ -38,7 +38,9 @@ type Props = {
 export function PilotCheckoutPanel(props: Props) {
   const queryClient = useQueryClient();
   const start = useServerFn(createPilotCheckoutSession);
+  const fetchTerms = useServerFn(getPilotTerms);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const { data: terms } = useQuery({ queryKey: ["pilot-terms"], queryFn: () => fetchTerms() });
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -65,7 +67,9 @@ export function PilotCheckoutPanel(props: Props) {
         <div>
           <h3 className="text-sm font-semibold">Paid pilot</h3>
           <p className="text-xs text-muted-foreground">
-            AUD $99.00 / month · 250 SMS segments · 30-day pilot
+            {terms
+              ? `${terms.currency.toUpperCase()} $${(terms.priceMinorUnits / 100).toFixed(2)} / ${terms.billingInterval} · ${terms.includedSmsSegments.toLocaleString()} SMS segments · ${terms.pilotDurationDays}-day pilot`
+              : "Loading current terms…"}
           </p>
         </div>
         <span className="rounded bg-secondary px-2 py-0.5 text-xs">{label}</span>
