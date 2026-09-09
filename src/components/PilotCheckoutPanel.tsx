@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
 import { toast } from "sonner";
-import { createPilotCheckoutSession } from "@/lib/pilot-checkout.functions";
+import { createPilotCheckoutSession, getPilotTerms } from "@/lib/pilot-checkout.functions";
 import { getStripe, isTestModePayments } from "@/lib/stripe";
 const ACCESS_STATE_LABELS: Record<string, string> = {
   pending: "Awaiting payment",
