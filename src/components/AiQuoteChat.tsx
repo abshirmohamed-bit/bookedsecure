@@ -308,10 +308,11 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                 options={serviceOptions}
                                 busy={busy}
                                 flexibleValue={FLEXIBLE_CHOICE}
-                                onChoose={(option) => {
-                                  setSelected(option.value);
-                                  send(option.value, option.label);
+                                onSubmit={(value, label) => {
+                                  setSelected(value);
+                                  send(value, label);
                                 }}
+
                                 onFlexible={() => {
                                   setSelected(FLEXIBLE_CHOICE);
                                   setDescribing(true);

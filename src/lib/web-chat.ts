@@ -79,7 +79,11 @@ export type WebChatTenant = {
 export type WebChatCollected = {
   service_id?: string | null;
   service_name?: string | null;
+  /** Further approved services chosen alongside the first one. Never invented. */
+  extra_service_ids?: string[] | null;
+  extra_service_names?: string[] | null;
   typed_request?: string | null;
+
   /** Extras chosen with the service. Only the tenant's own linked add-ons. */
   addon_ids?: string[] | null;
   addon_names?: string[] | null;
@@ -109,6 +113,16 @@ export type WebChatCollected = {
 
 export type WebChatReviewField = { step: WebChatStep; label: string; value: string };
 
+/** One optional extra offered with a service: the tenant's own wording only. */
+export type WebChatCardExtra = {
+  id: string;
+  name: string;
+  price: string | null;
+  duration: string | null;
+};
+
+
+
 export type WebChatPrompt = {
   step: WebChatStep;
   text: string;
@@ -127,7 +141,7 @@ export type WebChatPrompt = {
       includes: string | null;
       excludes: string | null;
       note: string | null;
-      extras: string[];
+      extras: WebChatCardExtra[];
     } | null;
   }[];
   /** Present on the review step: every captured field, each individually changeable. */
@@ -182,10 +196,15 @@ export function serviceCard(
   service: WebChatService,
   tenant: WebChatTenant,
 ): NonNullable<NonNullable<WebChatPrompt["options"]>[number]["card"]> {
-  const extras = addonsForService(tenant.addons ?? [], service.id).map((addon) => {
-    const price = addon.price_guidance?.trim();
-    return price ? `${addon.name} (${price})` : addon.name;
-  });
+  const extras: WebChatCardExtra[] = addonsForService(tenant.addons ?? [], service.id).map(
+    (addon) => ({
+      id: addon.id,
+      name: addon.name,
+      price: addon.price_guidance?.trim() || null,
+      duration: formatMinutes(addon.duration_minutes ?? null),
+    }),
+  );
+
   return {
     group: service.category?.trim() || null,
     price: servicePriceLine(service, tenant.offerPercent ?? null),
@@ -250,7 +269,7 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
 /** Labelled summary of everything captured, for the final review step. */
 export function reviewSummary(collected: WebChatCollected): WebChatReviewField[] {
   return [
-    { step: "service", label: "Service", value: collected.service_name ?? collected.typed_request ?? "Not sure yet" },
+    { step: "service", label: "Service", value: chosenServicesText(collected) ?? collected.typed_request ?? "Not sure yet" },
     ...((collected.addon_names ?? []).length > 0
       ? [
           {
@@ -311,7 +330,13 @@ export function promptFor(
                     includes: clean(option.card.includes),
                     excludes: clean(option.card.excludes),
                     note: clean(option.card.note),
-                    extras: option.card.extras.map((extra) => sanitiseCustomerText(extra)),
+                    extras: option.card.extras.map((extra) => ({
+                      ...extra,
+                      name: sanitiseCustomerText(extra.name),
+                      price: clean(extra.price),
+                      duration: clean(extra.duration),
+                    })),
+
                   },
                 }
               : {}),
@@ -431,7 +456,7 @@ function buildPrompt(
         kind: "choice",
         text: bookingConfirmMessage({
           businessName: tenant.name,
-          serviceName: collected.service_name ?? collected.typed_request ?? null,
+          serviceName: chosenServicesText(collected) ?? collected.typed_request ?? null,
           suburb: collected.suburb ?? null,
           vehicle: collected.vehicle_type ?? null,
           slotLabel: held?.label ?? "the time you picked",
@@ -554,11 +579,12 @@ export function serviceAcknowledgement(
   tenant: WebChatTenant,
   collected: WebChatCollected,
 ): string | null {
-  const name = collected.service_name?.trim();
-  if (!name) return null;
+  const summary = chosenServicesText(collected);
+  if (!summary) return null;
   const service = tenant.services.find((entry) => entry.id === collected.service_id) ?? null;
-  const price = service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
-  return price ? `${name} — ${price}.` : `${name}, got it.`;
+  const many = (collected.extra_service_ids ?? []).length > 0;
+  const price = !many && service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
+  return price ? `${summary} — ${price}.` : `${summary}, got it.`;
 }
 
 /**
@@ -574,9 +600,46 @@ function applyServiceAddons(
   const offered = addonsForService(tenant.addons ?? [], serviceId);
   next.addon_ids = [];
   next.addon_names = [];
+  next.extra_service_ids = [];
+  next.extra_service_names = [];
   next.addons_offered = offered.length > 0;
   next.addons_done = offered.length === 0;
 }
+
+/**
+ * The service selection made on the cards, encoded as one answer value so the
+ * existing single-answer transport is untouched. Only ids the tenant owns are
+ * ever accepted on the way back in.
+ */
+export const SERVICE_SELECTION_PREFIX = "sel:";
+
+export function encodeServiceSelection(serviceIds: string[], addonIds: string[]): string {
+  return `${SERVICE_SELECTION_PREFIX}${serviceIds.join(",")}|${addonIds.join(",")}`;
+}
+
+function parseServiceSelection(value: string): { serviceIds: string[]; addonIds: string[] } | null {
+  if (!value.startsWith(SERVICE_SELECTION_PREFIX)) return null;
+  const [rawServices = "", rawAddons = ""] = value.slice(SERVICE_SELECTION_PREFIX.length).split("|");
+  const split = (input: string) =>
+    input
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+  const serviceIds = split(rawServices);
+  if (serviceIds.length === 0) return null;
+  return { serviceIds, addonIds: split(rawAddons) };
+}
+
+/** Every chosen service in one line: the tenant's own names, nothing invented. */
+export function chosenServicesText(collected: WebChatCollected): string | null {
+  const names = [
+    ...(collected.service_name ? [collected.service_name] : []),
+    ...((collected.extra_service_names ?? []).filter(Boolean) as string[]),
+  ];
+  return names.length > 0 ? names.join(" + ") : null;
+}
+
+
 
 export type ApplyResult =
 
@@ -600,6 +663,41 @@ export function applyAnswer(
 
   switch (step) {
     case "service": {
+      // Card selection: one or more of the tenant's own services, plus any of
+      // their linked extras the customer ticked. Unknown ids are dropped.
+      const selection = parseServiceSelection(value);
+      if (selection) {
+        const chosen = selection.serviceIds
+          .map((id) => tenant.services.find((entry) => entry.id === id))
+          .filter((entry): entry is WebChatService => Boolean(entry));
+        if (chosen.length === 0) {
+          return { ok: false, error: "Please choose one of the listed services." };
+        }
+        const primary = chosen[0]!;
+        const rest = chosen.slice(1);
+        const allowed = chosen.flatMap((entry) => addonsForService(tenant.addons ?? [], entry.id));
+        const extras = selection.addonIds
+          .map((id) => allowed.find((addon) => addon.id === id))
+          .filter((addon): addon is ServiceAddon => Boolean(addon));
+        next.service_id = primary.id;
+        next.service_name = primary.name;
+        next.typed_request = null;
+        next.extra_service_ids = rest.map((entry) => entry.id);
+        next.extra_service_names = rest.map((entry) => entry.name);
+        next.addon_ids = extras.map((addon) => addon.id);
+        next.addon_names = extras.map((addon) => addon.name);
+        next.addons_offered = allowed.length > 0;
+        // Extras were offered and answered on the cards, so the extras step is done.
+        next.addons_done = true;
+        const echo = [
+          chosen.map((entry) => entry.name).join(" + "),
+          extras.length > 0 ? `with ${extras.map((addon) => addon.name).join(", ")}` : null,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return { ok: true, collected: next, echo };
+      }
+
       if (value === FLEXIBLE_CHOICE) {
         if (!tenant.flexibleRequestsEnabled) return { ok: false, error: "Please choose one of the listed services." };
         next.service_id = null;

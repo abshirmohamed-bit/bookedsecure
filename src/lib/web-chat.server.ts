@@ -23,6 +23,7 @@ import {
   type WebChatCollected,
   type WebChatPrompt,
   type WebChatTenant,
+  chosenServicesText,
 } from "@/lib/web-chat";
 import {
   AMBIGUOUS_CORRECTION_MESSAGE,
@@ -642,7 +643,7 @@ export async function replyToWebChat(input: {
       service_address: next.service_address ?? null,
       vehicle_type: next.vehicle_type ?? null,
       main_concerns: next.concerns ?? null,
-      service_intent: next.service_name ?? next.typed_request ?? "AI quote conversation",
+      service_intent: chosenServicesText(next) ?? next.typed_request ?? "AI quote conversation",
       source_channel: "website",
       source_form: `ai_chat:${tenant.slug}`,
       source_metadata: {
@@ -689,7 +690,7 @@ export async function replyToWebChat(input: {
         service_address: next.service_address ?? null,
         vehicle_type: next.vehicle_type ?? null,
         main_concerns: next.concerns ?? null,
-        service_intent: next.service_name ?? next.typed_request ?? "AI quote conversation",
+        service_intent: chosenServicesText(next) ?? next.typed_request ?? "AI quote conversation",
         request_type: next.service_id ? "service" : "recommendation",
         approved_service_id: next.service_id ?? null,
         service_name_snapshot: next.service_name ?? null,
@@ -758,7 +759,7 @@ export async function replyToWebChat(input: {
           title: `Returning enquiry: ${returningName}`,
           body: [
             `${returningName}${returningMobile ? ` · ${returningMobile}` : ""}`,
-            next.service_name ? `Service: ${next.service_name}` : null,
+            chosenServicesText(next) ? `Service: ${chosenServicesText(next)}` : null,
             chosenAddonsForAlert ? `Extras: ${chosenAddonsForAlert}` : null,
             next.service_address ? `Address: ${next.service_address}` : null,
             next.suburb ? `Suburb: ${next.suburb}` : null,
@@ -771,7 +772,7 @@ export async function replyToWebChat(input: {
             returning: true,
             name: returningName,
             mobile_number: returningMobile,
-            service_intent: next.service_name ?? next.typed_request ?? null,
+            service_intent: chosenServicesText(next) ?? next.typed_request ?? null,
             source_channel: "website",
             web_conversation_id: conversation.id,
           },
