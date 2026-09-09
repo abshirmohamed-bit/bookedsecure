@@ -80,7 +80,7 @@ describe("field-by-field review navigation", () => {
   });
 
   it("re-opens the extras step when the customer changes their extras", () => {
-    const addon = { id: "33333333-3333-3333-3333-333333333333", name: "Mould Removal", description: null, price_guidance: null, duration_minutes: null, service_ids: [tenant.services[0]!.id] };
+    const addon = { id: "33333333-3333-3333-3333-333333333333", name: "Mould Removal", description: null, price_guidance: null, duration_minutes: null, serviceIds: [tenant.services[0]!.id] };
     const withAddons: WebChatTenant = { ...tenant, addons: [addon] };
     const collected: WebChatCollected = {
       ...collectedAll(),
