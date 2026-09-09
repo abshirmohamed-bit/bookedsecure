@@ -28,6 +28,19 @@ export const Route = createFileRoute("/admin/pilot-applications")({
     ],
   }),
   component: PilotApplicationsPage,
+  errorComponent: ({ error }) => (
+    <AppShell title="Pilot applications">
+      <div className="panel p-4">
+        <h1 className="page-heading">Pilot applications</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+      </div>
+    </AppShell>
+  ),
+  notFoundComponent: () => (
+    <AppShell title="Pilot applications">
+      <p className="text-sm text-muted-foreground">Page not found.</p>
+    </AppShell>
+  ),
 });
 
 type Application = Awaited<ReturnType<typeof listPilotApplications>>["applications"][number];
@@ -59,10 +72,22 @@ function PilotApplications() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["pilot-applications", filters],
     queryFn: () => fetchList({ data: filters }),
+    retry: false,
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading applications…</p>;
-  if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
+  if (error)
+    return (
+      <div className="panel p-4">
+        <h1 className="page-heading">Pilot applications</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {(error as Error).message.includes("platform administrator")
+            ? "This page is only for BookedSecure staff. Ask us to give your account access if you need it."
+            : (error as Error).message}
+        </p>
+      </div>
+    );
+
 
   const applications = data?.applications ?? [];
   const selected = applications.find((row) => row.id === selectedId) ?? null;
