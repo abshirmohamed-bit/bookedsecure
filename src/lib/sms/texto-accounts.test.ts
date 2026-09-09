@@ -347,6 +347,7 @@ describe("texto account provisioning", () => {
     });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected successful provision");
     expect(result.account.provisioning_state).toBe("active");
     expect(result.account.credit_balance).toBe(50);
     expect(result.account.daily_send_cap).toBe(200);
