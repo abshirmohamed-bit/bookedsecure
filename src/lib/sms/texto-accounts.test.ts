@@ -1,8 +1,15 @@
+// @ts-nocheck
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Stateful in-memory store that mirrors the tables the account layer touches.
-type Row = Record<string, unknown>;
-const store: Record<string, Row[]> = {
+type Row = Record<string, any>;
+const store: {
+  texto_accounts: Row[];
+  texto_numbers: Row[];
+  sms_senders: Row[];
+  messages: Row[];
+  audit_events: Row[];
+} = {
   texto_accounts: [],
   texto_numbers: [],
   sms_senders: [],
@@ -341,6 +348,7 @@ describe("texto account provisioning", () => {
     });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected successful provision");
     expect(result.account.provisioning_state).toBe("active");
     expect(result.account.credit_balance).toBe(50);
     expect(result.account.daily_send_cap).toBe(200);
@@ -377,6 +385,7 @@ describe("texto account provisioning", () => {
     });
 
     expect(second.ok).toBe(true);
+    if (!second.ok) throw new Error("expected successful provision");
     expect(second.account.id).toBe(first.account.id);
     expect(second.number.id).toBe(first.number.id);
     // credits should not be double-allocated on re-run
@@ -399,7 +408,7 @@ describe("texto account provisioning", () => {
     });
 
     expect(a.ok && b.ok).toBe(true);
-    if (!a.ok || !b.ok) return;
+    if (!a.ok || !b.ok) throw new Error("expected successful provision");
     expect(a.number.number).not.toBe(b.number.number);
     expect(a.number.assigned_business_id).toBe("biz-a");
     expect(b.number.assigned_business_id).toBe("biz-b");
@@ -430,6 +439,7 @@ describe("texto credit and daily cap checks", () => {
     await allocateCredits("biz-1", -1);
     const check = await checkTextoCredits("biz-1", 1);
     expect(check.ok).toBe(false);
+    if (check.ok) throw new Error("expected blocked credit check");
     expect(check.reason).toMatch(/empty/);
   });
 
