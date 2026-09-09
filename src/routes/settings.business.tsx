@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { AvailabilityEditor } from "@/components/settings/availability";
 import { TenantAccountPanel } from "@/components/settings/TenantAccountPanel";
-import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
+
 import {
   AddonsEditor,
   BusinessSettingsForm,
@@ -100,7 +100,7 @@ function BusinessSettingsPage() {
       >
         {(data) => (
           <>
-            <SiteOnboardingPanel readOnly={data.role !== "owner"} />
+            
             <BusinessSettingsForm
               business={data.business}
               readOnly={data.role !== "owner"}
