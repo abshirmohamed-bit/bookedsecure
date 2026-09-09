@@ -2324,6 +2324,7 @@ export type Database = {
           provider: string
           status_callback_url: string | null
           subaccount_sid: string | null
+          texto_account_id: string | null
           updated_at: string
         }
         Insert: {
@@ -2340,6 +2341,7 @@ export type Database = {
           provider?: string
           status_callback_url?: string | null
           subaccount_sid?: string | null
+          texto_account_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -2356,6 +2358,7 @@ export type Database = {
           provider?: string
           status_callback_url?: string | null
           subaccount_sid?: string | null
+          texto_account_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2364,6 +2367,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_senders_texto_account_id_fkey"
+            columns: ["texto_account_id"]
+            isOneToOne: false
+            referencedRelation: "texto_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -2507,6 +2517,112 @@ export type Database = {
           stripe_event_id?: string
         }
         Relationships: []
+      }
+      texto_accounts: {
+        Row: {
+          allocated_credits: number
+          business_id: string
+          created_at: string
+          credit_balance: number
+          daily_send_cap: number
+          failed_reason: string | null
+          id: string
+          provider: string
+          provisioned_at: string | null
+          provisioning_state: string
+          subaccount_id: string | null
+          subaccount_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          allocated_credits?: number
+          business_id: string
+          created_at?: string
+          credit_balance?: number
+          daily_send_cap?: number
+          failed_reason?: string | null
+          id?: string
+          provider?: string
+          provisioned_at?: string | null
+          provisioning_state?: string
+          subaccount_id?: string | null
+          subaccount_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allocated_credits?: number
+          business_id?: string
+          created_at?: string
+          credit_balance?: number
+          daily_send_cap?: number
+          failed_reason?: string | null
+          id?: string
+          provider?: string
+          provisioned_at?: string | null
+          provisioning_state?: string
+          subaccount_id?: string | null
+          subaccount_reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "texto_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      texto_numbers: {
+        Row: {
+          assigned_at: string | null
+          assigned_business_id: string | null
+          created_at: string
+          id: string
+          monthly_cost_cents: number
+          number: string
+          provider: string
+          provider_number_id: string | null
+          recalled_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_business_id?: string | null
+          created_at?: string
+          id?: string
+          monthly_cost_cents?: number
+          number: string
+          provider?: string
+          provider_number_id?: string | null
+          recalled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_business_id?: string | null
+          created_at?: string
+          id?: string
+          monthly_cost_cents?: number
+          number?: string
+          provider?: string
+          provider_number_id?: string | null
+          recalled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "texto_numbers_assigned_business_id_fkey"
+            columns: ["assigned_business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usage_limits: {
         Row: {
