@@ -22,6 +22,7 @@ import {
   twilioProvider,
 } from "./provider.server";
 import { sinchProvider } from "./sinch.server";
+import { TEXTO_API_BASE, mapTextoStatus } from "./texto.server";
 
 export function resolveProviderId(requested?: string | null): ProviderId {
   const override = process.env[PROVIDER_OVERRIDE_ENV];
@@ -67,20 +68,46 @@ function simulatedOverrides(): Partial<MessagingProvider> {
 }
 
 function textoOverrides(): Partial<MessagingProvider> {
+  const key = () => {
+    const apiKey = process.env["TEXTO_API_KEY"];
+    if (!apiKey) throw new Error("Texto is not connected.");
+    return apiKey;
+  };
+
   return {
-    // Read-only lookup against the documented Texto message resource.
-    async getMessageStatus({ providerMessageId }) {
-      const apiKey = process.env["TEXTO_API_KEY"];
-      if (!apiKey) throw new Error("Texto is not connected.");
-      const response = await fetch(`https://api.texto.com.au/message/${providerMessageId}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
+    // Read-only lookup of one message, per the documented Texto endpoint.
+    async getMessageStatus(providerMessageId) {
+      const response = await fetch(
+        `${TEXTO_API_BASE}/message/${encodeURIComponent(providerMessageId)}`,
+        { headers: { Authorization: `Bearer ${key()}` } },
+      );
       if (!response.ok) throw new Error(`Texto message lookup failed [${response.status}]`);
       const body = (await response.json()) as {
         message?: { status?: string };
         delivery_receipt?: { status?: string } | null;
       };
-      return body.delivery_receipt?.status ?? body.message?.status ?? "unknown";
+      return mapTextoStatus(body.delivery_receipt?.status ?? body.message?.status ?? null);
+    },
+
+    // Read-only credit/message report for reconciling spend against Telnyx.
+    async getUsageData(window) {
+      const url = new URL(`${TEXTO_API_BASE}/report`);
+      url.searchParams.set("from", window.from);
+      url.searchParams.set("to", window.to);
+      url.searchParams.set("direction", "outbound");
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${key()}` } });
+      if (!response.ok) throw new Error(`Texto report failed [${response.status}]`);
+      const body = (await response.json()) as {
+        summary?: { messages?: { total?: number; parts?: number }; credits_consumed?: number };
+      };
+      return {
+        providerId: "texto",
+        window,
+        messagesOut: body.summary?.messages?.total ?? 0,
+        segmentsOut: body.summary?.messages?.parts ?? 0,
+        // Texto bills in credits; cost in currency is resolved by the account plan.
+        cost: body.summary?.credits_consumed ?? 0,
+      };
     },
   };
 }
