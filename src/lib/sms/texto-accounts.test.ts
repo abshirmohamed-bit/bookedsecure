@@ -27,6 +27,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
       function project(row: Row | null): Row | null {
         if (!row) return null;
         if (!selected) return row;
+        if (selected.length === 1 && selected[0] === "*") return row;
         const out: Row = {};
         for (const f of selected) {
           if (f in row) out[f] = row[f];
