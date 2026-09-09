@@ -15,132 +15,264 @@ function makeId(prefix: string): string {
   return `${prefix}-${nextId++}`;
 }
 
-vi.mock("@/integrations/supabase/client.server", () => ({
-  supabaseAdmin: {
-    from(table: string) {
-      const rows = store[table] ?? [];
-      let filtered = [...rows];
-      let selected: string[] | null = null;
-      let countMode = false;
-      let singleValue = false;
+// Minimal Supabase query builder for these tests. It accumulates filters and
+// applies updates only to rows that match all accumulated filters at terminal
+// time, which matches the real PostgREST behaviour.
+function createQueryBuilder(table: string) {
+  const rows = store[table] ?? [];
+  type Op =
+    | { kind: "select"; fields: string[] | null; count: boolean }
+    | { kind: "update"; patch: Row }
+    | { kind: "insert"; values: Row[] }
+    | { kind: "eq"; column: string; value: unknown }
+    | { kind: "is"; column: string; value: unknown }
+    | { kind: "neq"; column: string; value: unknown }
+    | { kind: "gte"; column: string; value: string }
+    | { kind: "lte"; column: string; value: string }
+    | { kind: "order"; column: string; ascending: boolean }
+    | { kind: "limit"; n: number };
 
-      function project(row: Row | null): Row | null {
-        if (!row) return null;
-        if (!selected) return row;
-        if (selected.length === 1 && selected[0] === "*") return row;
-        const out: Row = {};
-        for (const f of selected) {
-          if (f in row) out[f] = row[f];
-        }
-        return out;
-      }
+  const ops: Op[] = [];
 
-      function terminal() {
-        if (countMode) {
-          return Promise.resolve({ data: null, error: null, count: filtered.length });
-        }
-        const row = singleValue ? filtered[0] ?? null : filtered;
-        return Promise.resolve({ data: project(row), error: null });
-      }
+  function isNullLike(v: unknown) {
+    return v === null || v === undefined;
+  }
 
-      const chain: Record<string, unknown> & { then?: unknown } = {
-        select(fields?: string | string[], opts?: { count?: string; head?: boolean }) {
-          if (opts?.count) {
-            countMode = true;
-          } else if (typeof fields === "string") {
-            selected = fields.split(",").map((s) => s.trim());
-          } else if (Array.isArray(fields)) {
-            selected = fields;
-          } else {
-            selected = null;
-          }
-          return chain;
-        },
-        eq(column: string, value: unknown) {
-          filtered = filtered.filter((r) => r[column] === value);
-          return chain;
-        },
-        is(column: string, value: unknown) {
-          filtered = filtered.filter((r) => {
-            const v = r[column];
-            const isNull = v === null || v === undefined;
-            return value === null ? isNull : !isNull;
-          });
-          return chain;
-        },
-        neq(column: string, value: unknown) {
-          filtered = filtered.filter((r) => r[column] !== value);
-          return chain;
-        },
-        gte(column: string, value: unknown) {
-          filtered = filtered.filter((r) => (r[column] as string) >= (value as string));
-          return chain;
-        },
-        lte(column: string, value: unknown) {
-          filtered = filtered.filter((r) => (r[column] as string) <= (value as string));
-          return chain;
-        },
-        order(column: string, opts?: { ascending?: boolean }) {
-          filtered.sort((a, b) => {
-            const av = a[column] as string | number | null;
-            const bv = b[column] as string | number | null;
-            if (av == null && bv == null) return 0;
-            if (av == null) return opts?.ascending === false ? -1 : 1;
-            if (bv == null) return opts?.ascending === false ? 1 : -1;
-            if (av < bv) return opts?.ascending === false ? 1 : -1;
-            if (av > bv) return opts?.ascending === false ? -1 : 1;
-            return 0;
-          });
-          return chain;
-        },
-        limit(n: number) {
-          filtered = filtered.slice(0, n);
-          return chain;
-        },
-        maybeSingle() {
-          singleValue = true;
-          return terminal();
-        },
-        single() {
-          singleValue = true;
-          if (countMode) return terminal();
-          if (!filtered[0]) {
-            return Promise.resolve({ data: null, error: { message: "No rows found" } });
-          }
-          return terminal();
-        },
-        insert(values: Row | Row[]) {
-          const items = Array.isArray(values) ? values : [values];
+  function execute() {
+    let working: Row[] = [...rows];
+    let patch: Row | null = null;
+    let fields: string[] | null = null;
+    let countOnly = false;
+
+    for (const op of ops) {
+      switch (op.kind) {
+        case "select":
+          fields = op.fields;
+          countOnly = op.count;
+          break;
+        case "update":
+          patch = op.patch;
+          break;
+        case "insert": {
           const inserted: Row[] = [];
-          for (const item of items) {
+          for (const item of op.values) {
             const row = { ...item, id: item.id ?? makeId(`${table}_id`) };
             store[table].push(row);
             inserted.push(row);
           }
-          return {
-            select: () => ({
-              single: () => Promise.resolve({ data: project(inserted[inserted.length - 1]) ?? null, error: null }),
-            }),
-          };
-        },
-        update(patch: Row) {
-          // Apply the patch to the rows currently matched by the chain. The
-          // real Supabase applies the update server-side after all filters;
-          // for these tests applying to the pre-filter set is close enough.
-          for (const row of filtered) {
-            Object.assign(row, patch);
-          }
-          return chain;
-        },
-      };
+          working = inserted;
+          break;
+        }
+        case "eq":
+          working = working.filter((r) => r[op.column] === op.value);
+          break;
+        case "is":
+          working = working.filter((r) => (isNullLike(op.value) ? isNullLike(r[op.column]) : !isNullLike(r[op.column])));
+          break;
+        case "neq":
+          working = working.filter((r) => r[op.column] !== op.value);
+          break;
+        case "gte":
+          working = working.filter((r) => (r[op.column] as string) >= op.value);
+          break;
+        case "lte":
+          working = working.filter((r) => (r[op.column] as string) <= op.value);
+          break;
+        case "order":
+          working.sort((a, b) => {
+            const av = a[op.column] as string | number | null;
+            const bv = b[op.column] as string | number | null;
+            if (av == null && bv == null) return 0;
+            if (av == null) return op.ascending ? 1 : -1;
+            if (bv == null) return op.ascending ? -1 : 1;
+            if (av < bv) return op.ascending ? -1 : 1;
+            if (av > bv) return op.ascending ? 1 : -1;
+            return 0;
+          });
+          break;
+        case "limit":
+          working = working.slice(0, op.n);
+          break;
+      }
+    }
 
-      // Make the query chain awaitable so count queries and unterminated
-      // selects resolve without an explicit .single() call.
-      chain.then = (resolve: (v: unknown) => void, reject: (e: unknown) => void) => {
-        terminal().then(resolve, reject);
-      };
+    if (patch) {
+      for (const row of working) {
+        Object.assign(row, patch);
+      }
+    }
 
-      return chain;
+    if (countOnly) {
+      return { data: null, error: null, count: working.length };
+    }
+
+    function project(row: Row | null): Row | null {
+      if (!row) return null;
+      if (!fields) return row;
+      if (fields.length === 1 && fields[0] === "*") return row;
+      const out: Row = {};
+      for (const f of fields) {
+        if (f in row) out[f] = row[f];
+      }
+      return out;
+    }
+
+    return { data: project(working[0] ?? null), error: null, count: null };
+  }
+
+  function executeAll() {
+    // Same as execute but returns the full filtered array.
+    const result = execute();
+    if (result.count !== null) return { ...result, data: null };
+    let working = [...rows];
+    let patch: Row | null = null;
+    let fields: string[] | null = null;
+
+    for (const op of ops) {
+      switch (op.kind) {
+        case "select":
+          fields = op.fields;
+          break;
+        case "update":
+          patch = op.patch;
+          break;
+        case "insert":
+          working = [];
+          break;
+        case "eq":
+          working = working.filter((r) => r[op.column] === op.value);
+          break;
+        case "is":
+          working = working.filter((r) => (isNullLike(op.value) ? isNullLike(r[op.column]) : !isNullLike(r[op.column])));
+          break;
+        case "neq":
+          working = working.filter((r) => r[op.column] !== op.value);
+          break;
+        case "gte":
+          working = working.filter((r) => (r[op.column] as string) >= op.value);
+          break;
+        case "lte":
+          working = working.filter((r) => (r[op.column] as string) <= op.value);
+          break;
+        case "order":
+          working.sort((a, b) => {
+            const av = a[op.column] as string | number | null;
+            const bv = b[op.column] as string | number | null;
+            if (av == null && bv == null) return 0;
+            if (av == null) return op.ascending ? 1 : -1;
+            if (bv == null) return op.ascending ? -1 : 1;
+            if (av < bv) return op.ascending ? -1 : 1;
+            if (av > bv) return op.ascending ? 1 : -1;
+            return 0;
+          });
+          break;
+        case "limit":
+          working = working.slice(0, op.n);
+          break;
+      }
+    }
+
+    if (patch) {
+      for (const row of working) {
+        Object.assign(row, patch);
+      }
+    }
+
+    function project(row: Row | null): Row | null {
+      if (!row) return null;
+      if (!fields) return row;
+      if (fields.length === 1 && fields[0] === "*") return row;
+      const out: Row = {};
+      for (const f of fields) {
+        if (f in row) out[f] = row[f];
+      }
+      return out;
+    }
+
+    return { data: working.map(project), error: null, count: null };
+  }
+
+  const builder = {
+    select(fields?: string | string[], opts?: { count?: string; head?: boolean }) {
+      let parsed: string[] | null = null;
+      if (opts?.count) {
+        ops.push({ kind: "select", fields: null, count: true });
+        return builder;
+      }
+      if (typeof fields === "string") {
+        parsed = fields.split(",").map((s) => s.trim());
+      } else if (Array.isArray(fields)) {
+        parsed = fields;
+      }
+      ops.push({ kind: "select", fields: parsed, count: false });
+      return builder;
+    },
+    eq(column: string, value: unknown) {
+      ops.push({ kind: "eq", column, value });
+      return builder;
+    },
+    is(column: string, value: unknown) {
+      ops.push({ kind: "is", column, value });
+      return builder;
+    },
+    neq(column: string, value: unknown) {
+      ops.push({ kind: "neq", column, value });
+      return builder;
+    },
+    gte(column: string, value: string) {
+      ops.push({ kind: "gte", column, value });
+      return builder;
+    },
+    lte(column: string, value: string) {
+      ops.push({ kind: "lte", column, value });
+      return builder;
+    },
+    order(column: string, opts?: { ascending?: boolean }) {
+      ops.push({ kind: "order", column, ascending: opts?.ascending !== false });
+      return builder;
+    },
+    limit(n: number) {
+      ops.push({ kind: "limit", n });
+      return builder;
+    },
+    maybeSingle() {
+      return Promise.resolve(execute());
+    },
+    single() {
+      const result = execute();
+      if (!result.data && result.count === null) {
+        return Promise.resolve({ data: null, error: { message: "No rows found" }, count: null });
+      }
+      return Promise.resolve(result);
+    },
+    insert(values: Row | Row[]) {
+      ops.push({ kind: "insert", values: Array.isArray(values) ? values : [values] });
+      return {
+        select: () => ({
+          single: () => Promise.resolve(execute()),
+        }),
+      };
+    },
+    update(patch: Row) {
+      ops.push({ kind: "update", patch });
+      return builder;
+    },
+  };
+
+  // Make the builder awaitable so unterminated select/update chains resolve.
+  Object.defineProperty(builder, "then", {
+    value: (resolve: (v: unknown) => void, reject: (e: unknown) => void) => {
+      Promise.resolve(executeAll()).then(resolve, reject);
+    },
+  });
+
+  return builder;
+}
+
+vi.mock("@/integrations/supabase/client.server", () => ({
+  supabaseAdmin: {
+    from(table: string) {
+      return createQueryBuilder(table);
     },
     rpc() {
       throw new Error("RPC not mocked in this test");
