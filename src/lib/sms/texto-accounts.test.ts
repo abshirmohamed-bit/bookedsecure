@@ -410,9 +410,12 @@ describe("texto credit and daily cap checks", () => {
 
   it("blocks sends when credit balance is zero", async () => {
     await addNumberToPool({ number: "+61480000001" });
-    await provisionTextoAccount({ businessId: "biz-1", businessName: "Glocast", ownerEmail: "o@example.com" });
-    await allocateCredits("biz-1", -1);
+    const provisioned = await provisionTextoAccount({ businessId: "biz-1", businessName: "Glocast", ownerEmail: "o@example.com" });
+    console.log("provisioned", provisioned.account.id, provisioned.account.credit_balance, provisioned.account.provisioning_state);
+    const allocated = await allocateCredits("biz-1", -1);
+    console.log("allocated", allocated.credit_balance);
     const check = await checkTextoCredits("biz-1", 1);
+    console.log("check", check);
     expect(check.ok).toBe(false);
     expect(check.reason).toMatch(/empty/);
   });
