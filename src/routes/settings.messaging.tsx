@@ -48,6 +48,7 @@ function MessagingSettingsPage() {
               showQuietHours
               note="Quiet hours use your business timezone. Nothing is sent to customers between these hours."
             />
+            <NumberCreditsPanel />
             <SmsSetupPanel />
           </>
         )}
