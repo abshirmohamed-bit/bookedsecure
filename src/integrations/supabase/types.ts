@@ -625,6 +625,7 @@ export type Database = {
           owner_notification_name: string | null
           owner_notification_number: string | null
           phone_number: string | null
+          plan_id: string
           privacy_policy_url: string | null
           quiet_hours_end: number
           quiet_hours_start: number
@@ -660,6 +661,7 @@ export type Database = {
           owner_notification_name?: string | null
           owner_notification_number?: string | null
           phone_number?: string | null
+          plan_id?: string
           privacy_policy_url?: string | null
           quiet_hours_end?: number
           quiet_hours_start?: number
@@ -695,6 +697,7 @@ export type Database = {
           owner_notification_name?: string | null
           owner_notification_number?: string | null
           phone_number?: string | null
+          plan_id?: string
           privacy_policy_url?: string | null
           quiet_hours_end?: number
           quiet_hours_start?: number
@@ -708,7 +711,15 @@ export type Database = {
           timezone?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "businesses_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       commercial_config: {
         Row: {
@@ -1957,6 +1968,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plans: {
+        Row: {
+          annual_price_minor_units: number
+          created_at: string
+          currency: string
+          id: string
+          included_segments: number
+          is_offered: boolean
+          monthly_price_minor_units: number
+          name: string
+          overage_cents: number
+          reactivation_enabled: boolean
+          sort_order: number
+          stripe_annual_price_id: string | null
+          stripe_monthly_price_id: string | null
+          tagline: string
+          team_member_limit: number | null
+          updated_at: string
+        }
+        Insert: {
+          annual_price_minor_units: number
+          created_at?: string
+          currency?: string
+          id: string
+          included_segments: number
+          is_offered?: boolean
+          monthly_price_minor_units: number
+          name: string
+          overage_cents: number
+          reactivation_enabled?: boolean
+          sort_order?: number
+          stripe_annual_price_id?: string | null
+          stripe_monthly_price_id?: string | null
+          tagline?: string
+          team_member_limit?: number | null
+          updated_at?: string
+        }
+        Update: {
+          annual_price_minor_units?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          included_segments?: number
+          is_offered?: boolean
+          monthly_price_minor_units?: number
+          name?: string
+          overage_cents?: number
+          reactivation_enabled?: boolean
+          sort_order?: number
+          stripe_annual_price_id?: string | null
+          stripe_monthly_price_id?: string | null
+          tagline?: string
+          team_member_limit?: number | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
