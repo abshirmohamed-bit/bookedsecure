@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
+import { NumberCreditsPanel } from "@/components/NumberCreditsPanel";
 import { SmsSetupPanel } from "@/components/SmsSetupPanel";
 import {
   BusinessSettingsForm,
