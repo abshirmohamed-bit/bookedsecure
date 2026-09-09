@@ -16,6 +16,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LandingRouteImport } from './routes/landing'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -76,6 +77,11 @@ const ImportRoute = ImportRouteImport.update({
 const LandingRoute = LandingRouteImport.update({
   id: '/landing',
   path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -222,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
@@ -292,6 +300,7 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -329,6 +338,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/import'
     | '/landing'
+    | '/pricing'
     | '/privacy'
     | '/profile'
     | '/settings'
@@ -364,6 +374,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/import'
     | '/landing'
+    | '/pricing'
     | '/privacy'
     | '/profile'
     | '/admin/pilot-applications'
@@ -398,6 +409,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/import'
     | '/landing'
+    | '/pricing'
     | '/privacy'
     | '/profile'
     | '/settings'
@@ -434,6 +446,7 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   ImportRoute: typeof ImportRoute
   LandingRoute: typeof LandingRoute
+  PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRouteWithChildren
@@ -506,6 +519,13 @@ declare module '@tanstack/react-router' {
       path: '/landing'
       fullPath: '/landing'
       preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -721,6 +741,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   ImportRoute: ImportRoute,
   LandingRoute: LandingRoute,
+  PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRouteWithChildren,
