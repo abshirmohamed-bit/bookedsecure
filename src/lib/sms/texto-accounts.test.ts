@@ -152,9 +152,16 @@ function createQueryBuilder(table: string) {
         case "update":
           patch = op.patch;
           break;
-        case "insert":
-          working = [];
+        case "insert": {
+          const inserted: Row[] = [];
+          for (const item of op.values) {
+            const row = { ...tableDefaults[table], ...item, id: item.id ?? makeId(`${table}_id`) };
+            store[table].push(row);
+            inserted.push(row);
+          }
+          working = inserted;
           break;
+        }
         case "eq":
           working = working.filter((r) => r[op.column] === op.value);
           break;
