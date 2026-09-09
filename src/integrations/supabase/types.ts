@@ -911,6 +911,65 @@ export type Database = {
           },
         ]
       }
+      credit_topups: {
+        Row: {
+          amount_cents: number
+          business_id: string
+          created_at: string
+          credited_at: string | null
+          credits: number
+          currency: string
+          failure_reason: string | null
+          id: string
+          pack_id: string
+          requested_by: string | null
+          status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          business_id: string
+          created_at?: string
+          credited_at?: string | null
+          credits: number
+          currency?: string
+          failure_reason?: string | null
+          id?: string
+          pack_id: string
+          requested_by?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          business_id?: string
+          created_at?: string
+          credited_at?: string | null
+          credits?: number
+          currency?: string
+          failure_reason?: string | null
+          id?: string
+          pack_id?: string
+          requested_by?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_topups_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_automation_state: {
         Row: {
           bounded_batch_batch_id: string | null
@@ -2517,6 +2576,53 @@ export type Database = {
           stripe_event_id?: string
         }
         Relationships: []
+      }
+      tenant_requests: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          kind: string
+          note: string | null
+          requested_by: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          note?: string | null
+          requested_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          requested_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_requests_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       texto_accounts: {
         Row: {

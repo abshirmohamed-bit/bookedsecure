@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
+import { NumberCreditsPanel } from "@/components/NumberCreditsPanel";
 import { SmsSetupPanel } from "@/components/SmsSetupPanel";
 import {
   BusinessSettingsForm,
@@ -47,6 +48,7 @@ function MessagingSettingsPage() {
               showQuietHours
               note="Quiet hours use your business timezone. Nothing is sent to customers between these hours."
             />
+            <NumberCreditsPanel />
             <SmsSetupPanel />
           </>
         )}
