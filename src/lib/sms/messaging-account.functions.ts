@@ -80,9 +80,11 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
       plan: {
         id: subscriptionPlan.id,
         name: subscriptionPlan.name,
-        currency: config.currency,
-        priceMinorUnits: config.pilotPriceMinorUnits,
-        billingInterval: config.billingInterval,
+        // Price comes from the plan this business is actually on, so the screen
+        // can never show a price from one plan next to another plan's allowance.
+        currency: subscriptionPlan.currency,
+        priceMinorUnits: subscriptionPlan.monthlyPriceMinorUnits,
+        billingInterval: "month",
         includedSegments,
         usedSegments,
         overageCents: subscriptionPlan.overageCents,
