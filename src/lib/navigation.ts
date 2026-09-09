@@ -2,24 +2,23 @@
  * Information architecture for the app shell.
  *
  * Pure data + pure functions so navigation behaviour can be tested without a DOM.
- * Primary navigation covers the daily jobs (Assistant, Lead inbox, Analytics).
+ * Primary navigation covers the daily jobs (Home, Lead inbox).
  * Occasional tasks (importing CRM data, configuring the account)
  * live inside the Leads workspace and the account menu respectively.
  */
 
 export type PrimaryNavItem = {
-  to: "/dashboard" | "/leads" | "/analytics";
+  to: "/dashboard" | "/leads";
   label: string;
   /** Icon key resolved to a component by the shell, keeping this module pure. */
-  icon: "assistant" | "inbox" | "analytics";
+  icon: "assistant" | "inbox";
   /** Extra paths that should keep this item in its active state. */
   contextPaths?: readonly string[];
 };
 
 export const PRIMARY_NAV: readonly PrimaryNavItem[] = [
-  { to: "/dashboard", label: "Assistant", icon: "assistant" },
+  { to: "/dashboard", label: "Home", icon: "assistant", contextPaths: ["/analytics"] },
   { to: "/leads", label: "Lead inbox", icon: "inbox", contextPaths: ["/import"] },
-  { to: "/analytics", label: "Analytics", icon: "analytics" },
 ] as const;
 
 export type AccountMenuItem = {
@@ -51,10 +50,9 @@ export function isPrimaryNavActive(item: PrimaryNavItem, pathname: string): bool
 /** Contextual trail shown under the header, e.g. "Leads / Import". */
 export function navBreadcrumb(pathname: string): string[] {
   if (pathname === "/import" || pathname.startsWith("/import/")) return ["Lead inbox", "Import"];
-  if (pathname === "/analytics") return ["Analytics"];
   if (pathname.startsWith("/leads/")) return ["Lead inbox", "Conversation"];
   if (pathname === "/leads") return ["Lead inbox"];
-  if (pathname === "/dashboard") return ["Assistant"];
+  if (pathname === "/dashboard") return ["Home"];
   if (pathname === "/profile") return ["Account", "Profile"];
   if (pathname.startsWith("/settings")) {
     const section = ACCOUNT_MENU_ITEMS.find((item) => item.to === pathname);
