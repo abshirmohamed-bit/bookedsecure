@@ -10,3 +10,5 @@
 - [x] Redesign the customer quote and AI booking conversation with balanced tenant/BookedSecure branding.
 - [x] Align the sign-in, marketing, pilot, privacy, and public fallback pages.
 - [x] Verify all redesigned pages on desktop and mobile without changing workflows.
+
+- Fix signup: new accounts must create their own business as owner, not join the first business as staff.
