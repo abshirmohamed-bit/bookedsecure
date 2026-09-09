@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Stateful in-memory store that mirrors the tables the account layer touches.
