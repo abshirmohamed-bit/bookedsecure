@@ -15,6 +15,19 @@ function makeId(prefix: string): string {
   return `${prefix}-${nextId++}`;
 }
 
+const tableDefaults: Record<string, Row> = {
+  texto_accounts: {
+    provisioning_state: "not_started",
+    daily_send_cap: 100,
+    credit_balance: 0,
+    allocated_credits: 0,
+  },
+  texto_numbers: { assigned_business_id: null },
+  sms_senders: { is_primary: true, active: true },
+  messages: { delivery_status: "pending", direction: "outbound" },
+  audit_events: {},
+};
+
 // Minimal Supabase query builder for these tests. It accumulates filters and
 // applies updates only to rows that match all accumulated filters at terminal
 // time, which matches the real PostgREST behaviour.
