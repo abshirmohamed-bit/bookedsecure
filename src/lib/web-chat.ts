@@ -499,7 +499,12 @@ function buildPrompt(
     case "email":
       return { step, kind: "text", optional: true, text: "Email? Optional, say skip if you'd rather not." };
     case "review":
-      return { step, kind: "review", text: reviewMessage(collected), fields: reviewSummary(collected) };
+      return {
+        step,
+        kind: "review",
+        text: reviewMessage(collected, tenant),
+        fields: reviewSummary(collected, tenant),
+      };
     case "consent":
       return {
         step,

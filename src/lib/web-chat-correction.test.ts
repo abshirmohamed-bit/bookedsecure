@@ -156,7 +156,7 @@ describe("final review step", () => {
     ]) {
       expect(text).toContain(fragment);
     }
-    expect(reviewMessage(collected)).toBe(text);
+    expect(reviewMessage(collected, tenant)).toBe(text);
   });
 
   it("allows a correction at the review step and then moves to consent", () => {
