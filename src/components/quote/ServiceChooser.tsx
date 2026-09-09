@@ -281,7 +281,7 @@ export function ServiceChooser({
             return (
               <div
                 key={option.value}
-                className="w-[86%] shrink-0 snap-center sm:w-[16rem]"
+                className="w-[10.5rem] shrink-0 snap-start sm:w-[15rem]"
               >
                 <div
                   role="button"
@@ -296,7 +296,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`flex h-full w-full cursor-pointer flex-col rounded-2xl border bg-card p-3.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-4 ${
+                  className={`flex h-full w-full cursor-pointer flex-col rounded-xl border bg-card p-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-3 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -304,9 +304,9 @@ export function ServiceChooser({
                       : "border-border hover:border-primary/60"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-1.5">
                     {card?.group ? (
-                      <span className="rounded bg-secondary px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-tight text-muted-foreground">
+                      <span className="truncate rounded bg-secondary px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-tight text-muted-foreground">
                         {card.group}
                       </span>
                     ) : (
@@ -314,49 +314,39 @@ export function ServiceChooser({
                     )}
                     <span
                       aria-hidden="true"
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                         picked
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-border text-transparent"
                       }`}
                     >
-                      <Check className="h-3.5 w-3.5" />
+                      <Check className="h-3 w-3" />
                     </span>
                   </div>
 
-                  <p className="mt-2.5 text-sm font-semibold leading-snug">{option.label}</p>
+                  <p className="mt-1.5 text-[0.8rem] font-semibold leading-tight">{option.label}</p>
                   {card?.description && (
-                    <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                    <p className="mt-1 hidden line-clamp-2 text-[0.7rem] leading-snug text-muted-foreground sm:block">
                       {card.description}
                     </p>
                   )}
 
-                  <div className="mt-3 flex items-end justify-between gap-2 border-t border-border pt-3">
-                    <div className="min-w-0">
-                      <p className="text-[0.65rem] font-medium uppercase text-muted-foreground">
-                        Price
-                      </p>
-                      <p className="truncate text-sm font-bold text-primary">
-                        {card?.price ?? "On enquiry"}
-                      </p>
-                    </div>
+                  <div className="mt-auto flex items-baseline justify-between gap-1.5 pt-2">
+                    <p className="truncate text-[0.8rem] font-bold text-primary">
+                      {card?.price ?? "On enquiry"}
+                    </p>
                     {card?.duration && (
-                      <div className="shrink-0 text-right">
-                        <p className="text-[0.65rem] font-medium uppercase text-muted-foreground">
-                          Time
-                        </p>
-                        <p className="text-xs text-muted-foreground">{card.duration}</p>
-                      </div>
+                      <p className="shrink-0 text-[0.65rem] text-muted-foreground">{card.duration}</p>
                     )}
                   </div>
 
                   {/* The service's own extras, only once it is chosen. */}
                   {picked && cardExtras.length > 0 && (
-                    <div className="mt-3 rounded-xl bg-secondary/60 p-2.5">
-                      <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
+                    <div className="mt-2 rounded-lg bg-secondary/60 p-1.5">
+                      <p className="text-[0.6rem] font-bold uppercase tracking-widest text-muted-foreground">
                         Add extras
                       </p>
-                      <ul className="mt-1.5 space-y-1.5">
+                      <ul className="mt-1 space-y-1">
                         {cardExtras.map((extra) => {
                           const on = extras.includes(extra.id);
                           return (
@@ -368,7 +358,7 @@ export function ServiceChooser({
                                   event.stopPropagation();
                                   toggleExtra(extra.id);
                                 }}
-                                className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-[0.7rem] transition-colors ${
+                                className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-1 text-left text-[0.65rem] transition-colors ${
                                   on
                                     ? "border-primary bg-primary/10 text-foreground"
                                     : "border-border bg-card text-muted-foreground hover:text-foreground"
@@ -376,16 +366,16 @@ export function ServiceChooser({
                               >
                                 <span
                                   aria-hidden="true"
-                                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                  className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${
                                     on
                                       ? "border-primary bg-primary text-primary-foreground"
                                       : "border-border"
                                   }`}
                                 >
                                   {on ? (
-                                    <Check className="h-3 w-3" />
+                                    <Check className="h-2.5 w-2.5" />
                                   ) : (
-                                    <Plus className="h-3 w-3 opacity-60" />
+                                    <Plus className="h-2.5 w-2.5 opacity-60" />
                                   )}
                                 </span>
                                 <span className="min-w-0 flex-1 truncate">{extra.name}</span>
@@ -402,16 +392,16 @@ export function ServiceChooser({
                     </div>
                   )}
 
-                  <div className="mt-3">
+                  <div className="mt-2">
                     <button
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
                         setDetail(option);
                       }}
-                      className="w-full rounded-xl border border-border bg-secondary px-2 py-2 text-center text-[0.7rem] font-semibold text-foreground hover:bg-secondary/70"
+                      className="w-full rounded-lg border border-border bg-secondary px-1.5 py-1.5 text-center text-[0.65rem] font-semibold text-foreground hover:bg-secondary/70"
                     >
-                      View details
+                      Details
                     </button>
                   </div>
                 </div>

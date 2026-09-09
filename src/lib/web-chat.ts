@@ -266,11 +266,84 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
 }
 
 
+/**
+ * The tenant's own price text for every chosen service and extra, plus a
+ * combined figure when — and only when — every one of those prices is a single
+ * dollar amount the tenant entered. Nothing is invented or discounted here: a
+ * missing or ranged price simply means no combined figure is shown.
+ */
+export function chosenPricing(
+  collected: WebChatCollected,
+  tenant: WebChatTenant,
+): { lines: string[]; combined: string | null } {
+  const ids = [
+    ...(collected.service_id ? [collected.service_id] : []),
+    ...((collected.extra_service_ids ?? []).filter(Boolean) as string[]),
+  ];
+  const services = ids
+    .map((id) => tenant.services.find((entry) => entry.id === id))
+    .filter((entry): entry is WebChatService => Boolean(entry));
+  const addons = (collected.addon_ids ?? [])
+    .map((id) => (tenant.addons ?? []).find((addon) => addon.id === id))
+    .filter((addon): addon is ServiceAddon => Boolean(addon));
+
+  const parts: { name: string; price: string | null }[] = [
+    ...services.map((service) => ({
+      name: service.name,
+      price: servicePriceLine(service, tenant.offerPercent ?? null),
+    })),
+    ...addons.map((addon) => ({
+      name: addon.name,
+      price: addon.price_guidance?.trim() || null,
+    })),
+  ];
+
+  const lines = parts.map((part) =>
+    part.price ? `${part.name} (${part.price})` : `${part.name} (price on enquiry)`,
+  );
+
+  let total = 0;
+  let from = false;
+  let computable = parts.length > 0;
+  for (const part of parts) {
+    const text = part.price ?? "";
+    const amounts = text.match(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g) ?? [];
+    if (amounts.length !== 1) {
+      computable = false;
+      break;
+    }
+    const value = Number(amounts[0]!.replace(/[^\d.]/g, ""));
+    if (!Number.isFinite(value)) {
+      computable = false;
+      break;
+    }
+    if (/\bfrom\b/i.test(text)) from = true;
+    total += value;
+  }
+
+  const combined =
+    computable && total > 0
+      ? `${from ? "from " : ""}$${total.toLocaleString("en-AU", { maximumFractionDigits: 2 })} together`
+      : null;
+  return { lines, combined };
+}
+
 /** Labelled summary of everything captured, for the final review step. */
-export function reviewSummary(collected: WebChatCollected): WebChatReviewField[] {
+export function reviewSummary(
+  collected: WebChatCollected,
+  tenant?: WebChatTenant,
+): WebChatReviewField[] {
+  const pricing = tenant ? chosenPricing(collected, tenant) : null;
+  const serviceValue =
+    pricing && pricing.lines.length > 0
+      ? pricing.lines.join(" + ")
+      : chosenServicesText(collected) ?? collected.typed_request ?? "Not sure yet";
   return [
-    { step: "service", label: "Service", value: chosenServicesText(collected) ?? collected.typed_request ?? "Not sure yet" },
-    ...((collected.addon_names ?? []).length > 0
+    { step: "service", label: "Service", value: serviceValue },
+    ...(pricing?.combined
+      ? [{ step: "service" as WebChatStep, label: "Prices together", value: pricing.combined }]
+      : []),
+    ...((collected.addon_names ?? []).length > 0 && !pricing
       ? [
           {
             step: "addons" as WebChatStep,
@@ -289,13 +362,16 @@ export function reviewSummary(collected: WebChatCollected): WebChatReviewField[]
   ];
 }
 
-export function reviewMessage(collected: WebChatCollected): string {
-  const lines = reviewSummary(collected).map((row) => `${row.label}: ${row.value}`);
+export function reviewMessage(collected: WebChatCollected, tenant?: WebChatTenant): string {
+  const lines = reviewSummary(collected, tenant).map((row) => `${row.label}: ${row.value}`);
   return [
     "Quick check:",
     ...lines,
+    tenant ? `${tenant.name} confirms the final price with you.` : null,
     "All right? Or tell me what to change, for example “suburb to Parramatta”.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 
@@ -425,7 +501,12 @@ function buildPrompt(
     case "email":
       return { step, kind: "text", optional: true, text: "Email? Optional, say skip if you'd rather not." };
     case "review":
-      return { step, kind: "review", text: reviewMessage(collected), fields: reviewSummary(collected) };
+      return {
+        step,
+        kind: "review",
+        text: reviewMessage(collected, tenant),
+        fields: reviewSummary(collected, tenant),
+      };
     case "consent":
       return {
         step,
@@ -581,9 +662,16 @@ export function serviceAcknowledgement(
 ): string | null {
   const summary = chosenServicesText(collected);
   if (!summary) return null;
+  const many = (collected.extra_service_ids ?? []).length > 0 || (collected.addon_ids ?? []).length > 0;
+  const pricing = chosenPricing(collected, tenant);
+  if (many) {
+    const priced = pricing.lines.join("; ");
+    return pricing.combined
+      ? `Got it: ${priced}. That's ${pricing.combined}.`
+      : `Got it: ${priced}.`;
+  }
   const service = tenant.services.find((entry) => entry.id === collected.service_id) ?? null;
-  const many = (collected.extra_service_ids ?? []).length > 0;
-  const price = !many && service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
+  const price = service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
   return price ? `${summary} — ${price}.` : `${summary}, got it.`;
 }
 

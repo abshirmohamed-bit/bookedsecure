@@ -33,6 +33,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -48,7 +49,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            data: { name },
+            data: { name, business_name: businessName },
             emailRedirectTo: `${window.location.origin}/`,
           },
         });
@@ -110,10 +111,21 @@ function AuthPage() {
 
           <form onSubmit={submit} className="space-y-4 p-5">
             {mode === "signup" && (
-              <label className="block text-sm">
-                <span className="mb-1 block text-muted-foreground">Your name</span>
-                <Input value={name} onChange={(event) => setName(event.target.value)} required />
-              </label>
+              <>
+                <label className="block text-sm">
+                  <span className="mb-1 block text-muted-foreground">Your name</span>
+                  <Input value={name} onChange={(event) => setName(event.target.value)} required />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-1 block text-muted-foreground">Business name</span>
+                  <Input
+                    value={businessName}
+                    onChange={(event) => setBusinessName(event.target.value)}
+                    placeholder="e.g. Shine Mobile Detailing"
+                    required
+                  />
+                </label>
+              </>
             )}
             <label className="block text-sm">
               <span className="mb-1 block text-muted-foreground">Email</span>
