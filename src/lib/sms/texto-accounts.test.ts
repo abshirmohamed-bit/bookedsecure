@@ -348,7 +348,6 @@ describe("texto account provisioning", () => {
     expect(result.number.status).toBe("assigned");
     expect(result.number.assigned_business_id).toBe("biz-1");
 
-    console.log("sms_senders after provision", store.sms_senders);
     const sender = store.sms_senders.find((s) => s.business_id === "biz-1");
     expect(sender).toMatchObject({
       phone_number: "+61480000001",
