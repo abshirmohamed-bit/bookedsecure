@@ -110,9 +110,9 @@ export function NumberCreditsPanel() {
     <section className="panel p-4">
       <h2 className="text-sm font-semibold">Your number &amp; credits</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Your dedicated Australian number is included in your plan. Your plan includes{" "}
-        {plan.includedSegments.toLocaleString()} texts a month; extra texts are bought as
-        credits below — one credit per message.
+        Your {plan.name} plan includes your dedicated Australian number, the assistant and{" "}
+        {plan.includedSegments.toLocaleString()} texts a month. After that, texts come out of
+        credits at {plan.overageCents}c each — one credit per text.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -134,10 +134,12 @@ export function NumberCreditsPanel() {
             <span className="text-xs text-muted-foreground"> / {plan.billingInterval}</span>
           </p>
           <p className="text-xs text-muted-foreground">
-            number, AI and {plan.includedSegments.toLocaleString()} texts included
+            {plan.name} — number, assistant and {plan.includedSegments.toLocaleString()} texts
+            included
           </p>
         </div>
       </div>
+
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div
