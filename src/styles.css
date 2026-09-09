@@ -121,6 +121,9 @@
 
   html {
     color-scheme: light;
+    /* Nothing on any page may pan sideways on a phone. */
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
@@ -128,6 +131,8 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
   }
 
   h1,
@@ -135,6 +140,16 @@
   h3 {
     font-family: var(--font-heading);
     letter-spacing: 0;
+  }
+
+  /* iOS zooms into any field smaller than 16px, which then leaves the page wider
+     than the screen and pushes controls such as Send out of sight. */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
   }
 }
 
