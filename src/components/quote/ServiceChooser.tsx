@@ -9,7 +9,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, Clock, Check, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, Clock, Check, X } from "lucide-react";
 import { groupItems, hasMeaningfulGroups } from "@/lib/service-groups";
 
 export type ServiceCard = {
