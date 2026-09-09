@@ -20,10 +20,10 @@ New offer, one flat price:
 | --- | --- |
 | 1,000 texts at 3c | $30 |
 | Dedicated number | $15 |
-| AI | $10 |
-| **Total cost** | **$55** |
+| AI | $30 |
+| **Total cost** | **$75** |
 | Price | $300 |
-| **Left over** | **$245 (about 82%)** |
+| **Left over** | **$225 (about 75%)** |
 
 Extra texts beyond the 1,000 are bought as top-up packs, which already exist on the Messaging page. To keep the story simple and margins consistent, the packs get re-priced to a flat 5c per text:
 
