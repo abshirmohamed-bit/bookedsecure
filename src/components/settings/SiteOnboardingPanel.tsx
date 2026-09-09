@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { applyTenantSite, readTenantSite } from "@/lib/site-onboarding.functions";
 import { WEEKDAY_LABELS } from "@/lib/availability";
+import { formatMinutes, groupItems } from "@/lib/service-groups";
 import type { OnboardingProposal } from "@/lib/site-onboarding";
 
 /**
