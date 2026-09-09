@@ -220,7 +220,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   );
 
   return (
-    <main className="flex h-[100dvh] w-full flex-col overflow-hidden bg-background">
+    <main className="fixed inset-0 flex h-[100dvh] w-full max-w-full flex-col overflow-hidden overscroll-none bg-background">
       <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col overflow-hidden sm:py-6">
         {/* Branded header — standalone, stable, never scrolls with the transcript */}
         <header className="brand-wash grid w-full shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:rounded-lg sm:border sm:px-5 sm:pt-3">
