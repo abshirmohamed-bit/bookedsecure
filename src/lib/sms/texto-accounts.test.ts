@@ -43,7 +43,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
         return Promise.resolve({ data: project(row), error: null });
       }
 
-      const chain: Record<string, unknown> = {
+      const chain: Record<string, unknown> & { then?: unknown } = {
         select(fields?: string | string[], opts?: { count?: string; head?: boolean }) {
           if (opts?.count) {
             countMode = true;
@@ -139,6 +139,12 @@ vi.mock("@/integrations/supabase/client.server", () => ({
             }),
           };
         },
+      };
+
+      // Make the query chain awaitable so count queries and unterminated
+      // selects resolve without an explicit .single() call.
+      chain.then = (resolve: (v: unknown) => void, reject: (e: unknown) => void) => {
+        terminal().then(resolve, reject);
       };
 
       return chain;
