@@ -301,22 +301,26 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                               ? `Welcome back, ${returningName}! Thanks for choosing ${tenant.name} again. Pick a service to see the details.`
                               : `Hi, welcome to ${tenant.name}. Pick a service to see what's included, how long it takes and the price.`}
                           </p>
-                          <ServiceChooser
-                            options={serviceOptions}
-                            busy={busy}
-                            flexibleValue={FLEXIBLE_CHOICE}
-                            onChoose={(option) => {
-                              setSelected(option.value);
-                              send(option.value, option.label);
-                            }}
-                            onFlexible={() => {
-                              setSelected(FLEXIBLE_CHOICE);
-                              setDescribing(true);
-                              setListHidden(true);
-                              setError(null);
-                              requestAnimationFrame(() => input.current?.focus());
-                            }}
-                          />
+                          <div className="max-h-[min(45vh,22rem)] w-full max-w-[min(100%,30rem)] overflow-hidden rounded-xl border border-border bg-muted shadow-sm sm:max-w-[min(50%,30rem)]">
+                            <div className="max-h-full overflow-y-auto overscroll-contain p-3 sm:p-4">
+                              <ServiceChooser
+                                options={serviceOptions}
+                                busy={busy}
+                                flexibleValue={FLEXIBLE_CHOICE}
+                                onChoose={(option) => {
+                                  setSelected(option.value);
+                                  send(option.value, option.label);
+                                }}
+                                onFlexible={() => {
+                                  setSelected(FLEXIBLE_CHOICE);
+                                  setDescribing(true);
+                                  setListHidden(true);
+                                  setError(null);
+                                  requestAnimationFrame(() => input.current?.focus());
+                                }}
+                              />
+                            </div>
+                          </div>
                         </div>
                       </li>
                     )}
