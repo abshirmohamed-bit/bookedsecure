@@ -302,28 +302,26 @@ export function ServiceChooser({
                     <div className="mt-3">
                       {active ? (
                         <div className="flex gap-2">
-                          <span
-                            role="button"
-                            tabIndex={-1}
+                          <button
+                            type="button"
                             onClick={(event) => {
                               event.stopPropagation();
                               setActiveValue(null);
                             }}
-                            className="flex-1 rounded-xl border border-border bg-secondary px-2 py-2 text-center text-[0.7rem] font-semibold text-foreground"
+                            className="flex-1 rounded-xl border border-border bg-secondary px-2 py-2 text-center text-[0.7rem] font-semibold text-foreground hover:bg-secondary/70"
                           >
                             Unselect
-                          </span>
-                          <span
-                            role="button"
-                            tabIndex={-1}
+                          </button>
+                          <button
+                            type="button"
                             onClick={(event) => {
                               event.stopPropagation();
                               setDetail(option);
                             }}
-                            className="flex-[1.5] rounded-xl bg-primary px-2 py-2 text-center text-[0.7rem] font-semibold text-primary-foreground shadow-lg shadow-primary/20"
+                            className="flex-[1.5] rounded-xl bg-primary px-2 py-2 text-center text-[0.7rem] font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform active:scale-95"
                           >
                             View details
-                          </span>
+                          </button>
                         </div>
                       ) : (
                         <span className="block rounded-xl border border-primary/30 bg-primary/10 px-2 py-2 text-center text-[0.7rem] font-semibold text-primary">
@@ -332,7 +330,8 @@ export function ServiceChooser({
                       )}
                     </div>
                   </div>
-                </button>
+                </div>
+
               </div>
             );
           })}
