@@ -84,7 +84,10 @@ export const approveReactivation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { approveReactivationCampaign } = await import("@/lib/reactivation.server");
+    const { requireReactivationPlan } = await import("@/lib/plans.server");
     const app = await requireAppContext(context.supabase, context.userId);
+    await requireReactivationPlan(app.businessId);
+
     return await approveReactivationCampaign({
       businessId: app.businessId,
       userId: app.userId,
