@@ -50,7 +50,10 @@ describe("field-by-field review navigation", () => {
   it("exposes every correctable field on the review prompt", () => {
     const prompt = promptFor("review", tenant, collectedAll());
     expect(prompt.kind).toBe("review");
-    expect(prompt.fields?.map((field) => field.step)).toEqual([...CORRECTABLE_STEPS]);
+    // Extras only appear when the tenant offers add-ons for the chosen service.
+    expect(prompt.fields?.map((field) => field.step)).toEqual(
+      CORRECTABLE_STEPS.filter((step) => step !== "addons"),
+    );
   });
 
   it("shows the current value for each field", () => {
@@ -66,7 +69,7 @@ describe("field-by-field review navigation", () => {
   });
 
   it("a change directive reasks exactly that field and never clarifies", () => {
-    for (const step of CORRECTABLE_STEPS) {
+    for (const step of CORRECTABLE_STEPS.filter((step) => step !== "addons")) {
       const result = detectCorrection(collectedAll(), "review", `change:${step}`, tenant);
       expect(result.kind).toBe("reask");
       if (result.kind !== "reask") return;
@@ -74,6 +77,23 @@ describe("field-by-field review navigation", () => {
       // The cleared field becomes the next question — no ambiguous loop.
       expect(nextStep(result.collected)).toBe(step);
     }
+  });
+
+  it("re-opens the extras step when the customer changes their extras", () => {
+    const addon = { id: "33333333-3333-3333-3333-333333333333", name: "Mould Removal", description: null, price_guidance: null, duration_minutes: null, service_ids: [tenant.services[0]!.id] };
+    const withAddons: WebChatTenant = { ...tenant, addons: [addon] };
+    const collected: WebChatCollected = {
+      ...collectedAll(),
+      addon_ids: [addon.id],
+      addon_names: [addon.name],
+      addons_offered: true,
+      addons_done: true,
+    };
+    const result = detectCorrection(collected, "review", "change:addons", withAddons);
+    expect(result.kind).toBe("reask");
+    if (result.kind !== "reask") return;
+    expect(nextStep(result.collected)).toBe("addons");
+    expect(result.collected.addon_names).toEqual([]);
   });
 
   it("returns to review after the replacement answer is given", () => {
