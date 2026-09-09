@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, RotateCcw, ShieldCheck } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
+import { ServiceChooser } from "@/components/quote/ServiceChooser";
 import {
   Conversation,
   ConversationContent,
@@ -294,57 +295,28 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                           size={28}
                           className="rounded-full"
                         />
-                        <div className="max-w-[88%] space-y-3 border-l-2 border-primary pl-3 text-sm leading-relaxed">
+                        <div className="w-full max-w-[92%] space-y-3 border-l-2 border-primary pl-3 text-sm leading-relaxed">
                           <p>
                             {returningName
-                              ? `Welcome back, ${returningName}! Thanks for choosing ${tenant.name} again. Choose a service or tell us what you need.`
-                              : `Hi, welcome to ${tenant.name}. Choose a service or tell us what you need.`}
+                              ? `Welcome back, ${returningName}! Thanks for choosing ${tenant.name} again. Pick a service to see the details.`
+                              : `Hi, welcome to ${tenant.name}. Pick a service to see what's included, how long it takes and the price.`}
                           </p>
-                          <ul className="space-y-1">
-                            {serviceOptions.map((option) => {
-                              const isFlexible = option.value === FLEXIBLE_CHOICE;
-                              const label = isFlexible
-                                ? "Something else or not sure? Type your request below."
-                                : option.label;
-                              return (
-                                <li key={option.value} className="flex items-start gap-2">
-                                  <span
-                                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground"
-                                    aria-hidden="true"
-                                  />
-                                  <button
-                                    type="button"
-                                    disabled={busy}
-                                    aria-label={
-                                      isFlexible
-                                        ? "Something else or not sure, type your own request"
-                                        : `Choose ${option.label}`
-                                    }
-                                    onClick={() => {
-                                      setSelected(option.value);
-                                      if (isFlexible) {
-                                        setDescribing(true);
-                                        setListHidden(true);
-                                        setError(null);
-                                        requestAnimationFrame(() => input.current?.focus());
-                                        return;
-                                      }
-                                      send(option.value, option.label);
-                                    }}
-                                    className={`w-full rounded-md border border-border bg-card px-3 py-2 text-left shadow-sm transition-colors hover:border-primary hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${
-                                      selected === option.value ? "text-primary" : ""
-                                    } ${
-                                      isFlexible
-                                        ? "font-normal text-muted-foreground"
-                                        : "font-semibold"
-                                    }`}
-                                  >
-                                    {label}
-                                  </button>
-                                </li>
-                              );
-                            })}
-                          </ul>
+                          <ServiceChooser
+                            options={serviceOptions}
+                            busy={busy}
+                            flexibleValue={FLEXIBLE_CHOICE}
+                            onChoose={(option) => {
+                              setSelected(option.value);
+                              send(option.value, option.label);
+                            }}
+                            onFlexible={() => {
+                              setSelected(FLEXIBLE_CHOICE);
+                              setDescribing(true);
+                              setListHidden(true);
+                              setError(null);
+                              requestAnimationFrame(() => input.current?.focus());
+                            }}
+                          />
                         </div>
                       </li>
                     )}

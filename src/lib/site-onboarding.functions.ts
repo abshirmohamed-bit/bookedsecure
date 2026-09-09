@@ -23,6 +23,7 @@ const ProposalSchema = z.object({
     .array(
       z.object({
         name: z.string().min(2).max(80),
+        category: z.string().max(40).nullable().default(null),
         description: z.string().max(600).nullable(),
         price_guidance: z.string().max(200).nullable(),
         duration_minutes: z.number().int().min(15).max(1440),
@@ -34,6 +35,7 @@ const ProposalSchema = z.object({
     .array(
       z.object({
         name: z.string().min(2).max(80),
+        category: z.string().max(40).nullable().default(null),
         description: z.string().max(600).nullable(),
         price_guidance: z.string().max(200).nullable(),
         duration_minutes: z.number().int().min(5).max(1440).nullable(),

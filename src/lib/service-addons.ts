@@ -16,6 +16,8 @@ import { serviceMatchKey } from "@/lib/site-onboarding";
 export type ServiceAddon = {
   id: string;
   name: string;
+  /** The tenant's own grouping heading for this extra, or null. */
+  category?: string | null;
   description?: string | null;
   price_guidance?: string | null;
   duration_minutes?: number | null;

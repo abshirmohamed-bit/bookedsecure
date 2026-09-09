@@ -11,12 +11,15 @@
  */
 
 import type { AvailabilityWindow } from "@/lib/availability";
+import { normaliseGroupLabel } from "@/lib/service-groups";
 
 export const MAX_PROPOSED_SERVICES = 20;
 export const DEFAULT_SERVICE_DURATION_MINUTES = 60;
 
 export type ScrapedService = {
   name?: string | null;
+  /** The heading the site lists this service under ("Interior", "Paint", …). */
+  group?: string | null;
   price?: string | null;
   description?: string | null;
   durationMinutes?: number | null;
@@ -24,6 +27,8 @@ export type ScrapedService = {
 
 export type ScrapedAddon = {
   name?: string | null;
+  /** The heading the site lists this extra under, when it states one. */
+  group?: string | null;
   price?: string | null;
   description?: string | null;
   durationMinutes?: number | null;
@@ -45,6 +50,8 @@ export type ScrapedSite = {
 
 export type ProposedService = {
   name: string;
+  /** The tenant's own grouping heading, or null when the site had none. */
+  category: string | null;
   description: string | null;
   price_guidance: string | null;
   duration_minutes: number;
@@ -54,6 +61,7 @@ export type ProposedService = {
 
 export type ProposedAddon = {
   name: string;
+  category: string | null;
   description: string | null;
   price_guidance: string | null;
   duration_minutes: number | null;
@@ -327,6 +335,7 @@ function proposeServices(raw: ScrapedService[] | null | undefined): ProposedServ
     const duration = Number(entry.durationMinutes);
     services.push({
       name,
+      category: normaliseGroupLabel(entry.group),
       description: text(entry.description, 600),
       price_guidance: text(entry.price, 200),
       duration_minutes:
@@ -372,6 +381,7 @@ function proposeAddons(
     const duration = Number(entry.durationMinutes);
     addons.push({
       name,
+      category: normaliseGroupLabel(entry.group),
       description: text(entry.description, 600),
       price_guidance: text(entry.price, 200),
       duration_minutes:
@@ -394,6 +404,7 @@ export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): O
     .filter((entry) => looksLikeAddon(entry ?? {}))
     .map((entry) => ({
       name: entry?.name ?? null,
+      group: entry?.group ?? null,
       price: entry?.price ?? null,
       description: entry?.description ?? null,
       durationMinutes: entry?.durationMinutes ?? null,

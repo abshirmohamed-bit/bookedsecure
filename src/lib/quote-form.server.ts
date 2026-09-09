@@ -10,6 +10,10 @@ import type { ServiceAddon } from "@/lib/service-addons";
 export type PublicService = {
   id: string;
   name: string;
+  /** The tenant's own grouping heading, or null. */
+  category: string | null;
+  /** Appointment length in minutes, when the tenant has set one. */
+  duration_minutes: number | null;
   description: string | null;
   qualification_note: string | null;
   included_items: string | null;
@@ -49,14 +53,18 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
 
   const { data: services } = await supabaseAdmin
     .from("services")
-    .select("id, name, description, qualification_note, included_items, excluded_items, price_guidance, campaign_eligible")
+    .select(
+      "id, name, category, duration_minutes, description, qualification_note, included_items, excluded_items, price_guidance, campaign_eligible",
+    )
     .eq("business_id", business.id)
     .eq("active", true)
     .order("name", { ascending: true });
 
   const { data: addonRows } = await supabaseAdmin
     .from("service_addons")
-    .select("id, name, description, price_guidance, duration_minutes, active, service_addon_links(service_id)")
+    .select(
+      "id, name, category, description, price_guidance, duration_minutes, active, service_addon_links(service_id)",
+    )
     .eq("business_id", business.id)
     .eq("active", true)
     .order("name", { ascending: true });
@@ -66,6 +74,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     .map((row) => ({
       id: row.id,
       name: row.name,
+      category: row.category ?? null,
       description: row.description ?? null,
       price_guidance: row.price_guidance ?? null,
       duration_minutes: row.duration_minutes ?? null,
@@ -91,6 +100,8 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     services: (services ?? []).map((service) => ({
       id: service.id,
       name: service.name,
+      category: service.category ?? null,
+      duration_minutes: service.duration_minutes ?? null,
       description: service.description ?? null,
       qualification_note: service.qualification_note ?? null,
       included_items: service.included_items ?? null,

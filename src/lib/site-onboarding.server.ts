@@ -27,10 +27,12 @@ const EXTRACTION_PROMPT = [
   "Return the trading name, the suburb/city, the areas or suburbs served, the public contact phone number,",
   "the opening hours exactly as written, and the list of services offered.",
   "For each service include its name, its price exactly as written on the page (including any 'from'),",
-  "a one-line description, and the appointment length in minutes if stated.",
+  "a one-line description, the appointment length in minutes if stated, and the heading or",
+  "category the page groups it under (for example an on-page filter or section heading), copied exactly.",
   "Separately, list any optional add-on extras or upgrades sold on top of a service",
   "(for example an extra treatment added to a detail), with the extra's name, its price exactly as written,",
-  "a one-line description, the extra time in minutes if stated, and the names of the services it applies to.",
+  "a one-line description, the extra time in minutes if stated, the heading it is grouped under if any,",
+  "and the names of the services it applies to.",
   "Do not repeat a main service as an add-on.",
   "Never invent a value. Leave a field out when the page does not state it.",
 ].join(" ");
@@ -49,6 +51,7 @@ const EXTRACTION_SCHEMA = {
         type: "object",
         properties: {
           name: { type: "string" },
+          group: { type: "string" },
           price: { type: "string" },
           description: { type: "string" },
           durationMinutes: { type: "number" },
@@ -61,6 +64,7 @@ const EXTRACTION_SCHEMA = {
         type: "object",
         properties: {
           name: { type: "string" },
+          group: { type: "string" },
           price: { type: "string" },
           description: { type: "string" },
           durationMinutes: { type: "number" },
@@ -218,6 +222,7 @@ export async function applySiteOnboarding(
     .map((service) => ({
       business_id: app.businessId,
       name: service.name,
+      category: service.category,
       description: service.description,
       price_guidance: service.price_guidance,
       duration_minutes: service.duration_minutes,
@@ -264,6 +269,7 @@ export async function applySiteOnboarding(
       .insert({
         business_id: app.businessId,
         name: addon.name,
+        category: addon.category,
         description: addon.description,
         price_guidance: addon.price_guidance,
         duration_minutes: addon.duration_minutes,

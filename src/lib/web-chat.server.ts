@@ -102,6 +102,8 @@ function toChatTenant(tenant: PublicTenant, offerPercent?: number | null): WebCh
     services: tenant.services.map((service) => ({
       id: service.id,
       name: service.name,
+      category: service.category,
+      duration_minutes: service.duration_minutes,
       description: service.description,
       included_items: service.included_items,
       excluded_items: service.excluded_items,
