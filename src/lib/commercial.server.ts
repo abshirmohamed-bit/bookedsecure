@@ -295,6 +295,36 @@ export async function authorizeLiveSend(
 
   if (error) throw new Error(error.message);
   if (!reserved) {
+    // The monthly allowance is used up. This is no longer a hard wall: the
+    // tenant may keep sending out of bought credits at their plan's per-text
+    // rate. Sending only stops when there are no credits left either.
+    const { getPlanForBusiness } = await import("@/lib/plans.server");
+    const { getTextoAccount } = await import("@/lib/sms/texto-accounts.server");
+    const [plan, account] = await Promise.all([
+      getPlanForBusiness(businessId),
+      getTextoAccount(businessId),
+    ]);
+    const creditBalance = account?.credit_balance ?? 0;
+
+    if (creditBalance >= segments) {
+      await auditCommercialEvent({
+        businessId,
+        userId: null,
+        eventType: "sms_overage_from_credits",
+        entityType: "business",
+        entityId: businessId,
+        metadata: {
+          segments,
+          pilotApplicationId: pilot.id,
+          periodId: period.id,
+          planId: plan.id,
+          overageCents: plan.overageCents,
+          creditBalance,
+        },
+      });
+      return { allowed: true, periodId: null, pilotApplicationId: pilot.id, overage: true };
+    }
+
     await supabaseAdmin.rpc("record_blocked_sms_segments", {
       p_period_id: period.id,
       p_segments: segments,
@@ -310,16 +340,18 @@ export async function authorizeLiveSend(
         pilotApplicationId: pilot.id,
         periodId: period.id,
         includedSegments: period.included_segments,
+        planId: plan.id,
       },
     });
     return {
       allowed: false,
-      reason: `Pilot SMS allowance reached (${period.included_segments} segments this billing period). Contact support to continue.`,
+      reason: `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Top up credits on the Messaging page to keep sending.`,
     };
   }
 
-  return { allowed: true, periodId: period.id, pilotApplicationId: pilot.id };
+  return { allowed: true, periodId: period.id, pilotApplicationId: pilot.id, overage: false };
 }
+
 
 /** Return segments to the allowance when the carrier rejected the send. */
 export async function releaseReservedSegments(periodId: string, segments: number): Promise<void> {
