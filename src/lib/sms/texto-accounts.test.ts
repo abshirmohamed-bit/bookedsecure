@@ -291,7 +291,12 @@ describe("texto credit and daily cap checks", () => {
 
   it("allows sends with positive balance", async () => {
     await addNumberToPool({ number: "+61480000001" });
-    await provisionTextoAccount({ businessId: "biz-1", businessName: "Glocast", ownerEmail: "o@example.com" });
+    await provisionTextoAccount({
+      businessId: "biz-1",
+      businessName: "Glocast",
+      ownerEmail: "o@example.com",
+      startingCredits: 10,
+    });
     const check = await checkTextoCredits("biz-1", 1);
     expect(check.ok).toBe(true);
   });
