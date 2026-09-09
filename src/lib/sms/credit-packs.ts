@@ -23,7 +23,7 @@ export const CREDIT_PACKS: readonly CreditPack[] = [
     priceId: "sms_credit_pack_500_aud",
     label: "500 credits",
     credits: 500,
-    amountCents: 2500,
+    amountCents: 4000,
     currency: "aud",
   },
   {
@@ -31,7 +31,7 @@ export const CREDIT_PACKS: readonly CreditPack[] = [
     priceId: "sms_credit_pack_1500_aud",
     label: "1,500 credits",
     credits: 1500,
-    amountCents: 7500,
+    amountCents: 12000,
     currency: "aud",
   },
   {
@@ -39,7 +39,7 @@ export const CREDIT_PACKS: readonly CreditPack[] = [
     priceId: "sms_credit_pack_5000_aud",
     label: "5,000 credits",
     credits: 5000,
-    amountCents: 25000,
+    amountCents: 40000,
     currency: "aud",
   },
 ] as const;
