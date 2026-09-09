@@ -69,7 +69,7 @@ function createQueryBuilder(table: string) {
         case "insert": {
           const inserted: Row[] = [];
           for (const item of op.values) {
-            const row = { ...item, id: item.id ?? makeId(`${table}_id`) };
+            const row = { ...tableDefaults[table], ...item, id: item.id ?? makeId(`${table}_id`) };
             store[table].push(row);
             inserted.push(row);
           }
