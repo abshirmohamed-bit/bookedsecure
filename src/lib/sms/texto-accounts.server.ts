@@ -712,7 +712,7 @@ export async function getTextoGroupReport(window: {
 
   const { data: outbound } = await supabaseAdmin
     .from("messages")
-    .select("business_id, delivery_status", { count: "exact" })
+    .select("business_id, delivery_status")
     .eq("direction", "outbound")
     .gte("created_at", window.from)
     .lte("created_at", window.to);
