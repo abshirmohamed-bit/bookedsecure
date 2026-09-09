@@ -438,6 +438,7 @@ describe("texto credit and daily cap checks", () => {
     await allocateCredits("biz-1", -1);
     const check = await checkTextoCredits("biz-1", 1);
     expect(check.ok).toBe(false);
+    if (check.ok) throw new Error("expected blocked credit check");
     expect(check.reason).toMatch(/empty/);
   });
 
