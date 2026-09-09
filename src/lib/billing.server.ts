@@ -33,6 +33,7 @@ import {
 import { getCommercialConfig, freezeTermsForApplication } from "@/lib/commercial.server";
 import { auditPilotEvent } from "@/lib/pilot.server";
 import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "@/lib/stripe.server";
+import { provisionTextoAccount } from "@/lib/sms/texto-accounts.server";
 
 /**
  * The pilot programme runs in Stripe test mode only. Going live is a separate,
@@ -386,6 +387,29 @@ async function handlePaidSession(session: any, eventCreated: number) {
     },
   });
 
+  // Provision the tenant's Texto sub-account and assign a dedicated number
+  // once payment is confirmed. Default mode is simulated until the platform
+  // operator explicitly enables live Texto account provisioning.
+  if (row.business_id) {
+    try {
+      const config = await getCommercialConfig();
+      await provisionTextoAccount({
+        businessId: row.business_id,
+        businessName: row.business_name ?? "BookedSecure Business",
+        ownerEmail: row.email,
+        startingCredits: config.includedSmsSegments,
+        dailySendCap: 100,
+      });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error("[billing] Texto provisioning failed for business", row.business_id, detail);
+      await auditPilotEvent({
+        eventType: "texto_provisioning_hook_failed",
+        applicationId: app.id,
+        metadata: { business_id: row.business_id, error: detail },
+      });
+    }
+  }
 
   return { ok: true as const, detail: "Pilot started" };
 }

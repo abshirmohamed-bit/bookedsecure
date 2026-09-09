@@ -41,6 +41,18 @@ export type ProviderCapabilities = {
   getMessageStatus: boolean;
   /** Reading provider usage/billing data. */
   getUsageData: boolean;
+  /** Creating a sub-account for a tenant. */
+  provisionAccount: boolean;
+  /** Updating a sub-account's settings (caps, state). */
+  updateAccount: boolean;
+  /** Allocating credits to a tenant account. */
+  allocateCredits: boolean;
+  /** Recalling credits from a tenant account. */
+  recallCredits: boolean;
+  /** Reading a single tenant account's usage report. */
+  getAccountReport: boolean;
+  /** Reading a grouped usage report across tenants. */
+  getGroupReport: boolean;
 };
 
 const NONE: ProviderCapabilities = {
@@ -54,6 +66,12 @@ const NONE: ProviderCapabilities = {
   getNumberStatus: false,
   getMessageStatus: false,
   getUsageData: false,
+  provisionAccount: false,
+  updateAccount: false,
+  allocateCredits: false,
+  recallCredits: false,
+  getAccountReport: false,
+  getGroupReport: false,
 };
 
 export const PROVIDER_CAPABILITIES: Record<ProviderId, ProviderCapabilities> = {

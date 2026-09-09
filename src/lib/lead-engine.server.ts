@@ -24,6 +24,11 @@ import { resolveEffectiveProviderName } from "@/lib/sms/resolution";
 import { assertTenantMatch } from "@/lib/sms/events";
 import { checkSmsCap, recordSmsUsage } from "@/lib/usage.server";
 import {
+  checkTextoCredits,
+  checkTextoDailyCap,
+  recordMessageSpend,
+} from "@/lib/sms/texto-accounts.server";
+import {
   canReuseOutboundRow,
   classifyCarrierFailure,
   RESERVED_STATUS,
@@ -866,6 +871,30 @@ export async function sendSms(input: {
     pilotPeriodId = gate.periodId;
   }
 
+  // Texto tenant account checks: active account, non-empty credit balance, and
+  // daily send cap. Kept next to the pilot gate so both commercial and account
+  // limits apply before we touch the carrier.
+  if (provider.name === "texto") {
+    const creditCheck = await checkTextoCredits(input.businessId, segments);
+    if (!creditCheck.ok) {
+      if (pilotPeriodId) {
+        const { releaseReservedSegments } = await import("@/lib/commercial.server");
+        await releaseReservedSegments(pilotPeriodId, segments);
+      }
+      return { sent: false, retriable: false, reason: creditCheck.reason };
+    }
+
+    const automated = input.source !== "manual" && input.source !== "approved_reply";
+    const dailyCheck = await checkTextoDailyCap(input.businessId, automated);
+    if (!dailyCheck.ok) {
+      if (pilotPeriodId) {
+        const { releaseReservedSegments } = await import("@/lib/commercial.server");
+        await releaseReservedSegments(pilotPeriodId, segments);
+      }
+      return { sent: false, retriable: false, reason: dailyCheck.reason };
+    }
+  }
+
   const releaseSegments = async () => {
     if (!pilotPeriodId) return;
     const { releaseReservedSegments } = await import("@/lib/commercial.server");
@@ -1021,6 +1050,11 @@ export async function sendSms(input: {
     messagesOut: 1,
     providerCost: result.providerCost ?? 0,
   });
+
+  // Keep the local Texto credit ledger in sync after a successful acceptance.
+  if (provider.name === "texto") {
+    await recordMessageSpend(input.businessId, segments);
+  }
 
   const leadUpdate: Record<string, unknown> = {
     last_outbound_sms_status: acceptanceStatus,
