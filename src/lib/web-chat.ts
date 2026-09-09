@@ -7,6 +7,7 @@ import { sanitiseCustomerText } from "@/lib/customer-text";
 import { looksUncertain, uncertainServiceMessage } from "@/lib/web-chat-conversation";
 import { usableName } from "@/lib/returning-lead";
 import { servicePriceLine } from "@/lib/service-pricing";
+import { formatMinutes } from "@/lib/service-groups";
 import {
   NO_ADDONS_CHOICE,
   addonDetail,
@@ -49,6 +50,10 @@ export const FLEXIBLE_CHOICE = "__other__";
 export type WebChatService = {
   id: string;
   name: string;
+  /** The tenant's own grouping heading, or null. Display only. */
+  category?: string | null;
+  /** Appointment length in minutes, when the tenant has set one. */
+  duration_minutes?: number | null;
   description: string | null;
   included_items: string | null;
   excluded_items: string | null;
@@ -109,7 +114,22 @@ export type WebChatPrompt = {
   text: string;
   kind: "choice" | "text" | "consent" | "review";
   optional?: boolean;
-  options?: { value: string; label: string; detail: string | null }[];
+  options?: {
+    value: string;
+    label: string;
+    detail: string | null;
+    /** Display-only card fields, so a choice can be shown as a service card. */
+    card?: {
+      group: string | null;
+      price: string | null;
+      duration: string | null;
+      description: string | null;
+      includes: string | null;
+      excludes: string | null;
+      note: string | null;
+      extras: string[];
+    } | null;
+  }[];
   /** Present on the review step: every captured field, each individually changeable. */
   fields?: WebChatReviewField[];
 };
@@ -125,6 +145,11 @@ export function welcomeMessage(tenant: WebChatTenant): string {
       ? "I can't quote a price here — the team confirms pricing with you directly."
       : "I can't confirm prices or bookings here — the owner reviews every enquiry and replies to you directly.",
   ].join(" ");
+}
+
+/** Sanitises optional display text, keeping null as null. */
+function clean(value: string | null): string | null {
+  return value === null ? null : sanitiseCustomerText(value);
 }
 
 export function serviceDetail(
@@ -148,6 +173,31 @@ export function serviceDetail(
  * A placeholder name ("web visitor", "unknown", …) is NOT prefilled — the
  * name step still runs so a real name is captured.
  */
+/**
+ * Display-only card for one approved service: the tenant's own wording, price
+ * text and appointment length, plus the names of the extras they offer with it.
+ * Nothing is computed and no price is invented.
+ */
+export function serviceCard(
+  service: WebChatService,
+  tenant: WebChatTenant,
+): NonNullable<NonNullable<WebChatPrompt["options"]>[number]["card"]> {
+  const extras = addonsForService(tenant.addons ?? [], service.id).map((addon) => {
+    const price = addon.price_guidance?.trim();
+    return price ? `${addon.name} (${price})` : addon.name;
+  });
+  return {
+    group: service.category?.trim() || null,
+    price: servicePriceLine(service, tenant.offerPercent ?? null),
+    duration: formatMinutes(service.duration_minutes ?? null),
+    description: service.description?.trim() || null,
+    includes: service.included_items?.trim() || null,
+    excludes: service.excluded_items?.trim() || null,
+    note: service.qualification_note?.trim() || null,
+    extras,
+  };
+}
+
 export function campaignPrefill(lead: {
   name?: string | null;
   mobile_number?: string | null;
@@ -250,6 +300,21 @@ export function promptFor(
             ...option,
             label: sanitiseCustomerText(option.label),
             detail: option.detail === null ? null : sanitiseCustomerText(option.detail),
+            ...(option.card
+              ? {
+                  card: {
+                    ...option.card,
+                    group: clean(option.card.group),
+                    price: clean(option.card.price),
+                    duration: clean(option.card.duration),
+                    description: clean(option.card.description),
+                    includes: clean(option.card.includes),
+                    excludes: clean(option.card.excludes),
+                    note: clean(option.card.note),
+                    extras: option.card.extras.map((extra) => sanitiseCustomerText(extra)),
+                  },
+                }
+              : {}),
           })),
         }
       : {}),
@@ -281,6 +346,7 @@ function buildPrompt(
             value: service.id,
             label: service.name,
             detail: serviceDetail(service, tenant.offerPercent ?? null),
+            card: serviceCard(service, tenant),
           })),
           ...(tenant.flexibleRequestsEnabled
             ? [

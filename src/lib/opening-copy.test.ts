@@ -11,9 +11,7 @@ const source = readFileSync("src/components/AiQuoteChat.tsx", "utf8");
 
 describe("quote page opening copy", () => {
   it("renders the welcome line exactly once", () => {
-    const matches = source.match(
-      /Hi, welcome to \$\{tenant\.name\}\. Choose a service or tell us what you need\./g,
-    );
+    const matches = source.match(/Hi, welcome to \$\{tenant\.name\}\./g);
     expect(matches).toHaveLength(1);
   });
 

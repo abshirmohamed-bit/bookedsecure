@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
+import { groupItems } from "@/lib/service-groups";
 import { formatDuration } from "@/components/settings/availability";
 import {
   getSettings,
@@ -279,6 +280,8 @@ export function ProviderStatus({
 export type Service = {
   id: string;
   name: string;
+  /** The owner's own grouping heading ("Interior", "Paint"), or null. */
+  category?: string | null;
   /** Appointment length in minutes. Required for a service to be active/bookable. */
   duration_minutes: number | null;
   description: string | null;
@@ -367,6 +370,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
   const save = useServerFn(saveService);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Service | null>(null);
+  const groups = groupItems(services, (service) => service.category);
 
   const mutation = useMutation({
     mutationFn: (service: Service) =>
@@ -374,6 +378,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
         data: {
           id: service.id || null,
           name: service.name,
+          category: service.category?.trim() ? service.category.trim() : null,
           description: service.description,
           price_guidance: service.price_guidance,
           campaign_eligible: service.campaign_eligible !== false,
@@ -401,6 +406,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
               setEditing({
                 id: "",
                 name: "",
+                category: "",
                 duration_minutes: 120,
                 description: "",
                 price_guidance: "",
@@ -417,43 +423,68 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
         )}
       </div>
 
-      <div className="mt-3 space-y-2">
+      <p className="mt-1 text-xs text-muted-foreground">
+        Grouped exactly as your customers see them on your quote page.
+      </p>
+
+      <div className="mt-3 space-y-5">
         {services.length === 0 && (
           <p className="text-xs text-muted-foreground">No services added yet.</p>
         )}
-        {services.map((service) => (
-          <div key={service.id} className="rounded-md border border-border p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium">
-                {service.name}{" "}
-                {!service.active && (
-                  <span className="text-xs text-muted-foreground">(inactive)</span>
-                )}
-              </p>
-              {!readOnly && (
-                <button
-                  onClick={() => setEditing(service)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Edit
-                </button>
-              )}
+        {groups.map((group) => (
+          <div key={group.label}>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.label}
+              </h3>
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">
+                {group.items.length}
+              </span>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">{service.description}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Price guidance: {service.price_guidance || "not provided"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Campaign offers: {service.campaign_eligible !== false ? "included" : "excluded"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Appointment duration:{" "}
-              {isValidDuration(service.duration_minutes) ? (
-                formatDuration(Number(service.duration_minutes))
-              ) : (
-                <span className="text-destructive">not set — cannot be active or booked</span>
-              )}
-            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {group.items.map((service) => (
+                <div
+                  key={service.id}
+                  className="rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      {service.name}{" "}
+                      {!service.active && (
+                        <span className="text-xs text-muted-foreground">(inactive)</span>
+                      )}
+                    </p>
+                    {!readOnly && (
+                      <button
+                        onClick={() => setEditing(service)}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm font-semibold text-primary">
+                    {service.price_guidance || "Price not set"}
+                  </p>
+                  {service.description && (
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {service.description}
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {isValidDuration(service.duration_minutes) ? (
+                      formatDuration(Number(service.duration_minutes))
+                    ) : (
+                      <span className="text-destructive">Duration not set — cannot be booked</span>
+                    )}
+                    {" · "}
+                    {service.campaign_eligible !== false
+                      ? "in campaign offers"
+                      : "not in campaign offers"}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -463,6 +494,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
           {(
             [
               ["name", "Name"],
+              ["category", "Group (e.g. Interior, Paint, Premium)"],
               ["price_guidance", "Price guidance"],
               ["description", "Description"],
               ["included_items", "What's included"],
@@ -773,6 +805,7 @@ export function QuotePageModeCard({
 export type AddonDraft = {
   id: string;
   name: string;
+  category?: string | null;
   description: string | null;
   price_guidance: string | null;
   duration_minutes: number | null;
@@ -805,6 +838,7 @@ export function AddonsEditor({
         data: {
           id: addon.id || null,
           name: addon.name,
+          category: addon.category?.trim() ? addon.category.trim() : null,
           description: addon.description,
           price_guidance: addon.price_guidance,
           duration_minutes: addon.duration_minutes,
@@ -846,6 +880,7 @@ export function AddonsEditor({
               setEditing({
                 id: "",
                 name: "",
+                category: "",
                 description: "",
                 price_guidance: "",
                 duration_minutes: null,
@@ -864,45 +899,70 @@ export function AddonsEditor({
         <p className="mt-3 text-xs text-muted-foreground">Add a service first, then extras for it.</p>
       )}
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 space-y-5">
         {services.length > 0 && addons.length === 0 && (
           <p className="text-xs text-muted-foreground">No extras added yet.</p>
         )}
-        {addons.map((addon) => (
-          <div key={addon.id} className="rounded-md border border-border p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium">
-                {addon.name}{" "}
-                {!addon.active && <span className="text-xs text-muted-foreground">(inactive)</span>}
-              </p>
-              {!readOnly && (
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setEditing({ ...addon })}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => removal.mutate(addon.id)}
-                    disabled={removal.isPending}
-                    className="text-xs text-destructive"
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
+        {groupItems(addons, (addon) => addon.category).map((group) => (
+          <div key={group.label}>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.label}
+              </h3>
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">
+                {group.items.length}
+              </span>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Price: {addon.price_guidance || "not provided"}
-              {addon.duration_minutes ? ` · adds ${formatDuration(addon.duration_minutes)}` : ""}
-            </p>
-            {addon.description && (
-              <p className="mt-1 text-xs text-muted-foreground">{addon.description}</p>
-            )}
-            <p className="mt-1 text-xs text-muted-foreground">
-              Offered with: {addon.serviceIds.map(serviceName).join(", ") || "no service yet"}
-            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {group.items.map((addon) => (
+                <div
+                  key={addon.id}
+                  className="rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      {addon.name}{" "}
+                      {!addon.active && (
+                        <span className="text-xs text-muted-foreground">(inactive)</span>
+                      )}
+                    </p>
+                    {!readOnly && (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setEditing({ ...addon })}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => removal.mutate(addon.id)}
+                          disabled={removal.isPending}
+                          className="text-xs text-destructive"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm font-semibold text-primary">
+                    {addon.price_guidance || "Price not set"}
+                    {addon.duration_minutes ? (
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {` · adds ${formatDuration(addon.duration_minutes)}`}
+                      </span>
+                    ) : null}
+                  </p>
+                  {addon.description && (
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {addon.description}
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Offered with: {addon.serviceIds.map(serviceName).join(", ") || "no service yet"}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -912,6 +972,7 @@ export function AddonsEditor({
           {(
             [
               ["name", "Name"],
+              ["category", "Group (optional)"],
               ["price_guidance", "Price"],
               ["description", "Description"],
             ] as const

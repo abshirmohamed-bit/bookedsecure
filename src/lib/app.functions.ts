@@ -537,7 +537,7 @@ export const getSettings = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("service_addons")
         .select(
-          "id, name, description, price_guidance, duration_minutes, active, service_addon_links(service_id)",
+          "id, name, category, description, price_guidance, duration_minutes, active, service_addon_links(service_id)",
         )
         .eq("business_id", app.businessId)
         .order("name", { ascending: true }),
@@ -557,6 +557,7 @@ export const getSettings = createServerFn({ method: "GET" })
       addons: (addons.data ?? []).map((addon) => ({
         id: addon.id,
         name: addon.name,
+        category: addon.category ?? null,
         description: addon.description ?? null,
         price_guidance: addon.price_guidance ?? null,
         duration_minutes: addon.duration_minutes ?? null,
@@ -740,6 +741,7 @@ export const saveService = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid().optional().nullable(),
         name: z.string().min(2).max(80),
+        category: z.string().max(40).nullable(),
         description: z.string().max(600).nullable(),
         price_guidance: z.string().max(200).nullable(),
         included_items: z.string().max(600).nullable(),
@@ -785,6 +787,7 @@ export const saveServiceAddon = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid().optional().nullable(),
         name: z.string().min(2).max(80),
+        category: z.string().max(40).nullable(),
         description: z.string().max(600).nullable(),
         price_guidance: z.string().max(200).nullable(),
         duration_minutes: z.number().int().min(5).max(1440).nullable(),
@@ -810,6 +813,7 @@ export const saveServiceAddon = createServerFn({ method: "POST" })
 
     const fields = {
       name: data.name,
+      category: data.category,
       description: data.description,
       price_guidance: data.price_guidance,
       duration_minutes: data.duration_minutes,
