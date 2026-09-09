@@ -3,18 +3,18 @@
  *
  * Display only. Every service, group heading, price, length and extra shown
  * here is the tenant's own approved wording, passed straight through from the
- * server. Nothing is computed, ranked or invented here, and choosing a card
- * sends exactly the same option value the flat list used to send, so the
- * server state machine is untouched.
+ * server. Nothing is computed, ranked or invented here.
  *
- * Layout: a horizontal snap carousel — one card per view on a phone, two and a
- * bit on wider screens — so the panel never grows tall and the page itself
- * never scrolls sideways.
+ * The customer can tick more than one service, and each ticked card reveals
+ * that service's own optional extras underneath it. The whole selection is sent
+ * as one encoded answer, so the server state machine keeps a single answer per
+ * step.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Check, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Plus, X } from "lucide-react";
 import { groupItems, hasMeaningfulGroups } from "@/lib/service-groups";
+import { encodeServiceSelection, type WebChatCardExtra } from "@/lib/web-chat";
 
 export type ServiceCard = {
   group: string | null;
@@ -24,7 +24,7 @@ export type ServiceCard = {
   includes: string | null;
   excludes: string | null;
   note: string | null;
-  extras: string[];
+  extras: WebChatCardExtra[];
 };
 
 export type ServiceOption = {
@@ -38,13 +38,13 @@ export function ServiceChooser({
   options,
   busy,
   flexibleValue,
-  onChoose,
+  onSubmit,
   onFlexible,
 }: {
   options: ServiceOption[];
   busy: boolean;
   flexibleValue: string;
-  onChoose: (option: ServiceOption) => void;
+  onSubmit: (value: string, label: string) => void;
   onFlexible: () => void;
 }) {
   const services = options.filter((option) => option.value !== flexibleValue);
@@ -53,14 +53,17 @@ export function ServiceChooser({
     () => groupItems(services, (option) => option.card?.group ?? null),
     [services],
   );
-  const showChips = hasMeaningfulGroups(groups);
+  const showGroupPicker = hasMeaningfulGroups(groups);
 
   const [groupLabel, setGroupLabel] = useState<string>(() => groups[0]?.label ?? "");
   const activeGroup =
     groups.find((group) => group.label.toLowerCase() === groupLabel.toLowerCase()) ?? groups[0];
   const items = activeGroup?.items ?? [];
 
-  const [activeValue, setActiveValue] = useState<string | null>(null);
+  /** Chosen services, in the order the customer picked them. */
+  const [chosen, setChosen] = useState<string[]>([]);
+  /** Chosen extras, by add-on id. */
+  const [extras, setExtras] = useState<string[]>([]);
   const [detail, setDetail] = useState<ServiceOption | null>(null);
 
   const track = useRef<HTMLDivElement | null>(null);
@@ -85,6 +88,44 @@ export function ServiceChooser({
     node.scrollBy({ left: direction * Math.max(240, node.clientWidth * 0.8), behavior: "smooth" });
   };
 
+  const chosenOptions = chosen
+    .map((value) => services.find((option) => option.value === value))
+    .filter((option): option is ServiceOption => Boolean(option));
+
+  function toggleService(option: ServiceOption) {
+    setChosen((current) =>
+      current.includes(option.value)
+        ? current.filter((value) => value !== option.value)
+        : [...current, option.value],
+    );
+    // Extras belong to a service: dropping the service drops its extras.
+    const ids = (option.card?.extras ?? []).map((extra) => extra.id);
+    if (chosen.includes(option.value) && ids.length > 0) {
+      setExtras((current) => current.filter((id) => !ids.includes(id)));
+    }
+  }
+
+  function toggleExtra(id: string) {
+    setExtras((current) =>
+      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
+    );
+  }
+
+  function submit() {
+    if (chosen.length === 0 || busy) return;
+    const extraNames = chosenOptions
+      .flatMap((option) => option.card?.extras ?? [])
+      .filter((extra) => extras.includes(extra.id))
+      .map((extra) => extra.name);
+    const label = [
+      chosenOptions.map((option) => option.label).join(" + "),
+      extraNames.length > 0 ? `with ${extraNames.join(", ")}` : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    onSubmit(encodeServiceSelection(chosen, extras), label);
+  }
+
   if (detail) {
     const card = detail.card ?? null;
     return (
@@ -101,9 +142,7 @@ export function ServiceChooser({
         <p className="text-lg font-semibold leading-tight">{detail.label}</p>
         {(card?.price || card?.duration) && (
           <div className="mt-2 flex flex-wrap items-baseline gap-4">
-            {card?.price && (
-              <span className="text-base font-bold text-primary">{card.price}</span>
-            )}
+            {card?.price && <span className="text-base font-bold text-primary">{card.price}</span>}
             {card?.duration && (
               <span className="text-xs text-muted-foreground">{card.duration}</span>
             )}
@@ -139,13 +178,16 @@ export function ServiceChooser({
             <p className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
               Optional extras
             </p>
-            <ul className="mt-1.5 flex flex-wrap gap-1.5">
+            <ul className="mt-1.5 space-y-1.5">
               {card.extras.map((extra) => (
                 <li
-                  key={extra}
-                  className="rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground"
+                  key={extra.id}
+                  className="flex items-baseline justify-between gap-3 rounded-lg bg-secondary px-2.5 py-1.5 text-xs text-muted-foreground"
                 >
-                  {extra}
+                  <span className="min-w-0">{extra.name}</span>
+                  {extra.price && (
+                    <span className="shrink-0 font-semibold text-primary">{extra.price}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -167,10 +209,13 @@ export function ServiceChooser({
           <button
             type="button"
             disabled={busy}
-            onClick={() => onChoose(detail)}
+            onClick={() => {
+              if (!chosen.includes(detail.value)) setChosen((current) => [...current, detail.value]);
+              setDetail(null);
+            }}
             className="flex-[1.5] rounded-xl bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:bg-primary/90 active:scale-95 disabled:opacity-50"
           >
-            Continue
+            {chosen.includes(detail.value) ? "Keep this service" : "Add this service"}
           </button>
         </div>
       </div>
@@ -179,31 +224,23 @@ export function ServiceChooser({
 
   return (
     <div className="space-y-3">
-      {showChips && (
-        <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto overscroll-x-contain px-1 pb-0.5">
-          {groups.map((group) => {
-            const active = group.label.toLowerCase() === (activeGroup?.label ?? "").toLowerCase();
-            return (
-              <button
-                key={group.label}
-                type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  setGroupLabel(group.label);
-                  setActiveValue(null);
-                }}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-muted-foreground hover:border-primary hover:text-foreground"
-                }`}
-              >
-                {group.label}
-                <span className="ml-1.5 opacity-60">{group.items.length}</span>
-              </button>
-            );
-          })}
-        </div>
+      {showGroupPicker && (
+        <label className="block">
+          <span className="mb-1 block text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
+            Service group
+          </span>
+          <select
+            value={activeGroup?.label ?? ""}
+            onChange={(event) => setGroupLabel(event.target.value)}
+            className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {groups.map((group) => (
+              <option key={group.label} value={group.label}>
+                {group.label} ({group.items.length})
+              </option>
+            ))}
+          </select>
+        </label>
       )}
 
       <div className="flex items-center justify-between gap-2 px-1">
@@ -235,103 +272,149 @@ export function ServiceChooser({
         <div
           ref={track}
           onScroll={measure}
-          className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-1"
+          className="no-scrollbar flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto overscroll-x-contain pb-1"
         >
           {items.map((option) => {
             const card = option.card ?? null;
-            const active = activeValue === option.value;
+            const picked = chosen.includes(option.value);
+            const cardExtras = card?.extras ?? [];
             return (
               <div
                 key={option.value}
-                className="min-w-[85%] shrink-0 snap-center sm:min-w-[15rem] sm:max-w-[16rem]"
+                className="w-[86%] shrink-0 snap-center sm:w-[16rem]"
               >
                 <div
                   role="button"
                   tabIndex={busy ? -1 : 0}
-                  aria-pressed={active}
-                  aria-label={`Select ${option.label}`}
-                  onClick={() => !busy && setActiveValue(active ? null : option.value)}
+                  aria-pressed={picked}
+                  aria-label={`Choose ${option.label}`}
+                  onClick={() => !busy && toggleService(option)}
                   onKeyDown={(event) => {
                     if (busy) return;
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      setActiveValue(active ? null : option.value);
+                      toggleService(option);
                     }
                   }}
-                  className={`flex h-full w-full cursor-pointer flex-col rounded-2xl border bg-card p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  className={`flex h-full w-full cursor-pointer flex-col rounded-2xl border bg-card p-3.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-4 ${
                     busy ? "opacity-50" : ""
                   } ${
-                    active
-                      ? "-translate-y-0.5 border-primary shadow-lg shadow-primary/10 ring-1 ring-primary/40"
+                    picked
+                      ? "border-primary shadow-lg shadow-primary/10 ring-1 ring-primary/40"
                       : "border-border hover:border-primary/60"
                   }`}
                 >
-
-                  {card?.group && (
-                    <span className="w-fit rounded bg-secondary px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-tight text-muted-foreground">
-                      {card.group}
+                  <div className="flex items-start justify-between gap-2">
+                    {card?.group ? (
+                      <span className="rounded bg-secondary px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-tight text-muted-foreground">
+                        {card.group}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                        picked
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border text-transparent"
+                      }`}
+                    >
+                      <Check className="h-3.5 w-3.5" />
                     </span>
-                  )}
-                  <p className="mt-3 text-sm font-semibold leading-tight">{option.label}</p>
+                  </div>
+
+                  <p className="mt-2.5 text-sm font-semibold leading-snug">{option.label}</p>
                   {card?.description && (
-                    <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
+                    <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
                       {card.description}
                     </p>
                   )}
 
-                  <div className="mt-auto pt-3">
-                    <div className="flex items-end justify-between border-t border-border pt-3">
-                      <div className="min-w-0">
+                  <div className="mt-3 flex items-end justify-between gap-2 border-t border-border pt-3">
+                    <div className="min-w-0">
+                      <p className="text-[0.65rem] font-medium uppercase text-muted-foreground">
+                        Price
+                      </p>
+                      <p className="truncate text-sm font-bold text-primary">
+                        {card?.price ?? "On enquiry"}
+                      </p>
+                    </div>
+                    {card?.duration && (
+                      <div className="shrink-0 text-right">
                         <p className="text-[0.65rem] font-medium uppercase text-muted-foreground">
-                          Price
+                          Time
                         </p>
-                        <p className="truncate text-sm font-bold text-primary">
-                          {card?.price ?? "On enquiry"}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{card.duration}</p>
                       </div>
-                      {card?.duration && (
-                        <div className="ml-2 shrink-0 text-right">
-                          <p className="text-[0.65rem] font-medium uppercase text-muted-foreground">
-                            Time
-                          </p>
-                          <p className="text-xs text-muted-foreground">{card.duration}</p>
-                        </div>
-                      )}
-                    </div>
+                    )}
+                  </div>
 
-                    <div className="mt-3">
-                      {active ? (
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setActiveValue(null);
-                            }}
-                            className="flex-1 rounded-xl border border-border bg-secondary px-2 py-2 text-center text-[0.7rem] font-semibold text-foreground hover:bg-secondary/70"
-                          >
-                            Unselect
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setDetail(option);
-                            }}
-                            className="flex-[1.5] rounded-xl bg-primary px-2 py-2 text-center text-[0.7rem] font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform active:scale-95"
-                          >
-                            View details
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="block rounded-xl border border-primary/30 bg-primary/10 px-2 py-2 text-center text-[0.7rem] font-semibold text-primary">
-                          Select service
-                        </span>
-                      )}
+                  {/* The service's own extras, only once it is chosen. */}
+                  {picked && cardExtras.length > 0 && (
+                    <div className="mt-3 rounded-xl bg-secondary/60 p-2.5">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-widest text-muted-foreground">
+                        Add extras
+                      </p>
+                      <ul className="mt-1.5 space-y-1.5">
+                        {cardExtras.map((extra) => {
+                          const on = extras.includes(extra.id);
+                          return (
+                            <li key={extra.id}>
+                              <button
+                                type="button"
+                                aria-pressed={on}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleExtra(extra.id);
+                                }}
+                                className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-[0.7rem] transition-colors ${
+                                  on
+                                    ? "border-primary bg-primary/10 text-foreground"
+                                    : "border-border bg-card text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                    on
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-border"
+                                  }`}
+                                >
+                                  {on ? (
+                                    <Check className="h-3 w-3" />
+                                  ) : (
+                                    <Plus className="h-3 w-3 opacity-60" />
+                                  )}
+                                </span>
+                                <span className="min-w-0 flex-1 truncate">{extra.name}</span>
+                                {extra.price && (
+                                  <span className="shrink-0 font-semibold text-primary">
+                                    {extra.price}
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
+                  )}
+
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDetail(option);
+                      }}
+                      className="w-full rounded-xl border border-border bg-secondary px-2 py-2 text-center text-[0.7rem] font-semibold text-foreground hover:bg-secondary/70"
+                    >
+                      View details
+                    </button>
                   </div>
                 </div>
-
               </div>
             );
           })}
@@ -346,6 +429,37 @@ export function ServiceChooser({
           </div>
         )}
       </div>
+
+      {chosen.length > 0 && (
+        <div className="rounded-2xl border border-primary/40 bg-card p-3">
+          <p className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
+            Your selection
+          </p>
+          <ul className="mt-1.5 flex flex-wrap gap-1.5">
+            {chosenOptions.map((option) => (
+              <li key={option.value}>
+                <button
+                  type="button"
+                  onClick={() => toggleService(option)}
+                  className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-xs font-semibold text-foreground"
+                  aria-label={`Remove ${option.label}`}
+                >
+                  {option.label}
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={submit}
+            className="mt-3 w-full rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform active:scale-95 disabled:opacity-50"
+          >
+            {chosen.length > 1 ? `Continue with ${chosen.length} services` : "Continue"}
+          </button>
+        </div>
+      )}
 
       {flexible && (
         <button
