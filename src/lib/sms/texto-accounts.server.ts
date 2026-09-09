@@ -641,7 +641,7 @@ export async function getTextoAccountReport(
   // Simulated / local aggregation from messages and consent_events.
   const { data: outbound } = await supabaseAdmin
     .from("messages")
-    .select("id, delivery_status", { count: "exact" })
+    .select("id, delivery_status")
     .eq("business_id", businessId)
     .eq("direction", "outbound")
     .gte("created_at", window.from)
@@ -649,7 +649,7 @@ export async function getTextoAccountReport(
 
   const { data: inbound } = await supabaseAdmin
     .from("messages")
-    .select("id", { count: "exact" })
+    .select("id")
     .eq("business_id", businessId)
     .eq("direction", "inbound")
     .gte("created_at", window.from)
@@ -657,7 +657,7 @@ export async function getTextoAccountReport(
 
   const { data: optOuts } = await supabaseAdmin
     .from("consent_events")
-    .select("id", { count: "exact" })
+    .select("id")
     .eq("business_id", businessId)
     .eq("event_type", "opt_out")
     .gte("created_at", window.from)
