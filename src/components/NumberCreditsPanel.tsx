@@ -80,6 +80,16 @@ export function NumberCreditsPanel() {
 
   if (isLoading || !data) return null;
 
+  // Older cached responses (before plan details were added) can arrive without
+  // `plan`, so never dereference it directly.
+  const plan = data.plan ?? {
+    currency: "aud",
+    priceMinorUnits: 0,
+    billingInterval: "month",
+    includedSegments: 0,
+    usedSegments: 0,
+  };
+
   const isOwner = data.role === "owner";
   const balance = data.account?.creditBalance ?? 0;
   const lowBalance = balance <= LOW_CREDIT_THRESHOLD;
