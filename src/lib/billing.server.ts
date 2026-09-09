@@ -493,6 +493,13 @@ export async function processStripeEvent(event: StripeEventLike) {
           detail = "Payment pending settlement — no pilot started";
           break;
         }
+        // Credit top-ups are a separate, self-serve purchase: they add SMS
+        // credits to one business and never touch pilot or access state.
+        if (session.metadata?.creditTopupId) {
+          const { handleCreditTopupSession } = await import("@/lib/sms/credit-topups.server");
+          detail = (await handleCreditTopupSession(session, event.created)).detail;
+          break;
+        }
         detail = (await handlePaidSession(session, event.created)).detail;
         break;
       }
