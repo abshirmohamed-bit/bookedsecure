@@ -4,14 +4,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { Bell } from "lucide-react";
 import { useState } from "react";
 import { getNotifications, markNotificationsRead } from "@/lib/app.functions";
+import { useAuth } from "@/hooks/useAuth";
 
 export function NotificationBell() {
   const fetchNotifications = useServerFn(getNotifications);
   const markRead = useServerFn(markNotificationsRead);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const { session } = useAuth();
 
   const { data } = useQuery({
+    enabled: Boolean(session),
     queryKey: ["notifications"],
     queryFn: () => fetchNotifications(),
     refetchInterval: 60_000,
