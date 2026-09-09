@@ -80,6 +80,16 @@ export function NumberCreditsPanel() {
 
   if (isLoading || !data) return null;
 
+  // Older cached responses (before plan details were added) can arrive without
+  // `plan`, so never dereference it directly.
+  const plan = data.plan ?? {
+    currency: "aud",
+    priceMinorUnits: 0,
+    billingInterval: "month",
+    includedSegments: 0,
+    usedSegments: 0,
+  };
+
   const isOwner = data.role === "owner";
   const balance = data.account?.creditBalance ?? 0;
   const lowBalance = balance <= LOW_CREDIT_THRESHOLD;
@@ -95,7 +105,7 @@ export function NumberCreditsPanel() {
       <h2 className="text-sm font-semibold">Your number &amp; credits</h2>
       <p className="mt-1 text-xs text-muted-foreground">
         Your dedicated Australian number is included in your plan. Your plan includes{" "}
-        {data.plan.includedSegments.toLocaleString()} texts a month; extra texts are bought as
+        {plan.includedSegments.toLocaleString()} texts a month; extra texts are bought as
         credits below — one credit per message.
       </p>
 
@@ -103,10 +113,10 @@ export function NumberCreditsPanel() {
         <div className="rounded-md border border-border p-3">
           <p className="text-xs text-muted-foreground">Included texts this month</p>
           <p className="mt-1 text-2xl font-semibold">
-            {data.plan.usedSegments.toLocaleString()}
+            {plan.usedSegments.toLocaleString()}
             <span className="text-xs text-muted-foreground">
               {" "}
-              / {data.plan.includedSegments.toLocaleString()}
+              / {plan.includedSegments.toLocaleString()}
             </span>
           </p>
           <p className="text-xs text-muted-foreground">included in your plan</p>
@@ -114,11 +124,11 @@ export function NumberCreditsPanel() {
         <div className="rounded-md border border-border p-3">
           <p className="text-xs text-muted-foreground">Your plan</p>
           <p className="mt-1 text-2xl font-semibold">
-            {formatAud(data.plan.priceMinorUnits)}
-            <span className="text-xs text-muted-foreground"> / {data.plan.billingInterval}</span>
+            {formatAud(plan.priceMinorUnits)}
+            <span className="text-xs text-muted-foreground"> / {plan.billingInterval}</span>
           </p>
           <p className="text-xs text-muted-foreground">
-            number, AI and {data.plan.includedSegments.toLocaleString()} texts included
+            number, AI and {plan.includedSegments.toLocaleString()} texts included
           </p>
         </div>
       </div>
