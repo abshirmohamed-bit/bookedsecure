@@ -110,7 +110,7 @@ function SetupPage() {
         </ul>
 
         {/* The one thing to do */}
-        <div className="mt-8 rounded-2xl border border-border bg-card p-1 shadow-sm">
+        <div className="mt-8">
           <SiteOnboardingPanel
             readOnly={readOnly}
             onApplied={() => navigate({ to: "/dashboard", replace: true })}
