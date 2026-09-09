@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Stateful in-memory store that mirrors the tables the account layer touches.
-type Row = Record<string, unknown>;
-const store: Record<string, Row[]> = {
+type Row = Record<string, any>;
+const store: {
+  texto_accounts: Row[];
+  texto_numbers: Row[];
+  sms_senders: Row[];
+  messages: Row[];
+  audit_events: Row[];
+} = {
   texto_accounts: [],
   texto_numbers: [],
   sms_senders: [],
