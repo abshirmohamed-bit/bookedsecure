@@ -18,6 +18,7 @@ import {
   getLegacyProvider,
   simulatedProvider,
   telnyxProvider,
+  textoProvider,
   twilioProvider,
 } from "./provider.server";
 import { sinchProvider } from "./sinch.server";
@@ -65,6 +66,25 @@ function simulatedOverrides(): Partial<MessagingProvider> {
   };
 }
 
+function textoOverrides(): Partial<MessagingProvider> {
+  return {
+    // Read-only lookup against the documented Texto message resource.
+    async getMessageStatus({ providerMessageId }) {
+      const apiKey = process.env["TEXTO_API_KEY"];
+      if (!apiKey) throw new Error("Texto is not connected.");
+      const response = await fetch(`https://api.texto.com.au/message/${providerMessageId}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (!response.ok) throw new Error(`Texto message lookup failed [${response.status}]`);
+      const body = (await response.json()) as {
+        message?: { status?: string };
+        delivery_receipt?: { status?: string } | null;
+      };
+      return body.delivery_receipt?.status ?? body.message?.status ?? "unknown";
+    },
+  };
+}
+
 function telnyxOverrides(): Partial<MessagingProvider> {
   return {
     // Read-only lookup against the documented Telnyx v2 phone-numbers resource.
@@ -93,6 +113,12 @@ export function getMessagingProvider(requested?: string | null): MessagingProvid
   const id = resolveProviderId(requested);
 
   switch (id) {
+    case "texto":
+      return fromLegacySmsProvider(textoProvider, {
+        id,
+        capabilities: PROVIDER_CAPABILITIES.texto,
+        overrides: textoOverrides(),
+      });
     case "telnyx":
       return fromLegacySmsProvider(telnyxProvider, {
         id,

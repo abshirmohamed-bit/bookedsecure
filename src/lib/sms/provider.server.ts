@@ -3,6 +3,7 @@
 // (platform account, per-business subaccount, or bring-your-own).
 
 import { createTelnyxProvider } from "./telnyx.server";
+import { createTextoProvider } from "./texto.server";
 import { sinchProvider } from "./sinch.server";
 
 export type CredentialMode = "platform" | "subaccount" | "byo";
@@ -272,6 +273,9 @@ export const twilioProvider: SmsProvider = {
 /** Telnyx adapter, sharing the shared-secret fallback with the other providers. */
 export const telnyxProvider: SmsProvider = createTelnyxProvider({ verifySharedSecret });
 
+/** Texto adapter (api.texto.com.au), sharing the shared-secret dev fallback. */
+export const textoProvider: SmsProvider = createTextoProvider({ verifySharedSecret });
+
 /**
  * Legacy adapter lookup. Provider *selection* (env overrides, defaults) lives in
  * registry.server.ts; this function only maps an id to an implementation.
@@ -279,6 +283,7 @@ export const telnyxProvider: SmsProvider = createTelnyxProvider({ verifySharedSe
 export function getLegacyProvider(id: string): SmsProvider {
   if (id === "twilio") return process.env["TWILIO_API_KEY"] ? twilioProvider : simulatedProvider;
   if (id === "telnyx") return telnyxProvider;
+  if (id === "texto") return textoProvider;
   if (id === "sinch") return sinchProvider;
   return simulatedProvider;
 }
@@ -301,4 +306,4 @@ export function getProvider(name: string | null | undefined): SmsProvider {
   return getLegacyProvider(id);
 }
 
-const KNOWN_PROVIDER_IDS: string[] = ["simulated", "telnyx", "sinch", "twilio"];
+const KNOWN_PROVIDER_IDS: string[] = ["simulated", "texto", "telnyx", "sinch", "twilio"];
