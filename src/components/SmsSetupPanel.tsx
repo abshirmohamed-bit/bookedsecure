@@ -20,7 +20,7 @@ export function SmsSetupPanel() {
   const persistLimits = useServerFn(saveUsageLimits);
 
   const [caps, setCaps] = useState({
-    monthly_segment_cap: 2000,
+    monthly_segment_cap: 1000,
     monthly_ai_cost_cap: 25,
     alert_threshold_pct: 80,
     hard_block: true,
