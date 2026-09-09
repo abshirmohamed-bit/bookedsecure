@@ -281,7 +281,7 @@ export function ServiceChooser({
             return (
               <div
                 key={option.value}
-                className="w-[10.5rem] shrink-0 snap-start sm:w-[15rem]"
+                className="w-[8.25rem] shrink-0 snap-start sm:w-[15rem]"
               >
                 <div
                   role="button"
@@ -296,7 +296,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`flex h-full w-full cursor-pointer flex-col rounded-xl border bg-card p-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-3 ${
+                  className={`flex h-full w-full cursor-pointer flex-col rounded-xl border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-3 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -324,19 +324,21 @@ export function ServiceChooser({
                     </span>
                   </div>
 
-                  <p className="mt-1.5 text-[0.8rem] font-semibold leading-tight">{option.label}</p>
+                  <p className="mt-1 text-[0.72rem] font-semibold leading-tight sm:text-[0.8rem]">
+                    {option.label}
+                  </p>
                   {card?.description && (
                     <p className="mt-1 hidden line-clamp-2 text-[0.7rem] leading-snug text-muted-foreground sm:block">
                       {card.description}
                     </p>
                   )}
 
-                  <div className="mt-auto flex items-baseline justify-between gap-1.5 pt-2">
-                    <p className="truncate text-[0.8rem] font-bold text-primary">
+                  <div className="mt-auto flex flex-wrap items-baseline justify-between gap-x-1.5 pt-1.5">
+                    <p className="min-w-0 truncate text-[0.72rem] font-bold text-primary sm:text-[0.8rem]">
                       {card?.price ?? "On enquiry"}
                     </p>
                     {card?.duration && (
-                      <p className="shrink-0 text-[0.65rem] text-muted-foreground">{card.duration}</p>
+                      <p className="shrink-0 text-[0.6rem] text-muted-foreground">{card.duration}</p>
                     )}
                   </div>
 
