@@ -13,6 +13,7 @@ import {
   isSafeStatusTarget,
   parseOwnerRequest,
   statusLabel,
+  PROTECTED_SOURCE_STATUSES,
   type OwnerActionRequest,
 } from "@/lib/owner-actions";
 
@@ -62,6 +63,8 @@ async function statusTargetIds(input: {
     .is("sms_suppressed_at", null)
     .order("created_at", { ascending: true });
   if (input.from) query = query.eq("status", input.from);
+  // No starting status named: never touch completed, scheduled or opted-out leads.
+  else query = query.not("status", "in", `(${PROTECTED_SOURCE_STATUSES.join(",")})`);
   query = query.limit(input.maxLeads && input.maxLeads > 0 ? input.maxLeads : 2000);
   const { data } = await query;
   return (data ?? []).map((row) => row.id as string);
