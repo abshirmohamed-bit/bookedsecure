@@ -61,7 +61,11 @@ vi.mock("@/integrations/supabase/client.server", () => ({
           return chain;
         },
         is(column: string, value: unknown) {
-          filtered = filtered.filter((r) => (value === null ? r[column] === null : r[column] !== null));
+          filtered = filtered.filter((r) => {
+            const v = r[column];
+            const isNull = v === null || v === undefined;
+            return value === null ? isNull : !isNull;
+          });
           return chain;
         },
         neq(column: string, value: unknown) {
