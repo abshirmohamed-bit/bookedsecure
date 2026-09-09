@@ -12,7 +12,13 @@ import type { OnboardingProposal } from "@/lib/site-onboarding";
  * Website-led setup. Reading the site only ever produces a proposal on screen;
  * nothing is saved until the owner presses the confirm button.
  */
-export function SiteOnboardingPanel({ readOnly }: { readOnly: boolean }) {
+export function SiteOnboardingPanel({
+  readOnly,
+  onApplied,
+}: {
+  readOnly: boolean;
+  onApplied?: () => void;
+}) {
   const readSite = useServerFn(readTenantSite);
   const applySite = useServerFn(applyTenantSite);
   const queryClient = useQueryClient();
@@ -39,6 +45,8 @@ export function SiteOnboardingPanel({ readOnly }: { readOnly: boolean }) {
       void queryClient.invalidateQueries({ queryKey: ["tenant-account"] });
       void queryClient.invalidateQueries({ queryKey: ["session"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["setup-state"] });
+      onApplied?.();
     },
     onError: (error: Error) => toast.error(error.message),
   });
