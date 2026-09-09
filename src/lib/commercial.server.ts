@@ -247,8 +247,9 @@ export async function ensureUsagePeriod(
 }
 
 export type LiveSendAuthorization =
-  | { allowed: true; periodId: string; pilotApplicationId: string }
+  | { allowed: true; periodId: string | null; pilotApplicationId: string; overage: boolean }
   | { allowed: false; reason: string };
+
 
 /**
  * Decide whether a business may send `segments` live SMS segments right now,
