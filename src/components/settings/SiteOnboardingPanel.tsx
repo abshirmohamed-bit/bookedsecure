@@ -52,6 +52,8 @@ export function SiteOnboardingPanel({
   });
 
   const newServices = proposal?.services.filter((service) => !service.alreadyHave) ?? [];
+  const newAddons = proposal?.addons.filter((addon) => !addon.alreadyHave) ?? [];
+  const serviceGroups = groupItems(newServices, (service) => service.category);
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
