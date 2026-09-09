@@ -40,6 +40,7 @@ import { Route as ApiPublicSmsSinchRouteImport } from './routes/api/public/sms/s
 import { Route as ApiPublicSmsStatusRouteImport } from './routes/api/public/sms/status'
 import { Route as ApiPublicSmsTelnyxRouteImport } from './routes/api/public/sms/telnyx'
 import { Route as ApiPublicTenantLogoBusinessIdRouteImport } from './routes/api/public/tenant-logo.$businessId'
+import { Route as ApiPublicSmsTextoDeliveryRouteImport } from './routes/api/public/sms/texto.delivery'
 import { Route as ApiPublicSmsTextoInboundRouteImport } from './routes/api/public/sms/texto.inbound'
 
 const IndexRoute = IndexRouteImport.update({
@@ -200,6 +201,12 @@ const ApiPublicTenantLogoBusinessIdRoute =
     path: '/api/public/tenant-logo/$businessId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSmsTextoDeliveryRoute =
+  ApiPublicSmsTextoDeliveryRouteImport.update({
+    id: '/api/public/sms/texto/delivery',
+    path: '/api/public/sms/texto/delivery',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSmsTextoInboundRoute =
   ApiPublicSmsTextoInboundRouteImport.update({
     id: '/api/public/sms/texto/inbound',
@@ -239,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
+  '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
 }
 export interface FileRoutesByTo {
@@ -272,6 +280,7 @@ export interface FileRoutesByTo {
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
+  '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
 }
 export interface FileRoutesById {
@@ -307,6 +316,7 @@ export interface FileRoutesById {
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
+  '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
 }
 export interface FileRouteTypes {
@@ -343,6 +353,7 @@ export interface FileRouteTypes {
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
     | '/api/public/tenant-logo/$businessId'
+    | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -376,6 +387,7 @@ export interface FileRouteTypes {
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
     | '/api/public/tenant-logo/$businessId'
+    | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
   id:
     | '__root__'
@@ -410,6 +422,7 @@ export interface FileRouteTypes {
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
     | '/api/public/tenant-logo/$businessId'
+    | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
   fileRoutesById: FileRoutesById
 }
@@ -440,6 +453,7 @@ export interface RootRouteChildren {
   ApiPublicSmsStatusRoute: typeof ApiPublicSmsStatusRoute
   ApiPublicSmsTelnyxRoute: typeof ApiPublicSmsTelnyxRoute
   ApiPublicTenantLogoBusinessIdRoute: typeof ApiPublicTenantLogoBusinessIdRoute
+  ApiPublicSmsTextoDeliveryRoute: typeof ApiPublicSmsTextoDeliveryRoute
   ApiPublicSmsTextoInboundRoute: typeof ApiPublicSmsTextoInboundRoute
 }
 
@@ -662,6 +676,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTenantLogoBusinessIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sms/texto/delivery': {
+      id: '/api/public/sms/texto/delivery'
+      path: '/api/public/sms/texto/delivery'
+      fullPath: '/api/public/sms/texto/delivery'
+      preLoaderRoute: typeof ApiPublicSmsTextoDeliveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/sms/texto/inbound': {
       id: '/api/public/sms/texto/inbound'
       path: '/api/public/sms/texto/inbound'
@@ -719,6 +740,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSmsStatusRoute: ApiPublicSmsStatusRoute,
   ApiPublicSmsTelnyxRoute: ApiPublicSmsTelnyxRoute,
   ApiPublicTenantLogoBusinessIdRoute: ApiPublicTenantLogoBusinessIdRoute,
+  ApiPublicSmsTextoDeliveryRoute: ApiPublicSmsTextoDeliveryRoute,
   ApiPublicSmsTextoInboundRoute: ApiPublicSmsTextoInboundRoute,
 }
 export const routeTree = rootRouteImport
