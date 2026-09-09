@@ -591,8 +591,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
             <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-muted-foreground">
               <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span>
-                Times shown are live and booked on the spot. Prices are confirmed by {tenant.name}.
-                Powered by BookedSecure.
+                Prices shown are {tenant.name}'s own and confirmed by them. Powered by BookedSecure.
               </span>
             </p>
 

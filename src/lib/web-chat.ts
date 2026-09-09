@@ -660,9 +660,16 @@ export function serviceAcknowledgement(
 ): string | null {
   const summary = chosenServicesText(collected);
   if (!summary) return null;
+  const many = (collected.extra_service_ids ?? []).length > 0 || (collected.addon_ids ?? []).length > 0;
+  const pricing = chosenPricing(collected, tenant);
+  if (many) {
+    const priced = pricing.lines.join("; ");
+    return pricing.combined
+      ? `Got it: ${priced}. That's ${pricing.combined}.`
+      : `Got it: ${priced}.`;
+  }
   const service = tenant.services.find((entry) => entry.id === collected.service_id) ?? null;
-  const many = (collected.extra_service_ids ?? []).length > 0;
-  const price = !many && service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
+  const price = service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
   return price ? `${summary} — ${price}.` : `${summary}, got it.`;
 }
 
