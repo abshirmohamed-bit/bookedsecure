@@ -220,7 +220,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   );
 
   return (
-    <main className="flex h-[100dvh] w-full flex-col overflow-hidden bg-background">
+    <main className="fixed inset-0 flex h-[100dvh] w-full max-w-full flex-col overflow-hidden overscroll-none bg-background">
       <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col overflow-hidden sm:py-6">
         {/* Branded header — standalone, stable, never scrolls with the transcript */}
         <header className="brand-wash grid w-full shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:rounded-lg sm:border sm:px-5 sm:pt-3">
@@ -245,8 +245,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
         </header>
 
         {/* Conversation column: ~two-thirds of the frame on desktop, full width on mobile */}
-        <div className="mx-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden lg:w-2/3 lg:min-w-[640px] lg:max-w-[900px]">
-          <Conversation className="min-h-0 flex-1">
+        <div className="mx-auto flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden lg:w-2/3 lg:min-w-[640px] lg:max-w-[900px]">
+          <Conversation className="min-h-0 flex-1 overscroll-contain [&>div]:overscroll-contain">
             <ConversationContent className="gap-3 px-3 py-4 sm:px-6" aria-live="polite">
               <div className="w-full">
                 <ul className="flex flex-col gap-3">
