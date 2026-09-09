@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { applyTenantSite, readTenantSite } from "@/lib/site-onboarding.functions";
 import { WEEKDAY_LABELS } from "@/lib/availability";
+import { formatMinutes, groupItems } from "@/lib/service-groups";
 import type { OnboardingProposal } from "@/lib/site-onboarding";
 
 /**
@@ -52,6 +53,8 @@ export function SiteOnboardingPanel({
   });
 
   const newServices = proposal?.services.filter((service) => !service.alreadyHave) ?? [];
+  const newAddons = proposal?.addons.filter((addon) => !addon.alreadyHave) ?? [];
+  const serviceGroups = groupItems(newServices, (service) => service.category);
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -106,6 +109,59 @@ export function SiteOnboardingPanel({
               />
             )}
           </div>
+
+          {newServices.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {serviceGroups.map((group) => (
+                <div key={group.label}>
+                  <h4 className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {group.label} · {group.items.length}
+                  </h4>
+                  <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                    {group.items.map((service) => (
+                      <div
+                        key={service.name}
+                        className="min-w-0 rounded-lg border border-border bg-card p-2.5"
+                      >
+                        <p className="truncate text-xs font-semibold">{service.name}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[0.7rem]">
+                          {service.price_guidance && (
+                            <span className="font-semibold text-primary">
+                              {service.price_guidance}
+                            </span>
+                          )}
+                          {formatMinutes(service.duration_minutes) && (
+                            <span className="text-muted-foreground">
+                              {formatMinutes(service.duration_minutes)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {newAddons.length > 0 && (
+                <div>
+                  <h4 className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Optional extras · {newAddons.length}
+                  </h4>
+                  <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                    {newAddons.map((addon) => (
+                      <li
+                        key={addon.name}
+                        className="rounded-full bg-secondary px-2.5 py-1 text-[0.7rem] text-secondary-foreground"
+                      >
+                        {addon.name}
+                        {addon.price_guidance ? ` · ${addon.price_guidance}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           {proposal.warnings.length > 0 && (
             <ul className="mt-3 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
