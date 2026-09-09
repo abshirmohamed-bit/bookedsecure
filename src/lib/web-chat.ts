@@ -298,7 +298,9 @@ export function chosenPricing(
     })),
   ];
 
-  const lines = parts.map((part) => (part.price ? `${part.name} — ${part.price}` : `${part.name} — price on enquiry`));
+  const lines = parts.map((part) =>
+    part.price ? `${part.name} (${part.price})` : `${part.name} (price on enquiry)`,
+  );
 
   let total = 0;
   let from = false;
