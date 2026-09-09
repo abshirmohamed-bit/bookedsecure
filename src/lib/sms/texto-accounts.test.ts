@@ -121,9 +121,12 @@ function createQueryBuilder(table: string) {
   }
 
   function executeAll() {
-    // Same as execute but returns the full filtered array.
-    const result = execute();
-    if (result.count !== null) return { ...result, data: null };
+    // Same as execute but returns the full filtered array. Count-only queries
+    // return a numeric count and no data.
+    if (ops.some((op) => op.kind === "select" && op.count)) {
+      const count = execute().count ?? 0;
+      return { data: null, error: null, count };
+    }
     let working = [...rows];
     let patch: Row | null = null;
     let fields: string[] | null = null;
