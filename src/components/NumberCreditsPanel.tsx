@@ -83,12 +83,18 @@ export function NumberCreditsPanel() {
   // Older cached responses (before plan details were added) can arrive without
   // `plan`, so never dereference it directly.
   const plan = data.plan ?? {
+    id: "pro",
+    name: "Pro",
     currency: "aud",
     priceMinorUnits: 0,
     billingInterval: "month",
     includedSegments: 0,
     usedSegments: 0,
+    overageCents: 8,
+    reactivationEnabled: true,
+    teamMemberLimit: null as number | null,
   };
+
 
   const isOwner = data.role === "owner";
   const balance = data.account?.creditBalance ?? 0;
