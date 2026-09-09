@@ -49,7 +49,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            data: { name },
+            data: { name, business_name: businessName },
             emailRedirectTo: `${window.location.origin}/`,
           },
         });
