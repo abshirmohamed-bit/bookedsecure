@@ -13,6 +13,7 @@ import { applyAnswer, type WebChatCollected, type WebChatStep, type WebChatTenan
 /** Fields the customer may correct at any time before final consent. */
 export const CORRECTABLE_STEPS = [
   "service",
+  "addons",
   "vehicle",
   "suburb",
   "address",
@@ -25,6 +26,7 @@ export type CorrectableStep = (typeof CORRECTABLE_STEPS)[number];
 
 export const FIELD_LABELS: Record<CorrectableStep, string> = {
   service: "service",
+  addons: "extras",
   vehicle: "vehicle",
   suburb: "suburb",
   address: "address",
@@ -47,6 +49,7 @@ export const FIELD_WORDS: Record<CorrectableStep, RegExp> = {
   vehicle: /\b(vehicle|car|ute|van|truck|make|model)\b/i,
   concerns: /\b(condition|concerns?|issues?|damage)\b/i,
   service: /\b(service|services|package)\b/i,
+  addons: /\b(extras?|add-?ons?|upgrades?)\b/i,
 };
 
 const FIELD_WORD_SOURCE: Record<CorrectableStep, string> = {
@@ -58,6 +61,7 @@ const FIELD_WORD_SOURCE: Record<CorrectableStep, string> = {
   vehicle: "vehicle|car|ute|van|truck|make|model",
   concerns: "condition|concerns?|issues?|damage",
   service: "service|services|package",
+  addons: "extras?|add-?ons?|upgrades?",
 };
 
 export function hasCorrectionCue(raw: string): boolean {
@@ -142,6 +146,11 @@ function clearField(collected: WebChatCollected, field: CorrectableStep): WebCha
   // latest values before consent.
   next.reviewed = false;
   switch (field) {
+    case "addons":
+      next.addon_ids = [];
+      next.addon_names = [];
+      next.addons_done = false;
+      break;
     case "service":
       next.service_id = null;
       next.service_name = null;

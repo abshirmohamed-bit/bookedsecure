@@ -48,7 +48,17 @@ const STATUS_WORDS: Array<{ status: LeadStatus; pattern: RegExp }> = [
 ];
 
 /** Statuses this assistant may never set: they are evidence, not admin state. */
-const PROTECTED_TARGETS: readonly string[] = ["opted_out", "completed", "scheduled"];
+export const PROTECTED_TARGETS: readonly string[] = ["opted_out", "completed", "scheduled"];
+
+/**
+ * Statuses that are evidence of real work, so a bulk change with no explicit
+ * starting status must never overwrite them.
+ */
+export const PROTECTED_SOURCE_STATUSES: readonly LeadStatus[] = [
+  "completed",
+  "scheduled",
+  "opted_out",
+];
 
 export function isSafeStatusTarget(status: string): boolean {
   return (
