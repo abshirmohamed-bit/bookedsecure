@@ -1,0 +1,1 @@
+ALTER TABLE public.usage_limits ALTER COLUMN monthly_segment_cap SET DEFAULT 1000;
