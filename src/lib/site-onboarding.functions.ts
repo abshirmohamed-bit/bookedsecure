@@ -68,3 +68,30 @@ export const applyTenantSite = createServerFn({ method: "POST" })
     const app = await requireAppContext(context.supabase, context.userId);
     return applySiteOnboarding(app, data);
   });
+
+/**
+ * Whether the signed-in owner still needs the website setup step.
+ * A business is considered set up once it has at least one active service.
+ */
+export const getSetupState = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    const [{ count }, { data: business }] = await Promise.all([
+      supabaseAdmin
+        .from("services")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", app.businessId)
+        .eq("active", true),
+      supabaseAdmin.from("businesses").select("name").eq("id", app.businessId).single(),
+    ]);
+    const serviceCount = count ?? 0;
+    return {
+      role: app.role,
+      businessName: business?.name ?? null,
+      serviceCount,
+      needsSetup: app.role === "owner" && serviceCount === 0,
+    };
+  });
