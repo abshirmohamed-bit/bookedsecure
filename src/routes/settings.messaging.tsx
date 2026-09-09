@@ -30,22 +30,24 @@ function MessagingSettingsPage() {
     <AppShell title="Messaging">
       <SettingsPageBody
         heading="Messaging"
-        description="How messages are sent, how they are signed, and when they are allowed to go out."
+        description="Your number, your texts and when they are allowed to go out."
       >
         {(data) => (
           <>
-            <ProviderStatus provider={data.provider} />
+            <MessagingOverviewCard />
             <BusinessSettingsForm
               business={data.business}
               readOnly={data.role !== "owner"}
-              title="Sending setup"
-              textFields={["phone_number", "sms_signature"]}
-              showProvider
+              title="How your texts look"
+              textFields={["sms_signature"]}
               showQuietHours
-              note="Quiet hours use your business timezone. Nothing is sent to customers between these hours."
+              note="Your sign-off is added to the end of your texts. Quiet hours use your business timezone — nothing is sent to customers between these hours."
             />
-            <NumberCreditsPanel />
-            <SmsSetupPanel />
+            <MessagingAdvanced
+              provider={data.provider}
+              business={data.business}
+              readOnly={data.role !== "owner"}
+            />
           </>
         )}
       </SettingsPageBody>
