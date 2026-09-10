@@ -326,7 +326,7 @@ export function LiteImportPanel({
             <button
               type="button"
               aria-label={highlight.ariaLabel}
-              onClick={() => onOpenAdvanced({ focusExceptions: false })}
+              onClick={() => onOpenAdvanced?.({ focusExceptions: false })}
               className="mt-3 rounded-md border border-input px-4 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {ADVANCED_VIEW_LABEL}

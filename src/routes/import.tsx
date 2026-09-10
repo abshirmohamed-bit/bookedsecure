@@ -147,7 +147,7 @@ function ImportView() {
                     {formatUploadTimestamp(batch.created_at)} · {batchCountsLine(batch)}
                   </p>
                 </button>
-                {canDeleteBatch(batch) ? (
+                {canDeleteBatch(batch.status) ? (
                   <button
                     type="button"
                     aria-label="Remove this upload"
