@@ -36,6 +36,7 @@ import { Route as SettingsAutomationRouteImport } from './routes/settings.automa
 import { Route as SettingsBusinessRouteImport } from './routes/settings.business'
 import { Route as SettingsMessagingRouteImport } from './routes/settings.messaging'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team'
+import { Route as UnfinishedIndexRouteImport } from './routes/unfinished.index'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
@@ -183,6 +184,11 @@ const SettingsTeamRoute = SettingsTeamRouteImport.update({
   path: '/team',
   getParentRoute: () => SettingsRoute,
 } as any)
+const UnfinishedIndexRoute = UnfinishedIndexRouteImport.update({
+  id: '/unfinished/',
+  path: '/unfinished/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   id: '/api/public/hooks/follow-ups',
   path: '/api/public/hooks/follow-ups',
@@ -272,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/leads/': typeof LeadsIndexRoute
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/unfinished/': typeof UnfinishedIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -311,6 +318,7 @@ export interface FileRoutesByTo {
   '/leads': typeof LeadsIndexRoute
   '/quote': typeof QuoteIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/unfinished': typeof UnfinishedIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/leads/': typeof LeadsIndexRoute
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/unfinished/': typeof UnfinishedIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/leads/'
     | '/quote/'
     | '/settings/'
+    | '/unfinished/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
@@ -433,6 +443,7 @@ export interface FileRouteTypes {
     | '/leads'
     | '/quote'
     | '/settings'
+    | '/unfinished'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
@@ -473,6 +484,7 @@ export interface FileRouteTypes {
     | '/leads/'
     | '/quote/'
     | '/settings/'
+    | '/unfinished/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/leads/intake'
@@ -508,6 +520,7 @@ export interface RootRouteChildren {
   BookingsIndexRoute: typeof BookingsIndexRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
   QuoteIndexRoute: typeof QuoteIndexRoute
+  UnfinishedIndexRoute: typeof UnfinishedIndexRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
@@ -712,6 +725,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsTeamRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/unfinished/': {
+      id: '/unfinished/'
+      path: '/unfinished'
+      fullPath: '/unfinished/'
+      preLoaderRoute: typeof UnfinishedIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/follow-ups': {
       id: '/api/public/hooks/follow-ups'
       path: '/api/public/hooks/follow-ups'
@@ -846,6 +866,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookingsIndexRoute: BookingsIndexRoute,
   LeadsIndexRoute: LeadsIndexRoute,
   QuoteIndexRoute: QuoteIndexRoute,
+  UnfinishedIndexRoute: UnfinishedIndexRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
