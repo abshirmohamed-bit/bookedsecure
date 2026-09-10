@@ -31,8 +31,14 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   const fetchSession = useServerFn(getSession);
+  const fetchSetup = useServerFn(getSetupState);
   const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
+  const setup = useQuery({ queryKey: ["setup-state"], queryFn: () => fetchSetup(), retry: false });
   const readOnly = (session.data?.role ?? "staff") !== "owner";
+  // Owners who have nothing saved yet get the website step here; once services
+  // exist it collapses to a link so it stops taking up the page.
+  const needsSetup = setup.data?.needsSetup ?? false;
+  const [showSetup, setShowSetup] = useState(false);
 
   return (
     <AppShell title="Home">
