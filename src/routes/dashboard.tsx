@@ -7,6 +7,8 @@ import { AnalyticsOverview } from "@/components/home/AnalyticsOverview";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSession } from "@/lib/app.functions";
+import { getSetupState } from "@/lib/site-onboarding.functions";
+import { useState } from "react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -50,7 +52,19 @@ function DashboardPage() {
 
         <TabsContent value="assistant" className="space-y-5">
           <OwnerAssistant />
-          <SiteOnboardingPanel readOnly={readOnly} />
+          {needsSetup || showSetup ? (
+            <SiteOnboardingPanel readOnly={readOnly} onApplied={() => setShowSetup(false)} />
+          ) : (
+            !readOnly && (
+              <button
+                type="button"
+                onClick={() => setShowSetup(true)}
+                className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Set up from my website again
+              </button>
+            )
+          )}
         </TabsContent>
 
         <TabsContent value="performance">
