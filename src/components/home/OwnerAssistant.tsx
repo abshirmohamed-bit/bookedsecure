@@ -9,6 +9,7 @@ import {
   runOwnerRequest,
   confirmOwnerStatusChange,
   confirmAddonLinks,
+  confirmLeadUpdate,
 } from "@/lib/owner-actions.functions";
 import { approveReactivation } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
@@ -42,7 +43,19 @@ type AddonLinkProposal = {
   summary: string;
 };
 
-type Proposal = CampaignProposal | StatusProposal | AddonLinkProposal;
+type LeadUpdateProposal = {
+  kind: "lead_update";
+  leadId: string;
+  leadName: string;
+  lines: string[];
+  summary: string;
+  details: Record<string, string>;
+  markCompleted: boolean;
+  paidAmount: number | null;
+  bookAt: string | null;
+};
+
+type Proposal = CampaignProposal | StatusProposal | AddonLinkProposal | LeadUpdateProposal;
 
 type Turn = {
   id: string;
