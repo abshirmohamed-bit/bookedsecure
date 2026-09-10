@@ -274,6 +274,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
       if (result.state.declined || result.state.completed) {
         // Finished conversations are not resumable; a refresh starts fresh.
         window.sessionStorage.removeItem(`bookedsecure:chat:${tenant.slug}`);
+        window.sessionStorage.removeItem(selectionKey);
       }
       if (result.state.declined) setFinished("declined");
       else if (result.state.completed) setFinished("completed");
