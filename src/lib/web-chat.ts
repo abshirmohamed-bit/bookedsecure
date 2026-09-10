@@ -508,7 +508,8 @@ function buildPrompt(
       };
     }
     case "name":
-      return { step, kind: "text", text: "Almost done. What's your name, and the best mobile to reach you on?" };
+      return { step, kind: "text", text: CONTACT_ASK_TEXT };
+
     case "mobile":
       return { step, kind: "text", text: "Thanks. What's the best mobile number to reach you on?" };
     case "email":
