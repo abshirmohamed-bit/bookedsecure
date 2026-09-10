@@ -274,5 +274,5 @@ export async function handleOwnerRequestFallback(input: {
     }
   }
 
-  return { answer: lines.join(" "), proposals };
+  return { answer: lines.join(" "), proposals, executed: [] };
 }
