@@ -121,6 +121,10 @@ export function OwnerAssistant({
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
+    setTurns(initialTurns);
+  }, [initialTurns]);
+
+  useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [turns]);
 
@@ -170,7 +174,8 @@ export function OwnerAssistant({
     void completeMessage({ data: { messageId: turnId, done: message } }).catch(() => {
       toast.error("The action completed, but its conversation note could not be saved.");
     });
-    onConversationChanged?.();
+    // Keep the completed proposal visible locally. The next server refresh will
+    // hydrate the same completion note from the account-backed conversation.
   }
 
   const approveMutation = useMutation({

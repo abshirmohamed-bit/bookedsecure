@@ -62,7 +62,7 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
     <main className="relative flex min-h-0 flex-col overflow-hidden">
       <button onClick={() => setMobileHistory(true)} className="absolute left-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-full border border-border bg-card shadow lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></button>
       <div className="absolute right-3 top-3 z-20 w-[min(360px,calc(100%-4.5rem))] lg:w-44"><PerformanceIsland /></div>
-      <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); queryClient.invalidateQueries({ queryKey: ["assistant-conversation", activeId] }); }} />
+      <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
     </main>
     {websiteSetup && <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/45 p-3 sm:p-8"><div className="mx-auto max-w-5xl rounded-2xl bg-background p-4 shadow-2xl sm:p-6"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-heading text-lg font-semibold">Set up from your website</h2><p className="text-xs text-muted-foreground">Review everything before it is saved.</p></div><button onClick={() => setWebsiteSetup(false)} className="rounded-full p-2 hover:bg-secondary" aria-label="Close website setup"><X className="h-4 w-4" /></button></div><SiteOnboardingPanel readOnly={false} onApplied={() => setWebsiteSetup(false)} /></div></div>}
   </div>;
