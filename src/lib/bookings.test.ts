@@ -94,3 +94,12 @@ describe("upcoming bookings", () => {
     expect(list.map((item) => item.jobId)).toEqual(["next"]);
   });
 });
+
+describe("notes", () => {
+  it("hides internal booking references and keeps real notes", async () => {
+    const { visibleNotes } = await import("@/lib/bookings");
+    expect(visibleNotes("webchat_booking:072e4d52-afbe-44ff-a83d-5cbcd5c4c38c")).toBeNull();
+    expect(visibleNotes("  ")).toBeNull();
+    expect(visibleNotes("Gate code 4321")).toBe("Gate code 4321");
+  });
+});
