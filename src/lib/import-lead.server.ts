@@ -82,6 +82,7 @@ export function buildImportLeadInsert(input: {
     email: text(payload.email),
     email_normalised: text(payload.email_normalised) ?? text(payload.email)?.toLowerCase() ?? null,
     suburb: text(metadata["suburb"]),
+    service_address: text(metadata["service_address"]),
     vehicle_type: text(metadata["vehicle_type"]),
     service_intent: text(metadata["service_intent"]),
     source_channel: text(payload.source_channel) ?? "unknown",
@@ -103,7 +104,7 @@ export function buildImportLeadInsert(input: {
         raw_row: input.rawRow ?? null,
       },
     },
-    notes: null,
+    notes: text(metadata["notes"]),
   };
 
   const createdAt = text(payload.proposed_created_at);
