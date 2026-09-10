@@ -11,17 +11,29 @@ import { OWNER_ASSISTANT_MAX_QUESTION, normaliseOwnerQuestion } from "@/lib/owne
 export const runOwnerRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ question: z.string().max(OWNER_ASSISTANT_MAX_QUESTION * 2) }).parse(input ?? {}),
+    z.object({
+      question: z.string().max(OWNER_ASSISTANT_MAX_QUESTION * 2),
+      threadId: z.string().uuid(),
+    }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { handleOwnerRequest } = await import("@/lib/owner-actions.server");
     const app = await requireAppContext(context.supabase, context.userId);
-    return handleOwnerRequest({
+    const result = await handleOwnerRequest({
       businessId: app.businessId,
       userId: app.userId,
       question: normaliseOwnerQuestion(data.question),
     });
+    const { persistOwnerExchange } = await import("@/lib/assistant-history.server");
+    await persistOwnerExchange({
+      businessId: app.businessId,
+      threadId: data.threadId,
+      question: normaliseOwnerQuestion(data.question),
+      answer: result.answer,
+      proposals: result.proposals,
+    });
+    return result;
   });
 
 /** Applies a status change the owner has just confirmed on screen. */
