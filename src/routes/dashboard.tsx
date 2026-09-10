@@ -7,6 +7,8 @@ import { AnalyticsOverview } from "@/components/home/AnalyticsOverview";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSession } from "@/lib/app.functions";
+import { getSetupState } from "@/lib/site-onboarding.functions";
+import { useState } from "react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -31,8 +33,14 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   const fetchSession = useServerFn(getSession);
+  const fetchSetup = useServerFn(getSetupState);
   const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
+  const setup = useQuery({ queryKey: ["setup-state"], queryFn: () => fetchSetup(), retry: false });
   const readOnly = (session.data?.role ?? "staff") !== "owner";
+  // Owners who have nothing saved yet get the website step here; once services
+  // exist it collapses to a link so it stops taking up the page.
+  const needsSetup = setup.data?.needsSetup ?? false;
+  const [showSetup, setShowSetup] = useState(false);
 
   return (
     <AppShell title="Home">
@@ -44,7 +52,19 @@ function DashboardPage() {
 
         <TabsContent value="assistant" className="space-y-5">
           <OwnerAssistant />
-          <SiteOnboardingPanel readOnly={readOnly} />
+          {needsSetup || showSetup ? (
+            <SiteOnboardingPanel readOnly={readOnly} onApplied={() => setShowSetup(false)} />
+          ) : (
+            !readOnly && (
+              <button
+                type="button"
+                onClick={() => setShowSetup(true)}
+                className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Set up from my website again
+              </button>
+            )
+          )}
         </TabsContent>
 
         <TabsContent value="performance">

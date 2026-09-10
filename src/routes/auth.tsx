@@ -37,6 +37,7 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // /setup gates itself: an already set-up business is sent straight to Home.
     if (!loading && session) navigate({ to: "/setup", replace: true });
   }, [loading, session, navigate]);
 

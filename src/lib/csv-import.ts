@@ -134,7 +134,20 @@ const FIELD_ALIASES: Record<string, string[]> = {
   secondary_phone: ["secondary phone", "secondary phone number", "phone 2", "alternate phone"],
   whatsapp_number: ["whatsapp number", "whatsapp"],
   is_organic: ["is organic", "organic"],
-
+  // A detailer needs where the car was and what was done last time.
+  service_address: ["address", "street address", "service address", "location"],
+  suburb: ["suburb", "city", "town", "locality"],
+  service_intent: [
+    "service",
+    "service requested",
+    "last service",
+    "previous service",
+    "service type",
+    "job",
+    "job type",
+  ],
+  vehicle_type: ["vehicle", "vehicle type", "car", "car type", "make and model"],
+  notes: ["notes", "note", "comments", "description"],
 };
 
 export const METADATA_FIELDS = [
@@ -144,6 +157,11 @@ export const METADATA_FIELDS = [
   "secondary_phone",
   "whatsapp_number",
   "is_organic",
+  "service_address",
+  "suburb",
+  "service_intent",
+  "vehicle_type",
+  "notes",
 ] as const;
 
 

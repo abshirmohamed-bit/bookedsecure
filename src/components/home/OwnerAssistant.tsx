@@ -9,6 +9,7 @@ import {
   runOwnerRequest,
   confirmOwnerStatusChange,
   confirmAddonLinks,
+  confirmLeadUpdate,
 } from "@/lib/owner-actions.functions";
 import { approveReactivation } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
@@ -42,7 +43,19 @@ type AddonLinkProposal = {
   summary: string;
 };
 
-type Proposal = CampaignProposal | StatusProposal | AddonLinkProposal;
+type LeadUpdateProposal = {
+  kind: "lead_update";
+  leadId: string;
+  leadName: string;
+  lines: string[];
+  summary: string;
+  details: Record<string, string>;
+  markCompleted: boolean;
+  paidAmount: number | null;
+  bookAt: string | null;
+};
+
+type Proposal = CampaignProposal | StatusProposal | AddonLinkProposal | LeadUpdateProposal;
 
 type Turn = {
   id: string;
@@ -78,6 +91,7 @@ export function OwnerAssistant() {
   const ask = useServerFn(runOwnerRequest);
   const applyStatus = useServerFn(confirmOwnerStatusChange);
   const linkAddons = useServerFn(confirmAddonLinks);
+  const updateLead = useServerFn(confirmLeadUpdate);
   const approve = useServerFn(approveReactivation);
   const upload = useServerFn(previewCrmImport);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -168,6 +182,24 @@ export function OwnerAssistant() {
       markDone(input.turnId, `Updated ${result.updated} lead${result.updated === 1 ? "" : "s"}.`),
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Those leads could not be updated."),
+    onSettled: () => setBusyId(null),
+  });
+
+  const leadMutation = useMutation({
+    mutationFn: (input: { turnId: string; proposal: LeadUpdateProposal }) =>
+      updateLead({
+        data: {
+          leadId: input.proposal.leadId,
+          details: input.proposal.details as never,
+          markCompleted: input.proposal.markCompleted,
+          paidAmount: input.proposal.paidAmount,
+          bookAt: input.proposal.bookAt,
+        },
+      }),
+    onSuccess: (_result, input) =>
+      markDone(input.turnId, `${input.proposal.leadName} is up to date.`),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "That update could not be saved."),
     onSettled: () => setBusyId(null),
   });
 
@@ -306,6 +338,34 @@ export function OwnerAssistant() {
                               </Link>
                             </div>
                           ) : null}
+                        </div>
+                      ) : proposal.kind === "lead_update" ? (
+                        <div
+                          key={`${proposal.leadId}-update`}
+                          className="rounded-2xl border border-border bg-card p-4 text-sm"
+                        >
+                          <p className="font-medium">Update {proposal.leadName}</p>
+                          <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+                            {proposal.lines.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                          <button
+                            type="button"
+                            disabled={busyId === turn.id}
+                            onClick={() => {
+                              setBusyId(turn.id);
+                              leadMutation.mutate({ turnId: turn.id, proposal });
+                            }}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                          >
+                            {busyId === turn.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                            Confirm
+                          </button>
                         </div>
                       ) : proposal.kind === "addon_links" ? (
                         <div
