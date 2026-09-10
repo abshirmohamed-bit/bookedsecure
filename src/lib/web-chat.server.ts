@@ -650,16 +650,18 @@ export async function replyToWebChat(input: {
       (followUp === "vehicle" || followUp === "addons") && next.service_name
         ? serviceAcknowledgement(chatTenant, next)
         : null;
-    if (detail) await addMessage(tenant.businessId, conversation.id, "assistant", detail);
-    await addMessage(tenant.businessId, conversation.id, "assistant", prompt.text);
+    // One message per turn: the acknowledgement and the next question read as a
+    // single reply so the customer never gets two bubbles for one turn.
+    const [reply] = asSingleReply([detail ?? "", prompt.text]);
+    const body = reply ?? prompt.text;
+    await addMessage(tenant.businessId, conversation.id, "assistant", body);
     return {
       conversationId: conversation.id,
       status: "active",
       messages: [
         ...turns,
         { role: "customer", body: applied.echo },
-        ...(detail ? [{ role: "assistant" as const, body: detail }] : []),
-        { role: "assistant", body: prompt.text },
+        { role: "assistant", body },
       ],
       prompt,
       requiresOwnerReview: outcome.requiresOwnerReview,
