@@ -12,3 +12,7 @@
 - [x] Verify all redesigned pages on desktop and mobile without changing workflows.
 
 - Fix signup: new accounts must create their own business as owner, not join the first business as staff.
+- [ ] Replace the separate Assistant and Performance views with the approved Assistant-centred Home layout.
+- [ ] Add tenant-account conversation history with a default ongoing chat, separate conversations, and deletion.
+- [ ] Reduce Performance to truthful operational signals with details hidden by default.
+- [ ] Verify the unified Home experience on desktop and mobile.
