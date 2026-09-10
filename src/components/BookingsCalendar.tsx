@@ -172,9 +172,13 @@ export function BookingsCalendar() {
                       </button>
                     ))}
                     {entries.length > 3 ? (
-                      <p className="px-1.5 text-[10px] text-muted-foreground">
+                      <button
+                        type="button"
+                        onClick={() => setSelected(entries[3] ?? null)}
+                        className="block w-full rounded-md px-1.5 py-1 text-left text-[10px] font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                      >
                         +{entries.length - 3} more
-                      </p>
+                      </button>
                     ) : null}
                   </div>
                 </div>
