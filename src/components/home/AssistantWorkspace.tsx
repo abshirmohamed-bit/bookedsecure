@@ -6,7 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { OwnerAssistant, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
 import { PerformanceIsland } from "@/components/home/PerformanceIsland";
-import { createAssistantConversation, deleteAssistantConversation, getAssistantConversation, getAssistantHome } from "@/lib/assistant-history.functions";
+import { clearAssistantConversation, createAssistantConversation, deleteAssistantConversation, getAssistantConversation, getAssistantHome } from "@/lib/assistant-history.functions";
 import { Button } from "@/components/ui/button";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
 import { getSession } from "@/lib/app.functions";
