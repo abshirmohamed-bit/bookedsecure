@@ -263,8 +263,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const canSend = !busy && draft.trim().length > 0;
 
   const customerBubble = (body: string) => {
-    // A service selection stays visible as the cards the customer tapped, for
-    // the rest of the conversation, instead of a plain line of text.
+    // A service selection stays visible as the same cards the customer tapped,
+    // for the rest of the conversation, instead of a plain line of text.
     if (selectionEcho && body === selectionEcho && selectionCards.length > 0) {
       return (
         <div className="ml-auto max-w-[86%]">
@@ -272,11 +272,21 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
             {selectionCards.map((card) => (
               <li
                 key={card.label}
-                className="rounded-xl border border-primary/40 bg-[color:var(--chat-user)] px-2.5 py-1.5 text-left text-[color:var(--chat-user-foreground)]"
+                className="flex w-[7.2rem] flex-col rounded-lg border border-primary bg-card p-1.5 text-left shadow-sm ring-1 ring-primary/40 sm:w-[8.5rem] sm:p-2"
               >
-                <p className="break-words text-xs font-semibold leading-tight">{card.label}</p>
-                {card.price && (
-                  <p className="text-[0.7rem] leading-tight opacity-90">{card.price}</p>
+                <span className="mb-1 flex h-4 w-4 items-center justify-center self-end rounded-full border border-primary bg-primary text-primary-foreground">
+                  <Check className="h-3 w-3" aria-hidden="true" />
+                </span>
+                <p className="min-w-0 break-words text-[0.66rem] font-semibold leading-[1.15] sm:text-[0.78rem]">
+                  {card.label}
+                </p>
+                <p className="mt-1 truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
+                  {card.price ?? "On enquiry"}
+                </p>
+                {card.duration && (
+                  <p className="truncate text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.64rem]">
+                    {card.duration}
+                  </p>
                 )}
               </li>
             ))}
