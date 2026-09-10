@@ -135,6 +135,7 @@ export async function persistOwnerExchange(input: {
       thread_id: input.threadId,
       role: "user",
       parts: [{ type: "text", text: input.question }] as Json,
+      proposals: [] as unknown as Json,
       created_at: userCreatedAt,
     },
     {
@@ -142,7 +143,7 @@ export async function persistOwnerExchange(input: {
       thread_id: input.threadId,
       role: "assistant",
       parts: [{ type: "text", text: input.answer }] as Json,
-      proposals: input.proposals as Json,
+      proposals: (input.proposals ?? []) as Json,
       created_at: assistantCreatedAt,
     },
   ]).select("id, role");
