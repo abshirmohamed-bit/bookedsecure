@@ -130,7 +130,7 @@ export function OwnerAssistant({
 
   const mutation = useMutation({
     mutationFn: (value: string) => ask({ data: { question: value, threadId } }),
-    onSuccess: (result) =>
+    onSuccess: (result) => {
       setTurns((current) => [
         ...current,
         {
@@ -138,8 +138,14 @@ export function OwnerAssistant({
           role: "assistant",
           text: result.answer,
           proposals: (result.proposals ?? []) as Proposal[],
+          ...(result.done ? { done: result.done } : {}),
         },
-      ]),
+      ]);
+      if (result.done) {
+        // Bookings, leads and the performance figures may have just changed.
+        void queryClient.invalidateQueries();
+      }
+    },
     onError: (error) =>
       setTurns((current) => [
         ...current,
