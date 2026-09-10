@@ -11,7 +11,7 @@ export type BookingState = "scheduled" | "completed" | "cancelled";
 export type BookingEntry = {
   jobId: string;
   leadId: string;
-  customerName: string;
+  customerName: string | null;
   phone: string | null;
   /** Booked service name, already resolved with its fallback. */
   serviceName: string | null;
