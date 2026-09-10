@@ -180,7 +180,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
             ...(input.vehicle ? { vehicle_type: input.vehicle } : {}),
             ...(input.requestedService ? { service_intent: input.requestedService } : {}),
             ...(input.notes ? { notes: input.notes } : {}),
-            lead_origin: "manual" as never,
+            lead_context: "manually_added_contact" as never,
             manual_entry_by: userId,
           } as never)
           .select("id")
