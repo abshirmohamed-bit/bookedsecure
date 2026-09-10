@@ -146,6 +146,7 @@ export async function persistOwnerExchange(input: {
       role: "assistant",
       parts: [{ type: "text", text: input.answer }] as Json,
       proposals: (input.proposals ?? []) as Json,
+      done: input.done ?? null,
       created_at: assistantCreatedAt,
     },
   ]).select("id, role");
