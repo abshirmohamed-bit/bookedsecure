@@ -91,6 +91,7 @@ export function OwnerAssistant() {
   const ask = useServerFn(runOwnerRequest);
   const applyStatus = useServerFn(confirmOwnerStatusChange);
   const linkAddons = useServerFn(confirmAddonLinks);
+  const updateLead = useServerFn(confirmLeadUpdate);
   const approve = useServerFn(approveReactivation);
   const upload = useServerFn(previewCrmImport);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -181,6 +182,24 @@ export function OwnerAssistant() {
       markDone(input.turnId, `Updated ${result.updated} lead${result.updated === 1 ? "" : "s"}.`),
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Those leads could not be updated."),
+    onSettled: () => setBusyId(null),
+  });
+
+  const leadMutation = useMutation({
+    mutationFn: (input: { turnId: string; proposal: LeadUpdateProposal }) =>
+      updateLead({
+        data: {
+          leadId: input.proposal.leadId,
+          details: input.proposal.details as never,
+          markCompleted: input.proposal.markCompleted,
+          paidAmount: input.proposal.paidAmount,
+          bookAt: input.proposal.bookAt,
+        },
+      }),
+    onSuccess: (_result, input) =>
+      markDone(input.turnId, `${input.proposal.leadName} is up to date.`),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "That update could not be saved."),
     onSettled: () => setBusyId(null),
   });
 
