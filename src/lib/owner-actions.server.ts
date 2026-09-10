@@ -145,27 +145,65 @@ export async function proposeCampaign(input: {
 }
 
 /**
- * Turns one owner request into an answer plus any proposals. When the request
- * is not an action, the read-only assistant answers it as before.
+ * Turns one owner request into an answer. The tool-using assistant carries the
+ * work out directly and reports what it did; the older phrase-matching path is
+ * kept only as a fallback for when the assistant itself is unavailable, so the
+ * owner still gets a Confirm card instead of an error.
  */
 export async function handleOwnerRequest(input: {
   businessId: string;
   userId: string;
   question: string;
-}): Promise<{ answer: string; proposals: OwnerProposal[] }> {
+  history?: Array<{ role: "user" | "assistant"; text: string }>;
+}): Promise<{ answer: string; proposals: OwnerProposal[]; executed: string[] }> {
+  try {
+    const { runAssistantAgent } = await import("@/lib/assistant-agent.server");
+    const result = await runAssistantAgent({
+      businessId: input.businessId,
+      userId: input.userId,
+      question: input.question,
+      ...(input.history ? { history: input.history } : {}),
+    });
+    if (result.answer.length > 0 || result.executed.length > 0) {
+      return {
+        answer: result.answer.length > 0 ? result.answer : result.executed.join(" "),
+        proposals: [],
+        executed: result.executed,
+      };
+    }
+  } catch (error) {
+    console.error("owner assistant agent failed", error);
+  }
+
+  return handleOwnerRequestFallback(input);
+}
+
+/**
+ * Deterministic fallback. Same behaviour the assistant had before tools existed:
+ * a proposal the owner confirms on screen.
+ */
+export async function handleOwnerRequestFallback(input: {
+  businessId: string;
+  userId: string;
+  question: string;
+}): Promise<{ answer: string; proposals: OwnerProposal[]; executed: string[] }> {
   // Catalogue questions and add-on linking are handled deterministically first.
   const { parseCatalogRequest } = await import("@/lib/catalog-actions");
   const catalogRequest = parseCatalogRequest(input.question);
   if (catalogRequest) {
     const { answerCatalogList, proposeAddonLinks } = await import("@/lib/catalog-actions.server");
     if (catalogRequest.kind === "list_catalog") {
-      return { answer: await answerCatalogList(input.businessId), proposals: [] };
+      return { answer: await answerCatalogList(input.businessId), proposals: [], executed: [] };
     }
     const result = await proposeAddonLinks({
       businessId: input.businessId,
       request: catalogRequest,
     });
-    return { answer: result.message, proposals: result.proposal ? [result.proposal] : [] };
+    return {
+      answer: result.message,
+      proposals: result.proposal ? [result.proposal] : [],
+      executed: [],
+    };
   }
 
   // A single-customer instruction ("Andrew's detail is done, he paid $450, book
@@ -175,7 +213,11 @@ export async function handleOwnerRequest(input: {
   if (leadRequest) {
     const { proposeLeadUpdate } = await import("@/lib/owner-lead-actions.server");
     const result = await proposeLeadUpdate({ businessId: input.businessId, request: leadRequest });
-    return { answer: result.message, proposals: result.proposal ? [result.proposal] : [] };
+    return {
+      answer: result.message,
+      proposals: result.proposal ? [result.proposal] : [],
+      executed: [],
+    };
   }
 
   const requests: OwnerActionRequest[] = parseOwnerRequest(input.question);
@@ -185,7 +227,7 @@ export async function handleOwnerRequest(input: {
       businessId: input.businessId,
       question: input.question,
     });
-    return { answer: result.answer, proposals: [] };
+    return { answer: result.answer, proposals: [], executed: [] };
   }
 
   const proposals: OwnerProposal[] = [];
