@@ -35,8 +35,13 @@ export type StatusProposal = {
 };
 
 import type { AddonLinkProposal } from "@/lib/catalog-actions.server";
+import type { LeadUpdateProposal } from "@/lib/owner-lead-actions.server";
 
-export type OwnerProposal = CampaignProposal | StatusProposal | AddonLinkProposal;
+export type OwnerProposal =
+  | CampaignProposal
+  | StatusProposal
+  | AddonLinkProposal
+  | LeadUpdateProposal;
 
 
 /** How many leads a status change would touch right now. */
@@ -160,6 +165,16 @@ export async function handleOwnerRequest(input: {
       businessId: input.businessId,
       request: catalogRequest,
     });
+    return { answer: result.message, proposals: result.proposal ? [result.proposal] : [] };
+  }
+
+  // A single-customer instruction ("Andrew's detail is done, he paid $450, book
+  // him again on 12 March") is proposed before anything is written.
+  const { parseLeadUpdateRequest } = await import("@/lib/owner-lead-actions");
+  const leadRequest = parseLeadUpdateRequest(input.question);
+  if (leadRequest) {
+    const { proposeLeadUpdate } = await import("@/lib/owner-lead-actions.server");
+    const result = await proposeLeadUpdate({ businessId: input.businessId, request: leadRequest });
     return { answer: result.message, proposals: result.proposal ? [result.proposal] : [] };
   }
 
