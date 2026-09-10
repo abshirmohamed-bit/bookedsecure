@@ -8,6 +8,8 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText } from "ai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { loadBookings } from "@/lib/bookings.server";
+import { upcomingBookings } from "@/lib/bookings";
 import {
   buildOwnerAssistantSystem,
   classifyOwnerQuestion,
