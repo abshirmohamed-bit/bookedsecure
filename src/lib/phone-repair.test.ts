@@ -162,9 +162,11 @@ describe("repair inside the staged import pipeline", () => {
     expect(row.validation_errors.map((issue) => issue.code)).toContain("invalid_phone");
   });
 
-  it("keeps missing-name and missing-contact rows pending", () => {
+  it("recovers a missing name and keeps missing-contact rows flagged", () => {
+    // A blank name is no longer a problem: it is recovered from the email.
     const noName = prepareRow(headers, ["", "sam@example.com", "0404398423"], 1);
-    expect(noName.validation_errors.map((i) => i.code)).toContain("missing_name");
+    expect(noName.normalized_payload.name).toBe("Sam");
+    expect(noName.validation_errors.map((i) => i.code)).not.toContain("missing_name");
     const noContact = prepareRow(headers, ["Sam", "", "0404"], 2);
     expect(noContact.validation_errors.map((i) => i.code)).toContain("missing_phone_and_email");
   });
