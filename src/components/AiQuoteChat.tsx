@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, RotateCcw, ShieldCheck } from "lucide-react";
+import { AlertCircle, Check, RotateCcw, ShieldCheck } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
 import { ServiceChooser } from "@/components/quote/ServiceChooser";
 import {
