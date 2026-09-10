@@ -184,6 +184,17 @@ export async function completeAssistantProposal(input: {
   if (error) throw new Error(error.message);
 }
 
+/** Empties one conversation for this tenant, keeping the conversation itself. */
+export async function clearAssistantThread(input: { businessId: string; threadId: string }) {
+  await assertAssistantThread(input.businessId, input.threadId);
+  const { error } = await supabaseAdmin
+    .from("assistant_messages")
+    .delete()
+    .eq("business_id", input.businessId)
+    .eq("thread_id", input.threadId);
+  if (error) throw new Error(error.message);
+}
+
 export async function archiveAssistantThread(input: { businessId: string; threadId: string }) {
   const thread = await assertAssistantThread(input.businessId, input.threadId);
   if (thread.is_default) throw new Error("The ongoing conversation cannot be deleted.");
