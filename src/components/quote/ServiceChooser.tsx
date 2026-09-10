@@ -225,7 +225,7 @@ export function ServiceChooser({
         </h3>
       </div>
 
-      <div className="no-scrollbar max-h-[18.5rem] overflow-y-auto overscroll-y-contain pr-0.5 sm:max-h-[22rem]">
+      <div className="no-scrollbar max-h-[18.5rem] snap-y snap-proximity scroll-py-1 overflow-y-auto overscroll-y-contain pr-0.5 sm:max-h-[22rem]">
         <div className="grid grid-cols-3 items-stretch gap-1.5 sm:gap-2">
           {items.map((option) => {
             const card = option.card ?? null;
@@ -245,7 +245,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`flex h-28 w-full cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-32 sm:p-2 ${
+                  className={`relative flex h-28 w-full snap-start cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-32 sm:p-2 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -253,20 +253,21 @@ export function ServiceChooser({
                       : "border-border hover:border-primary/60"
                   }`}
                 >
-                  <div className="flex justify-end">
-                    <span
-                      aria-hidden="true"
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                        picked
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border text-transparent"
-                      }`}
-                    >
-                      <Check className="h-3 w-3" />
-                    </span>
-                  </div>
+                  <span
+                    aria-hidden="true"
+                    className={`absolute right-1.5 top-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                      picked
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border text-transparent"
+                    }`}
+                  >
+                    <Check className="h-3 w-3" />
+                  </span>
 
-                  <p className="mt-0.5 line-clamp-2 break-words text-[0.68rem] font-semibold leading-tight sm:text-[0.78rem]">
+                  <p
+                    title={option.label}
+                    className="line-clamp-3 min-h-[2.65rem] break-words pr-4 text-[0.66rem] font-semibold leading-tight sm:min-h-[2.9rem] sm:text-[0.76rem]"
+                  >
                     {option.label}
                   </p>
                   <div className="mt-auto min-w-0 pt-1">
