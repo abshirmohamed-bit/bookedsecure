@@ -273,7 +273,7 @@ export function classifyRow(
     }
   }
   if (codes.includes("invalid_email")) reasons.add("invalid_email");
-  if (!row.email && !codes.includes("invalid_email")) reasons.add("missing_email");
+  // Email is optional for an import: a mobile number is what matters.
   if (
     codes.some((code) => (KNOWN_UNCERTAIN_CODES as readonly string[]).includes(code)) ||
     codes.some(

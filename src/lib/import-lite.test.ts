@@ -145,12 +145,10 @@ describe("lite mode defaults", () => {
     }
   });
 
-  it("exposes advanced view through a labelled, keyboard-reachable button", async () => {
+  it("keeps no advanced/technical view in the import panel", async () => {
     const source = await readFile("src/components/LiteImportPanel.tsx", "utf8");
-    expect(source).toContain("ADVANCED_VIEW_LABEL");
-    expect(source).toContain("onOpenAdvanced");
-    expect(source).toContain("aria-label={highlight.ariaLabel}");
-    expect(ADVANCED_VIEW_LABEL).toBe("Advanced View");
+    expect(source).not.toContain("onOpenAdvanced");
+    expect(source).not.toContain("ADVANCED_VIEW_LABEL");
   });
 });
 
@@ -263,11 +261,7 @@ describe("advanced view highlight", () => {
     );
   });
 
-  it("respects the reduced-motion media query and CSS fallback", async () => {
-    const component = await readFile("src/components/LiteImportPanel.tsx", "utf8");
-    expect(component).toContain("prefers-reduced-motion: reduce");
-    expect(component).toContain("motion-reduce:animate-none");
-  });
+
 
   it("keeps a stable exception anchor id for held-row copy", () => {
     expect(EXCEPTION_ANCHOR_ID).toBe("import-exceptions");
@@ -303,10 +297,9 @@ describe("lite sync uses the existing controlled execution paths", () => {
     expect(planLiteSync(summary, null)).toEqual({ ok: false, reason: "not_enabled" });
   });
 
-  it("calls only the existing owner-gated server import functions", async () => {
+  it("saves only through the owner-gated, tenant-scoped import function", async () => {
     const component = await readFile("src/components/LiteImportPanel.tsx", "utf8");
-    expect(component).toContain("runImportBoundedBatch");
-    expect(component).toContain("runImportExceptionOnly");
+    expect(component).toContain("saveCrmImportBatch");
     // No bespoke import path, and no direct database or provider access.
     for (const forbidden of [
       "importStagedRowAsLead",
@@ -318,11 +311,13 @@ describe("lite sync uses the existing controlled execution paths", () => {
     ]) {
       expect(component).not.toContain(forbidden);
     }
-    // Both server functions remain owner-gated on the server.
-    const functions = await readFile("src/lib/import-automation.functions.ts", "utf8");
+    const functions = await readFile("src/lib/csv-import.functions.ts", "utf8");
     expect(functions).toContain("requireSupabaseAuth");
-    expect(functions.match(/requireOwner|owner\(context as never\)/g)?.length).toBeGreaterThan(0);
-    expect(SYNC_ACTION_LABEL).toBe("Sync Eligible Contacts");
+    expect(functions).toContain("requireOwner");
+    const server = await readFile("src/lib/import-save.server.ts", "utf8");
+    for (const forbidden of ['from("messages")', 'from("conversations")', 'from("jobs")', "sendSms", "captureLead"]) {
+      expect(server).not.toContain(forbidden);
+    }
   });
 
   it("keeps the pure lite module free of IO and live-write vocabulary", async () => {

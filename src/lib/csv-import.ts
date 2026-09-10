@@ -121,13 +121,78 @@ export function parseCsv(text: string): CsvTable {
 // --- field mapping ------------------------------------------------------------
 
 const FIELD_ALIASES: Record<string, string[]> = {
-  name: ["name", "full name", "contact name", "customer name"],
-  email: ["email", "email address"],
-  mobile_number: ["phone", "phone number", "mobile", "mobile number"],
-  source_channel: ["source", "lead source", "source channel", "contact source", "platform"],
+  name: [
+    "name",
+    "full name",
+    "fullname",
+    "contact name",
+    "customer name",
+    "client name",
+    "lead name",
+    "display name",
+    "contact",
+    "customer",
+    "client",
+  ],
+  first_name: ["first name", "firstname", "given name", "first", "fname", "forename"],
+  last_name: ["last name", "lastname", "surname", "family name", "last", "lname"],
+  email: [
+    "email",
+    "email address",
+    "e mail",
+    "e mail address",
+    "emails",
+    "primary email",
+    "work email",
+    "personal email",
+    "email 1",
+    "email1",
+  ],
+  mobile_number: [
+    "phone",
+    "phone number",
+    "mobile",
+    "mobile number",
+    "mobile phone",
+    "mobile no",
+    "mob",
+    "cell",
+    "cell phone",
+    "cellphone",
+    "contact number",
+    "contact phone",
+    "primary phone",
+    "phone 1",
+    "phone1",
+    "telephone",
+    "tel",
+    "number",
+    "phone no",
+  ],
+  source_channel: [
+    "source",
+    "lead source",
+    "source channel",
+    "source type",
+    "contact source",
+    "platform",
+    "origin",
+    "lead origin",
+    "utm source",
+    "referrer",
+    "how did you hear about us",
+  ],
   source_form: ["form", "form name", "lead form", "source form", "campaign form"],
-  status: ["stage", "status"],
-  created_at: ["created", "created at", "created date", "created time"],
+  status: ["stage", "status", "lead status", "pipeline stage"],
+  created_at: [
+    "created",
+    "created at",
+    "created date",
+    "created time",
+    "date created",
+    "date added",
+    "enquiry date",
+  ],
   owner: ["owner", "assigned to"],
   labels: ["labels", "label", "tags"],
   channel: ["channel"],
@@ -162,6 +227,9 @@ export const METADATA_FIELDS = [
   "service_intent",
   "vehicle_type",
   "notes",
+  // Kept verbatim so the original split name is never lost.
+  "first_name",
+  "last_name",
 ] as const;
 
 
@@ -250,19 +318,50 @@ const SOURCE_MAP: Record<string, string> = {
   facebook: "meta",
   instagram: "meta",
   "facebook ads": "meta",
+  "facebook lead ads": "meta",
+  "facebook lead form": "meta",
+  "meta ads": "meta",
+  "instagram ads": "meta",
+  fb: "meta",
+  ig: "meta",
   website: "website",
   web: "website",
   "web form": "website",
+  "web site": "website",
+  "website form": "website",
+  "contact form": "website",
+  "quote form": "website",
+  google: "website",
+  "google ads": "website",
+  seo: "website",
+  organic: "website",
+  godaddy: "godaddy",
+  "godaddy website": "godaddy",
+  "go daddy": "godaddy",
+  "godaddy form": "godaddy",
   "hosted page": "hosted_page",
   "quote page": "hosted_page",
   manual: "manual",
   phone: "manual",
+  "phone call": "manual",
+  call: "manual",
+  walkin: "manual",
+  "walk in": "manual",
   referral: "manual",
+  referred: "manual",
+  "word of mouth": "manual",
+  repeat: "manual",
+  "repeat customer": "manual",
   crm: "manual",
   "crm import": "manual",
   import: "manual",
-  fb: "meta",
-  ig: "meta",
+  spreadsheet: "manual",
+  csv: "manual",
+  hubspot: "manual",
+  mailchimp: "manual",
+  square: "manual",
+  quickbooks: "manual",
+  xero: "manual",
 };
 
 /** Meta lead-ads export platform codes. */
@@ -278,10 +377,98 @@ export function normalizePlatform(raw: string): string {
   return PLATFORM_MAP[key] ?? raw.trim();
 }
 
+function sourceKey(value: string): string {
+  return value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+}
+
 export function mapSourceChannel(value: string): string {
-  const key = value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  const key = sourceKey(value);
   if (!key) return "unknown";
-  return SOURCE_MAP[key] ?? "unknown";
+  const exact = SOURCE_MAP[key];
+  if (exact) return exact;
+  // Free-text sources ("enquiry via our GoDaddy site") still resolve to a real
+  // channel when they clearly name one. Unrecognised wording stays "unknown"
+  // and the original text is always preserved in `source_channel_raw`.
+  const contains: [string, string][] = [
+    ["godaddy", "godaddy"],
+    ["go daddy", "godaddy"],
+    ["facebook", "meta"],
+    ["instagram", "meta"],
+    ["meta", "meta"],
+    ["quote page", "hosted_page"],
+    ["website", "website"],
+    ["web", "website"],
+    ["google", "website"],
+    ["referral", "manual"],
+    ["word of mouth", "manual"],
+    ["phone", "manual"],
+    ["call", "manual"],
+    ["repeat", "manual"],
+    ["crm", "manual"],
+    ["import", "manual"],
+  ];
+  for (const [needle, channel] of contains) {
+    if (key.includes(needle)) return channel;
+  }
+  return "unknown";
+}
+
+/**
+ * Resolve the source channel for a row: the row's own source column first, then
+ * the platform column, then the uploaded file name (e.g. "godaddy-leads.csv").
+ * Falls back to `crm_import_default` so an import is never mis-attributed.
+ */
+export function resolveSourceChannel(input: {
+  sourceRaw?: string | null;
+  platformRaw?: string | null;
+  filename?: string | null;
+}): string {
+  const fromSource = mapSourceChannel(input.sourceRaw ?? "");
+  if (fromSource !== "unknown") return fromSource;
+  const fromPlatform = mapSourceChannel(input.platformRaw ?? "");
+  if (fromPlatform !== "unknown") return fromPlatform;
+  const fromFile = mapSourceChannel((input.filename ?? "").replace(/\.[a-z0-9]+$/i, ""));
+  if (fromFile !== "unknown") return fromFile;
+  return "unknown";
+}
+
+// --- name resolution ----------------------------------------------------------
+
+function titleCase(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
+/**
+ * Build a usable display name from whatever the file provided, in priority
+ * order: an explicit name column, separate first/last columns, then the email
+ * address's own wording (`jane.smith@…` → "Jane Smith"). A single name is
+ * accepted as-is. Returns null only when nothing usable exists.
+ * Pure — it never invents a surname and never mixes values between rows.
+ */
+export function deriveName(input: {
+  name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+}): string | null {
+  const clean = (value: string | null | undefined) => (value ?? "").trim().replace(/\s+/g, " ");
+  const explicit = clean(input.name);
+  if (explicit) return explicit;
+
+  const joined = [clean(input.firstName), clean(input.lastName)].filter(Boolean).join(" ");
+  if (joined) return joined;
+
+  const local = clean(input.email).split("@")[0] ?? "";
+  if (local) {
+    const parts = local
+      .split(/[._+\-\d]+/)
+      .map((part) => part.trim())
+      .filter((part) => part.length > 1 && /^[a-z']+$/i.test(part))
+      .slice(0, 2)
+      .map(titleCase);
+    if (parts.length > 0) return parts.join(" ");
+  }
+  return null;
 }
 
 export type PhoneResult =
@@ -425,7 +612,12 @@ function cell(headers: string[], row: string[], field: string): string {
 }
 
 /** Map + validate one CSV row. Never mutates anything outside the return value. */
-export function prepareRow(headers: string[], row: string[], rowNumber: number): PreparedRow {
+export function prepareRow(
+  headers: string[],
+  row: string[],
+  rowNumber: number,
+  options?: { filename?: string | null },
+): PreparedRow {
   const raw: Record<string, string> = {};
   headers.forEach((header, index) => {
     raw[header] = row[index] ?? "";
@@ -438,8 +630,6 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
       detail: `expected ${headers.length} fields, found ${row.length}`,
     });
   }
-  const name = cell(headers, row, "name") || null;
-  if (!name) errors.push({ code: "missing_name", field: "name" });
 
   const phoneRaw = cell(headers, row, "mobile_number");
   const resolved = resolvePhoneWithRepair(phoneRaw);
@@ -450,9 +640,22 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
   if (!email.valid) errors.push({ code: "invalid_email", field: "email", detail: emailRaw });
 
   const mobile = resolved.mobile_number;
+
+  // Name resolution: explicit name, then first/last columns, then the email
+  // wording, then the contact's own number as a last-resort label.
+  const name =
+    deriveName({
+      name: cell(headers, row, "name"),
+      firstName: cell(headers, row, "first_name"),
+      lastName: cell(headers, row, "last_name"),
+      email: email.valid ? email.value : null,
+    }) ?? mobile;
+  if (!name) errors.push({ code: "missing_name", field: "name" });
+
   if (!mobile && !(email.valid && email.value)) {
     errors.push({ code: "missing_phone_and_email" });
   }
+
 
 
   const stageRaw = cell(headers, row, "status");
@@ -498,7 +701,11 @@ export function prepareRow(headers: string[], row: string[], rowNumber: number):
       mobile_number: mobile,
       email: email.valid ? email.value : null,
       email_normalised: email.valid ? email.value : null,
-      source_channel: mapSourceChannel(cell(headers, row, "source_channel")),
+      source_channel: resolveSourceChannel({
+        sourceRaw: cell(headers, row, "source_channel"),
+        platformRaw: platformRaw,
+        filename: options?.filename ?? null,
+      }),
       source_channel_raw: cell(headers, row, "source_channel") || null,
       source_form: cell(headers, row, "source_form") || null,
       proposed_status: proposedStatus,

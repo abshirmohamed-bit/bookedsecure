@@ -43,6 +43,30 @@ export const getCrmImportBatch = createServerFn({ method: "GET" })
     return preview ?? null;
   });
 
+/**
+ * Saves one previewed upload into the tenant's leads inbox in a single step.
+ * Owner-gated; the tenant comes from the authenticated session, and the batch id
+ * from the browser is only ever used inside a business-scoped filter. Import-only:
+ * no messages, conversations, jobs or automation are created.
+ */
+export const saveCrmImportBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => BatchSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { saveImportBatch } = await import("@/lib/import-save.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return saveImportBatch(supabaseAdmin, {
+      businessId: app.businessId,
+      userId: app.userId,
+      batchId: data.batchId,
+    });
+  });
+
+
+
 export const listCrmImportBatches = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
