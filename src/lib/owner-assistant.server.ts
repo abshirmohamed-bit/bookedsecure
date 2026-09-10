@@ -100,6 +100,13 @@ export async function loadOwnerSnapshot(businessId: string): Promise<OwnerSnapsh
         (total, job) => total + Number(job.completed_value ?? 0),
         0,
       ),
+      upcomingList: upcomingBookings(await loadBookings(businessId), nowIso)
+        .slice(0, 5)
+        .map((entry) => ({
+          customerName: entry.customerName,
+          serviceName: entry.serviceName,
+          scheduledAt: entry.scheduledAt as string,
+        })),
     },
     campaigns: {
       total: campaignRows.length,
