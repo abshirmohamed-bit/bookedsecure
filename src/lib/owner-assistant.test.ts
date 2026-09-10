@@ -4,6 +4,7 @@ import {
   guardAssistantAnswer,
   isBannedAnswerSentence,
   buildOwnerAssistantSystem,
+  buildAssistantSystemPrompt,
   normaliseOwnerQuestion,
   renderSnapshotAnswer,
   type OwnerSnapshot,
