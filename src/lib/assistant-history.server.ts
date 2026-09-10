@@ -120,6 +120,8 @@ export async function persistOwnerExchange(input: {
   question: string;
   answer: string;
   proposals: unknown[];
+  /** Plain-English note of what the assistant actually changed, if anything. */
+  done?: string | null;
 }) {
   const thread = await assertAssistantThread(input.businessId, input.threadId);
   const { count } = await supabaseAdmin
