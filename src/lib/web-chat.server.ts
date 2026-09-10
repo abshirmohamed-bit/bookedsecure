@@ -133,6 +133,24 @@ function asSingleReply(parts: readonly string[]): string[] {
   return cleaned.length > 0 ? [cleaned] : [];
 }
 
+/**
+ * Keeps the model's acknowledgement, drops any question it wrote. Used when the
+ * server owns the question for that turn (name and mobile asked together), so
+ * the customer never reads two competing questions.
+ */
+function dropQuestions(raw: string | null | undefined): string | null {
+  const text = (raw ?? "").trim();
+  if (text.length === 0) return null;
+  const kept = text
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => !sentence.includes("?"))
+    .join(" ")
+    .trim();
+  return kept.length > 0 ? kept : null;
+}
+
+
+
 async function addMessage(
   businessId: string,
   conversationId: string,
