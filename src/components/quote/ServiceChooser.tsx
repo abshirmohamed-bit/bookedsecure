@@ -266,7 +266,7 @@ export function ServiceChooser({
 
                   <p
                     title={option.label}
-                    className="line-clamp-3 min-h-[2.4rem] break-words pr-4 text-[0.68rem] font-semibold leading-tight sm:min-h-[2.8rem] sm:text-[0.78rem]"
+                    className="line-clamp-3 min-h-[2.65rem] break-words pr-4 text-[0.66rem] font-semibold leading-tight sm:min-h-[2.9rem] sm:text-[0.76rem]"
                   >
                     {option.label}
                   </p>
