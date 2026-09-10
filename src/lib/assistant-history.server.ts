@@ -127,12 +127,15 @@ export async function persistOwnerExchange(input: {
     .select("id", { count: "exact", head: true })
     .eq("business_id", input.businessId)
     .eq("thread_id", input.threadId);
+  const userCreatedAt = new Date().toISOString();
+  const assistantCreatedAt = new Date(Date.now() + 1).toISOString();
   const { data: inserted, error } = await supabaseAdmin.from("assistant_messages").insert([
     {
       business_id: input.businessId,
       thread_id: input.threadId,
       role: "user",
       parts: [{ type: "text", text: input.question }] as Json,
+      created_at: userCreatedAt,
     },
     {
       business_id: input.businessId,
@@ -140,6 +143,7 @@ export async function persistOwnerExchange(input: {
       role: "assistant",
       parts: [{ type: "text", text: input.answer }] as Json,
       proposals: input.proposals as Json,
+      created_at: assistantCreatedAt,
     },
   ]).select("id, role");
   if (error) throw new Error(error.message);
