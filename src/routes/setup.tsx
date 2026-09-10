@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
@@ -32,6 +33,16 @@ function SetupPage() {
   const fetchSetup = useServerFn(getSetupState);
   const setup = useQuery({ queryKey: ["setup-state"], queryFn: () => fetchSetup(), retry: false });
   const readOnly = (setup.data?.role ?? "owner") !== "owner";
+
+  // Nobody who is already set up should land here: staff never need it, and an
+  // owner with services saved goes straight to Home.
+  useEffect(() => {
+    if (setup.data && !setup.data.needsSetup) navigate({ to: "/dashboard", replace: true });
+  }, [setup.data, navigate]);
+
+  if (setup.isLoading || (setup.data && !setup.data.needsSetup)) {
+    return <main className="min-h-screen bg-background" aria-busy="true" />;
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background">
