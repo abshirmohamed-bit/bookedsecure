@@ -3,5 +3,5 @@ import { AppShell } from "@/components/AppShell";
 import { AssistantWorkspace } from "@/components/home/AssistantWorkspace";
 
 export const Route = createFileRoute("/assistant")({
-  component: () => <AppShell><AssistantWorkspace /></AppShell>,
+  component: () => <AppShell title="Assistant"><AssistantWorkspace /></AppShell>,
 });

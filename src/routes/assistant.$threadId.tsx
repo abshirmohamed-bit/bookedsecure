@@ -6,5 +6,5 @@ export const Route = createFileRoute("/assistant/$threadId")({ component: Assist
 
 function AssistantThreadPage() {
   const { threadId } = Route.useParams();
-  return <AppShell><AssistantWorkspace requestedThreadId={threadId} /></AppShell>;
+  return <AppShell title="Assistant"><AssistantWorkspace requestedThreadId={threadId} /></AppShell>;
 }
