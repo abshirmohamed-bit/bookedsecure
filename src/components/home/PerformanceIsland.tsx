@@ -28,5 +28,5 @@ export function PerformanceIsland() {
 }
 
 function Signal({ icon: Icon, label, value }: { icon: typeof Activity; label: string; value: string }) {
-  return <div className="rounded-xl px-2 py-2 hover:bg-secondary/60 lg:flex lg:items-center lg:gap-3"><Icon className="mb-1 h-4 w-4 text-primary lg:mb-0" /><div className="min-w-0"><p className="truncate text-[10px] text-muted-foreground">{label}</p><p className="truncate text-sm font-semibold tabular">{value}</p></div></div>;
+  return <div className="rounded-xl px-2 py-1 hover:bg-secondary/60 lg:flex lg:items-center lg:gap-2"><Icon className="mb-0.5 h-3.5 w-3.5 text-primary lg:mb-0" /><div className="min-w-0"><p className="truncate text-[10px] text-muted-foreground">{label}</p><p className="truncate text-sm font-semibold tabular leading-tight">{value}</p></div></div>;
 }
