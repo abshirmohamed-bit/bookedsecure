@@ -72,7 +72,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const [honeypot, setHoneypot] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   /** The chosen service cards, kept so the customer's reply stays visual. */
-  const [selectionCards, setSelectionCards] = useState<{ label: string; price: string | null }[]>([]);
+  const [selectionCards, setSelectionCards] = useState<
+    { label: string; price: string | null; duration: string | null }[]
+  >([]);
   const [selectionEcho, setSelectionEcho] = useState<string | null>(null);
   /** Visible height of the screen, so the on-screen keyboard never distorts it. */
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
