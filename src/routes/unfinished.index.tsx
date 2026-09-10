@@ -32,7 +32,7 @@ function UnfinishedPage() {
   });
 
   return (
-    <AppShell>
+    <AppShell title="Unfinished enquiries">
       <div className="min-w-0 space-y-4">
         <header className="space-y-1">
           <h1 className="font-heading text-xl font-semibold">Unfinished enquiries</h1>

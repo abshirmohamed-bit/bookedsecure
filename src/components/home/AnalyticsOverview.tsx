@@ -4,6 +4,8 @@ import { useState } from "react";
 import { BarChart3, Clock3, MessageCircleReply, WalletCards } from "lucide-react";
 import { getAnalytics } from "@/lib/app.functions";
 import { SmsDeliveryPanel } from "@/components/SmsDeliveryPanel";
+import { QuoteFunnelPanel } from "@/components/home/QuoteFunnelPanel";
+
 import { SOURCE_LABELS, formatCurrency, formatMinutes } from "@/lib/domain";
 
 export function AnalyticsOverview() {
@@ -63,7 +65,10 @@ export function AnalyticsOverview() {
         </div>
       </div>
 
+      <QuoteFunnelPanel />
+
       <section className="panel overflow-hidden">
+
         <h2 className="section-heading">Funnel</h2>
         <div className="space-y-2 p-4">
           {funnel.map(([label, value]) => (
