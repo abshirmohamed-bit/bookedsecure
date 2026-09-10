@@ -163,8 +163,8 @@ function parseDetails(text: string): LeadDetailPatch {
 
 const NAME_PATTERNS: readonly RegExp[] = [
   /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)'s\b/,
-  /\b(?:for|update|mark|record|book|rebook|schedule)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/,
-  /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:is|has|paid|was)\b/,
+  /\b(?:for|update|mark|record|book|rebook|schedule|reschedule|with|from|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/,
+  /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:is|has|paid|was|wants|wanted|needs|completed|complete|finished|done|asked|called|came|dropped|picked|job)\b/,
 ];
 
 /** The customer the instruction is about, or null when no name is stated. */
