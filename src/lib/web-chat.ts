@@ -919,12 +919,34 @@ export function applyAnswer(
       return { ok: true, collected: next, echo: value };
     }
     case "name": {
-      if (value.length < 2) return { ok: false, error: "Please tell me your name." };
-      const rejection = shapeRejection("name", value);
+      // Name and mobile are asked in one question, so one answer may carry both.
+      const phone = value.match(/(?:\+?61|0)[\s\-().]*4[\d\s\-().]{7,}/);
+      let namePart = value;
+      let mobile: string | null = null;
+      if (phone) {
+        mobile = normaliseAuMobile(phone[0]);
+        if (mobile) {
+          namePart = value
+            .replace(phone[0], " ")
+            .replace(/\b(?:and|my|the|best|mobile|number|numbers|phone|is|are|it'?s)\b/gi, " ")
+            .replace(/[,.;:]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+        }
+      }
+      if (namePart.length < 2) {
+        return {
+          ok: false,
+          error: mobile ? "Thanks, got the number. And your name?" : "Please tell me your name.",
+        };
+      }
+      const rejection = shapeRejection("name", namePart);
       if (rejection) return { ok: false, error: rejection };
-      next.name = value;
-      return { ok: true, collected: next, echo: value };
+      next.name = namePart;
+      if (mobile) next.mobile_number = mobile;
+      return { ok: true, collected: next, echo: mobile ? `${namePart}, ${mobile}` : namePart };
     }
+
 
     case "mobile": {
       const mobile = normaliseAuMobile(value);
