@@ -91,6 +91,41 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
   const busy = starting || sending;
 
+  const selectionKey = `bookedsecure:sel:${tenant.slug}`;
+
+  /** Keeps the tapped cards, so a refresh still shows the choice as cards. */
+  function rememberSelection(
+    label: string,
+    cards: { label: string; price: string | null; duration: string | null }[],
+  ) {
+    setSelectionCards(cards);
+    setSelectionEcho(label);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(selectionKey, JSON.stringify({ label, cards }));
+    }
+  }
+
+  // Restores the visual selection after a refresh or resumed conversation.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.sessionStorage.getItem(selectionKey);
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved) as {
+        label?: string;
+        cards?: { label: string; price: string | null; duration: string | null }[];
+      };
+      if (parsed.label && Array.isArray(parsed.cards) && parsed.cards.length > 0) {
+        setSelectionEcho(parsed.label);
+        setSelectionCards(parsed.cards);
+      }
+    } catch {
+      window.sessionStorage.removeItem(selectionKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant.slug]);
+
+
   /** Opens the conversation. Also used by the retry control when opening fails. */
   async function begin() {
     if (inFlight.current) return;
