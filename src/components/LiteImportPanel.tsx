@@ -66,7 +66,8 @@ export function LiteImportPanel({
   preview: Preview | null;
   uploading: boolean;
   onUpload: (file: File) => void;
-  onOpenAdvanced: (options: { focusExceptions: boolean }) => void;
+  /** Optional. Omitted when there is no technical view to open. */
+  onOpenAdvanced?: (options: { focusExceptions: boolean }) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const reducedMotion = useReducedMotion();
