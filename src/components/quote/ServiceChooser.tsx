@@ -225,7 +225,7 @@ export function ServiceChooser({
         </h3>
       </div>
 
-      <div className="no-scrollbar max-h-[18.5rem] snap-y snap-proximity scroll-py-1 overflow-y-auto overscroll-y-contain pr-0.5 sm:max-h-[22rem]">
+      <div className="no-scrollbar max-h-[19.75rem] snap-y snap-proximity scroll-py-1 overflow-y-auto overscroll-y-contain pr-0.5 sm:max-h-[23.5rem]">
         <div className="grid grid-cols-3 items-stretch gap-1.5 sm:gap-2">
           {items.map((option) => {
             const card = option.card ?? null;
@@ -245,7 +245,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`relative flex h-28 w-full snap-start cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-32 sm:p-2 ${
+                  className={`relative flex h-[7.6rem] w-full snap-start cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-[9rem] sm:p-2 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -266,30 +266,35 @@ export function ServiceChooser({
 
                   <p
                     title={option.label}
-                    className="line-clamp-3 min-h-[2.65rem] break-words pr-4 text-[0.66rem] font-semibold leading-tight sm:min-h-[2.9rem] sm:text-[0.76rem]"
+                    className={`min-w-0 flex-1 break-words pr-4 font-semibold leading-[1.15] ${
+                      option.label.length > 24
+                        ? "line-clamp-3 text-[0.6rem] sm:text-[0.7rem]"
+                        : "line-clamp-2 text-[0.66rem] sm:text-[0.78rem]"
+                    }`}
                   >
                     {option.label}
                   </p>
-                  <div className="mt-auto min-w-0 pt-1">
-                    <p className="line-clamp-2 break-words text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
+                  <div className="min-w-0 shrink-0">
+                    <p className="truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
                       {card?.price ?? "On enquiry"}
                     </p>
                     {card?.duration && (
-                      <p className="mt-0.5 truncate text-[0.58rem] text-muted-foreground sm:text-[0.65rem]">{card.duration}</p>
+                      <p className="truncate text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.64rem]">
+                        {card.duration}
+                      </p>
                     )}
                   </div>
-                  <div className="mt-1">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setDetail(option);
-                      }}
-                      className="flex min-h-7 w-full items-center justify-center rounded-md border border-border bg-secondary px-1 text-center text-[0.62rem] font-semibold text-foreground hover:bg-secondary/70 sm:min-h-8 sm:text-[0.68rem]"
-                    >
-                      Details
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setDetail(option);
+                    }}
+                    className="mt-1 flex h-7 w-full shrink-0 items-center justify-center rounded-md border border-border bg-secondary px-1 text-center text-[0.62rem] font-semibold text-foreground hover:bg-secondary/70 sm:h-8 sm:text-[0.68rem]"
+                  >
+                    Details
+                  </button>
+
 
                 </div>
               </div>

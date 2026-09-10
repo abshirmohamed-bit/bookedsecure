@@ -68,7 +68,8 @@ describe("mid-conversation corrections", () => {
     expect(result.kind).toBe("applied");
     if (result.kind !== "applied") return;
     expect(result.collected.mobile_number).toBe("+61412345678");
-    expect(nextStep(result.collected)).toBe("email");
+    // Email is no longer a step of its own, so the review is next.
+    expect(nextStep(result.collected)).toBe("review");
   });
 
   it("routes back to the mobile field when no new number is given", () => {

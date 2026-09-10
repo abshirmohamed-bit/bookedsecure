@@ -115,6 +115,22 @@ function toChatTenant(tenant: PublicTenant, offerPercent?: number | null): WebCh
   };
 }
 
+/**
+ * Collapses the assembled reply parts into one customer-facing message, so a
+ * turn is always a single bubble: acknowledgement, answer and ask together.
+ * Punctuation is normalised at the same boundary.
+ */
+function asSingleReply(parts: readonly string[]): string[] {
+  const joined = parts
+    .map((part) => (part ?? "").trim())
+    .filter((part) => part.length > 0)
+    .join(" ")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+  const cleaned = sanitiseCustomerText(joined).trim();
+  return cleaned.length > 0 ? [cleaned] : [];
+}
+
 async function addMessage(
   businessId: string,
   conversationId: string,
@@ -1302,17 +1318,21 @@ export async function maybeHandleIntake(args: {
   // it survived guarding; when it already asks something, the server's own ask
   // is dropped so the customer reads one question, not two. An ambiguity ask is
   // never dropped: that one is a control decision, not phrasing.
-  const replies = modelReply
-    ? assembleReply({
-        acknowledgement: modelReply,
-        answer: null,
-        ask: ambiguity || !replyAsksSomething(modelReply) ? ask : null,
-      })
-    : assembleReply({
-        acknowledgement: corrections.length > 0 ? aiCorrectionMessage(corrections) : acknowledgement,
-        answer,
-        ask,
-      });
+  // One message per turn: acknowledgement, answer and ask read as a single
+  // reply so the customer never gets two bubbles for one turn.
+  const replies = asSingleReply(
+    modelReply
+      ? assembleReply({
+          acknowledgement: modelReply,
+          answer: null,
+          ask: ambiguity || !replyAsksSomething(modelReply) ? ask : null,
+        })
+      : assembleReply({
+          acknowledgement: corrections.length > 0 ? aiCorrectionMessage(corrections) : acknowledgement,
+          answer,
+          ask,
+        }),
+  );
 
   for (const reply of replies) await addMessage(tenant.businessId, args.conversationId, "assistant", reply);
 
@@ -1370,12 +1390,13 @@ async function maybeHandleFieldDirectives(args: {
     .eq("id", args.conversationId)
     .eq("business_id", tenant.businessId);
 
-  const replies = [fieldUpdateMessage(updates)];
+  const parts = [fieldUpdateMessage(updates)];
   const resumeStep = nextStep(next);
   const grouped = groupedMissingMessage(outstandingFields(next));
   const prompt = resumeStep ? promptFor(resumeStep, chatTenant, next) : null;
-  if (grouped) replies.push(grouped);
-  else if (prompt) replies.push(prompt.text);
+  if (grouped) parts.push(grouped);
+  else if (prompt) parts.push(prompt.text);
+  const replies = asSingleReply(parts);
 
   for (const reply of replies) await addMessage(tenant.businessId, args.conversationId, "assistant", reply);
 
