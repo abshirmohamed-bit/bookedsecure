@@ -25,6 +25,7 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as AssistantThreadIdRouteImport } from './routes/assistant.$threadId'
 import { Route as BTokenRouteImport } from './routes/b.$token'
+import { Route as BookingsIndexRouteImport } from './routes/bookings.index'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as LeadsDeletedRouteImport } from './routes/leads.deleted'
@@ -125,6 +126,11 @@ const AssistantThreadIdRoute = AssistantThreadIdRouteImport.update({
 const BTokenRoute = BTokenRouteImport.update({
   id: '/b/$token',
   path: '/b/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookingsIndexRoute = BookingsIndexRouteImport.update({
+  id: '/bookings/',
+  path: '/bookings/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsIndexRoute = LeadsIndexRouteImport.update({
@@ -262,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/bookings/': typeof BookingsIndexRoute
   '/leads/': typeof LeadsIndexRoute
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -300,6 +307,7 @@ export interface FileRoutesByTo {
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/bookings': typeof BookingsIndexRoute
   '/leads': typeof LeadsIndexRoute
   '/quote': typeof QuoteIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -340,6 +348,7 @@ export interface FileRoutesById {
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
+  '/bookings/': typeof BookingsIndexRoute
   '/leads/': typeof LeadsIndexRoute
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -381,6 +390,7 @@ export interface FileRouteTypes {
     | '/settings/business'
     | '/settings/messaging'
     | '/settings/team'
+    | '/bookings/'
     | '/leads/'
     | '/quote/'
     | '/settings/'
@@ -419,6 +429,7 @@ export interface FileRouteTypes {
     | '/settings/business'
     | '/settings/messaging'
     | '/settings/team'
+    | '/bookings'
     | '/leads'
     | '/quote'
     | '/settings'
@@ -458,6 +469,7 @@ export interface FileRouteTypes {
     | '/settings/business'
     | '/settings/messaging'
     | '/settings/team'
+    | '/bookings/'
     | '/leads/'
     | '/quote/'
     | '/settings/'
@@ -493,6 +505,7 @@ export interface RootRouteChildren {
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   LeadsDeletedRoute: typeof LeadsDeletedRoute
   QuoteSlugRoute: typeof QuoteSlugRoute
+  BookingsIndexRoute: typeof BookingsIndexRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
   QuoteIndexRoute: typeof QuoteIndexRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
@@ -620,6 +633,13 @@ declare module '@tanstack/react-router' {
       path: '/b/$token'
       fullPath: '/b/$token'
       preLoaderRoute: typeof BTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bookings/': {
+      id: '/bookings/'
+      path: '/bookings'
+      fullPath: '/bookings/'
+      preLoaderRoute: typeof BookingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads/': {
@@ -823,6 +843,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   LeadsDeletedRoute: LeadsDeletedRoute,
   QuoteSlugRoute: QuoteSlugRoute,
+  BookingsIndexRoute: BookingsIndexRoute,
   LeadsIndexRoute: LeadsIndexRoute,
   QuoteIndexRoute: QuoteIndexRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
