@@ -24,6 +24,12 @@ export type OwnerSnapshot = {
     nextScheduledAt: string | null;
     completedLast30Days: number;
     revenueLast30Days: number;
+    /** Next few scheduled jobs, so the assistant can name real times only. */
+    upcomingList?: readonly {
+      customerName: string | null;
+      serviceName: string | null;
+      scheduledAt: string;
+    }[];
   };
   campaigns: {
     total: number;
@@ -72,10 +78,23 @@ function plural(count: number, one: string, many: string): string {
 export function renderSnapshotAnswer(snapshot: OwnerSnapshot, intent: OwnerQuestionIntent): string {
   const who = businessLabel(snapshot);
   switch (intent) {
-    case "bookings":
-      return snapshot.bookings.upcoming === 0 && snapshot.bookings.completedLast30Days === 0
-        ? `${who} has no upcoming bookings recorded and no completed jobs in the last 30 days.`
-        : `${who} has ${plural(snapshot.bookings.upcoming, "upcoming booking", "upcoming bookings")} and ${plural(snapshot.bookings.completedLast30Days, "completed job", "completed jobs")} in the last 30 days.`;
+    case "bookings": {
+      if (snapshot.bookings.upcoming === 0 && snapshot.bookings.completedLast30Days === 0) {
+        return `${who} has no upcoming bookings recorded and no completed jobs in the last 30 days.`;
+      }
+      const base = `${who} has ${plural(snapshot.bookings.upcoming, "upcoming booking", "upcoming bookings")} and ${plural(snapshot.bookings.completedLast30Days, "completed job", "completed jobs")} in the last 30 days.`;
+      const next = snapshot.bookings.upcomingList?.[0];
+      if (!next) return base;
+      const when = new Intl.DateTimeFormat("en-AU", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(next.scheduledAt));
+      const label = (next.customerName ?? "").trim() || "the next customer";
+      return `${base} The next one is ${label} on ${when}.`;
+    }
     case "campaigns":
       return snapshot.campaigns.total === 0
         ? `No reactivation campaigns have been created for ${who} yet.`

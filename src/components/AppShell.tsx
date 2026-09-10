@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   BarChart3,
+  CalendarDays,
   Check,
   Copy,
   FileUp,
@@ -34,6 +35,7 @@ const NAV_ICONS = {
   assistant: Sparkles,
   inbox: Inbox,
   analytics: BarChart3,
+  bookings: CalendarDays,
 } as const;
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
@@ -223,7 +225,7 @@ function SidebarLink({
   to:
     | "/dashboard"
     | "/leads"
-
+    | "/bookings"
     | "/analytics"
     | "/import"
     | "/settings/business"
