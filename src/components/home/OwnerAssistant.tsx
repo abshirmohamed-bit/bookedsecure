@@ -290,7 +290,7 @@ export function OwnerAssistant({
 
         {hasConversation ? (
           <Conversation className="min-h-0 flex-1">
-            <ConversationContent className="mx-auto w-full max-w-3xl gap-5 px-4 pb-8 pt-28 sm:px-8">
+            <ConversationContent className="mx-auto w-full max-w-3xl gap-5 px-4 pb-8 pt-4 sm:px-8 lg:pt-28">
             {turns.map((turn) => (
               <Message key={turn.id} from={turn.role === "you" ? "user" : "assistant"}>
                 {turn.role === "you" ? (
@@ -475,7 +475,7 @@ export function OwnerAssistant({
 
         <PromptInput
           onSubmit={(message) => submit(message.text ?? question)}
-          className="mx-auto mb-5 w-[calc(100%-2rem)] max-w-3xl rounded-2xl border-border bg-card shadow-xl"
+          className="sticky bottom-0 mx-auto mb-5 mt-auto w-[calc(100%-2rem)] max-w-3xl rounded-2xl border-border bg-card shadow-xl"
         >
           <label className="sr-only" htmlFor="owner-question">
             Ask about your business or ask for a campaign
