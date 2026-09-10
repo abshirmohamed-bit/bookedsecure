@@ -47,6 +47,17 @@ export const deleteAssistantConversation = createServerFn({ method: "POST" })
     return getOrCreateDefaultAssistantThread({ businessId: app.businessId, userId: app.userId });
   });
 
+export const clearAssistantConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => ThreadSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { clearAssistantThread } = await import("@/lib/assistant-history.server");
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    await clearAssistantThread({ businessId: app.businessId, threadId: data.threadId });
+    return { ok: true };
+  });
+
 export const completeAssistantMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ messageId: z.string().uuid(), done: z.string().min(1).max(500) }).parse(input))
