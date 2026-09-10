@@ -38,6 +38,16 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
     onSuccess: async (thread) => { await queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); navigate({ to: "/assistant/$threadId", params: { threadId: thread.id } }); setMobileHistory(false); },
     onError: (error: Error) => toast.error(error.message),
   });
+  const clearThread = useMutation({
+    mutationFn: (threadId: string) => clearConversation({ data: { threadId } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["assistant-conversation"] });
+      await queryClient.invalidateQueries({ queryKey: ["assistant-home"] });
+      setMobileHistory(false);
+      toast.success("Chat cleared.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
   const removeThread = useMutation({
     mutationFn: (threadId: string) => deleteConversation({ data: { threadId } }),
     onSuccess: async (ongoing) => { await queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); navigate({ to: "/assistant/$threadId", params: { threadId: ongoing.id } }); },
