@@ -105,11 +105,12 @@ describe("lite mode defaults", () => {
     expect(DEFAULT_IMPORT_VIEW).toBe("lite");
   });
 
-  it("defaults the import route view state to lite", async () => {
+  it("renders only the simple import panel on the import route", async () => {
     const source = await readFile("src/routes/import.tsx", "utf8");
-    expect(source).toContain("useState<ImportView>(DEFAULT_IMPORT_VIEW)");
-    // The advanced tree is only rendered after the lite branch returns.
-    expect(source).toContain('if (view === "lite")');
+    expect(source).toContain("<LiteImportPanel");
+    // No technical view remains to switch into.
+    expect(source).not.toContain("onOpenAdvanced");
+    expect(source).not.toContain("StagedRowEditor");
   });
 
   it("does not render technical advanced controls in the lite panel", async () => {
@@ -268,13 +269,7 @@ describe("advanced view highlight", () => {
     expect(component).toContain("motion-reduce:animate-none");
   });
 
-  it("routes the annotation and button into the exception review area", async () => {
-    const component = await readFile("src/components/LiteImportPanel.tsx", "utf8");
-    expect(component).toContain("onOpenAdvanced({ focusExceptions: true })");
-    const route = await readFile("src/routes/import.tsx", "utf8");
-    expect(route).toContain("focusExceptions={focusExceptions}");
-    expect(route).toContain("EXCEPTION_ANCHOR_ID");
-    expect(route).toContain('focusExceptions ? "needs_review" : "all"');
+  it("keeps a stable exception anchor id for held-row copy", () => {
     expect(EXCEPTION_ANCHOR_ID).toBe("import-exceptions");
   });
 });
