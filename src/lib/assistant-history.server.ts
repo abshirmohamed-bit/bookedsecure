@@ -100,7 +100,7 @@ export async function loadAssistantThread(input: { businessId: string; threadId:
       const parts = Array.isArray(row.parts) ? row.parts : [];
       const textPart = parts.find(
         (part): part is { type: "text"; text: string } =>
-          typeof part === "object" && part !== null && "type" in part && part.type === "text" && "text" in part,
+          typeof part === "object" && part !== null && "type" in part && part["type"] === "text" && "text" in part,
       );
       return {
         id: row.id,

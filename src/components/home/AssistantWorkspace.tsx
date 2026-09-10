@@ -34,7 +34,13 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
   if (home.error || conversation.error || !activeId || !conversation.data) return <div className="grid min-h-[70vh] place-items-center text-sm text-destructive">Assistant could not be opened.</div>;
 
   const threads = conversation.data.threads;
-  const turns: OwnerAssistantTurn[] = conversation.data.messages.map((message) => ({ id: message.id, role: message.role === "user" ? "you" : "assistant", text: message.text, proposals: message.proposals as OwnerAssistantTurn["proposals"], done: message.done ?? undefined }));
+  const turns: OwnerAssistantTurn[] = conversation.data.messages.map((message) => ({
+    id: message.id,
+    role: message.role === "user" ? "you" : "assistant",
+    text: message.text,
+    ...(message.proposals.length ? { proposals: message.proposals as NonNullable<OwnerAssistantTurn["proposals"]> } : {}),
+    ...(message.done ? { done: message.done } : {}),
+  }));
   const history = <div className="flex h-full flex-col">
     <div className="flex items-center justify-between px-3 py-3"><div className="flex items-center gap-2"><History className="h-4 w-4" /><span className="text-sm font-semibold">Conversations</span></div><button className="lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history"><X className="h-4 w-4" /></button></div>
     <Button variant="outline" className="mx-3 justify-start" onClick={() => createThread.mutate()} disabled={createThread.isPending}><MessageSquarePlus className="h-4 w-4" /> New conversation</Button>
