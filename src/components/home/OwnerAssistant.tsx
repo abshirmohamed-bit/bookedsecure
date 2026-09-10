@@ -496,7 +496,7 @@ export function OwnerAssistant({
               onClick={chooseFile}
               disabled={importMutation.isPending}
               title="Upload old leads"
-               className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:px-3"
+               className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:min-h-8 sm:px-3"
             >
               {importMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -527,6 +527,7 @@ export function OwnerAssistant({
               status={mutation.isPending ? "submitted" : "ready"}
               disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
               aria-label={signedIn ? "Ask" : "Sign in to ask"}
+               className="size-10 sm:size-8"
             />
           </PromptInputFooter>
           {!loading ? (

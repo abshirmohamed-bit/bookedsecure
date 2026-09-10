@@ -66,9 +66,9 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
   return <div className="relative -mx-4 -my-5 h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-background sm:-mx-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
     <aside className="hidden min-h-0 border-r border-border bg-card/40 lg:block">{history}</aside>
     {mobileHistory && <><button className="fixed inset-0 z-40 bg-foreground/25 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] border-r border-border bg-background lg:hidden">{history}</aside></>}
-    <main className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
+    <main className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 px-3 pt-3 lg:pointer-events-none lg:absolute lg:inset-x-3 lg:top-3 lg:z-20 lg:flex lg:px-0 lg:pt-0">
-        <Button type="button" size="icon" variant="outline" onClick={() => setMobileHistory(true)} className="shrink-0 rounded-full bg-card shadow lg:pointer-events-auto lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></Button>
+        <Button type="button" size="icon" variant="outline" onClick={() => setMobileHistory(true)} className="size-11 shrink-0 rounded-full bg-card shadow lg:pointer-events-auto lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></Button>
         <div className="min-w-0 flex-1 lg:pointer-events-auto lg:ml-auto lg:w-44 lg:flex-none"><PerformanceIsland /></div>
       </div>
       <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
