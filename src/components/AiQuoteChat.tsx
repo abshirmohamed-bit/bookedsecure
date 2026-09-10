@@ -386,21 +386,21 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                 busy={busy}
                                 flexibleValue={FLEXIBLE_CHOICE}
                                 onSubmit={(value, label) => {
-                                  setSelected(value);
-                                  // Keep the tapped cards so the customer's own
-                                  // reply stays visual for the rest of the chat.
-                                  const ids = value.startsWith("sel:")
-                                    ? value.slice(4).split("|").join(",").split(",")
-                                    : [value];
-                                  const cards = serviceOptions
-                                    .filter((option) => ids.includes(option.value))
-                                    .map((option) => ({
-                                      label: option.label,
-                                      price: option.card?.price ?? null,
-                                    }));
-                                  setSelectionCards(cards);
-                                  setSelectionEcho(label);
-                                  send(value, label);
+                                   setSelected(value);
+                                   // Keep the tapped cards so the customer's own
+                                   // reply stays visual for the rest of the chat.
+                                   const ids = value.startsWith("sel:")
+                                     ? value.slice(4).split("|").join(",").split(",")
+                                     : [value];
+                                   const cards = serviceOptions
+                                     .filter((option) => ids.includes(option.value))
+                                     .map((option) => ({
+                                       label: option.label,
+                                       price: option.card?.price ?? null,
+                                       duration: option.card?.duration ?? null,
+                                     }));
+                                   rememberSelection(label, cards);
+                                   send(value, label);
                                 }}
                               />
                             </div>
