@@ -24,6 +24,12 @@ export type OwnerSnapshot = {
     nextScheduledAt: string | null;
     completedLast30Days: number;
     revenueLast30Days: number;
+    /** Next few scheduled jobs, so the assistant can name real times only. */
+    upcomingList?: readonly {
+      customerName: string | null;
+      serviceName: string | null;
+      scheduledAt: string;
+    }[];
   };
   campaigns: {
     total: number;
