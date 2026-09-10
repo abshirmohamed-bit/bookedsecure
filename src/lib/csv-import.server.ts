@@ -130,7 +130,9 @@ export async function previewCrmCsv(client: Client, input: PreviewInput): Promis
     assertCsvLimits(input.content, table.rows.length);
 
     const prepared = flagInBatchDuplicates(
-      table.rows.map((row, index) => prepareRow(table.headers, row, index + 1)),
+      table.rows.map((row, index) =>
+        prepareRow(table.headers, row, index + 1, { filename: input.filename }),
+      ),
     );
     // Read-only, tenant-scoped duplicate preflight against existing leads.
     const lookup = await loadExistingIndex(client, input.businessId);

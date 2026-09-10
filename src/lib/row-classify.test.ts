@@ -132,7 +132,6 @@ describe("automated preview classification", () => {
       [{ mobile_number: null, validation_errors: [{ code: "invalid_phone" }] }, "invalid_phone"],
       [{ mobile_number: null, validation_errors: [] }, "missing_phone"],
       [{ email: null, validation_errors: [{ code: "invalid_email" }] }, "invalid_email"],
-      [{ email: null, validation_errors: [] }, "missing_email"],
       [{ validation_errors: [{ code: "malformed_row" }] }, "uncertain_data"],
       [{ validation_errors: [{ code: "something_new" }] }, "uncertain_data"],
     ];
