@@ -4,6 +4,7 @@ import {
   guardAssistantAnswer,
   isBannedAnswerSentence,
   buildOwnerAssistantSystem,
+  buildAssistantSystemPrompt,
   normaliseOwnerQuestion,
   renderSnapshotAnswer,
   type OwnerSnapshot,
@@ -101,11 +102,28 @@ describe("guardAssistantAnswer", () => {
 });
 
 describe("buildOwnerAssistantSystem", () => {
-  it("carries the snapshot and the read-only rule", () => {
+  it("carries the snapshot and never claims an action", () => {
     const system = buildOwnerAssistantSystem(snapshot);
     expect(system).toContain("Acme Detailing");
-    expect(system).toContain("read-only");
+    expect(system).toContain("Never claim you did it");
     expect(system).toContain('"total":12');
+  });
+});
+
+describe("buildAssistantSystemPrompt", () => {
+  it("tells the assistant it acts, and gives it the tenant's own local time", () => {
+    const system = buildAssistantSystemPrompt({
+      businessName: "Acme Detailing",
+      timeZone: "Australia/Sydney",
+      localDate: "2026-09-15",
+      localTime: "08:30",
+      localWeekday: "Tuesday",
+    });
+    expect(system).toContain("Acme Detailing");
+    expect(system).toContain("Tuesday 2026-09-15");
+    expect(system).toContain("Australia/Sydney");
+    expect(system).toContain("Never say you cannot act");
+    expect(system).not.toContain("read-only helper.\n- You cannot");
   });
 });
 

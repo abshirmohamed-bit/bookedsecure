@@ -19,21 +19,36 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { handleOwnerRequest } = await import("@/lib/owner-actions.server");
+    const { loadAssistantThread, persistOwnerExchange } = await import(
+      "@/lib/assistant-history.server"
+    );
     const app = await requireAppContext(context.supabase, context.userId);
+    const question = normaliseOwnerQuestion(data.question);
+
+    // The assistant needs the conversation so far to follow "book her in too".
+    const prior = await loadAssistantThread({
+      businessId: app.businessId,
+      threadId: data.threadId,
+    });
+
     const result = await handleOwnerRequest({
       businessId: app.businessId,
       userId: app.userId,
-      question: normaliseOwnerQuestion(data.question),
+      question,
+      history: prior.messages
+        .filter((message) => message.text.trim().length > 0)
+        .map((message) => ({ role: message.role, text: message.text })),
     });
-    const { persistOwnerExchange } = await import("@/lib/assistant-history.server");
+    const done = result.executed.length > 0 ? result.executed.join(" ") : null;
     const saved = await persistOwnerExchange({
       businessId: app.businessId,
       threadId: data.threadId,
-      question: normaliseOwnerQuestion(data.question),
+      question,
       answer: result.answer,
       proposals: result.proposals,
+      done,
     });
-    return { ...result, assistantMessageId: saved.assistantMessageId };
+    return { ...result, done, assistantMessageId: saved.assistantMessageId };
   });
 
 /** Applies a status change the owner has just confirmed on screen. */

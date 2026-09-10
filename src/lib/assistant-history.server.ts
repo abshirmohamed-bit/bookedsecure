@@ -120,6 +120,8 @@ export async function persistOwnerExchange(input: {
   question: string;
   answer: string;
   proposals: unknown[];
+  /** Plain-English note of what the assistant actually changed, if anything. */
+  done?: string | null;
 }) {
   const thread = await assertAssistantThread(input.businessId, input.threadId);
   const { count } = await supabaseAdmin
@@ -144,6 +146,7 @@ export async function persistOwnerExchange(input: {
       role: "assistant",
       parts: [{ type: "text", text: input.answer }] as Json,
       proposals: (input.proposals ?? []) as Json,
+      done: input.done ?? null,
       created_at: assistantCreatedAt,
     },
   ]).select("id, role");

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -102,6 +102,7 @@ export function OwnerAssistant({
 }) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const ask = useServerFn(runOwnerRequest);
   const applyStatus = useServerFn(confirmOwnerStatusChange);
   const linkAddons = useServerFn(confirmAddonLinks);
@@ -130,7 +131,7 @@ export function OwnerAssistant({
 
   const mutation = useMutation({
     mutationFn: (value: string) => ask({ data: { question: value, threadId } }),
-    onSuccess: (result) =>
+    onSuccess: (result) => {
       setTurns((current) => [
         ...current,
         {
@@ -138,8 +139,14 @@ export function OwnerAssistant({
           role: "assistant",
           text: result.answer,
           proposals: (result.proposals ?? []) as Proposal[],
+          ...(result.done ? { done: result.done } : {}),
         },
-      ]),
+      ]);
+      if (result.done) {
+        // Bookings, leads and the performance figures may have just changed.
+        void queryClient.invalidateQueries();
+      }
+    },
     onError: (error) =>
       setTurns((current) => [
         ...current,
@@ -532,7 +539,7 @@ export function OwnerAssistant({
           </PromptInputFooter>
           {!loading ? (
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              {signedIn ? "Nothing sends without your approval" : "Sign in to ask"}
+              {signedIn ? "Ask for it and the assistant does it" : "Sign in to ask"}
             </p>
           ) : null}
         </PromptInput>
