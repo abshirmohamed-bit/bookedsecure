@@ -94,6 +94,41 @@ function text(value: unknown, max: number): string | null {
   return trimmed.slice(0, max);
 }
 
+/**
+ * Tidies a price the website reader picked up.
+ *
+ * Sale-price markup often collapses into one run-on blob such as
+ * "$119.99$189.99SAVE 37%" (sale price, was-price, discount badge). The price
+ * the customer actually pays is the sale price, so that is what is kept and the
+ * badge wording is dropped. Anything the tenant wrote as real words — a range
+ * ("$250 to $320"), "from $250", "price on enquiry" — is returned untouched.
+ */
+export function normalisePriceGuidance(value: unknown, max = 200): string | null {
+  const raw = text(value, 400);
+  if (!raw) return null;
+
+  // Separate amounts that were glued together, then strip discount badges.
+  const spaced = raw.replace(/(\d)\s*\$/g, "$1 $").replace(/%(\S)/g, "% $1");
+  const withoutBadge = spaced
+    .replace(/\b(?:save|off|discount)\b[^a-z0-9]*\d+(?:\.\d+)?\s*%?/gi, " ")
+    .replace(/\d+(?:\.\d+)?\s*%\s*(?:off|save|discount)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const amounts = withoutBadge.match(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g) ?? [];
+
+  // A written range or qualifier is the tenant's own wording — keep it as-is.
+  const hasRangeWording = /\b(?:from|to|between|and|starting|up to|each|per|min|inc|incl)\b|[–—]|(?<=\d)\s*-\s*(?=\$?\d)/i.test(
+    withoutBadge,
+  );
+  if (amounts.length > 1 && !hasRangeWording) {
+    // Two bare amounts side by side is sale price then was-price: keep the sale price.
+    return (amounts[0] ?? "").replace(/\$\s+/, "$").slice(0, max) || null;
+  }
+
+  return (withoutBadge.length > 0 ? withoutBadge : raw).slice(0, max) || null;
+}
+
 /** Accepts what a person would type ("glocast.com.au") and returns a URL. */
 export function normaliseSiteUrl(input: string | null | undefined): string | null {
   if (typeof input !== "string") return null;
