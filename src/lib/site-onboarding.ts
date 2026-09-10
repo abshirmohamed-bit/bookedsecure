@@ -372,7 +372,7 @@ function proposeServices(raw: ScrapedService[] | null | undefined): ProposedServ
       name,
       category: normaliseGroupLabel(entry.group),
       description: text(entry.description, 600),
-      price_guidance: text(entry.price, 200),
+      price_guidance: normalisePriceGuidance(entry.price),
       duration_minutes:
         Number.isInteger(duration) && duration >= 15 && duration <= 1440
           ? duration
@@ -418,7 +418,7 @@ function proposeAddons(
       name,
       category: normaliseGroupLabel(entry.group),
       description: text(entry.description, 600),
-      price_guidance: text(entry.price, 200),
+      price_guidance: normalisePriceGuidance(entry.price),
       duration_minutes:
         Number.isInteger(duration) && duration >= 5 && duration <= 1440 ? duration : null,
       serviceNames: matched.length > 0 ? matched : services.map((service) => service.name),
