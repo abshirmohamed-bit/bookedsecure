@@ -106,7 +106,10 @@ export const confirmLeadUpdate = createServerFn({ method: "POST" })
       businessId: app.businessId,
       userId: app.userId,
       leadId: data.leadId,
-      details: data.details,
+      // Drop keys the owner did not state, so nothing is blanked out.
+      details: Object.fromEntries(
+        Object.entries(data.details).filter(([, value]) => typeof value === "string"),
+      ) as Record<string, string>,
       markCompleted: data.markCompleted,
       paidAmount: data.paidAmount,
       bookAt: data.bookAt,
