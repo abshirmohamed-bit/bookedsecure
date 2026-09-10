@@ -8,16 +8,17 @@
  */
 
 export type PrimaryNavItem = {
-  to: "/dashboard" | "/leads";
+  to: "/dashboard" | "/leads" | "/bookings";
   label: string;
   /** Icon key resolved to a component by the shell, keeping this module pure. */
-  icon: "assistant" | "inbox";
+  icon: "assistant" | "inbox" | "bookings";
   /** Extra paths that should keep this item in its active state. */
   contextPaths?: readonly string[];
 };
 
 export const PRIMARY_NAV: readonly PrimaryNavItem[] = [
   { to: "/dashboard", label: "Home", icon: "assistant", contextPaths: ["/analytics", "/assistant"] },
+  { to: "/bookings", label: "Bookings", icon: "bookings" },
   { to: "/leads", label: "Lead inbox", icon: "inbox", contextPaths: ["/import"] },
 ] as const;
 
@@ -53,6 +54,7 @@ export function navBreadcrumb(pathname: string): string[] {
   if (pathname.startsWith("/leads/")) return ["Lead inbox", "Conversation"];
   if (pathname === "/leads") return ["Lead inbox"];
   if (pathname === "/dashboard") return ["Home"];
+  if (pathname === "/bookings" || pathname.startsWith("/bookings/")) return ["Bookings"];
   if (pathname === "/assistant" || pathname.startsWith("/assistant/")) return ["Home", "Assistant"];
   if (pathname === "/profile") return ["Account", "Profile"];
   if (pathname.startsWith("/settings")) {

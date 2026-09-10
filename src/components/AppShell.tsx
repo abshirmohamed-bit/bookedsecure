@@ -34,6 +34,7 @@ const NAV_ICONS = {
   assistant: Sparkles,
   inbox: Inbox,
   analytics: BarChart3,
+  bookings: CalendarDays,
 } as const;
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
@@ -223,7 +224,7 @@ function SidebarLink({
   to:
     | "/dashboard"
     | "/leads"
-
+    | "/bookings"
     | "/analytics"
     | "/import"
     | "/settings/business"
