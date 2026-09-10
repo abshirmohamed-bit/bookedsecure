@@ -11,8 +11,8 @@
  * step.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Check, Plus, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronLeft, Check, Plus, X } from "lucide-react";
 import { groupItems, hasMeaningfulGroups } from "@/lib/service-groups";
 import { encodeServiceSelection, type WebChatCardExtra } from "@/lib/web-chat";
 
@@ -39,16 +39,13 @@ export function ServiceChooser({
   busy,
   flexibleValue,
   onSubmit,
-  onFlexible,
 }: {
   options: ServiceOption[];
   busy: boolean;
   flexibleValue: string;
   onSubmit: (value: string, label: string) => void;
-  onFlexible: () => void;
 }) {
   const services = options.filter((option) => option.value !== flexibleValue);
-  const flexible = options.find((option) => option.value === flexibleValue) ?? null;
   const groups = useMemo(
     () => groupItems(services, (option) => option.card?.group ?? null),
     [services],
@@ -65,28 +62,6 @@ export function ServiceChooser({
   /** Chosen extras, by add-on id. */
   const [extras, setExtras] = useState<string[]>([]);
   const [detail, setDetail] = useState<ServiceOption | null>(null);
-
-  const track = useRef<HTMLDivElement | null>(null);
-  const [progress, setProgress] = useState(0);
-
-  const measure = useCallback(() => {
-    const node = track.current;
-    if (!node) return;
-    const span = node.scrollWidth - node.clientWidth;
-    setProgress(span > 0 ? node.scrollLeft / span : 0);
-  }, []);
-
-  useEffect(() => {
-    // New group means a fresh row: back to the start.
-    track.current?.scrollTo({ left: 0 });
-    setProgress(0);
-  }, [activeGroup?.label]);
-
-  const nudge = (direction: 1 | -1) => {
-    const node = track.current;
-    if (!node) return;
-    node.scrollBy({ left: direction * Math.max(240, node.clientWidth * 0.8), behavior: "smooth" });
-  };
 
   const chosenOptions = chosen
     .map((value) => services.find((option) => option.value === value))
@@ -243,47 +218,20 @@ export function ServiceChooser({
         </label>
       )}
 
-      <div className="flex items-center justify-between gap-2 px-1">
+      <div className="px-1">
         <h3 className="min-w-0 truncate text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
           {activeGroup?.label}
           <span className="ml-2 font-medium opacity-70">{items.length}</span>
         </h3>
-        <div className="hidden shrink-0 gap-1.5 sm:flex">
-          <button
-            type="button"
-            aria-label="Previous services"
-            onClick={() => nudge(-1)}
-            className="rounded-full border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="More services"
-            onClick={() => nudge(1)}
-            className="rounded-full border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground"
-          >
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
       </div>
 
-      <div className="relative">
-        <div
-          ref={track}
-          onScroll={measure}
-          className="no-scrollbar flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto overscroll-x-contain pb-1"
-        >
+      <div className="no-scrollbar max-h-[18.5rem] overflow-y-auto overscroll-y-contain pr-0.5 sm:max-h-[22rem]">
+        <div className="grid grid-cols-3 items-stretch gap-1.5 sm:gap-2">
           {items.map((option) => {
             const card = option.card ?? null;
             const picked = chosen.includes(option.value);
-            const cardExtras = card?.extras ?? [];
             return (
-              <div
-                key={option.value}
-                className="w-[11.5rem] shrink-0 snap-start sm:w-[15rem]"
-              >
-
+              <div key={option.value} className="min-w-0">
                 <div
                   role="button"
                   tabIndex={busy ? -1 : 0}
@@ -297,7 +245,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`flex h-full w-full cursor-pointer flex-col rounded-xl border bg-card p-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-3 ${
+                  className={`flex min-h-[7rem] w-full cursor-pointer flex-col rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[8rem] sm:p-2 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -305,14 +253,7 @@ export function ServiceChooser({
                       : "border-border hover:border-primary/60"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-1.5">
-                    {card?.group ? (
-                      <span className="truncate rounded bg-secondary px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-tight text-muted-foreground">
-                        {card.group}
-                      </span>
-                    ) : (
-                      <span />
-                    )}
+                  <div className="flex justify-end">
                     <span
                       aria-hidden="true"
                       className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
@@ -325,85 +266,25 @@ export function ServiceChooser({
                     </span>
                   </div>
 
-                  <p className="mt-1 text-[0.8rem] font-semibold leading-tight sm:text-[0.85rem]">
+                  <p className="mt-0.5 line-clamp-2 break-words text-[0.68rem] font-semibold leading-tight sm:text-[0.78rem]">
                     {option.label}
                   </p>
-                  {card?.description && (
-                    <p className="mt-1 line-clamp-2 text-[0.7rem] leading-snug text-muted-foreground">
-                      {card.description}
-                    </p>
-                  )}
-
-
-                  <div className="mt-auto flex flex-wrap items-baseline justify-between gap-x-1.5 pt-1.5">
-                    <p className="min-w-0 truncate text-[0.72rem] font-bold text-primary sm:text-[0.8rem]">
+                  <div className="mt-auto min-w-0 pt-1">
+                    <p className="line-clamp-2 break-words text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
                       {card?.price ?? "On enquiry"}
                     </p>
                     {card?.duration && (
-                      <p className="shrink-0 text-[0.6rem] text-muted-foreground">{card.duration}</p>
+                      <p className="mt-0.5 truncate text-[0.58rem] text-muted-foreground sm:text-[0.65rem]">{card.duration}</p>
                     )}
                   </div>
-
-                  {/* The service's own extras, only once it is chosen. */}
-                  {picked && cardExtras.length > 0 && (
-                    <div className="mt-2 rounded-lg bg-secondary/60 p-1.5">
-                      <p className="text-[0.6rem] font-bold uppercase tracking-widest text-muted-foreground">
-                        Add extras
-                      </p>
-                      <ul className="mt-1 space-y-1">
-                        {cardExtras.map((extra) => {
-                          const on = extras.includes(extra.id);
-                          return (
-                            <li key={extra.id}>
-                              <button
-                                type="button"
-                                aria-pressed={on}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  toggleExtra(extra.id);
-                                }}
-                                className={`flex w-full items-center gap-1.5 rounded-md border px-1.5 py-1 text-left text-[0.65rem] transition-colors ${
-                                  on
-                                    ? "border-primary bg-primary/10 text-foreground"
-                                    : "border-border bg-card text-muted-foreground hover:text-foreground"
-                                }`}
-                              >
-                                <span
-                                  aria-hidden="true"
-                                  className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${
-                                    on
-                                      ? "border-primary bg-primary text-primary-foreground"
-                                      : "border-border"
-                                  }`}
-                                >
-                                  {on ? (
-                                    <Check className="h-2.5 w-2.5" />
-                                  ) : (
-                                    <Plus className="h-2.5 w-2.5 opacity-60" />
-                                  )}
-                                </span>
-                                <span className="min-w-0 flex-1 truncate">{extra.name}</span>
-                                {extra.price && (
-                                  <span className="shrink-0 font-semibold text-primary">
-                                    {extra.price}
-                                  </span>
-                                )}
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="mt-2">
+                  <div className="mt-1">
                     <button
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
                         setDetail(option);
                       }}
-                      className="flex min-h-9 w-full items-center justify-center rounded-lg border border-border bg-secondary px-2 text-center text-[0.7rem] font-semibold text-foreground hover:bg-secondary/70"
+                      className="flex min-h-7 w-full items-center justify-center rounded-md border border-border bg-secondary px-1 text-center text-[0.62rem] font-semibold text-foreground hover:bg-secondary/70 sm:min-h-8 sm:text-[0.68rem]"
                     >
                       Details
                     </button>
@@ -414,25 +295,10 @@ export function ServiceChooser({
             );
           })}
         </div>
-
-        {items.length > 1 && (
-          <>
-            <p className="mt-1.5 text-center text-[0.65rem] text-muted-foreground sm:hidden">
-              Swipe to see more · tap to choose
-            </p>
-            <div className="mx-auto mt-2 h-1 w-24 overflow-hidden rounded-full bg-secondary">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${Math.round(20 + progress * 80)}%` }}
-              />
-            </div>
-          </>
-        )}
-
       </div>
 
       {chosen.length > 0 && (
-        <div className="rounded-2xl border border-primary/40 bg-card p-3">
+        <div className="rounded-xl border border-primary/40 bg-card p-2.5">
           <p className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
             Your selection
           </p>
@@ -451,6 +317,45 @@ export function ServiceChooser({
               </li>
             ))}
           </ul>
+          {chosenOptions.some((option) => (option.card?.extras.length ?? 0) > 0) && (
+            <div className="mt-2 space-y-2 border-t border-border pt-2">
+              {chosenOptions.map((option) => {
+                const cardExtras = option.card?.extras ?? [];
+                if (cardExtras.length === 0) return null;
+                return (
+                  <div key={option.value}>
+                    <p className="truncate text-[0.65rem] font-semibold text-muted-foreground">
+                      Extras for {option.label}
+                    </p>
+                    <div className="mt-1 grid gap-1 sm:grid-cols-2">
+                      {cardExtras.map((extra) => {
+                        const on = extras.includes(extra.id);
+                        return (
+                          <button
+                            key={extra.id}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => toggleExtra(extra.id)}
+                            className={`grid min-h-9 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md border px-2 py-1 text-left text-[0.65rem] ${
+                              on
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border bg-secondary text-muted-foreground"
+                            }`}
+                          >
+                            <span className={`grid h-4 w-4 place-items-center rounded border ${on ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>
+                              {on ? <Check className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
+                            </span>
+                            <span className="min-w-0 truncate">{extra.name}</span>
+                            {extra.price && <span className="shrink-0 font-semibold text-primary">{extra.price}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <button
             type="button"
             disabled={busy}
@@ -462,17 +367,6 @@ export function ServiceChooser({
         </div>
       )}
 
-      {flexible && (
-        <button
-          type="button"
-          disabled={busy}
-          aria-label="Something else or not sure, type your own request"
-          onClick={onFlexible}
-          className="w-full rounded-xl border border-dashed border-border px-3 py-2.5 text-left text-sm text-muted-foreground hover:border-primary hover:text-foreground disabled:opacity-50"
-        >
-          Something else or not sure? Tell us what you need.
-        </button>
-      )}
     </div>
   );
 }

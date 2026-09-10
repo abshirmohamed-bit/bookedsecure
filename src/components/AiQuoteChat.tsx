@@ -336,14 +336,6 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                   setSelected(value);
                                   send(value, label);
                                 }}
-
-                                onFlexible={() => {
-                                  setSelected(FLEXIBLE_CHOICE);
-                                  setDescribing(true);
-                                  setListHidden(true);
-                                  setError(null);
-                                  requestAnimationFrame(() => input.current?.focus());
-                                }}
                               />
                             </div>
                           </div>
