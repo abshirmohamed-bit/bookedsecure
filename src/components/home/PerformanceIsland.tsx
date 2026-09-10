@@ -22,7 +22,7 @@ export function PerformanceIsland() {
         <Signal icon={CircleDollarSign} label="Completed" value={analytics.data ? formatCurrency(analytics.data.completedRevenue) : "—"} />
         <Signal icon={Activity} label="SMS delivered" value={delivery.data?.deliveryRate == null ? "—" : `${Math.round(delivery.data.deliveryRate * 100)}%`} />
       </div>
-      <button type="button" onClick={() => setDetailsOpen(true)} className="mt-1 min-h-8 w-full border-t border-border/70 pt-1 text-center text-[10px] font-medium text-primary">Operational details</button>
+      <Button type="button" variant="ghost" onClick={() => setDetailsOpen(true)} className="mt-1 min-h-8 w-full rounded-none border-t border-border/70 pt-1 text-center text-[10px] font-medium text-primary">Operational details</Button>
       {detailsOpen ? <div className="fixed inset-0 z-[70] flex items-end bg-foreground/25 p-0 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true" aria-label="Operational details">
         <section className="flex max-h-[calc(100dvh-1rem)] w-full min-w-0 flex-col overflow-hidden rounded-t-2xl border border-border bg-background shadow-2xl sm:max-h-[85dvh] sm:max-w-4xl sm:rounded-2xl">
           <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-border px-4 py-3">
