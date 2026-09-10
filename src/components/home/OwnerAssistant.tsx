@@ -339,6 +339,34 @@ export function OwnerAssistant() {
                             </div>
                           ) : null}
                         </div>
+                      ) : proposal.kind === "lead_update" ? (
+                        <div
+                          key={`${proposal.leadId}-update`}
+                          className="rounded-2xl border border-border bg-card p-4 text-sm"
+                        >
+                          <p className="font-medium">Update {proposal.leadName}</p>
+                          <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+                            {proposal.lines.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                          <button
+                            type="button"
+                            disabled={busyId === turn.id}
+                            onClick={() => {
+                              setBusyId(turn.id);
+                              leadMutation.mutate({ turnId: turn.id, proposal });
+                            }}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                          >
+                            {busyId === turn.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                            Confirm
+                          </button>
+                        </div>
                       ) : proposal.kind === "addon_links" ? (
                         <div
                           key={`${proposal.addonId}-${proposal.remove ? "off" : "on"}`}
