@@ -312,20 +312,20 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                     !describing &&
                     onServiceStep &&
                     serviceOptions.length > 0 && (
-                      <li className="flex items-end gap-2">
+                      <li className="flex w-full min-w-0 items-end gap-2">
                         <TenantMark
                           name={tenant.name}
                           logoUrl={tenant.logoUrl}
                           size={28}
-                          className="rounded-full"
+                          className="hidden shrink-0 rounded-full sm:block"
                         />
-                        <div className="w-full max-w-[92%] space-y-3 border-l-2 border-primary pl-3 text-sm leading-relaxed">
+                        <div className="min-w-0 w-full space-y-2 text-sm leading-relaxed sm:max-w-[92%] sm:space-y-3 sm:border-l-2 sm:border-primary sm:pl-3">
                           <p>
                             {returningName
                               ? `Welcome back, ${returningName}! Thanks for choosing ${tenant.name} again. Pick a service to see the details.`
                               : `Hi, welcome to ${tenant.name}. Pick a service to see what's included, how long it takes and the price.`}
                           </p>
-                          <div className="w-full max-w-full overflow-hidden rounded-2xl border border-border bg-muted p-3 shadow-sm sm:p-4">
+                          <div className="w-full max-w-full overflow-hidden rounded-xl border border-border bg-muted p-2 shadow-sm sm:rounded-2xl sm:p-4">
                             <div className="min-w-0">
 
                               <ServiceChooser
