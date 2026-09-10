@@ -19,9 +19,14 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
 
         const { processDueFollowUps } = await import("@/lib/lead-engine.server");
         const { processDueReactivationReminders } = await import("@/lib/reactivation.server");
+        const { sweepAbandonedConversations } = await import("@/lib/quote-funnel.server");
         const result = await processDueFollowUps();
         const reminders = await processDueReactivationReminders();
-        return Response.json({ ...result, reminders });
+        // Measurement housekeeping: quiet quote conversations stop counting as
+        // live. No message is ever sent by this sweep.
+        const swept = await sweepAbandonedConversations();
+        return Response.json({ ...result, reminders, abandonedSwept: swept.swept });
+
 
       },
     },
