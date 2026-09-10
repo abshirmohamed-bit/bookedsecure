@@ -39,7 +39,7 @@ export async function loadBookings(
   const [{ data: leads }, { data: offers }] = await Promise.all([
     supabaseAdmin
       .from("leads")
-      .select("id, name, phone, address, suburb, service_intent, deleted_at")
+      .select("id, name, mobile_number, service_address, suburb, service_intent, deleted_at")
       .eq("business_id", businessId)
       .in("id", leadIds),
     supabaseAdmin
@@ -65,7 +65,7 @@ export async function loadBookings(
         jobId: job.id,
         leadId: job.lead_id,
         customerName: lead?.name ?? null,
-        phone: lead?.phone ?? null,
+        phone: lead?.mobile_number ?? null,
         serviceName: resolveServiceName({
           servicePerformed: job.service_performed,
           offerServiceName: offerByJob.get(job.id)?.service_name_snapshot ?? null,
@@ -75,7 +75,7 @@ export async function loadBookings(
         state: bookingState(job.completion_status),
         completedValue: job.completed_value === null ? null : Number(job.completed_value),
         completedAt: job.completed_at,
-        address: lead?.address ?? null,
+        address: lead?.service_address ?? null,
         suburb: lead?.suburb ?? null,
         notes: job.notes,
       } satisfies BookingEntry;
