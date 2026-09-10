@@ -1309,10 +1309,16 @@ export async function maybeHandleIntake(args: {
   const resumeStep = nextStep(next);
   const prompt = resumeStep ? promptFor(resumeStep, chatTenant, next) : null;
 
+  // Name and mobile are one question. When both are still missing the server's
+  // own combined ask is used, so the customer is never asked for the name in one
+  // turn and the number in the next.
+  const contactTurn = outstanding.includes("name") && outstanding.includes("mobile") && !ambiguity;
+
   let ask: string | null = null;
   if (ambiguity) ask = ambiguityMessage(ambiguity);
   else if (outstanding.includes("service") && extraction.unmatched.service && !answer)
     ask = unmatchedServiceMessage(tenant.name);
+  else if (contactTurn) ask = CONTACT_ASK_TEXT;
   else {
     const grouped = groupedMissingMessage(outstanding);
     if (grouped) ask = acknowledgement || answer ? grouped.replace(/^Got it\.\s*/, "") : grouped;
@@ -1322,15 +1328,18 @@ export async function maybeHandleIntake(args: {
   // The model's wording replaces the fixed acknowledgement/answer sentences when
   // it survived guarding; when it already asks something, the server's own ask
   // is dropped so the customer reads one question, not two. An ambiguity ask is
-  // never dropped: that one is a control decision, not phrasing.
+  // never dropped: that one is a control decision, not phrasing. On a contact
+  // turn the model's own question is dropped instead, so the single combined
+  // name-and-mobile question is what the customer reads.
+  const modelWording = contactTurn ? dropQuestions(modelReply) : modelReply;
   // One message per turn: acknowledgement, answer and ask read as a single
   // reply so the customer never gets two bubbles for one turn.
   const replies = asSingleReply(
-    modelReply
+    modelWording
       ? assembleReply({
-          acknowledgement: modelReply,
+          acknowledgement: modelWording,
           answer: null,
-          ask: ambiguity || !replyAsksSomething(modelReply) ? ask : null,
+          ask: contactTurn || ambiguity || !replyAsksSomething(modelWording) ? ask : null,
         })
       : assembleReply({
           acknowledgement: corrections.length > 0 ? aiCorrectionMessage(corrections) : acknowledgement,
@@ -1338,6 +1347,7 @@ export async function maybeHandleIntake(args: {
           ask,
         }),
   );
+
 
   for (const reply of replies) await addMessage(tenant.businessId, args.conversationId, "assistant", reply);
 
