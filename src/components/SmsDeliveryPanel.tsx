@@ -4,6 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { getSession } from "@/lib/app.functions";
 import { getSmsDeliverySummary, reconcileSmsDelivery } from "@/lib/sms-delivery.functions";
+import { Button } from "@/components/ui/button";
 
 const SOURCE_LABELS: Record<string, string> = {
   manual: "Manual",
@@ -60,14 +61,17 @@ export function SmsDeliveryPanel() {
           </p>
         </div>
         {canReconcile && (
-          <button
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={() => reconciliation.mutate()}
             disabled={reconciliation.isPending}
-            className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+            className="h-auto min-h-10 shrink-0 px-2.5 text-xs text-muted-foreground sm:min-h-8"
           >
             <RefreshCw className={reconciliation.isPending ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
             Re-check pending
-          </button>
+          </Button>
         )}
       </div>
 
@@ -92,7 +96,21 @@ export function SmsDeliveryPanel() {
         </p>
       )}
 
-      <div className="overflow-x-auto border-t border-border">
+      <div className="divide-y divide-border border-t border-border sm:hidden">
+        {data.bySource.map((row) => (
+          <article key={row.source} className="p-4">
+            <h3 className="font-medium">{SOURCE_LABELS[row.source] ?? row.source}</h3>
+            <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <DeliveryDatum label="Messages" value={row.total} />
+              <DeliveryDatum label="Delivered" value={row.delivered} />
+              <DeliveryDatum label="Failed" value={row.failed} />
+              <DeliveryDatum label="Pending" value={row.pending} />
+            </dl>
+          </article>
+        ))}
+        {data.bySource.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">No outbound SMS yet.</p>}
+      </div>
+      <div className="hidden overflow-x-auto border-t border-border sm:block">
         <table className="w-full min-w-[520px] text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
@@ -125,6 +143,10 @@ export function SmsDeliveryPanel() {
       </div>
     </section>
   );
+}
+
+function DeliveryDatum({ label, value }: { label: string; value: number }) {
+  return <div><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-0.5 font-medium tabular">{value}</dd></div>;
 }
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {

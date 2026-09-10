@@ -32,30 +32,30 @@ export function AnalyticsOverview() {
   ] as const;
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <p className="text-sm text-muted-foreground">
         See which channels turn enquiries into completed work.
       </p>
-      <div className="panel grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:justify-between">
-        <p className="truncate text-sm font-semibold">Reporting period</p>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+      <div className="panel grid min-w-0 gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <p className="text-sm font-semibold">Reporting period</p>
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-xs sm:flex sm:flex-wrap">
           <input
             type="date"
             value={range.from}
             onChange={(event) => setRange({ ...range, from: event.target.value })}
-            className="rounded-md border border-input bg-background px-2 py-1.5"
+            className="min-w-0 rounded-md border border-input bg-background px-2 py-2"
           />
           <span className="text-muted-foreground">to</span>
           <input
             type="date"
             value={range.to}
             onChange={(event) => setRange({ ...range, to: event.target.value })}
-            className="rounded-md border border-input bg-background px-2 py-1.5"
+            className="min-w-0 rounded-md border border-input bg-background px-2 py-2"
           />
           {(range.from || range.to) && (
             <button
               onClick={() => setRange({ from: "", to: "" })}
-              className="text-muted-foreground hover:text-foreground"
+              className="col-span-3 min-h-10 justify-self-start text-muted-foreground hover:text-foreground sm:col-span-1 sm:min-h-0"
             >
               Clear
             </button>
@@ -68,7 +68,7 @@ export function AnalyticsOverview() {
         <div className="space-y-2 p-4">
           {funnel.map(([label, value]) => (
             <div key={label} className="flex items-center gap-3">
-              <span className="w-32 shrink-0 text-xs text-muted-foreground">{label}</span>
+              <span className="w-24 shrink-0 text-xs text-muted-foreground sm:w-32">{label}</span>
               <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-secondary">
                 <div
                   className="h-full rounded-full bg-primary"
@@ -85,7 +85,24 @@ export function AnalyticsOverview() {
 
       <section className="panel">
         <h2 className="section-heading">By source channel (never combined)</h2>
-        <div className="overflow-x-auto">
+        <div className="divide-y divide-border sm:hidden">
+          {data.bySource.map((row) => (
+            <article key={row.source} className="space-y-3 p-4">
+              <h3 className="font-medium">{SOURCE_LABELS[row.source] ?? row.source}</h3>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <MobileDatum label="Leads" value={String(row.leads)} />
+                <MobileDatum label="Median response" value={formatMinutes(row.medianResponseMinutes)} />
+                <MobileDatum label="Reply rate" value={`${Math.round(row.replyRate * 100)}%`} />
+                <MobileDatum label="Completed jobs" value={String(row.completedJobs)} />
+                <MobileDatum label="Completed rate" value={`${Math.round(row.completedRate * 100)}%`} />
+                <MobileDatum label="Revenue" value={formatCurrency(row.completedRevenue)} />
+                <MobileDatum label="Average job" value={row.averageJobValue ? formatCurrency(row.averageJobValue) : "—"} />
+              </dl>
+            </article>
+          ))}
+          {data.bySource.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">No leads in this period.</p>}
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
@@ -167,6 +184,10 @@ export function AnalyticsOverview() {
       </p>
     </div>
   );
+}
+
+function MobileDatum({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-0.5 break-words font-medium tabular">{value}</dd></div>;
 }
 
 function Stat({
