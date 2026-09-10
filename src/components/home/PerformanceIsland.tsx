@@ -1,12 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Activity, CircleDollarSign, MessageCircleReply } from "lucide-react";
+import { Activity, CircleDollarSign, MessageCircleReply, X } from "lucide-react";
+import { useState } from "react";
 import { getAnalytics } from "@/lib/app.functions";
 import { getSmsDeliverySummary } from "@/lib/sms-delivery.functions";
 import { formatCurrency } from "@/lib/domain";
 import { AnalyticsOverview } from "@/components/home/AnalyticsOverview";
+import { Button } from "@/components/ui/button";
 
 export function PerformanceIsland() {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const fetchAnalytics = useServerFn(getAnalytics);
   const fetchDelivery = useServerFn(getSmsDeliverySummary);
   const analytics = useQuery({ queryKey: ["assistant-performance-island"], queryFn: () => fetchAnalytics({ data: { from: null, to: null, source: null } }) });
@@ -19,10 +22,16 @@ export function PerformanceIsland() {
         <Signal icon={CircleDollarSign} label="Completed" value={analytics.data ? formatCurrency(analytics.data.completedRevenue) : "—"} />
         <Signal icon={Activity} label="SMS delivered" value={delivery.data?.deliveryRate == null ? "—" : `${Math.round(delivery.data.deliveryRate * 100)}%`} />
       </div>
-      <details className="mt-1 border-t border-border/70 pt-1">
-        <summary className="cursor-pointer list-none text-center text-[10px] font-medium text-primary">Operational details</summary>
-        <div className="absolute right-0 top-full z-30 mt-2 max-h-[70vh] w-[min(760px,calc(100vw-2rem))] overflow-auto rounded-2xl border border-border bg-background p-4 shadow-2xl"><AnalyticsOverview /></div>
-      </details>
+      <button type="button" onClick={() => setDetailsOpen(true)} className="mt-1 min-h-8 w-full border-t border-border/70 pt-1 text-center text-[10px] font-medium text-primary">Operational details</button>
+      {detailsOpen ? <div className="fixed inset-0 z-[70] flex items-end bg-foreground/25 p-0 sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true" aria-label="Operational details">
+        <section className="flex max-h-[calc(100dvh-1rem)] w-full min-w-0 flex-col overflow-hidden rounded-t-2xl border border-border bg-background shadow-2xl sm:max-h-[85dvh] sm:max-w-4xl sm:rounded-2xl">
+          <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-border px-4 py-3">
+            <h2 className="truncate text-base font-semibold">Operational details</h2>
+            <Button type="button" size="icon" variant="ghost" onClick={() => setDetailsOpen(false)} aria-label="Close operational details"><X className="h-4 w-4" /></Button>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"><AnalyticsOverview /></div>
+        </section>
+      </div> : null}
     </aside>
   );
 }
