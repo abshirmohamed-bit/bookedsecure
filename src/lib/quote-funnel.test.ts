@@ -109,7 +109,7 @@ describe("unfinished prospects", () => {
       row({
         id: "old",
         lastActivityAt: "2026-09-01T00:00:00.000Z",
-        collected: { mobile_number: "0412111111", name: "Old Sam" },
+        collected: { mobile_number: "0413555210", name: "Old Sam" },
       }),
       row({
         id: "new",
