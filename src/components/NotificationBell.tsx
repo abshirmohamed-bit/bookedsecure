@@ -22,7 +22,8 @@ export function NotificationBell() {
     // the same unread count on every mount.
     staleTime: 45_000,
     gcTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
+    // New bookings should surface as soon as the owner comes back to the tab.
+    refetchOnWindowFocus: true,
     refetchOnMount: false,
   });
 
@@ -80,6 +81,14 @@ export function NotificationBell() {
                   </p>
                 </div>
               );
+              // Booking alerts open the calendar; lead alerts open the conversation.
+              if (item.kind === "booking_confirmed" || item.kind === "booking_change_request") {
+                return (
+                  <Link key={item.id} to="/bookings" onClick={() => setOpen(false)} className="block">
+                    {inner}
+                  </Link>
+                );
+              }
               return item.lead_id ? (
                 <Link
                   key={item.id}
