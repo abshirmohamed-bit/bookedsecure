@@ -93,6 +93,22 @@ describe("web chat step machine", () => {
     expect(collected.email).toBeUndefined();
   });
 
+  it("takes the name and mobile from one answer", () => {
+    const result = applyAnswer({}, "name", "Abshir, 0466 907 824", tenant);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.collected.name).toBe("Abshir");
+      expect(result.collected.mobile_number).toBe("+61466907824");
+    }
+  });
+
+  it("still accepts a name on its own", () => {
+    const result = applyAnswer({}, "name", "Abshir", tenant);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.collected.name).toBe("Abshir");
+  });
+
+
   it("rejects a non-Australian mobile without advancing", () => {
     const collected = { ...complete(), mobile_number: null };
     const result = applyAnswer(collected, "mobile", "+1 415 555 0100", tenant);

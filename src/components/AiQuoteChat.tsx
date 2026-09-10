@@ -226,11 +226,19 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   // plain-text version of the same summary is not repeated in the transcript.
   const visibleTurns = useMemo(
     () =>
-      turns.filter(
-        (turn) => !isSuppressedOpeningTurn(turn.body) && !turn.body.startsWith("Quick check:"),
-      ),
+      turns
+        .filter((turn) => !isSuppressedOpeningTurn(turn.body))
+        .map((turn) => {
+          // The plain-text summary can arrive joined to an acknowledgement, so it
+          // is cut out of the message rather than the whole turn being dropped.
+          const at = turn.body.indexOf("Quick check:");
+          if (turn.role !== "assistant" || at < 0) return turn;
+          return { ...turn, body: turn.body.slice(0, at).trim() };
+        })
+        .filter((turn) => turn.body.length > 0),
     [turns],
   );
+
 
   const onServiceStep = prompt?.step === "service" && prompt.kind === "choice";
   const serviceOptions = onServiceStep && !listHidden ? (prompt?.options ?? []) : [];
