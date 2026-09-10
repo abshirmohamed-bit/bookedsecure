@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HomeRouteImport } from './routes/home'
@@ -22,6 +23,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
+import { Route as AssistantThreadIdRouteImport } from './routes/assistant.$threadId'
 import { Route as BTokenRouteImport } from './routes/b.$token'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
@@ -53,6 +55,11 @@ const IndexRoute = IndexRouteImport.update({
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantRoute = AssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -109,6 +116,11 @@ const AdminPilotApplicationsRoute = AdminPilotApplicationsRouteImport.update({
   id: '/admin/pilot-applications',
   path: '/admin/pilot-applications',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantThreadIdRoute = AssistantThreadIdRouteImport.update({
+  id: '/$threadId',
+  path: '/$threadId',
+  getParentRoute: () => AssistantRoute,
 } as any)
 const BTokenRoute = BTokenRouteImport.update({
   id: '/b/$token',
@@ -229,6 +241,7 @@ const ApiPublicSmsTextoInboundRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
@@ -240,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
+  '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
@@ -266,6 +280,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
@@ -276,6 +291,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
+  '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
@@ -303,6 +319,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
@@ -314,6 +331,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
+  '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
@@ -342,6 +360,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/analytics'
+    | '/assistant'
     | '/auth'
     | '/dashboard'
     | '/home'
@@ -353,6 +372,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/admin/pilot-applications'
+    | '/assistant/$threadId'
     | '/b/$token'
     | '/leads/$leadId'
     | '/leads/deleted'
@@ -379,6 +399,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/analytics'
+    | '/assistant'
     | '/auth'
     | '/dashboard'
     | '/home'
@@ -389,6 +410,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/setup'
     | '/admin/pilot-applications'
+    | '/assistant/$threadId'
     | '/b/$token'
     | '/leads/$leadId'
     | '/leads/deleted'
@@ -415,6 +437,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/analytics'
+    | '/assistant'
     | '/auth'
     | '/dashboard'
     | '/home'
@@ -426,6 +449,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/admin/pilot-applications'
+    | '/assistant/$threadId'
     | '/b/$token'
     | '/leads/$leadId'
     | '/leads/deleted'
@@ -453,6 +477,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  AssistantRoute: typeof AssistantRouteWithChildren
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
   HomeRoute: typeof HomeRoute
@@ -497,6 +522,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/analytics'
       preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant': {
+      id: '/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -575,6 +607,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/pilot-applications'
       preLoaderRoute: typeof AdminPilotApplicationsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/assistant/$threadId': {
+      id: '/assistant/$threadId'
+      path: '/$threadId'
+      fullPath: '/assistant/$threadId'
+      preLoaderRoute: typeof AssistantThreadIdRouteImport
+      parentRoute: typeof AssistantRoute
     }
     '/b/$token': {
       id: '/b/$token'
@@ -733,6 +772,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AssistantRouteChildren {
+  AssistantThreadIdRoute: typeof AssistantThreadIdRoute
+}
+
+const AssistantRouteChildren: AssistantRouteChildren = {
+  AssistantThreadIdRoute: AssistantThreadIdRoute,
+}
+
+const AssistantRouteWithChildren = AssistantRoute._addFileChildren(
+  AssistantRouteChildren,
+)
+
 interface SettingsRouteChildren {
   SettingsAutomationRoute: typeof SettingsAutomationRoute
   SettingsBusinessRoute: typeof SettingsBusinessRoute
@@ -756,6 +807,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  AssistantRoute: AssistantRouteWithChildren,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
   HomeRoute: HomeRoute,
