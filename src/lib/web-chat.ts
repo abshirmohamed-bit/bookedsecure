@@ -150,6 +150,13 @@ export type WebChatPrompt = {
   fields?: WebChatReviewField[];
 };
 
+/**
+ * Name and mobile are one question, never two turns: the customer answers both
+ * in a single reply and the server accepts either or both from that answer.
+ */
+export const CONTACT_ASK_TEXT =
+  "Almost done. What's your name, and the best mobile to reach you on?";
+
 
 export function welcomeMessage(tenant: WebChatTenant): string {
   return [
