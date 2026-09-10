@@ -264,22 +264,18 @@ export function LiteImportPanel({
             </button>
 
             <div className="flex flex-col gap-1">
-              <button
-                type="button"
-                aria-label={highlight.ariaLabel}
-                onClick={() => onOpenAdvanced({ focusExceptions: highlight.highlight })}
-                className={`rounded-md border border-input px-4 py-2 text-sm motion-reduce:animate-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${highlight.className}`}
-              >
-                {ADVANCED_VIEW_LABEL}
-              </button>
-              {highlight.annotation ? (
+              {onOpenAdvanced ? (
                 <button
                   type="button"
-                  onClick={() => onOpenAdvanced({ focusExceptions: true })}
-                  className="text-left text-xs text-muted-foreground underline hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  aria-label={highlight.ariaLabel}
+                  onClick={() => onOpenAdvanced({ focusExceptions: highlight.highlight })}
+                  className={`rounded-md border border-input px-4 py-2 text-sm motion-reduce:animate-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${highlight.className}`}
                 >
-                  {highlight.annotation}
+                  {ADVANCED_VIEW_LABEL}
                 </button>
+              ) : null}
+              {highlight.annotation ? (
+                <p className="text-left text-xs text-muted-foreground">{highlight.annotation}</p>
               ) : (
                 <p className="text-xs text-muted-foreground">
                   Everything is reviewed — nothing needs your attention.
