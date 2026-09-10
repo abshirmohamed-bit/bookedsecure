@@ -127,7 +127,7 @@ export async function persistOwnerExchange(input: {
     .select("id", { count: "exact", head: true })
     .eq("business_id", input.businessId)
     .eq("thread_id", input.threadId);
-  const { error } = await supabaseAdmin.from("assistant_messages").insert([
+  const { data: inserted, error } = await supabaseAdmin.from("assistant_messages").insert([
     {
       business_id: input.businessId,
       thread_id: input.threadId,
@@ -156,6 +156,10 @@ export async function persistOwnerExchange(input: {
       .eq("business_id", input.businessId)
       .eq("id", input.threadId);
   }
+  return {
+    userMessageId: inserted?.find((row) => row.role === "user")?.id ?? null,
+    assistantMessageId: inserted?.find((row) => row.role === "assistant")?.id ?? null,
+  };
 }
 
 export async function completeAssistantProposal(input: {

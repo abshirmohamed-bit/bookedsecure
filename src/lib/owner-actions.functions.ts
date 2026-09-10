@@ -26,14 +26,14 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
       question: normaliseOwnerQuestion(data.question),
     });
     const { persistOwnerExchange } = await import("@/lib/assistant-history.server");
-    await persistOwnerExchange({
+    const saved = await persistOwnerExchange({
       businessId: app.businessId,
       threadId: data.threadId,
       question: normaliseOwnerQuestion(data.question),
       answer: result.answer,
       proposals: result.proposals,
     });
-    return result;
+    return { ...result, assistantMessageId: saved.assistantMessageId };
   });
 
 /** Applies a status change the owner has just confirmed on screen. */

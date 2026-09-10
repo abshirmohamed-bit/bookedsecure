@@ -15,6 +15,10 @@ import { approveReactivation } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { previewCrmImport } from "@/lib/csv-import.functions";
 import { MAX_CSV_BYTES } from "@/lib/csv-import";
+import { completeAssistantMessage } from "@/lib/assistant-history.functions";
+import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
+import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
 
 type CampaignProposal = {
   kind: "campaign";
@@ -65,6 +69,8 @@ type Turn = {
   done?: string;
 };
 
+export type OwnerAssistantTurn = Turn;
+
 function newId(): string {
   return Math.random().toString(36).slice(2);
 }
@@ -85,7 +91,15 @@ function autoSize(el: HTMLTextAreaElement) {
  * above the box, and every action is proposed first and only runs once you
  * approve it. Rendered inside the signed-in workspace shell.
  */
-export function OwnerAssistant() {
+export function OwnerAssistant({
+  threadId,
+  initialTurns = [],
+  onConversationChanged,
+}: {
+  threadId: string;
+  initialTurns?: OwnerAssistantTurn[];
+  onConversationChanged?: () => void;
+}) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const ask = useServerFn(runOwnerRequest);
@@ -94,6 +108,7 @@ export function OwnerAssistant() {
   const updateLead = useServerFn(confirmLeadUpdate);
   const approve = useServerFn(approveReactivation);
   const upload = useServerFn(previewCrmImport);
+  const completeMessage = useServerFn(completeAssistantMessage);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -101,7 +116,7 @@ export function OwnerAssistant() {
   }, []);
   const endRef = useRef<HTMLDivElement>(null);
   const [question, setQuestion] = useState("");
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [turns, setTurns] = useState<Turn[]>(initialTurns);
   const [attested, setAttested] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -110,12 +125,12 @@ export function OwnerAssistant() {
   }, [turns]);
 
   const mutation = useMutation({
-    mutationFn: (value: string) => ask({ data: { question: value } }),
+    mutationFn: (value: string) => ask({ data: { question: value, threadId } }),
     onSuccess: (result) =>
       setTurns((current) => [
         ...current,
         {
-          id: newId(),
+          id: result.assistantMessageId ?? newId(),
           role: "assistant",
           text: result.answer,
           proposals: (result.proposals ?? []) as Proposal[],
@@ -152,6 +167,10 @@ export function OwnerAssistant() {
         turn.id === turnId ? { ...turn, proposals: [], done: message } : turn,
       ),
     );
+    void completeMessage({ data: { messageId: turnId, done: message } }).catch(() => {
+      toast.error("The action completed, but its conversation note could not be saved.");
+    });
+    onConversationChanged?.();
   }
 
   const approveMutation = useMutation({
@@ -233,7 +252,10 @@ export function OwnerAssistant() {
     }
     setTurns((current) => [...current, { id: newId(), role: "you", text }]);
     setQuestion("");
-    mutation.mutate(text);
+    mutation.mutate(text, { onSettled: () => {
+      onConversationChanged?.();
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    } });
   }
 
   function chooseFile() {
@@ -247,10 +269,10 @@ export function OwnerAssistant() {
   const hasConversation = turns.length > 0;
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col pt-4 sm:pt-8">
+    <section className="flex h-full min-h-0 w-full flex-col">
       <div className="flex w-full flex-1 flex-col justify-center">
         {!hasConversation ? (
-          <div className="mb-6 text-center sm:mb-8">
+          <div className="mx-auto mb-6 mt-auto max-w-2xl text-center sm:mb-8">
             <h1 className="text-balance font-heading text-2xl font-semibold leading-[1.15] tracking-tight sm:text-4xl">
               Stop losing leads you already paid for.
             </h1>
@@ -262,18 +284,15 @@ export function OwnerAssistant() {
         ) : null}
 
         {hasConversation ? (
-          <div className="mb-4 max-h-[55vh] space-y-4 overflow-y-auto pr-1">
+          <Conversation className="min-h-0 flex-1">
+            <ConversationContent className="mx-auto w-full max-w-3xl gap-5 px-4 pb-8 pt-28 sm:px-8">
             {turns.map((turn) => (
-              <div key={turn.id} className={turn.role === "you" ? "flex justify-end" : ""}>
+              <Message key={turn.id} from={turn.role === "you" ? "user" : "assistant"}>
                 {turn.role === "you" ? (
-                  <p className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-                    {turn.text}
-                  </p>
+                  <MessageContent className="bg-primary text-primary-foreground"><MessageResponse>{turn.text}</MessageResponse></MessageContent>
                 ) : (
                   <div className="max-w-[95%] space-y-3">
-                    <p className="whitespace-pre-line rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm leading-relaxed">
-                      {turn.text}
-                    </p>
+                    <MessageContent><MessageResponse>{turn.text}</MessageResponse></MessageContent>
 
                     {turn.proposals?.map((proposal) =>
                       proposal.kind === "campaign" ? (
@@ -438,32 +457,40 @@ export function OwnerAssistant() {
                     ) : null}
                   </div>
                 )}
-              </div>
+              </Message>
             ))}
             {mutation.isPending ? (
               <p className="text-xs text-muted-foreground">Working on it…</p>
             ) : null}
             <div ref={endRef} />
-          </div>
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
         ) : null}
 
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit(question);
-          }}
-          className="rounded-2xl border border-border bg-card p-4 text-left shadow-lg"
+        <PromptInput
+          onSubmit={(message) => submit(message.text ?? question)}
+          className="mx-auto mb-5 w-[calc(100%-2rem)] max-w-3xl rounded-2xl border-border bg-card shadow-xl"
         >
           <label className="sr-only" htmlFor="owner-question">
             Ask about your business or ask for a campaign
           </label>
-          <div className="flex items-start gap-2 sm:gap-3">
+          <PromptInputTextarea
+            id="owner-question"
+            ref={textareaRef}
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            maxLength={OWNER_ASSISTANT_MAX_QUESTION}
+            placeholder="Message Assistant…"
+          />
+          <PromptInputFooter>
+            <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={chooseFile}
               disabled={importMutation.isPending}
               title="Upload old leads"
-              className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:px-3"
+               className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:px-3"
             >
               {importMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -489,45 +516,19 @@ export function OwnerAssistant() {
                 importMutation.mutate(file);
               }}
             />
-            <textarea
-              id="owner-question"
-              ref={textareaRef}
-              value={question}
-              onChange={(event) => {
-                setQuestion(event.target.value);
-                autoSize(event.target);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  submit(question);
-                }
-              }}
-              rows={1}
-              maxLength={OWNER_ASSISTANT_MAX_QUESTION}
-              placeholder="Win back past customers"
-              className="min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
-            />
-            <button
-              type="submit"
-              aria-label={signedIn ? "Ask" : "Sign in to ask"}
-              title={signedIn ? "Ask" : "Sign in to ask"}
+            </div>
+            <PromptInputSubmit
+              status={mutation.isPending ? "submitted" : "ready"}
               disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
-              className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-            >
-              {mutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <ArrowUp className="h-4 w-4" aria-hidden="true" />
-              )}
-            </button>
-          </div>
+              aria-label={signedIn ? "Ask" : "Sign in to ask"}
+            />
+          </PromptInputFooter>
           {!loading ? (
             <p className="mt-2 text-center text-xs text-muted-foreground">
               {signedIn ? "Nothing sends without your approval" : "Sign in to ask"}
             </p>
           ) : null}
-        </form>
+        </PromptInput>
       </div>
     </section>
   );
