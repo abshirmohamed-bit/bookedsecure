@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, RotateCcw, ShieldCheck } from "lucide-react";
+import { AlertCircle, Check, RotateCcw, ShieldCheck } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
 import { ServiceChooser } from "@/components/quote/ServiceChooser";
 import {
@@ -72,7 +72,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const [honeypot, setHoneypot] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   /** The chosen service cards, kept so the customer's reply stays visual. */
-  const [selectionCards, setSelectionCards] = useState<{ label: string; price: string | null }[]>([]);
+  const [selectionCards, setSelectionCards] = useState<
+    { label: string; price: string | null; duration: string | null }[]
+  >([]);
   const [selectionEcho, setSelectionEcho] = useState<string | null>(null);
   /** Visible height of the screen, so the on-screen keyboard never distorts it. */
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
@@ -88,6 +90,41 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const input = useRef<HTMLTextAreaElement | null>(null);
 
   const busy = starting || sending;
+
+  const selectionKey = `bookedsecure:sel:${tenant.slug}`;
+
+  /** Keeps the tapped cards, so a refresh still shows the choice as cards. */
+  function rememberSelection(
+    label: string,
+    cards: { label: string; price: string | null; duration: string | null }[],
+  ) {
+    setSelectionCards(cards);
+    setSelectionEcho(label);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(selectionKey, JSON.stringify({ label, cards }));
+    }
+  }
+
+  // Restores the visual selection after a refresh or resumed conversation.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.sessionStorage.getItem(selectionKey);
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved) as {
+        label?: string;
+        cards?: { label: string; price: string | null; duration: string | null }[];
+      };
+      if (parsed.label && Array.isArray(parsed.cards) && parsed.cards.length > 0) {
+        setSelectionEcho(parsed.label);
+        setSelectionCards(parsed.cards);
+      }
+    } catch {
+      window.sessionStorage.removeItem(selectionKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant.slug]);
+
 
   /** Opens the conversation. Also used by the retry control when opening fails. */
   async function begin() {
@@ -237,6 +274,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
       if (result.state.declined || result.state.completed) {
         // Finished conversations are not resumable; a refresh starts fresh.
         window.sessionStorage.removeItem(`bookedsecure:chat:${tenant.slug}`);
+        window.sessionStorage.removeItem(selectionKey);
       }
       if (result.state.declined) setFinished("declined");
       else if (result.state.completed) setFinished("completed");
@@ -263,8 +301,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const canSend = !busy && draft.trim().length > 0;
 
   const customerBubble = (body: string) => {
-    // A service selection stays visible as the cards the customer tapped, for
-    // the rest of the conversation, instead of a plain line of text.
+    // A service selection stays visible as the same cards the customer tapped,
+    // for the rest of the conversation, instead of a plain line of text.
     if (selectionEcho && body === selectionEcho && selectionCards.length > 0) {
       return (
         <div className="ml-auto max-w-[86%]">
@@ -272,11 +310,21 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
             {selectionCards.map((card) => (
               <li
                 key={card.label}
-                className="rounded-xl border border-primary/40 bg-[color:var(--chat-user)] px-2.5 py-1.5 text-left text-[color:var(--chat-user-foreground)]"
+                className="flex w-[7.2rem] flex-col rounded-lg border border-primary bg-card p-1.5 text-left shadow-sm ring-1 ring-primary/40 sm:w-[8.5rem] sm:p-2"
               >
-                <p className="break-words text-xs font-semibold leading-tight">{card.label}</p>
-                {card.price && (
-                  <p className="text-[0.7rem] leading-tight opacity-90">{card.price}</p>
+                <span className="mb-1 flex h-4 w-4 items-center justify-center self-end rounded-full border border-primary bg-primary text-primary-foreground">
+                  <Check className="h-3 w-3" aria-hidden="true" />
+                </span>
+                <p className="min-w-0 break-words text-[0.66rem] font-semibold leading-[1.15] sm:text-[0.78rem]">
+                  {card.label}
+                </p>
+                <p className="mt-1 truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
+                  {card.price ?? "On enquiry"}
+                </p>
+                {card.duration && (
+                  <p className="truncate text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.64rem]">
+                    {card.duration}
+                  </p>
                 )}
               </li>
             ))}
@@ -386,21 +434,21 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                 busy={busy}
                                 flexibleValue={FLEXIBLE_CHOICE}
                                 onSubmit={(value, label) => {
-                                  setSelected(value);
-                                  // Keep the tapped cards so the customer's own
-                                  // reply stays visual for the rest of the chat.
-                                  const ids = value.startsWith("sel:")
-                                    ? value.slice(4).split("|").join(",").split(",")
-                                    : [value];
-                                  const cards = serviceOptions
-                                    .filter((option) => ids.includes(option.value))
-                                    .map((option) => ({
-                                      label: option.label,
-                                      price: option.card?.price ?? null,
-                                    }));
-                                  setSelectionCards(cards);
-                                  setSelectionEcho(label);
-                                  send(value, label);
+                                   setSelected(value);
+                                   // Keep the tapped cards so the customer's own
+                                   // reply stays visual for the rest of the chat.
+                                   const ids = value.startsWith("sel:")
+                                     ? value.slice(4).split("|").join(",").split(",")
+                                     : [value];
+                                   const cards = serviceOptions
+                                     .filter((option) => ids.includes(option.value))
+                                     .map((option) => ({
+                                       label: option.label,
+                                       price: option.card?.price ?? null,
+                                       duration: option.card?.duration ?? null,
+                                     }));
+                                   rememberSelection(label, cards);
+                                   send(value, label);
                                 }}
                               />
                             </div>

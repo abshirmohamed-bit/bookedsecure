@@ -556,10 +556,12 @@ export async function replyToWebChat(input: {
       .eq("id", conversation.id)
       .eq("business_id", tenant.businessId);
 
-    await addMessage(tenant.businessId, conversation.id, "assistant", correction.message);
     const resumeStep = nextStep(corrected);
     const resumePrompt = resumeStep ? promptFor(resumeStep, chatTenant, corrected) : null;
-    if (resumePrompt) await addMessage(tenant.businessId, conversation.id, "assistant", resumePrompt.text);
+    // One message per turn: the correction and the next question read together.
+    const [correctionReply] = asSingleReply([correction.message, resumePrompt?.text ?? ""]);
+    const correctionBody = correctionReply ?? correction.message;
+    await addMessage(tenant.businessId, conversation.id, "assistant", correctionBody);
 
     return {
       conversationId: conversation.id,
@@ -567,8 +569,7 @@ export async function replyToWebChat(input: {
       messages: [
         ...turns,
         { role: "customer", body: echo },
-        { role: "assistant", body: correction.message },
-        ...(resumePrompt ? [{ role: "assistant" as const, body: resumePrompt.text }] : []),
+        { role: "assistant", body: correctionBody },
       ],
       prompt: resumePrompt,
       requiresOwnerReview: correctedOutcome.requiresOwnerReview,
@@ -650,16 +651,18 @@ export async function replyToWebChat(input: {
       (followUp === "vehicle" || followUp === "addons") && next.service_name
         ? serviceAcknowledgement(chatTenant, next)
         : null;
-    if (detail) await addMessage(tenant.businessId, conversation.id, "assistant", detail);
-    await addMessage(tenant.businessId, conversation.id, "assistant", prompt.text);
+    // One message per turn: the acknowledgement and the next question read as a
+    // single reply so the customer never gets two bubbles for one turn.
+    const [reply] = asSingleReply([detail ?? "", prompt.text]);
+    const body = reply ?? prompt.text;
+    await addMessage(tenant.businessId, conversation.id, "assistant", body);
     return {
       conversationId: conversation.id,
       status: "active",
       messages: [
         ...turns,
         { role: "customer", body: applied.echo },
-        ...(detail ? [{ role: "assistant" as const, body: detail }] : []),
-        { role: "assistant", body: prompt.text },
+        { role: "assistant", body },
       ],
       prompt,
       requiresOwnerReview: outcome.requiresOwnerReview,
