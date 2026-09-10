@@ -556,10 +556,12 @@ export async function replyToWebChat(input: {
       .eq("id", conversation.id)
       .eq("business_id", tenant.businessId);
 
-    await addMessage(tenant.businessId, conversation.id, "assistant", correction.message);
     const resumeStep = nextStep(corrected);
     const resumePrompt = resumeStep ? promptFor(resumeStep, chatTenant, corrected) : null;
-    if (resumePrompt) await addMessage(tenant.businessId, conversation.id, "assistant", resumePrompt.text);
+    // One message per turn: the correction and the next question read together.
+    const [correctionReply] = asSingleReply([correction.message, resumePrompt?.text ?? ""]);
+    const correctionBody = correctionReply ?? correction.message;
+    await addMessage(tenant.businessId, conversation.id, "assistant", correctionBody);
 
     return {
       conversationId: conversation.id,
@@ -567,8 +569,7 @@ export async function replyToWebChat(input: {
       messages: [
         ...turns,
         { role: "customer", body: echo },
-        { role: "assistant", body: correction.message },
-        ...(resumePrompt ? [{ role: "assistant" as const, body: resumePrompt.text }] : []),
+        { role: "assistant", body: correctionBody },
       ],
       prompt: resumePrompt,
       requiresOwnerReview: correctedOutcome.requiresOwnerReview,
