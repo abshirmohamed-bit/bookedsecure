@@ -35,6 +35,7 @@ export type ImportLeadInsert = {
   email: string | null;
   email_normalised: string | null;
   suburb: string | null;
+  service_address: string | null;
   vehicle_type: string | null;
   service_intent: string | null;
   source_channel: string;
