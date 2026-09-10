@@ -322,14 +322,16 @@ export function LiteImportPanel({
           <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
             Upload a contact file to see how many contacts are ready to save.
           </p>
-          <button
-            type="button"
-            aria-label={highlight.ariaLabel}
-            onClick={() => onOpenAdvanced({ focusExceptions: false })}
-            className="mt-3 rounded-md border border-input px-4 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            {ADVANCED_VIEW_LABEL}
-          </button>
+          {onOpenAdvanced ? (
+            <button
+              type="button"
+              aria-label={highlight.ariaLabel}
+              onClick={() => onOpenAdvanced({ focusExceptions: false })}
+              className="mt-3 rounded-md border border-input px-4 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              {ADVANCED_VIEW_LABEL}
+            </button>
+          ) : null}
         </section>
       )}
     </div>
