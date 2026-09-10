@@ -155,9 +155,16 @@ export async function resumeWebChat(slug: string, conversationId: string): Promi
     .eq("id", conversationId)
     .eq("business_id", tenant.businessId)
     .maybeSingle();
+  // A conversation that went quiet was marked abandoned by the sweep. Coming
+  // back reopens it, so the customer never hits a dead end.
+  if (conversation && conversation.status === "abandoned") {
+    await reopenConversation(tenant.businessId, conversation.id);
+    conversation.status = "active";
+  }
   // A completed or declined conversation is never resumable, so a refresh can
   // never be turned into a second booking.
   if (!conversation || conversation.status !== "active") return null;
+
 
   const chatTenant = toChatTenant(
     tenant,

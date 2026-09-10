@@ -2150,6 +2150,66 @@ export type Database = {
           },
         ]
       }
+      quote_page_events: {
+        Row: {
+          business_id: string
+          campaign: string | null
+          conversation_id: string | null
+          created_at: string
+          id: string
+          landing_url: string | null
+          medium: string | null
+          referrer: string | null
+          session_key: string | null
+          slug: string | null
+          source: string | null
+          utm: Json
+        }
+        Insert: {
+          business_id: string
+          campaign?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          landing_url?: string | null
+          medium?: string | null
+          referrer?: string | null
+          session_key?: string | null
+          slug?: string | null
+          source?: string | null
+          utm?: Json
+        }
+        Update: {
+          business_id?: string
+          campaign?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          landing_url?: string | null
+          medium?: string | null
+          referrer?: string | null
+          session_key?: string | null
+          slug?: string | null
+          source?: string | null
+          utm?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_page_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_page_events_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "web_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reactivation_campaigns: {
         Row: {
           ai_notes: string | null
@@ -3002,13 +3062,16 @@ export type Database = {
       }
       web_conversations: {
         Row: {
+          abandoned_at: string | null
           business_id: string
           collected: Json
           completed_at: string | null
           consent_outcome: string | null
           created_at: string
           id: string
+          last_activity_at: string
           lead_id: string | null
+          mobile_captured_at: string | null
           requires_owner_review: boolean
           selected_service_id: string | null
           service_name_snapshot: string | null
@@ -3017,13 +3080,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          abandoned_at?: string | null
           business_id: string
           collected?: Json
           completed_at?: string | null
           consent_outcome?: string | null
           created_at?: string
           id?: string
+          last_activity_at?: string
           lead_id?: string | null
+          mobile_captured_at?: string | null
           requires_owner_review?: boolean
           selected_service_id?: string | null
           service_name_snapshot?: string | null
@@ -3032,13 +3098,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          abandoned_at?: string | null
           business_id?: string
           collected?: Json
           completed_at?: string | null
           consent_outcome?: string | null
           created_at?: string
           id?: string
+          last_activity_at?: string
           lead_id?: string | null
+          mobile_captured_at?: string | null
           requires_owner_review?: boolean
           selected_service_id?: string | null
           service_name_snapshot?: string | null
@@ -3255,6 +3324,10 @@ export type Database = {
       set_cron_credential: {
         Args: { p_name: string; p_secret: string }
         Returns: undefined
+      }
+      sweep_abandoned_web_conversations: {
+        Args: { p_minutes?: number }
+        Returns: number
       }
     }
     Enums: {
