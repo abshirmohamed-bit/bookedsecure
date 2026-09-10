@@ -274,10 +274,10 @@ export function OwnerAssistant({
   const hasConversation = turns.length > 0;
 
   return (
-    <section className="flex min-h-full w-full flex-1 flex-col lg:h-full lg:min-h-0">
-      <div className="flex w-full flex-1 flex-col">
+    <section className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
         {!hasConversation ? (
-          <div className="mx-auto my-auto max-w-2xl px-4 py-10 text-center lg:pr-48">
+          <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-5 py-5 text-center lg:pr-48">
             <h1 className="text-balance font-heading text-2xl font-semibold leading-[1.15] tracking-tight sm:text-4xl">
               Stop losing leads you already paid for.
             </h1>
@@ -289,8 +289,8 @@ export function OwnerAssistant({
         ) : null}
 
         {hasConversation ? (
-          <Conversation className="min-h-0 flex-1">
-            <ConversationContent className="mx-auto w-full max-w-3xl gap-5 px-4 pb-8 pt-4 sm:px-8 lg:pt-28">
+          <Conversation className="min-h-0 min-w-0 flex-1 overscroll-contain">
+            <ConversationContent className="mx-auto w-full min-w-0 max-w-3xl gap-5 px-4 pb-6 pt-4 sm:px-8 lg:pt-28">
             {turns.map((turn) => (
               <Message key={turn.id} from={turn.role === "you" ? "user" : "assistant"}>
                 {turn.role === "you" ? (
@@ -475,7 +475,7 @@ export function OwnerAssistant({
 
         <PromptInput
           onSubmit={(message) => submit(message.text ?? question)}
-          className="sticky bottom-0 mx-auto mb-5 mt-auto w-[calc(100%-2rem)] max-w-3xl rounded-2xl border-border bg-card shadow-xl"
+          className="relative z-20 mx-auto mb-[max(0.75rem,env(safe-area-inset-bottom))] mt-2 w-[calc(100%-1.5rem)] max-w-3xl shrink-0 rounded-2xl border-border bg-card shadow-xl sm:w-[calc(100%-2rem)]"
         >
           <label className="sr-only" htmlFor="owner-question">
             Ask about your business or ask for a campaign
@@ -487,15 +487,16 @@ export function OwnerAssistant({
             onChange={(event) => setQuestion(event.target.value)}
             maxLength={OWNER_ASSISTANT_MAX_QUESTION}
             placeholder="Message Assistant…"
+            className="min-h-12 max-h-[120px]"
           />
-          <PromptInputFooter>
+           <PromptInputFooter className="min-h-11">
             <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={chooseFile}
               disabled={importMutation.isPending}
               title="Upload old leads"
-               className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:px-3"
+               className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:min-h-8 sm:px-3"
             >
               {importMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -526,6 +527,7 @@ export function OwnerAssistant({
               status={mutation.isPending ? "submitted" : "ready"}
               disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
               aria-label={signedIn ? "Ask" : "Sign in to ask"}
+               className="size-10 sm:size-8"
             />
           </PromptInputFooter>
           {!loading ? (

@@ -24,7 +24,14 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
   const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
   const home = useQuery({ queryKey: ["assistant-home"], queryFn: () => getHome() });
   const activeId = requestedThreadId ?? home.data?.ongoing.id;
-  const conversation = useQuery({ queryKey: ["assistant-conversation", activeId], enabled: Boolean(activeId), queryFn: () => getConversation({ data: { threadId: activeId! } }) });
+  const conversation = useQuery({
+    queryKey: ["assistant-conversation", activeId],
+    enabled: Boolean(activeId),
+    queryFn: () => {
+      if (!activeId) throw new Error("No conversation selected.");
+      return getConversation({ data: { threadId: activeId } });
+    },
+  });
   const createThread = useMutation({
     mutationFn: () => createConversation(),
     onSuccess: async (thread) => { await queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); navigate({ to: "/assistant/$threadId", params: { threadId: thread.id } }); setMobileHistory(false); },
@@ -46,22 +53,22 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
     ...(message.proposals.length ? { proposals: message.proposals as NonNullable<OwnerAssistantTurn["proposals"]> } : {}),
     ...(message.done ? { done: message.done } : {}),
   }));
-  const history = <div className="flex h-full flex-col">
-    <div className="flex items-center justify-between px-3 py-3"><div className="flex items-center gap-2"><History className="h-4 w-4" /><span className="text-sm font-semibold">Conversations</span></div><button className="lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history"><X className="h-4 w-4" /></button></div>
+  const history = <div className="flex h-full min-h-0 flex-col pb-[env(safe-area-inset-bottom)]">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center px-3 py-3"><div className="flex min-w-0 items-center gap-2"><History className="h-4 w-4 shrink-0" /><span className="truncate text-sm font-semibold">Conversations</span></div><Button type="button" size="icon" variant="ghost" className="lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history"><X className="h-4 w-4" /></Button></div>
     <Button variant="outline" className="mx-3 justify-start" onClick={() => createThread.mutate()} disabled={createThread.isPending}><MessageSquarePlus className="h-4 w-4" /> New conversation</Button>
     <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto px-2">{threads.map((thread) => <div key={thread.id} className={`group flex items-center rounded-lg ${thread.id === activeId ? "bg-primary/10 text-primary" : "hover:bg-secondary"}`}>
       <button className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-xs font-medium" onClick={() => { navigate({ to: "/assistant/$threadId", params: { threadId: thread.id } }); setMobileHistory(false); }}>{thread.isDefault ? "Ongoing conversation" : thread.title}</button>
-      {!thread.isDefault && <button className="mr-1 rounded p-1.5 text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 focus:opacity-100" aria-label={`Delete ${thread.title}`} onClick={() => window.confirm("Delete this conversation?") && removeThread.mutate(thread.id)}><Trash2 className="h-3.5 w-3.5" /></button>}
+      {!thread.isDefault && <Button type="button" size="icon" variant="ghost" className="mr-1 shrink-0 text-muted-foreground lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100" aria-label={`Delete ${thread.title}`} onClick={() => window.confirm("Delete this conversation?") && removeThread.mutate(thread.id)}><Trash2 className="h-4 w-4" /></Button>}
     </div>)}</div>
     {session.data?.role === "owner" && <button onClick={() => { setWebsiteSetup(true); setMobileHistory(false); }} className="m-3 flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"><Globe2 className="h-4 w-4" /> Set up from website</button>}
   </div>;
 
-  return <div className="relative -mx-4 -my-5 h-[calc(100dvh-4rem)] overflow-hidden bg-background sm:-mx-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+  return <div className="relative -mx-4 -my-5 h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-background sm:-mx-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
     <aside className="hidden min-h-0 border-r border-border bg-card/40 lg:block">{history}</aside>
-    {mobileHistory && <><button className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(84vw,300px)] border-r border-border bg-background lg:hidden">{history}</aside></>}
-    <main className="relative flex min-h-0 flex-col overflow-y-auto lg:overflow-hidden">
-      <div className="flex items-start gap-2 px-3 pt-3 lg:pointer-events-none lg:absolute lg:inset-x-3 lg:top-3 lg:z-20 lg:px-0 lg:pt-0">
-        <button onClick={() => setMobileHistory(true)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card shadow lg:pointer-events-auto lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></button>
+    {mobileHistory && <><button className="fixed inset-0 z-40 bg-foreground/25 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] border-r border-border bg-background lg:hidden">{history}</aside></>}
+    <main className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 px-3 pt-3 lg:pointer-events-none lg:absolute lg:inset-x-3 lg:top-3 lg:z-20 lg:flex lg:px-0 lg:pt-0">
+        <Button type="button" size="icon" variant="outline" onClick={() => setMobileHistory(true)} className="size-11 shrink-0 rounded-full bg-card shadow lg:pointer-events-auto lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></Button>
         <div className="min-w-0 flex-1 lg:pointer-events-auto lg:ml-auto lg:w-44 lg:flex-none"><PerformanceIsland /></div>
       </div>
       <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
