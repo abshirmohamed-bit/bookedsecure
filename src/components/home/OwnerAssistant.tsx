@@ -277,7 +277,7 @@ export function OwnerAssistant({
     <section className="flex min-h-full w-full flex-1 flex-col lg:h-full lg:min-h-0">
       <div className="flex w-full flex-1 flex-col">
         {!hasConversation ? (
-          <div className="mx-auto my-auto max-w-2xl px-4 py-10 text-center">
+          <div className="mx-auto my-auto max-w-2xl px-4 py-10 text-center lg:pr-48">
             <h1 className="text-balance font-heading text-2xl font-semibold leading-[1.15] tracking-tight sm:text-4xl">
               Stop losing leads you already paid for.
             </h1>
