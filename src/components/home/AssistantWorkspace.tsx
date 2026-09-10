@@ -18,6 +18,7 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
   const getConversation = useServerFn(getAssistantConversation);
   const createConversation = useServerFn(createAssistantConversation);
   const deleteConversation = useServerFn(deleteAssistantConversation);
+  const clearConversation = useServerFn(clearAssistantConversation);
   const fetchSession = useServerFn(getSession);
   const [mobileHistory, setMobileHistory] = useState(false);
   const [websiteSetup, setWebsiteSetup] = useState(false);
