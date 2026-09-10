@@ -56,7 +56,7 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
     {session.data?.role === "owner" && <button onClick={() => { setWebsiteSetup(true); setMobileHistory(false); }} className="m-3 flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"><Globe2 className="h-4 w-4" /> Set up from website</button>}
   </div>;
 
-  return <div className="relative -m-3 h-[calc(100dvh-4rem)] overflow-hidden bg-background sm:-m-5 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+  return <div className="relative -mx-4 -my-5 h-[calc(100dvh-4rem)] overflow-hidden bg-background sm:-mx-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
     <aside className="hidden min-h-0 border-r border-border bg-card/40 lg:block">{history}</aside>
     {mobileHistory && <><button className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(84vw,300px)] border-r border-border bg-background lg:hidden">{history}</aside></>}
     <main className="relative flex min-h-0 flex-col overflow-hidden">
