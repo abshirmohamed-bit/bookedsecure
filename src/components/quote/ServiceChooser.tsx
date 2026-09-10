@@ -281,8 +281,9 @@ export function ServiceChooser({
             return (
               <div
                 key={option.value}
-                className="w-[8.25rem] shrink-0 snap-start sm:w-[15rem]"
+                className="w-[11.5rem] shrink-0 snap-start sm:w-[15rem]"
               >
+
                 <div
                   role="button"
                   tabIndex={busy ? -1 : 0}
@@ -296,7 +297,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`flex h-full w-full cursor-pointer flex-col rounded-xl border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-3 ${
+                  className={`flex h-full w-full cursor-pointer flex-col rounded-xl border bg-card p-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-3 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -324,14 +325,15 @@ export function ServiceChooser({
                     </span>
                   </div>
 
-                  <p className="mt-1 text-[0.72rem] font-semibold leading-tight sm:text-[0.8rem]">
+                  <p className="mt-1 text-[0.8rem] font-semibold leading-tight sm:text-[0.85rem]">
                     {option.label}
                   </p>
                   {card?.description && (
-                    <p className="mt-1 hidden line-clamp-2 text-[0.7rem] leading-snug text-muted-foreground sm:block">
+                    <p className="mt-1 line-clamp-2 text-[0.7rem] leading-snug text-muted-foreground">
                       {card.description}
                     </p>
                   )}
+
 
                   <div className="mt-auto flex flex-wrap items-baseline justify-between gap-x-1.5 pt-1.5">
                     <p className="min-w-0 truncate text-[0.72rem] font-bold text-primary sm:text-[0.8rem]">
@@ -401,11 +403,12 @@ export function ServiceChooser({
                         event.stopPropagation();
                         setDetail(option);
                       }}
-                      className="w-full rounded-lg border border-border bg-secondary px-1.5 py-1.5 text-center text-[0.65rem] font-semibold text-foreground hover:bg-secondary/70"
+                      className="flex min-h-9 w-full items-center justify-center rounded-lg border border-border bg-secondary px-2 text-center text-[0.7rem] font-semibold text-foreground hover:bg-secondary/70"
                     >
                       Details
                     </button>
                   </div>
+
                 </div>
               </div>
             );
@@ -413,13 +416,19 @@ export function ServiceChooser({
         </div>
 
         {items.length > 1 && (
-          <div className="mx-auto mt-2 h-1 w-24 overflow-hidden rounded-full bg-secondary">
-            <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${Math.round(20 + progress * 80)}%` }}
-            />
-          </div>
+          <>
+            <p className="mt-1.5 text-center text-[0.65rem] text-muted-foreground sm:hidden">
+              Swipe to see more · tap to choose
+            </p>
+            <div className="mx-auto mt-2 h-1 w-24 overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${Math.round(20 + progress * 80)}%` }}
+              />
+            </div>
+          </>
         )}
+
       </div>
 
       {chosen.length > 0 && (

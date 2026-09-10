@@ -141,6 +141,20 @@ async function loadTurns(conversationId: string): Promise<WebChatTurn[]> {
 }
 
 /**
+ * Puts a quiet (swept) conversation back to active so a returning customer can
+ * carry on where they left off. Status only — no answer is changed here.
+ */
+async function reopenConversation(businessId: string, conversationId: string): Promise<void> {
+  await supabaseAdmin
+    .from("web_conversations")
+    .update({ status: "active" })
+    .eq("id", conversationId)
+    .eq("business_id", businessId)
+    .eq("status", "abandoned");
+}
+
+
+/**
  * Rehydrates an existing conversation after a page refresh, so corrected values
  * are never lost. Tenant-scoped: a conversation id from another business, or a
  * tenant that is no longer in AI mode, resolves to null and a fresh chat starts.
@@ -155,9 +169,16 @@ export async function resumeWebChat(slug: string, conversationId: string): Promi
     .eq("id", conversationId)
     .eq("business_id", tenant.businessId)
     .maybeSingle();
+  // A conversation that went quiet was marked abandoned by the sweep. Coming
+  // back reopens it, so the customer never hits a dead end.
+  if (conversation && conversation.status === "abandoned") {
+    await reopenConversation(tenant.businessId, conversation.id);
+    conversation.status = "active";
+  }
   // A completed or declined conversation is never resumable, so a refresh can
   // never be turned into a second booking.
   if (!conversation || conversation.status !== "active") return null;
+
 
   const chatTenant = toChatTenant(
     tenant,
@@ -332,6 +353,12 @@ export async function replyToWebChat(input: {
     .eq("business_id", tenant.businessId)
     .maybeSingle();
   if (!conversation) return null;
+  // Reopened rather than dead-ended: the sweep only parks quiet conversations.
+  if (conversation.status === "abandoned") {
+    await reopenConversation(tenant.businessId, conversation.id);
+    conversation.status = "active";
+  }
+
 
   const chatTenant = toChatTenant(
     tenant,

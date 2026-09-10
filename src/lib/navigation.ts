@@ -19,7 +19,7 @@ export type PrimaryNavItem = {
 export const PRIMARY_NAV: readonly PrimaryNavItem[] = [
   { to: "/dashboard", label: "Home", icon: "assistant", contextPaths: ["/analytics", "/assistant"] },
   { to: "/bookings", label: "Bookings", icon: "bookings" },
-  { to: "/leads", label: "Lead inbox", icon: "inbox", contextPaths: ["/import"] },
+  { to: "/leads", label: "Lead inbox", icon: "inbox", contextPaths: ["/import", "/unfinished"] },
 ] as const;
 
 export type AccountMenuItem = {
@@ -51,6 +51,9 @@ export function isPrimaryNavActive(item: PrimaryNavItem, pathname: string): bool
 /** Contextual trail shown under the header, e.g. "Leads / Import". */
 export function navBreadcrumb(pathname: string): string[] {
   if (pathname === "/import" || pathname.startsWith("/import/")) return ["Lead inbox", "Import"];
+  if (pathname === "/unfinished" || pathname.startsWith("/unfinished/"))
+    return ["Lead inbox", "Unfinished"];
+
   if (pathname.startsWith("/leads/")) return ["Lead inbox", "Conversation"];
   if (pathname === "/leads") return ["Lead inbox"];
   if (pathname === "/dashboard") return ["Home"];

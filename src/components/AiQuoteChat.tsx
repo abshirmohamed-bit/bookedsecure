@@ -20,6 +20,8 @@ import {
   resumeQuoteConversation,
   startQuoteConversation,
 } from "@/lib/web-chat.functions";
+import { recordQuotePageOpened } from "@/lib/quote-funnel.functions";
+
 import { asksForServiceList, isSuppressedOpeningTurn } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
 import {
@@ -54,6 +56,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const start = useServerFn(startQuoteConversation);
   const reply = useServerFn(replyQuoteConversation);
   const resume = useServerFn(resumeQuoteConversation);
+  const recordOpen = useServerFn(recordQuotePageOpened);
+
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -132,6 +136,26 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     void begin();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant.slug]);
+
+  // Measurement only: records that this page was opened and where the visitor
+  // came from, once per browser session. Never blocks or alters the chat.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = `bookedsecure:open:${tenant.slug}`;
+    if (window.sessionStorage.getItem(key)) return;
+    const sessionKey = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+    window.sessionStorage.setItem(key, sessionKey);
+    void recordOpen({
+      data: {
+        slug: tenant.slug,
+        url: window.location.href.slice(0, 500),
+        referrer: document.referrer ? document.referrer.slice(0, 500) : null,
+        session_key: sessionKey,
+      },
+    }).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant.slug]);
+
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
