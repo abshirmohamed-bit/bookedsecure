@@ -261,6 +261,95 @@ export type Database = {
           },
         ]
       }
+      assistant_messages: {
+        Row: {
+          business_id: string
+          created_at: string
+          done: string | null
+          id: string
+          parts: Json
+          proposals: Json
+          role: string
+          thread_id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          done?: string | null
+          id?: string
+          parts?: Json
+          proposals?: Json
+          role: string
+          thread_id: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          done?: string | null
+          id?: string
+          parts?: Json
+          proposals?: Json
+          role?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_threads: {
+        Row: {
+          archived_at: string | null
+          business_id: string
+          created_at: string
+          created_by: string
+          id: string
+          is_default: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          business_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_default?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          business_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_default?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_threads_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_events: {
         Row: {
           business_id: string | null
