@@ -63,6 +63,17 @@ export function resolveServiceName(
   return null;
 }
 
+/**
+ * Owner-readable notes only. Booking commits store an internal idempotency key
+ * in `jobs.notes`, which is machinery, not a note for the owner.
+ */
+export function visibleNotes(notes: string | null | undefined): string | null {
+  const text = (notes ?? "").trim();
+  if (text.length === 0) return null;
+  if (/^[a-z_]+:[0-9a-f-]{8,}/i.test(text)) return null;
+  return text;
+}
+
 /** Name shown on a card; never blank. */
 export function customerLabel(name: string | null | undefined): string {
   const text = (name ?? "").trim();
