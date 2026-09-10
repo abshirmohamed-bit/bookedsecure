@@ -78,7 +78,6 @@ describe("web chat step machine", () => {
       ["concerns", "Pet hair"],
       ["name", "Sam"],
       ["mobile", "0447 852 565"],
-      ["email", "skip"],
       ["review", "yes"],
       ["consent", "granted"],
 
@@ -91,7 +90,7 @@ describe("web chat step machine", () => {
     }
     expect(nextStep(collected)).toBeNull();
     expect(collected.mobile_number).toBe("+61447852565");
-    expect(collected.email).toBeNull();
+    expect(collected.email).toBeUndefined();
   });
 
   it("rejects a non-Australian mobile without advancing", () => {

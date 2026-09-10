@@ -38,7 +38,7 @@ export function servicePriceLine(
   if (!price) return null;
   const percent = offerPercent ?? null;
   if (percent !== null && percent > 0 && isCampaignEligible(service)) {
-    return `${price} — ${percent}% off with your offer`;
+    return `${price}, ${percent}% off with your offer`;
   }
   return price;
 }

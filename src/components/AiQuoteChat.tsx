@@ -71,6 +71,11 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const [finished, setFinished] = useState<null | "completed" | "declined">(null);
   const [honeypot, setHoneypot] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  /** The chosen service cards, kept so the customer's reply stays visual. */
+  const [selectionCards, setSelectionCards] = useState<{ label: string; price: string | null }[]>([]);
+  const [selectionEcho, setSelectionEcho] = useState<string | null>(null);
+  /** Visible height of the screen, so the on-screen keyboard never distorts it. */
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   /** Local-only: the customer chose "Something else" and is describing it. */
   const [describing, setDescribing] = useState(false);
   /** Local-only: the customer typed their own request, so the service list
@@ -161,10 +166,32 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [turns.length, busy, prompt?.step, finished, describing, pending?.answer, error]);
 
+  // The chat frame follows the visible area of the screen, so opening the mobile
+  // keyboard shrinks the conversation instead of pushing the composer off-screen.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const viewport = window.visualViewport;
+    const apply = () => setViewportHeight(viewport ? viewport.height : window.innerHeight);
+    apply();
+    viewport?.addEventListener("resize", apply);
+    viewport?.addEventListener("scroll", apply);
+    window.addEventListener("orientationchange", apply);
+    return () => {
+      viewport?.removeEventListener("resize", apply);
+      viewport?.removeEventListener("scroll", apply);
+      window.removeEventListener("orientationchange", apply);
+    };
+  }, []);
+
   // Display-only: the stored introduction and service-step instruction are not
   // shown; one concise opening message with the service list leads instead.
+  // The final check is shown once, as the editable summary card below, so the
+  // plain-text version of the same summary is not repeated in the transcript.
   const visibleTurns = useMemo(
-    () => turns.filter((turn) => !isSuppressedOpeningTurn(turn.body)),
+    () =>
+      turns.filter(
+        (turn) => !isSuppressedOpeningTurn(turn.body) && !turn.body.startsWith("Quick check:"),
+      ),
     [turns],
   );
 
@@ -235,16 +262,42 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
   const canSend = !busy && draft.trim().length > 0;
 
-  const customerBubble = (body: string) => (
-    <Message from="user" className="ml-auto max-w-[86%]">
-      <MessageContent className="bg-[color:var(--chat-user)] px-3.5 py-2.5 text-[color:var(--chat-user-foreground)]">
-        <p className="whitespace-pre-wrap break-words leading-relaxed">{body}</p>
-      </MessageContent>
-    </Message>
-  );
+  const customerBubble = (body: string) => {
+    // A service selection stays visible as the cards the customer tapped, for
+    // the rest of the conversation, instead of a plain line of text.
+    if (selectionEcho && body === selectionEcho && selectionCards.length > 0) {
+      return (
+        <div className="ml-auto max-w-[86%]">
+          <ul className="flex flex-wrap justify-end gap-1.5">
+            {selectionCards.map((card) => (
+              <li
+                key={card.label}
+                className="rounded-xl border border-primary/40 bg-[color:var(--chat-user)] px-2.5 py-1.5 text-left text-[color:var(--chat-user-foreground)]"
+              >
+                <p className="break-words text-xs font-semibold leading-tight">{card.label}</p>
+                {card.price && (
+                  <p className="text-[0.7rem] leading-tight opacity-90">{card.price}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+    return (
+      <Message from="user" className="ml-auto max-w-[86%]">
+        <MessageContent className="bg-[color:var(--chat-user)] px-3.5 py-2.5 text-[color:var(--chat-user-foreground)]">
+          <p className="whitespace-pre-wrap break-words leading-relaxed">{body}</p>
+        </MessageContent>
+      </Message>
+    );
+  };
 
   return (
-    <main className="fixed inset-0 flex h-[100dvh] w-full max-w-full flex-col overflow-hidden overscroll-none bg-background">
+    <main
+      className="fixed left-0 top-0 flex h-[100dvh] w-full max-w-full flex-col overflow-hidden overscroll-none bg-background"
+      style={viewportHeight ? { height: `${viewportHeight}px` } : undefined}
+    >
       <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col overflow-hidden sm:py-6">
         {/* Branded header — standalone, stable, never scrolls with the transcript */}
         <header className="brand-wash grid w-full shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:rounded-lg sm:border sm:px-5 sm:pt-3">
@@ -334,6 +387,19 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                 flexibleValue={FLEXIBLE_CHOICE}
                                 onSubmit={(value, label) => {
                                   setSelected(value);
+                                  // Keep the tapped cards so the customer's own
+                                  // reply stays visual for the rest of the chat.
+                                  const ids = value.startsWith("sel:")
+                                    ? value.slice(4).split("|").join(",").split(",")
+                                    : [value];
+                                  const cards = serviceOptions
+                                    .filter((option) => ids.includes(option.value))
+                                    .map((option) => ({
+                                      label: option.label,
+                                      price: option.card?.price ?? null,
+                                    }));
+                                  setSelectionCards(cards);
+                                  setSelectionEcho(label);
                                   send(value, label);
                                 }}
                               />

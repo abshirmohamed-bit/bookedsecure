@@ -62,7 +62,7 @@ describe("servicePriceLine", () => {
 
   it("highlights the percentage without computing a discounted amount", () => {
     const line = servicePriceLine({ price_guidance: "from $250" }, 15);
-    expect(line).toBe("from $250 — 15% off with your offer");
+    expect(line).toBe("from $250, 15% off with your offer");
     expect(line).not.toContain("212");
   });
 
@@ -97,14 +97,14 @@ describe("service choices", () => {
 describe("serviceAcknowledgement", () => {
   it("repeats the chosen service with its price", () => {
     expect(serviceAcknowledgement(tenant(), { service_id: "s1", service_name: "Full Detail" })).toBe(
-      "Full Detail — from $250.",
+      "Full Detail, from $250.",
     );
   });
 
   it("adds the discount for a recognised campaign visitor", () => {
     expect(
       serviceAcknowledgement(tenant(15), { service_id: "s1", service_name: "Full Detail" }),
-    ).toBe("Full Detail — from $250 — 15% off with your offer.");
+    ).toBe("Full Detail, from $250, 15% off with your offer.");
   });
 
   it("stays price-free when no price is on file", () => {

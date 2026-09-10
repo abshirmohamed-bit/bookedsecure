@@ -176,6 +176,8 @@ function clearField(collected: WebChatCollected, field: CorrectableStep): WebCha
       break;
     case "email":
       delete next.email;
+      // Email is not asked by default; asking to change it opens that step.
+      next.email_requested = true;
       break;
   }
   return next;

@@ -89,6 +89,8 @@ export type WebChatCollected = {
   addon_names?: string[] | null;
   /** True when the chosen service actually has extras to offer. */
   addons_offered?: boolean | null;
+  /** Set when the customer asked to add or change their email address. */
+  email_requested?: boolean | null;
   /** True once the customer has finished choosing (or declined) extras. */
   addons_done?: boolean | null;
   vehicle_type?: string | null;
@@ -235,14 +237,18 @@ export function campaignPrefill(lead: {
 export function nextStep(collected: WebChatCollected): WebChatStep | null {
   if (collected.consent === "declined") return null;
   if (!collected.service_id && !(collected.typed_request ?? "").trim()) return "service";
-  if (collected.addons_offered === true && collected.addons_done !== true) return "addons";
   if (!(collected.vehicle_type ?? "").trim()) return "vehicle";
   if (!(collected.suburb ?? "").trim()) return "suburb";
   if (!(collected.service_address ?? "").trim()) return "address";
   if (!(collected.concerns ?? "").trim()) return "concerns";
+  // Extras are offered once the job itself is understood, and only when this
+  // tenant actually has add-ons linked to the chosen service.
+  if (collected.addons_offered === true && collected.addons_done !== true) return "addons";
   if (!(collected.name ?? "").trim()) return "name";
   if (!collected.mobile_number) return "mobile";
-  if (collected.email === undefined) return "email";
+  // Email is not a step of its own: it is captured when the customer offers it,
+  // and stays editable in the final check. Asking to change it reopens the step.
+  if (collected.email === undefined && collected.email_requested === true) return "email";
   if (!collected.reviewed) return "review";
   if (!collected.consent) return "consent";
   // Pilot booking step, only once the server has offered real slots.
@@ -481,23 +487,30 @@ function buildPrompt(
     case "vehicle":
       return { step, kind: "text", text: "What's the vehicle? (make and model)" };
     case "suburb":
-      return { step, kind: "text", text: "Which suburb is it in?" };
+      return { step, kind: "text", text: "Which suburb are we coming to?" };
     case "address":
       return {
         step,
         kind: "text",
-        text: "What's the street address we should come to? (number and street)",
+        text: "And the street address? (number and street)",
       };
-    case "concerns":
+    case "concerns": {
+      const extras = addonsForService(tenant.addons ?? [], collected.service_id ?? null).filter(
+        (addon) => !(collected.addon_ids ?? []).includes(addon.id),
+      );
       return {
         step,
         kind: "text",
-        text: "Anything we should know about the condition? (swirls, pet hair, water spots)",
+        text:
+          extras.length > 0
+            ? "Anything we should focus on, like stains or pet hair? I can also show you a few add-ons after this."
+            : "Anything we should focus on, like stains, pet hair or paint marks?",
       };
+    }
     case "name":
-      return { step, kind: "text", text: "And your name?" };
+      return { step, kind: "text", text: "Almost done. What's your name, and the best mobile to reach you on?" };
     case "mobile":
-      return { step, kind: "text", text: "Best mobile number to reply on?" };
+      return { step, kind: "text", text: "Thanks. What's the best mobile number to reach you on?" };
     case "email":
       return { step, kind: "text", optional: true, text: "Email? Optional, say skip if you'd rather not." };
     case "review":
@@ -672,7 +685,7 @@ export function serviceAcknowledgement(
   }
   const service = tenant.services.find((entry) => entry.id === collected.service_id) ?? null;
   const price = service ? servicePriceLine(service, tenant.offerPercent ?? null) : null;
-  return price ? `${summary} — ${price}.` : `${summary}, got it.`;
+  return price ? `${summary}, ${price}.` : `${summary}, got it.`;
 }
 
 /**
