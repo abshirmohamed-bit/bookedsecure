@@ -231,7 +231,7 @@ export function ServiceChooser({
             const card = option.card ?? null;
             const picked = chosen.includes(option.value);
             return (
-              <div key={option.value} className="min-w-0">
+              <div key={option.value} className="h-full min-w-0">
                 <div
                   role="button"
                   tabIndex={busy ? -1 : 0}
@@ -245,7 +245,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`flex min-h-[7rem] w-full cursor-pointer flex-col rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-[8rem] sm:p-2 ${
+                  className={`flex h-28 w-full cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-32 sm:p-2 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
