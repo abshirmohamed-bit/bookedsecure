@@ -59,9 +59,11 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
   return <div className="relative -mx-4 -my-5 h-[calc(100dvh-4rem)] overflow-hidden bg-background sm:-mx-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
     <aside className="hidden min-h-0 border-r border-border bg-card/40 lg:block">{history}</aside>
     {mobileHistory && <><button className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(84vw,300px)] border-r border-border bg-background lg:hidden">{history}</aside></>}
-    <main className="relative flex min-h-0 flex-col overflow-hidden">
-      <button onClick={() => setMobileHistory(true)} className="absolute left-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-full border border-border bg-card shadow lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></button>
-      <div className="absolute right-3 top-3 z-20 w-[min(360px,calc(100%-4.5rem))] lg:w-44"><PerformanceIsland /></div>
+    <main className="relative flex min-h-0 flex-col overflow-y-auto lg:overflow-hidden">
+      <div className="flex items-start gap-2 px-3 pt-3 lg:pointer-events-none lg:absolute lg:inset-x-3 lg:top-3 lg:z-20 lg:px-0 lg:pt-0">
+        <button onClick={() => setMobileHistory(true)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card shadow lg:pointer-events-auto lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></button>
+        <div className="min-w-0 flex-1 lg:pointer-events-auto lg:ml-auto lg:w-44 lg:flex-none"><PerformanceIsland /></div>
+      </div>
       <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
     </main>
     {websiteSetup && <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/45 p-3 sm:p-8"><div className="mx-auto max-w-5xl rounded-2xl bg-background p-4 shadow-2xl sm:p-6"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-heading text-lg font-semibold">Set up from your website</h2><p className="text-xs text-muted-foreground">Review everything before it is saved.</p></div><button onClick={() => setWebsiteSetup(false)} className="rounded-full p-2 hover:bg-secondary" aria-label="Close website setup"><X className="h-4 w-4" /></button></div><SiteOnboardingPanel readOnly={false} onApplied={() => setWebsiteSetup(false)} /></div></div>}
