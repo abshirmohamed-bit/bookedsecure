@@ -16,6 +16,7 @@ import {
   shiftMonth,
   timeLabel,
   upcomingBookings,
+  visibleNotes,
   WEEKDAY_LABELS,
   type BookingEntry,
 } from "@/lib/bookings";
@@ -296,10 +297,10 @@ export function BookingsCalendar() {
                   <dd className="font-medium">{money(selected.completedValue)}</dd>
                 </div>
               ) : null}
-              {selected.notes ? (
+              {visibleNotes(selected.notes) ? (
                 <div>
                   <dt className="text-xs text-muted-foreground">Notes</dt>
-                  <dd className="whitespace-pre-line break-words">{selected.notes}</dd>
+                  <dd className="whitespace-pre-line break-words">{visibleNotes(selected.notes)}</dd>
                 </div>
               ) : null}
             </dl>
