@@ -5,11 +5,14 @@ import {
   BarChart3,
   CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   FileUp,
   Inbox,
   Menu,
   MessageCircle,
+  PanelLeft,
   Settings,
   Sparkles,
   SquareArrowOutUpRight,
@@ -23,6 +26,7 @@ import { toast } from "sonner";
 import { NotificationBell } from "@/components/NotificationBell";
 import { AccountMenu } from "@/components/AccountMenu";
 import { TenantMark } from "@/components/TenantMark";
+import { Button } from "@/components/ui/button";
 
 import { useAuth } from "@/hooks/useAuth";
 import { getSession } from "@/lib/app.functions";
@@ -56,10 +60,24 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   });
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [tenantRailCollapsed, setTenantRailCollapsed] = useState(false);
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/auth", replace: true });
   }, [loading, session, navigate]);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("bookedsecure:tenant-rail-collapsed");
+    setTenantRailCollapsed(saved === "true");
+  }, []);
+
+  const toggleTenantRail = () => {
+    setTenantRailCollapsed((current) => {
+      const next = !current;
+      window.localStorage.setItem("bookedsecure:tenant-rail-collapsed", String(next));
+      return next;
+    });
+  };
 
   if (loading || !session) {
     return (
@@ -74,32 +92,64 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const tenantName = business?.name ?? null;
   const quotePath = tenantQuotePath(business?.slug ?? null);
 
+  const isAssistantHome = pathname === "/dashboard" || pathname.startsWith("/assistant");
+
   return (
-    <div className="min-h-screen bg-background lg:pl-60">
+    <div
+      className={cn(
+        "min-h-screen bg-background transition-[padding] duration-200 lg:pl-[19.5rem]",
+        tenantRailCollapsed && "lg:pl-16",
+      )}
+    >
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-16 flex-col items-center border-r border-sidebar-border bg-sidebar py-3 lg:flex">
+        <Link
+          to="/dashboard"
+          title="BookedSecure home"
+          aria-label="BookedSecure home"
+          className="grid size-10 place-items-center rounded-md bg-primary font-heading text-lg font-bold text-primary-foreground shadow-sm"
+        >
+          B
+        </Link>
+        <div className="mt-6 flex flex-col gap-2">
+          <Button asChild size="icon" variant={isAssistantHome ? "secondary" : "ghost"} title="Home">
+            <Link to="/dashboard" aria-label="Home"><Sparkles /></Link>
+          </Button>
+          <Button size="icon" variant="ghost" onClick={toggleTenantRail} title={tenantRailCollapsed ? "Open tenant navigation" : "Collapse tenant navigation"} aria-label={tenantRailCollapsed ? "Open tenant navigation" : "Collapse tenant navigation"}>
+            {tenantRailCollapsed ? <ChevronRight /> : <ChevronLeft />}
+          </Button>
+        </div>
+        <div className="mt-auto flex flex-col items-center gap-2">
+          <NotificationBell />
+          <AccountMenu onSignOut={() => navigate({ to: "/auth", replace: true })} />
+        </div>
+      </aside>
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-sidebar-border bg-sidebar transition-transform lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-[min(86vw,19rem)] flex-col border-r border-sidebar-border bg-sidebar transition-[transform,width] duration-200 lg:left-16 lg:w-[15.5rem] lg:translate-x-0",
           mobileNavOpen ? "translate-x-0" : "-translate-x-full",
+          tenantRailCollapsed && "lg:w-0 lg:overflow-hidden lg:border-r-0",
         )}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-          <TenantMark name={tenantName} logoUrl={business?.logo_url ?? null} size={36} />
+        <div className="grid h-20 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-sidebar-border px-4">
+          <TenantMark name={tenantName} logoUrl={business?.logo_url ?? null} size={38} />
           <div className="min-w-0">
-            <p className="truncate font-heading text-sm font-semibold text-sidebar-foreground">
+            <p className="truncate font-heading text-base font-semibold text-sidebar-foreground">
               {tenantHeaderTitle(tenantName)}
             </p>
-            <p className="text-[11px] font-medium text-primary">BookedSecure</p>
+            <p className="text-[11px] font-medium text-muted-foreground">Tenant workspace</p>
           </div>
-          <button
+          <Button
             type="button"
+            size="icon"
+            variant="ghost"
             aria-label="Close navigation"
             onClick={() => setMobileNavOpen(false)}
-            className="ml-auto rounded-md p-2 text-muted-foreground hover:bg-sidebar-accent lg:hidden"
+            className="lg:hidden"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
-        <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 py-4">
+        <nav aria-label="Tenant navigation" className={cn("shrink-0 overflow-y-auto px-3 py-4", isAssistantHome && "max-h-[48dvh]")}>
           <SidebarLabel>Workspace</SidebarLabel>
           {PRIMARY_NAV.map((item) => (
             <SidebarLink
@@ -111,7 +161,21 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               onClick={() => setMobileNavOpen(false)}
             />
           ))}
-          <SidebarLabel className="mt-6">Workflow</SidebarLabel>
+          <SidebarLabel className="mt-5">Leads & growth</SidebarLabel>
+          <SidebarLink
+            to="/unfinished"
+            label="Unfinished prospects"
+            active={pathname.startsWith("/unfinished")}
+            icon={PanelLeft}
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <SidebarLink
+            to="/import"
+            label="Import data"
+            active={pathname.startsWith("/import")}
+            icon={FileUp}
+            onClick={() => setMobileNavOpen(false)}
+          />
           {quotePath ? (
             <a
               href={quotePath}
@@ -122,14 +186,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               <SquareArrowOutUpRight className="h-4 w-4" /> Quote page
             </a>
           ) : null}
-          <SidebarLink
-            to="/import"
-            label="Import data"
-            active={pathname.startsWith("/import")}
-            icon={FileUp}
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <SidebarLabel className="mt-6">Account</SidebarLabel>
+          <SidebarLabel className="mt-5">Manage</SidebarLabel>
           <SidebarLink
             to="/settings/business"
             label="Business settings"
@@ -159,7 +216,8 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             onClick={() => setMobileNavOpen(false)}
           />
         </nav>
-        <div className="border-t border-sidebar-border p-3">
+        {isAssistantHome ? <div id="assistant-context-slot" className="min-h-0 flex-1 border-t border-sidebar-border" /> : <div className="flex-1" />}
+        <div className="shrink-0 border-t border-sidebar-border p-3">
           <div className="flex items-center gap-2 rounded-md bg-sidebar-accent/55 px-3 py-2 text-xs text-muted-foreground">
             <Sparkles className="h-4 w-4 text-primary" />
             <span>Lead operations</span>
@@ -174,30 +232,32 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           onClick={() => setMobileNavOpen(false)}
         />
       ) : null}
-      <header className="sticky top-0 z-20 flex h-16 items-center border-b border-border bg-card/95 px-4 backdrop-blur sm:px-6">
-        <button
+       <header className="sticky top-0 z-20 grid h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-card/95 px-3 backdrop-blur sm:px-5">
+         <Button
           type="button"
+           size="icon"
+           variant="outline"
           aria-label="Open navigation"
           onClick={() => setMobileNavOpen(true)}
-          className="mr-3 rounded-md border border-input p-2 text-muted-foreground lg:hidden"
+           className="mr-3 lg:hidden"
         >
           <Menu className="h-4 w-4" />
-        </button>
+         </Button>
         <p className="min-w-0 truncate text-sm text-muted-foreground">
           <span className="hidden sm:inline">Workspace&nbsp; / &nbsp;</span>
           <span className="font-medium text-foreground">
             {breadcrumb.at(-1) ?? title ?? "Workspace"}
           </span>
         </p>
-        <div className="ml-auto flex items-center gap-1">
-          <NotificationBell />
+         <div className="ml-auto flex items-center gap-1">
+           <div className="lg:hidden"><NotificationBell /></div>
           {quotePath ? (
             <QuotePageControl quotePath={quotePath} slug={business?.slug ?? null} />
           ) : null}
-          <AccountMenu onSignOut={() => navigate({ to: "/auth", replace: true })} />
+           <div className="lg:hidden"><AccountMenu onSignOut={() => navigate({ to: "/auth", replace: true })} /></div>
         </div>
       </header>
-      <main className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6">{children}</main>
+       <main className={cn("min-w-0", isAssistantHome ? "overflow-hidden" : "mx-auto max-w-[1500px] px-4 py-5 sm:px-6")}>{children}</main>
     </div>
   );
 }
@@ -228,6 +288,7 @@ function SidebarLink({
     | "/bookings"
     | "/analytics"
     | "/import"
+     | "/unfinished"
     | "/settings/business"
     | "/settings/messaging"
     | "/settings/automation"

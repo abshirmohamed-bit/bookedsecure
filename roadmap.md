@@ -16,3 +16,6 @@
 - [ ] Add tenant-account conversation history with a default ongoing chat, separate conversations, and deletion.
 - [ ] Reduce Performance to truthful operational signals with details hidden by default.
 - [ ] Verify the unified Home experience on desktop and mobile.
+- [ ] Build the approved two-rail BookedSecure and tenant workspace around real tenant content.
+- [ ] Integrate Assistant conversation history into the tenant rail without changing behavior.
+- [ ] Verify rail collapse and responsive navigation across tenant pages.
