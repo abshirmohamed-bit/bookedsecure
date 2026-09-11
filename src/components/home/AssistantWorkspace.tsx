@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Eraser, Globe2, History, MessageSquarePlus, PanelLeft, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { OwnerAssistant, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
 import { PerformanceIsland } from "@/components/home/PerformanceIsland";
@@ -22,6 +23,10 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
   const fetchSession = useServerFn(getSession);
   const [mobileHistory, setMobileHistory] = useState(false);
   const [websiteSetup, setWebsiteSetup] = useState(false);
+  const [contextSlot, setContextSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setContextSlot(document.getElementById("assistant-context-slot"));
+  }, []);
   const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
   const home = useQuery({ queryKey: ["assistant-home"], queryFn: () => getHome() });
   const activeId = requestedThreadId ?? home.data?.ongoing.id;
@@ -75,8 +80,8 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
     {session.data?.role === "owner" && <button onClick={() => { setWebsiteSetup(true); setMobileHistory(false); }} className="m-3 flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"><Globe2 className="h-4 w-4" /> Set up from website</button>}
   </div>;
 
-  return <div className="relative -mx-4 -my-5 h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-background sm:-mx-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
-    <aside className="hidden min-h-0 border-r border-border bg-card/40 lg:block">{history}</aside>
+  return <div className="relative h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-background">
+    {contextSlot ? createPortal(<div className="hidden h-full min-h-0 lg:block">{history}</div>, contextSlot) : null}
     {mobileHistory && <><button className="fixed inset-0 z-40 bg-foreground/25 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] border-r border-border bg-background lg:hidden">{history}</aside></>}
     <main className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 px-3 pt-3 lg:pointer-events-none lg:absolute lg:inset-x-3 lg:top-3 lg:z-20 lg:flex lg:px-0 lg:pt-0">
