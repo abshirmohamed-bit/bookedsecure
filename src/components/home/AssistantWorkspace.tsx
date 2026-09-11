@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Eraser, Globe2, History, MessageSquarePlus, PanelLeft, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { OwnerAssistant, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
