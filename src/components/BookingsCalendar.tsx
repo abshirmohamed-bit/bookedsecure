@@ -316,6 +316,26 @@ export function BookingsCalendar() {
             >
               Open customer record
             </Link>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={removeJob.isPending}
+              className="mt-2 min-h-11 w-full text-destructive hover:text-destructive"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    "Delete this job record permanently? It leaves your schedule and your revenue totals. The customer and their messages are kept.",
+                  )
+                ) {
+                  return;
+                }
+                removeJob.mutate(selected.jobId);
+              }}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              {removeJob.isPending ? "Deleting…" : "Delete this job (logged by mistake)"}
+            </Button>
+
           </div>
         </div>
       ) : null}
