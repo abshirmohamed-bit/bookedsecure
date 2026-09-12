@@ -156,14 +156,15 @@ export async function cancelBooking(input: {
   reason?: string | null;
 }): Promise<BookingWriteResult> {
   const job = await assertJob(input.businessId, input.jobId);
-  if (job.completion_status === "completed") {
-    throw new Error("That job is already completed, so it cannot be cancelled.");
-  }
+  const wasCompleted = job.completion_status === "completed";
 
   const { error } = await supabaseAdmin
     .from("jobs")
     .update({
       completion_status: "cancelled",
+      // A completed job that is cancelled was recorded in error, so its money
+      // and completion time must leave the totals with it.
+      ...(wasCompleted ? { completed_at: null, completed_value: null } : {}),
       ...(input.reason ? { notes: input.reason } : {}),
     } as never)
     .eq("business_id", input.businessId)
@@ -181,7 +182,11 @@ export async function cancelBooking(input: {
     userId: input.userId,
     eventType: "owner_assistant_booking_cancelled",
     entityId: input.jobId,
-    metadata: { lead_id: job.lead_id, was_scheduled_at: job.scheduled_at },
+    metadata: {
+      lead_id: job.lead_id,
+      was_scheduled_at: job.scheduled_at,
+      was_completed: wasCompleted,
+    },
   });
 
   return {
@@ -191,6 +196,80 @@ export async function cancelBooking(input: {
     clash: false,
   };
 }
+
+/**
+ * Permanently removes a job record — for entries logged by mistake, including
+ * completed ones. The customer and their message history are kept; only this
+ * job leaves the schedule and the revenue totals. Tenant-scoped.
+ */
+export async function deleteBooking(input: {
+  businessId: string;
+  userId: string;
+  jobId: string;
+  reason?: string | null;
+}): Promise<{ jobId: string; leadId: string }> {
+  const job = await assertJob(input.businessId, input.jobId);
+  const leadId = job.lead_id as string;
+
+  // Booking offers point at the job, so release them before the row goes.
+  await supabaseAdmin
+    .from("booking_offers")
+    .update({ job_id: null, status: "withdrawn" } as never)
+    .eq("business_id", input.businessId)
+    .eq("job_id", input.jobId);
+
+  const { error } = await supabaseAdmin
+    .from("jobs")
+    .delete()
+    .eq("business_id", input.businessId)
+    .eq("id", input.jobId);
+  if (error) throw new Error(error.message);
+
+  // Rebuild the customer's booking state from whatever jobs remain.
+  const { data: remaining } = await supabaseAdmin
+    .from("jobs")
+    .select("id, completion_status, scheduled_at")
+    .eq("business_id", input.businessId)
+    .eq("lead_id", leadId)
+    .order("scheduled_at", { ascending: false });
+  const rows = remaining ?? [];
+  const hasScheduled = rows.some((row) => row.completion_status === "scheduled");
+  const hasCompleted = rows.some((row) => row.completion_status === "completed");
+
+  const { data: lead } = await supabaseAdmin
+    .from("leads")
+    .select("status")
+    .eq("business_id", input.businessId)
+    .eq("id", leadId)
+    .maybeSingle();
+  const leadStatus = (lead as { status?: string } | null)?.status ?? null;
+  const derivedBooking = hasScheduled ? "scheduled" : hasCompleted ? "completed" : null;
+  const patch: Record<string, unknown> = { booking_status: derivedBooking };
+  if (!hasScheduled && !hasCompleted && (leadStatus === "scheduled" || leadStatus === "completed")) {
+    patch["status"] = "contacted";
+  }
+  await supabaseAdmin
+    .from("leads")
+    .update(patch as never)
+    .eq("business_id", input.businessId)
+    .eq("id", leadId);
+
+  await audit({
+    businessId: input.businessId,
+    userId: input.userId,
+    eventType: "owner_assistant_booking_deleted",
+    entityId: input.jobId,
+    metadata: {
+      lead_id: leadId,
+      was_status: job.completion_status,
+      was_scheduled_at: job.scheduled_at,
+      reason: input.reason ?? null,
+    },
+  });
+
+  return { jobId: input.jobId, leadId };
+}
+
 
 /**
  * Marks work as done. When no job id is given, the customer's most recent job
