@@ -341,13 +341,14 @@ async function ensurePrimarySender(
   accountId: string,
   phoneNumber: string,
 ): Promise<void> {
-  // Mark any existing primary senders for this business as non-primary so the
-  // new Texto number is the one used for outbound messages.
+  // Switch this business (and only this business) over: every other sender it
+  // had — Telnyx, Twilio, simulated — stops being primary and is deactivated so
+  // the tenant's dedicated Texto number is the one every outbound text uses.
   await supabaseAdmin
     .from("sms_senders")
-    .update({ is_primary: false, updated_at: nowIso() })
+    .update({ is_primary: false, active: false, updated_at: nowIso() })
     .eq("business_id", businessId)
-    .eq("is_primary", true);
+    .neq("phone_number", phoneNumber);
 
   const { data: existing } = await supabaseAdmin
     .from("sms_senders")
