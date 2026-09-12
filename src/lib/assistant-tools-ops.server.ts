@@ -637,26 +637,41 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
 
     set_team_member_access: tool({
       description:
-        "Owner only. Switch a team member's access on or off (get profileId from read_settings). Owners cannot remove their own access. New members are added by signing up with an invite from the Team access page.",
+        "Owner only. Switch a team member's access on or off (get profileId from read_settings; match the person by name or email). Use this for 'remove access', 'disable', 'block' or 'restore access'. Owners cannot remove their own access. New members are added by signing up with an invite from the Team access page.",
       inputSchema: z.object({ profileId: z.string().uuid(), active: z.boolean() }),
       execute: async ({ profileId, active }) => {
         const denied = ownerOnly(ctx);
         if (denied) return denied;
-        if (profileId === userId) return fail("You cannot change your own access.");
-        const { data, error } = await supabaseAdmin
-          .from("profiles")
-          .update({ active })
-          .eq("id", profileId)
-          .eq("business_id", businessId)
-          .select("name, email");
-        if (error) return fail(error.message);
-        if (!data || data.length === 0) return fail("That person is not on this business's team.");
-        await audit(ctx, active ? "team_member_reactivated" : "team_member_deactivated", { profileId });
-        const who = data[0]?.name ?? data[0]?.email ?? "that team member";
-        ctx.record(`${active ? "Restored" : "Removed"} access for ${who}.`);
+        const { setTeamMemberAccess } = await import("@/lib/team.server");
+        const result = await setTeamMemberAccess(
+          { businessId, userId, role: ctx.role, via: "assistant" },
+          profileId,
+          active,
+        );
+        if (!result.ok) return fail(result.error);
+        ctx.record(`${active ? "Restored" : "Removed"} access for ${result.name}.`);
         return { ok: true };
       },
     }),
+
+    delete_team_member: tool({
+      description:
+        "Owner only. Permanently delete a team member from this business: their sign-in, profile and role are removed (get profileId from read_settings). Leads, bookings and messages are kept. Only use when the owner clearly says delete/remove them completely rather than just remove access. Owners cannot delete themselves.",
+      inputSchema: z.object({ profileId: z.string().uuid() }),
+      execute: async ({ profileId }) => {
+        const denied = ownerOnly(ctx);
+        if (denied) return denied;
+        const { deleteTeamMember } = await import("@/lib/team.server");
+        const result = await deleteTeamMember(
+          { businessId, userId, role: ctx.role, via: "assistant" },
+          profileId,
+        );
+        if (!result.ok) return fail(result.error);
+        ctx.record(`Deleted ${result.name} from your team.`);
+        return { ok: true };
+      },
+    }),
+
 
     preview_import: tool({
       description:
