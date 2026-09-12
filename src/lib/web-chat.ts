@@ -397,6 +397,17 @@ export function reviewSummary(
           },
         ]
       : []),
+    // Extras the customer typed that this tenant does not list: shown as a
+    // request the owner confirms, never as a priced add-on.
+    ...((collected.addon_requests ?? []).length > 0
+      ? [
+          {
+            step: "addons" as WebChatStep,
+            label: "Also asked for",
+            value: `${(collected.addon_requests ?? []).join(", ")} (owner to confirm)`,
+          },
+        ]
+      : []),
     { step: "vehicle", label: "Vehicle", value: collected.vehicle_type ?? "—" },
     { step: "suburb", label: "Suburb", value: collected.suburb ?? "—" },
     { step: "address", label: "Address", value: collected.service_address ?? "—" },
