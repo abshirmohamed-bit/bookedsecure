@@ -94,6 +94,83 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       },
     }),
 
+    bulk_update_lead_status: tool({
+      description:
+        "Change the status of MANY leads at once for this business. Use this whenever the owner asks for a whole group to be restatused (for example 'treat every imported lead as previous lead', 'mark all new leads as previous lead'). Never refuse a bulk status change and never tell the owner to do it by hand. Filter by the statuses the leads are in now, by source channel and by how they were added (origin). Leave a filter null to mean 'any'. It only changes the status field; it never texts anyone and never changes consent or opt-out flags.",
+      inputSchema: z.object({
+        toStatus: z.enum(LEAD_STATUSES).describe("The status every matched lead should end up with."),
+        fromStatuses: z
+          .array(z.enum(LEAD_STATUSES))
+          .nullable()
+          .describe("Only change leads currently in these statuses. Null means every status."),
+        source: z
+          .enum([...SOURCE_CHANNELS, "any"])
+          .nullable()
+          .describe("Source channel filter. Null or 'any' means every source."),
+        origin: z
+          .enum([...(["live", "historical", "reactivation", "crm_import", "any"] as const)])
+          .nullable()
+          .describe("How the lead was added. Imported contact files are 'crm_import'. Null or 'any' means every origin."),
+        excludeOptedOut: z
+          .boolean()
+          .nullable()
+          .describe("Defaults to true: leads who opted out keep their opted-out status. Pass false only when the owner clearly includes them."),
+      }),
+      execute: async (input) => {
+        let select = supabaseAdmin
+          .from("leads")
+          .select("id")
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .neq("status", input.toStatus)
+          .limit(5000);
+        if (input.fromStatuses && input.fromStatuses.length > 0) {
+          select = select.in("status", input.fromStatuses);
+        }
+        if (input.source && input.source !== "any") select = select.eq("source_channel", input.source);
+        if (input.origin && input.origin !== "any") select = select.eq("lead_origin", input.origin);
+        if (input.excludeOptedOut !== false) {
+          select = select.is("opted_out_at", null).neq("status", "opted_out");
+        }
+
+        const { data, error } = await select;
+        if (error) return fail(error.message);
+        const ids = (data ?? []).map((row) => row.id as string);
+        if (ids.length === 0) {
+          return { ok: true, updated: 0, message: "No leads matched, so nothing needed changing." };
+        }
+
+        let updated = 0;
+        for (let index = 0; index < ids.length; index += 200) {
+          const chunk = ids.slice(index, index + 200);
+          const { data: rows, error: updateError } = await supabaseAdmin
+            .from("leads")
+            .update({ status: input.toStatus } as never)
+            .eq("business_id", businessId)
+            .in("id", chunk)
+            .select("id");
+          if (updateError) {
+            return fail(
+              `${updated} lead${updated === 1 ? "" : "s"} were updated, then this stopped it: ${updateError.message}`,
+            );
+          }
+          updated += (rows ?? []).length;
+        }
+
+        await audit(ctx, "owner_assistant_leads_bulk_status", {
+          to_status: input.toStatus,
+          from_statuses: input.fromStatuses ?? "any",
+          source: input.source ?? "any",
+          origin: input.origin ?? "any",
+          excluded_opted_out: input.excludeOptedOut !== false,
+          updated,
+        });
+        ctx.record(`Changed ${updated} lead${updated === 1 ? "" : "s"} to "${input.toStatus}".`);
+        return { ok: true, updated };
+      },
+    }),
+
+
     customer_history: tool({
       description:
         "Everything on file for one customer: their details, every text sent and received (with delivery status), bookings and jobs, campaigns they were included in, and their follow-up sequence state. Use find_customers first to get the leadId.",
