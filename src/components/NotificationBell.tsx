@@ -6,7 +6,7 @@ import { useState } from "react";
 import { getNotifications, markNotificationsRead } from "@/lib/app.functions";
 import { useAuth } from "@/hooks/useAuth";
 
-export function NotificationBell() {
+export function NotificationBell({ rail = false }: { rail?: boolean }) {
   const fetchNotifications = useServerFn(getNotifications);
   const markRead = useServerFn(markNotificationsRead);
   const queryClient = useQueryClient();
@@ -51,7 +51,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-30 mt-2 w-80 rounded-md border border-border bg-popover p-2 shadow-lg">
+        <div className={rail ? "fixed bottom-14 left-14 z-[70] w-80 max-w-[calc(100vw-4rem)] rounded-md border border-border bg-popover p-2 shadow-lg" : "absolute right-0 z-30 mt-2 w-80 rounded-md border border-border bg-popover p-2 shadow-lg"}>
           <div className="flex items-center justify-between px-1 pb-2">
             <p className="text-xs font-semibold">Notifications</p>
             {unread > 0 && (
