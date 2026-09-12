@@ -558,7 +558,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
 
     customise_customer_follow_up: tool({
       description:
-        "Change the wording or timing of one follow-up step for ONE customer only, without changing the business-wide sequence (use update_follow_up_rule for everyone). step is the sequence step number from read_settings (e.g. 1 or 2). delayMinutes is measured from the previous message. Pass null to leave a field as is; pass reset=true to return the step to the business-wide default. Templates may use {first_name} and {business_name}. This only changes future follow-ups; it never sends a text.",
+        "Change the wording or timing of one follow-up step for ONE customer only, without changing the business-wide sequence (use update_follow_up_rule for everyone). step is the sequence step number from read_settings (e.g. 1 or 2). delayMinutes is measured from the previous message. Pass null to leave a field as is; pass reset=true to return the step to the business-wide default. Templates may use {{first_name}} and {{business_name}}. This only changes future follow-ups; it never sends a text.",
       inputSchema: z.object({
         leadId: z.string().uuid(),
         step: z.number().int().min(1).max(20),
