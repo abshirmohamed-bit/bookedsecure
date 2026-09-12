@@ -11,6 +11,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
 import { LEAD_STATUSES, SOURCE_CHANNELS } from "@/lib/domain";
 import { SMS_LEAD_FILTERS } from "@/lib/sms/delivery";
 import { formatInZone } from "@/lib/assistant-time";
@@ -384,7 +385,9 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         const denied = ownerOnly(ctx);
         if (denied) return denied;
-        const patch = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== null));
+        const patch = Object.fromEntries(
+          Object.entries(input).filter(([, v]) => v !== null),
+        ) as Database["public"]["Tables"]["businesses"]["Update"];
         if (Object.keys(patch).length === 0) return fail("Nothing to change.");
         if (typeof patch["timezone"] === "string") {
           const { isValidTimezone } = await import("@/lib/availability");
@@ -444,10 +447,10 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         const denied = ownerOnly(ctx);
         if (denied) return denied;
-        const patch: Record<string, unknown> = {};
-        if (input.delayMinutes !== null) patch["delay_minutes"] = input.delayMinutes;
-        if (input.messageTemplate !== null) patch["message_template"] = input.messageTemplate;
-        if (input.active !== null) patch["active"] = input.active;
+        const patch: Database["public"]["Tables"]["automation_rules"]["Update"] = {};
+        if (input.delayMinutes !== null) patch.delay_minutes = input.delayMinutes;
+        if (input.messageTemplate !== null) patch.message_template = input.messageTemplate;
+        if (input.active !== null) patch.active = input.active;
         if (Object.keys(patch).length === 0) return fail("Nothing to change.");
         const { data, error } = await supabaseAdmin
           .from("automation_rules")
