@@ -306,24 +306,6 @@ export async function listBusinessesAwaitingNumber(): Promise<
     .map(({ subscription: _s, ...rest }) => rest);
 }
 
-async function assignPoolNumber(businessId: string, numberId: string): Promise<TextoNumber> {
-  const { data, error } = await supabaseAdmin
-    .from("texto_numbers")
-    .update({
-      assigned_business_id: businessId,
-      assigned_at: nowIso(),
-      recalled_at: null,
-      status: "assigned",
-    })
-    .eq("id", numberId)
-    .is("assigned_business_id", null)
-    .select("*")
-    .single();
-  if (error) throw new TextoAccountError(error.message, "db_assign_failed");
-  if (!data) throw new TextoAccountError("Number was already assigned.", "pool_concurrency");
-  return data;
-}
-
 async function recallPoolNumber(businessId: string): Promise<void> {
   await supabaseAdmin
     .from("texto_numbers")
@@ -642,7 +624,7 @@ export async function provisionTextoAccount(input: {
 
 export async function allocateCredits(businessId: string, credits: number): Promise<TextoAccountRow> {
   const account = await getOrCreateTextoAccount(businessId);
-  if (liveAccountProvisioning() && account.subaccount_id && credits > 0) {
+  if (liveSubaccountProvisioning() && account.subaccount_id && credits > 0) {
     await allocateTextoCredits(account.subaccount_id, credits);
   }
   const updated = await updateTextoAccount(account.id, {
@@ -660,7 +642,7 @@ export async function allocateCredits(businessId: string, credits: number): Prom
 export async function recallCredits(businessId: string, credits: number): Promise<TextoAccountRow> {
   const account = await getOrCreateTextoAccount(businessId);
   const amount = Math.min(credits, account.credit_balance);
-  if (liveAccountProvisioning() && account.subaccount_id && amount > 0) {
+  if (liveSubaccountProvisioning() && account.subaccount_id && amount > 0) {
     await recallTextoCredits(account.subaccount_id, amount);
   }
   const updated = await updateTextoAccount(account.id, {
@@ -679,7 +661,7 @@ export async function recallCredits(businessId: string, credits: number): Promis
 export async function recallTextoNumber(businessId: string): Promise<void> {
   const account = await getTextoAccount(businessId);
   const assigned = await listAssignedNumbers(businessId);
-  if (account?.subaccount_id && liveAccountProvisioning()) {
+  if (account?.subaccount_id && liveSubaccountProvisioning()) {
     for (const number of assigned) {
       await recallTextoProviderNumber(account.subaccount_id, number.number);
     }
@@ -799,7 +781,7 @@ export async function getTextoAccountReport(
   window: { from: string; to: string },
 ): Promise<TextoAccountReport> {
   const account = await getTextoAccount(businessId);
-  if (liveAccountProvisioning() && account?.subaccount_id) {
+  if (liveSubaccountProvisioning() && account?.subaccount_id) {
     const body = await textoRequest<{
       summary?: {
         messages_out?: number;
