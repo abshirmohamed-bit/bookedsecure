@@ -561,6 +561,11 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         olderThanDays: z.number().int().min(1).max(3650).nullable(),
       }),
       execute: async (input) => {
+        {
+          const { planGateMessage } = await import("@/lib/subscription.server");
+          const blocked = await planGateMessage(businessId, "campaigns");
+          if (blocked) return fail(blocked);
+        }
         const { proposeCampaign } = await import("@/lib/owner-actions.server");
         const audience =
           input.audience === "status"
