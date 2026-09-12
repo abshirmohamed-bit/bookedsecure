@@ -320,7 +320,8 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     }),
 
     cancel_job: tool({
-      description: "Cancel a booking. The customer is not messaged.",
+      description:
+        "Cancel a booking, including one already marked completed (a completed job cancelled this way has its recorded amount cleared from the totals). The customer is not messaged.",
       inputSchema: z.object({
         jobId: z.string().uuid(),
         reason: z.string().nullable(),
@@ -336,6 +337,26 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         }
       },
     }),
+
+    delete_job: tool({
+      description:
+        "Permanently delete a job record from this business, whatever its state — use this when the owner says a booking or completed job was logged by mistake, was not requested, or should be removed from their totals. Get jobId from find_customers or list_upcoming_bookings. The customer and their messages are kept.",
+      inputSchema: z.object({
+        jobId: z.string().uuid(),
+        reason: z.string().nullable(),
+      }),
+      execute: async (input) => {
+        const { deleteBooking } = await import("@/lib/bookings-write.server");
+        try {
+          await deleteBooking({ businessId, userId, jobId: input.jobId, reason: input.reason });
+          ctx.record("Deleted that job record, so it no longer counts towards your totals.");
+          return { ok: true };
+        } catch (error) {
+          return fail(error instanceof Error ? error.message : "That job could not be deleted.");
+        }
+      },
+    }),
+
 
     complete_job: tool({
       description:

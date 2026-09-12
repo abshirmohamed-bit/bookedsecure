@@ -1,10 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Phone, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Phone, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getBookings } from "@/lib/bookings.functions";
+import { deleteBookingRecord, getBookings } from "@/lib/bookings.functions";
+
 import {
   bookingStateText,
   customerLabel,
@@ -43,6 +45,19 @@ export function BookingsCalendar() {
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), monthIndex: today.getMonth() });
   const [selected, setSelected] = useState<BookingEntry | null>(null);
+  const queryClient = useQueryClient();
+  const deleteJob = useServerFn(deleteBookingRecord);
+  const removeJob = useMutation({
+    mutationFn: (jobId: string) => deleteJob({ data: { jobId, reason: null } }),
+    onSuccess: async () => {
+      setSelected(null);
+      toast.success("Job deleted. It no longer counts towards your totals.");
+      await queryClient.invalidateQueries();
+    },
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : "That job could not be deleted."),
+  });
+
 
   const timezone = data?.timezone ?? null;
   const bookings = data?.bookings ?? [];
@@ -316,6 +331,26 @@ export function BookingsCalendar() {
             >
               Open customer record
             </Link>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={removeJob.isPending}
+              className="mt-2 min-h-11 w-full text-destructive hover:text-destructive"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    "Delete this job record permanently? It leaves your schedule and your revenue totals. The customer and their messages are kept.",
+                  )
+                ) {
+                  return;
+                }
+                removeJob.mutate(selected.jobId);
+              }}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              {removeJob.isPending ? "Deleting…" : "Delete this job (logged by mistake)"}
+            </Button>
+
           </div>
         </div>
       ) : null}
