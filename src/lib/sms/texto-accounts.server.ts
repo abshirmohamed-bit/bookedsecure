@@ -468,6 +468,107 @@ async function recallTextoProviderNumber(subaccountId: string, number: string): 
   });
 }
 
+/* ------------------------------------------------------- self-serve numbers */
+
+export type PurchasableNumber = { number: string; monthlyCostCents: number };
+
+type AvailableNumberListing = {
+  numbers?: Array<
+    | string
+    | {
+        number?: string;
+        phone?: string;
+        e164?: string;
+        msisdn?: string;
+        price_monthly?: number;
+        monthly_price?: number;
+      }
+  >;
+};
+
+/**
+ * Numbers Texto currently has for sale (`GET /numbers/available`). The
+ * response shape is not in the published spec, so each entry is normalised
+ * defensively — strings or objects with any of the common phone fields.
+ */
+export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
+  if (!liveAccountProvisioning()) return [];
+  const body = await textoRequest<AvailableNumberListing | unknown[]>("/numbers/available", {
+    method: "GET",
+  });
+  const entries = Array.isArray(body) ? body : (body.numbers ?? []);
+  const out: PurchasableNumber[] = [];
+  for (const entry of entries) {
+    const raw =
+      typeof entry === "string"
+        ? entry
+        : entry.number ?? entry.phone ?? entry.e164 ?? entry.msisdn ?? null;
+    if (!raw) continue;
+    const number = raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`;
+    const monthly =
+      typeof entry === "object"
+        ? Math.round(((entry.price_monthly ?? entry.monthly_price ?? 15) as number) * 100)
+        : 1500;
+    out.push({ number, monthlyCostCents: monthly || 1500 });
+  }
+  return out;
+}
+
+/**
+ * Buy a dedicated number from Texto (`POST /numbers/purchase`). The route is
+ * confirmed by Texto's live router even though the published spec omits it;
+ * the body is the plain E.164 number, matching the assign/recall payloads.
+ */
+export async function purchaseNumberFromTexto(number: string): Promise<void> {
+  if (!liveAccountProvisioning()) {
+    throw new TextoAccountError("Live Texto account operations are disabled.", "disabled");
+  }
+  await textoRequest("/numbers/purchase", {
+    method: "POST",
+    body: JSON.stringify({ number }),
+  });
+}
+
+/**
+ * Buy a fresh number straight from Texto's for-sale list and lock it to this
+ * business. Used when the local pool is empty so activation never waits on a
+ * human. Returns null when nothing is for sale or the purchase fails (the
+ * caller then queues the business and alerts the operator).
+ */
+async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumber | null> {
+  const forSale = await listPurchasableNumbers().catch((error) => {
+    console.error("[texto] listing available numbers failed:", error);
+    return [] as PurchasableNumber[];
+  });
+  for (const candidate of forSale) {
+    try {
+      await purchaseNumberFromTexto(candidate.number);
+    } catch (error) {
+      console.error(`[texto] purchase of ${candidate.number} failed:`, error);
+      continue;
+    }
+    // Record it locally as already assigned so the pool stays truthful.
+    const { data: row } = await supabaseAdmin
+      .from("texto_numbers")
+      .upsert(
+        {
+          number: candidate.number,
+          monthly_cost_cents: candidate.monthlyCostCents,
+          status: "assigned",
+          assigned_business_id: businessId,
+          assigned_at: nowIso(),
+          recalled_at: null,
+          updated_at: nowIso(),
+        },
+        { onConflict: "number" },
+      )
+      .select("*")
+      .maybeSingle();
+    if (row) return row;
+  }
+  return null;
+}
+
 /* ------------------------------------------------------------------ provisioning */
 
 export type ProvisionResult =
