@@ -12,6 +12,7 @@ const InboxQuerySchema = z.object({
   status: z.string().max(64).optional(),
   source: z.string().max(64).optional(),
   sms: z.string().max(64).optional(),
+  search: z.string().max(120).optional(),
 });
 
 export const getSession = createServerFn({ method: "GET" })
@@ -51,6 +52,7 @@ export const getDashboard = createServerFn({ method: "GET" })
           ...(data.status === undefined ? {} : { status: data.status }),
           ...(data.source === undefined ? {} : { source: data.source }),
           ...(data.sms === undefined ? {} : { sms: data.sms as never }),
+          ...(data.search === undefined ? {} : { search: data.search }),
         },
       }),
       supabaseAdmin

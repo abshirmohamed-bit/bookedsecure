@@ -185,6 +185,17 @@ export function applyPredicates<T>(query: T, predicates: LeadPredicate[]): T {
       case "notNull":
         builder = builder["not"]!(predicate.column, "is", null) as typeof builder;
         break;
+      case "search": {
+        // Match name, mobile or email. PostgREST `.or` uses commas as syntax,
+        // so strip the characters that could break or alter the pattern.
+        const term = predicate.value.replace(/[%_,()."\\]/g, "").trim();
+        if (term.length > 0) {
+          builder = builder["or"]!(
+            `name.ilike.%${term}%,mobile_number.ilike.%${term}%,email.ilike.%${term}%`,
+          ) as typeof builder;
+        }
+        break;
+      }
     }
   }
   return builder as unknown as T;
