@@ -33,3 +33,22 @@ export const getBooking = createServerFn({ method: "POST" })
     if (!booking) throw new Error("Booking not found.");
     return booking;
   });
+
+/** Permanently removes one job record for the signed-in tenant (mistaken entries). */
+export const deleteBookingRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ jobId: z.string().uuid(), reason: z.string().max(500).nullable().optional() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { deleteBooking } = await import("@/lib/bookings-write.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    return deleteBooking({
+      businessId: app.businessId,
+      userId: app.userId,
+      jobId: data.jobId,
+      reason: data.reason ?? null,
+    });
+  });
+
