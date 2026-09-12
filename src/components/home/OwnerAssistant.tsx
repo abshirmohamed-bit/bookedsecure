@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2, Paperclip, UploadCloud, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -141,6 +141,14 @@ export function OwnerAssistant({
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [turns]);
+
+  // A file handed over earlier stays available, so it never needs re-uploading.
+  const rememberedFile = useServerFn(getAssistantRememberedFile);
+  const remembered = useQuery({
+    queryKey: ["assistant-remembered-file", threadId],
+    queryFn: () => rememberedFile({ data: { threadId } }),
+    enabled: Boolean(session),
+  });
 
   const mutation = useMutation({
     mutationFn: (input: { question: string; attachment: { filename: string; content: string } | null }) =>
