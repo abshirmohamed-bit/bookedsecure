@@ -570,7 +570,7 @@ function Detail({ label, value }: { label: string; value: string | null | undefi
   return (
     <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-2">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm">{value || "—"}</dd>
+      <dd className="min-w-0 break-words text-sm">{value || "—"}</dd>
     </div>
   );
 }
