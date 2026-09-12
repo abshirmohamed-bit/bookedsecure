@@ -350,6 +350,24 @@ export function chosenPricing(
   return { lines, combined };
 }
 
+/**
+ * What the customer has chosen so far with the tenant's own prices, plus the
+ * combined figure when every price is a single dollar amount. Shown right after
+ * extras are picked, before the final check, so the customer sees the service
+ * and add-on prices together. Nothing is invented, discounted or rounded.
+ */
+export function selectionTotalMessage(
+  collected: WebChatCollected,
+  tenant: WebChatTenant,
+): string | null {
+  const pricing = chosenPricing(collected, tenant);
+  if (pricing.lines.length === 0) return null;
+  const listed = pricing.lines.join(" + ");
+  return pricing.combined
+    ? `So far: ${listed}. That comes to ${pricing.combined}.`
+    : `So far: ${listed}. ${tenant.name} confirms the final price with you.`;
+}
+
 /** Labelled summary of everything captured, for the final review step. */
 export function reviewSummary(
   collected: WebChatCollected,
