@@ -17,7 +17,7 @@ import { allocateCredits } from "@/lib/sms/texto-accounts.server";
 
 export type CreditTopupRow = Database["public"]["Tables"]["credit_topups"]["Row"];
 
-/** Credit packs are sold in the same Stripe environment as the paid pilot. */
+/** Kept for callers that still pass no environment (preview builds). */
 export function topupStripeEnv(): StripeEnv {
   return "sandbox";
 }
@@ -53,6 +53,7 @@ export async function createCreditTopupCheckout(input: {
   userId: string;
   email: string | null;
   returnUrl: string;
+  environment?: StripeEnv;
 }): Promise<TopupCheckoutResult> {
   const pack: CreditPack | null = findCreditPack(input.packId);
   if (!pack) return { error: "That credit pack is not available." };
@@ -80,7 +81,7 @@ export async function createCreditTopupCheckout(input: {
   if (insertError || !row) return { error: insertError?.message ?? "Could not start the top-up." };
 
   try {
-    const stripe = createStripeClient(topupStripeEnv());
+    const stripe = createStripeClient(input.environment ?? topupStripeEnv());
 
     const prices = await stripe.prices.list({ lookup_keys: [pack.priceId] });
     const price = prices.data[0];

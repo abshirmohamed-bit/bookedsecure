@@ -479,18 +479,20 @@ async function handleSubscriptionCanceled(subscription: any) {
  * Process one verified Stripe event. Storage happens first and is keyed on the
  * Stripe event id, so redelivery has no additional effect.
  */
-export async function processStripeEvent(event: StripeEventLike) {
+export async function processStripeEvent(event: StripeEventLike, env: StripeEnv = "sandbox") {
   const claimed = await claimEvent(event);
   if (!claimed) return { received: true, duplicate: true as const, detail: "Already processed" };
 
   try {
     let detail = `Unhandled event ${event.type}`;
+    const sub = await import("@/lib/subscription-billing.server");
+    const isPlanSubscription = (obj: any) => obj?.metadata?.bookedsecureSubscription === "true";
     switch (event.type) {
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded": {
         const session = event.data.object;
         if (session.payment_status === "unpaid") {
-          detail = "Payment pending settlement — no pilot started";
+          detail = "Payment pending settlement — nothing activated yet";
           break;
         }
         // Credit top-ups are a separate, self-serve purchase: they add SMS
@@ -500,15 +502,38 @@ export async function processStripeEvent(event: StripeEventLike) {
           detail = (await handleCreditTopupSession(session, event.created)).detail;
           break;
         }
+        if (isPlanSubscription(session)) {
+          detail = (await sub.handleSubscriptionSession(session, env)).detail;
+          break;
+        }
         detail = (await handlePaidSession(session, event.created)).detail;
         break;
       }
-      case "checkout.session.async_payment_failed":
-      case "invoice.payment_failed":
-        detail = (await handlePaymentFailed(event.data.object)).detail;
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        if (isPlanSubscription(event.data.object)) {
+          detail = (await sub.syncSubscription(event.data.object)).detail;
+        }
         break;
+      }
+      case "invoice.paid": {
+        const handled = await sub.handleSubscriptionInvoicePaid(event.data.object);
+        if (handled) detail = handled.detail;
+        break;
+      }
+      case "checkout.session.async_payment_failed":
+      case "invoice.payment_failed": {
+        const handled =
+          event.type === "invoice.payment_failed"
+            ? await sub.handleSubscriptionInvoiceFailed(event.data.object)
+            : null;
+        detail = handled ? handled.detail : (await handlePaymentFailed(event.data.object)).detail;
+        break;
+      }
       case "customer.subscription.deleted":
-        detail = (await handleSubscriptionCanceled(event.data.object)).detail;
+        detail = isPlanSubscription(event.data.object)
+          ? (await sub.syncSubscription(event.data.object)).detail
+          : (await handleSubscriptionCanceled(event.data.object)).detail;
         break;
       default:
         break;

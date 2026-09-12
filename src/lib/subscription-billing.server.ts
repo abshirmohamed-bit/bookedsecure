@@ -290,14 +290,14 @@ async function onActivated(businessId: string) {
     const { getTextoAccount, provisionTextoAccount } = await import("@/lib/sms/texto-accounts.server");
     const existing = await getTextoAccount(businessId);
     if (!existing) {
-      const { data: business } = await supabaseAdmin
-        .from("businesses")
-        .select("name")
-        .eq("id", businessId)
-        .maybeSingle();
+      const [{ data: business }, { data: owner }] = await Promise.all([
+        supabaseAdmin.from("businesses").select("name").eq("id", businessId).maybeSingle(),
+        supabaseAdmin.from("profiles").select("email").eq("business_id", businessId).order("created_at", { ascending: true }).limit(1).maybeSingle(),
+      ]);
       await provisionTextoAccount({
         businessId,
         businessName: business?.name ?? "New business",
+        ownerEmail: owner?.email ?? "",
         startingCredits: 0,
       });
     }
