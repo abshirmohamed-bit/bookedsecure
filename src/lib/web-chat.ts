@@ -305,20 +305,24 @@ export function chosenPricing(
     .map((id) => (tenant.addons ?? []).find((addon) => addon.id === id))
     .filter((addon): addon is ServiceAddon => Boolean(addon));
 
-  const parts: { name: string; price: string | null }[] = [
+  const parts: { name: string; price: string | null; quantity: number }[] = [
     ...services.map((service) => ({
       name: service.name,
       price: servicePriceLine(service, tenant.offerPercent ?? null),
+      quantity: serviceQuantity(collected, service.id),
     })),
     ...addons.map((addon) => ({
       name: addon.name,
       price: addon.price_guidance?.trim() || null,
+      quantity: 1,
     })),
   ];
 
-  const lines = parts.map((part) =>
-    part.price ? `${part.name} (${part.price})` : `${part.name} (price on enquiry)`,
-  );
+  const lines = parts.map((part) => {
+    const name = part.quantity > 1 ? `${part.name} ×${part.quantity}` : part.name;
+    if (!part.price) return `${name} (price on enquiry)`;
+    return part.quantity > 1 ? `${name} (${part.price} each)` : `${name} (${part.price})`;
+  });
 
   let total = 0;
   let from = false;
@@ -336,7 +340,7 @@ export function chosenPricing(
       break;
     }
     if (/\bfrom\b/i.test(text)) from = true;
-    total += value;
+    total += value * part.quantity;
   }
 
   const combined =
