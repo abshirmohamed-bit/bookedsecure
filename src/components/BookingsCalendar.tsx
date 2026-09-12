@@ -45,6 +45,7 @@ export function BookingsCalendar() {
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), monthIndex: today.getMonth() });
   const [selected, setSelected] = useState<BookingEntry | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const deleteJob = useServerFn(deleteBookingRecord);
   const removeJob = useMutation({
@@ -68,6 +69,7 @@ export function BookingsCalendar() {
   );
   const cells = useMemo(() => monthGrid(view.year, view.monthIndex), [view]);
   const todayKey = dayKey(new Date().toISOString(), timezone);
+  const dayEntries = selectedDay ? (byDay.get(selectedDay) ?? []) : [];
 
   if (isLoading) {
     return <p className="py-16 text-center text-sm text-muted-foreground">Loading bookings…</p>;
