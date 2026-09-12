@@ -59,9 +59,9 @@ export const editReactivationDraft = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { updateReactivationDraft } = await import("@/lib/reactivation.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId, "reactivation");
     return await updateReactivationDraft({
       businessId: app.businessId,
       draftId: data.draftId,
@@ -101,9 +101,9 @@ export const cancelReactivation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ campaignId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { cancelReactivationCampaign } = await import("@/lib/reactivation.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId, "reactivation");
     return await cancelReactivationCampaign({
       businessId: app.businessId,
       campaignId: data.campaignId,

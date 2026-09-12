@@ -31,9 +31,9 @@ export const saveOwnerNotification = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { saveOwnerNotificationSettings } = await import("@/lib/tenant-account.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     return await saveOwnerNotificationSettings(app, data);
   });
 
@@ -52,17 +52,17 @@ export const uploadTenantLogo = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { storeTenantLogo } = await import("@/lib/tenant-account.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     return await storeTenantLogo(app, data);
   });
 
 export const removeTenantLogo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { clearTenantLogo } = await import("@/lib/tenant-account.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     return await clearTenantLogo(app);
   });

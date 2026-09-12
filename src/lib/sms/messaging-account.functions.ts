@@ -12,7 +12,10 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CREDIT_PACKS } from "@/lib/sms/credit-packs";
 
-const TopupSchema = z.object({ packId: z.string().min(1) });
+const TopupSchema = z.object({
+  packId: z.string().min(1),
+  environment: z.enum(["sandbox", "live"]).optional(),
+});
 const PauseSchema = z.object({ paused: z.boolean() });
 const CancellationSchema = z.object({ note: z.string().max(1000).optional() });
 
@@ -123,8 +126,8 @@ export const startCreditTopup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => TopupSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     const { createCreditTopupCheckout } = await import("@/lib/sms/credit-topups.server");
@@ -135,6 +138,7 @@ export const startCreditTopup = createServerFn({ method: "POST" })
       userId: app.userId,
       email: app.email,
       returnUrl: `${origin}/settings/messaging?topup=complete&session_id={CHECKOUT_SESSION_ID}`,
+      environment: data.environment,
     });
     if ("error" in result) return { error: result.error };
     return { clientSecret: result.clientSecret };
@@ -145,8 +149,8 @@ export const setMessagingPaused = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => PauseSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -176,8 +180,8 @@ export const requestCancellation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => CancellationSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

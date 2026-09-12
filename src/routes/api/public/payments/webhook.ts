@@ -27,7 +27,7 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
 
         try {
           const { processStripeEvent } = await import("@/lib/billing.server");
-          const result = await processStripeEvent(event);
+          const result = await processStripeEvent(event, rawEnv);
           return Response.json(result);
         } catch (error) {
           console.error("[stripe-webhook] processing error:", error);

@@ -28,14 +28,14 @@ export const permanentlyDeleteLeadsRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => PurgeSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { isPurgeConfirmed } = await import("@/lib/lead-purge");
     const { permanentlyDeleteLeads } = await import("@/lib/lead-purge.server");
     if (!isPurgeConfirmed(data.confirmationPhrase)) {
       throw new Error("Type DELETE to confirm permanent deletion.");
     }
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     return permanentlyDeleteLeads(supabaseAdmin, {
       businessId: app.businessId,
@@ -51,10 +51,10 @@ export const softDeleteLeadsRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => DeleteSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { softDeleteLeads } = await import("@/lib/lead-deletion.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     return softDeleteLeads(supabaseAdmin, {
       businessId: app.businessId,
       actorUserId: app.userId,
@@ -92,10 +92,10 @@ export const restoreLeadsRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => RestoreSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { restoreLeads } = await import("@/lib/lead-deletion.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     return restoreLeads(supabaseAdmin, {
       businessId: app.businessId,

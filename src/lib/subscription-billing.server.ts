@@ -1,0 +1,308 @@
+/**
+ * Essentials / Pro subscription billing (server only).
+ *
+ * - `createSubscriptionCheckout` opens an embedded Stripe checkout for one
+ *   plan + interval, tied to exactly one business.
+ * - `createBillingPortalSession` lets the owner change card, switch plan or
+ *   cancel in Stripe's hosted portal.
+ * - The `handle*` functions are called from the verified webhook and are the
+ *   only writers of a business's subscription state.
+ */
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getPlanById, listOfferedPlans } from "@/lib/plans.server";
+import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "@/lib/stripe.server";
+import type { BillingInterval, SubscriptionStatus } from "@/lib/subscription";
+import {
+  applySubscriptionState,
+  findBusinessByStripeCustomer,
+  findBusinessByStripeSubscription,
+  getSubscriptionForBusiness,
+} from "@/lib/subscription.server";
+
+type Stripe = ReturnType<typeof createStripeClient>;
+
+export type SubscriptionCheckoutResult = { clientSecret: string } | { error: string };
+export type PortalResult = { url: string } | { error: string };
+
+async function audit(businessId: string, eventType: string, metadata: Record<string, unknown>, userId?: string | null) {
+  await supabaseAdmin.from("audit_events").insert({
+    business_id: businessId,
+    user_id: userId ?? null,
+    event_type: eventType,
+    entity_type: "business",
+    entity_id: businessId,
+    metadata: metadata as never,
+  });
+}
+
+/** One Stripe customer per business, found by metadata so it survives email changes. */
+export async function resolveBusinessCustomer(
+  stripe: Stripe,
+  input: { businessId: string; businessName: string | null; email: string | null },
+): Promise<string> {
+  const state = await getSubscriptionForBusiness(input.businessId);
+  if (state.stripeCustomerId) return state.stripeCustomerId;
+  const found = await stripe.customers.search({
+    query: `metadata['bookedsecureBusinessId']:'${input.businessId}'`,
+    limit: 1,
+  });
+  const existing = found.data[0];
+  const customerId = existing
+    ? existing.id
+    : (
+        await stripe.customers.create({
+          ...(input.email ? { email: input.email } : {}),
+          ...(input.businessName ? { name: input.businessName } : {}),
+          metadata: { bookedsecureBusinessId: input.businessId },
+        })
+      ).id;
+  await applySubscriptionState(input.businessId, { stripeCustomerId: customerId });
+  return customerId;
+}
+
+export async function createSubscriptionCheckout(input: {
+  businessId: string;
+  userId: string;
+  email: string | null;
+  planId: string;
+  interval: BillingInterval;
+  returnUrl: string;
+  environment: StripeEnv;
+}): Promise<SubscriptionCheckoutResult> {
+  const plan = await getPlanById(input.planId);
+  if (!plan) return { error: "That plan is not available." };
+  const lookupKey = input.interval === "year" ? plan.stripeAnnualPriceId : plan.stripeMonthlyPriceId;
+  if (!lookupKey) return { error: "That plan has no price configured yet." };
+
+  const state = await getSubscriptionForBusiness(input.businessId);
+  if (state.stripeSubscriptionId && state.status !== "canceled") {
+    return { error: "You already have a subscription. Use Manage billing to change plan." };
+  }
+
+  const { data: business } = await supabaseAdmin
+    .from("businesses")
+    .select("id, name")
+    .eq("id", input.businessId)
+    .maybeSingle();
+  if (!business) return { error: "Business not found." };
+
+  try {
+    const stripe = createStripeClient(input.environment);
+    const prices = await stripe.prices.list({ lookup_keys: [lookupKey], active: true, limit: 1 });
+    const price = prices.data[0];
+    if (!price) return { error: "That plan's price is not available right now." };
+
+    const customerId = await resolveBusinessCustomer(stripe, {
+      businessId: input.businessId,
+      businessName: business.name,
+      email: input.email,
+    });
+
+    const metadata = {
+      bookedsecureBusinessId: input.businessId,
+      bookedsecureSubscription: "true",
+      planId: plan.id,
+      interval: input.interval,
+      requestedBy: input.userId,
+    };
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      ui_mode: "embedded_page",
+      return_url: input.returnUrl,
+      customer: customerId,
+      line_items: [{ price: price.id, quantity: 1 }],
+      allow_promotion_codes: true,
+      metadata,
+      subscription_data: { metadata },
+    });
+
+    await audit(input.businessId, "subscription_checkout_started", { planId: plan.id, interval: input.interval, environment: input.environment }, input.userId);
+    return { clientSecret: session.client_secret ?? "" };
+  } catch (error) {
+    return { error: getStripeErrorMessage(error) };
+  }
+}
+
+export async function createBillingPortalSession(input: {
+  businessId: string;
+  returnUrl: string;
+  environment: StripeEnv;
+}): Promise<PortalResult> {
+  const state = await getSubscriptionForBusiness(input.businessId);
+  if (!state.stripeCustomerId) return { error: "No billing account yet — choose a plan first." };
+  try {
+    const stripe = createStripeClient(input.environment);
+    const portal = await stripe.billingPortal.sessions.create({
+      customer: state.stripeCustomerId,
+      return_url: input.returnUrl,
+    });
+    return { url: portal.url };
+  } catch (error) {
+    return { error: getStripeErrorMessage(error) };
+  }
+}
+
+/* ------------------------------------------------------------------ webhooks */
+
+function toStatus(stripeStatus: string): SubscriptionStatus {
+  switch (stripeStatus) {
+    case "active":
+    case "trialing":
+      return "active";
+    case "past_due":
+    case "unpaid":
+      return "past_due";
+    case "canceled":
+    case "incomplete_expired":
+      return "canceled";
+    default:
+      return "preview"; // incomplete / paused: not entitled yet
+  }
+}
+
+async function planFromPrice(price: any): Promise<{ planId: string; interval: BillingInterval } | null> {
+  const key: string | null = price?.lookup_key ?? price?.metadata?.lovable_external_id ?? null;
+  if (!key) return null;
+  const plans = await listOfferedPlans();
+  for (const plan of plans) {
+    if (plan.stripeMonthlyPriceId === key) return { planId: plan.id, interval: "month" };
+    if (plan.stripeAnnualPriceId === key) return { planId: plan.id, interval: "year" };
+  }
+  return null;
+}
+
+const iso = (seconds: number | null | undefined) =>
+  typeof seconds === "number" ? new Date(seconds * 1000).toISOString() : null;
+
+/** checkout.session.completed for a plan purchase. */
+export async function handleSubscriptionSession(session: any, env: StripeEnv) {
+  const businessId: string | undefined = session.metadata?.bookedsecureBusinessId;
+  if (!businessId) return { ok: false as const, detail: "Subscription session without business" };
+  const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+  const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
+
+  await applySubscriptionState(businessId, {
+    stripeCustomerId: customerId ?? null,
+    stripeSubscriptionId: subscriptionId ?? null,
+  });
+
+  if (subscriptionId) {
+    try {
+      const stripe = createStripeClient(env);
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      return await syncSubscription(subscription, businessId);
+    } catch (error) {
+      console.error("[subscription] retrieve after checkout failed:", getStripeErrorMessage(error));
+    }
+  }
+
+  const wasActive = (await getSubscriptionForBusiness(businessId)).status === "active";
+  await applySubscriptionState(businessId, {
+    status: "active",
+    planId: session.metadata?.planId,
+    interval: session.metadata?.interval === "year" ? "year" : "month",
+    pastDueSince: null,
+  });
+  if (!wasActive) await onActivated(businessId);
+  return { ok: true as const, detail: "Subscription activated from checkout" };
+}
+
+/** customer.subscription.created / updated / deleted. */
+export async function syncSubscription(subscription: any, knownBusinessId?: string) {
+  const businessId =
+    knownBusinessId ??
+    subscription.metadata?.bookedsecureBusinessId ??
+    (await findBusinessByStripeSubscription(subscription.id)) ??
+    (typeof subscription.customer === "string" ? await findBusinessByStripeCustomer(subscription.customer) : null);
+  if (!businessId) return { ok: false as const, detail: "Subscription not linked to a business" };
+
+  // Ignore stale events for a subscription that has since been replaced.
+  const current = await getSubscriptionForBusiness(businessId);
+  if (current.stripeSubscriptionId && current.stripeSubscriptionId !== subscription.id && current.status !== "canceled") {
+    return { ok: true as const, detail: "Ignored event for superseded subscription" };
+  }
+
+  const item = subscription.items?.data?.[0];
+  const resolved = await planFromPrice(item?.price);
+  const status = toStatus(subscription.status);
+  const wasFull = current.status === "active";
+
+  await applySubscriptionState(businessId, {
+    status,
+    stripeSubscriptionId: subscription.id,
+    stripeCustomerId: typeof subscription.customer === "string" ? subscription.customer : current.stripeCustomerId,
+    ...(resolved ?? {}),
+    currentPeriodStart: iso(item?.current_period_start ?? subscription.current_period_start),
+    currentPeriodEnd: iso(item?.current_period_end ?? subscription.current_period_end),
+    cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+    pastDueSince: status === "past_due" ? current.pastDueSince ?? new Date().toISOString() : null,
+  });
+
+  await audit(businessId, "subscription_synced", {
+    stripeStatus: subscription.status,
+    status,
+    planId: resolved?.planId ?? current.planId,
+    interval: resolved?.interval ?? current.interval,
+    cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+  });
+
+  if (status === "active" && !wasFull) await onActivated(businessId);
+  return { ok: true as const, detail: `Subscription ${subscription.status} → ${status}` };
+}
+
+/** invoice.payment_failed for a plan subscription. */
+export async function handleSubscriptionInvoiceFailed(invoice: any) {
+  const subscriptionId = invoice.subscription ?? invoice.parent?.subscription_details?.subscription ?? null;
+  const businessId =
+    (typeof subscriptionId === "string" ? await findBusinessByStripeSubscription(subscriptionId) : null) ??
+    (typeof invoice.customer === "string" ? await findBusinessByStripeCustomer(invoice.customer) : null);
+  if (!businessId) return null;
+  const current = await getSubscriptionForBusiness(businessId);
+  if (!current.stripeSubscriptionId) return null;
+  await applySubscriptionState(businessId, {
+    status: "past_due",
+    pastDueSince: current.pastDueSince ?? new Date().toISOString(),
+  });
+  await audit(businessId, "subscription_payment_failed", { invoiceId: invoice.id });
+  return { ok: true as const, detail: "Subscription marked past due" };
+}
+
+/** invoice.paid for a plan subscription: clears past-due. */
+export async function handleSubscriptionInvoicePaid(invoice: any) {
+  const subscriptionId = invoice.subscription ?? invoice.parent?.subscription_details?.subscription ?? null;
+  const businessId =
+    (typeof subscriptionId === "string" ? await findBusinessByStripeSubscription(subscriptionId) : null) ??
+    (typeof invoice.customer === "string" ? await findBusinessByStripeCustomer(invoice.customer) : null);
+  if (!businessId) return null;
+  const current = await getSubscriptionForBusiness(businessId);
+  if (!current.stripeSubscriptionId) return null;
+  if (current.status === "past_due") {
+    await applySubscriptionState(businessId, { status: "active", pastDueSince: null });
+    await audit(businessId, "subscription_payment_recovered", { invoiceId: invoice.id });
+  }
+  return { ok: true as const, detail: "Subscription invoice paid" };
+}
+
+/** First activation: make sure the tenant has a messaging account to send from. */
+async function onActivated(businessId: string) {
+  try {
+    const { getTextoAccount, provisionTextoAccount } = await import("@/lib/sms/texto-accounts.server");
+    const existing = await getTextoAccount(businessId);
+    if (!existing) {
+      const [{ data: business }, { data: owner }] = await Promise.all([
+        supabaseAdmin.from("businesses").select("name").eq("id", businessId).maybeSingle(),
+        supabaseAdmin.from("profiles").select("email").eq("business_id", businessId).order("created_at", { ascending: true }).limit(1).maybeSingle(),
+      ]);
+      await provisionTextoAccount({
+        businessId,
+        businessName: business?.name ?? "New business",
+        ownerEmail: owner?.email ?? "",
+        startingCredits: 0,
+      });
+    }
+  } catch (error) {
+    console.error("[subscription] messaging provisioning failed:", error);
+  }
+  await audit(businessId, "subscription_activated", {});
+}

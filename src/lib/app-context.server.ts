@@ -57,6 +57,23 @@ export async function assertLeadOwnership(businessId: string, leadId: string): P
   if (!data) throw new Error("Lead not found for this business.");
 }
 
+/**
+ * Like `requireAppContext`, but for anything that changes tenant data.
+ * A business in preview (not paying) can look around and upload a CSV, and
+ * nothing else; a plan feature can be required at the same time.
+ */
+export async function requireWriteContext(
+  supabase: Client,
+  userId: string,
+  feature?: import("@/lib/subscription").PlanFeature,
+): Promise<AppContext> {
+  const ctx = await requireAppContext(supabase, userId);
+  const { requireActiveSubscription, requirePlanFeature } = await import("@/lib/subscription.server");
+  if (feature) await requirePlanFeature(ctx.businessId, feature);
+  else await requireActiveSubscription(ctx.businessId);
+  return ctx;
+}
+
 export function requireOwner(ctx: AppContext): void {
   if (ctx.role === "staff") throw new Error("Only the business owner can change these settings.");
 }

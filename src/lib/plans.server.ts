@@ -22,6 +22,8 @@ export function toPlan(row: PlanRow): Plan {
     includedSegments: row.included_segments,
     overageCents: row.overage_cents,
     reactivationEnabled: row.reactivation_enabled,
+    campaignsEnabled: row.campaigns_enabled,
+    automationCustomEnabled: row.automation_custom_enabled,
     teamMemberLimit: row.team_member_limit,
     stripeMonthlyPriceId: row.stripe_monthly_price_id,
     stripeAnnualPriceId: row.stripe_annual_price_id,
@@ -64,11 +66,6 @@ export async function getPlanForBusiness(businessId: string): Promise<Plan> {
  * reactivation campaigns. Used by every reactivation entry point.
  */
 export async function requireReactivationPlan(businessId: string): Promise<Plan> {
-  const plan = await getPlanForBusiness(businessId);
-  if (!plan.reactivationEnabled) {
-    throw new Error(
-      "Bringing past customers back is part of the Pro plan. Upgrade to turn it on.",
-    );
-  }
-  return plan;
+  const { requirePlanFeature } = await import("@/lib/subscription.server");
+  return await requirePlanFeature(businessId, "reactivation");
 }

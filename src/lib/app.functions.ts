@@ -213,10 +213,10 @@ export const sendManualReply = createServerFn({ method: "POST" })
     z.object({ leadId: z.string().uuid(), body: z.string().min(2).max(600), fromAi: z.boolean().optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { sendSms } = await import("@/lib/lead-engine.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
 
     const result = await sendSms({
@@ -264,10 +264,10 @@ export const updateLead = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { recordAuditEvent } = await import("@/lib/lead-engine.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
 
     const { leadId, ...fields } = data;
@@ -303,9 +303,9 @@ export const setAutomationPaused = createServerFn({ method: "POST" })
     z.object({ leadId: z.string().uuid(), paused: z.boolean() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
     await supabaseAdmin
       .from("conversations")
@@ -332,10 +332,10 @@ export const recordCompletedJob = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { recordAuditEvent } = await import("@/lib/lead-engine.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
 
     const payload = {
@@ -384,9 +384,9 @@ export const scheduleJob = createServerFn({ method: "POST" })
     z.object({ leadId: z.string().uuid(), scheduled_at: z.string().min(8) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
 
     const scheduledAt = new Date(data.scheduled_at).toISOString();
@@ -413,8 +413,8 @@ export const analyseConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => LeadIdSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
     const { analyseLead } = await import("@/lib/ai.server");
     try {
@@ -447,9 +447,9 @@ export const createManualLead = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { captureLead } = await import("@/lib/lead-engine.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     return await captureLead({
       ...data,
       businessId: app.businessId,
@@ -460,10 +460,10 @@ export const createManualLead = createServerFn({ method: "POST" })
 export const runFollowUpsNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { processDueFollowUps } = await import("@/lib/lead-engine.server");
     const { processDueReactivationReminders } = await import("@/lib/reactivation.server");
-    await requireAppContext(context.supabase, context.userId);
+    await requireWriteContext(context.supabase, context.userId);
     const result = await processDueFollowUps();
     // The single automatic win-back reminder rides the same due pass.
     const reminders = await processDueReactivationReminders();
@@ -477,10 +477,10 @@ export const simulateInboundReply = createServerFn({ method: "POST" })
     z.object({ leadId: z.string().uuid(), body: z.string().min(1).max(600) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { handleInboundMessage, resolveSender } = await import("@/lib/lead-engine.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
 
     const { data: lead } = await supabaseAdmin
@@ -592,10 +592,10 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { recordAuditEvent } = await import("@/lib/lead-engine.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     const { error } = await supabaseAdmin.from("businesses").update(data).eq("id", app.businessId);
     if (error) throw new Error(error.message);
@@ -614,10 +614,10 @@ export const saveQuotePageMode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ quote_mode: z.enum(["manual_sms", "ai_chat"]) }).parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { recordAuditEvent } = await import("@/lib/lead-engine.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     const { error } = await supabaseAdmin
       .from("businesses")
@@ -684,10 +684,10 @@ export const saveSenderLabel = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { buildOwnerSenderPatch } = await import("@/lib/sender-settings");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     // Tenant context comes from the authenticated profile, never the client.
@@ -724,9 +724,9 @@ export const saveUsageLimits = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     const { error } = await supabaseAdmin
       .from("usage_limits")
@@ -756,9 +756,9 @@ export const saveService = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     const { id, ...fields } = data;
     if (id) {
@@ -799,9 +799,9 @@ export const saveServiceAddon = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     // Only the caller's own approved services may be linked.
@@ -860,9 +860,9 @@ export const deleteServiceAddon = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     const { error } = await supabaseAdmin
       .from("service_addons")
@@ -886,9 +886,9 @@ export const saveAutomationRule = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId, "automation_custom");
     requireOwner(app);
     const { id, ...fields } = data;
     const { error } = await supabaseAdmin
@@ -948,11 +948,11 @@ export const saveAvailabilitySettings = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { recordAuditEvent } = await import("@/lib/lead-engine.server");
     const { isValidTimezone } = await import("@/lib/availability");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     for (const window of data.weekly_windows) {
@@ -1011,9 +1011,9 @@ export const offerBookingSlots = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => LeadIdSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { sendSlotOffer } = await import("@/lib/availability.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
     const result = await sendSlotOffer({
       businessId: app.businessId,
@@ -1041,9 +1041,9 @@ export const selectBookingSlot = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { recordCustomerSlotSelection } = await import("@/lib/availability.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
     return await recordCustomerSlotSelection({
       businessId: app.businessId,
@@ -1065,7 +1065,7 @@ export const confirmLeadBooking = createServerFn({ method: "POST" })
       "@/lib/app-context.server"
     );
     const { confirmBooking } = await import("@/lib/availability.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     await assertLeadOwnership(app.businessId, data.leadId);
     const result = await confirmBooking({

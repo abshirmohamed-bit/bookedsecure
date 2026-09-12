@@ -15,6 +15,20 @@ export function getStripe(): Promise<Stripe | null> {
   return stripePromise;
 }
 
+export type StripeEnv = "sandbox" | "live";
+
+/**
+ * Which Stripe environment this build talks to, derived from the token prefix.
+ * Never falls through to live: a missing token is a configuration error.
+ */
+export function getStripeEnvironment(): StripeEnv {
+  if (clientToken?.startsWith("pk_test_")) return "sandbox";
+  if (clientToken?.startsWith("pk_live_")) return "live";
+  throw new Error(
+    "Payments are not configured for this build. Complete payment setup to enable checkout.",
+  );
+}
+
 export function isTestModePayments(): boolean {
   return Boolean(clientToken?.startsWith("pk_test_"));
 }

@@ -865,7 +865,7 @@ export async function sendSms(input: {
   // against the hard cap before contacting the carrier. Simulated sends
   // (e.g. the Glocast environment) never touch a carrier and are exempt.
   let pilotPeriodId: string | null = null;
-  let usesPurchasedCredit = false;
+  let creditsSpent = 0;
   if (provider.name !== "simulated") {
     const { authorizeLiveSend } = await import("@/lib/commercial.server");
     const gate = await authorizeLiveSend(input.businessId, segments);
@@ -873,8 +873,22 @@ export async function sendSms(input: {
       return { sent: false, retriable: false, reason: gate.reason };
     }
     pilotPeriodId = gate.periodId;
-    usesPurchasedCredit = gate.overage;
+    creditsSpent = gate.creditsSpent;
   }
+
+  // Undo whatever the gate reserved (allowance or purchased credits) when the
+  // send never reaches the carrier.
+  const releaseSegments = async () => {
+    if (pilotPeriodId) {
+      const { releaseReservedSegments } = await import("@/lib/commercial.server");
+      await releaseReservedSegments(pilotPeriodId, segments);
+    }
+    if (creditsSpent > 0) {
+      const { refundPurchasedCredits } = await import("@/lib/subscription.server");
+      await refundPurchasedCredits(input.businessId, creditsSpent);
+      creditsSpent = 0;
+    }
+  };
 
   // Texto tenant account checks: active account, non-empty credit balance, and
   // daily send cap. Kept next to the pilot gate so both commercial and account
@@ -882,29 +896,17 @@ export async function sendSms(input: {
   if (provider.name === "texto") {
     const creditCheck = await checkTextoCredits(input.businessId, segments);
     if (!creditCheck.ok) {
-      if (pilotPeriodId) {
-        const { releaseReservedSegments } = await import("@/lib/commercial.server");
-        await releaseReservedSegments(pilotPeriodId, segments);
-      }
+      await releaseSegments();
       return { sent: false, retriable: false, reason: creditCheck.reason };
     }
 
     const automated = input.source !== "manual" && input.source !== "approved_reply";
     const dailyCheck = await checkTextoDailyCap(input.businessId, automated);
     if (!dailyCheck.ok) {
-      if (pilotPeriodId) {
-        const { releaseReservedSegments } = await import("@/lib/commercial.server");
-        await releaseReservedSegments(pilotPeriodId, segments);
-      }
+      await releaseSegments();
       return { sent: false, retriable: false, reason: dailyCheck.reason };
     }
   }
-
-  const releaseSegments = async () => {
-    if (!pilotPeriodId) return;
-    const { releaseReservedSegments } = await import("@/lib/commercial.server");
-    await releaseReservedSegments(pilotPeriodId, segments);
-  };
 
   // Reserve the outbound row BEFORE the carrier call. The unique index on
   // (business_id, idempotency_key) means a concurrent caller with the same key
@@ -1056,10 +1058,10 @@ export async function sendSms(input: {
     providerCost: result.providerCost ?? 0,
   });
 
-  // Bought credits fund overage regardless of which carrier delivered it.
-  // Texto also consumes its provider-side credit for included sends.
-  if (usesPurchasedCredit || provider.name === "texto") {
-    await recordMessageSpend(input.businessId, segments);
+  // Purchased credits were already deducted atomically by the send gate;
+  // this only writes the audit trail so the account history stays complete.
+  if (creditsSpent > 0) {
+    await recordMessageSpend(input.businessId, creditsSpent);
   }
 
   const leadUpdate: Record<string, unknown> = {

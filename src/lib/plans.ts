@@ -16,6 +16,8 @@ export type Plan = {
   includedSegments: number;
   overageCents: number;
   reactivationEnabled: boolean;
+  campaignsEnabled: boolean;
+  automationCustomEnabled: boolean;
   /** null means unlimited. */
   teamMemberLimit: number | null;
   stripeMonthlyPriceId: string | null;
@@ -23,7 +25,10 @@ export type Plan = {
   sortOrder: number;
 };
 
-export const DEFAULT_PLAN_ID = "pro";
+export const DEFAULT_PLAN_ID = "essentials";
+
+/** What one extra text costs on every plan, in cents. */
+export const CREDIT_PRICE_CENTS = 6;
 
 /** Provider cost per outbound text, in cents. Never sell below this. */
 export const PROVIDER_COST_CENTS = 3;
