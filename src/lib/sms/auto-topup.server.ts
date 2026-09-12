@@ -243,7 +243,7 @@ export async function maybeAutoTopup(businessId: string): Promise<AutoTopupResul
           // Two failed attempts in a row (usually an expired card): stop
           // trying and let the owner fix their card instead of retry loops.
           auto_topup_enabled: failures >= MAX_CONSECUTIVE_FAILURES ? false : account.auto_topup_enabled,
-        } as never)
+        })
         .eq("id", account.id);
       await audit(businessId, "auto_topup_failed", { error: message, failures });
       return { ok: false, reason: message };
