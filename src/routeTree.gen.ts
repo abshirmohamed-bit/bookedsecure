@@ -22,6 +22,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as AssistantThreadIdRouteImport } from './routes/assistant.$threadId'
 import { Route as BTokenRouteImport } from './routes/b.$token'
@@ -112,6 +113,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
   path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
+  id: '/admin/feedback',
+  path: '/admin/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminPilotApplicationsRoute = AdminPilotApplicationsRouteImport.update({
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -304,6 +311,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
+  '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -346,6 +354,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -389,6 +398,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/admin/feedback'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -429,6 +439,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/setup'
+    | '/admin/feedback'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -470,6 +481,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/admin/feedback'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -512,6 +524,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SetupRoute: typeof SetupRoute
+  AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   BTokenRoute: typeof BTokenRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
@@ -625,6 +638,13 @@ declare module '@tanstack/react-router' {
       path: '/setup'
       fullPath: '/setup'
       preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/feedback': {
+      id: '/admin/feedback'
+      path: '/admin/feedback'
+      fullPath: '/admin/feedback'
+      preLoaderRoute: typeof AdminFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/pilot-applications': {
@@ -858,6 +878,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SetupRoute: SetupRoute,
+  AdminFeedbackRoute: AdminFeedbackRoute,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   BTokenRoute: BTokenRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,

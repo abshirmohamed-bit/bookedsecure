@@ -111,9 +111,8 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           B
         </Link>
         <div className="mt-6 flex flex-col gap-2">
-          <Button asChild size="icon" variant={isAssistantHome ? "secondary" : "ghost"} title="Home">
-            <Link to="/dashboard" aria-label="Home"><Sparkles /></Link>
-          </Button>
+          <FeedbackButton rail />
+
           <Button size="icon" variant="ghost" onClick={toggleTenantRail} title={tenantRailCollapsed ? "Open tenant navigation" : "Collapse tenant navigation"} aria-label={tenantRailCollapsed ? "Open tenant navigation" : "Collapse tenant navigation"}>
             {tenantRailCollapsed ? <ChevronRight /> : <ChevronLeft />}
           </Button>
