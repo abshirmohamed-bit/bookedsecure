@@ -214,7 +214,7 @@ async function claimEvent(event: StripeEventLike): Promise<boolean> {
   const { error } = await supabaseAdmin.from("stripe_events").insert({
     stripe_event_id: event.id,
     event_type: event.type,
-    processing_status: "processing",
+    processing_status: "received",
     payload_reference: {
       object_id: event.data?.object?.id ?? null,
       object_type: event.data?.object?.object ?? null,
