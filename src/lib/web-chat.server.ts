@@ -20,6 +20,7 @@ import {
   nextStep,
   promptFor,
   resolveOutcome,
+  selectionTotalMessage,
   serviceAcknowledgement,
   welcomeMessage,
   type WebChatCollected,
@@ -667,10 +668,17 @@ export async function replyToWebChat(input: {
       .eq("business_id", tenant.businessId);
 
     const prompt = promptFor(followUp, chatTenant, next);
-    const detail =
-      (followUp === "vehicle" || followUp === "addons") && next.service_name
-        ? serviceAcknowledgement(chatTenant, next)
+    // Extras just chosen: show the service and add-on prices together, with the
+    // combined figure, before the final check.
+    const extrasPriced =
+      step === "addons" && (next.addon_ids ?? []).length > 0
+        ? selectionTotalMessage(next, chatTenant)
         : null;
+    const detail =
+      extrasPriced ??
+      ((followUp === "vehicle" || followUp === "addons") && next.service_name
+        ? serviceAcknowledgement(chatTenant, next)
+        : null);
     // One message per turn: the acknowledgement and the next question read as a
     // single reply so the customer never gets two bubbles for one turn.
     const [reply] = asSingleReply([detail ?? "", prompt.text]);

@@ -350,6 +350,24 @@ export function chosenPricing(
   return { lines, combined };
 }
 
+/**
+ * What the customer has chosen so far with the tenant's own prices, plus the
+ * combined figure when every price is a single dollar amount. Shown right after
+ * extras are picked, before the final check, so the customer sees the service
+ * and add-on prices together. Nothing is invented, discounted or rounded.
+ */
+export function selectionTotalMessage(
+  collected: WebChatCollected,
+  tenant: WebChatTenant,
+): string | null {
+  const pricing = chosenPricing(collected, tenant);
+  if (pricing.lines.length === 0) return null;
+  const listed = pricing.lines.join(" + ");
+  return pricing.combined
+    ? `So far: ${listed}. That comes to ${pricing.combined}.`
+    : `So far: ${listed}. ${tenant.name} confirms the final price with you.`;
+}
+
 /** Labelled summary of everything captured, for the final review step. */
 export function reviewSummary(
   collected: WebChatCollected,
@@ -852,8 +870,10 @@ export function applyAnswer(
         next.addon_ids = extras.map((addon) => addon.id);
         next.addon_names = extras.map((addon) => addon.name);
         next.addons_offered = allowed.length > 0;
-        // Extras were offered and answered on the cards, so the extras step is done.
-        next.addons_done = true;
+        // Extras ticked on the cards close the step. If none were ticked, the
+        // tenant's own extras are still offered later in the conversation, with
+        // their prices, so nobody misses them.
+        next.addons_done = allowed.length === 0 || extras.length > 0;
         const echo = [
           chosen
             .map((entry) => withQuantity(entry.name, quantities[entry.id] ?? 1))
