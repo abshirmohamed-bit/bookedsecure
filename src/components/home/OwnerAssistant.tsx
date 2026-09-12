@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Loader2, UploadCloud } from "lucide-react";
+import { Check, Loader2, Paperclip, UploadCloud, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,10 +10,12 @@ import {
   confirmOwnerStatusChange,
   confirmAddonLinks,
   confirmLeadUpdate,
+  confirmAssistantText,
 } from "@/lib/owner-actions.functions";
+import type { SendTextProposal, ImportProposal } from "@/lib/assistant-proposals";
 import { approveReactivation } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
-import { previewCrmImport } from "@/lib/csv-import.functions";
+import { saveCrmImportBatch } from "@/lib/csv-import.functions";
 import { MAX_CSV_BYTES } from "@/lib/csv-import";
 import { completeAssistantMessage } from "@/lib/assistant-history.functions";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
@@ -59,7 +61,13 @@ type LeadUpdateProposal = {
   bookAt: string | null;
 };
 
-type Proposal = CampaignProposal | StatusProposal | AddonLinkProposal | LeadUpdateProposal;
+type Proposal =
+  | CampaignProposal
+  | StatusProposal
+  | AddonLinkProposal
+  | LeadUpdateProposal
+  | SendTextProposal
+  | ImportProposal;
 
 type Turn = {
   id: string;
@@ -108,7 +116,8 @@ export function OwnerAssistant({
   const linkAddons = useServerFn(confirmAddonLinks);
   const updateLead = useServerFn(confirmLeadUpdate);
   const approve = useServerFn(approveReactivation);
-  const upload = useServerFn(previewCrmImport);
+  const sendText = useServerFn(confirmAssistantText);
+  const saveImport = useServerFn(saveCrmImportBatch);
   const completeMessage = useServerFn(completeAssistantMessage);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -120,6 +129,7 @@ export function OwnerAssistant({
   const [turns, setTurns] = useState<Turn[]>(initialTurns);
   const [attested, setAttested] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<{ filename: string; content: string } | null>(null);
 
   useEffect(() => {
     setTurns(initialTurns);
@@ -130,7 +140,8 @@ export function OwnerAssistant({
   }, [turns]);
 
   const mutation = useMutation({
-    mutationFn: (value: string) => ask({ data: { question: value, threadId } }),
+    mutationFn: (input: { question: string; attachment: { filename: string; content: string } | null }) =>
+      ask({ data: { question: input.question, threadId, attachment: input.attachment } }),
     onSuccess: (result) => {
       setTurns((current) => [
         ...current,
@@ -142,8 +153,8 @@ export function OwnerAssistant({
           ...(result.done ? { done: result.done } : {}),
         },
       ]);
-      if (result.done) {
-        // Bookings, leads and the performance figures may have just changed.
+      if (result.done || (result.proposals ?? []).length > 0) {
+        // Bookings, leads, settings and the performance figures may have just changed.
         void queryClient.invalidateQueries();
       }
     },
@@ -158,16 +169,45 @@ export function OwnerAssistant({
       ]),
   });
 
-  const importMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const content = await file.text();
-      return upload({ data: { filename: file.name, content } });
+  const attachMutation = useMutation({
+    mutationFn: async (file: File) => ({ filename: file.name, content: await file.text() }),
+    onSuccess: (file) => {
+      setAttachment(file);
+      requestAnimationFrame(() => textareaRef.current?.focus());
     },
-    onSuccess: () => {
-      toast.success("Contacts checked. Open the import page to review and save them.");
-      navigate({ to: "/import" });
+    onError: () => toast.error("We could not read that file."),
+  });
+
+  const textMutation = useMutation({
+    mutationFn: (input: { turnId: string; proposal: SendTextProposal }) =>
+      sendText({ data: { leadId: input.proposal.leadId, message: input.proposal.message } }),
+    onSuccess: (_result, input) => {
+      markDone(input.turnId, `Sent the text to ${input.proposal.leadName}.`);
+      void queryClient.invalidateQueries();
     },
-    onError: () => toast.error("We could not read that contact file. Nothing was saved."),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "That text could not be sent."),
+    onSettled: () => setBusyId(null),
+  });
+
+  const importConfirmMutation = useMutation({
+    mutationFn: (input: { turnId: string; proposal: ImportProposal }) =>
+      saveImport({ data: { batchId: input.proposal.batchId } }),
+    onSuccess: (result, input) => {
+      if (result.status !== "ok") {
+        toast.error("That upload is no longer available. Attach the file again.");
+        return;
+      }
+      const r = result.report;
+      markDone(
+        input.turnId,
+        `Imported ${r.saved} new lead${r.saved === 1 ? "" : "s"}${r.updated ? `, filled gaps on ${r.updated}` : ""}${r.already_there ? `, ${r.already_there} already there` : ""}${r.skipped ? `, ${r.skipped} skipped` : ""}.`,
+      );
+      void queryClient.invalidateQueries();
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Those contacts could not be imported."),
+    onSettled: () => setBusyId(null),
   });
 
   const signedIn = Boolean(session);
@@ -257,14 +297,19 @@ export function OwnerAssistant({
 
   function submit(value: string) {
     const text = normaliseOwnerQuestion(value);
-    if (!text) return;
+    if (!text && !attachment) return;
     if (!signedIn) {
       navigate({ to: "/auth" });
       return;
     }
-    setTurns((current) => [...current, { id: newId(), role: "you", text }]);
+    const shown = attachment
+      ? `${text || "Please check and import these contacts."} (attached ${attachment.filename})`
+      : text;
+    setTurns((current) => [...current, { id: newId(), role: "you", text: shown }]);
     setQuestion("");
-    mutation.mutate(text, { onSettled: () => {
+    const pending = attachment;
+    setAttachment(null);
+    mutation.mutate({ question: text, attachment: pending }, { onSettled: () => {
       onConversationChanged?.();
       requestAnimationFrame(() => textareaRef.current?.focus());
     } });
@@ -398,6 +443,70 @@ export function OwnerAssistant({
                             Confirm
                           </button>
                         </div>
+                      ) : proposal.kind === "send_text" ? (
+                        <div
+                          key={`${proposal.leadId}-text`}
+                          className="rounded-2xl border border-border bg-card p-4 text-sm"
+                        >
+                          <p className="font-medium">
+                            Text to {proposal.leadName} · {proposal.mobileNumber}
+                          </p>
+                          <p className="mt-2 whitespace-pre-wrap rounded-lg bg-secondary/40 p-3 text-xs">
+                            {proposal.message}
+                          </p>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Nothing sends until you confirm. Quiet hours, consent and credits still apply.
+                          </p>
+                          <button
+                            type="button"
+                            disabled={busyId === turn.id}
+                            onClick={() => {
+                              setBusyId(turn.id);
+                              textMutation.mutate({ turnId: turn.id, proposal });
+                            }}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                          >
+                            {busyId === turn.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                            Confirm and send
+                          </button>
+                        </div>
+                      ) : proposal.kind === "import" ? (
+                        <div
+                          key={proposal.batchId}
+                          className="rounded-2xl border border-border bg-card p-4 text-sm"
+                        >
+                          <p className="font-medium">Import {proposal.filename}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{proposal.summary}</p>
+                          <ul className="mt-2 flex flex-wrap gap-1.5 text-xs">
+                            <li className="rounded-full bg-secondary/60 px-2.5 py-1">{proposal.validRows} ready</li>
+                            {proposal.duplicateRows ? (
+                              <li className="rounded-full bg-secondary/60 px-2.5 py-1">{proposal.duplicateRows} already in inbox</li>
+                            ) : null}
+                            {proposal.invalidRows ? (
+                              <li className="rounded-full bg-secondary/60 px-2.5 py-1">{proposal.invalidRows} skipped</li>
+                            ) : null}
+                          </ul>
+                          <button
+                            type="button"
+                            disabled={busyId === turn.id}
+                            onClick={() => {
+                              setBusyId(turn.id);
+                              importConfirmMutation.mutate({ turnId: turn.id, proposal });
+                            }}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                          >
+                            {busyId === turn.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                            Import into lead inbox
+                          </button>
+                        </div>
                       ) : proposal.kind === "addon_links" ? (
                         <div
                           key={`${proposal.addonId}-${proposal.remove ? "off" : "on"}`}
@@ -498,20 +607,35 @@ export function OwnerAssistant({
           />
            <PromptInputFooter className="min-h-11">
             <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={chooseFile}
-              disabled={importMutation.isPending}
-              title="Upload old leads"
-               className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:min-h-8 sm:px-3"
-            >
-              {importMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <UploadCloud className="h-4 w-4" aria-hidden="true" />
-              )}
-              <span className="hidden sm:inline">Upload</span>
-            </button>
+            {attachment ? (
+              <span className="inline-flex min-h-10 max-w-[12rem] items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1.5 text-xs sm:min-h-8">
+                <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">{attachment.filename}</span>
+                <button
+                  type="button"
+                  onClick={() => setAttachment(null)}
+                  aria-label="Remove attached file"
+                  className="rounded p-0.5 hover:bg-background"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={chooseFile}
+                disabled={attachMutation.isPending}
+                title="Attach a contact file to import"
+                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:min-h-8 sm:px-3"
+              >
+                {attachMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <UploadCloud className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span className="hidden sm:inline">Attach CSV</span>
+              </button>
+            )}
             <input
               ref={fileRef}
               type="file"
@@ -526,13 +650,13 @@ export function OwnerAssistant({
                   toast.error("That file is larger than 2 MB.");
                   return;
                 }
-                importMutation.mutate(file);
+                attachMutation.mutate(file);
               }}
             />
             </div>
             <PromptInputSubmit
               status={mutation.isPending ? "submitted" : "ready"}
-              disabled={mutation.isPending || normaliseOwnerQuestion(question).length === 0}
+              disabled={mutation.isPending || (normaliseOwnerQuestion(question).length === 0 && !attachment)}
               aria-label={signedIn ? "Ask" : "Sign in to ask"}
                className="size-10 sm:size-8"
             />
