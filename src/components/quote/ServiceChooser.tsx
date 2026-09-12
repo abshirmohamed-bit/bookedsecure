@@ -65,6 +65,8 @@ export function ServiceChooser({
   const [chosen, setChosen] = useState<string[]>([]);
   /** Chosen extras, by add-on id. */
   const [extras, setExtras] = useState<string[]>([]);
+  /** Number of vehicles per chosen service; a missing entry means one. */
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [detail, setDetail] = useState<ServiceOption | null>(null);
 
   const chosenOptions = chosen
@@ -77,10 +79,14 @@ export function ServiceChooser({
         ? current.filter((value) => value !== option.value)
         : [...current, option.value],
     );
-    // Extras belong to a service: dropping the service drops its extras.
+    // Extras and vehicle counts belong to a service: dropping it drops them.
     const ids = (option.card?.extras ?? []).map((extra) => extra.id);
-    if (chosen.includes(option.value) && ids.length > 0) {
-      setExtras((current) => current.filter((id) => !ids.includes(id)));
+    if (chosen.includes(option.value)) {
+      if (ids.length > 0) setExtras((current) => current.filter((id) => !ids.includes(id)));
+      setQuantities((current) => {
+        const { [option.value]: _dropped, ...rest } = current;
+        return rest;
+      });
     }
   }
 
@@ -90,6 +96,14 @@ export function ServiceChooser({
     );
   }
 
+  function adjustQuantity(value: string, delta: number) {
+    setQuantities((current) => {
+      const next = Math.min(MAX_SERVICE_QUANTITY, Math.max(1, (current[value] ?? 1) + delta));
+      const { [value]: _old, ...rest } = current;
+      return next > 1 ? { ...rest, [value]: next } : rest;
+    });
+  }
+
   function submit() {
     if (chosen.length === 0 || busy) return;
     const extraNames = chosenOptions
@@ -97,12 +111,17 @@ export function ServiceChooser({
       .filter((extra) => extras.includes(extra.id))
       .map((extra) => extra.name);
     const label = [
-      chosenOptions.map((option) => option.label).join(" + "),
+      chosenOptions
+        .map((option) => {
+          const count = quantities[option.value] ?? 1;
+          return count > 1 ? `${option.label} ×${count}` : option.label;
+        })
+        .join(" + "),
       extraNames.length > 0 ? `with ${extraNames.join(", ")}` : null,
     ]
       .filter(Boolean)
       .join(" ");
-    onSubmit(encodeServiceSelection(chosen, extras), label);
+    onSubmit(encodeServiceSelection(chosen, extras, quantities), label);
   }
 
   if (detail) {
