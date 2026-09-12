@@ -64,6 +64,14 @@ export async function setTeamMemberAccess(
   if (!active && actor.role !== "platform_admin" && (await isOwner(profileId))) {
     return { ok: false, error: "Another owner's access cannot be removed from here." };
   }
+  if (active && !member.active) {
+    const { assertTeamSeatAvailable } = await import("@/lib/subscription.server");
+    try {
+      await assertTeamSeatAvailable(actor.businessId);
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
   const { error } = await supabaseAdmin
     .from("profiles")
     .update({ active })
