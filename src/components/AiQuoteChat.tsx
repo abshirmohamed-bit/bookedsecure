@@ -803,6 +803,99 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
           </div>
         </div>
       </div>
+
+      {selectionDetail && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Details of ${selectionDetail.label}`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setSelectionDetail(null)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setSelectionDetail(null);
+          }}
+        >
+          <div
+            className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl border border-primary/50 bg-card p-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-lg font-semibold leading-tight">{selectionDetail.label}</p>
+              <button
+                type="button"
+                onClick={() => setSelectionDetail(null)}
+                aria-label="Close details"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            {(selectionDetail.price || selectionDetail.duration) && (
+              <div className="mt-2 flex flex-wrap items-baseline gap-4">
+                {selectionDetail.price && (
+                  <span className="text-base font-bold text-primary">{selectionDetail.price}</span>
+                )}
+                {selectionDetail.duration && (
+                  <span className="text-xs text-muted-foreground">{selectionDetail.duration}</span>
+                )}
+              </div>
+            )}
+            {selectionDetail.description && (
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {selectionDetail.description}
+              </p>
+            )}
+            {selectionDetail.includes && (
+              <div className="mt-4">
+                <p className="text-[0.7rem] font-bold uppercase tracking-widest text-primary">
+                  What's included
+                </p>
+                <p className="mt-1.5 flex gap-2 text-sm text-muted-foreground">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <span>{selectionDetail.includes}</span>
+                </p>
+              </div>
+            )}
+            {selectionDetail.excludes && (
+              <div className="mt-4">
+                <p className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
+                  Not included
+                </p>
+                <p className="mt-1.5 flex gap-2 text-sm text-muted-foreground">
+                  <X className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>{selectionDetail.excludes}</span>
+                </p>
+              </div>
+            )}
+            {(selectionDetail.extras ?? []).length > 0 && (
+              <div className="mt-4">
+                <p className="text-[0.7rem] font-bold uppercase tracking-widest text-primary">
+                  Your add-ons
+                </p>
+                <ul className="mt-1.5 space-y-1.5">
+                  {(selectionDetail.extras ?? []).map((extra) => (
+                    <li
+                      key={extra.name}
+                      className="flex items-baseline justify-between gap-3 rounded-lg bg-secondary px-2.5 py-1.5 text-xs text-muted-foreground"
+                    >
+                      <span className="min-w-0 flex items-center gap-1.5">
+                        <Check className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+                        {extra.name}
+                      </span>
+                      {extra.price && (
+                        <span className="shrink-0 font-semibold text-primary">{extra.price}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {selectionDetail.note && (
+              <p className="mt-3 text-xs text-muted-foreground">{selectionDetail.note}</p>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
