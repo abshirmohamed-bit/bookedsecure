@@ -173,6 +173,8 @@ export function buildAssistantSystemPrompt(input: {
   localTime: string;
   localWeekday: string;
   hasAttachment?: boolean;
+  /** A file uploaded earlier in this conversation that is still available. */
+  rememberedFilename?: string | null;
 }): string {
   const who = input.businessName?.trim() || "this business";
   const isOwner = input.role !== "staff";
@@ -204,6 +206,9 @@ export function buildAssistantSystemPrompt(input: {
     "- You cannot delete customers, buy or cancel phone numbers, or change billing. Say so if asked, and point to the Messaging or Lead inbox pages for those.",
     input.hasAttachment
       ? "- A file is attached to this message. Call preview_import now unless the owner clearly asked for something else."
+      : "",
+    !input.hasAttachment && input.rememberedFilename
+      ? `- The file "${input.rememberedFilename}" was uploaded earlier in this conversation and is still available to you: the owner does not need to upload it again. Use it with preview_import when they refer to that file or those contacts. Never import it unless they ask.`
       : "",
     "- Reply in plain Australian English. Keep it short: a few sentences for actions, a compact list of lines when reporting figures or several people. No em dashes.",
   ]

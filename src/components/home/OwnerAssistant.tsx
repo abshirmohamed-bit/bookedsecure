@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2, Paperclip, UploadCloud, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -17,7 +17,10 @@ import { approveReactivation } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { saveCrmImportBatch } from "@/lib/csv-import.functions";
 import { MAX_CSV_BYTES } from "@/lib/csv-import";
-import { completeAssistantMessage } from "@/lib/assistant-history.functions";
+import {
+  completeAssistantMessage,
+  getAssistantRememberedFile,
+} from "@/lib/assistant-history.functions";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
@@ -138,6 +141,14 @@ export function OwnerAssistant({
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [turns]);
+
+  // A file handed over earlier stays available, so it never needs re-uploading.
+  const rememberedFile = useServerFn(getAssistantRememberedFile);
+  const remembered = useQuery({
+    queryKey: ["assistant-remembered-file", threadId],
+    queryFn: () => rememberedFile({ data: { threadId } }),
+    enabled: Boolean(session),
+  });
 
   const mutation = useMutation({
     mutationFn: (input: { question: string; attachment: { filename: string; content: string } | null }) =>
@@ -311,6 +322,9 @@ export function OwnerAssistant({
     setAttachment(null);
     mutation.mutate({ question: text, attachment: pending }, { onSettled: () => {
       onConversationChanged?.();
+      if (pending) {
+        void queryClient.invalidateQueries({ queryKey: ["assistant-remembered-file", threadId] });
+      }
       requestAnimationFrame(() => textareaRef.current?.focus());
     } });
   }
@@ -621,20 +635,31 @@ export function OwnerAssistant({
                 </button>
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={chooseFile}
-                disabled={attachMutation.isPending}
-                title="Attach a contact file to import"
-                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:min-h-8 sm:px-3"
-              >
-                {attachMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <UploadCloud className="h-4 w-4" aria-hidden="true" />
-                )}
-                <span className="hidden sm:inline">Attach CSV</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={chooseFile}
+                  disabled={attachMutation.isPending}
+                  title="Attach a contact file to import"
+                  className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:min-h-8 sm:px-3"
+                >
+                  {attachMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <UploadCloud className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  <span className="hidden sm:inline">Attach CSV</span>
+                </button>
+                {remembered.data ? (
+                  <span
+                    title="Kept from earlier — just ask about it, no need to upload again"
+                    className="inline-flex min-h-10 max-w-[11rem] items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground sm:min-h-8"
+                  >
+                    <Paperclip className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    <span className="truncate">Saved: {remembered.data.filename}</span>
+                  </span>
+                ) : null}
+              </>
             )}
             <input
               ref={fileRef}

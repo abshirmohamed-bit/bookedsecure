@@ -172,6 +172,8 @@ export async function handleOwnerRequest(input: {
   history?: Array<{ role: "user" | "assistant"; text: string }>;
   /** A contact file the owner attached to this message, if any. */
   attachment?: { filename: string; content: string } | null;
+  /** True when the file above came from an earlier upload, not this message. */
+  attachmentRemembered?: boolean;
 }): Promise<{ answer: string; proposals: OwnerProposal[]; executed: string[] }> {
   try {
     const { runAssistantAgent } = await import("@/lib/assistant-agent.server");
@@ -182,6 +184,7 @@ export async function handleOwnerRequest(input: {
       question: input.question,
       ...(input.history ? { history: input.history } : {}),
       ...(input.attachment ? { attachment: input.attachment } : {}),
+      ...(input.attachmentRemembered ? { attachmentRemembered: true } : {}),
     });
     if (result.answer.length > 0 || result.executed.length > 0 || result.proposals.length > 0) {
       return {

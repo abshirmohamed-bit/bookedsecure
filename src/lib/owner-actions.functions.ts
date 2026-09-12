@@ -27,17 +27,37 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { handleOwnerRequest } = await import("@/lib/owner-actions.server");
-    const { loadAssistantThread, persistOwnerExchange } = await import(
-      "@/lib/assistant-history.server"
-    );
+    const {
+      loadAssistantThread,
+      persistOwnerExchange,
+      rememberAssistantFile,
+      latestAssistantFile,
+    } = await import("@/lib/assistant-history.server");
     const app = await requireAppContext(context.supabase, context.userId);
-    const attachment = data.attachment ?? null;
+    const fresh = data.attachment ?? null;
     const typed = normaliseOwnerQuestion(data.question);
+
+    if (fresh) {
+      // Keep it so the owner never has to upload the same file twice.
+      await rememberAssistantFile({
+        businessId: app.businessId,
+        threadId: data.threadId,
+        userId: app.userId,
+        filename: fresh.filename,
+        content: fresh.content,
+      });
+    }
+    // No new file: reuse the last one this conversation was given, if any.
+    const remembered = fresh
+      ? null
+      : await latestAssistantFile({ businessId: app.businessId, threadId: data.threadId });
+    const attachment = fresh ?? remembered ?? null;
+
     const question =
       typed.length > 0
         ? typed
-        : attachment
-          ? `Please check and import the contacts in ${attachment.filename}.`
+        : fresh
+          ? `Please check and import the contacts in ${fresh.filename}.`
           : "";
 
     // The assistant needs the conversation so far to follow "book her in too".
@@ -55,17 +75,23 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
         .filter((message) => message.text.trim().length > 0)
         .map((message) => ({ role: message.role, text: message.text })),
       attachment,
+      attachmentRemembered: !fresh && Boolean(remembered),
     });
     const done = result.executed.length > 0 ? result.executed.join(" ") : null;
     const saved = await persistOwnerExchange({
       businessId: app.businessId,
       threadId: data.threadId,
-      question: attachment ? `${question} (attached ${attachment.filename})` : question,
+      question: fresh ? `${question} (attached ${fresh.filename})` : question,
       answer: result.answer,
       proposals: result.proposals,
       done,
     });
-    return { ...result, done, assistantMessageId: saved.assistantMessageId };
+    return {
+      ...result,
+      done,
+      assistantMessageId: saved.assistantMessageId,
+      ...(attachment ? { fileInUse: attachment.filename } : {}),
+    };
   });
 
 /** Sends one text the owner has just confirmed on screen. Consent, quiet hours, credits and caps still apply. */
