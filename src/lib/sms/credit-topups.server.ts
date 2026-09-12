@@ -200,3 +200,21 @@ export async function listCreditTopups(businessId: string, limit = 5) {
   if (error) throw new Error(error.message);
   return data ?? [];
 }
+
+/**
+ * Abandoned checkouts: a pending top-up whose Stripe session was never
+ * completed is marked expired after 24 hours so it stops showing as an open
+ * purchase. A paid session that arrives later is still honoured — settlement
+ * checks the Stripe payment, not this status, and re-marks the row paid.
+ */
+export async function expireAbandonedTopups(olderThanHours = 24): Promise<{ expired: number }> {
+  const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("credit_topups")
+    .update({ status: "expired", failure_reason: "Checkout not completed", updated_at: new Date().toISOString() })
+    .eq("status", "pending")
+    .lt("created_at", cutoff)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return { expired: data?.length ?? 0 };
+}
