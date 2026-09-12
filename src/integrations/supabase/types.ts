@@ -958,6 +958,7 @@ export type Database = {
           automation_paused: boolean
           business_id: string
           created_at: string
+          follow_up_overrides: Json
           follow_up_step: number
           id: string
           last_message_at: string | null
@@ -969,6 +970,7 @@ export type Database = {
           automation_paused?: boolean
           business_id: string
           created_at?: string
+          follow_up_overrides?: Json
           follow_up_step?: number
           id?: string
           last_message_at?: string | null
@@ -980,6 +982,7 @@ export type Database = {
           automation_paused?: boolean
           business_id?: string
           created_at?: string
+          follow_up_overrides?: Json
           follow_up_step?: number
           id?: string
           last_message_at?: string | null
