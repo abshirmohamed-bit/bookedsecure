@@ -24,8 +24,25 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
   const [mobileHistory, setMobileHistory] = useState(false);
   const [websiteSetup, setWebsiteSetup] = useState(false);
   const [contextSlot, setContextSlot] = useState<HTMLElement | null>(null);
+  /** Visible screen height, so the on-screen keyboard shrinks the workspace
+   *  instead of pushing the composer/Send button out of view. */
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   useEffect(() => {
     setContextSlot(document.getElementById("assistant-context-slot"));
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const viewport = window.visualViewport;
+    const apply = () => setViewportHeight(viewport ? viewport.height : window.innerHeight);
+    apply();
+    viewport?.addEventListener("resize", apply);
+    viewport?.addEventListener("scroll", apply);
+    window.addEventListener("orientationchange", apply);
+    return () => {
+      viewport?.removeEventListener("resize", apply);
+      viewport?.removeEventListener("scroll", apply);
+      window.removeEventListener("orientationchange", apply);
+    };
   }, []);
   const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
   const home = useQuery({ queryKey: ["assistant-home"], queryFn: () => getHome() });
@@ -80,7 +97,10 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
     {session.data?.role === "owner" && <button onClick={() => { setWebsiteSetup(true); setMobileHistory(false); }} className="m-3 flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"><Globe2 className="h-4 w-4" /> Set up from website</button>}
   </div>;
 
-  return <div className="relative h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-background">
+  return <div
+    className="relative h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-background"
+    style={viewportHeight ? { height: Math.max(280, viewportHeight - 64) } : undefined}
+  >
     {contextSlot ? createPortal(<div className="hidden h-full min-h-0 lg:block">{history}</div>, contextSlot) : null}
     {mobileHistory && <><button className="fixed inset-0 z-40 bg-foreground/25 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] border-r border-border bg-background lg:hidden">{history}</aside></>}
     <main className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
