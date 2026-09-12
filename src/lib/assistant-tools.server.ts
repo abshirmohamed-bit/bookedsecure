@@ -435,81 +435,85 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
 
     send_text: tool({
       description:
-        "Send one text message to a customer from this business's own number. Consent, opt-outs, quiet hours, credit balance and daily caps are enforced and may block it.",
+        "Prepare one text message to a customer from this business's own number. The owner sees the exact message and must press Confirm before it sends; consent, opt-outs, quiet hours, credits and daily caps still apply at send time. Nothing sends when this tool runs.",
       inputSchema: z.object({
         leadId: z.string().uuid(),
         message: z.string().min(2).max(600),
       }),
       execute: async (input) => {
-        const { sendSms } = await import("@/lib/lead-engine.server");
-        const result = await sendSms({
-          businessId,
-          leadId: input.leadId,
-          body: input.message,
-          kind: "manual",
-          respectAutomation: false,
-          userId,
-          source: "manual",
+        const { data: lead } = await supabaseAdmin
+          .from("leads")
+          .select("id, name, mobile_number, opted_out_at, sms_suppressed_at")
+          .eq("id", input.leadId)
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .maybeSingle();
+        if (!lead) return fail("That customer is not in this business's records.");
+        if (lead.opted_out_at) return fail(`${lead.name ?? "That customer"} has opted out of texts.`);
+        if (lead.sms_suppressed_at) return fail(`${lead.name ?? "That customer"}'s number is suppressed after delivery failures.`);
+        if (!lead.mobile_number) return fail("There is no mobile number on record for that customer.");
+        const leadName = lead.name ?? "Customer";
+        ctx.propose({
+          kind: "send_text",
+          leadId: lead.id,
+          leadName,
+          mobileNumber: lead.mobile_number,
+          message: input.message.trim(),
+          summary: `Text to ${leadName} ready. It sends only when you confirm.`,
         });
-        if (!result.sent) {
-          return fail(result.reason ?? "That text was not sent.");
-        }
-        ctx.record("Sent that text message.");
-        return { ok: true };
+        return { ok: true, awaitingConfirmation: true, to: leadName };
       },
     }),
 
     draft_campaign: tool({
       description:
-        "Prepare a win-back campaign for dormant customers. This only drafts the messages; nothing is sent until approve_campaign runs.",
+        "Prepare an SMS campaign for a group of this business's consented leads and show it to the owner for approval. Audiences: 'dormant' (past customers with no history on file), 'uncontacted' (leads never texted, e.g. a fresh import), 'status' (one inbox status such as new or contacted), or 'leads' (specific lead ids from find_customers or query_leads). Opt-outs, suppressed numbers and deleted leads are always excluded. Nothing sends until the owner approves on screen.",
       inputSchema: z.object({
-        percent: z.number().int().min(1).max(90).nullable(),
+        audience: z.enum(["dormant", "uncontacted", "status", "leads"]),
+        status: z.enum(LEAD_STATUSES).nullable().describe("Required when audience is 'status'."),
+        leadIds: z.array(z.string().uuid()).nullable().describe("Required when audience is 'leads'."),
+        percent: z.number().int().min(1).max(90).nullable().describe("Discount percentage for the offer, if the owner named one."),
+        offerText: z.string().max(120).nullable().describe("Exact offer wording if the owner gave one, e.g. '15% off your next detail'."),
         maxLeads: z.number().int().min(1).max(500).nullable(),
         olderThanDays: z.number().int().min(1).max(3650).nullable(),
       }),
       execute: async (input) => {
         const { proposeCampaign } = await import("@/lib/owner-actions.server");
+        const audience =
+          input.audience === "status"
+            ? input.status
+              ? ({ kind: "status", status: input.status } as const)
+              : null
+            : input.audience === "leads"
+              ? input.leadIds && input.leadIds.length > 0
+                ? ({ kind: "leads", leadIds: input.leadIds } as const)
+                : null
+              : ({ kind: input.audience } as const);
+        if (!audience) return fail("Say which status or which customers the campaign is for.");
         const proposal = await proposeCampaign({
           businessId,
           userId,
           percent: input.percent,
+          offerText: input.offerText,
           maxLeads: input.maxLeads,
           olderThanDays: input.olderThanDays,
+          audience,
+          fresh: true,
         });
-        if (!proposal) return fail("A win-back campaign could not be prepared right now.");
-        ctx.record(`Drafted ${proposal.drafts.length} win-back message${proposal.drafts.length === 1 ? "" : "s"}.`);
+        if (!proposal) return fail("A campaign could not be prepared right now.");
+        if (proposal.drafts.length > 0) ctx.propose(proposal);
         return {
           ok: true,
+          awaitingConfirmation: proposal.drafts.length > 0,
           campaignId: proposal.campaignId,
           offer: proposal.offerText,
           drafted: proposal.drafts.length,
           summary: proposal.summary,
+          recipients: proposal.drafts.slice(0, 20).map((d) => d.leadName ?? d.mobileNumber),
         };
       },
     }),
 
-    approve_campaign: tool({
-      description:
-        "Approve and send a drafted win-back campaign. Every message still passes consent, quiet hours, credit and cap checks.",
-      inputSchema: z.object({ campaignId: z.string().uuid() }),
-      execute: async (input) => {
-        const { approveReactivationCampaign } = await import("@/lib/reactivation.server");
-        try {
-          const result = await approveReactivationCampaign({
-            businessId,
-            userId,
-            campaignId: input.campaignId,
-            attested: true,
-            draftIds: null,
-          });
-          ctx.record(
-            `Sent ${result.sent} win-back message${result.sent === 1 ? "" : "s"}${result.failed ? `, ${result.failed} could not be sent` : ""}.`,
-          );
-          return { ok: true, sent: result.sent, failed: result.failed };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "That campaign could not be sent.");
-        }
-      },
-    }),
+    ...buildOperationsTools(ctx),
   };
 }
