@@ -40,10 +40,37 @@ function apiKey(): string | undefined {
   return process.env["TEXTO_API_KEY"];
 }
 
-function liveAccountProvisioning(): boolean {
-  // Stay simulated by default even when a real key is present, until the
-  // platform operator explicitly flips the switch after Texto approval.
+/**
+ * Live mode for the parent-account operations (number pool sync, number
+ * assignment, reports). Stays simulated by default even when a real key is
+ * present, until the platform operator explicitly flips the switch.
+ */
+export function liveAccountProvisioning(): boolean {
   return process.env["TEXTO_ACCOUNT_PROVISIONING"] === "live" && !!apiKey();
+}
+
+/**
+ * Optional second layer: create a Texto sub-account per tenant and allocate
+ * credits at Texto. Off by default — the recommended shape is one parent
+ * account holding every number, with BookedSecure doing per-tenant metering.
+ */
+export function liveSubaccountProvisioning(): boolean {
+  return liveAccountProvisioning() && process.env["TEXTO_SUBACCOUNT_PROVISIONING"] === "live";
+}
+
+/** Optional platform alert endpoint (Slack/Teams/any JSON endpoint). */
+async function notifyPlatformOperator(text: string, extra: Record<string, unknown> = {}): Promise<void> {
+  const url = process.env["FEEDBACK_ALERT_WEBHOOK_URL"];
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, ...extra }),
+    });
+  } catch (error) {
+    console.error("[texto] operator alert failed:", error);
+  }
 }
 
 /* ------------------------------------------------------------------ errors */
