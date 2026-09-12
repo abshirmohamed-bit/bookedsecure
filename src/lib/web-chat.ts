@@ -692,6 +692,50 @@ const FIELD_HINT: Record<"suburb" | "vehicle" | "name" | "concerns", string> = {
   concerns: "A short description of the condition is all I need here, I'll take your details next.",
 };
 
+/**
+ * Splits one answer into suburb and street address, since both are asked in the
+ * same question. A part carrying a street number is the address; the rest is the
+ * suburb. Nothing is guessed: when only one of the two is present the other is
+ * returned as null and asked for separately.
+ */
+export function splitSuburbAddress(value: string): {
+  suburb: string | null;
+  address: string | null;
+} {
+  const cleaned = value.replace(/[\s.,;:]+$/, "").trim();
+  if (cleaned.length === 0) return { suburb: null, address: null };
+
+  const parts = cleaned
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length >= 2) {
+    const numbered = parts.filter((part) => /\d/.test(part));
+    const plain = parts.filter((part) => !/\d/.test(part));
+    if (numbered.length > 0 && plain.length > 0) {
+      return { suburb: plain[plain.length - 1]!, address: numbered.join(", ") };
+    }
+  }
+
+  // "88 cumberland rd auburn" or "auburn 88 cumberland rd": the street number
+  // and what follows it is the address, whatever is left over is the suburb.
+  const street = cleaned.match(/\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][^,]*/i);
+  if (street) {
+    const address = street[0]!.trim();
+    const rest = cleaned
+      .replace(street[0]!, " ")
+      .replace(/\b(?:in|at|on|and|the|suburb|address|street|is|it'?s)\b/gi, " ")
+      .replace(/[,.;:]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return { suburb: rest.length >= 2 ? rest : null, address };
+  }
+
+  return { suburb: cleaned, address: null };
+}
+
+
+
 function shapeRejection(
   step: "suburb" | "vehicle" | "name" | "concerns",
   value: string,
