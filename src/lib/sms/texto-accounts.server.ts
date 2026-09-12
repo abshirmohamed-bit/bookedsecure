@@ -665,6 +665,20 @@ export async function provisionTextoAccount(input: {
       }
     }
 
+    // Pool empty? Buy one straight from Texto so activation is hands-off.
+    // The $15/month is already part of the plan price — the tenant never sees
+    // a separate charge for their number.
+    if (!number && liveAccountProvisioning()) {
+      number = await purchaseNumberForBusiness(businessId);
+      if (number) {
+        await auditEvent({
+          businessId,
+          eventType: "texto_number_purchased",
+          metadata: { number: number.number, monthly_cost_cents: number.monthly_cost_cents },
+        });
+      }
+    }
+
     if (!number) {
       account = await updateTextoAccount(account.id, { provisioning_state: "queued_no_number" });
       await auditEvent({
@@ -673,14 +687,14 @@ export async function provisionTextoAccount(input: {
         metadata: { account_id: account.id },
       });
       await notifyPlatformOperator(
-        `Texto number needed — ${businessName} (business ${businessId}) is subscribed but no dedicated number is free. Buy one in Texto, then run "Sync numbers" and "Retry" in /admin/messaging-numbers.`,
+        `Texto number needed — ${businessName} (business ${businessId}) is subscribed but no dedicated number could be bought or assigned. Check Texto's available stock and the account balance, then run "Sync numbers" and "Retry" in /admin/messaging-numbers.`,
         { kind: "texto_queued_no_number", business_id: businessId },
       );
       return {
         ok: false,
         account,
         reason:
-          "No dedicated numbers are available in the pool. The business is queued and you will be alerted.",
+          "No dedicated number could be assigned right now. The business is queued and the platform has been alerted.",
         queued: true,
       };
     }
