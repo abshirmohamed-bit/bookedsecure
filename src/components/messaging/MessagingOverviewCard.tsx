@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { getMessagingAccount, setMessagingPaused } from "@/lib/sms/messaging-account.functions";
 import { formatAud, LOW_CREDIT_THRESHOLD } from "@/lib/sms/credit-packs";
-import { TopupDialog } from "@/components/messaging/TopupDialog";
+import { CREDITS_ANCHOR } from "@/components/billing/BillingPanel";
 
 const NUMBER_STATE_LABELS: Record<string, string> = {
   not_started: "Being set up",
@@ -24,7 +24,6 @@ export function MessagingOverviewCard() {
   const fetchAccount = useServerFn(getMessagingAccount);
   const pauseSending = useServerFn(setMessagingPaused);
   const queryClient = useQueryClient();
-  const [topupOpen, setTopupOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["messaging-account"],
@@ -122,7 +121,7 @@ export function MessagingOverviewCard() {
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
             After your included texts, each text uses one credit ({plan.overageCents}c). Top up any
-            time to keep sending.
+            time in Plan &amp; billing to keep sending.
           </p>
         </div>
 
@@ -135,13 +134,13 @@ export function MessagingOverviewCard() {
 
         {isOwner ? (
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setTopupOpen(true)}
+            <Link
+              to="/settings/billing"
+              hash={CREDITS_ANCHOR}
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
             >
               Top up credits
-            </button>
+            </Link>
             <button
               type="button"
               onClick={() => pauseMutation.mutate(!paused)}
@@ -163,13 +162,6 @@ export function MessagingOverviewCard() {
           </p>
         ) : null}
       </div>
-
-      <TopupDialog
-        open={topupOpen}
-        onOpenChange={setTopupOpen}
-        packs={data.packs}
-        overageCents={plan.overageCents}
-      />
     </section>
   );
 }

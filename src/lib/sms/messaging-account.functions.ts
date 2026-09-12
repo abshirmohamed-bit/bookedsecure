@@ -15,6 +15,7 @@ import { CREDIT_PACKS } from "@/lib/sms/credit-packs";
 const TopupSchema = z.object({
   packId: z.string().min(1),
   environment: z.enum(["sandbox", "live"]).optional(),
+  returnPath: z.string().max(200).optional(),
 });
 const PauseSchema = z.object({ paused: z.boolean() });
 const CancellationSchema = z.object({ note: z.string().max(1000).optional() });
@@ -62,11 +63,14 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
     // texts, and which tools are switched on for this business.
     const subscriptionPlan = await getPlanForBusiness(app.businessId);
 
-    // Included allowance for the current billing period, from the terms this
-    // business was accepted under (never the live config, which may have moved).
-    const includedSegments = pilot?.includedSmsSegments ?? config.includedSmsSegments;
-    let usedSegments = 0;
-    if (pilot) {
+    // Usage comes from the same period the send authoriser deducts from, so
+    // Messaging and Plan & billing always show the same numbers. Subscribed
+    // businesses use their plan period; legacy pilots fall back to the pilot's.
+    const { getUsageSummary } = await import("@/lib/subscription.server");
+    const usage = await getUsageSummary(app.businessId);
+    let includedSegments = usage?.includedSegments ?? pilot?.includedSmsSegments ?? config.includedSmsSegments;
+    let usedSegments = usage?.segmentsUsed ?? 0;
+    if (!usage && pilot) {
       const { data: period } = await supabaseAdmin
         .from("sms_usage_periods")
         .select("segments_used, included_segments, period_end")
@@ -75,6 +79,7 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
         .limit(1)
         .maybeSingle();
       usedSegments = period?.segments_used ?? 0;
+      includedSegments = period?.included_segments ?? includedSegments;
     }
 
     return {
@@ -126,18 +131,22 @@ export const startCreditTopup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => TopupSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     const { createCreditTopupCheckout } = await import("@/lib/sms/credit-topups.server");
     const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+    const path =
+      data.returnPath && data.returnPath.startsWith("/") && !data.returnPath.startsWith("//")
+        ? data.returnPath
+        : "/settings/billing";
     const result = await createCreditTopupCheckout({
       businessId: app.businessId,
       packId: data.packId,
       userId: app.userId,
       email: app.email,
-      returnUrl: `${origin}/settings/messaging?topup=complete&session_id={CHECKOUT_SESSION_ID}`,
+      returnUrl: `${origin}${path}?topup=complete&session_id={CHECKOUT_SESSION_ID}`,
       environment: data.environment,
     });
     if ("error" in result) return { error: result.error };
