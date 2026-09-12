@@ -92,6 +92,11 @@ export type WebChatCollected = {
   /** Extras chosen with the service. Only the tenant's own linked add-ons. */
   addon_ids?: string[] | null;
   addon_names?: string[] | null;
+  /**
+   * Extras the customer typed that this tenant does not list. Kept verbatim as a
+   * request for the owner: never priced, never treated as a bookable add-on.
+   */
+  addon_requests?: string[] | null;
   /** True when the chosen service actually has extras to offer. */
   addons_offered?: boolean | null;
   /** Set when the customer asked to add or change their email address. */
@@ -249,13 +254,13 @@ export function campaignPrefill(lead: {
 export function nextStep(collected: WebChatCollected): WebChatStep | null {
   if (collected.consent === "declined") return null;
   if (!collected.service_id && !(collected.typed_request ?? "").trim()) return "service";
+  // Extras are offered straight after the service is chosen, and only when this
+  // tenant actually has add-ons linked to that service.
+  if (collected.addons_offered === true && collected.addons_done !== true) return "addons";
   if (!(collected.vehicle_type ?? "").trim()) return "vehicle";
   if (!(collected.suburb ?? "").trim()) return "suburb";
   if (!(collected.service_address ?? "").trim()) return "address";
   if (!(collected.concerns ?? "").trim()) return "concerns";
-  // Extras are offered once the job itself is understood, and only when this
-  // tenant actually has add-ons linked to the chosen service.
-  if (collected.addons_offered === true && collected.addons_done !== true) return "addons";
   if (!(collected.name ?? "").trim()) return "name";
   if (!collected.mobile_number) return "mobile";
   // Email is not a step of its own: it is captured when the customer offers it,
@@ -392,6 +397,17 @@ export function reviewSummary(
           },
         ]
       : []),
+    // Extras the customer typed that this tenant does not list: shown as a
+    // request the owner confirms, never as a priced add-on.
+    ...((collected.addon_requests ?? []).length > 0
+      ? [
+          {
+            step: "addons" as WebChatStep,
+            label: "Also asked for",
+            value: `${(collected.addon_requests ?? []).join(", ")} (owner to confirm)`,
+          },
+        ]
+      : []),
     { step: "vehicle", label: "Vehicle", value: collected.vehicle_type ?? "—" },
     { step: "suburb", label: "Suburb", value: collected.suburb ?? "—" },
     { step: "address", label: "Address", value: collected.service_address ?? "—" },
@@ -521,26 +537,25 @@ function buildPrompt(
     case "vehicle":
       return { step, kind: "text", text: "What's the vehicle? (make and model)" };
     case "suburb":
-      return { step, kind: "text", text: "Which suburb are we coming to?" };
+      // Suburb and street address are asked together, the same way as name and
+      // mobile. One answer can carry both, or just the suburb.
+      return {
+        step,
+        kind: "text",
+        text: "Which suburb are we coming to, and the street address?",
+      };
     case "address":
       return {
         step,
         kind: "text",
         text: "And the street address? (number and street)",
       };
-    case "concerns": {
-      const extras = addonsForService(tenant.addons ?? [], collected.service_id ?? null).filter(
-        (addon) => !(collected.addon_ids ?? []).includes(addon.id),
-      );
+    case "concerns":
       return {
         step,
         kind: "text",
-        text:
-          extras.length > 0
-            ? "Anything we should focus on, like stains or pet hair? I can also show you a few add-ons after this."
-            : "Anything we should focus on, like stains, pet hair or paint marks?",
+        text: "Anything we should focus on, like stains, pet hair or paint marks?",
       };
-    }
     case "name":
       return { step, kind: "text", text: CONTACT_ASK_TEXT };
 
@@ -676,6 +691,52 @@ const FIELD_HINT: Record<"suburb" | "vehicle" | "name" | "concerns", string> = {
   name: "Just your first name is fine, for example Abshir.",
   concerns: "A short description of the condition is all I need here, I'll take your details next.",
 };
+
+/**
+ * Splits one answer into suburb and street address, since both are asked in the
+ * same question. A part carrying a street number is the address; the rest is the
+ * suburb. Nothing is guessed: when only one of the two is present the other is
+ * returned as null and asked for separately.
+ */
+export function splitSuburbAddress(value: string): {
+  suburb: string | null;
+  address: string | null;
+} {
+  const cleaned = value.replace(/[\s.,;:]+$/, "").trim();
+  if (cleaned.length === 0) return { suburb: null, address: null };
+
+  // An address candidate must begin with a street number, so a phone number or
+  // any other stray digits in the answer are never mistaken for one.
+  const STREET = /^\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][a-z'\-.\s]*$/i;
+
+  const parts = cleaned
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length >= 2) {
+    const street = parts.find((part) => STREET.test(part));
+    const plain = parts.filter((part) => part !== street && !/\d/.test(part));
+    if (street && plain.length > 0) {
+      return { suburb: plain[plain.length - 1]!, address: street };
+    }
+  }
+
+  // "auburn 88 cumberland rd" with no comma: the suburb comes before the number.
+  const joined = cleaned.match(/^([a-z][a-z'\-\s]*?)\s+(\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][a-z'\-.\s]*)$/i);
+  if (joined) {
+    const lead = joined[1]!.replace(/\b(?:in|at|on|and|the|suburb|address|is|it'?s)\b/gi, " ").replace(/\s+/g, " ").trim();
+    if (lead.length >= 2) return { suburb: lead, address: joined[2]!.trim() };
+  }
+
+  // "88 cumberland rd" typed on its own, with no suburb given.
+  if (/^\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][a-z'\-.\s]*$/i.test(cleaned)) {
+    return { suburb: null, address: cleaned };
+  }
+
+  return { suburb: cleaned, address: null };
+}
+
+
 
 function shapeRejection(
   step: "suburb" | "vehicle" | "name" | "concerns",
@@ -953,10 +1014,19 @@ export function applyAnswer(
 
       const matched = matchAddons(value, remaining);
       if (matched.length === 0) {
-        return {
-          ok: false,
-          error: `I can add ${remaining.map((addon) => addon.name).join(", ")} — which one would you like, or say no extras?`,
-        };
+        // Nothing in this tenant's own list matches, so the customer's words are
+        // kept verbatim as a request for the owner. Never priced, never booked
+        // as an add-on, and the step closes so the conversation keeps moving.
+        const typed = value.replace(/[\s.,;:]+$/, "");
+        if (typed.length < 2 || typed.length > 120) {
+          return {
+            ok: false,
+            error: `I can add ${remaining.map((addon) => addon.name).join(", ")}, or tell me in a few words what extra you'd like.`,
+          };
+        }
+        next.addon_requests = [...(collected.addon_requests ?? []), typed];
+        next.addons_done = true;
+        return { ok: true, collected: next, echo: typed };
       }
       for (const addon of matched) {
         chosenIds.push(addon.id);
@@ -976,13 +1046,29 @@ export function applyAnswer(
       return { ok: true, collected: next, echo: value };
     }
     case "suburb": {
-      // Trailing sentence punctuation is never part of a suburb name.
-      const suburb = value.replace(/[\s.,;:]+$/, "");
-      if (suburb.length < 2) return { ok: false, error: "Please tell me the suburb." };
+      // Suburb and street address are asked in one question, so one answer may
+      // carry both. A whole message carrying other fields is still refused, so
+      // nothing foreign is ever stored as a suburb or an address.
+      if (carriesOtherFields("suburb", value)) return { ok: false, error: FIELD_HINT.suburb };
+      const split = splitSuburbAddress(value);
+      const suburb = split.suburb ?? "";
+      if (suburb.length < 2) {
+        return {
+          ok: false,
+          error: split.address
+            ? `Got ${split.address}. Which suburb is that in?`
+            : "Please tell me the suburb.",
+        };
+      }
       const rejection = shapeRejection("suburb", suburb);
       if (rejection) return { ok: false, error: rejection };
       next.suburb = suburb;
-      return { ok: true, collected: next, echo: suburb };
+      if (split.address && split.address.length <= 160) next.service_address = split.address;
+      return {
+        ok: true,
+        collected: next,
+        echo: next.service_address && split.address ? `${split.address}, ${suburb}` : suburb,
+      };
     }
     case "address": {
       const address = value.replace(/[\s.,;:]+$/, "");

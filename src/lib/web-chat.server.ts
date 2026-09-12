@@ -859,7 +859,12 @@ export async function replyToWebChat(input: {
   // Extras chosen with the service are the tenant's own add-ons. They are
   // recorded on the lead so the owner sees them with the job, and never change
   // pricing or the appointment length by themselves.
-  const chosenAddons = addonsSummary(next.addon_names ?? []);
+  const chosenAddons = addonsSummary([
+    ...(next.addon_names ?? []),
+    // Extras the customer typed that this tenant does not list are recorded in
+    // their own words for the owner to confirm. They are never priced here.
+    ...(next.addon_requests ?? []).map((request) => `${request} (not listed, owner to confirm)`),
+  ]);
   if (leadId && chosenAddons) {
     const { data: leadRow } = await supabaseAdmin
       .from("leads")

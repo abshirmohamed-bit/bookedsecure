@@ -149,6 +149,7 @@ function clearField(collected: WebChatCollected, field: CorrectableStep): WebCha
     case "addons":
       next.addon_ids = [];
       next.addon_names = [];
+      next.addon_requests = [];
       next.addons_done = false;
       break;
     case "service":
