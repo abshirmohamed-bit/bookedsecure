@@ -20,26 +20,26 @@ export type CreditPack = {
 export const CREDIT_PACKS: readonly CreditPack[] = [
   {
     id: "pack_500",
-    priceId: "sms_credit_pack_500_aud",
+    priceId: "sms_credit_pack_500",
     label: "500 credits",
     credits: 500,
-    amountCents: 4000,
+    amountCents: 3000,
     currency: "aud",
   },
   {
     id: "pack_1500",
-    priceId: "sms_credit_pack_1500_aud",
+    priceId: "sms_credit_pack_1500",
     label: "1,500 credits",
     credits: 1500,
-    amountCents: 12000,
+    amountCents: 9000,
     currency: "aud",
   },
   {
     id: "pack_5000",
-    priceId: "sms_credit_pack_5000_aud",
+    priceId: "sms_credit_pack_5000",
     label: "5,000 credits",
     credits: 5000,
-    amountCents: 40000,
+    amountCents: 30000,
     currency: "aud",
   },
 ] as const;

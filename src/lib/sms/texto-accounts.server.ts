@@ -546,14 +546,8 @@ export async function checkTextoCredits(
       reason: `Texto account is ${account.provisioning_state} — messaging is not live yet.`,
     };
   }
-  // Texto charges 1 credit per outbound message; segments are tracked locally for
-  // reporting but credits are message-level on the platform side.
-  if (account.credit_balance < 1) {
-    return {
-      ok: false,
-      reason: "Texto credit balance is empty. Please top up to continue sending.",
-    };
-  }
+  // Whether the text is covered (included allowance or purchased credits) is
+  // decided by the subscription gate before this check runs.
   return { ok: true, account };
 }
 
@@ -586,15 +580,13 @@ export async function checkTextoDailyCap(
  * Keeps the local balance in sync with Texto; the authoritative balance is always
  * Texto's, reconciled periodically by the reporting job.
  */
-export async function recordMessageSpend(businessId: string, segments: number): Promise<void> {
+export async function recordMessageSpend(businessId: string, credits: number): Promise<void> {
   const account = await getTextoAccount(businessId);
   if (!account) return;
-  const newBalance = Math.max(0, account.credit_balance - 1);
-  await updateTextoAccount(account.id, { credit_balance: newBalance });
   await auditEvent({
     businessId,
     eventType: "texto_credits_consumed",
-    metadata: { segments, new_balance: newBalance },
+    metadata: { credits, new_balance: account.credit_balance },
   });
 }
 

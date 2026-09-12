@@ -247,8 +247,70 @@ export async function ensureUsagePeriod(
 }
 
 export type LiveSendAuthorization =
-  | { allowed: true; periodId: string | null; pilotApplicationId: string; overage: boolean }
+  | {
+      allowed: true;
+      periodId: string | null;
+      pilotApplicationId: string | null;
+      /** True when the send was paid from purchased credits (already deducted). */
+      overage: boolean;
+      creditsSpent: number;
+    }
   | { allowed: false; reason: string };
+
+/**
+ * Subscription path: included allowance first, then purchased credits at the
+ * plan's per-text price, deducted atomically so a balance can never go
+ * negative under concurrent sends.
+ */
+async function authorizeSubscribedSend(
+  businessId: string,
+  segments: number,
+  now: Date,
+): Promise<LiveSendAuthorization | null> {
+  const sub = await import("@/lib/subscription.server");
+  const { accessLevel } = await import("@/lib/subscription");
+  const state = await sub.getSubscriptionForBusiness(businessId);
+  if (accessLevel(state, now) !== "full") return null;
+
+  const { getPlanForBusiness } = await import("@/lib/plans.server");
+  const plan = await getPlanForBusiness(businessId);
+  const period = await sub.ensureBusinessUsagePeriod(businessId, state, plan, now);
+  const { data: reserved, error } = await supabaseAdmin.rpc("reserve_sms_segments", {
+    p_period_id: period.id,
+    p_segments: segments,
+  });
+  if (error) throw new Error(error.message);
+  if (reserved) {
+    return { allowed: true, periodId: period.id, pilotApplicationId: null, overage: false, creditsSpent: 0 };
+  }
+
+  const spent = await sub.spendPurchasedCredits(businessId, segments);
+  if (spent) {
+    await auditCommercialEvent({
+      businessId,
+      userId: null,
+      eventType: "sms_overage_from_credits",
+      entityType: "business",
+      entityId: businessId,
+      metadata: { segments, periodId: period.id, planId: plan.id, overageCents: plan.overageCents },
+    });
+    return { allowed: true, periodId: null, pilotApplicationId: null, overage: true, creditsSpent: segments };
+  }
+
+  await supabaseAdmin.rpc("record_blocked_sms_segments", { p_period_id: period.id, p_segments: segments });
+  await auditCommercialEvent({
+    businessId,
+    userId: null,
+    eventType: "sms_blocked_usage_cap",
+    entityType: "business",
+    entityId: businessId,
+    metadata: { segments, periodId: period.id, includedSegments: period.included_segments, planId: plan.id },
+  });
+  return {
+    allowed: false,
+    reason: `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Top up credits on the Messaging page to keep sending.`,
+  };
+}
 
 
 /**
@@ -263,11 +325,15 @@ export async function authorizeLiveSend(
   segments: number,
   now: Date = new Date(),
 ): Promise<LiveSendAuthorization> {
+  const subscribed = await authorizeSubscribedSend(businessId, segments, now);
+  if (subscribed) return subscribed;
+
+  // Legacy paid-pilot path for businesses that never moved to a subscription.
   const pilot = await getPilotForBusiness(businessId);
   if (!pilot) {
     return {
       allowed: false,
-      reason: "No paid pilot is linked to this business — live messaging is not provisioned.",
+      reason: "This business does not have an active subscription — choose a plan to start texting.",
     };
   }
 
@@ -322,7 +388,10 @@ export async function authorizeLiveSend(
           creditBalance,
         },
       });
-      return { allowed: true, periodId: null, pilotApplicationId: pilot.id, overage: true };
+      const { spendPurchasedCredits } = await import("@/lib/subscription.server");
+      if (await spendPurchasedCredits(businessId, segments)) {
+        return { allowed: true, periodId: null, pilotApplicationId: pilot.id, overage: true, creditsSpent: segments };
+      }
     }
 
     await supabaseAdmin.rpc("record_blocked_sms_segments", {
@@ -349,7 +418,7 @@ export async function authorizeLiveSend(
     };
   }
 
-  return { allowed: true, periodId: period.id, pilotApplicationId: pilot.id, overage: false };
+  return { allowed: true, periodId: period.id, pilotApplicationId: pilot.id, overage: false, creditsSpent: 0 };
 }
 
 
