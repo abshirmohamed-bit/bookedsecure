@@ -18,10 +18,12 @@ const BoundedSchema = z.object({
 });
 const BatchSchema = z.object({ batchId: z.string().uuid(), confirm: z.literal(true) });
 
-async function owner(context: { supabase: never; userId: string }) {
-  const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+async function owner(context: { supabase: never; userId: string }, write = false) {
+  const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const app = await requireAppContext(context.supabase, context.userId);
+  const app = write
+    ? await requireWriteContext(context.supabase, context.userId)
+    : await requireAppContext(context.supabase, context.userId);
   requireOwner(app);
   return { app, supabaseAdmin };
 }
@@ -40,7 +42,7 @@ export const setImportAutomationPause = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => PauseSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { app, supabaseAdmin } = await owner(context as never);
+    const { app, supabaseAdmin } = await owner(context as never, true);
     const { setImportPaused } = await import("@/lib/import-automation.server");
     return setImportPaused(supabaseAdmin, app.businessId, data.paused);
   });
@@ -50,7 +52,7 @@ export const setImportAutomationMode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ModeSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { app, supabaseAdmin } = await owner(context as never);
+    const { app, supabaseAdmin } = await owner(context as never, true);
     const { changeImportMode } = await import("@/lib/import-automation.server");
     return changeImportMode(supabaseAdmin, app.businessId, data.mode);
   });
@@ -60,7 +62,7 @@ export const verifyImportCanary = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => CanarySchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { app, supabaseAdmin } = await owner(context as never);
+    const { app, supabaseAdmin } = await owner(context as never, true);
     const { verifyCanaryImport } = await import("@/lib/import-automation.server");
     return verifyCanaryImport(supabaseAdmin, app.businessId, data.batchId, data.rowNumber);
   });
@@ -70,7 +72,7 @@ export const runImportBoundedBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => BoundedSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { app, supabaseAdmin } = await owner(context as never);
+    const { app, supabaseAdmin } = await owner(context as never, true);
     const { runBoundedBatch } = await import("@/lib/import-automation.server");
     return runBoundedBatch(supabaseAdmin, app.businessId, data.batchId, data.rowNumbers);
   });
@@ -80,7 +82,7 @@ export const runImportExceptionOnly = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => BatchSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { app, supabaseAdmin } = await owner(context as never);
+    const { app, supabaseAdmin } = await owner(context as never, true);
     const { runExceptionOnlyImport } = await import("@/lib/import-automation.server");
     return runExceptionOnlyImport(supabaseAdmin, app.businessId, data.batchId);
   });
