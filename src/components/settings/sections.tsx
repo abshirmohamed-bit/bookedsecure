@@ -572,6 +572,19 @@ export function RulesEditor({ rules, readOnly }: { rules: Rule[]; readOnly: bool
   const save = useServerFn(saveAutomationRule);
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, Rule>>({});
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const visibleRules = needle
+    ? rules.filter((rule) => {
+        const draft = drafts[rule.id] ?? rule;
+        return (
+          `step ${rule.step}`.includes(needle) ||
+          rule.rule_type.replace(/_/g, " ").includes(needle) ||
+          draft.message_template.toLowerCase().includes(needle) ||
+          `${draft.delay_minutes}`.includes(needle)
+        );
+      })
+    : rules;
 
   const mutation = useMutation({
     mutationFn: (rule: Rule) =>
@@ -597,11 +610,26 @@ export function RulesEditor({ rules, readOnly }: { rules: Rule[]; readOnly: bool
         Placeholders: {"{{first_name}}"}, {"{{business_name}}"}. Follow-ups stop automatically on
         reply or opt-out.
       </p>
+      {rules.length > 0 && (
+        <label className="mt-3 block">
+          <span className="sr-only">Search follow-up steps</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search steps by number, type or wording…"
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </label>
+      )}
       <div className="mt-3 space-y-3">
         {rules.length === 0 && (
           <p className="text-xs text-muted-foreground">No follow-up steps configured yet.</p>
         )}
-        {rules.map((rule) => {
+        {rules.length > 0 && visibleRules.length === 0 && (
+          <p className="text-xs text-muted-foreground">No steps match “{search.trim()}”.</p>
+        )}
+        {visibleRules.map((rule) => {
           const draft = drafts[rule.id] ?? rule;
           return (
             <div key={rule.id} className="rounded-md border border-border p-3">
