@@ -181,6 +181,31 @@ describe("queryLeadInbox", () => {
     expect(seen).toHaveLength(10);
   });
 
+  it("finds a customer by name, mobile or email before pagination", async () => {
+    const db = tiedDb(0);
+    db["leads"]!.push(
+      lead({ id: "a", name: "Samantha Reid", mobile_number: "+61411111111", email: null }),
+      lead({ id: "b", name: "Brendan", mobile_number: "+61422354898", email: "brendan@example.com" }),
+      lead({ id: "c", name: "Charlie", mobile_number: "+61450883230", email: null }),
+    );
+    const client = createFakeSupabase(db);
+
+    const byName = await queryLeadInbox(client, { businessId: TENANT, filters: { search: "samantha" } });
+    expect(byName.leads.map((row) => row.id)).toEqual(["a"]);
+
+    const byMobile = await queryLeadInbox(client, { businessId: TENANT, filters: { search: "0422" } });
+    expect(byMobile.leads.map((row) => row.id)).toEqual(["b"]);
+
+    const byEmail = await queryLeadInbox(client, {
+      businessId: TENANT,
+      filters: { search: "brendan@example" },
+    });
+    expect(byEmail.page.totalCount).toBe(1);
+
+    const noMatch = await queryLeadInbox(client, { businessId: TENANT, filters: { search: "nobody" } });
+    expect(noMatch.page.totalCount).toBe(0);
+  });
+
   it("clamps a page request past the end back to the last page", async () => {
     const result = await queryLeadInbox(createFakeSupabase(tiedDb(2)), {
       businessId: TENANT,
