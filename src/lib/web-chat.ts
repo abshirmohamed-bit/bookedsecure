@@ -720,22 +720,48 @@ function applyServiceAddons(
   next.addon_names = [];
   next.extra_service_ids = [];
   next.extra_service_names = [];
+  next.service_quantities = null;
   next.addons_offered = offered.length > 0;
   next.addons_done = offered.length === 0;
+}
+
+/** Largest vehicle count a customer can pick per service on the cards. */
+export const MAX_SERVICE_QUANTITY = 10;
+
+/** How many vehicles a chosen service is for (one unless the customer said more). */
+export function serviceQuantity(collected: WebChatCollected, serviceId: string): number {
+  const raw = collected.service_quantities?.[serviceId];
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return 1;
+  return Math.min(MAX_SERVICE_QUANTITY, Math.max(1, Math.round(raw)));
+}
+
+function withQuantity(name: string, quantity: number): string {
+  return quantity > 1 ? `${name} ×${quantity}` : name;
 }
 
 /**
  * The service selection made on the cards, encoded as one answer value so the
  * existing single-answer transport is untouched. Only ids the tenant owns are
- * ever accepted on the way back in.
+ * ever accepted on the way back in. A service id may carry a vehicle count as
+ * `id*3`; a bare id means one vehicle, so older clients still parse.
  */
 export const SERVICE_SELECTION_PREFIX = "sel:";
 
-export function encodeServiceSelection(serviceIds: string[], addonIds: string[]): string {
-  return `${SERVICE_SELECTION_PREFIX}${serviceIds.join(",")}|${addonIds.join(",")}`;
+export function encodeServiceSelection(
+  serviceIds: string[],
+  addonIds: string[],
+  quantities: Record<string, number> = {},
+): string {
+  const services = serviceIds.map((id) => {
+    const count = quantities[id] ?? 1;
+    return count > 1 ? `${id}*${Math.min(MAX_SERVICE_QUANTITY, Math.round(count))}` : id;
+  });
+  return `${SERVICE_SELECTION_PREFIX}${services.join(",")}|${addonIds.join(",")}`;
 }
 
-function parseServiceSelection(value: string): { serviceIds: string[]; addonIds: string[] } | null {
+function parseServiceSelection(
+  value: string,
+): { serviceIds: string[]; addonIds: string[]; quantities: Record<string, number> } | null {
   if (!value.startsWith(SERVICE_SELECTION_PREFIX)) return null;
   const [rawServices = "", rawAddons = ""] = value.slice(SERVICE_SELECTION_PREFIX.length).split("|");
   const split = (input: string) =>
@@ -743,18 +769,32 @@ function parseServiceSelection(value: string): { serviceIds: string[]; addonIds:
       .split(",")
       .map((part) => part.trim())
       .filter(Boolean);
-  const serviceIds = split(rawServices);
+  const quantities: Record<string, number> = {};
+  const serviceIds = split(rawServices).map((entry) => {
+    const [id = "", count = ""] = entry.split("*");
+    const parsed = Number.parseInt(count, 10);
+    if (Number.isFinite(parsed) && parsed > 1) {
+      quantities[id] = Math.min(MAX_SERVICE_QUANTITY, parsed);
+    }
+    return id;
+  }).filter(Boolean);
   if (serviceIds.length === 0) return null;
-  return { serviceIds, addonIds: split(rawAddons) };
+  return { serviceIds, addonIds: split(rawAddons), quantities };
 }
 
 /** Every chosen service in one line: the tenant's own names, nothing invented. */
 export function chosenServicesText(collected: WebChatCollected): string | null {
-  const names = [
-    ...(collected.service_name ? [collected.service_name] : []),
-    ...((collected.extra_service_names ?? []).filter(Boolean) as string[]),
-  ];
-  return names.length > 0 ? names.join(" + ") : null;
+  const entries = [
+    ...(collected.service_name ? [{ id: collected.service_id ?? "", name: collected.service_name }] : []),
+    ...(collected.extra_service_names ?? []).map((name, index) => ({
+      id: collected.extra_service_ids?.[index] ?? "",
+      name,
+    })),
+  ].filter((entry) => Boolean(entry.name));
+  if (entries.length === 0) return null;
+  return entries
+    .map((entry) => withQuantity(entry.name, entry.id ? serviceQuantity(collected, entry.id) : 1))
+    .join(" + ");
 }
 
 
