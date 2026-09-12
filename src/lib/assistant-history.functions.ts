@@ -68,3 +68,14 @@ export const completeAssistantMessage = createServerFn({ method: "POST" })
     await completeAssistantProposal({ businessId: app.businessId, messageId: data.messageId, done: data.done });
     return { ok: true };
   });
+/** The file this conversation still remembers, so the owner need not upload it again. */
+export const getAssistantRememberedFile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => ThreadSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { latestAssistantFile } = await import("@/lib/assistant-history.server");
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    const file = await latestAssistantFile({ businessId: app.businessId, threadId: data.threadId });
+    return file ? { filename: file.filename, createdAt: file.createdAt } : null;
+  });
