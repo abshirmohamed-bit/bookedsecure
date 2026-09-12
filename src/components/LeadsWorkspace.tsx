@@ -284,24 +284,13 @@ export function LeadsWorkspace() {
 
       <section className="panel overflow-hidden">
         <div className="border-b border-border px-4 py-3">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold">Lead inbox</h2>
             <span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
               {dashboard.page?.totalCount ?? leads.length}
             </span>
-            <label className="sr-only" htmlFor="lead-search">
-              Search customers
-            </label>
-            <input
-              id="lead-search"
-              type="search"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search name, mobile or email"
-              className="ml-auto w-full min-w-0 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs sm:w-56"
-            />
           </div>
-          <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+          <div className="mt-3 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <label className="sr-only" htmlFor="source-filter">
                 Filter by source
@@ -352,6 +341,19 @@ export function LeadsWorkspace() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="min-w-0 flex-1">
+              <label className="sr-only" htmlFor="lead-search">
+                Search customers
+              </label>
+              <input
+                id="lead-search"
+                type="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search name, mobile or email"
+                className="w-full min-w-0 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+              />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {visibleSelection.length > 0 && (
