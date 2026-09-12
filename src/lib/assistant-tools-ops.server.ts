@@ -222,7 +222,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
 
     unfinished_prospects: tool({
       description:
-        "People who started the quote page but did not finish, with how far they got (stage), the services they picked, and whether they left a mobile number. View only.",
+        "People who started the quote page but did not finish, with how far they got (stage), the services they picked, and whether they left a mobile number. Returns each prospect's id for delete_unfinished_prospects.",
       inputSchema: z.object({ days: z.number().int().min(1).max(365).nullable() }),
       execute: async ({ days }) => {
         const { loadUnfinishedProspects } = await import("@/lib/quote-funnel.server");
@@ -235,7 +235,8 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
           gaveMobile: withMobile,
           stoppedBeforeMobile: rows.length - withMobile,
           byStage,
-          prospects: rows.slice(0, 40).map((r) => ({
+          prospects: rows.slice(0, 60).map((r) => ({
+            id: r.conversationId,
             name: r.name,
             mobile: r.mobile || null,
             suburb: r.suburb,
@@ -244,6 +245,22 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
             lastActivity: when(r.lastActivityAt),
           })),
         };
+      },
+    }),
+
+    delete_unfinished_prospects: tool({
+      description:
+        "Remove unfinished prospects from the list (test runs, junk, irrelevant entries). Pass the ids from unfinished_prospects. Only removes entries that match what the owner asked for; never touches real leads in the inbox. Acts immediately.",
+      inputSchema: z.object({ conversationIds: z.array(z.string().uuid()).min(1).max(200) }),
+      execute: async ({ conversationIds }) => {
+        const { deleteUnfinishedConversations } = await import("@/lib/quote-funnel.server");
+        const result = await deleteUnfinishedConversations({ businessId, userId, conversationIds });
+        if (result.deleted > 0) {
+          ctx.record(
+            `Removed ${result.deleted} unfinished prospect${result.deleted === 1 ? "" : "s"}.`,
+          );
+        }
+        return result;
       },
     }),
 
@@ -536,6 +553,85 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
         });
         ctx.record(`${paused ? "Paused" : "Resumed"} follow-ups for ${lead.name ?? "that customer"}.`);
         return { ok: true };
+      },
+    }),
+
+    customise_customer_follow_up: tool({
+      description:
+        "Change the wording or timing of one follow-up step for ONE customer only, without changing the business-wide sequence (use update_follow_up_rule for everyone). step is the sequence step number from read_settings (e.g. 1 or 2). delayMinutes is measured from the previous message. Pass null to leave a field as is; pass reset=true to return the step to the business-wide default. Templates may use {{first_name}} and {{business_name}}. This only changes future follow-ups; it never sends a text.",
+      inputSchema: z.object({
+        leadId: z.string().uuid(),
+        step: z.number().int().min(1).max(20),
+        messageTemplate: z.string().max(600).nullable(),
+        delayMinutes: z.number().int().min(0).max(10080).nullable(),
+        reset: z.boolean().nullable(),
+      }),
+      execute: async ({ leadId, step, messageTemplate, delayMinutes, reset }) => {
+        const { data: lead } = await supabaseAdmin
+          .from("leads")
+          .select("id, name")
+          .eq("id", leadId)
+          .eq("business_id", businessId)
+          .is("deleted_at", null)
+          .maybeSingle();
+        if (!lead) return fail("That customer is not in this business's records.");
+        const { data: rule } = await supabaseAdmin
+          .from("automation_rules")
+          .select("id, step, delay_minutes, message_template")
+          .eq("business_id", businessId)
+          .eq("rule_type", "follow_up")
+          .eq("step", step)
+          .maybeSingle();
+        if (!rule) return fail(`There is no follow-up step ${step} in this business's sequence.`);
+        const { data: conversation } = await supabaseAdmin
+          .from("conversations")
+          .select("id, follow_up_step, follow_up_overrides")
+          .eq("business_id", businessId)
+          .eq("lead_id", leadId)
+          .maybeSingle();
+        if (!conversation) return fail("That customer has no follow-up sequence yet.");
+
+        const { mergeFollowUpOverride, parseFollowUpOverrides, resolveFollowUpStep } = await import(
+          "@/lib/follow-up-overrides"
+        );
+        const current = parseFollowUpOverrides(conversation.follow_up_overrides);
+        const next = reset
+          ? mergeFollowUpOverride(current, step, { delay_minutes: null, message_template: null })
+          : mergeFollowUpOverride(current, step, {
+              ...(messageTemplate !== null ? { message_template: messageTemplate } : {}),
+              ...(delayMinutes !== null ? { delay_minutes: delayMinutes } : {}),
+            });
+        const { error } = await supabaseAdmin
+          .from("conversations")
+          .update({ follow_up_overrides: next as never })
+          .eq("id", conversation.id)
+          .eq("business_id", businessId);
+        if (error) return fail(error.message);
+        await supabaseAdmin.from("audit_events").insert({
+          business_id: businessId,
+          user_id: userId,
+          event_type: reset ? "lead_follow_up_override_reset" : "lead_follow_up_overridden",
+          entity_type: "lead",
+          entity_id: leadId,
+          metadata: { step, via: "assistant" } as never,
+        });
+        const effective = resolveFollowUpStep(rule, next);
+        const who = lead.name ?? "that customer";
+        ctx.record(
+          reset
+            ? `Step ${step} for ${who} is back to the business-wide default.`
+            : `Customised follow-up step ${step} for ${who}.`,
+        );
+        return {
+          ok: true,
+          step,
+          alreadySent: conversation.follow_up_step >= step,
+          effective: {
+            delayMinutes: effective.delay_minutes,
+            messageTemplate: effective.message_template,
+            customised: effective.overridden,
+          },
+        };
       },
     }),
 

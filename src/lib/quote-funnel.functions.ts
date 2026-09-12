@@ -55,3 +55,20 @@ export const getUnfinishedProspects = createServerFn({ method: "POST" })
     const prospects = await loadUnfinishedProspects(app.businessId, data.days ?? 90);
     return { prospects };
   });
+
+/** Removes unfinished prospects (test runs, junk) from the signed-in tenant's list. */
+export const deleteUnfinishedProspects = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ conversationIds: z.array(z.string().uuid()).min(1).max(500) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { deleteUnfinishedConversations } = await import("@/lib/quote-funnel.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    return await deleteUnfinishedConversations({
+      businessId: app.businessId,
+      userId: context.userId,
+      conversationIds: data.conversationIds,
+    });
+  });
