@@ -43,7 +43,7 @@ export type OwnerSnapshot = {
 
 export type OwnerQuestionIntent = "bookings" | "leads" | "campaigns" | "replies" | "overview";
 
-export const OWNER_ASSISTANT_MAX_QUESTION = 500;
+export const OWNER_ASSISTANT_MAX_QUESTION = 1000;
 
 /** Shapes the question into one of the snapshot areas. Never throws. */
 export function classifyOwnerQuestion(question: string): OwnerQuestionIntent {
