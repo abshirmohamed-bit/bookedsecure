@@ -98,6 +98,16 @@ export async function createSubscriptionCheckout(input: {
       email: input.email,
     });
 
+    // Never sell a second subscription to the same business. If Stripe already
+    // holds a live one (for example a webhook that was missed), link it and
+    // send the owner to Manage billing instead of charging them again.
+    const live = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 10 });
+    const existing = live.data.find((s) => ["active", "trialing", "past_due", "unpaid"].includes(s.status));
+    if (existing) {
+      await syncSubscription(existing, input.businessId);
+      return { error: "You already have a subscription. Use Manage billing to change plan." };
+    }
+
     const metadata = {
       bookedsecureBusinessId: input.businessId,
       bookedsecureSubscription: "true",
@@ -182,13 +192,12 @@ export async function handleSubscriptionSession(session: any, env: StripeEnv) {
   const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
   const customerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
 
-  await applySubscriptionState(businessId, {
-    stripeCustomerId: customerId ?? null,
-    stripeSubscriptionId: subscriptionId ?? null,
-  });
+  if (customerId) await applySubscriptionState(businessId, { stripeCustomerId: customerId });
 
   if (subscriptionId) {
     try {
+      // Read the subscription's real state before linking it: a session that is
+      // replayed after the subscription was cancelled must not touch access.
       const stripe = createStripeClient(env);
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       return await syncSubscription(subscription, businessId);
@@ -197,9 +206,14 @@ export async function handleSubscriptionSession(session: any, env: StripeEnv) {
     }
   }
 
-  const wasActive = (await getSubscriptionForBusiness(businessId)).status === "active";
+  const current = await getSubscriptionForBusiness(businessId);
+  if (current.stripeSubscriptionId && current.stripeSubscriptionId !== subscriptionId) {
+    return { ok: true as const, detail: "Ignored checkout for a business already subscribed" };
+  }
+  const wasActive = current.status === "active";
   await applySubscriptionState(businessId, {
     status: "active",
+    stripeSubscriptionId: subscriptionId ?? null,
     planId: session.metadata?.planId,
     interval: session.metadata?.interval === "year" ? "year" : "month",
     pastDueSince: null,
@@ -227,6 +241,14 @@ export async function syncSubscription(subscription: any, knownBusinessId?: stri
   const resolved = await planFromPrice(item?.price);
   const status = toStatus(subscription.status);
   const wasFull = current.status === "active";
+
+  // A subscription this business was never linked to can only ever grant
+  // access, never take it away: a cancelled or incomplete stranger must not
+  // downgrade a business that is active on other terms.
+  const isLinked = current.stripeSubscriptionId === subscription.id;
+  if (!isLinked && status !== "active" && status !== "past_due") {
+    return { ok: true as const, detail: `Ignored ${subscription.status} event for an unlinked subscription` };
+  }
 
   await applySubscriptionState(businessId, {
     status,
