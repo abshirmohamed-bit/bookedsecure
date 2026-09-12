@@ -13,6 +13,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { LEAD_STATUSES } from "@/lib/domain";
 import { formatInZone, zonedWallTimeToIso } from "@/lib/assistant-time";
 import { upcomingBookings, visibleNotes } from "@/lib/bookings";
+import type { OwnerProposal } from "@/lib/owner-actions.server";
+import { buildOperationsTools } from "@/lib/assistant-tools-ops.server";
 
 export type ExecutedAction = { summary: string };
 
