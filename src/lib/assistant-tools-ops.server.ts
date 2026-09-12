@@ -515,6 +515,11 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
         quiet_hours_end: z.number().int().min(0).max(23).nullable(),
       }),
       execute: async (input) => {
+        {
+          const { planGateMessage } = await import("@/lib/subscription.server");
+          const blocked = await planGateMessage(ctx.businessId, "automation_custom");
+          if (blocked) return fail(blocked);
+        }
         const denied = ownerOnly(ctx);
         if (denied) return denied;
         const patch = Object.fromEntries(
@@ -644,6 +649,11 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
         reset: z.boolean().nullable(),
       }),
       execute: async ({ leadId, step, messageTemplate, delayMinutes, reset }) => {
+        {
+          const { planGateMessage } = await import("@/lib/subscription.server");
+          const blocked = await planGateMessage(ctx.businessId, "automation_custom");
+          if (blocked) return fail(blocked);
+        }
         const { data: lead } = await supabaseAdmin
           .from("leads")
           .select("id, name")

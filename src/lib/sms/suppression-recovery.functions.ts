@@ -15,7 +15,7 @@ export const resumeSuppressedSmsAutomation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ResumeSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner, assertLeadOwnership } = await import(
+    const { requireAppContext, requireWriteContext, requireOwner, assertLeadOwnership } = await import(
       "@/lib/app-context.server"
     );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

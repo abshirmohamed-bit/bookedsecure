@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
 import {
   BarChart3,
   CalendarDays,
@@ -8,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  CreditCard,
   FileUp,
   Inbox,
   Menu,
@@ -215,6 +217,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             icon={Users}
             onClick={() => setMobileNavOpen(false)}
           />
+          <SidebarLink
+            to="/settings/billing"
+            label="Plan & billing"
+            active={pathname.startsWith("/settings/billing")}
+            icon={CreditCard}
+            onClick={() => setMobileNavOpen(false)}
+          />
         </nav>
         {isAssistantHome ? <div id="assistant-context-slot" className="min-h-0 flex-1 border-t border-sidebar-border" /> : <div className="flex-1" />}
         <div className="shrink-0 border-t border-sidebar-border p-3">
@@ -259,6 +268,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
            <div className="lg:hidden"><AccountMenu onSignOut={() => navigate({ to: "/auth", replace: true })} /></div>
         </div>
       </header>
+       <SubscriptionBanner />
        <main className={cn("min-w-0", isAssistantHome ? "overflow-hidden" : "mx-auto max-w-[1500px] px-4 py-5 sm:px-6")}>{children}</main>
     </div>
   );
@@ -294,7 +304,8 @@ function SidebarLink({
     | "/settings/business"
     | "/settings/messaging"
     | "/settings/automation"
-    | "/settings/team";
+    | "/settings/team"
+    | "/settings/billing";
   label: string;
   active: boolean;
   icon: typeof BarChart3;

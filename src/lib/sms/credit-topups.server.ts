@@ -53,7 +53,7 @@ export async function createCreditTopupCheckout(input: {
   userId: string;
   email: string | null;
   returnUrl: string;
-  environment?: StripeEnv;
+  environment?: StripeEnv | undefined;
 }): Promise<TopupCheckoutResult> {
   const pack: CreditPack | null = findCreditPack(input.packId);
   if (!pack) return { error: "That credit pack is not available." };

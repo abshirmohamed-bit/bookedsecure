@@ -1061,7 +1061,7 @@ export const confirmLeadBooking = createServerFn({ method: "POST" })
     z.object({ leadId: z.string().uuid(), offerId: z.string().uuid() }).strict().parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner, assertLeadOwnership } = await import(
+    const { requireAppContext, requireWriteContext, requireOwner, assertLeadOwnership } = await import(
       "@/lib/app-context.server"
     );
     const { confirmBooking } = await import("@/lib/availability.server");

@@ -34,6 +34,7 @@ import { Route as QuoteIndexRouteImport } from './routes/quote.index'
 import { Route as QuoteSlugRouteImport } from './routes/quote.$slug'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsAutomationRouteImport } from './routes/settings.automation'
+import { Route as SettingsBillingRouteImport } from './routes/settings.billing'
 import { Route as SettingsBusinessRouteImport } from './routes/settings.business'
 import { Route as SettingsMessagingRouteImport } from './routes/settings.messaging'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team'
@@ -175,6 +176,11 @@ const SettingsAutomationRoute = SettingsAutomationRouteImport.update({
   path: '/automation',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsBillingRoute = SettingsBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsBusinessRoute = SettingsBusinessRouteImport.update({
   id: '/business',
   path: '/business',
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
   '/settings/automation': typeof SettingsAutomationRoute
+  '/settings/billing': typeof SettingsBillingRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -319,6 +326,7 @@ export interface FileRoutesByTo {
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
   '/settings/automation': typeof SettingsAutomationRoute
+  '/settings/billing': typeof SettingsBillingRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -362,6 +370,7 @@ export interface FileRoutesById {
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
   '/settings/automation': typeof SettingsAutomationRoute
+  '/settings/billing': typeof SettingsBillingRoute
   '/settings/business': typeof SettingsBusinessRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
     | '/leads/deleted'
     | '/quote/$slug'
     | '/settings/automation'
+    | '/settings/billing'
     | '/settings/business'
     | '/settings/messaging'
     | '/settings/team'
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/leads/deleted'
     | '/quote/$slug'
     | '/settings/automation'
+    | '/settings/billing'
     | '/settings/business'
     | '/settings/messaging'
     | '/settings/team'
@@ -489,6 +500,7 @@ export interface FileRouteTypes {
     | '/leads/deleted'
     | '/quote/$slug'
     | '/settings/automation'
+    | '/settings/billing'
     | '/settings/business'
     | '/settings/messaging'
     | '/settings/team'
@@ -724,6 +736,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAutomationRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/billing': {
+      id: '/settings/billing'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof SettingsBillingRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/business': {
       id: '/settings/business'
       path: '/business'
@@ -846,6 +865,7 @@ const AssistantRouteWithChildren = AssistantRoute._addFileChildren(
 
 interface SettingsRouteChildren {
   SettingsAutomationRoute: typeof SettingsAutomationRoute
+  SettingsBillingRoute: typeof SettingsBillingRoute
   SettingsBusinessRoute: typeof SettingsBusinessRoute
   SettingsMessagingRoute: typeof SettingsMessagingRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
@@ -854,6 +874,7 @@ interface SettingsRouteChildren {
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAutomationRoute: SettingsAutomationRoute,
+  SettingsBillingRoute: SettingsBillingRoute,
   SettingsBusinessRoute: SettingsBusinessRoute,
   SettingsMessagingRoute: SettingsMessagingRoute,
   SettingsTeamRoute: SettingsTeamRoute,
