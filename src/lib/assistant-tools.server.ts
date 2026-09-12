@@ -19,9 +19,14 @@ export type ExecutedAction = { summary: string };
 export type AssistantToolContext = {
   businessId: string;
   userId: string;
+  role: "owner" | "staff" | "platform_admin";
   timeZone: string;
   /** Collects a plain-English line for every change actually made. */
   record: (summary: string) => void;
+  /** Hands a Confirm card back to the owner (texts, campaigns, imports). */
+  propose: (proposal: OwnerProposal) => void;
+  /** A contact file attached to this message, if any. Never model-supplied. */
+  attachment: { filename: string; content: string } | null;
 };
 
 const DATE = z
@@ -31,7 +36,7 @@ const TIME = z
   .string()
   .describe("Local 24-hour time in the owner's own timezone, formatted HH:MM. Use 09:00 when the owner gave a day but no time.");
 
-function fail(message: string) {
+export function fail(message: string) {
   return { ok: false as const, message };
 }
 
