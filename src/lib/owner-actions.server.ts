@@ -36,12 +36,15 @@ export type StatusProposal = {
 
 import type { AddonLinkProposal } from "@/lib/catalog-actions.server";
 import type { LeadUpdateProposal } from "@/lib/owner-lead-actions.server";
+import type { SendTextProposal, ImportProposal } from "@/lib/assistant-proposals";
 
 export type OwnerProposal =
   | CampaignProposal
   | StatusProposal
   | AddonLinkProposal
-  | LeadUpdateProposal;
+  | LeadUpdateProposal
+  | SendTextProposal
+  | ImportProposal;
 
 
 /** How many leads a status change would touch right now. */
@@ -105,21 +108,32 @@ export async function applyStatusChange(input: {
   return { updated: ids.length };
 }
 
-/** Prepares a draft win-back campaign for the owner to review. Sends nothing. */
+/** Prepares a draft campaign for the owner to review. Sends nothing. */
 export async function proposeCampaign(input: {
   businessId: string;
   userId: string;
   percent: number | null;
+  offerText?: string | null;
   maxLeads: number | null;
   olderThanDays: number | null;
+  audience?: import("@/lib/reactivation.server").CampaignAudience;
+  fresh?: boolean;
 }): Promise<CampaignProposal | null> {
   const { draftReactivationCampaign } = await import("@/lib/reactivation.server");
+  const offer =
+    input.offerText && input.offerText.trim().length > 0
+      ? input.offerText
+      : input.percent
+        ? proposeOffer({ percent: input.percent })
+        : null;
   const view = await draftReactivationCampaign({
     businessId: input.businessId,
     userId: input.userId,
-    offerText: input.percent ? proposeOffer({ percent: input.percent }) : null,
+    offerText: offer,
     ...(input.maxLeads ? { maxLeads: input.maxLeads } : {}),
     ...(input.olderThanDays ? { olderThanDays: input.olderThanDays } : {}),
+    ...(input.audience ? { audience: input.audience } : {}),
+    ...(input.fresh ? { fresh: true } : {}),
   });
   if (!view.campaign) return null;
 
@@ -133,7 +147,7 @@ export async function proposeCampaign(input: {
     offerText: view.campaign.offerText,
     summary:
       pending.length === 0
-        ? "No contacts qualify for a win-back message right now."
+        ? "No contacts qualify for that message right now."
         : `${pending.length} contact${pending.length === 1 ? "" : "s"}${windowNote} ready to receive "${view.campaign.offerText}". Nothing sends until you approve.`,
     drafts: pending.map((draft) => ({
       id: draft.id,
@@ -153,21 +167,26 @@ export async function proposeCampaign(input: {
 export async function handleOwnerRequest(input: {
   businessId: string;
   userId: string;
+  role: "owner" | "staff" | "platform_admin";
   question: string;
   history?: Array<{ role: "user" | "assistant"; text: string }>;
+  /** A contact file the owner attached to this message, if any. */
+  attachment?: { filename: string; content: string } | null;
 }): Promise<{ answer: string; proposals: OwnerProposal[]; executed: string[] }> {
   try {
     const { runAssistantAgent } = await import("@/lib/assistant-agent.server");
     const result = await runAssistantAgent({
       businessId: input.businessId,
       userId: input.userId,
+      role: input.role,
       question: input.question,
       ...(input.history ? { history: input.history } : {}),
+      ...(input.attachment ? { attachment: input.attachment } : {}),
     });
-    if (result.answer.length > 0 || result.executed.length > 0) {
+    if (result.answer.length > 0 || result.executed.length > 0 || result.proposals.length > 0) {
       return {
         answer: result.answer.length > 0 ? result.answer : result.executed.join(" "),
-        proposals: [],
+        proposals: result.proposals as OwnerProposal[],
         executed: result.executed,
       };
     }

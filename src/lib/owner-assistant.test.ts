@@ -122,7 +122,7 @@ describe("buildAssistantSystemPrompt", () => {
     expect(system).toContain("Acme Detailing");
     expect(system).toContain("Tuesday 2026-09-15");
     expect(system).toContain("Australia/Sydney");
-    expect(system).toContain("Never say you cannot act");
+    expect(system).toContain("never say you cannot act");
     expect(system).not.toContain("read-only helper.\n- You cannot");
   });
 });
