@@ -526,26 +526,25 @@ function buildPrompt(
     case "vehicle":
       return { step, kind: "text", text: "What's the vehicle? (make and model)" };
     case "suburb":
-      return { step, kind: "text", text: "Which suburb are we coming to?" };
+      // Suburb and street address are asked together, the same way as name and
+      // mobile. One answer can carry both, or just the suburb.
+      return {
+        step,
+        kind: "text",
+        text: "Which suburb are we coming to, and the street address?",
+      };
     case "address":
       return {
         step,
         kind: "text",
         text: "And the street address? (number and street)",
       };
-    case "concerns": {
-      const extras = addonsForService(tenant.addons ?? [], collected.service_id ?? null).filter(
-        (addon) => !(collected.addon_ids ?? []).includes(addon.id),
-      );
+    case "concerns":
       return {
         step,
         kind: "text",
-        text:
-          extras.length > 0
-            ? "Anything we should focus on, like stains or pet hair? I can also show you a few add-ons after this."
-            : "Anything we should focus on, like stains, pet hair or paint marks?",
+        text: "Anything we should focus on, like stains, pet hair or paint marks?",
       };
-    }
     case "name":
       return { step, kind: "text", text: CONTACT_ASK_TEXT };
 
