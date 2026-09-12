@@ -35,6 +35,7 @@ import {
   UNKNOWN_STATUS,
 } from "@/lib/sms/dispatch";
 import { isUniqueViolation } from "@/lib/sms/webhook.server";
+import { parseFollowUpOverrides, resolveFollowUpStep } from "@/lib/follow-up-overrides";
 import {
   messageAttributionColumns,
   normaliseAgentAttribution,
