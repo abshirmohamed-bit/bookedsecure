@@ -82,6 +82,11 @@ export type WebChatCollected = {
   /** Further approved services chosen alongside the first one. Never invented. */
   extra_service_ids?: string[] | null;
   extra_service_names?: string[] | null;
+  /**
+   * How many vehicles each chosen service is for, by service id. Only present
+   * when the customer asked for more than one; a missing entry means one.
+   */
+  service_quantities?: Record<string, number> | null;
   typed_request?: string | null;
 
   /** Extras chosen with the service. Only the tenant's own linked add-ons. */
