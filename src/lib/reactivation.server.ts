@@ -338,6 +338,10 @@ export async function draftReactivationCampaign(input: {
   maxLeads?: number;
   /** Only contacts added at least this many days ago. */
   olderThanDays?: number;
+  /** Who to write to. Defaults to the classic dormant win-back audience. */
+  audience?: CampaignAudience;
+  /** Start a fresh campaign instead of topping up the open draft. */
+  fresh?: boolean;
 }): Promise<ReactivationCampaignView & { candidates: number }> {
   const [{ data: business }, { data: services }] = await Promise.all([
     supabaseAdmin
@@ -356,7 +360,10 @@ export async function draftReactivationCampaign(input: {
   const serviceNames = (services ?? []).map((s) => s.name as string).filter(Boolean);
   const tenantSlug = (business as { slug?: string | null } | null)?.slug ?? null;
 
-  const { candidates, excluded } = await loadReactivationCandidates(input.businessId);
+  const { candidates, excluded } = await loadReactivationCandidates(
+    input.businessId,
+    input.audience ?? { kind: "dormant" },
+  );
   const cutoff =
     typeof input.olderThanDays === "number" && input.olderThanDays > 0
       ? Date.now() - input.olderThanDays * 24 * 60 * 60 * 1000
@@ -368,6 +375,14 @@ export async function draftReactivationCampaign(input: {
           candidate.createdAt ? new Date(candidate.createdAt).getTime() <= cutoff : true,
         );
   const scoped = dormant.slice(0, input.maxLeads ?? 200);
+
+  if (input.fresh) {
+    // A differently-targeted campaign must not inherit the previous draft list.
+    const open = await loadOpenCampaign(input.businessId);
+    if (open.campaign) {
+      await cancelReactivationCampaign({ businessId: input.businessId, campaignId: open.campaign.id });
+    }
+  }
 
   const offer =
     typeof input.offerText === "string" && input.offerText.trim().length > 0
