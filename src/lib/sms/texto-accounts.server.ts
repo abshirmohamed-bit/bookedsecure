@@ -195,6 +195,117 @@ export async function addNumberToPool(input: {
   return data;
 }
 
+export type PoolSyncResult = {
+  live: boolean;
+  seen: number;
+  added: number;
+  updated: number;
+  numbers: TextoNumber[];
+};
+
+type TextoNumberListing = {
+  numbers?: Array<{
+    id?: string;
+    number?: string;
+    label?: string | null;
+    assigned_to?: string | null;
+    price_monthly?: number;
+  }>;
+};
+
+/**
+ * Pull every dedicated number held by the parent Texto account (and any
+ * already handed to a sub-account) into the local pool. Numbers are bought in
+ * the Texto dashboard; this makes them appear here without manual entry.
+ * Idempotent: existing rows are refreshed, never duplicated, and a number that
+ * is already assigned to a business locally is left assigned.
+ */
+export async function syncNumbersFromTexto(): Promise<PoolSyncResult> {
+  if (!liveAccountProvisioning()) {
+    const { data } = await supabaseAdmin.from("texto_numbers").select("*").order("created_at");
+    return { live: false, seen: 0, added: 0, updated: 0, numbers: data ?? [] };
+  }
+
+  const [own, group] = await Promise.all([
+    textoRequest<TextoNumberListing>("/numbers", { method: "GET" }),
+    textoRequest<TextoNumberListing>("/numbers/group", { method: "GET" }).catch(() => ({ numbers: [] })),
+  ]);
+  const listed = new Map<string, NonNullable<TextoNumberListing["numbers"]>[number]>();
+  for (const entry of [...(own.numbers ?? []), ...(group.numbers ?? [])]) {
+    if (entry.number) listed.set(entry.number, entry);
+  }
+
+  // Map Texto sub-account ids back to businesses so a number already assigned
+  // at Texto lands on the right tenant.
+  const { data: accounts } = await supabaseAdmin
+    .from("texto_accounts")
+    .select("id, business_id, subaccount_id")
+    .not("subaccount_id", "is", null);
+  const businessBySubaccount = new Map((accounts ?? []).map((a) => [a.subaccount_id as string, a.business_id]));
+
+  const { data: existingRows } = await supabaseAdmin.from("texto_numbers").select("*");
+  const existing = new Map((existingRows ?? []).map((row) => [row.number, row]));
+
+  let added = 0;
+  let updated = 0;
+  for (const [number, entry] of listed) {
+    const monthly = Math.round((entry.price_monthly ?? 15) * 100);
+    const remoteBusiness = entry.assigned_to ? businessBySubaccount.get(entry.assigned_to) ?? null : null;
+    const row = existing.get(number);
+    if (!row) {
+      await supabaseAdmin.from("texto_numbers").insert({
+        number,
+        provider_number_id: entry.id ?? null,
+        monthly_cost_cents: monthly,
+        status: remoteBusiness ? "assigned" : "available",
+        assigned_business_id: remoteBusiness,
+        assigned_at: remoteBusiness ? nowIso() : null,
+      });
+      added += 1;
+      continue;
+    }
+    const patch: Database["public"]["Tables"]["texto_numbers"]["Update"] = {};
+    if (entry.id && row.provider_number_id !== entry.id) patch.provider_number_id = entry.id;
+    if (row.monthly_cost_cents !== monthly) patch.monthly_cost_cents = monthly;
+    if (!row.assigned_business_id && remoteBusiness) {
+      patch.assigned_business_id = remoteBusiness;
+      patch.assigned_at = nowIso();
+      patch.status = "assigned";
+    }
+    if (Object.keys(patch).length > 0) {
+      await supabaseAdmin.from("texto_numbers").update({ ...patch, updated_at: nowIso() }).eq("id", row.id);
+      updated += 1;
+    }
+  }
+
+  const { data: numbers } = await supabaseAdmin.from("texto_numbers").select("*").order("created_at");
+  return { live: true, seen: listed.size, added, updated, numbers: numbers ?? [] };
+}
+
+/** Businesses waiting for a number (queued, failed or never provisioned while active). */
+export async function listBusinessesAwaitingNumber(): Promise<
+  Array<{ businessId: string; businessName: string | null; state: string; failedReason: string | null; since: string }>
+> {
+  const { data: accounts } = await supabaseAdmin
+    .from("texto_accounts")
+    .select("business_id, provisioning_state, failed_reason, updated_at, businesses(name, subscription_status)")
+    .in("provisioning_state", ["queued_no_number", "failed", "provisioning", "not_started"]);
+  return (accounts ?? [])
+    .map((row) => {
+      const business = row.businesses as { name?: string | null; subscription_status?: string | null } | null;
+      return {
+        businessId: row.business_id,
+        businessName: business?.name ?? null,
+        subscription: business?.subscription_status ?? null,
+        state: row.provisioning_state,
+        failedReason: row.failed_reason,
+        since: row.updated_at,
+      };
+    })
+    .filter((row) => row.subscription === "active" || row.state !== "not_started")
+    .map(({ subscription: _s, ...rest }) => rest);
+}
+
 async function assignPoolNumber(businessId: string, numberId: string): Promise<TextoNumber> {
   const { data, error } = await supabaseAdmin
     .from("texto_numbers")
