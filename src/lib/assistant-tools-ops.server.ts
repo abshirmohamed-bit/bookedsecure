@@ -326,7 +326,9 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       inputSchema: z.object({}),
       execute: async () => {
         const { getTextoAccount, listAssignedNumbers } = await import("@/lib/sms/texto-accounts.server");
-        const [{ data: business }, { data: rules }, { data: availability }, { data: team }, account, numbers] =
+        const { getPlanForBusiness } = await import("@/lib/plans.server");
+        const { getCommercialConfig, getPilotForBusiness } = await import("@/lib/commercial.server");
+        const [{ data: business }, { data: rules }, { data: availability }, { data: team }, account, numbers, senders, plan, config, pilot] =
           await Promise.all([
             supabaseAdmin
               .from("businesses")
@@ -351,15 +353,51 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
               .eq("business_id", businessId),
             getTextoAccount(businessId),
             listAssignedNumbers(businessId),
+            supabaseAdmin
+              .from("sms_senders")
+              .select("phone_number, provider, is_primary, active")
+              .eq("business_id", businessId)
+              .eq("active", true),
+            getPlanForBusiness(businessId),
+            getCommercialConfig(),
+            getPilotForBusiness(businessId),
           ]);
+        // Same figures the Messaging page shows: included texts come from the
+        // terms this business was accepted under, usage from the current period.
+        const includedTexts = pilot?.includedSmsSegments ?? config.includedSmsSegments;
+        let usedTexts = 0;
+        if (pilot) {
+          const { data: period } = await supabaseAdmin
+            .from("sms_usage_periods")
+            .select("segments_used")
+            .eq("pilot_application_id", pilot.id)
+            .order("period_start", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          usedTexts = period?.segments_used ?? 0;
+        }
+        const sendingNumbers = [
+          ...(senders.data ?? []).map((s) => ({ number: s.phone_number, primary: s.is_primary, status: "active" })),
+          ...numbers
+            .filter((n) => !(senders.data ?? []).some((s) => s.phone_number === n.number))
+            .map((n) => ({ number: n.number, primary: false, status: n.status })),
+        ];
         return {
           business,
           quotePageMode: business?.quote_mode ?? "manual_sms",
           sendingPaused: business ? !business.automation_enabled : null,
           messaging: {
-            numbers: numbers.map((n) => ({ number: n.number, status: n.status })),
-            creditBalance: account?.credit_balance ?? null,
+            numbers: sendingNumbers,
+            plan: {
+              name: plan.name,
+              monthlyPrice: `${plan.currency.toUpperCase()} ${(plan.monthlyPriceMinorUnits / 100).toFixed(2)}`,
+              includedTextsPerMonth: includedTexts,
+              textsUsedThisPeriod: usedTexts,
+              extraTextCents: plan.overageCents,
+            },
+            purchasedCreditBalance: account?.credit_balance ?? null,
             dailySendCap: account?.daily_send_cap ?? null,
+            note: "Buying credits, numbers and billing changes happen on the Messaging page, not through the assistant.",
           },
           followUpRules: rules ?? [],
           availability,
