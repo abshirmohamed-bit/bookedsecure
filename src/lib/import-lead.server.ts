@@ -73,7 +73,7 @@ export function buildImportLeadInsert(input: {
   const status: LeadStatus =
     proposed && (LEAD_STATUSES as readonly string[]).includes(proposed)
       ? (proposed as LeadStatus)
-      : "new";
+      : "previous_lead";
 
   const insert: ImportLeadInsert = {
     business_id: input.businessId,
