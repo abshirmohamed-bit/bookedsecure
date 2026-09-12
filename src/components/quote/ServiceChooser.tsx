@@ -12,9 +12,13 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, Check, Plus, X } from "lucide-react";
+import { ChevronLeft, Check, Minus, Plus, X } from "lucide-react";
 import { groupItems, hasMeaningfulGroups } from "@/lib/service-groups";
-import { encodeServiceSelection, type WebChatCardExtra } from "@/lib/web-chat";
+import {
+  encodeServiceSelection,
+  MAX_SERVICE_QUANTITY,
+  type WebChatCardExtra,
+} from "@/lib/web-chat";
 
 export type ServiceCard = {
   group: string | null;
