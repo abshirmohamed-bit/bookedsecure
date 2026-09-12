@@ -173,7 +173,7 @@ export function BillingPanel() {
       {isOwner ? (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-base font-semibold">{hasSubscription ? "Plans" : "Choose a plan"}</h3>
+            <h3 className="text-base font-semibold">{data.subscription.status === "active" ? "Plans" : "Choose a plan"}</h3>
             <div role="radiogroup" aria-label="Billing period" className="inline-flex rounded-md border border-input p-0.5 text-xs">
               {(["month", "year"] as const).map((option) => (
                 <button
@@ -192,7 +192,7 @@ export function BillingPanel() {
           <div className="grid gap-3 md:grid-cols-2">
             {data.plans.map((plan) => {
               const price = interval === "year" ? plan.annualPriceMinorUnits : plan.monthlyPriceMinorUnits;
-              const isCurrent = hasSubscription && data.plan.id === plan.id;
+              const isCurrent = data.subscription.status === "active" && data.plan.id === plan.id;
               return (
                 <article key={plan.id} className={cn("flex flex-col rounded-lg border p-4", isCurrent ? "border-primary" : "border-border bg-card")}>
                   <header>
