@@ -37,6 +37,8 @@ async function audit(ctx: AssistantToolContext, eventType: string, metadata: Rec
 export function buildOperationsTools(ctx: AssistantToolContext) {
   const { businessId, userId, timeZone } = ctx;
   const when = (iso: string | null | undefined) => (iso ? formatInZone(iso, timeZone) : null);
+  const localDate = (iso: string) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 
   return {
     query_leads: tool({
@@ -44,27 +46,33 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
         "List and count this business's leads from the lead inbox, filtered by status (new, contacted, waiting_for_customer, replied, quote_ready, quote_sent, scheduled, completed, lost, opted_out, invalid), by source (meta, godaddy, website, hosted_page, manual, import) and by text delivery state (sms_delivered, sms_pending, sms_failed, sms_undelivered, sms_suppressed, no_reply_after_delivery). Use it for 'who opted out', 'how many new leads', 'who replied', 'which leads never got a text' and similar. Returns the total count and up to `limit` rows with lead ids.",
       inputSchema: z.object({
         status: z.enum([...LEAD_STATUSES, "all"]).nullable(),
-        source: z.enum([...SOURCE_CHANNELS, "import", "all"]).nullable(),
-        sms: z.enum([...SMS_LEAD_FILTERS, "all"]).nullable(),
+        source: z.enum([...SOURCE_CHANNELS, "all"]).nullable().describe("Source channel. Imported contacts keep their original channel; their origin field says 'import'."),
+        sms: z.enum(SMS_LEAD_FILTERS).nullable(),
         limit: z.number().int().min(1).max(100).nullable(),
       }),
       execute: async (input) => {
         const { queryLeadInbox } = await import("@/lib/lead-query.server");
-        const page = await queryLeadInbox(supabaseAdmin, {
-          businessId,
-          filters: {
-            status: input.status ?? "all",
-            source: input.source ?? "all",
-            sms: (input.sms ?? "all") as never,
-            scope: "active",
-          },
-          page: 1,
-          pageSize: input.limit ?? 25,
-        });
+        const filters = {
+          status: input.status ?? "all",
+          source: input.source ?? "all",
+          sms: (input.sms ?? "all") as never,
+          scope: "active" as const,
+        };
+        const wanted = input.limit ?? 25;
+        // The inbox pages at a fixed size; walk pages until we have enough rows.
+        const first = await queryLeadInbox(supabaseAdmin, { businessId, filters, page: 1 });
+        const leads = [...first.leads];
+        let pageNo = 1;
+        while (leads.length < wanted && pageNo < first.page.pageCount) {
+          pageNo += 1;
+          const next = await queryLeadInbox(supabaseAdmin, { businessId, filters, page: pageNo });
+          leads.push(...next.leads);
+        }
+        const shown = leads.slice(0, wanted);
         return {
-          total: page.page.totalCount,
-          showing: page.leads.length,
-          leads: page.leads.map((lead) => ({
+          total: first.page.totalCount,
+          showing: shown.length,
+          leads: shown.map((lead) => ({
             leadId: lead.id,
             name: lead.name,
             mobile: lead.mobile_number,
@@ -181,7 +189,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
         const all = await loadBookings(businessId);
         const rows = all.filter((b) => {
           if (!b.scheduledAt) return false;
-          const local = formatInZone(b.scheduledAt, timeZone, { dateOnly: true });
+          const local = localDate(b.scheduledAt);
           return local >= input.fromDate && local <= input.toDate;
         });
         return {
