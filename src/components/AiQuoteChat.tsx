@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, Check, RotateCcw, ShieldCheck } from "lucide-react";
+import { AlertCircle, Check, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
 import { ServiceChooser } from "@/components/quote/ServiceChooser";
 import {
@@ -31,6 +31,18 @@ import {
 } from "@/lib/web-chat-booking";
 
 type Turn = { role: "customer" | "assistant" | "system"; body: string };
+
+/** A chosen service, kept visual: price, length, and any add-ons ticked with it. */
+type SelectionCardView = {
+  label: string;
+  price: string | null;
+  duration: string | null;
+  description?: string | null;
+  includes?: string | null;
+  excludes?: string | null;
+  note?: string | null;
+  extras?: { name: string; price: string | null }[];
+};
 
 type Tenant = {
   slug: string;
@@ -72,9 +84,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const [honeypot, setHoneypot] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   /** The chosen service cards, kept so the customer's reply stays visual. */
-  const [selectionCards, setSelectionCards] = useState<
-    { label: string; price: string | null; duration: string | null }[]
-  >([]);
+  const [selectionCards, setSelectionCards] = useState<SelectionCardView[]>([]);
+  /** The selection card the customer tapped to read in full. */
+  const [selectionDetail, setSelectionDetail] = useState<SelectionCardView | null>(null);
   const [selectionEcho, setSelectionEcho] = useState<string | null>(null);
   /** Visible height of the screen, so the on-screen keyboard never distorts it. */
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
@@ -94,10 +106,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const selectionKey = `bookedsecure:sel:${tenant.slug}`;
 
   /** Keeps the tapped cards, so a refresh still shows the choice as cards. */
-  function rememberSelection(
-    label: string,
-    cards: { label: string; price: string | null; duration: string | null }[],
-  ) {
+  function rememberSelection(label: string, cards: SelectionCardView[]) {
     setSelectionCards(cards);
     setSelectionEcho(label);
     if (typeof window !== "undefined") {
@@ -113,7 +122,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     try {
       const parsed = JSON.parse(saved) as {
         label?: string;
-        cards?: { label: string; price: string | null; duration: string | null }[];
+        cards?: SelectionCardView[];
       };
       if (parsed.label && Array.isArray(parsed.cards) && parsed.cards.length > 0) {
         setSelectionEcho(parsed.label);
@@ -316,24 +325,42 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
         <div className="ml-auto max-w-[86%]">
           <ul className="flex flex-wrap justify-end gap-1.5">
             {selectionCards.map((card) => (
-              <li
-                key={card.label}
-                className="flex w-[7.2rem] flex-col rounded-lg border border-primary bg-card p-1.5 text-left shadow-sm ring-1 ring-primary/40 sm:w-[8.5rem] sm:p-2"
-              >
-                <span className="mb-1 flex h-4 w-4 items-center justify-center self-end rounded-full border border-primary bg-primary text-primary-foreground">
-                  <Check className="h-3 w-3" aria-hidden="true" />
-                </span>
-                <p className="min-w-0 break-words text-[0.66rem] font-semibold leading-[1.15] sm:text-[0.78rem]">
-                  {card.label}
-                </p>
-                <p className="mt-1 truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
-                  {card.price ?? "On enquiry"}
-                </p>
-                {card.duration && (
-                  <p className="truncate text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.64rem]">
-                    {card.duration}
+              <li key={card.label}>
+                <button
+                  type="button"
+                  onClick={() => setSelectionDetail(card)}
+                  aria-label={`View full details of ${card.label}`}
+                  className="flex w-[7.2rem] cursor-pointer flex-col rounded-lg border border-primary bg-card p-1.5 text-left shadow-sm ring-1 ring-primary/40 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[8.5rem] sm:p-2"
+                >
+                  <span className="mb-1 flex h-4 w-4 items-center justify-center self-end rounded-full border border-primary bg-primary text-primary-foreground">
+                    <Check className="h-3 w-3" aria-hidden="true" />
+                  </span>
+                  <p className="min-w-0 break-words text-[0.66rem] font-semibold leading-[1.15] sm:text-[0.78rem]">
+                    {card.label}
                   </p>
-                )}
+                  <p className="mt-1 truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
+                    {card.price ?? "On enquiry"}
+                  </p>
+                  {card.duration && (
+                    <p className="truncate text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.64rem]">
+                      {card.duration}
+                    </p>
+                  )}
+                  {(card.extras ?? []).map((extra) => (
+                    <p
+                      key={extra.name}
+                      className="mt-0.5 flex min-w-0 items-baseline gap-1 text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.62rem]"
+                    >
+                      <span className="min-w-0 truncate">+{extra.name}</span>
+                      {extra.price && (
+                        <span className="shrink-0 font-semibold text-primary">{extra.price}</span>
+                      )}
+                    </p>
+                  ))}
+                  <span className="mt-1 text-[0.54rem] font-semibold uppercase tracking-wide text-primary/80 sm:text-[0.58rem]">
+                    Tap for details
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
@@ -446,34 +473,44 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                    // Keep the tapped cards so the customer's own
                                    // reply stays visual for the rest of the chat.
                                    // A service id may carry a vehicle count ("id*2").
-                                   const counts = new Map<string, number>();
-                                   const ids = value.startsWith("sel:")
-                                     ? value
-                                         .slice(4)
-                                         .split("|")
-                                         .join(",")
-                                         .split(",")
-                                         .map((entry) => {
-                                           const [id = "", count = ""] = entry.split("*");
-                                           const parsed = Number.parseInt(count, 10);
-                                           if (parsed > 1) counts.set(id, parsed);
-                                           return id;
-                                         })
-                                     : [value];
-                                   const cards = serviceOptions
-                                     .filter((option) => ids.includes(option.value))
-                                     .map((option) => {
-                                       const count = counts.get(option.value) ?? 1;
-                                       return {
-                                         label: count > 1 ? `${option.label} ×${count}` : option.label,
-                                         price: option.card?.price
-                                           ? count > 1
-                                             ? `${option.card.price} each`
-                                             : option.card.price
-                                           : null,
-                                         duration: option.card?.duration ?? null,
-                                       };
-                                     });
+                                    const counts = new Map<string, number>();
+                                    const [servicesPart = "", extrasPart = ""] = value.startsWith(
+                                      "sel:",
+                                    )
+                                      ? value.slice(4).split("|")
+                                      : [value, ""];
+                                    const ids = servicesPart.split(",").map((entry) => {
+                                      const [id = "", count = ""] = entry.split("*");
+                                      const parsed = Number.parseInt(count, 10);
+                                      if (parsed > 1) counts.set(id, parsed);
+                                      return id;
+                                    });
+                                    const extraIds = extrasPart.split(",").filter(Boolean);
+                                    const cards = serviceOptions
+                                      .filter((option) => ids.includes(option.value))
+                                      .map((option) => {
+                                        const count = counts.get(option.value) ?? 1;
+                                        const card = option.card ?? null;
+                                        return {
+                                          label: count > 1 ? `${option.label} ×${count}` : option.label,
+                                          price: card?.price
+                                            ? count > 1
+                                              ? `${card.price} each`
+                                              : card.price
+                                            : null,
+                                          duration: card?.duration ?? null,
+                                          description: card?.description ?? null,
+                                          includes: card?.includes ?? null,
+                                          excludes: card?.excludes ?? null,
+                                          note: card?.note ?? null,
+                                          extras: (card?.extras ?? [])
+                                            .filter((extra) => extraIds.includes(extra.id))
+                                            .map((extra) => ({
+                                              name: extra.name,
+                                              price: extra.price,
+                                            })),
+                                        };
+                                      });
                                    rememberSelection(label, cards);
                                    send(value, label);
                                 }}
@@ -766,6 +803,99 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
           </div>
         </div>
       </div>
+
+      {selectionDetail && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Details of ${selectionDetail.label}`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setSelectionDetail(null)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setSelectionDetail(null);
+          }}
+        >
+          <div
+            className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl border border-primary/50 bg-card p-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-lg font-semibold leading-tight">{selectionDetail.label}</p>
+              <button
+                type="button"
+                onClick={() => setSelectionDetail(null)}
+                aria-label="Close details"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            {(selectionDetail.price || selectionDetail.duration) && (
+              <div className="mt-2 flex flex-wrap items-baseline gap-4">
+                {selectionDetail.price && (
+                  <span className="text-base font-bold text-primary">{selectionDetail.price}</span>
+                )}
+                {selectionDetail.duration && (
+                  <span className="text-xs text-muted-foreground">{selectionDetail.duration}</span>
+                )}
+              </div>
+            )}
+            {selectionDetail.description && (
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {selectionDetail.description}
+              </p>
+            )}
+            {selectionDetail.includes && (
+              <div className="mt-4">
+                <p className="text-[0.7rem] font-bold uppercase tracking-widest text-primary">
+                  What's included
+                </p>
+                <p className="mt-1.5 flex gap-2 text-sm text-muted-foreground">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <span>{selectionDetail.includes}</span>
+                </p>
+              </div>
+            )}
+            {selectionDetail.excludes && (
+              <div className="mt-4">
+                <p className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
+                  Not included
+                </p>
+                <p className="mt-1.5 flex gap-2 text-sm text-muted-foreground">
+                  <X className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>{selectionDetail.excludes}</span>
+                </p>
+              </div>
+            )}
+            {(selectionDetail.extras ?? []).length > 0 && (
+              <div className="mt-4">
+                <p className="text-[0.7rem] font-bold uppercase tracking-widest text-primary">
+                  Your add-ons
+                </p>
+                <ul className="mt-1.5 space-y-1.5">
+                  {(selectionDetail.extras ?? []).map((extra) => (
+                    <li
+                      key={extra.name}
+                      className="flex items-baseline justify-between gap-3 rounded-lg bg-secondary px-2.5 py-1.5 text-xs text-muted-foreground"
+                    >
+                      <span className="min-w-0 flex items-center gap-1.5">
+                        <Check className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+                        {extra.name}
+                      </span>
+                      {extra.price && (
+                        <span className="shrink-0 font-semibold text-primary">{extra.price}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {selectionDetail.note && (
+              <p className="mt-3 text-xs text-muted-foreground">{selectionDetail.note}</p>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
