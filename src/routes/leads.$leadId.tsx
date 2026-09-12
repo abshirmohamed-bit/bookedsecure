@@ -141,8 +141,15 @@ function LeadDetail() {
 
   const { lead, messages, conversation, ai, job, services, notifications, automationJobs } = data;
 
+  const initials = (lead.name ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Link
         to="/dashboard"
         className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -150,211 +157,244 @@ function LeadDetail() {
         <ArrowLeft className="h-3.5 w-3.5" /> Back to leads
       </Link>
 
-      <header className="brand-wash panel grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-4 sm:flex sm:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate font-heading text-xl font-semibold">{lead.name}</h1>
-            <StatusBadge status={lead.status} />
-            <ReadinessBadge readiness={lead.readiness_classification} />
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {lead.mobile_number}
-            {lead.email ? ` · ${lead.email}` : ""} · {leadSourceLabel(lead)}
-            {importMethodLabel(lead) ? ` (via ${importMethodLabel(lead)})` : ""}
-            {lead.source_campaign ? ` · ${lead.source_campaign}` : ""}
-            {lead.source_form ? ` · ${lead.source_form}` : ""} ·{" "}
-            {new Date(lead.created_at).toLocaleString("en-AU")}
-          </p>
-          {lead.lead_origin === "crm_import" && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Imported historical lead — no acknowledgement SMS, owner alert or follow-up sequence
-              was created by the import.
-            </p>
-          )}
-
-          {lead.opted_out_at && (
-            <p className="mt-1 text-xs text-destructive">
-              Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")} — automated SMS
-              blocked.
-            </p>
-          )}
-
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="text-muted-foreground/70">Latest SMS:</span>
-            <DeliveryBadge status={lead.last_outbound_sms_status} />
-            <span className="text-muted-foreground/70">Reachability:</span>
-            <ReachabilityBadge
-              state={lead.reachability_state}
-              evidence={lead.reachability_evidence}
-              evidenceAt={lead.reachability_evidence_at}
-            />
-            {lead.sms_suppressed_at && <SmsSuppressedBadge reason={lead.sms_suppression_reason} />}
-            {lead.last_delivered_sms_at && (
-              <span>
-                Last delivered {new Date(lead.last_delivered_sms_at).toLocaleString("en-AU")}
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,20rem)]">
+        {/* Who this person is, and the controls that change them. */}
+        <div className="min-w-0 space-y-4">
+          <section className="brand-wash panel p-4" aria-label="Customer summary">
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden="true"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/15 font-heading text-sm font-semibold text-primary"
+              >
+                {initials}
               </span>
-            )}
-            {lead.last_reply_at && (
-              <span>Last reply {new Date(lead.last_reply_at).toLocaleString("en-AU")}</span>
-            )}
-            {conversation?.automation_paused && <span>Automation stopped</span>}
-          </div>
-          {lead.last_sms_failure_reason && (
-            <p className="mt-1 text-xs text-destructive">
-              Last SMS failure: {lead.last_sms_failure_reason}
-              {lead.last_sms_failure_code ? ` (code ${lead.last_sms_failure_code})` : ""}
-            </p>
-          )}
-          {lead.sms_suppressed_at && (
-            <p className="mt-1 text-xs text-warning">
-              Automated SMS suppressed {new Date(lead.sms_suppressed_at).toLocaleString("en-AU")} —{" "}
-              {lead.sms_suppression_reason ?? "permanent delivery failure reported by the provider"}
-              . This does not prove the number is inactive. A later delivery or reply records new
-              evidence but never resumes automation on its own — the owner must review and resume.
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={lead.status}
-            onChange={(event) => statusMutation.mutate(event.target.value)}
-            className="form-control w-auto text-xs"
-          >
-            {LEAD_STATUSES.filter((status) => status !== "completed").map((status) => (
-              <option key={status} value={status}>
-                {LEAD_STATUS_LABELS[status]}
-              </option>
-            ))}
-            {lead.status === "completed" && <option value="completed">Completed</option>}
-          </select>
-          <button
-            onClick={() => pauseMutation.mutate(!conversation?.automation_paused)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            {conversation?.automation_paused ? (
-              <>
-                <Play className="h-3.5 w-3.5" /> Resume automation
-              </>
-            ) : (
-              <>
-                <Pause className="h-3.5 w-3.5" /> Pause automation
-              </>
-            )}
-          </button>
-        </div>
-      </header>
-
-      <SuppressionRecoveryPanel lead={lead} role={data.role} onResumed={invalidate} />
-
-      {lead.lead_origin === "crm_import" && (
-        <ImportedSourcePanel
-          sourceMetadata={lead.source_metadata as Record<string, unknown> | null}
-          serviceIntent={lead.service_intent}
-          vehicleType={lead.vehicle_type}
-          suburb={lead.suburb}
-        />
-      )}
-
-      {data.webConversation && (
-        <WebChatTranscript conversation={data.webConversation} messages={data.webChatMessages} />
-      )}
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <section className="panel flex flex-col">
-          <h2 className="section-heading">Conversation</h2>
-          <div className="max-h-[520px] space-y-3 overflow-y-auto px-4 py-4">
-            {messages.length === 0 && (
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">
-                  {conversation ? "No messages yet." : "No conversation yet."}
+              <div className="min-w-0">
+                <h1 className="truncate font-heading text-lg font-semibold">{lead.name}</h1>
+                <p className="truncate text-xs text-muted-foreground">
+                  {leadSourceLabel(lead)}
+                  {importMethodLabel(lead) ? ` · via ${importMethodLabel(lead)}` : ""}
                 </p>
-                {!conversation && (
-                  <p className="text-xs text-muted-foreground">
-                    A conversation starts when you send the first message. Nothing is sent
-                    automatically.
-                  </p>
-                )}
               </div>
-            )}
+            </div>
 
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={
-                  message.direction === "outbound"
-                    ? "ml-auto max-w-[85%] rounded-lg border border-primary/30 bg-primary/10 px-3 py-2"
-                    : "mr-auto max-w-[85%] rounded-lg border border-border bg-secondary px-3 py-2"
-                }
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <StatusBadge status={lead.status} />
+              <ReadinessBadge readiness={lead.readiness_classification} />
+              {lead.sms_suppressed_at && (
+                <SmsSuppressedBadge reason={lead.sms_suppression_reason} />
+              )}
+            </div>
+
+            <dl className="mt-3 space-y-2 border-t border-border pt-3">
+              <Detail label="Mobile" value={lead.mobile_number} />
+              <Detail label="Email" value={lead.email} />
+              <Detail label="Suburb" value={lead.suburb} />
+              <Detail label="Address" value={lead.service_address} />
+              <Detail label="Vehicle" value={lead.vehicle_type} />
+              <Detail label="Added" value={new Date(lead.created_at).toLocaleString("en-AU")} />
+            </dl>
+
+            <div className="mt-3 space-y-2 border-t border-border pt-3">
+              <label className="block text-xs text-muted-foreground" htmlFor="lead-status">
+                Status
+              </label>
+              <select
+                id="lead-status"
+                value={lead.status}
+                onChange={(event) => statusMutation.mutate(event.target.value)}
+                className="form-control text-xs"
               >
-                <p className="whitespace-pre-wrap text-sm">{message.body}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  <span>
-                    {new Date(message.created_at).toLocaleString("en-AU", {
-                      day: "2-digit",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                  <span>{message.message_kind}</span>
-                  {message.direction === "outbound" && (
-                    <>
-                      <DeliveryBadge status={message.delivery_status} />
-                      <FailureClassBadge failureClass={message.failure_class} />
-                      {message.automation_stopped && (
-                        <span className="text-destructive">Automation stopped</span>
-                      )}
-                      {message.message_source && <span>via {message.message_source}</span>}
-                    </>
-                  )}
-                  {(message.failure_code ?? message.error_code) && (
-                    <span className="text-destructive">
-                      {message.failure_code ?? message.error_code}
-                    </span>
-                  )}
-                </div>
-                {message.direction === "outbound" && message.failure_reason && (
-                  <p className="mt-1 text-[11px] text-destructive">
-                    {message.failure_reason}
-                    {message.failure_class === "permanent"
-                      ? " Future automated SMS is suppressed for this lead."
-                      : message.failure_class === "temporary"
-                        ? " Temporary problem — no automatic retry was sent."
-                        : ""}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-border p-4">
-            <textarea
-              value={reply}
-              onChange={(event) => setReply(event.target.value)}
-              rows={3}
-              placeholder="Type your reply…"
-              className="form-control min-h-24 py-2"
-            />
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[11px] text-muted-foreground">
-                {reply.length}/600 characters{fromAi ? " · AI draft (edited by you)" : ""}
-              </span>
+                {LEAD_STATUSES.filter((status) => status !== "completed").map((status) => (
+                  <option key={status} value={status}>
+                    {LEAD_STATUS_LABELS[status]}
+                  </option>
+                ))}
+                {lead.status === "completed" && <option value="completed">Completed</option>}
+              </select>
               <button
-                disabled={reply.trim().length < 2 || sendMutation.isPending}
-                onClick={() => sendMutation.mutate()}
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                onClick={() => pauseMutation.mutate(!conversation?.automation_paused)}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
               >
-                <Send className="h-3.5 w-3.5" />
-                {sendMutation.isPending ? "Sending…" : "Send SMS"}
+                {conversation?.automation_paused ? (
+                  <>
+                    <Play className="h-3.5 w-3.5" /> Resume automation
+                  </>
+                ) : (
+                  <>
+                    <Pause className="h-3.5 w-3.5" /> Pause automation
+                  </>
+                )}
               </button>
             </div>
-            <SimulateReply onSubmit={(body) => simulateMutation.mutate(body)} />
-          </div>
-        </section>
 
-        <div className="space-y-5">
-          <ActivityPanel notifications={notifications} automationJobs={automationJobs} />
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
+              <span className="text-muted-foreground/70">Latest SMS:</span>
+              <DeliveryBadge status={lead.last_outbound_sms_status} />
+              <ReachabilityBadge
+                state={lead.reachability_state}
+                evidence={lead.reachability_evidence}
+                evidenceAt={lead.reachability_evidence_at}
+              />
+              {lead.last_delivered_sms_at && (
+                <span>
+                  Delivered {new Date(lead.last_delivered_sms_at).toLocaleString("en-AU")}
+                </span>
+              )}
+              {lead.last_reply_at && (
+                <span>Replied {new Date(lead.last_reply_at).toLocaleString("en-AU")}</span>
+              )}
+              {conversation?.automation_paused && <span>Automation stopped</span>}
+              {conversation?.next_follow_up_at ? (
+                <span>
+                  Next follow-up {new Date(conversation.next_follow_up_at).toLocaleString("en-AU")}
+                </span>
+              ) : (
+                <span>No follow-up scheduled</span>
+              )}
+            </div>
+
+            {lead.opted_out_at && (
+              <p className="mt-2 text-xs text-destructive">
+                Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")} — automated SMS
+                blocked.
+              </p>
+            )}
+            {lead.last_sms_failure_reason && (
+              <p className="mt-2 text-xs text-destructive">
+                Last SMS failure: {lead.last_sms_failure_reason}
+                {lead.last_sms_failure_code ? ` (code ${lead.last_sms_failure_code})` : ""}
+              </p>
+            )}
+            {lead.sms_suppressed_at && (
+              <p className="mt-2 text-xs text-warning">
+                Automated SMS suppressed{" "}
+                {new Date(lead.sms_suppressed_at).toLocaleString("en-AU")} —{" "}
+                {lead.sms_suppression_reason ??
+                  "permanent delivery failure reported by the provider"}
+                . A later delivery or reply records new evidence but never resumes automation on
+                its own.
+              </p>
+            )}
+            {lead.lead_origin === "crm_import" && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Imported historical lead — the import sent no acknowledgement SMS, owner alert or
+                follow-up sequence.
+              </p>
+            )}
+          </section>
+
+          <SuppressionRecoveryPanel lead={lead} role={data.role} onResumed={invalidate} />
+
+          <section className="panel p-4">
+            <h2 className="text-sm font-semibold">Request details</h2>
+            <dl className="mt-3 space-y-2 text-sm">
+              <Detail label="Service intent" value={lead.service_intent} />
+              <Detail label="Main concerns" value={lead.main_concerns} />
+              <Detail label="Last cleaned" value={lead.last_cleaned_at} />
+              <Detail label="Campaign" value={lead.source_campaign} />
+              <Detail label="Form" value={lead.source_form} />
+            </dl>
+            <NotesEditor leadId={leadId} initial={lead.notes ?? ""} onSaved={invalidate} />
+          </section>
+        </div>
+
+        {/* Everything that was said: the quote chat, then the SMS thread. */}
+        <div className="min-w-0 space-y-4">
+          {data.webConversation && (
+            <WebChatTranscript conversation={data.webConversation} messages={data.webChatMessages} />
+          )}
+
+          <section className="panel flex min-w-0 flex-col">
+            <h2 className="section-heading">SMS conversation</h2>
+            <div className="max-h-[520px] space-y-3 overflow-y-auto px-4 py-4">
+              {messages.length === 0 && (
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    {conversation ? "No messages yet." : "No conversation yet."}
+                  </p>
+                  {!conversation && (
+                    <p className="text-xs text-muted-foreground">
+                      A conversation starts when you send the first message. Nothing is sent
+                      automatically.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={
+                    message.direction === "outbound"
+                      ? "ml-auto max-w-[85%] rounded-lg border border-primary/30 bg-primary/10 px-3 py-2"
+                      : "mr-auto max-w-[85%] rounded-lg border border-border bg-secondary px-3 py-2"
+                  }
+                >
+                  <p className="whitespace-pre-wrap text-sm">{message.body}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    <span>
+                      {new Date(message.created_at).toLocaleString("en-AU", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <span>{message.message_kind}</span>
+                    {message.direction === "outbound" && (
+                      <>
+                        <DeliveryBadge status={message.delivery_status} />
+                        <FailureClassBadge failureClass={message.failure_class} />
+                        {message.automation_stopped && (
+                          <span className="text-destructive">Automation stopped</span>
+                        )}
+                        {message.message_source && <span>via {message.message_source}</span>}
+                      </>
+                    )}
+                    {(message.failure_code ?? message.error_code) && (
+                      <span className="text-destructive">
+                        {message.failure_code ?? message.error_code}
+                      </span>
+                    )}
+                  </div>
+                  {message.direction === "outbound" && message.failure_reason && (
+                    <p className="mt-1 text-[11px] text-destructive">
+                      {message.failure_reason}
+                      {message.failure_class === "permanent"
+                        ? " Future automated SMS is suppressed for this lead."
+                        : message.failure_class === "temporary"
+                          ? " Temporary problem — no automatic retry was sent."
+                          : ""}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-border p-4">
+              <textarea
+                value={reply}
+                onChange={(event) => setReply(event.target.value)}
+                rows={3}
+                placeholder="Type your reply…"
+                className="form-control min-h-24 py-2"
+              />
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-muted-foreground">
+                  {reply.length}/600 characters{fromAi ? " · AI draft (edited by you)" : ""}
+                </span>
+                <button
+                  disabled={reply.trim().length < 2 || sendMutation.isPending}
+                  onClick={() => sendMutation.mutate()}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {sendMutation.isPending ? "Sending…" : "Send SMS"}
+                </button>
+              </div>
+              <SimulateReply onSubmit={(body) => simulateMutation.mutate(body)} />
+            </div>
+          </section>
 
           <section className="panel p-4">
             <div className="flex items-center justify-between gap-2">
@@ -409,29 +449,10 @@ function LeadDetail() {
               </div>
             )}
           </section>
+        </div>
 
-          <section className="panel p-4">
-            <h2 className="text-sm font-semibold">Lead details</h2>
-            <dl className="mt-3 space-y-2 text-sm">
-              <Detail label="Vehicle" value={lead.vehicle_type} />
-              <Detail label="Address" value={lead.service_address} />
-              <Detail label="Suburb" value={lead.suburb} />
-              <Detail label="Last cleaned" value={lead.last_cleaned_at} />
-              <Detail label="Main concerns" value={lead.main_concerns} />
-              <Detail label="Service intent" value={lead.service_intent} />
-              <Detail label="Email" value={lead.email} />
-              <Detail
-                label="Next follow-up"
-                value={
-                  conversation?.next_follow_up_at
-                    ? new Date(conversation.next_follow_up_at).toLocaleString("en-AU")
-                    : "None scheduled"
-                }
-              />
-            </dl>
-            <NotesEditor leadId={leadId} initial={lead.notes ?? ""} onSaved={invalidate} />
-          </section>
-
+        {/* What has happened, is booked, and is coming next for this customer. */}
+        <div className="min-w-0 space-y-4">
           <BookingPanel
             leadId={leadId}
             inboundMessages={(messages ?? [])
@@ -449,6 +470,17 @@ function LeadDetail() {
             onDone={invalidate}
             scheduleFn={scheduleJob}
           />
+
+          <ActivityPanel notifications={notifications} automationJobs={automationJobs} />
+
+          {lead.lead_origin === "crm_import" && (
+            <ImportedSourcePanel
+              sourceMetadata={lead.source_metadata as Record<string, unknown> | null}
+              serviceIntent={lead.service_intent}
+              vehicleType={lead.vehicle_type}
+              suburb={lead.suburb}
+            />
+          )}
         </div>
       </div>
     </div>
