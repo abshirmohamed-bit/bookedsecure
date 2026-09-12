@@ -174,7 +174,19 @@ export function BookingsCalendar() {
                       : "border-border/70 bg-background"
                   } ${cell.inMonth ? "" : "opacity-50"}`}
                 >
-                  <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{cell.day}</p>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDay(cell.key)}
+                    aria-label={`View all bookings on ${longDateLabel(`${cell.key}T12:00:00Z`, timezone)}`}
+                    className="mb-1 flex w-full items-center justify-between rounded-md px-1 py-0.5 text-left text-[11px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                  >
+                    <span>{cell.day}</span>
+                    {entries.length > 0 ? (
+                      <span className="rounded-full bg-primary/10 px-1.5 text-[10px] font-medium text-primary">
+                        {entries.length}
+                      </span>
+                    ) : null}
+                  </button>
                   <div className="space-y-1">
                     {entries.slice(0, 3).map((entry) => (
                       <button
@@ -191,7 +203,7 @@ export function BookingsCalendar() {
                     {entries.length > 3 ? (
                       <button
                         type="button"
-                        onClick={() => setSelected(entries[3] ?? null)}
+                        onClick={() => setSelectedDay(cell.key)}
                         className="block w-full rounded-md px-1.5 py-1 text-left text-[10px] font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
                       >
                         +{entries.length - 3} more
