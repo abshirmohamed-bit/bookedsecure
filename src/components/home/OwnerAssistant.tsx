@@ -17,7 +17,10 @@ import { approveReactivation } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { saveCrmImportBatch } from "@/lib/csv-import.functions";
 import { MAX_CSV_BYTES } from "@/lib/csv-import";
-import { completeAssistantMessage } from "@/lib/assistant-history.functions";
+import {
+  completeAssistantMessage,
+  getAssistantRememberedFile,
+} from "@/lib/assistant-history.functions";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
