@@ -331,20 +331,55 @@ export function ServiceChooser({
           <p className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
             Your selection
           </p>
-          <ul className="mt-1.5 flex flex-wrap gap-1.5">
-            {chosenOptions.map((option) => (
-              <li key={option.value}>
-                <button
-                  type="button"
-                  onClick={() => toggleService(option)}
-                  className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-xs font-semibold text-foreground"
-                  aria-label={`Remove ${option.label}`}
+          <ul className="mt-1.5 space-y-1">
+            {chosenOptions.map((option) => {
+              const count = quantities[option.value] ?? 1;
+              return (
+                <li
+                  key={option.value}
+                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 py-1 pl-2.5 pr-1"
                 >
-                  {option.label}
-                  <X className="h-3 w-3" aria-hidden="true" />
-                </button>
-              </li>
-            ))}
+                  <span className="min-w-0 truncate text-xs font-semibold text-foreground">
+                    {option.label}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card"
+                    role="group"
+                    aria-label={`Vehicles for ${option.label}`}
+                  >
+                    <button
+                      type="button"
+                      disabled={busy || count <= 1}
+                      onClick={() => adjustQuantity(option.value, -1)}
+                      aria-label={`Fewer vehicles for ${option.label}`}
+                      className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
+                    >
+                      <Minus className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                    <span className="min-w-[3.4rem] text-center text-[0.65rem] font-semibold text-foreground">
+                      {count} {count === 1 ? "vehicle" : "vehicles"}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busy || count >= MAX_SERVICE_QUANTITY}
+                      onClick={() => adjustQuantity(option.value, 1)}
+                      aria-label={`More vehicles for ${option.label}`}
+                      className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
+                    >
+                      <Plus className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleService(option)}
+                    className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+                    aria-label={`Remove ${option.label}`}
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           {chosenOptions.some((option) => (option.card?.extras.length ?? 0) > 0) && (
             <div className="mt-2 space-y-2 border-t border-border pt-2">
