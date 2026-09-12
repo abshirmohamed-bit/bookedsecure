@@ -99,6 +99,23 @@ describe("filter contract", () => {
       source: "all",
       sms: "all",
       scope: "deleted",
+      search: "",
+    });
+  });
+
+  it("trims and caps the free-text search term", () => {
+    expect(normaliseFilters({ search: "  sam  " }).search).toBe("sam");
+    expect(normaliseFilters({ search: "x".repeat(200) }).search).toHaveLength(120);
+    expect(normaliseFilters(null).search).toBe("");
+  });
+
+  it("only adds a search predicate when a term is present", () => {
+    expect(leadFilterPredicates(TENANT, normaliseFilters(null)).some((p) => p.kind === "search")).toBe(
+      false,
+    );
+    expect(leadFilterPredicates(TENANT, normaliseFilters({ search: "sam" }))).toContainEqual({
+      kind: "search",
+      value: "sam",
     });
   });
 
