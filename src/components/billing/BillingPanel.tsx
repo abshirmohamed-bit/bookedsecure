@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
@@ -6,13 +6,16 @@ import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMyBilling, openBillingPortal, startSubscriptionCheckout } from "@/lib/subscription.functions";
+import { startCreditTopup } from "@/lib/sms/messaging-account.functions";
 import { describeSubscription, type BillingInterval } from "@/lib/subscription";
-import { formatAud } from "@/lib/sms/credit-packs";
+import { CREDIT_PACKS, formatAud } from "@/lib/sms/credit-packs";
 import type { Plan } from "@/lib/plans";
 import { getStripe, getStripeEnvironment, isTestModePayments } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
 
 export const MY_BILLING_KEY = ["my-billing"] as const;
+/** Anchor used by other pages (Messaging) to land on the credit packs. */
+export const CREDITS_ANCHOR = "credits";
 
 export function useMyBilling() {
   const fetchBilling = useServerFn(getMyBilling);
@@ -33,25 +36,47 @@ function planPoints(plan: Plan): string[] {
   ].filter((p): p is string => Boolean(p));
 }
 
+/** One embedded Stripe form for both plan checkout and credit packs. */
+type ActiveCheckout = { clientSecret: string; label: string; kind: "plan" | "credits" };
+
 export function BillingPanel() {
   const billing = useMyBilling();
   const queryClient = useQueryClient();
   const checkout = useServerFn(startSubscriptionCheckout);
+  const buyCredits = useServerFn(startCreditTopup);
   const portal = useServerFn(openBillingPortal);
   const [interval, setInterval] = useState<BillingInterval>("month");
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [chosenPlan, setChosenPlan] = useState<string | null>(null);
+  const [active, setActive] = useState<ActiveCheckout | null>(null);
+
+  // Arriving from Messaging (“Top up credits”) scrolls straight to the packs.
+  useEffect(() => {
+    if (!billing.data || active) return;
+    if (window.location.hash !== `#${CREDITS_ANCHOR}`) return;
+    document.getElementById(CREDITS_ANCHOR)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [billing.data, active]);
 
   const checkoutMutation = useMutation({
     mutationFn: async (planId: string) => {
       const result = await checkout({ data: { planId, interval, environment: getStripeEnvironment(), returnPath: "/settings/billing" } });
       if ("error" in result) throw new Error(result.error);
-      return result.clientSecret;
+      const planName = billing.data?.plans.find((p) => p.id === planId)?.name ?? "Plan";
+      return { clientSecret: result.clientSecret, label: `${planName} · billed ${interval === "year" ? "yearly" : "monthly"}` };
     },
-    onSuccess: (secret, planId) => {
-      setChosenPlan(planId);
-      setClientSecret(secret);
+    onSuccess: ({ clientSecret, label }) => setActive({ clientSecret, label, kind: "plan" }),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const topupMutation = useMutation({
+    mutationFn: async (packId: string) => {
+      const result = await buyCredits({ data: { packId, environment: getStripeEnvironment(), returnPath: "/settings/billing" } });
+      if ("error" in result && result.error) throw new Error(result.error);
+      const pack = CREDIT_PACKS.find((p) => p.id === packId);
+      return {
+        clientSecret: (result as { clientSecret: string }).clientSecret,
+        label: pack ? `${pack.label} · ${formatAud(pack.amountCents)}` : "Text credits",
+      };
     },
+    onSuccess: ({ clientSecret, label }) => setActive({ clientSecret, label, kind: "credits" }),
     onError: (error: Error) => toast.error(error.message),
   });
 
@@ -67,6 +92,18 @@ export function BillingPanel() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  function closeCheckout() {
+    setActive(null);
+    checkoutMutation.reset();
+    topupMutation.reset();
+  }
+
+  function refreshAfterPayment() {
+    void queryClient.invalidateQueries({ queryKey: MY_BILLING_KEY });
+    void queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
+    void queryClient.invalidateQueries({ queryKey: ["settings"] });
+  }
+
   if (billing.isLoading) return <p className="text-sm text-muted-foreground">Loading your plan…</p>;
   if (billing.isError || !billing.data) {
     return <p className="text-sm text-destructive">Could not load billing right now.</p>;
@@ -78,37 +115,32 @@ export function BillingPanel() {
   const hasSubscription = Boolean(data.subscription.stripeSubscriptionId) && data.subscription.status !== "canceled";
   const usedPct = data.usage ? Math.min(100, Math.round((data.usage.segmentsUsed / Math.max(1, data.usage.includedSegments)) * 100)) : 0;
 
-  if (clientSecret) {
+  if (active) {
     return (
       <section className="space-y-3">
-        <button
-          type="button"
-          onClick={() => {
-            setClientSecret(null);
-            checkoutMutation.reset();
-          }}
-          className="text-xs font-medium text-muted-foreground underline"
-        >
-          Back to plans
+        <button type="button" onClick={closeCheckout} className="text-xs font-medium text-muted-foreground underline">
+          {active.kind === "plan" ? "Back to plans" : "Choose a different amount"}
         </button>
         {isTestModePayments() ? (
           <p className="rounded-md border border-border bg-secondary/40 p-2 text-xs text-muted-foreground">
             Payments are in test mode — no real money moves.
           </p>
         ) : null}
-        <p className="text-sm text-muted-foreground">
-          {data.plans.find((p) => p.id === chosenPlan)?.name ?? "Plan"} · billed {interval === "year" ? "yearly" : "monthly"}
-        </p>
+        <p className="text-sm text-muted-foreground">{active.label}</p>
         <div className="rounded-md bg-background p-1">
           <EmbeddedCheckoutProvider
+            key={active.clientSecret}
             stripe={getStripe()}
             options={{
-              clientSecret,
+              clientSecret: active.clientSecret,
               onComplete: () => {
-                toast.success("Payment received — your plan is switching on.");
-                setClientSecret(null);
-                void queryClient.invalidateQueries({ queryKey: MY_BILLING_KEY });
-                void queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
+                toast.success(
+                  active.kind === "plan"
+                    ? "Payment received — your plan is switching on."
+                    : "Payment received — your credits will appear in a moment.",
+                );
+                setActive(null);
+                refreshAfterPayment();
               },
             }}
           >
@@ -118,6 +150,7 @@ export function BillingPanel() {
       </section>
     );
   }
+
 
   return (
     <div className="space-y-6">
@@ -235,6 +268,41 @@ export function BillingPanel() {
       ) : (
         <p className="text-sm text-muted-foreground">Only the business owner can change the plan.</p>
       )}
+
+      <section id={CREDITS_ANCHOR} className="scroll-mt-4 space-y-3">
+        <div>
+          <h3 className="text-base font-semibold">Text credits</h3>
+          <p className="text-sm text-muted-foreground">
+            One credit sends one text once your included texts are used up — {data.plan.overageCents}c each. Credits never expire.
+          </p>
+        </div>
+        {data.access !== "full" ? (
+          <p className="rounded-md border border-border bg-secondary/40 p-3 text-sm text-muted-foreground">
+            Choose a plan first — every plan includes texts each month, and credit packs top that up.
+          </p>
+        ) : !isOwner ? (
+          <p className="text-sm text-muted-foreground">Only the business owner can buy credits.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {CREDIT_PACKS.map((pack) => (
+              <button
+                key={pack.id}
+                type="button"
+                onClick={() => topupMutation.mutate(pack.id)}
+                disabled={topupMutation.isPending}
+                className="flex flex-col rounded-lg border border-border bg-card p-4 text-left hover:border-primary disabled:opacity-60"
+              >
+                <span className="text-base font-semibold">{pack.label}</span>
+                <span className="mt-1 text-2xl font-semibold">{formatAud(pack.amountCents)}</span>
+                <span className="mt-1 text-xs text-muted-foreground">{(pack.amountCents / pack.credits).toFixed(0)}c per text</span>
+                <span className="mt-3 rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground">
+                  {topupMutation.isPending && topupMutation.variables === pack.id ? "Opening secure payment…" : "Buy credits"}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -491,7 +491,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
             },
             purchasedCreditBalance: account?.credit_balance ?? null,
             dailySendCap: account?.daily_send_cap ?? null,
-            note: "Buying credits, numbers and billing changes happen on the Messaging page, not through the assistant.",
+            note: "Buying credits and plan changes happen in Plan & billing, not through the assistant.",
           },
           followUpRules: rules ?? [],
           availability,

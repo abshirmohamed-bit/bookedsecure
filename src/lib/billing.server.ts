@@ -214,7 +214,7 @@ async function claimEvent(event: StripeEventLike): Promise<boolean> {
   const { error } = await supabaseAdmin.from("stripe_events").insert({
     stripe_event_id: event.id,
     event_type: event.type,
-    processing_status: "processing",
+    processing_status: "received",
     payload_reference: {
       object_id: event.data?.object?.id ?? null,
       object_type: event.data?.object?.object ?? null,
@@ -512,7 +512,15 @@ export async function processStripeEvent(event: StripeEventLike, env: StripeEnv 
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         if (isPlanSubscription(event.data.object)) {
-          detail = (await sub.syncSubscription(event.data.object)).detail;
+          // Re-read the live subscription: Stripe retries and out-of-order
+          // deliveries can carry a snapshot that is no longer true.
+          let fresh = event.data.object;
+          try {
+            fresh = await createStripeClient(env).subscriptions.retrieve(event.data.object.id);
+          } catch (error) {
+            console.error("[stripe-webhook] subscription refetch failed:", getStripeErrorMessage(error));
+          }
+          detail = (await sub.syncSubscription(fresh)).detail;
         }
         break;
       }
