@@ -164,21 +164,26 @@ export async function proposeCampaign(input: {
 export async function handleOwnerRequest(input: {
   businessId: string;
   userId: string;
+  role: "owner" | "staff" | "platform_admin";
   question: string;
   history?: Array<{ role: "user" | "assistant"; text: string }>;
+  /** A contact file the owner attached to this message, if any. */
+  attachment?: { filename: string; content: string } | null;
 }): Promise<{ answer: string; proposals: OwnerProposal[]; executed: string[] }> {
   try {
     const { runAssistantAgent } = await import("@/lib/assistant-agent.server");
     const result = await runAssistantAgent({
       businessId: input.businessId,
       userId: input.userId,
+      role: input.role,
       question: input.question,
       ...(input.history ? { history: input.history } : {}),
+      ...(input.attachment ? { attachment: input.attachment } : {}),
     });
-    if (result.answer.length > 0 || result.executed.length > 0) {
+    if (result.answer.length > 0 || result.executed.length > 0 || result.proposals.length > 0) {
       return {
         answer: result.answer.length > 0 ? result.answer : result.executed.join(" "),
-        proposals: [],
+        proposals: result.proposals as OwnerProposal[],
         executed: result.executed,
       };
     }
