@@ -473,34 +473,44 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                    // Keep the tapped cards so the customer's own
                                    // reply stays visual for the rest of the chat.
                                    // A service id may carry a vehicle count ("id*2").
-                                   const counts = new Map<string, number>();
-                                   const ids = value.startsWith("sel:")
-                                     ? value
-                                         .slice(4)
-                                         .split("|")
-                                         .join(",")
-                                         .split(",")
-                                         .map((entry) => {
-                                           const [id = "", count = ""] = entry.split("*");
-                                           const parsed = Number.parseInt(count, 10);
-                                           if (parsed > 1) counts.set(id, parsed);
-                                           return id;
-                                         })
-                                     : [value];
-                                   const cards = serviceOptions
-                                     .filter((option) => ids.includes(option.value))
-                                     .map((option) => {
-                                       const count = counts.get(option.value) ?? 1;
-                                       return {
-                                         label: count > 1 ? `${option.label} ×${count}` : option.label,
-                                         price: option.card?.price
-                                           ? count > 1
-                                             ? `${option.card.price} each`
-                                             : option.card.price
-                                           : null,
-                                         duration: option.card?.duration ?? null,
-                                       };
-                                     });
+                                    const counts = new Map<string, number>();
+                                    const [servicesPart = "", extrasPart = ""] = value.startsWith(
+                                      "sel:",
+                                    )
+                                      ? value.slice(4).split("|")
+                                      : [value, ""];
+                                    const ids = servicesPart.split(",").map((entry) => {
+                                      const [id = "", count = ""] = entry.split("*");
+                                      const parsed = Number.parseInt(count, 10);
+                                      if (parsed > 1) counts.set(id, parsed);
+                                      return id;
+                                    });
+                                    const extraIds = extrasPart.split(",").filter(Boolean);
+                                    const cards = serviceOptions
+                                      .filter((option) => ids.includes(option.value))
+                                      .map((option) => {
+                                        const count = counts.get(option.value) ?? 1;
+                                        const card = option.card ?? null;
+                                        return {
+                                          label: count > 1 ? `${option.label} ×${count}` : option.label,
+                                          price: card?.price
+                                            ? count > 1
+                                              ? `${card.price} each`
+                                              : card.price
+                                            : null,
+                                          duration: card?.duration ?? null,
+                                          description: card?.description ?? null,
+                                          includes: card?.includes ?? null,
+                                          excludes: card?.excludes ?? null,
+                                          note: card?.note ?? null,
+                                          extras: (card?.extras ?? [])
+                                            .filter((extra) => extraIds.includes(extra.id))
+                                            .map((extra) => ({
+                                              name: extra.name,
+                                              price: extra.price,
+                                            })),
+                                        };
+                                      });
                                    rememberSelection(label, cards);
                                    send(value, label);
                                 }}
