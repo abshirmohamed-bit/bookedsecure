@@ -1101,6 +1101,7 @@ export type Database = {
           id: string
           pack_id: string
           requested_by: string | null
+          source: string
           status: string
           stripe_checkout_session_id: string | null
           stripe_payment_intent_id: string | null
@@ -1117,6 +1118,7 @@ export type Database = {
           id?: string
           pack_id: string
           requested_by?: string | null
+          source?: string
           status?: string
           stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -1133,6 +1135,7 @@ export type Database = {
           id?: string
           pack_id?: string
           requested_by?: string | null
+          source?: string
           status?: string
           stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -2987,6 +2990,11 @@ export type Database = {
       texto_accounts: {
         Row: {
           allocated_credits: number
+          auto_topup_attempted_at: string | null
+          auto_topup_enabled: boolean
+          auto_topup_failures: number
+          auto_topup_pack_id: string
+          auto_topup_threshold: number
           business_id: string
           created_at: string
           credit_balance: number
@@ -3002,6 +3010,11 @@ export type Database = {
         }
         Insert: {
           allocated_credits?: number
+          auto_topup_attempted_at?: string | null
+          auto_topup_enabled?: boolean
+          auto_topup_failures?: number
+          auto_topup_pack_id?: string
+          auto_topup_threshold?: number
           business_id: string
           created_at?: string
           credit_balance?: number
@@ -3017,6 +3030,11 @@ export type Database = {
         }
         Update: {
           allocated_credits?: number
+          auto_topup_attempted_at?: string | null
+          auto_topup_enabled?: boolean
+          auto_topup_failures?: number
+          auto_topup_pack_id?: string
+          auto_topup_threshold?: number
           business_id?: string
           created_at?: string
           credit_balance?: number
