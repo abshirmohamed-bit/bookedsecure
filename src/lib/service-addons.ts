@@ -114,14 +114,14 @@ export function addonsPromptText(
   alreadyChosen: readonly string[],
 ): string {
   if (alreadyChosen.length > 0) {
-    return "Added. Anything else you'd like with it, or say no extras.";
+    return "Added. Anything else you'd like with it, or type an extra we haven't listed, or say no extras.";
   }
   const names = offered.map((addon) => addon.name);
   const list =
     names.length === 1
       ? names[0]!
       : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
-  return `Would you like any extras with that — ${list}? Say no extras if not.`;
+  return `Would you like any extras with that — ${list}? If what you want isn't there, type it in, or say no extras.`;
 }
 
 /** Plain-language summary for the owner alert and the booking summary. */
