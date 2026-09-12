@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowRight, CheckCircle2, MessageSquareText, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getSetupState } from "@/lib/site-onboarding.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -29,24 +31,32 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
+  const fetchSetupState = useServerFn(getSetupState);
+  const routingSession = useRef<string | null>(null);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
 
   useEffect(() => {
-    // /setup gates itself: an already set-up business is sent straight to Home.
-    if (!loading && session) navigate({ to: "/setup", replace: true });
-  }, [loading, session, navigate]);
+    if (loading || !session || routingSession.current === session.user.id) return;
+    routingSession.current = session.user.id;
+    void fetchSetupState()
+      .then((state) =>
+        navigate({ to: state.needsSetup ? "/setup" : "/dashboard", replace: true }),
+      )
+      .catch(() => navigate({ to: "/dashboard", replace: true }));
+  }, [fetchSetupState, loading, session, navigate]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -55,12 +65,16 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        toast.success("Account created. You can sign in now.");
-        setMode("signin");
+        if (data.session) {
+          toast.success("Account created.");
+        } else {
+          setConfirmationSent(true);
+          setMode("signin");
+          toast.success("Check your email to confirm your account before signing in.");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/setup", replace: true });
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not sign in");
@@ -111,6 +125,30 @@ function AuthPage() {
           </div>
 
           <form onSubmit={submit} className="space-y-4 p-5">
+            {confirmationSent ? (
+              <div className="rounded-md border border-border bg-secondary/50 p-3 text-sm">
+                <p className="font-medium">Confirm your email first</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  We sent a confirmation link to {email}. Open it before signing in.
+                </p>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="mt-2 h-auto p-0 text-xs"
+                  onClick={async () => {
+                    const { error } = await supabase.auth.resend({
+                      type: "signup",
+                      email,
+                      options: { emailRedirectTo: `${window.location.origin}/` },
+                    });
+                    if (error) toast.error(error.message);
+                    else toast.success("Confirmation email sent again.");
+                  }}
+                >
+                  Resend confirmation email
+                </Button>
+              </div>
+            ) : null}
             {mode === "signup" && (
               <>
                 <label className="block text-sm">

@@ -862,6 +862,7 @@ export async function sendSms(input: {
   // against the hard cap before contacting the carrier. Simulated sends
   // (e.g. the Glocast environment) never touch a carrier and are exempt.
   let pilotPeriodId: string | null = null;
+  let usesPurchasedCredit = false;
   if (provider.name !== "simulated") {
     const { authorizeLiveSend } = await import("@/lib/commercial.server");
     const gate = await authorizeLiveSend(input.businessId, segments);
@@ -869,6 +870,7 @@ export async function sendSms(input: {
       return { sent: false, retriable: false, reason: gate.reason };
     }
     pilotPeriodId = gate.periodId;
+    usesPurchasedCredit = gate.overage;
   }
 
   // Texto tenant account checks: active account, non-empty credit balance, and
@@ -1051,8 +1053,9 @@ export async function sendSms(input: {
     providerCost: result.providerCost ?? 0,
   });
 
-  // Keep the local Texto credit ledger in sync after a successful acceptance.
-  if (provider.name === "texto") {
+  // Bought credits fund overage regardless of which carrier delivered it.
+  // Texto also consumes its provider-side credit for included sends.
+  if (usesPurchasedCredit || provider.name === "texto") {
     await recordMessageSpend(input.businessId, segments);
   }
 
