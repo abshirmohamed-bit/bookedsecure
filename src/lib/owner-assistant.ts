@@ -173,6 +173,8 @@ export function buildAssistantSystemPrompt(input: {
   localTime: string;
   localWeekday: string;
   hasAttachment?: boolean;
+  /** A file uploaded earlier in this conversation that is still available. */
+  rememberedFilename?: string | null;
 }): string {
   const who = input.businessName?.trim() || "this business";
   const isOwner = input.role !== "staff";

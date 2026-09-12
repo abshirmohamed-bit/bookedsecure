@@ -91,7 +91,10 @@ export async function runAssistantAgent(input: {
       localDate: local.date,
       localTime: local.time,
       localWeekday: local.weekday,
-      hasAttachment: Boolean(input.attachment),
+      hasAttachment: Boolean(input.attachment) && !input.attachmentRemembered,
+      ...(input.attachment && input.attachmentRemembered
+        ? { rememberedFilename: input.attachment.filename }
+        : {}),
     }),
     messages,
     tools,
