@@ -57,6 +57,8 @@ async function audit(businessId: string, eventType: string, metadata: Record<str
   });
 }
 
+const ENVS: StripeEnv[] = ["sandbox", "live"];
+
 /** The card to charge: from the business's most recent successful payment. */
 async function findSavedCard(businessId: string): Promise<{
   env: StripeEnv;
@@ -67,7 +69,7 @@ async function findSavedCard(businessId: string): Promise<{
   // usage), then fall back to the subscription's payment method.
   const { data: lastTopup } = await supabaseAdmin
     .from("credit_topups")
-    .select("stripe_payment_intent_id, environment")
+    .select("stripe_payment_intent_id")
     .eq("business_id", businessId)
     .eq("status", "paid")
     .not("stripe_payment_intent_id", "is", null)
@@ -75,55 +77,47 @@ async function findSavedCard(businessId: string): Promise<{
     .limit(1)
     .maybeSingle();
 
-  const candidates: Array<{ env: StripeEnv; paymentIntentId: string | null }> = [];
-  if (lastTopup?.stripe_payment_intent_id) {
-    candidates.push({
-      env: lastTopup.environment === "live" ? "live" : "sandbox",
-      paymentIntentId: lastTopup.stripe_payment_intent_id,
-    });
-  }
-
   const { data: sub } = await supabaseAdmin
     .from("businesses")
     .select("stripe_customer_id, stripe_subscription_id, subscription_status")
     .eq("id", businessId)
     .maybeSingle();
-  if (
-    sub?.stripe_customer_id &&
-    ["active", "trialing", "past_due"].includes(sub.subscription_status ?? "")
-  ) {
-    candidates.push({
-      env: lastTopup?.environment === "live" ? "live" : "sandbox",
-      paymentIntentId: null,
-    });
-  }
 
-  for (const candidate of candidates) {
-    try {
-      const stripe = createStripeClient(candidate.env);
-      if (candidate.paymentIntentId) {
-        const intent = await stripe.paymentIntents.retrieve(candidate.paymentIntentId);
+  // Rows don't record which Stripe environment they were paid in, so each
+  // source is tried in both; a wrong environment simply fails the lookup.
+  for (const env of ENVS) {
+    const stripe = createStripeClient(env);
+    if (lastTopup?.stripe_payment_intent_id) {
+      try {
+        const intent = await stripe.paymentIntents.retrieve(lastTopup.stripe_payment_intent_id);
         const paymentMethod =
           typeof intent.payment_method === "string"
             ? intent.payment_method
             : (intent.payment_method?.id ?? null);
         const customerId =
           typeof intent.customer === "string" ? intent.customer : (intent.customer?.id ?? null);
-        if (paymentMethod && customerId) {
-          return { env: candidate.env, customerId, paymentMethodId: paymentMethod };
-        }
-      } else if (sub?.stripe_subscription_id) {
+        if (paymentMethod && customerId) return { env, customerId, paymentMethodId: paymentMethod };
+      } catch {
+        // not in this environment — try the next source
+      }
+    }
+    if (
+      sub?.stripe_customer_id &&
+      sub.stripe_subscription_id &&
+      ["active", "trialing", "past_due"].includes(sub.subscription_status ?? "")
+    ) {
+      try {
         const subscription = await stripe.subscriptions.retrieve(sub.stripe_subscription_id);
         const paymentMethod =
           typeof subscription.default_payment_method === "string"
             ? subscription.default_payment_method
             : (subscription.default_payment_method?.id ?? null);
         if (paymentMethod) {
-          return { env: candidate.env, customerId: sub.stripe_customer_id!, paymentMethodId: paymentMethod };
+          return { env, customerId: sub.stripe_customer_id, paymentMethodId: paymentMethod };
         }
+      } catch {
+        // not in this environment
       }
-    } catch (error) {
-      console.error("[auto-topup] saved card lookup failed:", getStripeErrorMessage(error));
     }
   }
   return null;
