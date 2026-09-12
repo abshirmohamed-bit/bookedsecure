@@ -517,7 +517,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         {
           const { planGateMessage } = await import("@/lib/subscription.server");
-          const blocked = await planGateMessage(businessId, "automation_custom");
+          const blocked = await planGateMessage(ctx.businessId, "automation_custom");
           if (blocked) return fail(blocked);
         }
         const denied = ownerOnly(ctx);
@@ -651,7 +651,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async ({ leadId, step, messageTemplate, delayMinutes, reset }) => {
         {
           const { planGateMessage } = await import("@/lib/subscription.server");
-          const blocked = await planGateMessage(businessId, "automation_custom");
+          const blocked = await planGateMessage(ctx.businessId, "automation_custom");
           if (blocked) return fail(blocked);
         }
         const { data: lead } = await supabaseAdmin

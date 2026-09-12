@@ -88,6 +88,16 @@ export async function requirePlanFeature(businessId: string, feature: PlanFeatur
   return plan;
 }
 
+/** Non-throwing variant for Assistant tools: the upgrade message, or null when allowed. */
+export async function planGateMessage(businessId: string, feature: PlanFeature): Promise<string | null> {
+  try {
+    await requirePlanFeature(businessId, feature);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 /**
  * Team seats: Essentials allows a fixed number of active members, Pro is
  * unlimited. Called before a member is (re)activated or invited.
