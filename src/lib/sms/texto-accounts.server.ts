@@ -526,15 +526,18 @@ export async function provisionTextoAccount(input: {
   }
 
   try {
-    if (liveAccountProvisioning()) {
+    // Sub-accounts are opt-in. Default shape: numbers live on the parent
+    // account and BookedSecure meters per tenant locally.
+    if (liveSubaccountProvisioning()) {
       if (!account.subaccount_id) {
-        const subaccountId = await createTextoSubAccount(businessName, ownerEmail);
+        const subaccountId = await createTextoSubAccount({ businessName, ownerEmail, dailyLimit: dailySendCap });
         account = await updateTextoAccount(account.id, {
           subaccount_id: subaccountId,
           subaccount_reference: subaccountId,
         });
+      } else {
+        await updateTextoSubAccount(account.subaccount_id, { daily_limit: dailySendCap });
       }
-      await updateTextoSubAccount(account.subaccount_id!, { daily_send_cap: dailySendCap });
       if (startingCredits > 0) {
         await allocateTextoCredits(account.subaccount_id!, startingCredits);
       }
@@ -547,15 +550,49 @@ export async function provisionTextoAccount(input: {
       provisioned_at: nowIso(),
     });
 
-    const available = await listAvailableNumbers();
-    const nextNumber = available[0];
-    if (!nextNumber) {
+    // Refresh the pool from Texto first so a number bought in the dashboard
+    // is picked up without an operator having to type it in.
+    if (liveAccountProvisioning()) {
+      await syncNumbersFromTexto().catch((error) =>
+        console.error("[texto] pool sync before assignment failed:", error),
+      );
+    }
+
+    // Claim the next free number atomically: the conditional update only
+    // succeeds for one caller when two activations race for the same row.
+    let number: TextoNumber | null = null;
+    for (const candidate of await listAvailableNumbers()) {
+      const { data: claimed } = await supabaseAdmin
+        .from("texto_numbers")
+        .update({
+          status: "assigned",
+          assigned_business_id: businessId,
+          assigned_at: nowIso(),
+          recalled_at: null,
+          updated_at: nowIso(),
+        })
+        .eq("id", candidate.id)
+        .eq("status", "available")
+        .is("assigned_business_id", null)
+        .select("*")
+        .maybeSingle();
+      if (claimed) {
+        number = claimed;
+        break;
+      }
+    }
+
+    if (!number) {
       account = await updateTextoAccount(account.id, { provisioning_state: "queued_no_number" });
       await auditEvent({
         businessId,
         eventType: "texto_provision_queued_no_number",
         metadata: { account_id: account.id },
       });
+      await notifyPlatformOperator(
+        `Texto number needed — ${businessName} (business ${businessId}) is subscribed but no dedicated number is free. Buy one in Texto, then run "Sync numbers" and "Retry" in /admin/messaging-numbers.`,
+        { kind: "texto_queued_no_number", business_id: businessId },
+      );
       return {
         ok: false,
         account,
@@ -565,17 +602,8 @@ export async function provisionTextoAccount(input: {
       };
     }
 
-    const number = await assignPoolNumber(businessId, nextNumber.id);
-
-    if (liveAccountProvisioning() && account.subaccount_id) {
-      const { providerNumberId } = await assignTextoProviderNumber(
-        account.subaccount_id,
-        number.number,
-      );
-      await supabaseAdmin
-        .from("texto_numbers")
-        .update({ provider_number_id: providerNumberId })
-        .eq("id", number.id);
+    if (liveSubaccountProvisioning() && account.subaccount_id) {
+      await assignTextoProviderNumber(account.subaccount_id, number.number);
     }
 
     await ensurePrimarySender(businessId, account.id, number.number);
