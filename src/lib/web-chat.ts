@@ -92,6 +92,11 @@ export type WebChatCollected = {
   /** Extras chosen with the service. Only the tenant's own linked add-ons. */
   addon_ids?: string[] | null;
   addon_names?: string[] | null;
+  /**
+   * Extras the customer typed that this tenant does not list. Kept verbatim as a
+   * request for the owner: never priced, never treated as a bookable add-on.
+   */
+  addon_requests?: string[] | null;
   /** True when the chosen service actually has extras to offer. */
   addons_offered?: boolean | null;
   /** Set when the customer asked to add or change their email address. */
