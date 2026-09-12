@@ -322,6 +322,9 @@ export function OwnerAssistant({
     setAttachment(null);
     mutation.mutate({ question: text, attachment: pending }, { onSettled: () => {
       onConversationChanged?.();
+      if (pending) {
+        void queryClient.invalidateQueries({ queryKey: ["assistant-remembered-file", threadId] });
+      }
       requestAnimationFrame(() => textareaRef.current?.focus());
     } });
   }
@@ -632,20 +635,31 @@ export function OwnerAssistant({
                 </button>
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={chooseFile}
-                disabled={attachMutation.isPending}
-                title="Attach a contact file to import"
-                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:min-h-8 sm:px-3"
-              >
-                {attachMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <UploadCloud className="h-4 w-4" aria-hidden="true" />
-                )}
-                <span className="hidden sm:inline">Attach CSV</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={chooseFile}
+                  disabled={attachMutation.isPending}
+                  title="Attach a contact file to import"
+                  className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:min-h-8 sm:px-3"
+                >
+                  {attachMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <UploadCloud className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  <span className="hidden sm:inline">Attach CSV</span>
+                </button>
+                {remembered.data ? (
+                  <span
+                    title="Kept from earlier — just ask about it, no need to upload again"
+                    className="inline-flex min-h-10 max-w-[11rem] items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground sm:min-h-8"
+                  >
+                    <Paperclip className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    <span className="truncate">Saved: {remembered.data.filename}</span>
+                  </span>
+                ) : null}
+              </>
             )}
             <input
               ref={fileRef}
