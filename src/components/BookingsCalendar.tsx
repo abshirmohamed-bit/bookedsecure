@@ -45,6 +45,7 @@ export function BookingsCalendar() {
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), monthIndex: today.getMonth() });
   const [selected, setSelected] = useState<BookingEntry | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const deleteJob = useServerFn(deleteBookingRecord);
   const removeJob = useMutation({
@@ -68,6 +69,7 @@ export function BookingsCalendar() {
   );
   const cells = useMemo(() => monthGrid(view.year, view.monthIndex), [view]);
   const todayKey = dayKey(new Date().toISOString(), timezone);
+  const dayEntries = selectedDay ? (byDay.get(selectedDay) ?? []) : [];
 
   if (isLoading) {
     return <p className="py-16 text-center text-sm text-muted-foreground">Loading bookings…</p>;
@@ -172,7 +174,19 @@ export function BookingsCalendar() {
                       : "border-border/70 bg-background"
                   } ${cell.inMonth ? "" : "opacity-50"}`}
                 >
-                  <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{cell.day}</p>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDay(cell.key)}
+                    aria-label={`View all bookings on ${longDateLabel(`${cell.key}T12:00:00Z`, timezone)}`}
+                    className="mb-1 flex w-full items-center justify-between rounded-md px-1 py-0.5 text-left text-[11px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                  >
+                    <span>{cell.day}</span>
+                    {entries.length > 0 ? (
+                      <span className="rounded-full bg-primary/10 px-1.5 text-[10px] font-medium text-primary">
+                        {entries.length}
+                      </span>
+                    ) : null}
+                  </button>
                   <div className="space-y-1">
                     {entries.slice(0, 3).map((entry) => (
                       <button
@@ -189,7 +203,7 @@ export function BookingsCalendar() {
                     {entries.length > 3 ? (
                       <button
                         type="button"
-                        onClick={() => setSelected(entries[3] ?? null)}
+                        onClick={() => setSelectedDay(cell.key)}
                         className="block w-full rounded-md px-1.5 py-1 text-left text-[10px] font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"
                       >
                         +{entries.length - 3} more
@@ -245,6 +259,78 @@ export function BookingsCalendar() {
           ) : null}
         </div>
       </section>
+
+      {selectedDay ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-end bg-foreground/25 sm:items-center sm:justify-center sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Day bookings"
+        >
+          <button
+            type="button"
+            aria-label="Close day bookings"
+            className="absolute inset-0 -z-10 h-full w-full cursor-default"
+            onClick={() => setSelectedDay(null)}
+          />
+          <div className="max-h-[85dvh] w-full min-w-0 overflow-y-auto rounded-t-2xl border border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-w-md sm:rounded-2xl">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate font-heading text-base font-semibold">
+                  {longDateLabel(`${selectedDay}T12:00:00Z`, timezone)}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {dayEntries.length === 0
+                    ? "No bookings this day"
+                    : `${dayEntries.length} booking${dayEntries.length === 1 ? "" : "s"} this day`}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-10 shrink-0"
+                aria-label="Close day bookings"
+                onClick={() => setSelectedDay(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            {dayEntries.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Nothing booked on this day.
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {dayEntries.map((entry) => (
+                  <li key={entry.jobId}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(entry)}
+                      className="min-h-14 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-left transition hover:border-primary/50 hover:bg-secondary"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold">
+                          {customerLabel(entry.customerName)}
+                        </p>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${stateClasses(entry.state)}`}
+                        >
+                          {entry.scheduledAt ? timeLabel(entry.scheduledAt, timezone) : "—"}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {entry.serviceName ?? "Service to confirm"}
+                        {entry.suburb ? ` · ${entry.suburb}` : ""}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {selected ? (
         <div
