@@ -126,8 +126,8 @@ export const startCreditTopup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => TopupSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     const { createCreditTopupCheckout } = await import("@/lib/sms/credit-topups.server");
@@ -149,8 +149,8 @@ export const setMessagingPaused = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => PauseSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -180,8 +180,8 @@ export const requestCancellation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => CancellationSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

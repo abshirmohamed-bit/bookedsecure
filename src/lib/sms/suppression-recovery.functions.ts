@@ -20,7 +20,7 @@ export const resumeSuppressedSmsAutomation = createServerFn({ method: "POST" })
     );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { resumeSuppressedAutomation } = await import("@/lib/sms/suppression-recovery.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     await assertLeadOwnership(app.businessId, data.leadId);
     return resumeSuppressedAutomation(supabaseAdmin, {

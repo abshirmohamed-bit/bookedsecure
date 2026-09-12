@@ -63,9 +63,9 @@ export const deleteUnfinishedProspects = createServerFn({ method: "POST" })
     z.object({ conversationIds: z.array(z.string().uuid()).min(1).max(500) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { deleteUnfinishedConversations } = await import("@/lib/quote-funnel.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     return await deleteUnfinishedConversations({
       businessId: app.businessId,
       userId: context.userId,

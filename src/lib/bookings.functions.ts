@@ -41,9 +41,9 @@ export const deleteBookingRecord = createServerFn({ method: "POST" })
     z.object({ jobId: z.string().uuid(), reason: z.string().max(500).nullable().optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { deleteBooking } = await import("@/lib/bookings-write.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     return deleteBooking({
       businessId: app.businessId,
       userId: app.userId,

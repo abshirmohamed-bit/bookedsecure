@@ -25,7 +25,7 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
     }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { handleOwnerRequest } = await import("@/lib/owner-actions.server");
     const {
       loadAssistantThread,
@@ -33,7 +33,7 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
       rememberAssistantFile,
       latestAssistantFile,
     } = await import("@/lib/assistant-history.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     const fresh = data.attachment ?? null;
     const typed = normaliseOwnerQuestion(data.question);
 
@@ -101,9 +101,9 @@ export const confirmAssistantText = createServerFn({ method: "POST" })
     z.object({ leadId: z.string().uuid(), message: z.string().min(2).max(600) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, assertLeadOwnership } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
     const { sendSms } = await import("@/lib/lead-engine.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
     const result = await sendSms({
       businessId: app.businessId,
@@ -131,9 +131,9 @@ export const confirmOwnerStatusChange = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { applyStatusChange } = await import("@/lib/owner-actions.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     return applyStatusChange({
       businessId: app.businessId,
       userId: app.userId,
@@ -156,9 +156,9 @@ export const confirmAddonLinks = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { applyAddonLinks } = await import("@/lib/catalog-actions.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     return applyAddonLinks({
       businessId: app.businessId,
@@ -192,9 +192,9 @@ export const confirmLeadUpdate = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { applyLeadUpdate } = await import("@/lib/owner-lead-actions.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     return applyLeadUpdate({
       businessId: app.businessId,

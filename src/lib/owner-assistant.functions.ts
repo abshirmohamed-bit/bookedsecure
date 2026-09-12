@@ -22,9 +22,9 @@ export const askOwnerAssistant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => QuestionSchema.parse(input ?? {}))
   .handler(async ({ data, context }) => {
-    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireWriteContext } = await import("@/lib/app-context.server");
     const { answerOwnerQuestion } = await import("@/lib/owner-assistant.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    const app = await requireWriteContext(context.supabase, context.userId);
     return answerOwnerQuestion({
       businessId: app.businessId,
       question: normaliseOwnerQuestion(data.question),
