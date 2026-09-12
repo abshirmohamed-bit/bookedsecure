@@ -968,10 +968,19 @@ export function applyAnswer(
 
       const matched = matchAddons(value, remaining);
       if (matched.length === 0) {
-        return {
-          ok: false,
-          error: `I can add ${remaining.map((addon) => addon.name).join(", ")} — which one would you like, or say no extras?`,
-        };
+        // Nothing in this tenant's own list matches, so the customer's words are
+        // kept verbatim as a request for the owner. Never priced, never booked
+        // as an add-on, and the step closes so the conversation keeps moving.
+        const typed = value.replace(/[\s.,;:]+$/, "");
+        if (typed.length < 2 || typed.length > 120) {
+          return {
+            ok: false,
+            error: `I can add ${remaining.map((addon) => addon.name).join(", ")}, or tell me in a few words what extra you'd like.`,
+          };
+        }
+        next.addon_requests = [...(collected.addon_requests ?? []), typed];
+        next.addons_done = true;
+        return { ok: true, collected: next, echo: typed };
       }
       for (const addon of matched) {
         chosenIds.push(addon.id);
@@ -991,13 +1000,27 @@ export function applyAnswer(
       return { ok: true, collected: next, echo: value };
     }
     case "suburb": {
-      // Trailing sentence punctuation is never part of a suburb name.
-      const suburb = value.replace(/[\s.,;:]+$/, "");
-      if (suburb.length < 2) return { ok: false, error: "Please tell me the suburb." };
+      // Suburb and street address are asked in one question, so one answer may
+      // carry both. Trailing sentence punctuation is never part of either.
+      const split = splitSuburbAddress(value);
+      const suburb = split.suburb ?? "";
+      if (suburb.length < 2) {
+        return {
+          ok: false,
+          error: split.address
+            ? `Got ${split.address}. Which suburb is that in?`
+            : "Please tell me the suburb.",
+        };
+      }
       const rejection = shapeRejection("suburb", suburb);
       if (rejection) return { ok: false, error: rejection };
       next.suburb = suburb;
-      return { ok: true, collected: next, echo: suburb };
+      if (split.address && split.address.length <= 160) next.service_address = split.address;
+      return {
+        ok: true,
+        collected: next,
+        echo: next.service_address && split.address ? `${split.address}, ${suburb}` : suburb,
+      };
     }
     case "address": {
       const address = value.replace(/[\s.,;:]+$/, "");
