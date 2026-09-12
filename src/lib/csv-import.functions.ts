@@ -172,9 +172,18 @@ export const repairCrmImportPhones = createServerFn({ method: "POST" })
     const { repairPreviewBatch } = await import("@/lib/csv-import.server");
     const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
-    return repairPreviewBatch(supabaseAdmin, app.businessId, data.batchId, {
-      userId: app.userId,
-    });
+    try {
+      return await repairPreviewBatch(supabaseAdmin, app.businessId, data.batchId, {
+        userId: app.userId,
+      });
+    } catch (error) {
+      // A stale upload (deleted, or already saved) is not a failure: the
+      // preparation pass simply has nothing left to do. Throwing here blanked
+      // the import screen, so it is reported as a skipped run instead.
+      const message = error instanceof Error ? error.message : "";
+      if (/not found for this business|already been committed/i.test(message)) return null;
+      throw error;
+    }
   });
 
 
