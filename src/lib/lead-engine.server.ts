@@ -1379,7 +1379,7 @@ export async function processDueFollowUps(): Promise<{
   const { enqueueJob, processDueJobs } = await import("@/lib/jobs.server");
   const { data: due } = await supabaseAdmin
     .from("conversations")
-    .select("id, business_id, lead_id, follow_up_step, automation_paused, next_follow_up_at")
+    .select("id, business_id, lead_id, follow_up_step, automation_paused, next_follow_up_at, follow_up_overrides")
     .lte("next_follow_up_at", now.toISOString())
     .not("next_follow_up_at", "is", null)
     .limit(100);
