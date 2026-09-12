@@ -18,7 +18,7 @@ import {
  * occasional configuration destinations. Reuses the existing getSettings read
  * (fetched only once the menu is opened) — no new queries are introduced.
  */
-export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
+export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void; rail?: boolean }) {
   const [open, dispatch] = useReducer(accountMenuReducer, false);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -77,14 +77,14 @@ export function AccountMenu({ onSignOut }: { onSignOut: () => void }) {
         >
           {accountInitials(name, email)}
         </span>
-        <span className="hidden sm:inline">Account</span>
+        {!rail ? <span className="hidden sm:inline">Account</span> : null}
       </button>
 
       {open && (
         <div
           role="menu"
           aria-label="Account"
-          className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg"
+          className={rail ? "fixed bottom-3 left-14 z-[70] w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg" : "absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg"}
         >
           <div className="border-b border-border px-3 py-3">
             <p className="truncate text-sm font-medium text-foreground">
