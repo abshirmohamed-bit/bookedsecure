@@ -705,31 +705,25 @@ export function splitSuburbAddress(value: string): {
   const cleaned = value.replace(/[\s.,;:]+$/, "").trim();
   if (cleaned.length === 0) return { suburb: null, address: null };
 
+  // An address candidate must begin with a street number, so a phone number or
+  // any other stray digits in the answer are never mistaken for one.
+  const STREET = /^\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][a-z'\-.\s]*$/i;
+
   const parts = cleaned
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
   if (parts.length >= 2) {
-    const numbered = parts.filter((part) => /\d/.test(part));
-    const plain = parts.filter((part) => !/\d/.test(part));
-    if (numbered.length > 0 && plain.length > 0) {
-      return { suburb: plain[plain.length - 1]!, address: numbered.join(", ") };
+    const street = parts.find((part) => STREET.test(part));
+    const plain = parts.filter((part) => part !== street && !/\d/.test(part));
+    if (street && plain.length > 0) {
+      return { suburb: plain[plain.length - 1]!, address: street };
     }
   }
 
-  // "88 cumberland rd auburn" or "auburn 88 cumberland rd": the street number
-  // and what follows it is the address, whatever is left over is the suburb.
-  const street = cleaned.match(/\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][^,]*/i);
-  if (street) {
-    const address = street[0]!.trim();
-    const rest = cleaned
-      .replace(street[0]!, " ")
-      .replace(/\b(?:in|at|on|and|the|suburb|address|street|is|it'?s)\b/gi, " ")
-      .replace(/[,.;:]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    return { suburb: rest.length >= 2 ? rest : null, address };
-  }
+  // "88 cumberland rd" typed on its own, with or without the suburb after it.
+  const street = cleaned.match(/^\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][a-z'\-.\s]*$/i);
+  if (street) return { suburb: null, address: cleaned };
 
   return { suburb: cleaned, address: null };
 }
