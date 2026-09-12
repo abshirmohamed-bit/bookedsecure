@@ -1047,7 +1047,9 @@ export function applyAnswer(
     }
     case "suburb": {
       // Suburb and street address are asked in one question, so one answer may
-      // carry both. Trailing sentence punctuation is never part of either.
+      // carry both. A whole message carrying other fields is still refused, so
+      // nothing foreign is ever stored as a suburb or an address.
+      if (carriesOtherFields("suburb", value)) return { ok: false, error: FIELD_HINT.suburb };
       const split = splitSuburbAddress(value);
       const suburb = split.suburb ?? "";
       if (suburb.length < 2) {
