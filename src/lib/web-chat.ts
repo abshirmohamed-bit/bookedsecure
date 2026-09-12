@@ -797,18 +797,27 @@ export function applyAnswer(
         const extras = selection.addonIds
           .map((id) => allowed.find((addon) => addon.id === id))
           .filter((addon): addon is ServiceAddon => Boolean(addon));
+        // Vehicle counts: only for services actually chosen, only above one.
+        const quantities: Record<string, number> = {};
+        for (const entry of chosen) {
+          const count = selection.quantities[entry.id] ?? 1;
+          if (count > 1) quantities[entry.id] = count;
+        }
         next.service_id = primary.id;
         next.service_name = primary.name;
         next.typed_request = null;
         next.extra_service_ids = rest.map((entry) => entry.id);
         next.extra_service_names = rest.map((entry) => entry.name);
+        next.service_quantities = Object.keys(quantities).length > 0 ? quantities : null;
         next.addon_ids = extras.map((addon) => addon.id);
         next.addon_names = extras.map((addon) => addon.name);
         next.addons_offered = allowed.length > 0;
         // Extras were offered and answered on the cards, so the extras step is done.
         next.addons_done = true;
         const echo = [
-          chosen.map((entry) => entry.name).join(" + "),
+          chosen
+            .map((entry) => withQuantity(entry.name, quantities[entry.id] ?? 1))
+            .join(" + "),
           extras.length > 0 ? `with ${extras.map((addon) => addon.name).join(", ")}` : null,
         ]
           .filter(Boolean)
