@@ -84,16 +84,16 @@ async function findSavedCard(businessId: string): Promise<{
   }
 
   const { data: sub } = await supabaseAdmin
-    .from("subscriptions")
-    .select("stripe_customer_id, stripe_subscription_id, environment")
-    .eq("business_id", businessId)
-    .in("status", ["active", "trialing", "past_due"])
-    .order("created_at", { ascending: false })
-    .limit(1)
+    .from("businesses")
+    .select("stripe_customer_id, stripe_subscription_id, subscription_status")
+    .eq("id", businessId)
     .maybeSingle();
-  if (sub?.stripe_customer_id) {
+  if (
+    sub?.stripe_customer_id &&
+    ["active", "trialing", "past_due"].includes(sub.subscription_status ?? "")
+  ) {
     candidates.push({
-      env: sub.environment === "live" ? "live" : "sandbox",
+      env: lastTopup?.environment === "live" ? "live" : "sandbox",
       paymentIntentId: null,
     });
   }
