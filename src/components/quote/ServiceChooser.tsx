@@ -67,6 +67,8 @@ export function ServiceChooser({
   const [extras, setExtras] = useState<string[]>([]);
   /** Number of vehicles per chosen service; a missing entry means one. */
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  /** Which selected services currently show their extras inside the selection list. */
+  const [extrasOpen, setExtrasOpen] = useState<Record<string, boolean>>({});
   const [detail, setDetail] = useState<ServiceOption | null>(null);
 
   const chosenOptions = chosen
@@ -334,76 +336,92 @@ export function ServiceChooser({
           <ul className="mt-1.5 space-y-1">
             {chosenOptions.map((option) => {
               const count = quantities[option.value] ?? 1;
+              const cardExtras = option.card?.extras ?? [];
+              const hasExtras = cardExtras.length > 0;
+              const open = extrasOpen[option.value] ?? false;
+              const chosenCount = cardExtras.filter((extra) => extras.includes(extra.id)).length;
               return (
                 <li
                   key={option.value}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 py-1 pl-2.5 pr-1"
+                  className="rounded-lg border border-primary/40 bg-primary/10"
                 >
-                  <span className="min-w-0 truncate text-xs font-semibold text-foreground">
-                    {option.label}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card"
-                    role="group"
-                    aria-label={`Vehicles for ${option.label}`}
-                  >
-                    <button
-                      type="button"
-                      disabled={busy || count <= 1}
-                      onClick={() => adjustQuantity(option.value, -1)}
-                      aria-label={`Fewer vehicles for ${option.label}`}
-                      className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-1.5 py-1 pl-2.5 pr-1">
+                    <span className="min-w-0 truncate text-xs font-semibold text-foreground">
+                      {option.label}
+                    </span>
+                    {hasExtras && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        aria-expanded={open}
+                        aria-label={`Add-ons for ${option.label}`}
+                        onClick={() =>
+                          setExtrasOpen((current) => ({
+                            ...current,
+                            [option.value]: !open,
+                          }))
+                        }
+                        className={`inline-flex h-7 items-center gap-0.5 rounded-md border px-1.5 text-[0.62rem] font-semibold ${
+                          chosenCount > 0
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        <Plus className="h-3 w-3" aria-hidden="true" />
+                        <span>Add-ons{chosenCount > 0 ? ` ${chosenCount}` : ""}</span>
+                      </button>
+                    )}
+                    <span
+                      className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card"
+                      role="group"
+                      aria-label={`Vehicles for ${option.label}`}
                     >
-                      <Minus className="h-3 w-3" aria-hidden="true" />
-                    </button>
-                    <span className="min-w-[3.4rem] text-center text-[0.65rem] font-semibold text-foreground">
-                      {count} {count === 1 ? "vehicle" : "vehicles"}
+                      <button
+                        type="button"
+                        disabled={busy || count <= 1}
+                        onClick={() => adjustQuantity(option.value, -1)}
+                        aria-label={`Fewer vehicles for ${option.label}`}
+                        className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
+                      >
+                        <Minus className="h-3 w-3" aria-hidden="true" />
+                      </button>
+                      <span className="min-w-[3.4rem] text-center text-[0.65rem] font-semibold text-foreground">
+                        {count} {count === 1 ? "vehicle" : "vehicles"}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy || count >= MAX_SERVICE_QUANTITY}
+                        onClick={() => adjustQuantity(option.value, 1)}
+                        aria-label={`More vehicles for ${option.label}`}
+                        className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
+                      >
+                        <Plus className="h-3 w-3" aria-hidden="true" />
+                      </button>
                     </span>
                     <button
                       type="button"
-                      disabled={busy || count >= MAX_SERVICE_QUANTITY}
-                      onClick={() => adjustQuantity(option.value, 1)}
-                      aria-label={`More vehicles for ${option.label}`}
-                      className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
+                      onClick={() => toggleService(option)}
+                      className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+                      aria-label={`Remove ${option.label}`}
                     >
-                      <Plus className="h-3 w-3" aria-hidden="true" />
+                      <X className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => toggleService(option)}
-                    className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:text-foreground"
-                    aria-label={`Remove ${option.label}`}
-                  >
-                    <X className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {chosenOptions.some((option) => (option.card?.extras.length ?? 0) > 0) && (
-            <div className="mt-2 space-y-2 border-t border-border pt-2">
-              {chosenOptions.map((option) => {
-                const cardExtras = option.card?.extras ?? [];
-                if (cardExtras.length === 0) return null;
-                return (
-                  <div key={option.value}>
-                    <p className="truncate text-[0.65rem] font-semibold text-muted-foreground">
-                      Extras for {option.label}
-                    </p>
-                    <div className="mt-1 grid gap-1 sm:grid-cols-2">
+                  </div>
+                  {hasExtras && open && (
+                    <div className="grid gap-1 border-t border-primary/20 p-1.5 sm:grid-cols-2">
                       {cardExtras.map((extra) => {
                         const on = extras.includes(extra.id);
                         return (
                           <button
                             key={extra.id}
                             type="button"
+                            disabled={busy}
                             aria-pressed={on}
                             onClick={() => toggleExtra(extra.id)}
                             className={`grid min-h-9 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 rounded-md border px-2 py-1 text-left text-[0.65rem] ${
                               on
                                 ? "border-primary bg-primary/10 text-foreground"
-                                : "border-border bg-secondary text-muted-foreground"
+                                : "border-border bg-card text-muted-foreground"
                             }`}
                           >
                             <span className={`grid h-4 w-4 place-items-center rounded border ${on ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>
@@ -415,11 +433,11 @@ export function ServiceChooser({
                         );
                       })}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  )}
+                </li>
+              );
+            })}
+          </ul>
           <button
             type="button"
             disabled={busy}
