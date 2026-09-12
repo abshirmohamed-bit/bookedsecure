@@ -24,8 +24,25 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
   const [mobileHistory, setMobileHistory] = useState(false);
   const [websiteSetup, setWebsiteSetup] = useState(false);
   const [contextSlot, setContextSlot] = useState<HTMLElement | null>(null);
+  /** Visible screen height, so the on-screen keyboard shrinks the workspace
+   *  instead of pushing the composer/Send button out of view. */
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   useEffect(() => {
     setContextSlot(document.getElementById("assistant-context-slot"));
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const viewport = window.visualViewport;
+    const apply = () => setViewportHeight(viewport ? viewport.height : window.innerHeight);
+    apply();
+    viewport?.addEventListener("resize", apply);
+    viewport?.addEventListener("scroll", apply);
+    window.addEventListener("orientationchange", apply);
+    return () => {
+      viewport?.removeEventListener("resize", apply);
+      viewport?.removeEventListener("scroll", apply);
+      window.removeEventListener("orientationchange", apply);
+    };
   }, []);
   const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
   const home = useQuery({ queryKey: ["assistant-home"], queryFn: () => getHome() });
