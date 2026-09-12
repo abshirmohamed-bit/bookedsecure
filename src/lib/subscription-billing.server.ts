@@ -307,22 +307,43 @@ export async function handleSubscriptionInvoicePaid(invoice: any) {
 }
 
 /** First activation: make sure the tenant has a messaging account to send from. */
+/**
+ * First activation of a paid plan: give the tenant its dedicated number.
+ * Re-runs safely — an account that is already active with a number is a
+ * no-op, and a queued/failed one is retried. The previous sender is only
+ * switched off inside provisioning once a Texto number is actually assigned,
+ * so a tenant keeps sending on its old number until the new one is real.
+ */
+export async function provisionMessagingForBusiness(businessId: string) {
+  const { provisionTextoAccount } = await import("@/lib/sms/texto-accounts.server");
+  const [{ data: business }, { data: owner }] = await Promise.all([
+    supabaseAdmin.from("businesses").select("name").eq("id", businessId).maybeSingle(),
+    supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  return provisionTextoAccount({
+    businessId,
+    businessName: business?.name ?? "New business",
+    ownerEmail: owner?.email ?? "",
+    // Included SMS allowance is metered from the subscription period, not
+    // from Texto credits, so no seed credits are allocated here.
+    startingCredits: 0,
+  });
+}
+
 async function onActivated(businessId: string) {
   try {
-    const { getTextoAccount, provisionTextoAccount } = await import("@/lib/sms/texto-accounts.server");
-    const existing = await getTextoAccount(businessId);
-    if (!existing) {
-      const [{ data: business }, { data: owner }] = await Promise.all([
-        supabaseAdmin.from("businesses").select("name").eq("id", businessId).maybeSingle(),
-        supabaseAdmin.from("profiles").select("email").eq("business_id", businessId).order("created_at", { ascending: true }).limit(1).maybeSingle(),
-      ]);
-      await provisionTextoAccount({
-        businessId,
-        businessName: business?.name ?? "New business",
-        ownerEmail: owner?.email ?? "",
-        startingCredits: 0,
-      });
-    }
+    const result = await provisionMessagingForBusiness(businessId);
+    await audit(businessId, "subscription_activation_provisioning", {
+      ok: result.ok,
+      state: result.account.provisioning_state,
+      ...(result.ok ? { number: result.number.number } : { reason: result.reason, queued: result.queued }),
+    });
   } catch (error) {
     console.error("[subscription] messaging provisioning failed:", error);
   }
