@@ -1101,7 +1101,7 @@ async function scheduleNextFollowUp(input: {
 }) {
   const { data: conversation } = await supabaseAdmin
     .from("conversations")
-    .select("id, follow_up_step, automation_paused")
+    .select("id, follow_up_step, automation_paused, follow_up_overrides")
     .eq("lead_id", input.leadId)
     .maybeSingle();
   if (!conversation) return;
@@ -1123,7 +1123,7 @@ async function scheduleNextFollowUp(input: {
   }
 
   // Next *enabled* step: disabled steps are skipped, not treated as the end.
-  const { data: rule } = await supabaseAdmin
+  const { data: sharedRule } = await supabaseAdmin
     .from("automation_rules")
     .select("delay_minutes, step")
     .eq("business_id", input.businessId)
@@ -1133,7 +1133,10 @@ async function scheduleNextFollowUp(input: {
     .order("step", { ascending: true })
     .limit(1)
     .maybeSingle();
-
+  // This customer's own timing for the step, when the owner set one.
+  const rule = sharedRule
+    ? resolveFollowUpStep(sharedRule, parseFollowUpOverrides(conversation.follow_up_overrides))
+    : null;
 
   await supabaseAdmin
     .from("conversations")
