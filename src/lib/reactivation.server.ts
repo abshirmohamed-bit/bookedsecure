@@ -103,20 +103,40 @@ export function factsFromLead(
   };
 }
 
-/** Read-only: the dormant leads that qualify for reactivation right now. */
+/**
+ * Who a campaign is for. `dormant` is the classic win-back rule; `uncontacted`
+ * is any consented lead we have never texted (typical for a fresh import);
+ * `status` targets one inbox status; `leads` is an explicit list the owner
+ * named. Consent gates (opt-out, suppression, deleted, no mobile) apply to all.
+ */
+export type CampaignAudience =
+  | { kind: "dormant" }
+  | { kind: "uncontacted" }
+  | { kind: "status"; status: string }
+  | { kind: "leads"; leadIds: string[] };
+
+/** Read-only: the leads that qualify for a campaign right now. */
 export async function loadReactivationCandidates(
   businessId: string,
-  limit = 200,
+  audience: CampaignAudience = { kind: "dormant" },
 ): Promise<{ candidates: ReactivationCandidate[]; excluded: number }> {
-  const { data: leads } = await supabaseAdmin
+  // Every lead of the tenant is considered. A hard cap sorted oldest-first used
+  // to hide newly imported contacts behind older ones, so nothing ever drafted.
+  let query = supabaseAdmin
     .from("leads")
-    .select(LEAD_COLUMNS)
+    .select(LEAD_COLUMNS + ", status")
     .eq("business_id", businessId)
     .is("deleted_at", null)
-    .order("created_at", { ascending: true })
-    .limit(limit);
+    .order("created_at", { ascending: false })
+    .limit(5000);
+  if (audience.kind === "status") query = query.eq("status", audience.status);
+  if (audience.kind === "leads") {
+    if (audience.leadIds.length === 0) return { candidates: [], excluded: 0 };
+    query = query.in("id", audience.leadIds.slice(0, 500));
+  }
+  const { data: leads } = await query;
 
-  const rows = (leads ?? []) as unknown as LeadRow[];
+  const rows = (leads ?? []) as unknown as (LeadRow & { status?: string | null })[];
   if (rows.length === 0) return { candidates: [], excluded: 0 };
   const ids = rows.map((row) => row.id);
 
@@ -139,8 +159,18 @@ export async function loadReactivationCandidates(
   const candidates: ReactivationCandidate[] = [];
   let excluded = 0;
   for (const row of rows) {
-    const decision = classifyReactivationCandidate(factsFromLead(row, sets));
-    if (decision.eligible) {
+    const facts = factsFromLead(row, sets);
+    let eligible: boolean;
+    if (audience.kind === "dormant") {
+      eligible = classifyReactivationCandidate(facts).eligible;
+    } else {
+      // Consent and reachability gates never relax, whatever the audience.
+      const consented =
+        !facts.deleted && facts.hasMobileNumber && !facts.optedOut && !facts.suppressed;
+      eligible =
+        consented && (audience.kind === "uncontacted" ? !facts.hasMessages : true);
+    }
+    if (eligible) {
       candidates.push({
         leadId: row.id,
         name: row.name,
