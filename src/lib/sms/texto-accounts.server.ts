@@ -410,17 +410,47 @@ async function textoRequest<T>(path: string, init: RequestInit): Promise<T> {
   }
 }
 
-async function createTextoSubAccount(businessName: string, ownerEmail: string): Promise<string> {
-  const body = await textoRequest<{ id?: string; reference?: string }>("/account", {
+// Endpoints below follow Texto's published OpenAPI spec (texto.com.au/openapi.yaml):
+//   POST /accounts                          create a sub-account
+//   PATCH /account/{id}                     daily_limit, business_name
+//   POST /account/{id}/credits/allocate     { amount }
+//   POST /account/{id}/credits/recall       { amount }
+//   POST /account/{id}/numbers/assign       { numbers: [] }
+//   POST /account/{id}/numbers/recall       { numbers: [] }
+
+export function textoSubAccountPayload(input: {
+  businessName: string;
+  ownerEmail: string;
+  dailyLimit: number;
+  seedCredits?: number;
+}): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    business_name: input.businessName,
+    daily_limit: input.dailyLimit,
+    // BookedSecure operates the account; the tenant never needs a Texto login.
+    managed_by_parent: true,
+    team_access_from_parent: true,
+  };
+  if (input.ownerEmail) payload["email"] = input.ownerEmail;
+  if (input.seedCredits && input.seedCredits > 0) payload["seed_credits"] = input.seedCredits;
+  return payload;
+}
+
+async function createTextoSubAccount(input: {
+  businessName: string;
+  ownerEmail: string;
+  dailyLimit: number;
+}): Promise<string> {
+  const body = await textoRequest<{ account_id?: string; id?: string }>("/accounts", {
     method: "POST",
-    body: JSON.stringify({ name: businessName, email: ownerEmail }),
+    body: JSON.stringify(textoSubAccountPayload(input)),
   });
-  const id = body.id ?? body.reference;
+  const id = body.account_id ?? body.id;
   if (!id) throw new TextoAccountError("Texto did not return a sub-account id.", "provider_error");
   return id;
 }
 
-async function updateTextoSubAccount(subaccountId: string, patch: { daily_send_cap?: number }) {
+async function updateTextoSubAccount(subaccountId: string, patch: { daily_limit?: number; business_name?: string }) {
   await textoRequest(`/account/${encodeURIComponent(subaccountId)}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
@@ -428,34 +458,30 @@ async function updateTextoSubAccount(subaccountId: string, patch: { daily_send_c
 }
 
 async function allocateTextoCredits(subaccountId: string, credits: number): Promise<void> {
-  await textoRequest<{ ok?: boolean }>("/credits/allocate", {
+  await textoRequest(`/account/${encodeURIComponent(subaccountId)}/credits/allocate`, {
     method: "POST",
-    body: JSON.stringify({ account_id: subaccountId, credits }),
+    body: JSON.stringify({ amount: credits }),
   });
 }
 
 async function recallTextoCredits(subaccountId: string, credits: number): Promise<void> {
-  await textoRequest<{ ok?: boolean }>("/credits/recall", {
+  await textoRequest(`/account/${encodeURIComponent(subaccountId)}/credits/recall`, {
     method: "POST",
-    body: JSON.stringify({ account_id: subaccountId, credits }),
+    body: JSON.stringify({ amount: credits }),
   });
 }
 
-async function assignTextoProviderNumber(
-  subaccountId: string,
-  number: string,
-): Promise<{ providerNumberId: string | null }> {
-  const body = await textoRequest<{ id?: string; number_id?: string }>("/numbers/assign", {
+async function assignTextoProviderNumber(subaccountId: string, number: string): Promise<void> {
+  await textoRequest(`/account/${encodeURIComponent(subaccountId)}/numbers/assign`, {
     method: "POST",
-    body: JSON.stringify({ account_id: subaccountId, number }),
+    body: JSON.stringify({ numbers: [number] }),
   });
-  return { providerNumberId: body.id ?? body.number_id ?? null };
 }
 
 async function recallTextoProviderNumber(subaccountId: string, number: string): Promise<void> {
-  await textoRequest("/numbers/recall", {
+  await textoRequest(`/account/${encodeURIComponent(subaccountId)}/numbers/recall`, {
     method: "POST",
-    body: JSON.stringify({ account_id: subaccountId, number }),
+    body: JSON.stringify({ numbers: [number] }),
   });
 }
 
