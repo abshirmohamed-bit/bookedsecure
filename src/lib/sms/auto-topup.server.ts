@@ -158,7 +158,7 @@ export async function maybeAutoTopup(businessId: string): Promise<AutoTopupResul
       .from("credit_topups")
       .select("id", { count: "exact", head: true })
       .eq("business_id", businessId)
-      .eq("source" as never, "auto")
+      .eq("source", "auto")
       .gte("created_at", dayAgo);
     if ((count ?? 0) >= MAX_PER_DAY) return { ok: false, reason: "daily_limit" };
 
@@ -168,7 +168,7 @@ export async function maybeAutoTopup(businessId: string): Promise<AutoTopupResul
     // Mark the attempt up-front so a concurrent send can't double-charge.
     await supabaseAdmin
       .from("texto_accounts")
-      .update({ auto_topup_attempted_at: new Date().toISOString() } as never)
+      .update({ auto_topup_attempted_at: new Date().toISOString() })
       .eq("id", account.id);
 
     const { data: row } = await supabaseAdmin
@@ -220,7 +220,7 @@ export async function maybeAutoTopup(businessId: string): Promise<AutoTopupResul
         .eq("id", row.id);
       await supabaseAdmin
         .from("texto_accounts")
-        .update({ auto_topup_failures: 0 } as never)
+        .update({ auto_topup_failures: 0 })
         .eq("id", account.id);
       await audit(businessId, "auto_topup_succeeded", {
         pack_id: pack.id,
@@ -263,7 +263,7 @@ export async function sweepAutoTopups(): Promise<{ checked: number; toppedUp: nu
   const { data: accounts } = await supabaseAdmin
     .from("texto_accounts")
     .select("business_id, credit_balance, auto_topup_threshold")
-    .eq("auto_topup_enabled" as never, true)
+    .eq("auto_topup_enabled", true)
     .limit(500);
   let toppedUp = 0;
   for (const account of (accounts ?? []) as Array<{
