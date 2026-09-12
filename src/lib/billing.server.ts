@@ -512,7 +512,15 @@ export async function processStripeEvent(event: StripeEventLike, env: StripeEnv 
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         if (isPlanSubscription(event.data.object)) {
-          detail = (await sub.syncSubscription(event.data.object)).detail;
+          // Re-read the live subscription: Stripe retries and out-of-order
+          // deliveries can carry a snapshot that is no longer true.
+          let fresh = event.data.object;
+          try {
+            fresh = await createStripeClient(env).subscriptions.retrieve(event.data.object.id);
+          } catch (error) {
+            console.error("[stripe-webhook] subscription refetch failed:", getStripeErrorMessage(error));
+          }
+          detail = (await sub.syncSubscription(fresh)).detail;
         }
         break;
       }
