@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
 import {
   BarChart3,
   CalendarDays,
@@ -259,6 +260,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
            <div className="lg:hidden"><AccountMenu onSignOut={() => navigate({ to: "/auth", replace: true })} /></div>
         </div>
       </header>
+       <SubscriptionBanner />
        <main className={cn("min-w-0", isAssistantHome ? "overflow-hidden" : "mx-auto max-w-[1500px] px-4 py-5 sm:px-6")}>{children}</main>
     </div>
   );
