@@ -47,6 +47,8 @@ function createQueryBuilder(table: string) {
     | { kind: "eq"; column: string; value: unknown }
     | { kind: "is"; column: string; value: unknown }
     | { kind: "neq"; column: string; value: unknown }
+    | { kind: "in"; column: string; values: unknown[] }
+    | { kind: "notnull"; column: string }
     | { kind: "gte"; column: string; value: string }
     | { kind: "lte"; column: string; value: string }
     | { kind: "order"; column: string; ascending: boolean }
@@ -91,6 +93,12 @@ function createQueryBuilder(table: string) {
           break;
         case "neq":
           working = working.filter((r) => r[op.column] !== op.value);
+          break;
+        case "in":
+          working = working.filter((r) => op.values.includes(r[op.column]));
+          break;
+        case "notnull":
+          working = working.filter((r) => !isNullLike(r[op.column]));
           break;
         case "gte":
           working = working.filter((r) => (r[op.column] as string) >= op.value);
@@ -178,6 +186,12 @@ function createQueryBuilder(table: string) {
         case "neq":
           working = working.filter((r) => r[op.column] !== op.value);
           break;
+        case "in":
+          working = working.filter((r) => op.values.includes(r[op.column]));
+          break;
+        case "notnull":
+          working = working.filter((r) => !isNullLike(r[op.column]));
+          break;
         case "gte":
           working = working.filter((r) => (r[op.column] as string) >= op.value);
           break;
@@ -247,6 +261,14 @@ function createQueryBuilder(table: string) {
     },
     neq(column: string, value: unknown) {
       ops.push({ kind: "neq", column, value });
+      return builder;
+    },
+    in(column: string, values: unknown[]) {
+      ops.push({ kind: "in", column, values });
+      return builder;
+    },
+    not(column: string, _op: string, _value: unknown) {
+      ops.push({ kind: "notnull", column });
       return builder;
     },
     gte(column: string, value: string) {
@@ -322,6 +344,8 @@ const {
   getTextoAccountReport,
   getTextoGroupReport,
   recallTextoNumber,
+  syncNumbersFromTexto,
+  textoSubAccountPayload,
 } = await import("./texto-accounts.server");
 
 describe("texto account provisioning", () => {
@@ -506,5 +530,121 @@ describe("texto reporting", () => {
     expect(report.totalMessagesOut).toBe(2);
     expect(report.totalDelivered).toBe(2);
     expect(report.accounts).toBe(2);
+  });
+});
+
+describe("sender switch-over", () => {
+  it("deactivates the tenant's previous carrier sender only once a Texto number is assigned", async () => {
+    store.sms_senders.push({ id: "s-old", business_id: "biz-1", phone_number: "+61400000001", provider: "telnyx", is_primary: true, active: true });
+    store.sms_senders.push({ id: "s-other", business_id: "biz-2", phone_number: "+61400000002", provider: "telnyx", is_primary: true, active: true });
+
+    const queued = await provisionTextoAccount({ businessId: "biz-1", businessName: "A", ownerEmail: "a@x.com" });
+    expect(queued.ok).toBe(false);
+    expect(store.sms_senders.find((s) => s.id === "s-old").active).toBe(true);
+
+    await addNumberToPool({ number: "+61480000001" });
+    const done = await provisionTextoAccount({ businessId: "biz-1", businessName: "A", ownerEmail: "a@x.com" });
+    expect(done.ok).toBe(true);
+    const old = store.sms_senders.find((s) => s.id === "s-old");
+    expect(old.active).toBe(false);
+    expect(old.is_primary).toBe(false);
+    // Another tenant's sender is untouched.
+    expect(store.sms_senders.find((s) => s.id === "s-other").active).toBe(true);
+    const texto = store.sms_senders.find((s) => s.provider === "texto" && s.business_id === "biz-1");
+    expect(texto.is_primary).toBe(true);
+  });
+
+  it("gives one number to one tenant when two activations race", async () => {
+    await addNumberToPool({ number: "+61480000009" });
+    const [a, b] = await Promise.all([
+      provisionTextoAccount({ businessId: "biz-1", businessName: "A", ownerEmail: "a@x.com" }),
+      provisionTextoAccount({ businessId: "biz-2", businessName: "B", ownerEmail: "b@x.com" }),
+    ]);
+    expect([a.ok, b.ok].filter(Boolean)).toHaveLength(1);
+    const assigned = store.texto_numbers.filter((n) => n.status === "assigned");
+    expect(assigned).toHaveLength(1);
+  });
+});
+
+describe("live Texto API shapes", () => {
+  const originalFetch = globalThis.fetch;
+  beforeEach(() => {
+    delete process.env.TEXTO_ACCOUNT_PROVISIONING;
+    delete process.env.TEXTO_SUBACCOUNT_PROVISIONING;
+    delete process.env.TEXTO_API_KEY;
+    globalThis.fetch = originalFetch;
+  });
+
+  it("builds the published sub-account payload (business_name, daily_limit, managed_by_parent)", () => {
+    const payload = textoSubAccountPayload({ businessName: "Shine Co", ownerEmail: "o@x.com", dailyLimit: 100 });
+    expect(payload).toMatchObject({ business_name: "Shine Co", email: "o@x.com", daily_limit: 100, managed_by_parent: true });
+    expect(payload).not.toHaveProperty("name");
+    expect(payload).not.toHaveProperty("daily_send_cap");
+  });
+
+  it("returns the local pool without calling Texto when live provisioning is off", async () => {
+    globalThis.fetch = vi.fn();
+    await addNumberToPool({ number: "+61480000001" });
+    const result = await syncNumbersFromTexto();
+    expect(result.live).toBe(false);
+    expect(result.numbers).toHaveLength(1);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it("syncs parent-held numbers from GET /numbers idempotently", async () => {
+    process.env.TEXTO_ACCOUNT_PROVISIONING = "live";
+    process.env.TEXTO_API_KEY = "test-key";
+    const calls: string[] = [];
+    globalThis.fetch = vi.fn(async (url: string, init: RequestInit) => {
+      calls.push(`${init.method} ${new URL(url).pathname}`);
+      const body = url.endsWith("/numbers")
+        ? { numbers: [{ id: "n1", number: "+61480000001", price_monthly: 15 }, { id: "n2", number: "+61480000002", price_monthly: 15 }] }
+        : { numbers: [] };
+      return new Response(JSON.stringify(body), { status: 200 });
+    });
+    const first = await syncNumbersFromTexto();
+    expect(calls).toContain("GET /numbers");
+    expect(first).toMatchObject({ live: true, seen: 2, added: 2 });
+    const second = await syncNumbersFromTexto();
+    expect(second).toMatchObject({ added: 0, updated: 0 });
+    expect(store.texto_numbers).toHaveLength(2);
+    expect(store.texto_numbers.every((n) => n.status === "available")).toBe(true);
+  });
+
+  it("does not create a sub-account unless the sub-account switch is on", async () => {
+    process.env.TEXTO_ACCOUNT_PROVISIONING = "live";
+    process.env.TEXTO_API_KEY = "test-key";
+    const calls: string[] = [];
+    globalThis.fetch = vi.fn(async (url: string, init: RequestInit) => {
+      calls.push(`${init.method} ${new URL(url).pathname}`);
+      return new Response(JSON.stringify({ numbers: [{ id: "n1", number: "+61480000001" }] }), { status: 200 });
+    });
+    const result = await provisionTextoAccount({ businessId: "biz-1", businessName: "A", ownerEmail: "a@x.com" });
+    expect(result.ok).toBe(true);
+    expect(calls.some((c) => c.startsWith("POST /accounts"))).toBe(false);
+    expect(calls.some((c) => c.includes("/numbers/assign"))).toBe(false);
+  });
+
+  it("uses the published sub-account endpoints when the switch is on", async () => {
+    process.env.TEXTO_ACCOUNT_PROVISIONING = "live";
+    process.env.TEXTO_SUBACCOUNT_PROVISIONING = "live";
+    process.env.TEXTO_API_KEY = "test-key";
+    const calls: Array<{ path: string; body: any }> = [];
+    globalThis.fetch = vi.fn(async (url: string, init: RequestInit) => {
+      const path = `${init.method} ${new URL(url).pathname}`;
+      calls.push({ path, body: init.body ? JSON.parse(init.body as string) : null });
+      if (path === "POST /accounts") return new Response(JSON.stringify({ account_id: "sub_1" }), { status: 200 });
+      if (path.endsWith("/numbers")) return new Response(JSON.stringify({ numbers: [{ id: "n1", number: "+61480000001" }] }), { status: 200 });
+      return new Response("{}", { status: 200 });
+    });
+    const result = await provisionTextoAccount({ businessId: "biz-1", businessName: "A", ownerEmail: "a@x.com" });
+    expect(result.ok).toBe(true);
+    expect(calls.find((c) => c.path === "POST /accounts")?.body).toMatchObject({ business_name: "A", daily_limit: 100 });
+    const assign = calls.find((c) => c.path === "POST /account/sub_1/numbers/assign");
+    expect(assign?.body).toEqual({ numbers: ["+61480000001"] });
+
+    await allocateCredits("biz-1", 500);
+    const alloc = calls.find((c) => c.path === "POST /account/sub_1/credits/allocate");
+    expect(alloc?.body).toEqual({ amount: 500 });
   });
 });
