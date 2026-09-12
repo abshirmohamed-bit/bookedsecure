@@ -147,6 +147,57 @@ export async function loadUnfinishedProspects(
   return unfinishedProspects(rows);
 }
 
+/**
+ * Removes unfinished quote conversations the owner no longer wants listed
+ * (test runs, junk). Only conversations that belong to this business and
+ * never became a lead are touched; a conversation with a lead is left alone
+ * because the lead inbox owns that record. Dependent chat messages go first;
+ * funnel events keep their counts and simply lose the link.
+ */
+export async function deleteUnfinishedConversations(input: {
+  businessId: string;
+  userId: string;
+  conversationIds: string[];
+}): Promise<{ deleted: number; skipped: number }> {
+  const ids = Array.from(new Set(input.conversationIds.filter(Boolean))).slice(0, 500);
+  if (ids.length === 0) return { deleted: 0, skipped: 0 };
+
+  const { data: owned, error } = await supabaseAdmin
+    .from("web_conversations")
+    .select("id")
+    .eq("business_id", input.businessId)
+    .is("lead_id", null)
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  const deletable = (owned ?? []).map((row) => row.id);
+  if (deletable.length === 0) return { deleted: 0, skipped: ids.length };
+
+  const { error: messagesError } = await supabaseAdmin
+    .from("web_conversation_messages")
+    .delete()
+    .in("conversation_id", deletable);
+  if (messagesError) throw new Error(messagesError.message);
+
+  const { error: deleteError } = await supabaseAdmin
+    .from("web_conversations")
+    .delete()
+    .eq("business_id", input.businessId)
+    .is("lead_id", null)
+    .in("id", deletable);
+  if (deleteError) throw new Error(deleteError.message);
+
+  await supabaseAdmin.from("audit_events").insert({
+    business_id: input.businessId,
+    user_id: input.userId,
+    event_type: "unfinished_prospects_deleted",
+    entity_type: "business",
+    entity_id: input.businessId,
+    metadata: { conversation_ids: deletable, count: deletable.length } as never,
+  });
+
+  return { deleted: deletable.length, skipped: ids.length - deletable.length };
+}
+
 /** Marks quiet conversations abandoned so nothing stays "active" forever. */
 export async function sweepAbandonedConversations(
   minutes = 1440,
