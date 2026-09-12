@@ -86,16 +86,120 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
     ...(message.proposals.length ? { proposals: message.proposals as NonNullable<OwnerAssistantTurn["proposals"]> } : {}),
     ...(message.done ? { done: message.done } : {}),
   }));
-  const history = <div className="flex h-full min-h-0 flex-col pb-[env(safe-area-inset-bottom)]">
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center px-3 py-3"><div className="flex min-w-0 items-center gap-2"><History className="h-4 w-4 shrink-0" /><span className="truncate text-sm font-semibold">Conversations</span></div><Button type="button" size="icon" variant="ghost" className="lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history"><X className="h-4 w-4" /></Button></div>
-    <Button variant="outline" className="mx-3 justify-start" onClick={() => createThread.mutate()} disabled={createThread.isPending}><MessageSquarePlus className="h-4 w-4" /> New conversation</Button>
-    <Button variant="ghost" className="mx-3 mt-1 justify-start text-muted-foreground" disabled={clearThread.isPending || turns.length === 0} onClick={() => { if (activeId && window.confirm("Clear every message in this chat?")) clearThread.mutate(activeId); }}><Eraser className="h-4 w-4" /> Clear chat</Button>
-    <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto px-2">{threads.map((thread) => <div key={thread.id} className={`group flex items-center rounded-lg ${thread.id === activeId ? "bg-primary/10 text-primary" : "hover:bg-secondary"}`}>
-      <button className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-xs font-medium" onClick={() => { navigate({ to: "/assistant/$threadId", params: { threadId: thread.id } }); setMobileHistory(false); }}>{thread.isDefault ? "Ongoing conversation" : thread.title}</button>
-      {!thread.isDefault && <Button type="button" size="icon" variant="ghost" className="mr-1 shrink-0 text-muted-foreground lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100" aria-label={`Delete ${thread.title}`} onClick={() => window.confirm("Delete this conversation?") && removeThread.mutate(thread.id)}><Trash2 className="h-4 w-4" /></Button>}
-    </div>)}</div>
-    {session.data?.role === "owner" && <button onClick={() => { setWebsiteSetup(true); setMobileHistory(false); }} className="m-3 flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"><Globe2 className="h-4 w-4" /> Set up from website</button>}
-  </div>;
+  const history = (
+    <div className="flex h-full min-h-0 flex-col pb-[env(safe-area-inset-bottom)]">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <History className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate text-sm font-semibold">Conversations</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            title="Clear chat"
+            disabled={clearThread.isPending || turns.length === 0}
+            onClick={() => {
+              if (activeId && window.confirm("Clear every message in this chat?")) {
+                clearThread.mutate(activeId);
+              }
+            }}
+            aria-label="Clear chat"
+          >
+            <Eraser className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 lg:hidden"
+            onClick={() => setMobileHistory(false)}
+            aria-label="Close history"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Action */}
+      <div className="px-3 pb-3">
+        <Button
+          variant="outline"
+          className="w-full justify-center gap-2 shadow-sm"
+          onClick={() => createThread.mutate()}
+          disabled={createThread.isPending}
+        >
+          <MessageSquarePlus className="h-4 w-4" />
+          New conversation
+        </Button>
+      </div>
+
+      {/* Conversation list */}
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto border-t border-border px-2 py-2">
+        {threads.map((thread) => (
+          <div
+            key={thread.id}
+            className={`group flex items-center gap-2 rounded-lg px-3 py-2.5 ${
+              thread.id === activeId
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <div
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                thread.id === activeId
+                  ? "bg-primary"
+                  : "bg-muted-foreground/40 group-hover:bg-muted-foreground/60"
+              }`}
+            />
+            <button
+              className="min-w-0 flex-1 truncate text-left text-sm"
+              onClick={() => {
+                navigate({ to: "/assistant/$threadId", params: { threadId: thread.id } });
+                setMobileHistory(false);
+              }}
+            >
+              {thread.isDefault ? "Ongoing conversation" : thread.title}
+            </button>
+            {!thread.isDefault && (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 shrink-0 text-muted-foreground lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
+                aria-label={`Delete ${thread.title}`}
+                onClick={() => window.confirm("Delete this conversation?") && removeThread.mutate(thread.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      {session.data?.role === "owner" && (
+        <div className="mt-auto border-t border-border p-3">
+          <button
+            onClick={() => {
+              setWebsiteSetup(true);
+              setMobileHistory(false);
+            }}
+            className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <span className="flex items-center gap-2">
+              <Globe2 className="h-4 w-4" />
+              Set up from website
+            </span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   return <div
     className="relative h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-background"
