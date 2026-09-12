@@ -1,6 +1,7 @@
 # Upgrade journey: what happens behind the scenes (and what is still missing)
 
 ## Stripe status (your latest ask)
+
 Stripe is already enabled on this project in **test mode** (test checkout, test webhook and the payments webhook secret are all in place, and a test top-up has already been paid and credited). What is not done is **going live**: step 1 of 5, "connect your sandbox to a Stripe account", is still in progress. Nothing needs to be built for that; it is finished from the Payments tab. No new Stripe integration should be added (the bring-your-own-key option would conflict with the one already running).
 
 ## The journey today, verified in code and data
@@ -34,18 +35,20 @@ Stripe is already enabled on this project in **test mode** (test checkout, test 
 
 ## Where it breaks today (the honest checklist)
 
-| Step | State | Why |
-|---|---|---|
-| Stripe test payments | Working | Verified end to end after last week's webhook fix |
-| Stripe live payments | Not live | Go-live step 1 not finished in the Payments tab |
-| Feature access on pay | Working | Gates read the business row the webhook updates |
-| Included credits per plan | Working | Usage periods created on activation |
-| Top-up credits | Working (test) | 1 paid, 9 abandoned checkouts sitting as "pending" |
-| Number assignment | **Blocked** | The number pool (`texto_numbers`) is empty, so step 6 ends in "queued, no number" |
-| Texto account creation | **Simulated** | `TEXTO_ACCOUNT_PROVISIONING` is not set to `live`, so no Texto call is made |
-| Texto sub-account API calls | **Wrong URLs** | Code calls `/account`, `/credits/allocate`, `/numbers/assign`; Texto's published spec uses `POST /accounts`, `POST /account/{id}/credits/allocate`, `POST /account/{id}/numbers/assign` |
-| Buying numbers | **Not possible via API** | Texto's API can list and assign numbers but has no purchase endpoint; numbers ($15/mo) are bought in the Texto dashboard on your parent account |
-| Live sending | Off for everyone | The only active sender in the database is still Telnyx; no tenant is switched to Texto |
+
+| Step                        | State                    | Why                                                                                                                                                                                     |
+| --------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stripe test payments        | Working                  | Verified end to end after last week's webhook fix                                                                                                                                       |
+| Stripe live payments        | Not live                 | Go-live step 1 not finished in the Payments tab                                                                                                                                         |
+| Feature access on pay       | Working                  | Gates read the business row the webhook updates                                                                                                                                         |
+| Included credits per plan   | Working                  | Usage periods created on activation                                                                                                                                                     |
+| Top-up credits              | Working (test)           | 1 paid, 9 abandoned checkouts sitting as "pending"                                                                                                                                      |
+| Number assignment           | **Blocked**              | The number pool (`texto_numbers`) is empty, so step 6 ends in "queued, no number"                                                                                                       |
+| Texto account creation      | **Simulated**            | `TEXTO_ACCOUNT_PROVISIONING` is not set to `live`, so no Texto call is made                                                                                                             |
+| Texto sub-account API calls | **Wrong URLs**           | Code calls `/account`, `/credits/allocate`, `/numbers/assign`; Texto's published spec uses `POST /accounts`, `POST /account/{id}/credits/allocate`, `POST /account/{id}/numbers/assign` |
+| Buying numbers              | **Not possible via API** | Texto's API can list and assign numbers but has no purchase endpoint; numbers ($15/mo) are bought in the Texto dashboard on your parent account                                         |
+| Live sending                | Off for everyone         | The only active sender in the database is still Telnyx; no tenant is switched to Texto                                                                                                  |
+
 
 ## How Texto actually works for us (from their published API spec)
 
@@ -61,16 +64,16 @@ Stripe is already enabled on this project in **test mode** (test checkout, test 
 ## What to build
 
 1. **Number pool operations (platform admin)**
-   - Admin action "sync numbers from Texto": pulls `GET /numbers` from the parent account into `texto_numbers` so every number you buy in the Texto dashboard appears in the pool automatically.
-   - Alert (feedback/admin notice + audit) when the pool is empty and a business is queued; admin "retry provisioning" button for queued businesses.
+  - Admin action "sync numbers from Texto": pulls `GET /numbers` from the parent account into `texto_numbers` so every number you buy in the Texto dashboard appears in the pool automatically.
+  - Alert (feedback/admin notice + audit) when the pool is empty and a business is queued; admin "retry provisioning" button for queued businesses.
 2. **Fix the Texto account client to the published endpoints**
-   - `POST /accounts`, `PATCH /account/{id}` (`daily_limit`), `POST /account/{id}/credits/allocate|recall` (`{ amount }`), `POST /account/{id}/numbers/assign|recall` (`{ numbers: [] }`), `GET /account/{id}/report`, `GET /report/group`.
-   - Keep sub-account creation behind its own switch (default off); number assignment and sending work with the parent account alone.
+  - `POST /accounts`, `PATCH /account/{id}` (`daily_limit`), `POST /account/{id}/credits/allocate|recall` (`{ amount }`), `POST /account/{id}/numbers/assign|recall` (`{ numbers: [] }`), `GET /account/{id}/report`, `GET /report/group`.
+  - Keep sub-account creation behind its own switch (default off); number assignment and sending work with the parent account alone.
 3. **Activation switch-over**
-   - On first activation: assign a pool number, mark it the primary sender with `provider = texto`, deactivate the old Telnyx sender for that business only.
-   - Nothing changes for a business until it activates; existing Glocast sender stays as is until you switch it.
+  - On first activation: assign a pool number, mark it the primary sender with `provider = texto`, deactivate the old Telnyx sender for that business only.
+  - Nothing changes for a business until it activates; existing Glocast sender stays as is until you switch it.
 4. **Live switch and smoke test**
-   - Set `TEXTO_ACCOUNT_PROVISIONING=live` and `SMS_PROVIDER=texto` only after one controlled test: one number, one test tenant, one text to a phone you own, reply and receipt confirmed in the inbox.
+  - Set `TEXTO_ACCOUNT_PROVISIONING=live` and `SMS_PROVIDER=texto` only after one controlled test: one number, one test tenant, one text to a phone you own, reply and receipt confirmed in the inbox.
 5. **Stripe go-live** (no code): finish the 5 steps in the Payments tab; the live webhook and live keys are created automatically at step 4.
 6. **Housekeeping**: expire abandoned top-up checkouts after 24h so "pending" rows do not pile up; show "queued for a number" state in the tenant's Get set up panel.
 
@@ -80,4 +83,8 @@ Stripe is already enabled on this project in **test mode** (test checkout, test 
 - Provider selection order stays: `SMS_PROVIDER_OVERRIDE` > `sms_senders.provider` > `SMS_PROVIDER` > simulated.
 - Send gate order stays: subscription gate (allowance/credits) -> Texto account active -> daily cap -> idempotent message row -> carrier.
 - Tests: pool sync idempotency, provisioning with empty vs stocked pool, sender switch-over per business only, endpoint payload shapes against the spec.
-- No schema change required; `texto_numbers` already has `provider_number_id` and `monthly_cost_cents`.
+- No schema change required; `texto_numbers` already has `provider_number_id` and `monthly_cost_cents`.  
+  
+  
+  
+once this is completed please update and tell me what to do next!
