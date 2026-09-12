@@ -134,9 +134,18 @@ export function OwnerAssistant({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [attachment, setAttachment] = useState<{ filename: string; content: string } | null>(null);
 
+  // Only adopt the saved conversation when it has genuinely changed. Re-running
+  // this on every parent render (the array identity changes each time) would
+  // wipe the question and answer that were just added locally.
+  const savedSignature = initialTurns.map((turn) => `${turn.id}:${turn.done ?? ""}`).join(",");
+  const appliedSignature = useRef(savedSignature);
   useEffect(() => {
+    if (appliedSignature.current === savedSignature) return;
+    appliedSignature.current = savedSignature;
     setTurns(initialTurns);
-  }, [initialTurns]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedSignature]);
+
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
