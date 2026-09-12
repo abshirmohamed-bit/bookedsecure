@@ -10,7 +10,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { LEAD_STATUSES } from "@/lib/domain";
+import { normaliseAuMobile, LEAD_STATUSES } from "@/lib/domain";
 import { formatInZone, zonedWallTimeToIso } from "@/lib/assistant-time";
 import { upcomingBookings, visibleNotes } from "@/lib/bookings";
 import type { OwnerProposal } from "@/lib/owner-actions.server";
@@ -180,7 +180,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
           .insert({
             business_id: businessId,
             name: input.name,
-            mobile_number: input.mobile,
+            mobile_number: normaliseAuMobile(input.mobile) ?? input.mobile,
             ...(input.email ? { email: input.email } : {}),
             ...(input.suburb ? { suburb: input.suburb } : {}),
             ...(input.address ? { service_address: input.address } : {}),
@@ -212,11 +212,15 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         requestedService: z.string().nullable(),
         notes: z.string().nullable(),
         status: z.enum(LEAD_STATUSES).nullable(),
+        clearOptOut: z
+          .boolean()
+          .nullable()
+          .describe("Only true when the owner explicitly says this customer has agreed to receive texts again. Never infer it from a status change."),
       }),
       execute: async (input) => {
         const patch: Record<string, unknown> = {};
         if (input.name) patch["name"] = input.name;
-        if (input.mobile) patch["mobile_number"] = input.mobile;
+        if (input.mobile) patch["mobile_number"] = normaliseAuMobile(input.mobile) ?? input.mobile;
         if (input.email) patch["email"] = input.email;
         if (input.suburb) patch["suburb"] = input.suburb;
         if (input.address) patch["service_address"] = input.address;
@@ -224,6 +228,16 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         if (input.requestedService) patch["service_intent"] = input.requestedService;
         if (input.notes) patch["notes"] = input.notes;
         if (input.status) patch["status"] = input.status;
+        // "Opted out" is a real do-not-text flag, not just a label: setting it
+        // blocks every send. Clearing it needs the owner's explicit say-so.
+        if (input.status === "opted_out") {
+          patch["opted_out_at"] = new Date().toISOString();
+          patch["consent_status"] = "opted_out";
+        }
+        if (input.clearOptOut === true) {
+          patch["opted_out_at"] = null;
+          patch["consent_status"] = "granted";
+        }
         if (Object.keys(patch).length === 0) return fail("Nothing was named to change.");
 
         const { data, error } = await supabaseAdmin
