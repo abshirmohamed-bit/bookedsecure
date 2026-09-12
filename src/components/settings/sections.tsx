@@ -14,6 +14,8 @@ import {
   deleteServiceAddon,
 } from "@/lib/app.functions";
 import { QUOTE_MODES, QUOTE_MODE_LABELS, resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
+import { removeTeamMember, setTeamAccess } from "@/lib/team.functions";
+import { useAuth } from "@/hooks/useAuth";
 
 /**
  * Shared settings building blocks. The underlying server functions and
