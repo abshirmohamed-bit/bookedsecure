@@ -44,7 +44,8 @@ export function TopupDialog({
 
   const topupMutation = useMutation({
     mutationFn: async (packId: string) => {
-      const result = await buyCredits({ data: { packId } });
+      const { getStripeEnvironment } = await import("@/lib/stripe");
+      const result = await buyCredits({ data: { packId, environment: getStripeEnvironment() } });
       if ("error" in result && result.error) throw new Error(result.error);
       return result as { clientSecret: string };
     },

@@ -12,7 +12,10 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CREDIT_PACKS } from "@/lib/sms/credit-packs";
 
-const TopupSchema = z.object({ packId: z.string().min(1) });
+const TopupSchema = z.object({
+  packId: z.string().min(1),
+  environment: z.enum(["sandbox", "live"]).optional(),
+});
 const PauseSchema = z.object({ paused: z.boolean() });
 const CancellationSchema = z.object({ note: z.string().max(1000).optional() });
 
@@ -135,6 +138,7 @@ export const startCreditTopup = createServerFn({ method: "POST" })
       userId: app.userId,
       email: app.email,
       returnUrl: `${origin}/settings/messaging?topup=complete&session_id={CHECKOUT_SESSION_ID}`,
+      environment: data.environment,
     });
     if ("error" in result) return { error: result.error };
     return { clientSecret: result.clientSecret };
