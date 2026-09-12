@@ -23,6 +23,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
+import { Route as AdminMessagingNumbersRouteImport } from './routes/admin.messaging-numbers'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as AssistantThreadIdRouteImport } from './routes/assistant.$threadId'
 import { Route as BTokenRouteImport } from './routes/b.$token'
@@ -120,6 +121,11 @@ const SetupRoute = SetupRouteImport.update({
 const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   id: '/admin/feedback',
   path: '/admin/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminMessagingNumbersRoute = AdminMessagingNumbersRouteImport.update({
+  id: '/admin/messaging-numbers',
+  path: '/admin/messaging-numbers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminPilotApplicationsRoute = AdminPilotApplicationsRouteImport.update({
@@ -284,6 +290,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -327,6 +334,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -372,6 +380,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -418,6 +427,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/admin/feedback'
+    | '/admin/messaging-numbers'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -461,6 +471,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/setup'
     | '/admin/feedback'
+    | '/admin/messaging-numbers'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -505,6 +516,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/admin/feedback'
+    | '/admin/messaging-numbers'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -550,6 +562,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   SetupRoute: typeof SetupRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
+  AdminMessagingNumbersRoute: typeof AdminMessagingNumbersRoute
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   BTokenRoute: typeof BTokenRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
@@ -671,6 +684,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/feedback'
       fullPath: '/admin/feedback'
       preLoaderRoute: typeof AdminFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/messaging-numbers': {
+      id: '/admin/messaging-numbers'
+      path: '/admin/messaging-numbers'
+      fullPath: '/admin/messaging-numbers'
+      preLoaderRoute: typeof AdminMessagingNumbersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/pilot-applications': {
@@ -921,6 +941,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   SetupRoute: SetupRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
+  AdminMessagingNumbersRoute: AdminMessagingNumbersRoute,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   BTokenRoute: BTokenRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
