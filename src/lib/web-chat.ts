@@ -721,9 +721,17 @@ export function splitSuburbAddress(value: string): {
     }
   }
 
-  // "88 cumberland rd" typed on its own, with or without the suburb after it.
-  const street = cleaned.match(/^\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][a-z'\-.\s]*$/i);
-  if (street) return { suburb: null, address: cleaned };
+  // "auburn 88 cumberland rd" with no comma: the suburb comes before the number.
+  const joined = cleaned.match(/^([a-z][a-z'\-\s]*?)\s+(\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][a-z'\-.\s]*)$/i);
+  if (joined) {
+    const lead = joined[1]!.replace(/\b(?:in|at|on|and|the|suburb|address|is|it'?s)\b/gi, " ").replace(/\s+/g, " ").trim();
+    if (lead.length >= 2) return { suburb: lead, address: joined[2]!.trim() };
+  }
+
+  // "88 cumberland rd" typed on its own, with no suburb given.
+  if (/^\d+[a-z]?(?:\/\d+[a-z]?)?\s+[a-z][a-z'\-.\s]*$/i.test(cleaned)) {
+    return { suburb: null, address: cleaned };
+  }
 
   return { suburb: cleaned, address: null };
 }
