@@ -131,6 +131,6 @@ describe("normaliseOwnerQuestion", () => {
   it("collapses whitespace and caps length", () => {
     expect(normaliseOwnerQuestion("  how   many  leads ")).toBe("how many leads");
     expect(normaliseOwnerQuestion(null)).toBe("");
-    expect(normaliseOwnerQuestion("x".repeat(900)).length).toBe(500);
+    expect(normaliseOwnerQuestion("x".repeat(1200)).length).toBe(1000);
   });
 });
