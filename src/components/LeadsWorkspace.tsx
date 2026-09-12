@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BriefcaseBusiness,
   CircleDollarSign,
@@ -61,7 +61,20 @@ export function LeadsWorkspace() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [smsFilter, setSmsFilter] = useState<SmsLeadFilter>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+
+  // Debounce typing so each keystroke doesn't fire a database query; a settled
+  // search term behaves like any other filter and resets to page 1.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+      setSelection([]);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
 
   const [showAdd, setShowAdd] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
@@ -79,6 +92,7 @@ export function LeadsWorkspace() {
     status: statusFilter,
     source: sourceFilter,
     sms: smsFilter,
+    search,
   });
 
   // Started here so the dormant-contact overview loads alongside the inbox
@@ -270,11 +284,22 @@ export function LeadsWorkspace() {
 
       <section className="panel overflow-hidden">
         <div className="border-b border-border px-4 py-3">
-          <div className="mb-3 flex items-center gap-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold">Lead inbox</h2>
             <span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
               {dashboard.page?.totalCount ?? leads.length}
             </span>
+            <label className="sr-only" htmlFor="lead-search">
+              Search customers
+            </label>
+            <input
+              id="lead-search"
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search name, mobile or email"
+              className="ml-auto w-full min-w-0 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs sm:w-56"
+            />
           </div>
           <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-2">

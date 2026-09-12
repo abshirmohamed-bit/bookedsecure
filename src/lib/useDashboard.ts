@@ -20,6 +20,7 @@ export type DashboardRequest = {
   status: string;
   source: string;
   sms: string;
+  search: string;
 };
 
 /**
@@ -41,6 +42,7 @@ export function useDashboard(request?: Partial<DashboardRequest>): DashboardView
     status: request?.status ?? "all",
     source: request?.source ?? "all",
     sms: request?.sms ?? "all",
+    search: request?.search ?? "",
   };
 
   const query = useQuery({

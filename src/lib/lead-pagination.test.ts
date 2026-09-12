@@ -99,6 +99,23 @@ describe("filter contract", () => {
       source: "all",
       sms: "all",
       scope: "deleted",
+      search: "",
+    });
+  });
+
+  it("trims and caps the free-text search term", () => {
+    expect(normaliseFilters({ search: "  sam  " }).search).toBe("sam");
+    expect(normaliseFilters({ search: "x".repeat(200) }).search).toHaveLength(120);
+    expect(normaliseFilters(null).search).toBe("");
+  });
+
+  it("only adds a search predicate when a term is present", () => {
+    expect(leadFilterPredicates(TENANT, normaliseFilters(null)).some((p) => p.kind === "search")).toBe(
+      false,
+    );
+    expect(leadFilterPredicates(TENANT, normaliseFilters({ search: "sam" }))).toContainEqual({
+      kind: "search",
+      value: "sam",
     });
   });
 
@@ -162,6 +179,31 @@ describe("queryLeadInbox", () => {
     }
     expect(new Set(seen).size).toBe(10);
     expect(seen).toHaveLength(10);
+  });
+
+  it("finds a customer by name, mobile or email before pagination", async () => {
+    const db = tiedDb(0);
+    db["leads"]!.push(
+      lead({ id: "a", name: "Samantha Reid", mobile_number: "+61411111111", email: null }),
+      lead({ id: "b", name: "Brendan", mobile_number: "+61422354898", email: "brendan@example.com" }),
+      lead({ id: "c", name: "Charlie", mobile_number: "+61450883230", email: null }),
+    );
+    const client = createFakeSupabase(db);
+
+    const byName = await queryLeadInbox(client, { businessId: TENANT, filters: { search: "samantha" } });
+    expect(byName.leads.map((row) => row.id)).toEqual(["a"]);
+
+    const byMobile = await queryLeadInbox(client, { businessId: TENANT, filters: { search: "0422" } });
+    expect(byMobile.leads.map((row) => row.id)).toEqual(["b"]);
+
+    const byEmail = await queryLeadInbox(client, {
+      businessId: TENANT,
+      filters: { search: "brendan@example" },
+    });
+    expect(byEmail.page.totalCount).toBe(1);
+
+    const noMatch = await queryLeadInbox(client, { businessId: TENANT, filters: { search: "nobody" } });
+    expect(noMatch.page.totalCount).toBe(0);
   });
 
   it("clamps a page request past the end back to the last page", async () => {

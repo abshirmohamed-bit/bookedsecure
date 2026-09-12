@@ -16,6 +16,8 @@ export type LeadInboxFilters = {
   source: string;
   sms: SmsLeadFilter;
   scope: LeadScope;
+  /** Free-text customer search across name, mobile and email. Empty = off. */
+  search: string;
 };
 
 export const DEFAULT_FILTERS: LeadInboxFilters = {
@@ -23,6 +25,7 @@ export const DEFAULT_FILTERS: LeadInboxFilters = {
   source: "all",
   sms: "all",
   scope: "active",
+  search: "",
 };
 
 export type PageRequest = { page: number; pageSize: number };
@@ -110,11 +113,18 @@ export function normaliseFilters(input?: Partial<LeadInboxFilters> | null): Lead
     source: typeof input?.source === "string" && input.source ? input.source : "all",
     sms: sms && (SMS_LEAD_FILTERS as readonly string[]).includes(sms) ? sms : "all",
     scope: input?.scope === "deleted" ? "deleted" : "active",
+    search: typeof input?.search === "string" ? input.search.trim().slice(0, 120) : "",
   };
 }
 
 export function filtersAreEqual(a: LeadInboxFilters, b: LeadInboxFilters): boolean {
-  return a.status === b.status && a.source === b.source && a.sms === b.sms && a.scope === b.scope;
+  return (
+    a.status === b.status &&
+    a.source === b.source &&
+    a.sms === b.sms &&
+    a.scope === b.scope &&
+    a.search === b.search
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +135,8 @@ export type LeadPredicate =
   | { kind: "eq"; column: string; value: string }
   | { kind: "in"; column: string; values: string[] }
   | { kind: "isNull"; column: string }
-  | { kind: "notNull"; column: string };
+  | { kind: "notNull"; column: string }
+  | { kind: "search"; value: string };
 
 /** Pending outbound states, mirrored from the delivery state model. */
 export const PENDING_SMS_STATUSES = ["queued", "provider_accepted", "sent", "unknown"] as const;
@@ -170,6 +181,7 @@ export function leadFilterPredicates(businessId: string, filters: LeadInboxFilte
   if (filters.source !== "all")
     predicates.push({ kind: "eq", column: "source_channel", value: filters.source });
   predicates.push(...smsFilterPredicates(filters.sms));
+  if (filters.search) predicates.push({ kind: "search", value: filters.search });
   return predicates;
 }
 

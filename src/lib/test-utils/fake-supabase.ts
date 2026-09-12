@@ -104,6 +104,21 @@ class Query implements PromiseLike<{ data: any; error: any }> {
     this.filters.push((row) => set.has(row[column]));
     return this;
   }
+  /** Narrow PostgREST or-support: comma-separated `col.ilike.%term%` groups. */
+  or(expression: string) {
+    const alternatives = expression.split(",").map((part) => {
+      const match = part.trim().match(/^(\w+)\.ilike\.%(.+)%$/);
+      if (!match) throw new Error(`fake supabase: unsupported or term "${part}"`);
+      const [, column, term] = match;
+      const needle = term!.toLowerCase();
+      return (row: Row) =>
+        String(row[column!] ?? "")
+          .toLowerCase()
+          .includes(needle);
+    });
+    this.filters.push((row) => alternatives.some((alt) => alt(row)));
+    return this;
+  }
   order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }) {
     this.orders.push({ key: column, ascending: options?.ascending !== false });
     return this;
