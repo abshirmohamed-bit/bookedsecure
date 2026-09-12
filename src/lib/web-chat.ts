@@ -870,8 +870,10 @@ export function applyAnswer(
         next.addon_ids = extras.map((addon) => addon.id);
         next.addon_names = extras.map((addon) => addon.name);
         next.addons_offered = allowed.length > 0;
-        // Extras were offered and answered on the cards, so the extras step is done.
-        next.addons_done = true;
+        // Extras ticked on the cards close the step. If none were ticked, the
+        // tenant's own extras are still offered later in the conversation, with
+        // their prices, so nobody misses them.
+        next.addons_done = allowed.length === 0 || extras.length > 0;
         const echo = [
           chosen
             .map((entry) => withQuantity(entry.name, quantities[entry.id] ?? 1))
