@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { NotificationBell } from "@/components/NotificationBell";
 import { AccountMenu } from "@/components/AccountMenu";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import { TenantMark } from "@/components/TenantMark";
 import { Button } from "@/components/ui/button";
 
