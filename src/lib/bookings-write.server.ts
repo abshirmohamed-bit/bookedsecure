@@ -243,7 +243,7 @@ export async function deleteBooking(input: {
     .eq("id", leadId)
     .maybeSingle();
   const leadStatus = (lead as { status?: string } | null)?.status ?? null;
-  const derivedBooking = hasScheduled ? "scheduled" : hasCompleted ? "completed" : null;
+  const derivedBooking = hasScheduled ? "scheduled" : hasCompleted ? "completed" : "none";
   const patch: Record<string, unknown> = { booking_status: derivedBooking };
   if (!hasScheduled && !hasCompleted && (leadStatus === "scheduled" || leadStatus === "completed")) {
     patch["status"] = "contacted";
