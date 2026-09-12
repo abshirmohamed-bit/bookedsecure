@@ -19,3 +19,12 @@
 - [x] Build the approved two-rail BookedSecure and tenant workspace around real tenant content.
 - [x] Integrate Assistant conversation history into the tenant rail without changing behavior.
 - [x] Verify rail collapse and responsive navigation across tenant pages.
+
+## Upgrade journey — behind the scenes (approved plan)
+- [x] Correct Texto live endpoints to the published spec (accounts, credits, numbers, daily_limit).
+- [x] Sync parent-held numbers from Texto into the pool; atomic claim on activation.
+- [x] Switch a tenant's old sender off only once a Texto number is assigned; retry on activation.
+- [x] Sub-account creation behind TEXTO_SUBACCOUNT_PROVISIONING=live (off by default).
+- [x] Expire abandoned credit top-ups after 24h (hourly sweep).
+- [x] Platform-admin page /admin/messaging-numbers: sync, waiting tenants, retry, manual add.
+- [ ] Blocked on you: flip TEXTO_ACCOUNT_PROVISIONING=live after buying numbers at Texto; assign a platform_admin role to reach admin pages; finish Stripe go-live in the Payments tab.

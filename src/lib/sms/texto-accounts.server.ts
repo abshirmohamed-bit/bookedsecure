@@ -40,10 +40,37 @@ function apiKey(): string | undefined {
   return process.env["TEXTO_API_KEY"];
 }
 
-function liveAccountProvisioning(): boolean {
-  // Stay simulated by default even when a real key is present, until the
-  // platform operator explicitly flips the switch after Texto approval.
+/**
+ * Live mode for the parent-account operations (number pool sync, number
+ * assignment, reports). Stays simulated by default even when a real key is
+ * present, until the platform operator explicitly flips the switch.
+ */
+export function liveAccountProvisioning(): boolean {
   return process.env["TEXTO_ACCOUNT_PROVISIONING"] === "live" && !!apiKey();
+}
+
+/**
+ * Optional second layer: create a Texto sub-account per tenant and allocate
+ * credits at Texto. Off by default — the recommended shape is one parent
+ * account holding every number, with BookedSecure doing per-tenant metering.
+ */
+export function liveSubaccountProvisioning(): boolean {
+  return liveAccountProvisioning() && process.env["TEXTO_SUBACCOUNT_PROVISIONING"] === "live";
+}
+
+/** Optional platform alert endpoint (Slack/Teams/any JSON endpoint). */
+async function notifyPlatformOperator(text: string, extra: Record<string, unknown> = {}): Promise<void> {
+  const url = process.env["FEEDBACK_ALERT_WEBHOOK_URL"];
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, ...extra }),
+    });
+  } catch (error) {
+    console.error("[texto] operator alert failed:", error);
+  }
 }
 
 /* ------------------------------------------------------------------ errors */
@@ -168,22 +195,115 @@ export async function addNumberToPool(input: {
   return data;
 }
 
-async function assignPoolNumber(businessId: string, numberId: string): Promise<TextoNumber> {
-  const { data, error } = await supabaseAdmin
-    .from("texto_numbers")
-    .update({
-      assigned_business_id: businessId,
-      assigned_at: nowIso(),
-      recalled_at: null,
-      status: "assigned",
+export type PoolSyncResult = {
+  live: boolean;
+  seen: number;
+  added: number;
+  updated: number;
+  numbers: TextoNumber[];
+};
+
+type TextoNumberListing = {
+  numbers?: Array<{
+    id?: string;
+    number?: string;
+    label?: string | null;
+    assigned_to?: string | null;
+    price_monthly?: number;
+  }>;
+};
+
+/**
+ * Pull every dedicated number held by the parent Texto account (and any
+ * already handed to a sub-account) into the local pool. Numbers are bought in
+ * the Texto dashboard; this makes them appear here without manual entry.
+ * Idempotent: existing rows are refreshed, never duplicated, and a number that
+ * is already assigned to a business locally is left assigned.
+ */
+export async function syncNumbersFromTexto(): Promise<PoolSyncResult> {
+  if (!liveAccountProvisioning()) {
+    const { data } = await supabaseAdmin.from("texto_numbers").select("*").order("created_at");
+    return { live: false, seen: 0, added: 0, updated: 0, numbers: data ?? [] };
+  }
+
+  const [own, group] = await Promise.all([
+    textoRequest<TextoNumberListing>("/numbers", { method: "GET" }),
+    textoRequest<TextoNumberListing>("/numbers/group", { method: "GET" }).catch(() => ({ numbers: [] })),
+  ]);
+  const listed = new Map<string, NonNullable<TextoNumberListing["numbers"]>[number]>();
+  for (const entry of [...(own.numbers ?? []), ...(group.numbers ?? [])]) {
+    if (entry.number) listed.set(entry.number, entry);
+  }
+
+  // Map Texto sub-account ids back to businesses so a number already assigned
+  // at Texto lands on the right tenant.
+  const { data: accounts } = await supabaseAdmin
+    .from("texto_accounts")
+    .select("id, business_id, subaccount_id")
+    .not("subaccount_id", "is", null);
+  const businessBySubaccount = new Map((accounts ?? []).map((a) => [a.subaccount_id as string, a.business_id]));
+
+  const { data: existingRows } = await supabaseAdmin.from("texto_numbers").select("*");
+  const existing = new Map((existingRows ?? []).map((row) => [row.number, row]));
+
+  let added = 0;
+  let updated = 0;
+  for (const [number, entry] of listed) {
+    const monthly = Math.round((entry.price_monthly ?? 15) * 100);
+    const remoteBusiness = entry.assigned_to ? businessBySubaccount.get(entry.assigned_to) ?? null : null;
+    const row = existing.get(number);
+    if (!row) {
+      await supabaseAdmin.from("texto_numbers").insert({
+        number,
+        provider_number_id: entry.id ?? null,
+        monthly_cost_cents: monthly,
+        status: remoteBusiness ? "assigned" : "available",
+        assigned_business_id: remoteBusiness,
+        assigned_at: remoteBusiness ? nowIso() : null,
+      });
+      added += 1;
+      continue;
+    }
+    const patch: Database["public"]["Tables"]["texto_numbers"]["Update"] = {};
+    if (entry.id && row.provider_number_id !== entry.id) patch.provider_number_id = entry.id;
+    if (row.monthly_cost_cents !== monthly) patch.monthly_cost_cents = monthly;
+    if (!row.assigned_business_id && remoteBusiness) {
+      patch.assigned_business_id = remoteBusiness;
+      patch.assigned_at = nowIso();
+      patch.status = "assigned";
+    }
+    if (Object.keys(patch).length > 0) {
+      await supabaseAdmin.from("texto_numbers").update({ ...patch, updated_at: nowIso() }).eq("id", row.id);
+      updated += 1;
+    }
+  }
+
+  const { data: numbers } = await supabaseAdmin.from("texto_numbers").select("*").order("created_at");
+  return { live: true, seen: listed.size, added, updated, numbers: numbers ?? [] };
+}
+
+/** Businesses waiting for a number (queued, failed or never provisioned while active). */
+export async function listBusinessesAwaitingNumber(): Promise<
+  Array<{ businessId: string; businessName: string | null; state: string; failedReason: string | null; since: string }>
+> {
+  const { data: accounts } = await supabaseAdmin
+    .from("texto_accounts")
+    .select("business_id, provisioning_state, failed_reason, updated_at, businesses(name, subscription_status)")
+    .in("provisioning_state", ["queued_no_number", "failed", "provisioning", "not_started"]);
+  return (accounts ?? [])
+    .map((row) => {
+      const business = row.businesses as { name?: string | null; subscription_status?: string | null } | null;
+      return {
+        businessId: row.business_id,
+        businessName: business?.name ?? null,
+        subscription: business?.subscription_status ?? null,
+        state: row.provisioning_state,
+        failedReason: row.failed_reason,
+        since: row.updated_at,
+      };
     })
-    .eq("id", numberId)
-    .is("assigned_business_id", null)
-    .select("*")
-    .single();
-  if (error) throw new TextoAccountError(error.message, "db_assign_failed");
-  if (!data) throw new TextoAccountError("Number was already assigned.", "pool_concurrency");
-  return data;
+    .filter((row) => row.subscription === "active" || row.state !== "not_started")
+    .map(({ subscription: _s, ...rest }) => rest);
 }
 
 async function recallPoolNumber(businessId: string): Promise<void> {
@@ -203,13 +323,14 @@ async function ensurePrimarySender(
   accountId: string,
   phoneNumber: string,
 ): Promise<void> {
-  // Mark any existing primary senders for this business as non-primary so the
-  // new Texto number is the one used for outbound messages.
+  // Switch this business (and only this business) over: every other sender it
+  // had — Telnyx, Twilio, simulated — stops being primary and is deactivated so
+  // the tenant's dedicated Texto number is the one every outbound text uses.
   await supabaseAdmin
     .from("sms_senders")
-    .update({ is_primary: false, updated_at: nowIso() })
+    .update({ is_primary: false, active: false, updated_at: nowIso() })
     .eq("business_id", businessId)
-    .eq("is_primary", true);
+    .neq("phone_number", phoneNumber);
 
   const { data: existing } = await supabaseAdmin
     .from("sms_senders")
@@ -272,17 +393,47 @@ async function textoRequest<T>(path: string, init: RequestInit): Promise<T> {
   }
 }
 
-async function createTextoSubAccount(businessName: string, ownerEmail: string): Promise<string> {
-  const body = await textoRequest<{ id?: string; reference?: string }>("/account", {
+// Endpoints below follow Texto's published OpenAPI spec (texto.com.au/openapi.yaml):
+//   POST /accounts                          create a sub-account
+//   PATCH /account/{id}                     daily_limit, business_name
+//   POST /account/{id}/credits/allocate     { amount }
+//   POST /account/{id}/credits/recall       { amount }
+//   POST /account/{id}/numbers/assign       { numbers: [] }
+//   POST /account/{id}/numbers/recall       { numbers: [] }
+
+export function textoSubAccountPayload(input: {
+  businessName: string;
+  ownerEmail: string;
+  dailyLimit: number;
+  seedCredits?: number;
+}): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    business_name: input.businessName,
+    daily_limit: input.dailyLimit,
+    // BookedSecure operates the account; the tenant never needs a Texto login.
+    managed_by_parent: true,
+    team_access_from_parent: true,
+  };
+  if (input.ownerEmail) payload["email"] = input.ownerEmail;
+  if (input.seedCredits && input.seedCredits > 0) payload["seed_credits"] = input.seedCredits;
+  return payload;
+}
+
+async function createTextoSubAccount(input: {
+  businessName: string;
+  ownerEmail: string;
+  dailyLimit: number;
+}): Promise<string> {
+  const body = await textoRequest<{ account_id?: string; id?: string }>("/accounts", {
     method: "POST",
-    body: JSON.stringify({ name: businessName, email: ownerEmail }),
+    body: JSON.stringify(textoSubAccountPayload(input)),
   });
-  const id = body.id ?? body.reference;
+  const id = body.account_id ?? body.id;
   if (!id) throw new TextoAccountError("Texto did not return a sub-account id.", "provider_error");
   return id;
 }
 
-async function updateTextoSubAccount(subaccountId: string, patch: { daily_send_cap?: number }) {
+async function updateTextoSubAccount(subaccountId: string, patch: { daily_limit?: number; business_name?: string }) {
   await textoRequest(`/account/${encodeURIComponent(subaccountId)}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
@@ -290,34 +441,30 @@ async function updateTextoSubAccount(subaccountId: string, patch: { daily_send_c
 }
 
 async function allocateTextoCredits(subaccountId: string, credits: number): Promise<void> {
-  await textoRequest<{ ok?: boolean }>("/credits/allocate", {
+  await textoRequest(`/account/${encodeURIComponent(subaccountId)}/credits/allocate`, {
     method: "POST",
-    body: JSON.stringify({ account_id: subaccountId, credits }),
+    body: JSON.stringify({ amount: credits }),
   });
 }
 
 async function recallTextoCredits(subaccountId: string, credits: number): Promise<void> {
-  await textoRequest<{ ok?: boolean }>("/credits/recall", {
+  await textoRequest(`/account/${encodeURIComponent(subaccountId)}/credits/recall`, {
     method: "POST",
-    body: JSON.stringify({ account_id: subaccountId, credits }),
+    body: JSON.stringify({ amount: credits }),
   });
 }
 
-async function assignTextoProviderNumber(
-  subaccountId: string,
-  number: string,
-): Promise<{ providerNumberId: string | null }> {
-  const body = await textoRequest<{ id?: string; number_id?: string }>("/numbers/assign", {
+async function assignTextoProviderNumber(subaccountId: string, number: string): Promise<void> {
+  await textoRequest(`/account/${encodeURIComponent(subaccountId)}/numbers/assign`, {
     method: "POST",
-    body: JSON.stringify({ account_id: subaccountId, number }),
+    body: JSON.stringify({ numbers: [number] }),
   });
-  return { providerNumberId: body.id ?? body.number_id ?? null };
 }
 
 async function recallTextoProviderNumber(subaccountId: string, number: string): Promise<void> {
-  await textoRequest("/numbers/recall", {
+  await textoRequest(`/account/${encodeURIComponent(subaccountId)}/numbers/recall`, {
     method: "POST",
-    body: JSON.stringify({ account_id: subaccountId, number }),
+    body: JSON.stringify({ numbers: [number] }),
   });
 }
 
@@ -361,15 +508,18 @@ export async function provisionTextoAccount(input: {
   }
 
   try {
-    if (liveAccountProvisioning()) {
+    // Sub-accounts are opt-in. Default shape: numbers live on the parent
+    // account and BookedSecure meters per tenant locally.
+    if (liveSubaccountProvisioning()) {
       if (!account.subaccount_id) {
-        const subaccountId = await createTextoSubAccount(businessName, ownerEmail);
+        const subaccountId = await createTextoSubAccount({ businessName, ownerEmail, dailyLimit: dailySendCap });
         account = await updateTextoAccount(account.id, {
           subaccount_id: subaccountId,
           subaccount_reference: subaccountId,
         });
+      } else {
+        await updateTextoSubAccount(account.subaccount_id, { daily_limit: dailySendCap });
       }
-      await updateTextoSubAccount(account.subaccount_id!, { daily_send_cap: dailySendCap });
       if (startingCredits > 0) {
         await allocateTextoCredits(account.subaccount_id!, startingCredits);
       }
@@ -382,15 +532,49 @@ export async function provisionTextoAccount(input: {
       provisioned_at: nowIso(),
     });
 
-    const available = await listAvailableNumbers();
-    const nextNumber = available[0];
-    if (!nextNumber) {
+    // Refresh the pool from Texto first so a number bought in the dashboard
+    // is picked up without an operator having to type it in.
+    if (liveAccountProvisioning()) {
+      await syncNumbersFromTexto().catch((error) =>
+        console.error("[texto] pool sync before assignment failed:", error),
+      );
+    }
+
+    // Claim the next free number atomically: the conditional update only
+    // succeeds for one caller when two activations race for the same row.
+    let number: TextoNumber | null = null;
+    for (const candidate of await listAvailableNumbers()) {
+      const { data: claimed } = await supabaseAdmin
+        .from("texto_numbers")
+        .update({
+          status: "assigned",
+          assigned_business_id: businessId,
+          assigned_at: nowIso(),
+          recalled_at: null,
+          updated_at: nowIso(),
+        })
+        .eq("id", candidate.id)
+        .eq("status", "available")
+        .is("assigned_business_id", null)
+        .select("*")
+        .maybeSingle();
+      if (claimed) {
+        number = claimed;
+        break;
+      }
+    }
+
+    if (!number) {
       account = await updateTextoAccount(account.id, { provisioning_state: "queued_no_number" });
       await auditEvent({
         businessId,
         eventType: "texto_provision_queued_no_number",
         metadata: { account_id: account.id },
       });
+      await notifyPlatformOperator(
+        `Texto number needed — ${businessName} (business ${businessId}) is subscribed but no dedicated number is free. Buy one in Texto, then run "Sync numbers" and "Retry" in /admin/messaging-numbers.`,
+        { kind: "texto_queued_no_number", business_id: businessId },
+      );
       return {
         ok: false,
         account,
@@ -400,17 +584,8 @@ export async function provisionTextoAccount(input: {
       };
     }
 
-    const number = await assignPoolNumber(businessId, nextNumber.id);
-
-    if (liveAccountProvisioning() && account.subaccount_id) {
-      const { providerNumberId } = await assignTextoProviderNumber(
-        account.subaccount_id,
-        number.number,
-      );
-      await supabaseAdmin
-        .from("texto_numbers")
-        .update({ provider_number_id: providerNumberId })
-        .eq("id", number.id);
+    if (liveSubaccountProvisioning() && account.subaccount_id) {
+      await assignTextoProviderNumber(account.subaccount_id, number.number);
     }
 
     await ensurePrimarySender(businessId, account.id, number.number);
@@ -449,7 +624,7 @@ export async function provisionTextoAccount(input: {
 
 export async function allocateCredits(businessId: string, credits: number): Promise<TextoAccountRow> {
   const account = await getOrCreateTextoAccount(businessId);
-  if (liveAccountProvisioning() && account.subaccount_id && credits > 0) {
+  if (liveSubaccountProvisioning() && account.subaccount_id && credits > 0) {
     await allocateTextoCredits(account.subaccount_id, credits);
   }
   const updated = await updateTextoAccount(account.id, {
@@ -467,7 +642,7 @@ export async function allocateCredits(businessId: string, credits: number): Prom
 export async function recallCredits(businessId: string, credits: number): Promise<TextoAccountRow> {
   const account = await getOrCreateTextoAccount(businessId);
   const amount = Math.min(credits, account.credit_balance);
-  if (liveAccountProvisioning() && account.subaccount_id && amount > 0) {
+  if (liveSubaccountProvisioning() && account.subaccount_id && amount > 0) {
     await recallTextoCredits(account.subaccount_id, amount);
   }
   const updated = await updateTextoAccount(account.id, {
@@ -486,7 +661,7 @@ export async function recallCredits(businessId: string, credits: number): Promis
 export async function recallTextoNumber(businessId: string): Promise<void> {
   const account = await getTextoAccount(businessId);
   const assigned = await listAssignedNumbers(businessId);
-  if (account?.subaccount_id && liveAccountProvisioning()) {
+  if (account?.subaccount_id && liveSubaccountProvisioning()) {
     for (const number of assigned) {
       await recallTextoProviderNumber(account.subaccount_id, number.number);
     }
@@ -606,7 +781,7 @@ export async function getTextoAccountReport(
   window: { from: string; to: string },
 ): Promise<TextoAccountReport> {
   const account = await getTextoAccount(businessId);
-  if (liveAccountProvisioning() && account?.subaccount_id) {
+  if (liveSubaccountProvisioning() && account?.subaccount_id) {
     const body = await textoRequest<{
       summary?: {
         messages_out?: number;

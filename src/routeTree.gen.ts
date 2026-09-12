@@ -23,6 +23,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
+import { Route as AdminMessagingNumbersRouteImport } from './routes/admin.messaging-numbers'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as AssistantThreadIdRouteImport } from './routes/assistant.$threadId'
 import { Route as BTokenRouteImport } from './routes/b.$token'
@@ -41,6 +42,7 @@ import { Route as SettingsTeamRouteImport } from './routes/settings.team'
 import { Route as UnfinishedIndexRouteImport } from './routes/unfinished.index'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
+import { Route as ApiPublicHooksTopupExpiryRouteImport } from './routes/api/public/hooks/topup-expiry'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicSmsInboundRouteImport } from './routes/api/public/sms/inbound'
@@ -119,6 +121,11 @@ const SetupRoute = SetupRouteImport.update({
 const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   id: '/admin/feedback',
   path: '/admin/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminMessagingNumbersRoute = AdminMessagingNumbersRouteImport.update({
+  id: '/admin/messaging-numbers',
+  path: '/admin/messaging-numbers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminPilotApplicationsRoute = AdminPilotApplicationsRouteImport.update({
@@ -212,6 +219,12 @@ const ApiPublicHooksPilotExpiryRoute =
     path: '/api/public/hooks/pilot-expiry',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksTopupExpiryRoute =
+  ApiPublicHooksTopupExpiryRouteImport.update({
+    id: '/api/public/hooks/topup-expiry',
+    path: '/api/public/hooks/topup-expiry',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicLeadsIntakeRoute = ApiPublicLeadsIntakeRouteImport.update({
   id: '/api/public/leads/intake',
   path: '/api/public/leads/intake',
@@ -277,6 +290,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -295,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/unfinished/': typeof UnfinishedIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
+  '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
@@ -319,6 +334,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -337,6 +353,7 @@ export interface FileRoutesByTo {
   '/unfinished': typeof UnfinishedIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
+  '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
@@ -363,6 +380,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
   '/admin/feedback': typeof AdminFeedbackRoute
+  '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -381,6 +399,7 @@ export interface FileRoutesById {
   '/unfinished/': typeof UnfinishedIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
+  '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
@@ -408,6 +427,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/admin/feedback'
+    | '/admin/messaging-numbers'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -426,6 +446,7 @@ export interface FileRouteTypes {
     | '/unfinished/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
+    | '/api/public/hooks/topup-expiry'
     | '/api/public/leads/intake'
     | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
@@ -450,6 +471,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/setup'
     | '/admin/feedback'
+    | '/admin/messaging-numbers'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -468,6 +490,7 @@ export interface FileRouteTypes {
     | '/unfinished'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
+    | '/api/public/hooks/topup-expiry'
     | '/api/public/leads/intake'
     | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
@@ -493,6 +516,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/admin/feedback'
+    | '/admin/messaging-numbers'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -511,6 +535,7 @@ export interface FileRouteTypes {
     | '/unfinished/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
+    | '/api/public/hooks/topup-expiry'
     | '/api/public/leads/intake'
     | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
@@ -537,6 +562,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   SetupRoute: typeof SetupRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
+  AdminMessagingNumbersRoute: typeof AdminMessagingNumbersRoute
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   BTokenRoute: typeof BTokenRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
@@ -548,6 +574,7 @@ export interface RootRouteChildren {
   UnfinishedIndexRoute: typeof UnfinishedIndexRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
+  ApiPublicHooksTopupExpiryRoute: typeof ApiPublicHooksTopupExpiryRoute
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicSmsInboundRoute: typeof ApiPublicSmsInboundRoute
@@ -657,6 +684,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/feedback'
       fullPath: '/admin/feedback'
       preLoaderRoute: typeof AdminFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/messaging-numbers': {
+      id: '/admin/messaging-numbers'
+      path: '/admin/messaging-numbers'
+      fullPath: '/admin/messaging-numbers'
+      preLoaderRoute: typeof AdminMessagingNumbersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/pilot-applications': {
@@ -785,6 +819,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksPilotExpiryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/topup-expiry': {
+      id: '/api/public/hooks/topup-expiry'
+      path: '/api/public/hooks/topup-expiry'
+      fullPath: '/api/public/hooks/topup-expiry'
+      preLoaderRoute: typeof ApiPublicHooksTopupExpiryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/leads/intake': {
       id: '/api/public/leads/intake'
       path: '/api/public/leads/intake'
@@ -900,6 +941,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   SetupRoute: SetupRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
+  AdminMessagingNumbersRoute: AdminMessagingNumbersRoute,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   BTokenRoute: BTokenRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
@@ -911,6 +953,7 @@ const rootRouteChildren: RootRouteChildren = {
   UnfinishedIndexRoute: UnfinishedIndexRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
+  ApiPublicHooksTopupExpiryRoute: ApiPublicHooksTopupExpiryRoute,
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicSmsInboundRoute: ApiPublicSmsInboundRoute,

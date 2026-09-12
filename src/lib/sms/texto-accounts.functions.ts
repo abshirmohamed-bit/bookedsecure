@@ -121,3 +121,57 @@ export const addTextoNumberToPool = createServerFn({ method: "POST" })
     const { addNumberToPool } = await loadAccountModule();
     return addNumberToPool({ number: data.number, monthlyCostCents: data.monthlyCostCents });
   });
+
+/* ------------------------------------------------------------------ platform admin: number pool */
+
+/** Platform admin only: pull every number held at Texto into the local pool. */
+export const syncTextoNumberPool = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requirePlatformAdmin(context);
+    const { syncNumbersFromTexto } = await loadAccountModule();
+    return syncNumbersFromTexto();
+  });
+
+/** Platform admin only: pool numbers, live-mode flags and tenants waiting on a number. */
+export const getTextoNumberPoolOverview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requirePlatformAdmin(context);
+    const mod = await loadAccountModule();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: numbers }, awaiting] = await Promise.all([
+      supabaseAdmin
+        .from("texto_numbers")
+        .select("id, number, status, monthly_cost_cents, assigned_business_id, assigned_at, businesses:assigned_business_id(name)")
+        .order("created_at"),
+      mod.listBusinessesAwaitingNumber(),
+    ]);
+    return {
+      liveProvisioning: mod.liveAccountProvisioning(),
+      liveSubaccounts: mod.liveSubaccountProvisioning(),
+      numbers: (numbers ?? []).map((n) => ({
+        id: n.id,
+        number: n.number,
+        status: n.status,
+        monthlyCostCents: n.monthly_cost_cents,
+        assignedBusinessId: n.assigned_business_id,
+        assignedBusinessName: (n.businesses as { name?: string | null } | null)?.name ?? null,
+        assignedAt: n.assigned_at,
+      })),
+      awaiting,
+    };
+  });
+
+/** Platform admin only: re-run provisioning for a queued or failed business. */
+export const retryTextoProvisioning = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requirePlatformAdmin(context);
+    const { provisionMessagingForBusiness } = await import("@/lib/subscription-billing.server");
+    const result = await provisionMessagingForBusiness(data.businessId);
+    return result.ok
+      ? { ok: true as const, number: result.number.number, state: result.account.provisioning_state }
+      : { ok: false as const, reason: result.reason, queued: result.queued, state: result.account.provisioning_state };
+  });
