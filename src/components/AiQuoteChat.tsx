@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, Check, RotateCcw, ShieldCheck } from "lucide-react";
+import { AlertCircle, Check, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { TenantMark } from "@/components/TenantMark";
 import { ServiceChooser } from "@/components/quote/ServiceChooser";
 import {
@@ -31,6 +31,18 @@ import {
 } from "@/lib/web-chat-booking";
 
 type Turn = { role: "customer" | "assistant" | "system"; body: string };
+
+/** A chosen service, kept visual: price, length, and any add-ons ticked with it. */
+type SelectionCardView = {
+  label: string;
+  price: string | null;
+  duration: string | null;
+  description?: string | null;
+  includes?: string | null;
+  excludes?: string | null;
+  note?: string | null;
+  extras?: { name: string; price: string | null }[];
+};
 
 type Tenant = {
   slug: string;
