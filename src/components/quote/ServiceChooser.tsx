@@ -334,14 +334,41 @@ export function ServiceChooser({
           <ul className="mt-1.5 space-y-1">
             {chosenOptions.map((option) => {
               const count = quantities[option.value] ?? 1;
+              const cardExtras = option.card?.extras ?? [];
+              const hasExtras = cardExtras.length > 0;
+              const open = extrasOpen[option.value] ?? false;
+              const chosenCount = cardExtras.filter((extra) => extras.includes(extra.id)).length;
               return (
                 <li
                   key={option.value}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 py-1 pl-2.5 pr-1"
+                  className="rounded-lg border border-primary/40 bg-primary/10"
                 >
-                  <span className="min-w-0 truncate text-xs font-semibold text-foreground">
-                    {option.label}
-                  </span>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-1.5 py-1 pl-2.5 pr-1">
+                    <span className="min-w-0 truncate text-xs font-semibold text-foreground">
+                      {option.label}
+                    </span>
+                    {hasExtras && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        aria-expanded={open}
+                        aria-label={`Add-ons for ${option.label}`}
+                        onClick={() =>
+                          setExtrasOpen((current) => ({
+                            ...current,
+                            [option.value]: !open,
+                          }))
+                        }
+                        className={`inline-flex h-7 items-center gap-0.5 rounded-md border px-1.5 text-[0.62rem] font-semibold ${
+                          chosenCount > 0
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        <Plus className="h-3 w-3" aria-hidden="true" />
+                        <span>Add-ons{chosenCount > 0 ? ` ${chosenCount}` : ""}</span>
+                      </button>
+                    )}
                   <span
                     className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card"
                     role="group"
