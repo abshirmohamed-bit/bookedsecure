@@ -751,7 +751,11 @@ export type Database = {
           agent_kill_switch_reason: string | null
           agent_max_leads_per_activation: number
           automation_enabled: boolean
+          billing_interval: string
+          cancel_at_period_end: boolean
           created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
           default_sms_provider: string
           flexible_requests_enabled: boolean
           id: string
@@ -761,6 +765,7 @@ export type Database = {
           opening_hours: string | null
           owner_notification_name: string | null
           owner_notification_number: string | null
+          past_due_since: string | null
           phone_number: string | null
           plan_id: string
           privacy_policy_url: string | null
@@ -773,6 +778,10 @@ export type Database = {
           sms_credential_mode: string
           sms_signature: string | null
           status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string
+          subscription_updated_at: string | null
           timezone: string
           updated_at: string
         }
@@ -787,7 +796,11 @@ export type Database = {
           agent_kill_switch_reason?: string | null
           agent_max_leads_per_activation?: number
           automation_enabled?: boolean
+          billing_interval?: string
+          cancel_at_period_end?: boolean
           created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
           default_sms_provider?: string
           flexible_requests_enabled?: boolean
           id?: string
@@ -797,6 +810,7 @@ export type Database = {
           opening_hours?: string | null
           owner_notification_name?: string | null
           owner_notification_number?: string | null
+          past_due_since?: string | null
           phone_number?: string | null
           plan_id?: string
           privacy_policy_url?: string | null
@@ -809,6 +823,10 @@ export type Database = {
           sms_credential_mode?: string
           sms_signature?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string
+          subscription_updated_at?: string | null
           timezone?: string
           updated_at?: string
         }
@@ -823,7 +841,11 @@ export type Database = {
           agent_kill_switch_reason?: string | null
           agent_max_leads_per_activation?: number
           automation_enabled?: boolean
+          billing_interval?: string
+          cancel_at_period_end?: boolean
           created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
           default_sms_provider?: string
           flexible_requests_enabled?: boolean
           id?: string
@@ -833,6 +855,7 @@ export type Database = {
           opening_hours?: string | null
           owner_notification_name?: string | null
           owner_notification_number?: string | null
+          past_due_since?: string | null
           phone_number?: string | null
           plan_id?: string
           privacy_policy_url?: string | null
@@ -845,6 +868,10 @@ export type Database = {
           sms_credential_mode?: string
           sms_signature?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string
+          subscription_updated_at?: string | null
           timezone?: string
           updated_at?: string
         }
@@ -2165,6 +2192,8 @@ export type Database = {
       plans: {
         Row: {
           annual_price_minor_units: number
+          automation_custom_enabled: boolean
+          campaigns_enabled: boolean
           created_at: string
           currency: string
           id: string
@@ -2183,6 +2212,8 @@ export type Database = {
         }
         Insert: {
           annual_price_minor_units: number
+          automation_custom_enabled?: boolean
+          campaigns_enabled?: boolean
           created_at?: string
           currency?: string
           id: string
@@ -2201,6 +2232,8 @@ export type Database = {
         }
         Update: {
           annual_price_minor_units?: number
+          automation_custom_enabled?: boolean
+          campaigns_enabled?: boolean
           created_at?: string
           currency?: string
           id?: string
@@ -2823,7 +2856,7 @@ export type Database = {
           included_segments: number
           period_end: string
           period_start: string
-          pilot_application_id: string
+          pilot_application_id: string | null
           segments_blocked: number
           segments_used: number
           updated_at: string
@@ -2836,7 +2869,7 @@ export type Database = {
           included_segments?: number
           period_end: string
           period_start: string
-          pilot_application_id: string
+          pilot_application_id?: string | null
           segments_blocked?: number
           segments_used?: number
           updated_at?: string
@@ -2849,7 +2882,7 @@ export type Database = {
           included_segments?: number
           period_end?: string
           period_start?: string
-          pilot_application_id?: string
+          pilot_application_id?: string | null
           segments_blocked?: number
           segments_used?: number
           updated_at?: string
@@ -3399,6 +3432,10 @@ export type Database = {
         Args: { p_period_id: string; p_segments: number }
         Returns: undefined
       }
+      refund_sms_credits: {
+        Args: { p_business_id: string; p_credits: number }
+        Returns: undefined
+      }
       release_sms_segments: {
         Args: { p_period_id: string; p_segments: number }
         Returns: undefined
@@ -3413,7 +3450,7 @@ export type Database = {
           included_segments: number
           period_end: string
           period_start: string
-          pilot_application_id: string
+          pilot_application_id: string | null
           segments_blocked: number
           segments_used: number
           updated_at: string
@@ -3428,6 +3465,10 @@ export type Database = {
       set_cron_credential: {
         Args: { p_name: string; p_secret: string }
         Returns: undefined
+      }
+      spend_sms_credits: {
+        Args: { p_business_id: string; p_credits: number }
+        Returns: number
       }
       sweep_abandoned_web_conversations: {
         Args: { p_minutes?: number }
