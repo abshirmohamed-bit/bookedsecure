@@ -261,6 +261,54 @@ export type Database = {
           },
         ]
       }
+      assistant_files: {
+        Row: {
+          business_id: string
+          byte_size: number
+          content: string
+          created_at: string
+          filename: string
+          id: string
+          thread_id: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          business_id: string
+          byte_size?: number
+          content: string
+          created_at?: string
+          filename: string
+          id?: string
+          thread_id?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          business_id?: string
+          byte_size?: number
+          content?: string
+          created_at?: string
+          filename?: string
+          id?: string
+          thread_id?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_files_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_files_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistant_messages: {
         Row: {
           business_id: string
