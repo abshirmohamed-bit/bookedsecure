@@ -12,9 +12,13 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, Check, Plus, X } from "lucide-react";
+import { ChevronLeft, Check, Minus, Plus, X } from "lucide-react";
 import { groupItems, hasMeaningfulGroups } from "@/lib/service-groups";
-import { encodeServiceSelection, type WebChatCardExtra } from "@/lib/web-chat";
+import {
+  encodeServiceSelection,
+  MAX_SERVICE_QUANTITY,
+  type WebChatCardExtra,
+} from "@/lib/web-chat";
 
 export type ServiceCard = {
   group: string | null;
@@ -61,6 +65,8 @@ export function ServiceChooser({
   const [chosen, setChosen] = useState<string[]>([]);
   /** Chosen extras, by add-on id. */
   const [extras, setExtras] = useState<string[]>([]);
+  /** Number of vehicles per chosen service; a missing entry means one. */
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [detail, setDetail] = useState<ServiceOption | null>(null);
 
   const chosenOptions = chosen
@@ -73,10 +79,14 @@ export function ServiceChooser({
         ? current.filter((value) => value !== option.value)
         : [...current, option.value],
     );
-    // Extras belong to a service: dropping the service drops its extras.
+    // Extras and vehicle counts belong to a service: dropping it drops them.
     const ids = (option.card?.extras ?? []).map((extra) => extra.id);
-    if (chosen.includes(option.value) && ids.length > 0) {
-      setExtras((current) => current.filter((id) => !ids.includes(id)));
+    if (chosen.includes(option.value)) {
+      if (ids.length > 0) setExtras((current) => current.filter((id) => !ids.includes(id)));
+      setQuantities((current) => {
+        const { [option.value]: _dropped, ...rest } = current;
+        return rest;
+      });
     }
   }
 
@@ -86,6 +96,14 @@ export function ServiceChooser({
     );
   }
 
+  function adjustQuantity(value: string, delta: number) {
+    setQuantities((current) => {
+      const next = Math.min(MAX_SERVICE_QUANTITY, Math.max(1, (current[value] ?? 1) + delta));
+      const { [value]: _old, ...rest } = current;
+      return next > 1 ? { ...rest, [value]: next } : rest;
+    });
+  }
+
   function submit() {
     if (chosen.length === 0 || busy) return;
     const extraNames = chosenOptions
@@ -93,12 +111,17 @@ export function ServiceChooser({
       .filter((extra) => extras.includes(extra.id))
       .map((extra) => extra.name);
     const label = [
-      chosenOptions.map((option) => option.label).join(" + "),
+      chosenOptions
+        .map((option) => {
+          const count = quantities[option.value] ?? 1;
+          return count > 1 ? `${option.label} ×${count}` : option.label;
+        })
+        .join(" + "),
       extraNames.length > 0 ? `with ${extraNames.join(", ")}` : null,
     ]
       .filter(Boolean)
       .join(" ");
-    onSubmit(encodeServiceSelection(chosen, extras), label);
+    onSubmit(encodeServiceSelection(chosen, extras, quantities), label);
   }
 
   if (detail) {
@@ -308,20 +331,55 @@ export function ServiceChooser({
           <p className="text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
             Your selection
           </p>
-          <ul className="mt-1.5 flex flex-wrap gap-1.5">
-            {chosenOptions.map((option) => (
-              <li key={option.value}>
-                <button
-                  type="button"
-                  onClick={() => toggleService(option)}
-                  className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-xs font-semibold text-foreground"
-                  aria-label={`Remove ${option.label}`}
+          <ul className="mt-1.5 space-y-1">
+            {chosenOptions.map((option) => {
+              const count = quantities[option.value] ?? 1;
+              return (
+                <li
+                  key={option.value}
+                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 py-1 pl-2.5 pr-1"
                 >
-                  {option.label}
-                  <X className="h-3 w-3" aria-hidden="true" />
-                </button>
-              </li>
-            ))}
+                  <span className="min-w-0 truncate text-xs font-semibold text-foreground">
+                    {option.label}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card"
+                    role="group"
+                    aria-label={`Vehicles for ${option.label}`}
+                  >
+                    <button
+                      type="button"
+                      disabled={busy || count <= 1}
+                      onClick={() => adjustQuantity(option.value, -1)}
+                      aria-label={`Fewer vehicles for ${option.label}`}
+                      className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
+                    >
+                      <Minus className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                    <span className="min-w-[3.4rem] text-center text-[0.65rem] font-semibold text-foreground">
+                      {count} {count === 1 ? "vehicle" : "vehicles"}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={busy || count >= MAX_SERVICE_QUANTITY}
+                      onClick={() => adjustQuantity(option.value, 1)}
+                      aria-label={`More vehicles for ${option.label}`}
+                      className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
+                    >
+                      <Plus className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleService(option)}
+                    className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+                    aria-label={`Remove ${option.label}`}
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
           {chosenOptions.some((option) => (option.card?.extras.length ?? 0) > 0) && (
             <div className="mt-2 space-y-2 border-t border-border pt-2">

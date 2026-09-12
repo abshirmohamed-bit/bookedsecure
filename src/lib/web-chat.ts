@@ -82,6 +82,11 @@ export type WebChatCollected = {
   /** Further approved services chosen alongside the first one. Never invented. */
   extra_service_ids?: string[] | null;
   extra_service_names?: string[] | null;
+  /**
+   * How many vehicles each chosen service is for, by service id. Only present
+   * when the customer asked for more than one; a missing entry means one.
+   */
+  service_quantities?: Record<string, number> | null;
   typed_request?: string | null;
 
   /** Extras chosen with the service. Only the tenant's own linked add-ons. */
@@ -300,20 +305,24 @@ export function chosenPricing(
     .map((id) => (tenant.addons ?? []).find((addon) => addon.id === id))
     .filter((addon): addon is ServiceAddon => Boolean(addon));
 
-  const parts: { name: string; price: string | null }[] = [
+  const parts: { name: string; price: string | null; quantity: number }[] = [
     ...services.map((service) => ({
       name: service.name,
       price: servicePriceLine(service, tenant.offerPercent ?? null),
+      quantity: serviceQuantity(collected, service.id),
     })),
     ...addons.map((addon) => ({
       name: addon.name,
       price: addon.price_guidance?.trim() || null,
+      quantity: 1,
     })),
   ];
 
-  const lines = parts.map((part) =>
-    part.price ? `${part.name} (${part.price})` : `${part.name} (price on enquiry)`,
-  );
+  const lines = parts.map((part) => {
+    const name = part.quantity > 1 ? `${part.name} ×${part.quantity}` : part.name;
+    if (!part.price) return `${name} (price on enquiry)`;
+    return part.quantity > 1 ? `${name} (${part.price} each)` : `${name} (${part.price})`;
+  });
 
   let total = 0;
   let from = false;
@@ -331,7 +340,7 @@ export function chosenPricing(
       break;
     }
     if (/\bfrom\b/i.test(text)) from = true;
-    total += value;
+    total += value * part.quantity;
   }
 
   const combined =
@@ -711,22 +720,48 @@ function applyServiceAddons(
   next.addon_names = [];
   next.extra_service_ids = [];
   next.extra_service_names = [];
+  next.service_quantities = null;
   next.addons_offered = offered.length > 0;
   next.addons_done = offered.length === 0;
+}
+
+/** Largest vehicle count a customer can pick per service on the cards. */
+export const MAX_SERVICE_QUANTITY = 10;
+
+/** How many vehicles a chosen service is for (one unless the customer said more). */
+export function serviceQuantity(collected: WebChatCollected, serviceId: string): number {
+  const raw = collected.service_quantities?.[serviceId];
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return 1;
+  return Math.min(MAX_SERVICE_QUANTITY, Math.max(1, Math.round(raw)));
+}
+
+function withQuantity(name: string, quantity: number): string {
+  return quantity > 1 ? `${name} ×${quantity}` : name;
 }
 
 /**
  * The service selection made on the cards, encoded as one answer value so the
  * existing single-answer transport is untouched. Only ids the tenant owns are
- * ever accepted on the way back in.
+ * ever accepted on the way back in. A service id may carry a vehicle count as
+ * `id*3`; a bare id means one vehicle, so older clients still parse.
  */
 export const SERVICE_SELECTION_PREFIX = "sel:";
 
-export function encodeServiceSelection(serviceIds: string[], addonIds: string[]): string {
-  return `${SERVICE_SELECTION_PREFIX}${serviceIds.join(",")}|${addonIds.join(",")}`;
+export function encodeServiceSelection(
+  serviceIds: string[],
+  addonIds: string[],
+  quantities: Record<string, number> = {},
+): string {
+  const services = serviceIds.map((id) => {
+    const count = quantities[id] ?? 1;
+    return count > 1 ? `${id}*${Math.min(MAX_SERVICE_QUANTITY, Math.round(count))}` : id;
+  });
+  return `${SERVICE_SELECTION_PREFIX}${services.join(",")}|${addonIds.join(",")}`;
 }
 
-function parseServiceSelection(value: string): { serviceIds: string[]; addonIds: string[] } | null {
+function parseServiceSelection(
+  value: string,
+): { serviceIds: string[]; addonIds: string[]; quantities: Record<string, number> } | null {
   if (!value.startsWith(SERVICE_SELECTION_PREFIX)) return null;
   const [rawServices = "", rawAddons = ""] = value.slice(SERVICE_SELECTION_PREFIX.length).split("|");
   const split = (input: string) =>
@@ -734,18 +769,32 @@ function parseServiceSelection(value: string): { serviceIds: string[]; addonIds:
       .split(",")
       .map((part) => part.trim())
       .filter(Boolean);
-  const serviceIds = split(rawServices);
+  const quantities: Record<string, number> = {};
+  const serviceIds = split(rawServices).map((entry) => {
+    const [id = "", count = ""] = entry.split("*");
+    const parsed = Number.parseInt(count, 10);
+    if (Number.isFinite(parsed) && parsed > 1) {
+      quantities[id] = Math.min(MAX_SERVICE_QUANTITY, parsed);
+    }
+    return id;
+  }).filter(Boolean);
   if (serviceIds.length === 0) return null;
-  return { serviceIds, addonIds: split(rawAddons) };
+  return { serviceIds, addonIds: split(rawAddons), quantities };
 }
 
 /** Every chosen service in one line: the tenant's own names, nothing invented. */
 export function chosenServicesText(collected: WebChatCollected): string | null {
-  const names = [
-    ...(collected.service_name ? [collected.service_name] : []),
-    ...((collected.extra_service_names ?? []).filter(Boolean) as string[]),
-  ];
-  return names.length > 0 ? names.join(" + ") : null;
+  const entries = [
+    ...(collected.service_name ? [{ id: collected.service_id ?? "", name: collected.service_name }] : []),
+    ...(collected.extra_service_names ?? []).map((name, index) => ({
+      id: collected.extra_service_ids?.[index] ?? "",
+      name,
+    })),
+  ].filter((entry) => Boolean(entry.name));
+  if (entries.length === 0) return null;
+  return entries
+    .map((entry) => withQuantity(entry.name, entry.id ? serviceQuantity(collected, entry.id) : 1))
+    .join(" + ");
 }
 
 
@@ -788,18 +837,27 @@ export function applyAnswer(
         const extras = selection.addonIds
           .map((id) => allowed.find((addon) => addon.id === id))
           .filter((addon): addon is ServiceAddon => Boolean(addon));
+        // Vehicle counts: only for services actually chosen, only above one.
+        const quantities: Record<string, number> = {};
+        for (const entry of chosen) {
+          const count = selection.quantities[entry.id] ?? 1;
+          if (count > 1) quantities[entry.id] = count;
+        }
         next.service_id = primary.id;
         next.service_name = primary.name;
         next.typed_request = null;
         next.extra_service_ids = rest.map((entry) => entry.id);
         next.extra_service_names = rest.map((entry) => entry.name);
+        next.service_quantities = Object.keys(quantities).length > 0 ? quantities : null;
         next.addon_ids = extras.map((addon) => addon.id);
         next.addon_names = extras.map((addon) => addon.name);
         next.addons_offered = allowed.length > 0;
         // Extras were offered and answered on the cards, so the extras step is done.
         next.addons_done = true;
         const echo = [
-          chosen.map((entry) => entry.name).join(" + "),
+          chosen
+            .map((entry) => withQuantity(entry.name, quantities[entry.id] ?? 1))
+            .join(" + "),
           extras.length > 0 ? `with ${extras.map((addon) => addon.name).join(", ")}` : null,
         ]
           .filter(Boolean)
