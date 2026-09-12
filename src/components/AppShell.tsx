@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  CreditCard,
   FileUp,
   Inbox,
   Menu,
@@ -216,6 +217,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             icon={Users}
             onClick={() => setMobileNavOpen(false)}
           />
+          <SidebarLink
+            to="/settings/billing"
+            label="Plan & billing"
+            active={pathname.startsWith("/settings/billing")}
+            icon={CreditCard}
+            onClick={() => setMobileNavOpen(false)}
+          />
         </nav>
         {isAssistantHome ? <div id="assistant-context-slot" className="min-h-0 flex-1 border-t border-sidebar-border" /> : <div className="flex-1" />}
         <div className="shrink-0 border-t border-sidebar-border p-3">
@@ -296,7 +304,8 @@ function SidebarLink({
     | "/settings/business"
     | "/settings/messaging"
     | "/settings/automation"
-    | "/settings/team";
+    | "/settings/team"
+    | "/settings/billing";
   label: string;
   active: boolean;
   icon: typeof BarChart3;
