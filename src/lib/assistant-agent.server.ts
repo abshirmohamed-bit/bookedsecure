@@ -42,6 +42,8 @@ export async function runAssistantAgent(input: {
   question: string;
   history?: Array<{ role: "user" | "assistant"; text: string }>;
   attachment?: { filename: string; content: string } | null;
+  /** The attached file was uploaded in an earlier message and is being reused. */
+  attachmentRemembered?: boolean;
 }): Promise<AssistantAgentResult> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("assistant_unavailable");
@@ -67,7 +69,9 @@ export async function runAssistantAgent(input: {
   });
 
   const question = input.attachment
-    ? `${input.question}\n\n[Attached file: ${input.attachment.filename}]`
+    ? `${input.question}\n\n[${
+        input.attachmentRemembered ? "File kept from earlier" : "Attached file"
+      }: ${input.attachment.filename}]`
     : input.question;
 
   const messages: ModelMessage[] = [
