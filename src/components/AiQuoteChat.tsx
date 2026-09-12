@@ -84,9 +84,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const [honeypot, setHoneypot] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   /** The chosen service cards, kept so the customer's reply stays visual. */
-  const [selectionCards, setSelectionCards] = useState<
-    { label: string; price: string | null; duration: string | null }[]
-  >([]);
+  const [selectionCards, setSelectionCards] = useState<SelectionCardView[]>([]);
+  /** The selection card the customer tapped to read in full. */
+  const [selectionDetail, setSelectionDetail] = useState<SelectionCardView | null>(null);
   const [selectionEcho, setSelectionEcho] = useState<string | null>(null);
   /** Visible height of the screen, so the on-screen keyboard never distorts it. */
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
@@ -106,10 +106,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const selectionKey = `bookedsecure:sel:${tenant.slug}`;
 
   /** Keeps the tapped cards, so a refresh still shows the choice as cards. */
-  function rememberSelection(
-    label: string,
-    cards: { label: string; price: string | null; duration: string | null }[],
-  ) {
+  function rememberSelection(label: string, cards: SelectionCardView[]) {
     setSelectionCards(cards);
     setSelectionEcho(label);
     if (typeof window !== "undefined") {
@@ -125,7 +122,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     try {
       const parsed = JSON.parse(saved) as {
         label?: string;
-        cards?: { label: string; price: string | null; duration: string | null }[];
+        cards?: SelectionCardView[];
       };
       if (parsed.label && Array.isArray(parsed.cards) && parsed.cards.length > 0) {
         setSelectionEcho(parsed.label);
