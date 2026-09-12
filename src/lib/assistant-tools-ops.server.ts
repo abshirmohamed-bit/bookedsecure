@@ -222,7 +222,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
 
     unfinished_prospects: tool({
       description:
-        "People who started the quote page but did not finish, with how far they got (stage), the services they picked, and whether they left a mobile number. View only.",
+        "People who started the quote page but did not finish, with how far they got (stage), the services they picked, and whether they left a mobile number. Returns each prospect's id for delete_unfinished_prospects.",
       inputSchema: z.object({ days: z.number().int().min(1).max(365).nullable() }),
       execute: async ({ days }) => {
         const { loadUnfinishedProspects } = await import("@/lib/quote-funnel.server");
@@ -235,7 +235,8 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
           gaveMobile: withMobile,
           stoppedBeforeMobile: rows.length - withMobile,
           byStage,
-          prospects: rows.slice(0, 40).map((r) => ({
+          prospects: rows.slice(0, 60).map((r) => ({
+            id: r.conversationId,
             name: r.name,
             mobile: r.mobile || null,
             suburb: r.suburb,
@@ -244,6 +245,22 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
             lastActivity: when(r.lastActivityAt),
           })),
         };
+      },
+    }),
+
+    delete_unfinished_prospects: tool({
+      description:
+        "Remove unfinished prospects from the list (test runs, junk, irrelevant entries). Pass the ids from unfinished_prospects. Only removes entries that match what the owner asked for; never touches real leads in the inbox. Acts immediately.",
+      inputSchema: z.object({ conversationIds: z.array(z.string().uuid()).min(1).max(200) }),
+      execute: async ({ conversationIds }) => {
+        const { deleteUnfinishedConversations } = await import("@/lib/quote-funnel.server");
+        const result = await deleteUnfinishedConversations({ businessId, userId, conversationIds });
+        if (result.deleted > 0) {
+          ctx.record(
+            `Removed ${result.deleted} unfinished prospect${result.deleted === 1 ? "" : "s"}.`,
+          );
+        }
+        return result;
       },
     }),
 
