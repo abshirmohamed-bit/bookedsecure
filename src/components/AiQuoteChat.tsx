@@ -325,24 +325,42 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
         <div className="ml-auto max-w-[86%]">
           <ul className="flex flex-wrap justify-end gap-1.5">
             {selectionCards.map((card) => (
-              <li
-                key={card.label}
-                className="flex w-[7.2rem] flex-col rounded-lg border border-primary bg-card p-1.5 text-left shadow-sm ring-1 ring-primary/40 sm:w-[8.5rem] sm:p-2"
-              >
-                <span className="mb-1 flex h-4 w-4 items-center justify-center self-end rounded-full border border-primary bg-primary text-primary-foreground">
-                  <Check className="h-3 w-3" aria-hidden="true" />
-                </span>
-                <p className="min-w-0 break-words text-[0.66rem] font-semibold leading-[1.15] sm:text-[0.78rem]">
-                  {card.label}
-                </p>
-                <p className="mt-1 truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
-                  {card.price ?? "On enquiry"}
-                </p>
-                {card.duration && (
-                  <p className="truncate text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.64rem]">
-                    {card.duration}
+              <li key={card.label}>
+                <button
+                  type="button"
+                  onClick={() => setSelectionDetail(card)}
+                  aria-label={`View full details of ${card.label}`}
+                  className="flex w-[7.2rem] cursor-pointer flex-col rounded-lg border border-primary bg-card p-1.5 text-left shadow-sm ring-1 ring-primary/40 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[8.5rem] sm:p-2"
+                >
+                  <span className="mb-1 flex h-4 w-4 items-center justify-center self-end rounded-full border border-primary bg-primary text-primary-foreground">
+                    <Check className="h-3 w-3" aria-hidden="true" />
+                  </span>
+                  <p className="min-w-0 break-words text-[0.66rem] font-semibold leading-[1.15] sm:text-[0.78rem]">
+                    {card.label}
                   </p>
-                )}
+                  <p className="mt-1 truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
+                    {card.price ?? "On enquiry"}
+                  </p>
+                  {card.duration && (
+                    <p className="truncate text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.64rem]">
+                      {card.duration}
+                    </p>
+                  )}
+                  {(card.extras ?? []).map((extra) => (
+                    <p
+                      key={extra.name}
+                      className="mt-0.5 flex min-w-0 items-baseline gap-1 text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.62rem]"
+                    >
+                      <span className="min-w-0 truncate">+{extra.name}</span>
+                      {extra.price && (
+                        <span className="shrink-0 font-semibold text-primary">{extra.price}</span>
+                      )}
+                    </p>
+                  ))}
+                  <span className="mt-1 text-[0.54rem] font-semibold uppercase tracking-wide text-primary/80 sm:text-[0.58rem]">
+                    Tap for details
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
