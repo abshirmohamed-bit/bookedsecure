@@ -105,21 +105,32 @@ export async function applyStatusChange(input: {
   return { updated: ids.length };
 }
 
-/** Prepares a draft win-back campaign for the owner to review. Sends nothing. */
+/** Prepares a draft campaign for the owner to review. Sends nothing. */
 export async function proposeCampaign(input: {
   businessId: string;
   userId: string;
   percent: number | null;
+  offerText?: string | null;
   maxLeads: number | null;
   olderThanDays: number | null;
+  audience?: import("@/lib/reactivation.server").CampaignAudience;
+  fresh?: boolean;
 }): Promise<CampaignProposal | null> {
   const { draftReactivationCampaign } = await import("@/lib/reactivation.server");
+  const offer =
+    input.offerText && input.offerText.trim().length > 0
+      ? input.offerText
+      : input.percent
+        ? proposeOffer({ percent: input.percent })
+        : null;
   const view = await draftReactivationCampaign({
     businessId: input.businessId,
     userId: input.userId,
-    offerText: input.percent ? proposeOffer({ percent: input.percent }) : null,
+    offerText: offer,
     ...(input.maxLeads ? { maxLeads: input.maxLeads } : {}),
     ...(input.olderThanDays ? { olderThanDays: input.olderThanDays } : {}),
+    ...(input.audience ? { audience: input.audience } : {}),
+    ...(input.fresh ? { fresh: true } : {}),
   });
   if (!view.campaign) return null;
 
@@ -133,7 +144,7 @@ export async function proposeCampaign(input: {
     offerText: view.campaign.offerText,
     summary:
       pending.length === 0
-        ? "No contacts qualify for a win-back message right now."
+        ? "No contacts qualify for that message right now."
         : `${pending.length} contact${pending.length === 1 ? "" : "s"}${windowNote} ready to receive "${view.campaign.offerText}". Nothing sends until you approve.`,
     drafts: pending.map((draft) => ({
       id: draft.id,
