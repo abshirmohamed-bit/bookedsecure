@@ -250,7 +250,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </span>
         </p>
          <div className="ml-auto flex items-center gap-1">
+           <div className="lg:hidden"><FeedbackButton rail /></div>
            <div className="lg:hidden"><NotificationBell /></div>
+
           {quotePath ? (
             <QuotePageControl quotePath={quotePath} slug={business?.slug ?? null} />
           ) : null}
