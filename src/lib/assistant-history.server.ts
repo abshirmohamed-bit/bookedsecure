@@ -205,3 +205,63 @@ export async function archiveAssistantThread(input: { businessId: string; thread
     .eq("id", input.threadId);
   if (error) throw new Error(error.message);
 }
+
+export type RememberedFile = { filename: string; content: string; createdAt: string };
+
+/**
+ * Keeps a file the owner handed to the assistant so they never have to upload it
+ * again. Tenant-scoped, and only the newest few per conversation are kept.
+ */
+export async function rememberAssistantFile(input: {
+  businessId: string;
+  threadId: string;
+  userId: string;
+  filename: string;
+  content: string;
+}) {
+  const { error } = await supabaseAdmin.from("assistant_files").insert({
+    business_id: input.businessId,
+    thread_id: input.threadId,
+    uploaded_by: input.userId,
+    filename: input.filename,
+    content: input.content,
+    byte_size: input.content.length,
+  });
+  if (error) {
+    // Remembering is a convenience: never fail the owner's request over it.
+    console.error("could not remember assistant file", error.message);
+    return;
+  }
+  const { data: kept } = await supabaseAdmin
+    .from("assistant_files")
+    .select("id")
+    .eq("business_id", input.businessId)
+    .eq("thread_id", input.threadId)
+    .order("created_at", { ascending: false })
+    .range(5, 100);
+  const stale = (kept ?? []).map((row) => row.id);
+  if (stale.length > 0) {
+    await supabaseAdmin
+      .from("assistant_files")
+      .delete()
+      .eq("business_id", input.businessId)
+      .in("id", stale);
+  }
+}
+
+/** The most recent file this conversation has been given, if any. */
+export async function latestAssistantFile(input: {
+  businessId: string;
+  threadId: string;
+}): Promise<RememberedFile | null> {
+  const { data, error } = await supabaseAdmin
+    .from("assistant_files")
+    .select("filename, content, created_at")
+    .eq("business_id", input.businessId)
+    .eq("thread_id", input.threadId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return { filename: data.filename, content: data.content, createdAt: data.created_at };
+}
