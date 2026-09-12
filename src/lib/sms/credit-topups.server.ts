@@ -75,7 +75,8 @@ export async function createCreditTopupCheckout(input: {
       amount_cents: pack.amountCents,
       currency: pack.currency,
       status: "pending",
-    })
+      source: "manual",
+    } as Database["public"]["Tables"]["credit_topups"]["Insert"])
     .select("id")
     .single();
   if (insertError || !row) return { error: insertError?.message ?? "Could not start the top-up." };
@@ -106,7 +107,12 @@ export async function createCreditTopupCheckout(input: {
       customer: customerId,
       line_items: [{ price: price.id, quantity: 1 }],
       allow_promotion_codes: false,
-      payment_intent_data: { description: `${pack.label} — BookedSecure SMS top-up` },
+      // Save the card for future off-session charges so automatic top-ups
+      // work without the owner having to come back and pay again.
+      payment_intent_data: {
+        description: `${pack.label} — BookedSecure SMS top-up`,
+        setup_future_usage: "off_session",
+      },
       metadata: {
         creditTopupId: row.id,
         bookedsecureBusinessId: input.businessId,
