@@ -116,8 +116,8 @@ describe("CRM CSV parsing and mapping", () => {
   });
 
   it("maps historical GoDaddy CRM stages and preserves the raw stage text", () => {
-    expect(mapStage("Intake")).toBe("new");
-    expect(mapStage("  intake ")).toBe("new");
+    expect(mapStage("Intake")).toBe("previous_lead");
+    expect(mapStage("  intake ")).toBe("previous_lead");
     expect(mapStage("Converted")).toBe("completed");
     expect(mapStage("converted")).toBe("completed");
     // Unknown future stages must stay exceptions rather than being guessed.
@@ -125,7 +125,7 @@ describe("CRM CSV parsing and mapping", () => {
 
     const headers = ["Name", "Phone", "Email", "Stage"];
     const intake = prepareRow(headers, ["Jo Smith", "0412345678", "jo@example.com", "Intake"], 1);
-    expect(intake.normalized_payload.proposed_status).toBe("new");
+    expect(intake.normalized_payload.proposed_status).toBe("previous_lead");
     expect(intake.normalized_payload.source_metadata["stage_raw"]).toBe("Intake");
     expect(intake.validation_errors).toEqual([]);
 
@@ -307,7 +307,7 @@ describe("synthetic CRM fidelity fixture", () => {
     expect(p.source_channel_raw).toBe("CRM");
     expect(p.source_channel).toBe("manual");
     expect(p.source_form).toBe("Test Form");
-    expect(p.proposed_status).toBe("new");
+    expect(p.proposed_status).toBe("previous_lead");
     expect(p.proposed_created_at).toContain("2026-08-30");
     expect(p.source_metadata).toEqual({
       owner: "Test Owner",
@@ -345,7 +345,7 @@ describe("synthetic CRM fidelity fixture", () => {
     expect(p.email).toBe("empty.phone@example.com");
     expect(p.source_channel_raw).toBe("Lead Source Value");
     expect(p.source_form).toBe("Test Form");
-    expect(p.proposed_status).toBe("new");
+    expect(p.proposed_status).toBe("previous_lead");
     expect(row.raw_row["Unknown Test Column"]).toBe("quoted, value");
     expect(row.validation_errors.map((e) => e.code)).not.toContain("malformed_row");
   });
@@ -590,7 +590,7 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     const prepared = prepareRow(table.headers, table.rows[0]!, 1);
     // "Intake" maps to the internal `new` status; every other field maps cleanly.
     expect(prepared.validation_errors).toEqual([]);
-    expect(prepared.normalized_payload.proposed_status).toBe("new");
+    expect(prepared.normalized_payload.proposed_status).toBe("previous_lead");
     expect(prepared.normalized_payload.source_metadata["stage_raw"]).toBe("Intake");
     expect(prepared.normalized_payload.name).toBe("Diana Borinski");
     expect(prepared.normalized_payload.mobile_number).toBe("+61423662012");
@@ -685,7 +685,7 @@ describe("restageStage (preview-only stage remap)", () => {
     const out = restageStage("Intake", [
       { code: "unmappable_stage", field: "status", detail: "Intake" },
     ]);
-    expect(out.status).toBe("new");
+    expect(out.status).toBe("previous_lead");
     expect(out.stage_raw).toBe("Intake");
     expect(out.errors).toEqual([]);
     expect(out.changed).toBe(true);

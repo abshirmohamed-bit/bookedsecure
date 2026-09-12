@@ -94,8 +94,8 @@ describe("import-only lead insert", () => {
   });
 
   it("defaults to a safe status and never invents readiness", () => {
-    expect(insertFor().status).toBe("new");
-    expect(insertFor({ proposed_status: "not_a_status" }).status).toBe("new");
+    expect(insertFor().status).toBe("previous_lead");
+    expect(insertFor({ proposed_status: "not_a_status" }).status).toBe("previous_lead");
     expect(insertFor({ proposed_status: "completed" }).status).toBe("completed");
     expect(insertFor().readiness_classification).toBeNull();
   });
