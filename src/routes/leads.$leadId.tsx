@@ -840,7 +840,7 @@ function ImportedSourcePanel({
   return (
     <section className="panel p-4" aria-label="Imported source">
       <h2 className="text-sm font-semibold">Imported source</h2>
-      <dl className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="mt-2 grid gap-3 sm:grid-cols-2">
         {entries.map(([label, value]) => (
           <div key={label}>
             <dt className="text-xs text-muted-foreground">{label}</dt>
