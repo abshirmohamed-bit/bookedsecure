@@ -260,6 +260,78 @@ export function BookingsCalendar() {
         </div>
       </section>
 
+      {selectedDay ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-end bg-foreground/25 sm:items-center sm:justify-center sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Day bookings"
+        >
+          <button
+            type="button"
+            aria-label="Close day bookings"
+            className="absolute inset-0 -z-10 h-full w-full cursor-default"
+            onClick={() => setSelectedDay(null)}
+          />
+          <div className="max-h-[85dvh] w-full min-w-0 overflow-y-auto rounded-t-2xl border border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-w-md sm:rounded-2xl">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate font-heading text-base font-semibold">
+                  {longDateLabel(`${selectedDay}T12:00:00Z`, timezone)}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {dayEntries.length === 0
+                    ? "No bookings this day"
+                    : `${dayEntries.length} booking${dayEntries.length === 1 ? "" : "s"} this day`}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-10 shrink-0"
+                aria-label="Close day bookings"
+                onClick={() => setSelectedDay(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            {dayEntries.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Nothing booked on this day.
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {dayEntries.map((entry) => (
+                  <li key={entry.jobId}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(entry)}
+                      className="min-h-14 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-left transition hover:border-primary/50 hover:bg-secondary"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold">
+                          {customerLabel(entry.customerName)}
+                        </p>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${stateClasses(entry.state)}`}
+                        >
+                          {entry.scheduledAt ? timeLabel(entry.scheduledAt, timezone) : "—"}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {entry.serviceName ?? "Service to confirm"}
+                        {entry.suburb ? ` · ${entry.suburb}` : ""}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       {selected ? (
         <div
           className="fixed inset-0 z-[70] flex items-end bg-foreground/25 sm:items-center sm:justify-center sm:p-6"
