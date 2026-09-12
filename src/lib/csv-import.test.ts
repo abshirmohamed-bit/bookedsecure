@@ -588,7 +588,7 @@ describe("delimiter sniffing, dates and header aliases (CRM export fix)", () => 
     expect(table.rows[0]).toHaveLength(12);
 
     const prepared = prepareRow(table.headers, table.rows[0]!, 1);
-    // "Intake" maps to the internal `new` status; every other field maps cleanly.
+    // "Intake" maps to the internal `previous_lead` status; every other field maps cleanly.
     expect(prepared.validation_errors).toEqual([]);
     expect(prepared.normalized_payload.proposed_status).toBe("previous_lead");
     expect(prepared.normalized_payload.source_metadata["stage_raw"]).toBe("Intake");
