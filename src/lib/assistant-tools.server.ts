@@ -417,6 +417,54 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       },
     }),
 
+    upsert_addon: tool({
+      description:
+        "Add an optional extra (add-on), or rename, reprice or switch off an existing one. Pass addonId to change an existing extra (get ids from list_services). An extra is only offered on the quote page once it is linked to services with set_addon_availability.",
+      inputSchema: z.object({
+        addonId: z.string().uuid().nullable(),
+        name: z.string().nullable(),
+        price: z.string().nullable().describe("Price as the owner stated it, e.g. \"$40\"."),
+        durationMinutes: z.number().int().min(5).max(1440).nullable(),
+        category: z.string().nullable(),
+        description: z.string().nullable(),
+        active: z.boolean().nullable(),
+      }),
+      execute: async (input) => {
+        const patch: Record<string, unknown> = {};
+        if (input.name) patch["name"] = input.name;
+        if (input.price) patch["price_guidance"] = input.price;
+        if (input.durationMinutes) patch["duration_minutes"] = input.durationMinutes;
+        if (input.category) patch["category"] = input.category;
+        if (input.description) patch["description"] = input.description;
+        if (input.active !== null) patch["active"] = input.active;
+
+        if (input.addonId) {
+          if (Object.keys(patch).length === 0) return fail("Nothing was named to change.");
+          const { data, error } = await supabaseAdmin
+            .from("service_addons")
+            .update(patch as never)
+            .eq("business_id", businessId)
+            .eq("id", input.addonId)
+            .select("id, name")
+            .maybeSingle();
+          if (error) return fail(error.message);
+          if (!data) return fail("That extra does not belong to your business.");
+          ctx.record(`Updated the extra "${data.name}".`);
+          return { ok: true, addonId: data.id };
+        }
+
+        if (!input.name) return fail("A new extra needs a name.");
+        const { data, error } = await supabaseAdmin
+          .from("service_addons")
+          .insert({ business_id: businessId, active: true, ...patch } as never)
+          .select("id, name")
+          .single();
+        if (error || !data) return fail(error?.message ?? "That extra could not be added.");
+        ctx.record(`Added the extra "${data.name}".`);
+        return { ok: true, addonId: data.id };
+      },
+    }),
+
     set_addon_availability: tool({
       description:
         "Make an add-on available with named services, or remove it from them. Use list_services first for the exact ids.",
