@@ -268,6 +268,41 @@ export function BillingPanel() {
       ) : (
         <p className="text-sm text-muted-foreground">Only the business owner can change the plan.</p>
       )}
+
+      <section id={CREDITS_ANCHOR} className="scroll-mt-4 space-y-3">
+        <div>
+          <h3 className="text-base font-semibold">Text credits</h3>
+          <p className="text-sm text-muted-foreground">
+            One credit sends one text once your included texts are used up — {data.plan.overageCents}c each. Credits never expire.
+          </p>
+        </div>
+        {data.access !== "full" ? (
+          <p className="rounded-md border border-border bg-secondary/40 p-3 text-sm text-muted-foreground">
+            Choose a plan first — every plan includes texts each month, and credit packs top that up.
+          </p>
+        ) : !isOwner ? (
+          <p className="text-sm text-muted-foreground">Only the business owner can buy credits.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {CREDIT_PACKS.map((pack) => (
+              <button
+                key={pack.id}
+                type="button"
+                onClick={() => topupMutation.mutate(pack.id)}
+                disabled={topupMutation.isPending}
+                className="flex flex-col rounded-lg border border-border bg-card p-4 text-left hover:border-primary disabled:opacity-60"
+              >
+                <span className="text-base font-semibold">{pack.label}</span>
+                <span className="mt-1 text-2xl font-semibold">{formatAud(pack.amountCents)}</span>
+                <span className="mt-1 text-xs text-muted-foreground">{(pack.amountCents / pack.credits).toFixed(0)}c per text</span>
+                <span className="mt-3 rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground">
+                  {topupMutation.isPending && topupMutation.variables === pack.id ? "Opening secure payment…" : "Buy credits"}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
