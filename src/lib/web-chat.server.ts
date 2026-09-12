@@ -20,6 +20,7 @@ import {
   nextStep,
   promptFor,
   resolveOutcome,
+  selectionTotalMessage,
   serviceAcknowledgement,
   welcomeMessage,
   type WebChatCollected,
