@@ -1407,7 +1407,7 @@ export async function processDueFollowUps(): Promise<{
     }
 
     // Next enabled step. Disabled steps are skipped, not treated as the end.
-    const { data: rule } = await supabaseAdmin
+    const { data: sharedRule } = await supabaseAdmin
       .from("automation_rules")
       .select("message_template, step")
       .eq("business_id", conversation.business_id)
@@ -1417,6 +1417,10 @@ export async function processDueFollowUps(): Promise<{
       .order("step", { ascending: true })
       .limit(1)
       .maybeSingle();
+    // This customer's own wording for the step, when the owner set one.
+    const rule = sharedRule
+      ? resolveFollowUpStep(sharedRule, parseFollowUpOverrides(conversation.follow_up_overrides))
+      : null;
 
     if (!rule) {
       await supabaseAdmin
