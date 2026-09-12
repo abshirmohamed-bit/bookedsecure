@@ -1121,6 +1121,59 @@ export type Database = {
           },
         ]
       }
+      feedback_submissions: {
+        Row: {
+          business_id: string
+          contact_email: string | null
+          created_at: string
+          id: string
+          internal_note: string | null
+          kind: string
+          message: string
+          metadata: Json
+          page_path: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          business_id: string
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          internal_note?: string | null
+          kind: string
+          message: string
+          metadata?: Json
+          page_path?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          business_id?: string
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          internal_note?: string | null
+          kind?: string
+          message?: string
+          metadata?: Json
+          page_path?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_submissions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_automation_state: {
         Row: {
           bounded_batch_batch_id: string | null

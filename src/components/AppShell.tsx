@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { NotificationBell } from "@/components/NotificationBell";
 import { AccountMenu } from "@/components/AccountMenu";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import { TenantMark } from "@/components/TenantMark";
 import { Button } from "@/components/ui/button";
 
@@ -111,9 +112,8 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           B
         </Link>
         <div className="mt-6 flex flex-col gap-2">
-          <Button asChild size="icon" variant={isAssistantHome ? "secondary" : "ghost"} title="Home">
-            <Link to="/dashboard" aria-label="Home"><Sparkles /></Link>
-          </Button>
+          <FeedbackButton rail />
+
           <Button size="icon" variant="ghost" onClick={toggleTenantRail} title={tenantRailCollapsed ? "Open tenant navigation" : "Collapse tenant navigation"} aria-label={tenantRailCollapsed ? "Open tenant navigation" : "Collapse tenant navigation"}>
             {tenantRailCollapsed ? <ChevronRight /> : <ChevronLeft />}
           </Button>
@@ -250,7 +250,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </span>
         </p>
          <div className="ml-auto flex items-center gap-1">
+           <div className="lg:hidden"><FeedbackButton rail /></div>
            <div className="lg:hidden"><NotificationBell /></div>
+
           {quotePath ? (
             <QuotePageControl quotePath={quotePath} slug={business?.slug ?? null} />
           ) : null}
