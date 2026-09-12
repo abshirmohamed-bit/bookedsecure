@@ -249,13 +249,13 @@ export function campaignPrefill(lead: {
 export function nextStep(collected: WebChatCollected): WebChatStep | null {
   if (collected.consent === "declined") return null;
   if (!collected.service_id && !(collected.typed_request ?? "").trim()) return "service";
+  // Extras are offered straight after the service is chosen, and only when this
+  // tenant actually has add-ons linked to that service.
+  if (collected.addons_offered === true && collected.addons_done !== true) return "addons";
   if (!(collected.vehicle_type ?? "").trim()) return "vehicle";
   if (!(collected.suburb ?? "").trim()) return "suburb";
   if (!(collected.service_address ?? "").trim()) return "address";
   if (!(collected.concerns ?? "").trim()) return "concerns";
-  // Extras are offered once the job itself is understood, and only when this
-  // tenant actually has add-ons linked to the chosen service.
-  if (collected.addons_offered === true && collected.addons_done !== true) return "addons";
   if (!(collected.name ?? "").trim()) return "name";
   if (!collected.mobile_number) return "mobile";
   // Email is not a step of its own: it is captured when the customer offers it,
