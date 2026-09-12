@@ -7,7 +7,9 @@ import {
 } from "@/lib/sms/reachability";
 import {
   AUTOMATION_BLOCKED_STATUSES,
+  UNCONTACTED_STATUSES,
   firstName,
+  initialLeadStatus,
   isOptOutMessage,
   normaliseAuMobile,
   renderTemplate,
