@@ -2,6 +2,7 @@
 
 export const LEAD_STATUSES = [
   "new",
+  "previous_lead",
   "contacted",
   "waiting_for_customer",
   "customer_replied",
@@ -18,6 +19,7 @@ export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   new: "New",
+  previous_lead: "Previous lead",
   contacted: "Contacted",
   waiting_for_customer: "Waiting for customer",
   customer_replied: "Replied",
@@ -29,6 +31,20 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   opted_out: "Opted out",
   invalid: "Invalid",
 };
+
+/**
+ * "New" is reserved for enquiries a customer starts themselves (quote page,
+ * chat, website or ad forms). Leads the business adds by hand or imports from
+ * a file are "Previous lead".
+ */
+export const BUSINESS_ENTERED_CHANNELS: readonly string[] = ["manual"];
+
+export function initialLeadStatus(sourceChannel: string | null | undefined): LeadStatus {
+  return BUSINESS_ENTERED_CHANNELS.includes(sourceChannel ?? "") ? "previous_lead" : "new";
+}
+
+/** Statuses meaning "not yet contacted", whichever way the lead arrived. */
+export const UNCONTACTED_STATUSES: readonly LeadStatus[] = ["new", "previous_lead"];
 
 export const SOURCE_CHANNELS = [
   "meta",

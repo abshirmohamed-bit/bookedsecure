@@ -14,6 +14,8 @@ import {
   deleteServiceAddon,
 } from "@/lib/app.functions";
 import { QUOTE_MODES, QUOTE_MODE_LABELS, resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
+import { removeTeamMember, setTeamAccess } from "@/lib/team.functions";
+import { useAuth } from "@/hooks/useAuth";
 
 /**
  * Shared settings building blocks. The underlying server functions and
@@ -723,25 +725,103 @@ export function TeamList({
   team: { id: string; name: string | null; email: string | null; active: boolean | null }[];
   role: string;
 }) {
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
+  const setAccess = useServerFn(setTeamAccess);
+  const remove = useServerFn(removeTeamMember);
+  const canManage = role === "owner" || role === "platform_admin";
+  const myId = session?.user.id ?? null;
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["settings"] });
+  const accessMutation = useMutation({
+    mutationFn: (input: { profileId: string; active: boolean }) => setAccess({ data: input }),
+    onSuccess: async (result) => {
+      toast.success(`${result.name}: access ${accessMutation.variables?.active ? "restored" : "removed"}`);
+      await refresh();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (profileId: string) => remove({ data: { profileId } }),
+    onSuccess: async (result) => {
+      toast.success(`${result.name} deleted from your team`);
+      await refresh();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const busy = accessMutation.isPending || deleteMutation.isPending;
+
   return (
     <section className="panel p-4">
       <h2 className="text-sm font-semibold">People with access</h2>
       <p className="mt-1 text-xs text-muted-foreground">
         You are signed in as {role === "owner" ? "the business owner" : role.replace(/_/g, " ")}.
-        Access is managed by the business owner.
+        {canManage
+          ? " Removing access keeps the person on the list but blocks sign-in; deleting removes them completely."
+          : " Access is managed by the business owner."}
       </p>
-      <ul className="mt-3 space-y-1 text-sm">
+      <ul className="mt-3 divide-y divide-border text-sm">
         {team.length === 0 && (
-          <li className="text-xs text-muted-foreground">No team members yet.</li>
+          <li className="py-1 text-xs text-muted-foreground">No team members yet.</li>
         )}
-        {team.map((member) => (
-          <li key={member.id} className="flex justify-between gap-3">
-            <span>{member.name ?? member.email}</span>
-            <span className="text-xs text-muted-foreground">
-              {member.active ? "active" : "disabled"}
-            </span>
-          </li>
-        ))}
+        {team.map((member) => {
+          const isMe = member.id === myId;
+          return (
+            <li key={member.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <div className="min-w-0">
+                <div className="truncate">
+                  {member.name ?? member.email}
+                  {isMe && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}
+                </div>
+                {member.name && member.email && (
+                  <div className="truncate text-xs text-muted-foreground">{member.email}</div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                    member.active
+                      ? "border-primary/30 bg-primary/10 text-primary"
+                      : "border-border bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  {member.active ? "Active" : "Access removed"}
+                </span>
+                {canManage && !isMe && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        accessMutation.mutate({ profileId: member.id, active: !member.active })
+                      }
+                      className="rounded-md border border-input px-2 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+                    >
+                      {member.active ? "Remove access" : "Restore access"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        const who = member.name ?? member.email ?? "this person";
+                        if (
+                          window.confirm(
+                            `Delete ${who} from your team? Their sign-in is removed permanently. Leads and bookings are kept.`,
+                          )
+                        ) {
+                          deleteMutation.mutate(member.id);
+                        }
+                      }}
+                      className="rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

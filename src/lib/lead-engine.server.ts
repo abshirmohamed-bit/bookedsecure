@@ -7,7 +7,9 @@ import {
 } from "@/lib/sms/reachability";
 import {
   AUTOMATION_BLOCKED_STATUSES,
+  UNCONTACTED_STATUSES,
   firstName,
+  initialLeadStatus,
   isOptOutMessage,
   normaliseAuMobile,
   renderTemplate,
@@ -291,7 +293,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
   const mobile = normaliseAuMobile(input.mobile_number);
   const business = await getBusiness(businessId);
 
-  const status: LeadStatus = mobile ? "new" : "invalid";
+  const status: LeadStatus = mobile ? initialLeadStatus(input.source_channel) : "invalid";
 
   // Retry of the exact same submission: reuse the existing lead, never overwrite it.
   if (input.external_id) {
@@ -1066,7 +1068,7 @@ export async function sendSms(input: {
     ...(acceptanceStatus === "delivered" ? { last_delivered_sms_at: acceptedAt } : {}),
   };
   if (!lead.first_contacted_at) leadUpdate["first_contacted_at"] = new Date().toISOString();
-  if (["new"].includes(lead.status)) leadUpdate["status"] = "contacted";
+  if ((UNCONTACTED_STATUSES as readonly string[]).includes(lead.status)) leadUpdate["status"] = "contacted";
   else if (lead.status === "customer_replied" && input.kind !== "follow_up")
     leadUpdate["status"] = "waiting_for_customer";
   await supabaseAdmin.from("leads").update(leadUpdate as never).eq("id", lead.id);

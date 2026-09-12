@@ -247,14 +247,17 @@ export function unmappedColumns(headers: string[]): string[] {
 }
 
 const STAGE_MAP: Record<string, LeadStatus> = {
-  new: "new",
-  "new lead": "new",
-  lead: "new",
-  open: "new",
+  // A file never produces a "New" lead: that status is reserved for enquiries
+  // customers start themselves. Anything still open in the old system is a
+  // previous lead.
+  new: "previous_lead",
+  "new lead": "previous_lead",
+  lead: "previous_lead",
+  open: "previous_lead",
   // Historical CRM (GoDaddy) stages. Conservative: a stage is a lead status
   // label only — mapping never creates a job, revenue, booking, conversation
   // or automation event.
-  intake: "new",
+  intake: "previous_lead",
   converted: "completed",
   contacted: "contacted",
   attempted: "contacted",
@@ -288,10 +291,14 @@ const STAGE_MAP: Record<string, LeadStatus> = {
 export function mapStage(value: string): LeadStatus | null {
   const key = value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
   if (!key) return null;
+  // Stage words in STAGE_MAP win, so a file stage of "new" becomes previous_lead
+  // rather than the customer-initiated "new" status.
+  const mapped = STAGE_MAP[key];
+  if (mapped) return mapped;
   if ((LEAD_STATUSES as readonly string[]).includes(key.replace(/ /g, "_"))) {
     return key.replace(/ /g, "_") as LeadStatus;
   }
-  return STAGE_MAP[key] ?? null;
+  return null;
 }
 
 /**

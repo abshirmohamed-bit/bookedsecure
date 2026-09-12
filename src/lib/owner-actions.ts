@@ -44,6 +44,7 @@ const STATUS_WORDS: Array<{ status: LeadStatus; pattern: RegExp }> = [
   { status: "completed", pattern: /\bcompleted\b|\bfinished\b/i },
   { status: "lost", pattern: /\blost\b/i },
   { status: "invalid", pattern: /\binvalid\b/i },
+  { status: "previous_lead", pattern: /\bprevious lead(?:s)?\b|\bold lead(?:s)?\b/i },
   { status: "new", pattern: /\bnew\b/i },
 ];
 

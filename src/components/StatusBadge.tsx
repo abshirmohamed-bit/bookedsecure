@@ -11,6 +11,7 @@ import { deliveryLabel, FAILURE_CLASS_LABELS, type FailureClass } from "@/lib/sm
 
 const STATUS_STYLES: Record<string, string> = {
   new: "bg-info/15 text-info border-info/30",
+  previous_lead: "bg-secondary text-muted-foreground border-border",
   contacted: "bg-secondary text-secondary-foreground border-border",
   waiting_for_customer: "bg-secondary text-muted-foreground border-border",
   customer_replied: "bg-primary/15 text-primary border-primary/40",
