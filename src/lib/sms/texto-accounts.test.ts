@@ -433,14 +433,12 @@ describe("texto credit and daily cap checks", () => {
     expect(check.ok).toBe(false);
   });
 
-  it("blocks sends when credit balance is zero", async () => {
+  it("does not block on provider balance — the subscription gate decides who pays", async () => {
     await addNumberToPool({ number: "+61480000001" });
     await provisionTextoAccount({ businessId: "biz-1", businessName: "Glocast", ownerEmail: "o@example.com" });
     await allocateCredits("biz-1", -1);
     const check = await checkTextoCredits("biz-1", 1);
-    expect(check.ok).toBe(false);
-    if (check.ok) throw new Error("expected blocked credit check");
-    expect(check.reason).toMatch(/empty/);
+    expect(check.ok).toBe(true);
   });
 
   it("allows sends with positive balance", async () => {

@@ -7,16 +7,16 @@ import { CREDIT_PACKS, findCreditPack, formatAud } from "@/lib/sms/credit-packs"
  * must be resolvable by the id the UI sends back to the server.
  */
 describe("SMS credit packs", () => {
-  it("sells every pack at 8c per credit, matching the plan overage rate", () => {
+  it("sells every pack at 6c per credit, matching the plan overage rate", () => {
     for (const pack of CREDIT_PACKS) {
-      expect(pack.amountCents / pack.credits).toBe(8);
+      expect(pack.amountCents / pack.credits).toBe(6);
     }
   });
 
-  it("keeps at least a 60% margin over the 3c provider cost per credit", () => {
+  it("keeps a 50% margin over the 3c provider cost per credit", () => {
     for (const pack of CREDIT_PACKS) {
       const cost = pack.credits * 3;
-      expect((pack.amountCents - cost) / pack.amountCents).toBeGreaterThan(0.6);
+      expect((pack.amountCents - cost) / pack.amountCents).toBeCloseTo(0.5, 5);
     }
   });
 
