@@ -67,6 +67,8 @@ export function ServiceChooser({
   const [extras, setExtras] = useState<string[]>([]);
   /** Number of vehicles per chosen service; a missing entry means one. */
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  /** Which selected services currently show their extras inside the selection list. */
+  const [extrasOpen, setExtrasOpen] = useState<Record<string, boolean>>({});
   const [detail, setDetail] = useState<ServiceOption | null>(null);
 
   const chosenOptions = chosen
