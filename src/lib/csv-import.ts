@@ -291,10 +291,14 @@ const STAGE_MAP: Record<string, LeadStatus> = {
 export function mapStage(value: string): LeadStatus | null {
   const key = value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
   if (!key) return null;
+  // Stage words in STAGE_MAP win, so a file stage of "new" becomes previous_lead
+  // rather than the customer-initiated "new" status.
+  const mapped = STAGE_MAP[key];
+  if (mapped) return mapped;
   if ((LEAD_STATUSES as readonly string[]).includes(key.replace(/ /g, "_"))) {
     return key.replace(/ /g, "_") as LeadStatus;
   }
-  return STAGE_MAP[key] ?? null;
+  return null;
 }
 
 /**
