@@ -27,7 +27,9 @@
 - [x] Sub-account creation behind TEXTO_SUBACCOUNT_PROVISIONING=live (off by default).
 - [x] Expire abandoned credit top-ups after 24h (hourly sweep).
 - [x] Platform-admin page /admin/messaging-numbers: sync, waiting tenants, retry, manual add.
-- [ ] Blocked on you: flip TEXTO_ACCOUNT_PROVISIONING=live after buying numbers at Texto; assign a platform_admin role to reach admin pages; finish Stripe go-live in the Payments tab.
+- [x] Flip TEXTO_ACCOUNT_PROVISIONING=live and TEXTO_SUBACCOUNT_PROVISIONING=live; live sync verified (account holds 0 numbers, API healthy).
+- [x] Grant platform_admin to info@glocast.com.au (admin pages reachable).
+- [ ] Blocked on you: in the Texto sub-account setup screen, pick "Allocate credits to each sub-account" and Save settings (API still returns hierarchy_disabled until saved). Then fund the parent balance once (or switch on Texto auto-recharge) so numbers/credits can be issued.
 
 ## Hands-off numbers & credits (approved plan)
 - [x] Auto-buy a dedicated number from Texto (POST /numbers/purchase) on plan activation; no spare-pool babysitting. $15/mo is inside the $200/$300 plan — no separate Stripe product. (Live contract unverified — do not send real purchases until tested against Texto.)
