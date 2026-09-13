@@ -233,3 +233,53 @@ export const requestCancellation = createServerFn({ method: "POST" })
 
     return { id: row.id, alreadyOpen: false as const };
   });
+
+const AutoTopupSchema = z.object({
+  enabled: z.boolean(),
+  thresholdCredits: z.number().int().min(10).max(1000).optional(),
+  packId: z.string().min(1).optional(),
+});
+
+/**
+ * Owner-only: switch automatic credit top-ups on or off and choose when they
+ * trigger and which pack they buy. Charging uses the card saved from the
+ * business's last successful payment; with no saved card the setting saves
+ * but nothing can be charged until a manual top-up or subscription payment
+ * stores one.
+ */
+export const setAutoTopup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => AutoTopupSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+
+    if (data.packId && !CREDIT_PACKS.some((pack) => pack.id === data.packId)) {
+      throw new Error("That credit pack is not available.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("texto_accounts")
+      .update({
+        auto_topup_enabled: data.enabled,
+        ...(data.thresholdCredits ? { auto_topup_threshold: data.thresholdCredits } : {}),
+        ...(data.packId ? { auto_topup_pack_id: data.packId } : {}),
+        // Turning it back on clears the failure lockout.
+        ...(data.enabled ? { auto_topup_failures: 0 } : {}),
+      })
+      .eq("business_id", app.businessId);
+    if (error) throw new Error(error.message);
+
+    await supabaseAdmin.from("audit_events").insert({
+      business_id: app.businessId,
+      user_id: app.userId,
+      event_type: data.enabled ? "auto_topup_enabled" : "auto_topup_disabled",
+      entity_type: "texto_account",
+      entity_id: app.businessId,
+      metadata: { thresholdCredits: data.thresholdCredits ?? null, packId: data.packId ?? null },
+    });
+
+    return { ok: true as const };
+  });
