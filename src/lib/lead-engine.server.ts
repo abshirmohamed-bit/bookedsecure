@@ -900,6 +900,12 @@ export async function sendSms(input: {
       return { sent: false, retriable: false, reason: creditCheck.reason };
     }
 
+    // Low balance? Buy the owner's chosen pack on their saved card in the
+    // background. Fire-and-forget: billing must never delay a message, and
+    // the cooldown/daily guards inside make repeated sends a no-op.
+    const { maybeAutoTopup } = await import("@/lib/sms/auto-topup.server");
+    void maybeAutoTopup(input.businessId).catch(() => {});
+
     const automated = input.source !== "manual" && input.source !== "approved_reply";
     const dailyCheck = await checkTextoDailyCap(input.businessId, automated);
     if (!dailyCheck.ok) {
