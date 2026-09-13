@@ -18,7 +18,12 @@ export const Route = createFileRoute("/api/public/hooks/topup-expiry")({
 
         const { expireAbandonedTopups } = await import("@/lib/sms/credit-topups.server");
         const result = await expireAbandonedTopups(24);
-        return Response.json(result);
+
+        // Also top up any opted-in business whose balance has run low, so
+        // credits recover even when no message is being sent right now.
+        const { sweepAutoTopups } = await import("@/lib/sms/auto-topup.server");
+        const autoTopups = await sweepAutoTopups();
+        return Response.json({ ...result, autoTopups });
       },
     },
   },

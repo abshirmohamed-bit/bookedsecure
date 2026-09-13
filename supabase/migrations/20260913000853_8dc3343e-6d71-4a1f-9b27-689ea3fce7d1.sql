@@ -1,0 +1,1 @@
+ALTER TABLE public.texto_accounts ALTER COLUMN auto_topup_pack_id SET DEFAULT 'pack_1500'; UPDATE public.texto_accounts SET auto_topup_pack_id = 'pack_1500' WHERE auto_topup_pack_id NOT IN ('pack_500', 'pack_1500', 'pack_5000');

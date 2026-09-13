@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMyBilling, openBillingPortal, startSubscriptionCheckout } from "@/lib/subscription.functions";
-import { startCreditTopup } from "@/lib/sms/messaging-account.functions";
+import { getMessagingAccount, setAutoTopup, startCreditTopup } from "@/lib/sms/messaging-account.functions";
 import { describeSubscription, type BillingInterval } from "@/lib/subscription";
 import { CREDIT_PACKS, formatAud } from "@/lib/sms/credit-packs";
 import type { Plan } from "@/lib/plans";
@@ -302,7 +302,64 @@ export function BillingPanel() {
             ))}
           </div>
         )}
+        {data.access === "full" && isOwner ? <AutoTopupCard /> : null}
       </section>
+    </div>
+  );
+}
+
+/** Hands-off credits: buys the chosen pack on the saved card when low. */
+function AutoTopupCard() {
+  const queryClient = useQueryClient();
+  const fetchAccount = useServerFn(getMessagingAccount);
+  const saveAutoTopup = useServerFn(setAutoTopup);
+  const account = useQuery({
+    queryKey: ["messaging-account"],
+    queryFn: () => fetchAccount(),
+    staleTime: 30_000,
+  });
+  const auto = account.data?.account?.autoTopup;
+
+  const mutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      await saveAutoTopup({ data: { enabled } });
+      return enabled;
+    },
+    onSuccess: (enabled) => {
+      toast.success(enabled ? "Automatic top-ups on — we'll buy credits when you run low." : "Automatic top-ups off.");
+      queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not save that setting."),
+  });
+
+  if (!auto) return null;
+  const pack = CREDIT_PACKS.find((candidate) => candidate.id === auto.packId) ?? CREDIT_PACKS[1];
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-semibold">Automatic top-ups</h4>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {auto.enabled
+              ? `On — when you drop below ${auto.thresholdCredits.toLocaleString()} credits, we'll buy ${pack.label} (${formatAud(pack.amountCents)}) on your saved card.`
+              : "Off — when you run out, texts pause until you buy credits above."}
+          </p>
+          {auto.failures > 0 ? (
+            <p className="mt-1 text-xs text-destructive">
+              Last automatic charge failed{auto.failures >= 2 ? " twice, so we've switched this off — update your card in Manage billing and turn it back on" : ""}.
+            </p>
+          ) : null}
+        </div>
+        <Button
+          variant={auto.enabled ? "outline" : "default"}
+          size="sm"
+          onClick={() => mutation.mutate(!auto.enabled)}
+          disabled={mutation.isPending}
+        >
+          {auto.enabled ? "Turn off" : "Turn on"}
+        </Button>
+      </div>
     </div>
   );
 }
