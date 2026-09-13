@@ -149,7 +149,8 @@ export async function maybeAutoTopup(businessId: string): Promise<AutoTopupResul
       return { ok: false, reason: "cooldown" };
     }
 
-    const pack: CreditPack | null = findCreditPack(account.auto_topup_pack_id);
+    // Unknown stored pack id (e.g. renamed later): fall back to the middle pack.
+    const pack: CreditPack | null = findCreditPack(account.auto_topup_pack_id) ?? findCreditPack("pack_1500");
     if (!pack) return { ok: false, reason: "pack_not_found" };
 
     // Daily budget guard: at most MAX_PER_DAY automatic purchases per day.
