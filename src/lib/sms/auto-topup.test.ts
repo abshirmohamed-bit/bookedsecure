@@ -23,7 +23,10 @@ function builder(table: keyof typeof store) {
       return true;
     });
   const api: any = {
-    select: () => api,
+    select: (_fields?: string, opts?: { count?: string }) => {
+      if (opts?.count) api._count = true;
+      return api;
+    },
     insert: (values: Row[]) => {
       const inserted = values.map((v) => ({ id: makeId(), ...v }));
       store[table].push(...inserted);
@@ -51,7 +54,9 @@ function builder(table: keyof typeof store) {
         for (const row of store[table]) if (matches(row)) Object.assign(row, updates[updates.length - 1].patch);
         return resolve({ error: null });
       }
-      return resolve({ data: store[table].filter(matches), error: null });
+      const rows = store[table].filter(matches);
+      if (api._count) return resolve({ data: null, count: rows.length, error: null });
+      return resolve({ data: rows, error: null });
     },
   };
   return api;
@@ -125,7 +130,7 @@ describe("maybeAutoTopup", () => {
     store.texto_accounts = [account()];
     const result = await maybeAutoTopup("biz-1");
     expect(result.ok).toBe(false);
-    expect(result.reason).toMatch(/saved card/i);
+    expect(result.reason).toBe("no_saved_card");
     expect(store.credit_topups.filter((r) => r.status === "pending")).toHaveLength(0);
   });
 
@@ -176,7 +181,7 @@ describe("maybeAutoTopup", () => {
     ];
     const result = await maybeAutoTopup("biz-1");
     expect(result.ok).toBe(false);
-    expect(result.reason).toMatch(/limit/i);
+    expect(result.reason).toBe("daily_limit");
     expect(paymentIntents).toHaveLength(0);
   });
 });
