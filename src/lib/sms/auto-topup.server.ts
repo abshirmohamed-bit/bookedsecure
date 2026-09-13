@@ -47,7 +47,7 @@ async function getAccount(businessId: string): Promise<AutoAccountRow | null> {
   return (data as AutoAccountRow | null) ?? null;
 }
 
-async function audit(businessId: string, eventType: string, metadata: Record<string, unknown>) {
+async function audit(businessId: string, eventType: string, metadata: import("@/integrations/supabase/types").Json) {
   await supabaseAdmin.from("audit_events").insert({
     business_id: businessId,
     event_type: eventType,

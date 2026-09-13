@@ -333,7 +333,7 @@ function AutoTopupCard() {
   });
 
   if (!auto) return null;
-  const pack = CREDIT_PACKS.find((candidate) => candidate.id === auto.packId) ?? CREDIT_PACKS[1];
+  const pack = CREDIT_PACKS.find((candidate) => candidate.id === auto.packId) ?? CREDIT_PACKS[1]!;
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">

@@ -503,10 +503,10 @@ export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
     const raw =
       typeof entry === "string"
         ? entry
-        : ((record?.number ?? record?.phone ?? record?.e164 ?? record?.msisdn ?? null) as string | null);
+        : ((record?.["number"] ?? record?.["phone"] ?? record?.["e164"] ?? record?.["msisdn"] ?? null) as string | null);
     if (!raw || typeof raw !== "string") continue;
     const number = raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`;
-    const price = record ? Number(record.price_monthly ?? record.monthly_price ?? 15) : 15;
+    const price = record ? Number(record["price_monthly"] ?? record["monthly_price"] ?? 15) : 15;
     const monthly = Number.isFinite(price) ? Math.round(price * 100) : 1500;
     out.push({ number, monthlyCostCents: monthly || 1500 });
   }
