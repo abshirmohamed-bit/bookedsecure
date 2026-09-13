@@ -106,6 +106,12 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
             dailySendCap: account.daily_send_cap,
             provisioningState: account.provisioning_state,
             failedReason: account.failed_reason,
+            autoTopup: {
+              enabled: account.auto_topup_enabled,
+              thresholdCredits: account.auto_topup_threshold,
+              packId: account.auto_topup_pack_id,
+              failures: account.auto_topup_failures,
+            },
           }
         : null,
       numbers: numbers.map((number) => ({
