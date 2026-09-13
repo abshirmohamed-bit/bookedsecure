@@ -499,16 +499,15 @@ export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
   const entries = Array.isArray(body) ? body : (body.numbers ?? []);
   const out: PurchasableNumber[] = [];
   for (const entry of entries) {
+    const record = entry !== null && typeof entry === "object" ? (entry as Record<string, unknown>) : null;
     const raw =
       typeof entry === "string"
         ? entry
-        : entry.number ?? entry.phone ?? entry.e164 ?? entry.msisdn ?? null;
-    if (!raw) continue;
+        : ((record?.number ?? record?.phone ?? record?.e164 ?? record?.msisdn ?? null) as string | null);
+    if (!raw || typeof raw !== "string") continue;
     const number = raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`;
-    const monthly =
-      typeof entry === "object"
-        ? Math.round(((entry.price_monthly ?? entry.monthly_price ?? 15) as number) * 100)
-        : 1500;
+    const price = record ? Number(record.price_monthly ?? record.monthly_price ?? 15) : 15;
+    const monthly = Number.isFinite(price) ? Math.round(price * 100) : 1500;
     out.push({ number, monthlyCostCents: monthly || 1500 });
   }
   return out;

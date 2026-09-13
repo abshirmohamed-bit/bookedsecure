@@ -382,8 +382,9 @@ function LeadDetail() {
               />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[11px] text-muted-foreground">
-                  {reply.length}/600 characters · {reply.trim() ? countSegments(reply) : 0}{" "}
-                  {countSegments(reply) === 1 ? "credit" : "credits"} per send{fromAi ? " · AI draft (edited by you)" : ""}
+                  {reply.length}/600 characters · {reply.trim() ? countSegments(reply).segments : 0}{" "}
+                  {countSegments(reply).segments === 1 ? "credit" : "credits"} per send
+                  {fromAi ? " · AI draft (edited by you)" : ""}
                 </span>
                 <button
                   disabled={reply.trim().length < 2 || sendMutation.isPending}
