@@ -90,7 +90,7 @@ function account(overrides: Row = {}): Row {
     credit_balance: 10,
     auto_topup_enabled: true,
     auto_topup_threshold: 85,
-    auto_topup_pack_id: "credits_1500",
+    auto_topup_pack_id: "pack_1500",
     auto_topup_attempted_at: null,
     auto_topup_failures: 0,
     ...overrides,
