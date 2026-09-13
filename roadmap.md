@@ -30,7 +30,7 @@
 - [ ] Blocked on you: flip TEXTO_ACCOUNT_PROVISIONING=live after buying numbers at Texto; assign a platform_admin role to reach admin pages; finish Stripe go-live in the Payments tab.
 
 ## Hands-off numbers & credits (approved plan)
-- [ ] Auto-buy a dedicated number from Texto (POST /numbers/purchase) on plan activation; no spare-pool babysitting. $15/mo is inside the $200/$300 plan — no separate Stripe product.
-- [ ] Cancel/downgrade path: portal cancel releases the number back locally at period end; no manual overseeing.
+- [x] Auto-buy a dedicated number from Texto (POST /numbers/purchase) on plan activation; no spare-pool babysitting. $15/mo is inside the $200/$300 plan — no separate Stripe product. (Live contract unverified — do not send real purchases until tested against Texto.)
+- [x] Cancel/downgrade path: portal cancel releases the number back locally at period end; no manual overseeing.
 - [ ] Auto top-up on saved card when balance drops below tenant's threshold (default $5-worth), with guard rails.
 - [ ] Live segment/credit counter under the message composer.
