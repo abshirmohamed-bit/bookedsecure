@@ -270,6 +270,19 @@ export async function syncSubscription(subscription: any, knownBusinessId?: stri
   });
 
   if (status === "active" && !wasFull) await onActivated(businessId);
+
+  // Cancelled while previously active: return their number to the pool so
+  // another tenant can claim it, and stop their texts at the source. A recall
+  // failure must never block the billing sync — it's retried on the next
+  // number-pool sync.
+  if (status === "canceled" && wasFull) {
+    try {
+      const { recallTextoNumber } = await import("@/lib/sms/texto-accounts.server");
+      await recallTextoNumber(businessId);
+    } catch (error) {
+      console.error("[subscription] number release after cancellation failed:", error);
+    }
+  }
   return { ok: true as const, detail: `Subscription ${subscription.status} → ${status}` };
 }
 
