@@ -27,8 +27,9 @@ function builder(table: keyof typeof store) {
       if (opts?.count) api._count = true;
       return api;
     },
-    insert: (values: Row[]) => {
-      const inserted = values.map((v) => ({ id: makeId(), ...v }));
+    insert: (values: Row[] | Row) => {
+      const list = Array.isArray(values) ? values : [values];
+      const inserted = list.map((v) => ({ id: makeId(), ...v }));
       store[table].push(...inserted);
       api._inserted = inserted;
       return api;
