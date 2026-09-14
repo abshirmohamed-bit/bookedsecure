@@ -62,6 +62,8 @@ export type WebChatService = {
   price_guidance?: string | null;
   /** False excludes this service from campaign discount highlighting. */
   campaign_eligible?: boolean | null;
+  /** Public picture address for this service, or null. */
+  image_url?: string | null;
 };
 
 export type WebChatTenant = {
@@ -131,6 +133,7 @@ export type WebChatCardExtra = {
   name: string;
   price: string | null;
   duration: string | null;
+  image?: string | null;
 };
 
 
@@ -154,6 +157,8 @@ export type WebChatPrompt = {
       excludes: string | null;
       note: string | null;
       extras: WebChatCardExtra[];
+      /** Public picture address, or null. Display only. */
+      image?: string | null;
     } | null;
   }[];
   /** Present on the review step: every captured field, each individually changeable. */
@@ -221,6 +226,7 @@ export function serviceCard(
       name: addon.name,
       price: addon.price_guidance?.trim() || null,
       duration: formatMinutes(addon.duration_minutes ?? null),
+      image: addon.image_url ?? null,
     }),
   );
 
@@ -233,6 +239,7 @@ export function serviceCard(
     excludes: service.excluded_items?.trim() || null,
     note: service.qualification_note?.trim() || null,
     extras,
+    image: service.image_url ?? null,
   };
 }
 

@@ -29,6 +29,7 @@ export type ServiceCard = {
   excludes: string | null;
   note: string | null;
   extras: WebChatCardExtra[];
+  image?: string | null;
 };
 
 export type ServiceOption = {
@@ -139,6 +140,15 @@ export function ServiceChooser({
           Back to options
         </button>
 
+        {card?.image && (
+          <img
+            src={card.image}
+            alt={detail.label}
+            loading="lazy"
+            decoding="async"
+            className="mb-3 max-h-48 w-full rounded-xl object-cover"
+          />
+        )}
         <p className="text-lg font-semibold leading-tight">{detail.label}</p>
         {(card?.price || card?.duration) && (
           <div className="mt-2 flex flex-wrap items-baseline gap-4">
@@ -270,7 +280,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`relative flex h-[7.6rem] w-full snap-start cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-[9rem] sm:p-2 ${
+                  className={`relative flex w-full snap-start ${card?.image ? "h-[10.2rem] sm:h-[12rem]" : "h-[7.6rem] sm:h-[9rem]"} cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-2 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -278,6 +288,15 @@ export function ServiceChooser({
                       : "border-border hover:border-primary/60"
                   }`}
                 >
+                  {card?.image && (
+                    <img
+                      src={card.image}
+                      alt={option.label}
+                      loading="lazy"
+                      decoding="async"
+                      className="mb-1 h-9 w-full shrink-0 rounded-md object-cover sm:h-12"
+                    />
+                  )}
                   <span
                     aria-hidden="true"
                     className={`absolute right-1.5 top-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${

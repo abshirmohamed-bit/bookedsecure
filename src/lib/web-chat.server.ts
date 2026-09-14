@@ -114,6 +114,7 @@ function toChatTenant(tenant: PublicTenant, offerPercent?: number | null): WebCh
       qualification_note: service.qualification_note,
       price_guidance: service.price_guidance,
       campaign_eligible: service.campaign_eligible,
+      image_url: service.image_url ?? null,
     })),
   };
 }
