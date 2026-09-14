@@ -16,6 +16,8 @@ import {
 import { QUOTE_MODES, QUOTE_MODE_LABELS, resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
 import { removeTeamMember, setTeamAccess } from "@/lib/team.functions";
 import { useAuth } from "@/hooks/useAuth";
+import { removeServiceImage, uploadServiceImage } from "@/lib/tenant-account.functions";
+import { validateServiceImageUpload, type ServiceImageKind } from "@/lib/service-images";
 
 /**
  * Shared settings building blocks. The underlying server functions and
@@ -293,7 +295,111 @@ export type Service = {
   included_items: string | null;
   excluded_items: string | null;
   active: boolean;
+  /** Public picture address shown on the customer card, or null. */
+  image_url?: string | null;
 };
+
+/**
+ * Picture attached to a service or extra. Shown on the customer's quote card;
+ * owners can replace or remove it here. Purely visual — never used in texts.
+ */
+export function ServiceImageControl({
+  kind,
+  id,
+  name,
+  imageUrl,
+  readOnly,
+}: {
+  kind: ServiceImageKind;
+  id: string;
+  name: string;
+  imageUrl: string | null | undefined;
+  readOnly: boolean;
+}) {
+  const upload = useServerFn(uploadServiceImage);
+  const remove = useServerFn(removeServiceImage);
+  const queryClient = useQueryClient();
+  const inputId = `service-image-${kind}-${id}`;
+  const done = () => queryClient.invalidateQueries({ queryKey: ["settings"] });
+
+  const uploading = useMutation({
+    mutationFn: async (file: File) => {
+      const check = validateServiceImageUpload({ contentType: file.type, size: file.size });
+      if (!check.ok) throw new Error(check.reason);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(new Error("That file could not be read."));
+        reader.readAsDataURL(file);
+      });
+      const base64 = dataUrl.split(",")[1] ?? "";
+      return upload({ data: { kind, id, content_type: file.type, data_base64: base64 } });
+    },
+    onSuccess: () => {
+      toast.success("Picture saved");
+      done();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const removing = useMutation({
+    mutationFn: () => remove({ data: { kind, id } }),
+    onSuccess: () => {
+      toast.success("Picture removed");
+      done();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const busy = uploading.isPending || removing.isPending;
+
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={name}
+          loading="lazy"
+          className="h-12 w-16 shrink-0 rounded-md bg-secondary object-cover"
+        />
+      ) : (
+        <span className="grid h-12 w-16 shrink-0 place-items-center rounded-md border border-dashed border-border text-[10px] text-muted-foreground">
+          No picture
+        </span>
+      )}
+      {!readOnly && (
+        <div className="flex flex-wrap gap-2 text-[11px]">
+          <label
+            htmlFor={inputId}
+            className={`cursor-pointer rounded-md border border-input px-2 py-1 ${busy ? "opacity-50" : "hover:bg-secondary"}`}
+          >
+            {busy ? "Saving…" : imageUrl ? "Replace" : "Add picture"}
+          </label>
+          <input
+            id={inputId}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="sr-only"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) uploading.mutate(file);
+            }}
+          />
+          {imageUrl && (
+            <button
+              type="button"
+              onClick={() => removing.mutate()}
+              disabled={busy}
+              className="rounded-md border border-input px-2 py-1 text-muted-foreground hover:text-destructive"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const DURATION_PRESETS = [60, 90, 120, 180, 240] as const;
 
@@ -449,6 +555,13 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                   key={service.id}
                   className="rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40"
                 >
+                  <ServiceImageControl
+                    kind="service"
+                    id={service.id}
+                    name={service.name}
+                    imageUrl={service.image_url}
+                    readOnly={readOnly}
+                  />
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium">
                       {service.name}{" "}
@@ -919,6 +1032,7 @@ export type AddonDraft = {
   duration_minutes: number | null;
   active: boolean;
   serviceIds: string[];
+  image_url?: string | null;
 };
 
 /**
@@ -1052,6 +1166,13 @@ export function AddonsEditor({
                       </div>
                     )}
                   </div>
+                  <ServiceImageControl
+                    kind="addon"
+                    id={addon.id}
+                    name={addon.name}
+                    imageUrl={addon.image_url}
+                    readOnly={readOnly}
+                  />
                   <p className="mt-1 text-sm font-semibold text-primary">
                     {addon.price_guidance || "Price not set"}
                     {addon.duration_minutes ? (
