@@ -835,8 +835,54 @@ export type Database = {
           },
         ]
       }
+      business_promo_codes: {
+        Row: {
+          applied_at: string
+          applied_by: string | null
+          business_id: string
+          code: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string
+          applied_by?: string | null
+          business_id: string
+          code: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string
+          applied_by?: string | null
+          business_id?: string
+          code?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_promo_codes_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_promo_codes_code_fkey"
+            columns: ["code"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       businesses: {
         Row: {
+          abn: string | null
           agent_daily_send_cap: number
           agent_enabled: boolean
           agent_execution_opted_in_at: string | null
@@ -880,8 +926,10 @@ export type Database = {
           subscription_updated_at: string | null
           timezone: string
           updated_at: string
+          website_url: string | null
         }
         Insert: {
+          abn?: string | null
           agent_daily_send_cap?: number
           agent_enabled?: boolean
           agent_execution_opted_in_at?: string | null
@@ -925,8 +973,10 @@ export type Database = {
           subscription_updated_at?: string | null
           timezone?: string
           updated_at?: string
+          website_url?: string | null
         }
         Update: {
+          abn?: string | null
           agent_daily_send_cap?: number
           agent_enabled?: boolean
           agent_execution_opted_in_at?: string | null
@@ -970,6 +1020,7 @@ export type Database = {
           subscription_updated_at?: string | null
           timezone?: string
           updated_at?: string
+          website_url?: string | null
         }
         Relationships: [
           {
@@ -2380,6 +2431,63 @@ export type Database = {
           {
             foreignKeyName: "profiles_business_id_fkey"
             columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_codes: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          credit_pack_set: string
+          credit_price_cents: number | null
+          description: string | null
+          max_redemptions: number | null
+          notes: string | null
+          plan_id: string | null
+          reserved_business_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          credit_pack_set?: string
+          credit_price_cents?: number | null
+          description?: string | null
+          max_redemptions?: number | null
+          notes?: string | null
+          plan_id?: string | null
+          reserved_business_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          credit_pack_set?: string
+          credit_price_cents?: number | null
+          description?: string | null
+          max_redemptions?: number | null
+          notes?: string | null
+          plan_id?: string | null
+          reserved_business_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_codes_reserved_business_id_fkey"
+            columns: ["reserved_business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
             referencedColumns: ["id"]
