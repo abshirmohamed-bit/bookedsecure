@@ -273,20 +273,23 @@ export function OwnerAssistant({
     onSuccess: (result, input) => {
       const updatedBodies = new Map(result.drafts.map((draft) => [draft.id, draft.body]));
       setTurns((current) =>
-        current.map((turn) => ({
-          ...turn,
-          proposals: turn.proposals?.map((proposal) =>
-            proposal.kind === "campaign" && proposal.campaignId === input.campaignId
-              ? {
-                  ...proposal,
-                  drafts: proposal.drafts.map((draft) => ({
-                    ...draft,
-                    body: updatedBodies.get(draft.id) ?? draft.body,
-                  })),
-                }
-              : proposal,
-          ),
-        })),
+        current.map((turn) => {
+          if (!turn.proposals) return turn;
+          return {
+            ...turn,
+            proposals: turn.proposals.map((proposal) =>
+              proposal.kind === "campaign" && proposal.campaignId === input.campaignId
+                ? {
+                    ...proposal,
+                    drafts: proposal.drafts.map((draft) => ({
+                      ...draft,
+                      body: updatedBodies.get(draft.id) ?? draft.body,
+                    })),
+                  }
+                : proposal,
+            ),
+          };
+        }),
       );
       toast.success(`${result.updated} campaign message${result.updated === 1 ? "" : "s"} updated`);
       void queryClient.invalidateQueries({ queryKey: ["reactivation"] });
