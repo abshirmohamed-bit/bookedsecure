@@ -9,7 +9,7 @@
  *   only writers of a business's subscription state.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { getPlanById, listAllPlans, listOfferedPlans } from "@/lib/plans.server";
+import { getPlanById, listAllPlans } from "@/lib/plans.server";
 import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "@/lib/stripe.server";
 import type { BillingInterval, SubscriptionStatus } from "@/lib/subscription";
 import {
