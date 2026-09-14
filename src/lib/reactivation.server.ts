@@ -28,7 +28,7 @@ import { tenantQuoteUrl } from "@/lib/tenant-nav";
  * simply gets a message with no link instead of another tenant's page.
  */
 export function tenantQuoteLink(slug: string | null | undefined): string | null {
-  const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+  const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.com";
   return tenantQuoteUrl(origin, slug);
 }
 
@@ -41,7 +41,7 @@ export function campaignSmsLink(
   slug: string | null | undefined,
   publicToken: string | null | undefined,
 ): string | null {
-  const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+  const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.com";
   return campaignShortLink(origin, publicToken) ?? campaignQuoteUrl(tenantQuoteUrl(origin, slug), null);
 }
 

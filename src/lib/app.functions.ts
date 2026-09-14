@@ -539,7 +539,7 @@ export const getSettings = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("service_addons")
         .select(
-          "id, name, category, description, price_guidance, duration_minutes, active, service_addon_links(service_id)",
+          "id, name, category, description, price_guidance, duration_minutes, active, image_url, service_addon_links(service_id)",
         )
         .eq("business_id", app.businessId)
         .order("name", { ascending: true }),
@@ -564,6 +564,7 @@ export const getSettings = createServerFn({ method: "GET" })
         price_guidance: addon.price_guidance ?? null,
         duration_minutes: addon.duration_minutes ?? null,
         active: addon.active !== false,
+        image_url: addon.image_url ?? null,
         serviceIds: (
           (addon as { service_addon_links?: { service_id: string }[] }).service_addon_links ?? []
         ).map((link) => link.service_id),

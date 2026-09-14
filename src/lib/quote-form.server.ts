@@ -6,6 +6,7 @@ import { normaliseSlug } from "@/lib/tenant-slug";
 import { sanitiseLogoUrl } from "@/lib/tenant-branding";
 import { resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
 import type { ServiceAddon } from "@/lib/service-addons";
+import { sanitiseServiceImageUrl } from "@/lib/service-images";
 
 export type PublicService = {
   id: string;
@@ -20,6 +21,8 @@ export type PublicService = {
   excluded_items: string | null;
   price_guidance: string | null;
   campaign_eligible: boolean;
+  /** Public address of the tenant's own picture for this service, or null. */
+  image_url: string | null;
 };
 
 export type PublicTenant = {
@@ -54,7 +57,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
   const { data: services } = await supabaseAdmin
     .from("services")
     .select(
-      "id, name, category, duration_minutes, description, qualification_note, included_items, excluded_items, price_guidance, campaign_eligible",
+      "id, name, category, duration_minutes, description, qualification_note, included_items, excluded_items, price_guidance, campaign_eligible, image_url",
     )
     .eq("business_id", business.id)
     .eq("active", true)
@@ -63,7 +66,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
   const { data: addonRows } = await supabaseAdmin
     .from("service_addons")
     .select(
-      "id, name, category, description, price_guidance, duration_minutes, active, service_addon_links(service_id)",
+      "id, name, category, description, price_guidance, duration_minutes, active, image_url, service_addon_links(service_id)",
     )
     .eq("business_id", business.id)
     .eq("active", true)
@@ -78,6 +81,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
       description: row.description ?? null,
       price_guidance: row.price_guidance ?? null,
       duration_minutes: row.duration_minutes ?? null,
+      image_url: sanitiseServiceImageUrl(row.image_url),
       active: true,
       // An add-on is only ever offered with this tenant's own active services.
       serviceIds: ((row as { service_addon_links?: { service_id: string }[] }).service_addon_links ?? [])
@@ -108,6 +112,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
       excluded_items: service.excluded_items ?? null,
       price_guidance: service.price_guidance ?? null,
       campaign_eligible: service.campaign_eligible !== false,
+      image_url: sanitiseServiceImageUrl(service.image_url),
     })),
   };
 }

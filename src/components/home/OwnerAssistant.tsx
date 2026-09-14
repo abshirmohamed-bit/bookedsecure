@@ -430,7 +430,8 @@ export function OwnerAssistant({
                                 Approve and send
                               </button>
                               <Link
-                                to="/import"
+                                to="/leads"
+                                hash="reactivation"
                                 className="text-xs text-muted-foreground underline hover:text-foreground"
                               >
                                 Edit on the campaign page

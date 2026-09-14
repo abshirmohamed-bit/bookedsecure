@@ -29,6 +29,7 @@ export type ServiceCard = {
   excludes: string | null;
   note: string | null;
   extras: WebChatCardExtra[];
+  image?: string | null;
 };
 
 export type ServiceOption = {
@@ -60,6 +61,9 @@ export function ServiceChooser({
   const activeGroup =
     groups.find((group) => group.label.toLowerCase() === groupLabel.toLowerCase()) ?? groups[0];
   const items = activeGroup?.items ?? [];
+  // When any card in the visible group carries a picture, every card in that
+  // group uses the taller size so rows stay aligned.
+  const tallCards = items.some((option) => Boolean(option.card?.image));
 
   /** Chosen services, in the order the customer picked them. */
   const [chosen, setChosen] = useState<string[]>([]);
@@ -139,6 +143,15 @@ export function ServiceChooser({
           Back to options
         </button>
 
+        {card?.image && (
+          <img
+            src={card.image}
+            alt={detail.label}
+            loading="lazy"
+            decoding="async"
+            className="mb-3 max-h-48 w-full rounded-xl object-cover"
+          />
+        )}
         <p className="text-lg font-semibold leading-tight">{detail.label}</p>
         {(card?.price || card?.duration) && (
           <div className="mt-2 flex flex-wrap items-baseline gap-4">
@@ -270,7 +283,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`relative flex h-[7.6rem] w-full snap-start cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-[9rem] sm:p-2 ${
+                  className={`relative flex w-full snap-start ${tallCards ? "h-[10.2rem] sm:h-[12rem]" : "h-[7.6rem] sm:h-[9rem]"} cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-2 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -278,6 +291,18 @@ export function ServiceChooser({
                       : "border-border hover:border-primary/60"
                   }`}
                 >
+                  {tallCards &&
+                    (card?.image ? (
+                      <img
+                        src={card.image}
+                        alt={option.label}
+                        loading="lazy"
+                        decoding="async"
+                        className="mb-1 h-9 w-full shrink-0 rounded-md object-cover sm:h-12"
+                      />
+                    ) : (
+                      <span aria-hidden="true" className="mb-1 h-9 w-full shrink-0 rounded-md bg-secondary sm:h-12" />
+                    ))}
                   <span
                     aria-hidden="true"
                     className={`absolute right-1.5 top-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${

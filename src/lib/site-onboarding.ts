@@ -23,6 +23,8 @@ export type ScrapedService = {
   price?: string | null;
   description?: string | null;
   durationMinutes?: number | null;
+  /** Address of the picture shown next to this service on the site, if any. */
+  imageUrl?: string | null;
 };
 
 export type ScrapedAddon = {
@@ -34,6 +36,7 @@ export type ScrapedAddon = {
   durationMinutes?: number | null;
   /** Service names the site says this extra goes with. Empty means "any". */
   appliesTo?: string[] | null;
+  imageUrl?: string | null;
 };
 
 /** Raw, untrusted shape read from the tenant's website. */
@@ -55,6 +58,8 @@ export type ProposedService = {
   description: string | null;
   price_guidance: string | null;
   duration_minutes: number;
+  /** Picture found on the tenant's site for this service (copied on save), or null. */
+  image_url: string | null;
   /** True when the tenant already has this service, so it will be left alone. */
   alreadyHave: boolean;
 };
@@ -67,6 +72,7 @@ export type ProposedAddon = {
   duration_minutes: number | null;
   /** Names of the tenant's services this extra will be offered with. */
   serviceNames: string[];
+  image_url: string | null;
   /** True when the tenant already has an extra with this name. */
   alreadyHave: boolean;
 };
@@ -86,6 +92,19 @@ export type OnboardingProposal = {
   /** Plain-language notes for the owner about anything the site did not say. */
   warnings: string[];
 };
+
+/** Only an absolute http(s) address is kept; anything else is dropped. */
+export function imageAddress(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 2048) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
 
 function text(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null;
@@ -377,6 +396,7 @@ function proposeServices(raw: ScrapedService[] | null | undefined): ProposedServ
         Number.isInteger(duration) && duration >= 15 && duration <= 1440
           ? duration
           : DEFAULT_SERVICE_DURATION_MINUTES,
+      image_url: imageAddress(entry.imageUrl),
       alreadyHave: false,
     });
     if (services.length >= MAX_PROPOSED_SERVICES) break;
@@ -422,6 +442,7 @@ function proposeAddons(
       duration_minutes:
         Number.isInteger(duration) && duration >= 5 && duration <= 1440 ? duration : null,
       serviceNames: matched.length > 0 ? matched : services.map((service) => service.name),
+      image_url: imageAddress(entry.imageUrl),
       alreadyHave: false,
     });
     if (addons.length >= MAX_PROPOSED_SERVICES) break;
@@ -443,6 +464,7 @@ export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): O
       price: entry?.price ?? null,
       description: entry?.description ?? null,
       durationMinutes: entry?.durationMinutes ?? null,
+      imageUrl: entry?.imageUrl ?? null,
       appliesTo: null,
     }));
 

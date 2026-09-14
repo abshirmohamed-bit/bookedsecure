@@ -10,6 +10,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isValidTimezone } from "@/lib/availability";
 import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/tenant-logo";
 import { storeTenantLogo } from "@/lib/tenant-account.server";
+import { copyServiceImageFromUrl } from "@/lib/service-images.server";
+import { resolveRemoteImageUrl } from "@/lib/service-images";
 import {
   buildOnboardingProposal,
   markExistingServices,
@@ -34,6 +36,8 @@ const EXTRACTION_PROMPT = [
   "a one-line description, the extra time in minutes if stated, the heading it is grouped under if any,",
   "and the names of the services it applies to.",
   "Do not repeat a main service as an add-on.",
+  "When a service or extra has a picture beside it (a photo on its card or price block), include that",
+  "image's full absolute address as imageUrl; leave imageUrl out when there is no picture for that item.",
   "Never invent a value. Leave a field out when the page does not state it.",
 ].join(" ");
 
@@ -55,6 +59,7 @@ const EXTRACTION_SCHEMA = {
           price: { type: "string" },
           description: { type: "string" },
           durationMinutes: { type: "number" },
+          imageUrl: { type: "string" },
         },
       },
     },
@@ -69,6 +74,7 @@ const EXTRACTION_SCHEMA = {
           description: { type: "string" },
           durationMinutes: { type: "number" },
           appliesTo: { type: "array", items: { type: "string" } },
+          imageUrl: { type: "string" },
         },
       },
     },
@@ -85,6 +91,16 @@ type FirecrawlScrape = {
   metadata?: { title?: string | null } | null;
   data?: FirecrawlScrape;
 };
+
+/** Turns relative picture addresses from the site into absolute ones. */
+function withAbsoluteImages<T extends { imageUrl?: string | null }>(raw: unknown, base: string): T[] | null {
+  if (!Array.isArray(raw)) return null;
+  return raw.map((entry) =>
+    entry && typeof entry === "object"
+      ? ({ ...(entry as T), imageUrl: resolveRemoteImageUrl((entry as T).imageUrl, base) } as T)
+      : (entry as T),
+  );
+}
 
 function unwrap(payload: FirecrawlScrape): FirecrawlScrape {
   return payload.data && typeof payload.data === "object" ? { ...payload.data, ...payload } : payload;
@@ -136,8 +152,8 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
     phone: (extracted["phone"] as string | undefined) ?? null,
     openingHours: (extracted["openingHours"] as string | undefined) ?? null,
     logoUrl: branding?.logo ?? branding?.images?.logo ?? null,
-    services: (extracted["services"] as ScrapedSite["services"]) ?? null,
-    addons: (extracted["addons"] as ScrapedSite["addons"]) ?? null,
+    services: withAbsoluteImages(extracted["services"], url),
+    addons: withAbsoluteImages(extracted["addons"], url),
   };
 
   const proposal = buildOnboardingProposal(site, url);
@@ -229,9 +245,21 @@ export async function applySiteOnboarding(
       campaign_eligible: true,
       active: true,
     }));
+  let imagesCopied = 0;
+  let imagesSkipped = 0;
   if (rows.length > 0) {
-    const { error } = await supabaseAdmin.from("services").insert(rows);
+    const { data: inserted, error } = await supabaseAdmin
+      .from("services")
+      .insert(rows)
+      .select("id, name");
     if (error) throw new Error(error.message);
+    for (const created of inserted ?? []) {
+      const source = proposal.services.find((service) => isSameService(service.name, created.name));
+      const imageUrl = source ? resolveRemoteImageUrl(source.image_url, proposal.sourceUrl) : null;
+      if (!imageUrl) continue;
+      if (await copyServiceImageFromUrl(app, "service", created.id, imageUrl)) imagesCopied += 1;
+      else imagesSkipped += 1;
+    }
   }
   const skipped = proposal.services.length - rows.length;
   if (skipped > 0)
@@ -288,7 +316,15 @@ export async function applySiteOnboarding(
     if (linkError) throw new Error(linkError.message);
     addonTaken.add(serviceMatchKey(addon.name));
     addonsAdded += 1;
+    const addonImage = resolveRemoteImageUrl(addon.image_url, proposal.sourceUrl);
+    if (addonImage) {
+      if (await copyServiceImageFromUrl(app, "addon", created.id, addonImage)) imagesCopied += 1;
+      else imagesSkipped += 1;
+    }
   }
+  if (imagesCopied > 0) notes.push(`${imagesCopied} picture(s) copied onto your service cards.`);
+  if (imagesSkipped > 0)
+    notes.push(`${imagesSkipped} picture(s) could not be copied (too large or not an image) and were skipped.`);
   if (addonsSkipped > 0)
     notes.push(`${addonsSkipped} extra(s) were skipped because you already have them.`);
 

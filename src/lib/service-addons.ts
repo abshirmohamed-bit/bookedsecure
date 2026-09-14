@@ -20,6 +20,8 @@ export type ServiceAddon = {
   category?: string | null;
   description?: string | null;
   price_guidance?: string | null;
+  /** Public picture address for this extra, or null. */
+  image_url?: string | null;
   duration_minutes?: number | null;
   active?: boolean | null;
   /** Approved services this add-on may be offered with. */

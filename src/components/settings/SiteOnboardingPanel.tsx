@@ -129,6 +129,14 @@ export function SiteOnboardingPanel({
                         key={service.name}
                         className="min-w-0 rounded-lg border border-border bg-background p-2.5"
                       >
+                        {service.image_url && (
+                          <img
+                            src={service.image_url}
+                            alt=""
+                            loading="lazy"
+                            className="mb-1.5 h-14 w-full rounded-md bg-secondary object-cover"
+                          />
+                        )}
                         <p className="truncate text-xs font-semibold">{service.name}</p>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[0.7rem]">
                           {service.price_guidance && (

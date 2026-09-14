@@ -66,3 +66,40 @@ export const removeTenantLogo = createServerFn({ method: "POST" })
     const app = await requireWriteContext(context.supabase, context.userId);
     return await clearTenantLogo(app);
   });
+
+const SERVICE_IMAGE_KIND = z.enum(["service", "addon"]);
+
+/** Attach or replace the picture on one of the tenant's own services or extras. */
+export const uploadServiceImage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        kind: SERVICE_IMAGE_KIND,
+        id: z.string().uuid(),
+        content_type: z.string().max(80),
+        data_base64: z
+          .string()
+          .min(1)
+          .max(Math.ceil((MAX_LOGO_BYTES * 4) / 3) + 1024),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { storeServiceImage } = await import("@/lib/service-images.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    return await storeServiceImage(app, data);
+  });
+
+export const removeServiceImage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ kind: SERVICE_IMAGE_KIND, id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { clearServiceImage } = await import("@/lib/service-images.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    return await clearServiceImage(app, data);
+  });

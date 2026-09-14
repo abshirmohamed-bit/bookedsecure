@@ -2637,6 +2637,8 @@ export type Database = {
           description: string | null
           duration_minutes: number | null
           id: string
+          image_storage_path: string | null
+          image_url: string | null
           name: string
           price_guidance: string | null
           updated_at: string
@@ -2649,6 +2651,8 @@ export type Database = {
           description?: string | null
           duration_minutes?: number | null
           id?: string
+          image_storage_path?: string | null
+          image_url?: string | null
           name: string
           price_guidance?: string | null
           updated_at?: string
@@ -2661,6 +2665,8 @@ export type Database = {
           description?: string | null
           duration_minutes?: number | null
           id?: string
+          image_storage_path?: string | null
+          image_url?: string | null
           name?: string
           price_guidance?: string | null
           updated_at?: string
@@ -2686,6 +2692,8 @@ export type Database = {
           duration_minutes: number | null
           excluded_items: string | null
           id: string
+          image_storage_path: string | null
+          image_url: string | null
           included_items: string | null
           name: string
           price_guidance: string | null
@@ -2701,6 +2709,8 @@ export type Database = {
           duration_minutes?: number | null
           excluded_items?: string | null
           id?: string
+          image_storage_path?: string | null
+          image_url?: string | null
           included_items?: string | null
           name: string
           price_guidance?: string | null
@@ -2716,6 +2726,8 @@ export type Database = {
           duration_minutes?: number | null
           excluded_items?: string | null
           id?: string
+          image_storage_path?: string | null
+          image_url?: string | null
           included_items?: string | null
           name?: string
           price_guidance?: string | null
