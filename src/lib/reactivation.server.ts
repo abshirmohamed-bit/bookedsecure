@@ -39,11 +39,11 @@ export function tenantQuoteLink(slug: string | null | undefined): string | null 
  * message), otherwise the tenant's plain quote-page link. Universal.
  */
 export function campaignSmsLink(
-  _slug: string | null | undefined,
+  slug: string | null | undefined,
   publicToken: string | null | undefined,
 ): string | null {
   const origin = "https://bookedsecure.com";
-  return campaignShortLink(origin, publicToken);
+  return campaignShortLink(origin, publicToken) ?? campaignQuoteUrl(tenantQuoteUrl(origin, slug), null);
 }
 
 const LEAD_COLUMNS =

@@ -10,7 +10,7 @@ import {
   shouldSendReactivationReminder,
   type ReactivationFacts,
 } from "@/lib/reactivation";
-import { factsFromLead } from "@/lib/reactivation.server";
+import { campaignSmsLink, factsFromLead } from "@/lib/reactivation.server";
 
 const dormant: ReactivationFacts = {
   hasMessages: false,
@@ -114,6 +114,20 @@ describe("bulk campaign personalisation", () => {
     ).toBe(
       "Hi Bella, Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer. Book now: https://bookedsecure.com/b/private-token Usamah Glocast Mobile Detailing Reply STOP to opt out.",
     );
+  });
+
+  it("always generates the canonical BookedSecure customer link", () => {
+    const previousOrigin = process.env["PUBLIC_APP_URL"];
+    process.env["PUBLIC_APP_URL"] = "https://bookedsecure.lovable.app";
+    try {
+      expect(campaignSmsLink("acme", "private-token")).toBe(
+        "https://bookedsecure.com/b/private-token",
+      );
+      expect(campaignSmsLink("acme", null)).toBe("https://bookedsecure.com/quote/acme");
+    } finally {
+      if (previousOrigin === undefined) delete process.env["PUBLIC_APP_URL"];
+      else process.env["PUBLIC_APP_URL"] = previousOrigin;
+    }
   });
 });
 
