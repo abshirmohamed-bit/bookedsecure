@@ -211,7 +211,6 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
 
   const payload = root.payload;
   const extracted = root.extracted;
-  const childExtractions = pageResults.flatMap((result) => (result ? [result.extracted] : []));
   const services = mergeScrapedItems(
     [root, ...pageResults.filter((result) => result !== null)].map((result) =>
       withAbsoluteImages(result.extracted["services"], result.url),
