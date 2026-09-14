@@ -14,6 +14,7 @@ import {
   guardReactivationMessage,
   normaliseOffer,
   proposeOffer,
+  renderBulkReactivationMessage,
   renderReactivationMessage,
   renderReactivationReminder,
   shouldSendReactivationReminder,
@@ -486,6 +487,73 @@ export async function updateReactivationDraft(input: {
     .eq("business_id", input.businessId);
   if (error) throw new Error(error.message);
   return { ok: true };
+}
+
+/** Bulk-edits only the owner-written middle copy, regenerating protected fields per lead. */
+export async function bulkUpdateReactivationDrafts(input: {
+  businessId: string;
+  campaignId: string;
+  draftIds: string[];
+  campaignCopy: string;
+}): Promise<{ updated: number }> {
+  const uniqueDraftIds = [...new Set(input.draftIds)].slice(0, 500);
+  if (uniqueDraftIds.length === 0) return { updated: 0 };
+
+  const [{ data: campaign }, { data: business }] = await Promise.all([
+    supabaseAdmin
+      .from("reactivation_campaigns")
+      .select("id, offer_text")
+      .eq("id", input.campaignId)
+      .eq("business_id", input.businessId)
+      .eq("status", "draft")
+      .maybeSingle(),
+    supabaseAdmin
+      .from("businesses")
+      .select("slug, sms_signature")
+      .eq("id", input.businessId)
+      .maybeSingle(),
+  ]);
+  if (!campaign) throw new Error("Campaign not found or already actioned.");
+
+  const { data: drafts, error } = await supabaseAdmin
+    .from("reactivation_drafts")
+    .select("id, lead_id, leads(name, public_token)")
+    .eq("business_id", input.businessId)
+    .eq("campaign_id", input.campaignId)
+    .eq("status", "draft")
+    .in("id", uniqueDraftIds);
+  if (error) throw new Error(error.message);
+
+  let updated = 0;
+  for (const draft of drafts ?? []) {
+    const lead = (draft as {
+      leads?: { name?: string | null; public_token?: string | null } | null;
+    }).leads;
+    const rendered = renderBulkReactivationMessage({
+      leadName: lead?.name ?? null,
+      campaignCopy: input.campaignCopy,
+      quoteUrl: campaignSmsLink(business?.slug ?? null, lead?.public_token ?? null),
+      signature: business?.sms_signature ?? null,
+    });
+    const guarded = guardReactivationMessage(rendered, campaign.offer_text);
+    if (guarded.flagged.length > 0 || guarded.text.length > 320 || guarded.text.length < 2) {
+      throw new Error(
+        guarded.text.length > 320
+          ? "The personalised message is over 320 characters. Shorten the campaign text."
+          : "That campaign text includes unsupported pricing, timing, or booking claims.",
+      );
+    }
+    const { error: updateError } = await supabaseAdmin
+      .from("reactivation_drafts")
+      .update({ body: guarded.text, edited: true })
+      .eq("id", draft.id)
+      .eq("business_id", input.businessId)
+      .eq("campaign_id", input.campaignId)
+      .eq("status", "draft");
+    if (updateError) throw new Error(updateError.message);
+    updated += 1;
+  }
+  return { updated };
 }
 
 export async function cancelReactivationCampaign(input: {

@@ -70,6 +70,29 @@ export const editReactivationDraft = createServerFn({ method: "POST" })
     });
   });
 
+export const bulkEditReactivationDrafts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        campaignId: z.string().uuid(),
+        draftIds: z.array(z.string().uuid()).min(1).max(500),
+        campaignCopy: z.string().min(2).max(180),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { bulkUpdateReactivationDrafts } = await import("@/lib/reactivation.server");
+    const app = await requireWriteContext(context.supabase, context.userId, "reactivation");
+    return await bulkUpdateReactivationDrafts({
+      businessId: app.businessId,
+      campaignId: data.campaignId,
+      draftIds: data.draftIds,
+      campaignCopy: data.campaignCopy,
+    });
+  });
+
 export const approveReactivation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>

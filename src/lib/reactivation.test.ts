@@ -5,6 +5,7 @@ import {
   guardReactivationMessage,
   proposeOffer,
   renderReactivationMessage,
+  renderBulkReactivationMessage,
   renderReactivationReminder,
   shouldSendReactivationReminder,
   type ReactivationFacts,
@@ -97,6 +98,22 @@ describe("dormant-lead classification", () => {
       { messageLeadIds: new Set(), chatLeadIds: new Set(), jobLeadIds: new Set() },
     );
     expect(classifyReactivationCandidate(facts).eligible).toBe(false);
+  });
+});
+
+describe("bulk campaign personalisation", () => {
+  it("keeps the lead name, private link, signature and opt-out outside editable copy", () => {
+    expect(
+      renderBulkReactivationMessage({
+        leadName: "Bella Hukun",
+        campaignCopy:
+          "Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer.",
+        quoteUrl: "https://bookedsecure.com/b/private-token",
+        signature: "Usamah Glocast Mobile Detailing",
+      }),
+    ).toBe(
+      "Hi Bella, Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer. Book now: https://bookedsecure.com/b/private-token Usamah Glocast Mobile Detailing Reply STOP to opt out.",
+    );
   });
 });
 
