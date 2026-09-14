@@ -166,7 +166,7 @@ async function scrapePage(
   url: string,
   lovableKey: string,
   connectionKey: string,
-): Promise<{ payload: FirecrawlScrape; extracted: Record<string, unknown> } | null> {
+): Promise<{ url: string; payload: FirecrawlScrape; extracted: Record<string, unknown> } | null> {
   const response = await fetch(GATEWAY_SCRAPE_URL, {
     method: "POST",
     headers: connectorHeaders(lovableKey, connectionKey),
@@ -179,7 +179,7 @@ async function scrapePage(
   });
   if (!response.ok) return null;
   const payload = unwrap((await response.json()) as FirecrawlScrape);
-  return { payload, extracted: (payload.json ?? {}) as Record<string, unknown> };
+  return { url, payload, extracted: (payload.json ?? {}) as Record<string, unknown> };
 }
 
 /** Reads the tenant's own public website through the Firecrawl connector. */
@@ -213,10 +213,14 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
   const extracted = root.extracted;
   const childExtractions = pageResults.flatMap((result) => (result ? [result.extracted] : []));
   const services = mergeScrapedItems(
-    [extracted, ...childExtractions].map((entry) => withAbsoluteImages(entry["services"], url)),
+    [root, ...pageResults.filter((result) => result !== null)].map((result) =>
+      withAbsoluteImages(result.extracted["services"], result.url),
+    ),
   );
   const addons = mergeScrapedItems(
-    [extracted, ...childExtractions].map((entry) => withAbsoluteImages(entry["addons"], url)),
+    [root, ...pageResults.filter((result) => result !== null)].map((result) =>
+      withAbsoluteImages(result.extracted["addons"], result.url),
+    ),
   );
 
   if (!payload) {
@@ -366,9 +370,18 @@ export async function applySiteOnboarding(
     .eq("business_id", app.businessId);
   const { data: currentAddons } = await supabaseAdmin
     .from("service_addons")
-    .select("name")
+    .select("id, name, image_url")
     .eq("business_id", app.businessId);
   const addonTaken = new Set((currentAddons ?? []).map((row) => serviceMatchKey(row.name)));
+
+  for (const existing of currentAddons ?? []) {
+    if (existing.image_url) continue;
+    const source = proposal.addons.find((addon) => isSameService(addon.name, existing.name));
+    const imageUrl = source ? resolveRemoteImageUrl(source.image_url, proposal.sourceUrl) : null;
+    if (!imageUrl) continue;
+    if (await copyServiceImageFromUrl(app, "addon", existing.id, imageUrl)) imagesCopied += 1;
+    else imagesSkipped += 1;
+  }
 
   let addonsAdded = 0;
   let addonsSkipped = 0;
