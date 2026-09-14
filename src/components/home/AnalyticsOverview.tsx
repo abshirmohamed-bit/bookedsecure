@@ -1,226 +1,79 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { BarChart3, Clock3, MessageCircleReply, WalletCards } from "lucide-react";
+import { CalendarCheck2, CircleDollarSign, MessageCircleReply, Send } from "lucide-react";
 import { getAnalytics } from "@/lib/app.functions";
-import { SmsDeliveryPanel } from "@/components/SmsDeliveryPanel";
-import { QuoteFunnelPanel } from "@/components/home/QuoteFunnelPanel";
-
-import { SOURCE_LABELS, formatCurrency, formatMinutes } from "@/lib/domain";
+import { getSmsDeliverySummary } from "@/lib/sms-delivery.functions";
+import { formatCurrency } from "@/lib/domain";
 
 export function AnalyticsOverview() {
   const fetchAnalytics = useServerFn(getAnalytics);
-  const [range, setRange] = useState({ from: "", to: "" });
+  const fetchDelivery = useServerFn(getSmsDeliverySummary);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["analytics", range],
-    queryFn: () =>
-      fetchAnalytics({ data: { from: range.from || null, to: range.to || null, source: null } }),
+  const analytics = useQuery({
+    queryKey: ["analytics", "all-time"],
+    queryFn: () => fetchAnalytics({ data: { from: null, to: null, source: null } }),
   });
+  const delivery = useQuery({ queryKey: ["sms-delivery-summary"], queryFn: () => fetchDelivery() });
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading analytics…</p>;
-  if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
-  if (!data) return null;
+  if (analytics.isLoading || delivery.isLoading) return <p className="py-8 text-center text-sm text-muted-foreground">Loading your numbers…</p>;
+  if (analytics.error || delivery.error) return <p className="py-8 text-center text-sm text-destructive">Your numbers could not be loaded.</p>;
+  if (!analytics.data || !delivery.data) return null;
 
-  const funnel = [
-    ["Total enquiries", data.funnel.enquiries],
+  const data = analytics.data;
+  const essentials = [
+    { label: "Enquiries", value: String(data.funnel.enquiries), icon: MessageCircleReply },
+    { label: "Reply rate", value: `${Math.round(data.replyRate * 100)}%`, icon: Send },
+    { label: "Bookings", value: String(data.funnel.scheduled), icon: CalendarCheck2 },
+    { label: "Completed revenue", value: formatCurrency(data.completedRevenue), icon: CircleDollarSign },
+  ] as const;
+  const progress = [
+    ["Enquiries", data.funnel.enquiries],
     ["Contacted", data.funnel.contacted],
     ["Replied", data.funnel.replied],
-    ["Quote ready", data.funnel.quoteReady],
-    ["Quote sent", data.funnel.quoteSent],
-    ["Scheduled", data.funnel.scheduled],
+    ["Booked", data.funnel.scheduled],
     ["Completed", data.funnel.completed],
-    ["Lost", data.funnel.lost],
   ] as const;
 
   return (
-    <div className="min-w-0 space-y-5">
-      <p className="text-sm text-muted-foreground">
-        See which channels turn enquiries into completed work.
-      </p>
-      <div className="panel grid min-w-0 gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-        <p className="text-sm font-semibold">Reporting period</p>
-        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-xs sm:flex sm:flex-wrap">
-          <input
-            type="date"
-            value={range.from}
-            onChange={(event) => setRange({ ...range, from: event.target.value })}
-            className="min-w-0 rounded-md border border-input bg-background px-2 py-2"
-          />
-          <span className="text-muted-foreground">to</span>
-          <input
-            type="date"
-            value={range.to}
-            onChange={(event) => setRange({ ...range, to: event.target.value })}
-            className="min-w-0 rounded-md border border-input bg-background px-2 py-2"
-          />
-          {(range.from || range.to) && (
-            <button
-              onClick={() => setRange({ from: "", to: "" })}
-              className="col-span-3 min-h-10 justify-self-start text-muted-foreground hover:text-foreground sm:col-span-1 sm:min-h-0"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="min-w-0 space-y-6">
+      <section>
+        <h3 className="mb-3 text-sm font-semibold">Overview</h3>
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {essentials.map(({ label, value, icon: Icon }) => (
+            <div key={label} className="rounded-lg border border-border bg-card p-3">
+              <Icon className="mb-3 h-4 w-4 text-primary" />
+              <dd className="tabular text-xl font-semibold">{value}</dd>
+              <dt className="mt-0.5 text-xs text-muted-foreground">{label}</dt>
+            </div>
+          ))}
+        </dl>
+      </section>
 
-      <QuoteFunnelPanel />
-
-      <section className="panel overflow-hidden">
-
-        <h2 className="section-heading">Funnel</h2>
-        <div className="space-y-2 p-4">
-          {funnel.map(([label, value]) => (
-            <div key={label} className="flex items-center gap-3">
-              <span className="w-24 shrink-0 text-xs text-muted-foreground sm:w-32">{label}</span>
-              <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-secondary">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{
-                    width: `${data.funnel.enquiries ? (value / data.funnel.enquiries) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-              <span className="w-8 shrink-0 tabular text-right text-xs">{value}</span>
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h3 className="text-sm font-semibold">Lead progress</h3>
+        <div className="mt-4 space-y-3">
+          {progress.map(([label, value]) => (
+            <div key={label} className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-muted-foreground">{label}</span>
+              <span className="tabular font-semibold">{value}</span>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="panel">
-        <h2 className="section-heading">By source channel (never combined)</h2>
-        <div className="divide-y divide-border sm:hidden">
-          {data.bySource.map((row) => (
-            <article key={row.source} className="space-y-3 p-4">
-              <h3 className="font-medium">{SOURCE_LABELS[row.source] ?? row.source}</h3>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                <MobileDatum label="Leads" value={String(row.leads)} />
-                <MobileDatum label="Median response" value={formatMinutes(row.medianResponseMinutes)} />
-                <MobileDatum label="Reply rate" value={`${Math.round(row.replyRate * 100)}%`} />
-                <MobileDatum label="Completed jobs" value={String(row.completedJobs)} />
-                <MobileDatum label="Completed rate" value={`${Math.round(row.completedRate * 100)}%`} />
-                <MobileDatum label="Revenue" value={formatCurrency(row.completedRevenue)} />
-                <MobileDatum label="Average job" value={row.averageJobValue ? formatCurrency(row.averageJobValue) : "—"} />
-              </dl>
-            </article>
-          ))}
-          {data.bySource.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">No leads in this period.</p>}
-        </div>
-        <div className="hidden overflow-x-auto sm:block">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
-                <th className="px-4 py-2 font-medium">Source</th>
-                <th className="px-4 py-2 font-medium">Leads</th>
-                <th className="px-4 py-2 font-medium">Median response</th>
-                <th className="px-4 py-2 font-medium">Reply rate</th>
-                <th className="px-4 py-2 font-medium">Completed jobs</th>
-                <th className="px-4 py-2 font-medium">Completed rate</th>
-                <th className="px-4 py-2 text-right font-medium">Completed revenue</th>
-                <th className="px-4 py-2 text-right font-medium">Avg job</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.bySource.map((row) => (
-                <tr key={row.source} className="border-b border-border/60">
-                  <td className="px-4 py-2.5">{SOURCE_LABELS[row.source] ?? row.source}</td>
-                  <td className="px-4 py-2.5 tabular">{row.leads}</td>
-                  <td className="px-4 py-2.5 tabular">
-                    {formatMinutes(row.medianResponseMinutes)}
-                  </td>
-                  <td className="px-4 py-2.5 tabular">{Math.round(row.replyRate * 100)}%</td>
-                  <td className="px-4 py-2.5 tabular">{row.completedJobs}</td>
-                  <td className="px-4 py-2.5 tabular">{Math.round(row.completedRate * 100)}%</td>
-                  <td className="px-4 py-2.5 text-right tabular">
-                    {formatCurrency(row.completedRevenue)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular">
-                    {row.averageJobValue ? formatCurrency(row.averageJobValue) : "—"}
-                  </td>
-                </tr>
-              ))}
-              {data.bySource.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                    No leads in this period.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h3 className="text-sm font-semibold">Text messages</h3>
+        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
+          <SimpleDatum label="Sent" value={String(delivery.data.sent)} />
+          <SimpleDatum label="Delivered" value={String(delivery.data.delivered)} />
+          <SimpleDatum label="Delivery rate" value={delivery.data.deliveryRate == null ? "—" : `${Math.round(delivery.data.deliveryRate * 100)}%`} />
+          <SimpleDatum label="Needs attention" value={String(delivery.data.failed + delivery.data.undelivered)} />
+        </dl>
       </section>
-
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat
-          icon={Clock3}
-          tone="success"
-          label="Within 5 minutes"
-          value={`${Math.round(data.withinFiveMinutes * 100)}%`}
-        />
-        <Stat
-          icon={BarChart3}
-          tone="info"
-          label="Form completion"
-          value={`${Math.round(data.formCompletionRate * 100)}%`}
-        />
-        <Stat
-          icon={MessageCircleReply}
-          tone="primary"
-          label="Opt-outs"
-          value={String(data.optOuts)}
-        />
-        <Stat
-          icon={WalletCards}
-          tone="destructive"
-          label="Delivery failures"
-          value={String(data.deliveryFailures)}
-        />
-      </section>
-
-      <SmsDeliveryPanel />
-
-      <p className="text-xs text-muted-foreground">
-        Completed-job revenue is the sum of completed_value for jobs explicitly marked completed.
-        Scheduled and quoted work is never counted. Differences against baseline may also reflect
-        seasonality, lead quality, advertising changes, capacity or pricing — not necessarily this
-        system.
-      </p>
     </div>
   );
 }
 
-function MobileDatum({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-0.5 break-words font-medium tabular">{value}</dd></div>;
-}
-
-function Stat({
-  label,
-  value,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  icon: typeof Clock3;
-  tone: "primary" | "success" | "info" | "destructive";
-}) {
-  const toneClass = {
-    primary: "bg-primary/12 text-primary",
-    success: "bg-success/15 text-success-foreground",
-    info: "bg-info/15 text-info-foreground",
-    destructive: "bg-destructive/12 text-destructive",
-  }[tone];
-  return (
-    <div className="panel border-t-2 border-t-current px-4 py-3">
-      <div className="flex items-center gap-2">
-        <span className={`grid h-7 w-7 place-items-center rounded-md ${toneClass}`}>
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-        <p className="text-xs text-muted-foreground">{label}</p>
-      </div>
-      <p className="mt-2 tabular font-heading text-xl font-semibold">{value}</p>
-    </div>
-  );
+function SimpleDatum({ label, value }: { label: string; value: string }) {
+  return <div><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 tabular text-lg font-semibold">{value}</dd></div>;
 }
