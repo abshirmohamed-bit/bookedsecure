@@ -77,7 +77,7 @@ describe("multi-service card selection", () => {
     const prompt = promptFor("service", tenant);
     const exterior = prompt.options?.find((option) => option.value === EXTERIOR);
     expect(exterior?.card?.extras).toEqual([
-      { id: WAX, name: "Hand wax", price: "$60", duration: "30 min" },
+      { id: WAX, name: "Hand wax", price: "$60", duration: "30 min", image: null },
     ]);
     const interior = prompt.options?.find((option) => option.value === INTERIOR);
     expect(interior?.card?.extras).toEqual([]);
