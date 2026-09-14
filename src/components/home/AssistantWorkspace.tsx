@@ -7,12 +7,19 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { OwnerAssistant, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
 import { PerformanceIsland } from "@/components/home/PerformanceIsland";
+import { ProductDiscoveryRow } from "@/components/home/ProductDiscoveryRow";
 import { clearAssistantConversation, createAssistantConversation, deleteAssistantConversation, getAssistantConversation, getAssistantHome } from "@/lib/assistant-history.functions";
 import { Button } from "@/components/ui/button";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
 import { getSession } from "@/lib/app.functions";
 
-export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: string }) {
+export function AssistantWorkspace({
+  requestedThreadId,
+  showDiscovery = false,
+}: {
+  requestedThreadId?: string;
+  showDiscovery?: boolean;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const getHome = useServerFn(getAssistantHome);
@@ -212,7 +219,8 @@ export function AssistantWorkspace({ requestedThreadId }: { requestedThreadId?: 
         <Button type="button" size="icon" variant="outline" onClick={() => setMobileHistory(true)} className="size-11 shrink-0 rounded-full bg-card shadow lg:pointer-events-auto lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></Button>
         <div className="min-w-0 flex-1 lg:pointer-events-auto lg:ml-auto lg:w-44 lg:flex-none"><PerformanceIsland /></div>
       </div>
-      <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
+       {showDiscovery ? <ProductDiscoveryRow /> : null}
+       <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} homeMode={showDiscovery} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
     </main>
     {websiteSetup && <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/45 p-3 sm:p-8"><div className="mx-auto max-w-5xl rounded-2xl bg-background p-4 shadow-2xl sm:p-6"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-heading text-lg font-semibold">Set up from your website</h2><p className="text-xs text-muted-foreground">Review everything before it is saved.</p></div><button onClick={() => setWebsiteSetup(false)} className="rounded-full p-2 hover:bg-secondary" aria-label="Close website setup"><X className="h-4 w-4" /></button></div><SiteOnboardingPanel readOnly={false} onApplied={() => setWebsiteSetup(false)} /></div></div>}
   </div>;
