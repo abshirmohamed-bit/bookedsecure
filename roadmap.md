@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Build the approved tenant home with compact product discovery, full Cowork, and unchanged Operational Details.
+
 - [x] Add Select all and tenant-safe bulk editing for personalised campaign drafts.
 
 - [x] Present the Balanced Briefing BookedSecure dashboard visual.
