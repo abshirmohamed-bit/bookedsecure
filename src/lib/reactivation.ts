@@ -91,6 +91,7 @@ export function proposeOffer(input?: { percent?: number }): string {
 
 export const OFFER_MAX_LENGTH = 120;
 export const REACTIVATION_MAX_LENGTH = 320;
+export const REACTIVATION_CAMPAIGN_COPY_MAX_LENGTH = 180;
 
 export function normaliseOffer(offer: string): string {
   return sanitiseCustomerText(offer.trim()).slice(0, OFFER_MAX_LENGTH).trim();
@@ -127,9 +128,33 @@ export function renderReactivationMessage(input: {
       ? `Book now: ${quoteUrl}`
       : "Reply YES if you'd like us to get you sorted, or STOP to opt out.",
   ];
-  if (quoteUrl) parts.push("Reply STOP to opt out.");
   if (signature) parts.push(signature);
+  if (quoteUrl) parts.push("Reply STOP to opt out.");
   return sanitiseCustomerText(parts.join(" ")).slice(0, REACTIVATION_MAX_LENGTH).trim();
+}
+
+/**
+ * Builds a personalised draft from owner-written campaign copy. Recipient
+ * identity, private link, tenant signature and opt-out wording are supplied by
+ * trusted tenant data rather than accepted from the bulk editor.
+ */
+export function renderBulkReactivationMessage(input: {
+  leadName?: string | null;
+  campaignCopy: string;
+  quoteUrl?: string | null;
+  signature?: string | null;
+}): string {
+  const name = firstName(input.leadName);
+  const campaignCopy = sanitiseCustomerText(input.campaignCopy.trim())
+    .slice(0, REACTIVATION_CAMPAIGN_COPY_MAX_LENGTH)
+    .trim();
+  const quoteUrl = typeof input.quoteUrl === "string" ? input.quoteUrl.trim() : "";
+  const signature = typeof input.signature === "string" ? input.signature.trim() : "";
+  const parts = [name ? `Hi ${name},` : "Hi,", campaignCopy];
+  if (quoteUrl) parts.push(`Book now: ${quoteUrl}`);
+  if (signature) parts.push(signature);
+  parts.push("Reply STOP to opt out.");
+  return sanitiseCustomerText(parts.filter(Boolean).join(" ")).trim();
 }
 
 /**

@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Add Select all and tenant-safe bulk editing for personalised campaign drafts.
+
 - [x] Present the Balanced Briefing BookedSecure dashboard visual.
 - [x] Apply the approved light command-centre design system.
 - [x] Rebuild the desktop shell with a persistent operations rail.

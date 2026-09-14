@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, RefreshCcw } from "lucide-react";
+import { CheckSquare, ChevronDown, RefreshCcw, Square } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   approveReactivation,
+  bulkEditReactivationDrafts,
   cancelReactivation,
   draftReactivation,
   editReactivationDraft,
@@ -39,6 +41,7 @@ export function useReactivationOverview() {
 export function ReactivationPanel() {
   const draft = useServerFn(draftReactivation);
   const edit = useServerFn(editReactivationDraft);
+  const bulkEdit = useServerFn(bulkEditReactivationDrafts);
   const approve = useServerFn(approveReactivation);
   const cancel = useServerFn(cancelReactivation);
   const queryClient = useQueryClient();
@@ -49,6 +52,8 @@ export function ReactivationPanel() {
   /** Drafts stay tucked away until the owner chooses to review them. */
   const [reviewOpen, setReviewOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
+  const [campaignCopy, setCampaignCopy] = useState("");
 
   const campaign = useReactivationOverview();
 
@@ -73,6 +78,16 @@ export function ReactivationPanel() {
       edit({ data: input }),
     onSuccess: () => {
       toast.success("Message updated");
+      refresh();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const bulkSaving = useMutation({
+    mutationFn: (input: { campaignId: string; draftIds: string[]; campaignCopy: string }) =>
+      bulkEdit({ data: input }),
+    onSuccess: (result) => {
+      toast.success(`${result.updated} campaign messages updated`);
       refresh();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -107,6 +122,8 @@ export function ReactivationPanel() {
 
   const data = campaign.data;
   const pending = (data?.drafts ?? []).filter((row) => row.status === "draft");
+  const selectedPendingIds = selectedDraftIds.filter((id) => pending.some((row) => row.id === id));
+  const allSelected = pending.length > 0 && selectedPendingIds.length === pending.length;
   // Bringing past customers back is included in the higher plan only.
   const locked = data ? data.reactivationEnabled === false : false;
 
@@ -195,7 +212,59 @@ export function ReactivationPanel() {
           </button>
 
           {reviewOpen && (
-            <ul className="max-h-[34vh] divide-y divide-border overflow-y-auto border-t border-border lg:max-h-[40vh]">
+            <>
+              <div className="space-y-2 border-t border-border bg-secondary/20 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedDraftIds(allSelected ? [] : pending.map((row) => row.id))}
+                  >
+                    {allSelected ? <CheckSquare aria-hidden="true" /> : <Square aria-hidden="true" />}
+                    {allSelected ? "Clear selection" : `Select all ${pending.length}`}
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">
+                    {selectedPendingIds.length} selected
+                  </span>
+                </div>
+                <label className="block text-xs font-medium" htmlFor="campaign-copy">
+                  Campaign message for selected leads
+                </label>
+                <textarea
+                  id="campaign-copy"
+                  value={campaignCopy}
+                  onChange={(event) => setCampaignCopy(event.target.value)}
+                  rows={3}
+                  maxLength={180}
+                  placeholder={`It's your business again. Just checking whether you saw our ${data.campaign.offerText}.`}
+                  className="w-full rounded-md border border-input bg-background p-2 text-xs"
+                />
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Preview: Hi {pending[0]?.leadName?.split(/\s+/)[0] ?? "Lead Name"},{" "}
+                  {campaignCopy.trim() || `It's your business again. Just checking whether you saw our ${data.campaign.offerText}.`}{" "}
+                  Book now: [private lead link] [your saved signature] Reply STOP to opt out.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={
+                    selectedPendingIds.length === 0 ||
+                    campaignCopy.trim().length < 2 ||
+                    bulkSaving.isPending
+                  }
+                  onClick={() =>
+                    bulkSaving.mutate({
+                      campaignId: data.campaign?.id ?? "",
+                      draftIds: selectedPendingIds,
+                      campaignCopy: campaignCopy.trim(),
+                    })
+                  }
+                >
+                  Update selected ({selectedPendingIds.length})
+                </Button>
+              </div>
+              <ul className="max-h-[34vh] divide-y divide-border overflow-y-auto border-t border-border lg:max-h-[40vh]">
               {data.drafts.map((row) => (
                 <DraftRow
                   key={row.id}
@@ -225,9 +294,18 @@ export function ReactivationPanel() {
                   onSkip={() => saving.mutate({ draftId: row.id, status: "skipped" })}
                   onSend={() => approving.mutate([row.id])}
                   canSend={attested && !approving.isPending}
+                  selected={selectedDraftIds.includes(row.id)}
+                  onSelectedChange={(checked) =>
+                    setSelectedDraftIds((current) =>
+                      checked
+                        ? [...new Set([...current, row.id])]
+                        : current.filter((id) => id !== row.id),
+                    )
+                  }
                 />
               ))}
-            </ul>
+              </ul>
+            </>
           )}
 
           <div className="sticky bottom-0 space-y-2 border-t border-border bg-card px-4 py-3">
@@ -248,6 +326,17 @@ export function ReactivationPanel() {
               >
                 Approve and send all ({pending.length})
               </button>
+              {selectedPendingIds.length > 0 && selectedPendingIds.length < pending.length ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => approving.mutate(selectedPendingIds)}
+                  disabled={!attested || approving.isPending}
+                >
+                  Approve selected ({selectedPendingIds.length})
+                </Button>
+              ) : null}
               <button
                 onClick={() => cancelling.mutate()}
                 disabled={cancelling.isPending}
@@ -278,6 +367,8 @@ function DraftRow({
   onSkip,
   onSend,
   canSend,
+  selected,
+  onSelectedChange,
 }: {
   row: DraftRowData;
   expanded: boolean;
@@ -290,16 +381,28 @@ function DraftRow({
   onSkip: () => void;
   onSend: () => void;
   canSend: boolean;
+  selected: boolean;
+  onSelectedChange: (checked: boolean) => void;
 }) {
   const isDraft = row.status === "draft";
   return (
     <li className={isDraft ? "" : "opacity-60"}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-4 py-2 text-left hover:bg-secondary/40"
-      >
+      <div className="flex items-center gap-2 px-4 py-2 hover:bg-secondary/40">
+        {isDraft ? (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(event) => onSelectedChange(event.target.checked)}
+            aria-label={`Select campaign message for ${row.leadName ?? "unnamed lead"}`}
+            className="h-4 w-4 shrink-0"
+          />
+        ) : null}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-left"
+        >
         <span className="min-w-0">
           <span className="block truncate text-xs font-medium">
             {row.leadName ?? "Unnamed"} · {row.mobileNumber}
@@ -317,7 +420,8 @@ function DraftRow({
             aria-hidden="true"
           />
         </span>
-      </button>
+        </button>
+      </div>
       {expanded && (
         <div className="px-4 pb-3">
           {row.sendReason && (
