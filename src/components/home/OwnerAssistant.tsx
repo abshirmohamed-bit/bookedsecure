@@ -397,10 +397,10 @@ export function OwnerAssistant({
           <div className={`mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-5 py-5 text-center ${homeMode ? "lg:pr-48" : ""}`}>
             <p className="text-xs font-semibold uppercase text-primary">Cowork</p>
             <h1 className="mt-2 text-balance font-heading text-2xl font-semibold leading-[1.15] sm:text-4xl">
-              What would you like to get done?
+              It’s really simple.
             </h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-4">
-              Ask about your business, update leads, prepare campaigns, or attach a contact file.
+              Capture new leads. Re-engage the ones you already paid for. Turn more enquiries into bookings.
             </p>
           </div>
         ) : null}
