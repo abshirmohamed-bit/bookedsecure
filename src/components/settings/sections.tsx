@@ -200,6 +200,24 @@ export function BusinessSettingsForm({
             </label>
           )}
           {showQuietHours && (
+            <label className="col-span-full flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                disabled={readOnly}
+                checked={form.quiet_hours_start === form.quiet_hours_end}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    quiet_hours_start: event.target.checked ? 0 : 20,
+                    quiet_hours_end: 8,
+                  })
+                }
+                className="h-4 w-4 accent-[var(--color-primary)]"
+              />
+              <span>Send at any time (no quiet hours)</span>
+            </label>
+          )}
+          {showQuietHours && form.quiet_hours_start !== form.quiet_hours_end && (
             <div className="grid grid-cols-2 gap-3">
               <label className="block text-xs">
                 <span className="mb-1 block text-muted-foreground">Quiet hours start</span>
