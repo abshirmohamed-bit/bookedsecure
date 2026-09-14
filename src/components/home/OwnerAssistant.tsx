@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Loader2, Paperclip, UploadCloud, X } from "lucide-react";
+import { Check, CheckSquare, Loader2, Paperclip, Square, UploadCloud, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,10 +13,11 @@ import {
   confirmAssistantText,
 } from "@/lib/owner-actions.functions";
 import type { SendTextProposal, ImportProposal } from "@/lib/assistant-proposals";
-import { approveReactivation } from "@/lib/reactivation.functions";
+import { approveReactivation, bulkEditReactivationDrafts } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { saveCrmImportBatch } from "@/lib/csv-import.functions";
 import { MAX_CSV_BYTES } from "@/lib/csv-import";
+import { Button } from "@/components/ui/button";
 import {
   completeAssistantMessage,
   getAssistantRememberedFile,
@@ -119,6 +120,7 @@ export function OwnerAssistant({
   const linkAddons = useServerFn(confirmAddonLinks);
   const updateLead = useServerFn(confirmLeadUpdate);
   const approve = useServerFn(approveReactivation);
+  const bulkEditCampaign = useServerFn(bulkEditReactivationDrafts);
   const sendText = useServerFn(confirmAssistantText);
   const saveImport = useServerFn(saveCrmImportBatch);
   const completeMessage = useServerFn(completeAssistantMessage);
@@ -133,6 +135,8 @@ export function OwnerAssistant({
   const [attested, setAttested] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [attachment, setAttachment] = useState<{ filename: string; content: string } | null>(null);
+  const [selectedCampaignDrafts, setSelectedCampaignDrafts] = useState<Record<string, string[]>>({});
+  const [campaignCopies, setCampaignCopies] = useState<Record<string, string>>({});
 
   // Only adopt the saved conversation when it has genuinely changed. Re-running
   // this on every parent render (the array identity changes each time) would
@@ -257,6 +261,38 @@ export function OwnerAssistant({
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "The campaign could not be sent."),
+    onSettled: () => setBusyId(null),
+  });
+
+  const campaignEditMutation = useMutation({
+    mutationFn: (input: {
+      campaignId: string;
+      draftIds: string[];
+      campaignCopy: string;
+    }) => bulkEditCampaign({ data: input }),
+    onSuccess: (result, input) => {
+      const updatedBodies = new Map(result.drafts.map((draft) => [draft.id, draft.body]));
+      setTurns((current) =>
+        current.map((turn) => ({
+          ...turn,
+          proposals: turn.proposals?.map((proposal) =>
+            proposal.kind === "campaign" && proposal.campaignId === input.campaignId
+              ? {
+                  ...proposal,
+                  drafts: proposal.drafts.map((draft) => ({
+                    ...draft,
+                    body: updatedBodies.get(draft.id) ?? draft.body,
+                  })),
+                }
+              : proposal,
+          ),
+        })),
+      );
+      toast.success(`${result.updated} campaign message${result.updated === 1 ? "" : "s"} updated`);
+      void queryClient.invalidateQueries({ queryKey: ["reactivation"] });
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Those campaign messages could not be updated."),
     onSettled: () => setBusyId(null),
   });
 
@@ -386,16 +422,118 @@ export function OwnerAssistant({
                             {proposal.drafts.length === 1 ? "" : "s"} ready. Review below, then
                             approve to send.
                           </p>
-                          <ul className="mt-3 max-h-52 space-y-2 overflow-y-auto">
-                            {proposal.drafts.map((draft) => (
-                              <li key={draft.id} className="rounded-lg bg-secondary/40 p-3">
-                                <p className="text-xs font-medium">
-                                  {draft.leadName ?? "Contact"} · {draft.mobileNumber}
-                                </p>
-                                <p className="mt-1 text-xs text-muted-foreground">{draft.body}</p>
-                              </li>
-                            ))}
-                          </ul>
+                          {proposal.drafts.length > 0 ? (() => {
+                            const selectedIds = (selectedCampaignDrafts[proposal.campaignId] ?? [])
+                              .filter((id) => proposal.drafts.some((draft) => draft.id === id));
+                            const allSelected = selectedIds.length === proposal.drafts.length;
+                            const campaignCopy = campaignCopies[proposal.campaignId] ?? "";
+                            return (
+                              <div className="mt-3 space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setSelectedCampaignDrafts((current) => ({
+                                        ...current,
+                                        [proposal.campaignId]: allSelected
+                                          ? []
+                                          : proposal.drafts.map((draft) => draft.id),
+                                      }))
+                                    }
+                                  >
+                                    {allSelected ? <CheckSquare aria-hidden="true" /> : <Square aria-hidden="true" />}
+                                    {allSelected ? "Clear selection" : `Select all ${proposal.drafts.length}`}
+                                  </Button>
+                                  <span className="text-xs text-muted-foreground">{selectedIds.length} selected</span>
+                                </div>
+                                <ul className="max-h-52 space-y-2 overflow-y-auto pr-1">
+                                  {proposal.drafts.map((draft) => {
+                                    const selected = selectedIds.includes(draft.id);
+                                    return (
+                                      <li key={draft.id} className="rounded-lg bg-secondary/40 p-3">
+                                        <label className="flex cursor-pointer items-start gap-2">
+                                          <input
+                                            type="checkbox"
+                                            checked={selected}
+                                            onChange={() =>
+                                              setSelectedCampaignDrafts((current) => ({
+                                                ...current,
+                                                [proposal.campaignId]: selected
+                                                  ? selectedIds.filter((id) => id !== draft.id)
+                                                  : [...selectedIds, draft.id],
+                                              }))
+                                            }
+                                            className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                                            aria-label={`Select campaign message for ${draft.leadName ?? "contact"}`}
+                                          />
+                                          <span className="min-w-0">
+                                            <span className="block text-xs font-medium">
+                                              {draft.leadName ?? "Contact"} · {draft.mobileNumber}
+                                            </span>
+                                            <span className="mt-1 block whitespace-pre-wrap text-xs text-muted-foreground">
+                                              {draft.body}
+                                            </span>
+                                          </span>
+                                        </label>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                                <div className="rounded-lg border border-border bg-background p-3">
+                                  <label
+                                    htmlFor={`cowork-campaign-copy-${proposal.campaignId}`}
+                                    className="text-xs font-medium"
+                                  >
+                                    Campaign message for selected leads
+                                  </label>
+                                  <textarea
+                                    id={`cowork-campaign-copy-${proposal.campaignId}`}
+                                    value={campaignCopy}
+                                    onChange={(event) =>
+                                      setCampaignCopies((current) => ({
+                                        ...current,
+                                        [proposal.campaignId]: event.target.value,
+                                      }))
+                                    }
+                                    rows={3}
+                                    maxLength={180}
+                                    placeholder={`It's your business again. Just checking whether you saw our ${proposal.offerText}.`}
+                                    className="mt-2 w-full resize-y rounded-md border border-input bg-background p-2 text-xs"
+                                  />
+                                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                                    Each selected message keeps the lead&apos;s name, private booking link, your saved signature, and Reply STOP wording.
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="mt-2"
+                                    disabled={
+                                      selectedIds.length === 0 ||
+                                      campaignCopy.trim().length < 2 ||
+                                      busyId === `${proposal.campaignId}-edit`
+                                    }
+                                    onClick={() => {
+                                      setBusyId(`${proposal.campaignId}-edit`);
+                                      campaignEditMutation.mutate({
+                                        campaignId: proposal.campaignId,
+                                        draftIds: selectedIds,
+                                        campaignCopy: campaignCopy.trim(),
+                                      });
+                                    }}
+                                  >
+                                    {busyId === `${proposal.campaignId}-edit` ? (
+                                      <Loader2 className="animate-spin" aria-hidden="true" />
+                                    ) : (
+                                      <Check aria-hidden="true" />
+                                    )}
+                                    Update selected
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })() : null}
                           {proposal.drafts.length > 0 ? (
                             <div className="mt-3 flex flex-wrap items-center gap-3">
                               <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -407,8 +545,9 @@ export function OwnerAssistant({
                                 />
                                 I have permission to contact these customers
                               </label>
-                              <button
+                              <Button
                                 type="button"
+                                size="sm"
                                 disabled={!attested || busyId === proposal.campaignId}
                                 onClick={() => {
                                   setBusyId(proposal.campaignId);
@@ -417,7 +556,6 @@ export function OwnerAssistant({
                                     campaignId: proposal.campaignId,
                                   });
                                 }}
-                                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
                               >
                                 {busyId === proposal.campaignId ? (
                                   <Loader2
@@ -428,7 +566,7 @@ export function OwnerAssistant({
                                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                                 )}
                                 Approve and send
-                              </button>
+                              </Button>
                               <Link
                                 to="/leads"
                                 hash="reactivation"

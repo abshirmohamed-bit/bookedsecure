@@ -495,9 +495,9 @@ export async function bulkUpdateReactivationDrafts(input: {
   campaignId: string;
   draftIds: string[];
   campaignCopy: string;
-}): Promise<{ updated: number }> {
+}): Promise<{ updated: number; drafts: Array<{ id: string; body: string }> }> {
   const uniqueDraftIds = [...new Set(input.draftIds)].slice(0, 500);
-  if (uniqueDraftIds.length === 0) return { updated: 0 };
+  if (uniqueDraftIds.length === 0) return { updated: 0, drafts: [] };
 
   const [{ data: campaign }, { data: business }] = await Promise.all([
     supabaseAdmin
@@ -525,6 +525,7 @@ export async function bulkUpdateReactivationDrafts(input: {
   if (error) throw new Error(error.message);
 
   let updated = 0;
+  const updatedDrafts: Array<{ id: string; body: string }> = [];
   for (const draft of drafts ?? []) {
     const lead = (draft as {
       leads?: { name?: string | null; public_token?: string | null } | null;
@@ -552,8 +553,9 @@ export async function bulkUpdateReactivationDrafts(input: {
       .eq("status", "draft");
     if (updateError) throw new Error(updateError.message);
     updated += 1;
+    updatedDrafts.push({ id: draft.id, body: guarded.text });
   }
-  return { updated };
+  return { updated, drafts: updatedDrafts };
 }
 
 export async function cancelReactivationCampaign(input: {
