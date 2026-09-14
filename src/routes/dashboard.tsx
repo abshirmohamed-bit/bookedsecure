@@ -25,6 +25,7 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   return (
-    <AppShell title="Home"><AssistantWorkspace showDiscovery /></AppShell>
+    // Product discovery hidden until affiliate partnerships are in place.
+    <AppShell title="Home"><AssistantWorkspace showDiscovery={false} /></AppShell>
   );
 }
