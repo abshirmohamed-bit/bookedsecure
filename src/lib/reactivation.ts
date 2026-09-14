@@ -121,17 +121,18 @@ export function renderReactivationMessage(input: {
   const offer = normaliseOffer(input.offerText).replace(/[.!]+$/, "");
   const signature = typeof input.signature === "string" ? input.signature.trim() : "";
   const quoteUrl = typeof input.quoteUrl === "string" ? input.quoteUrl.trim() : "";
-  const parts = [
+  const body = [
     name ? `Hi ${name}, it's ${input.businessName}.` : `Hi, it's ${input.businessName}.`,
     `We're offering ${offer}.`,
     quoteUrl
       ? `Book now: ${quoteUrl}`
       : "Reply YES if you'd like us to get you sorted, or STOP to opt out.",
-  ];
-  if (signature) parts.push(signature);
-  if (quoteUrl) parts.push("Reply STOP to opt out.");
-  return sanitiseCustomerText(parts.join(" ")).slice(0, REACTIVATION_MAX_LENGTH).trim();
+  ].join(" ");
+  const footer = [signature, quoteUrl ? "Reply STOP to opt out." : ""].filter(Boolean).join("\n");
+  const text = footer ? `${body}\n\n${footer}` : body;
+  return sanitiseCustomerText(text).slice(0, REACTIVATION_MAX_LENGTH).trim();
 }
+
 
 /**
  * Builds a personalised draft from owner-written campaign copy. Recipient
@@ -157,12 +158,13 @@ export function renderBulkReactivationMessage(input: {
     .trim();
   const quoteUrl = typeof input.quoteUrl === "string" ? input.quoteUrl.trim() : "";
   const signature = typeof input.signature === "string" ? input.signature.trim() : "";
-  const parts = [name ? `Hi ${name},` : "Hi,", campaignCopy];
-  if (quoteUrl) parts.push(`Book now: ${quoteUrl}`);
-  if (signature) parts.push(signature);
-  parts.push("Reply STOP to opt out.");
-  return sanitiseCustomerText(parts.filter(Boolean).join(" ")).trim();
+  const body = [name ? `Hi ${name},` : "Hi,", campaignCopy, quoteUrl ? `Book now: ${quoteUrl}` : ""]
+    .filter(Boolean)
+    .join(" ");
+  const footer = [signature, "Reply STOP to opt out."].filter(Boolean).join("\n");
+  return sanitiseCustomerText(`${body}\n\n${footer}`).trim();
 }
+
 
 /**
  * One reminder only, three days after the first win-back message. Anything that

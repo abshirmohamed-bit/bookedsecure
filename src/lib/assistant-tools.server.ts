@@ -29,7 +29,10 @@ export type AssistantToolContext = {
   propose: (proposal: OwnerProposal) => void;
   /** A contact file attached to this message, if any. Never model-supplied. */
   attachment: { filename: string; content: string } | null;
+  /** The owner's own latest words, used to honour numbers they stated exactly. */
+  request?: string;
 };
+
 
 const DATE = z
   .string()
@@ -585,19 +588,29 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
                 : null
               : ({ kind: input.audience } as const);
         if (!audience) return fail("Say which status or which customers the campaign is for.");
+        // Whatever the model chose, the owner's own stated numbers win.
+        const { parseCampaignNumbers } = await import("@/lib/owner-actions");
+        const asked = parseCampaignNumbers(ctx.request ?? "");
+        const percent = asked.percent ?? input.percent;
+        const offerText =
+          asked.percent !== null &&
+          (!input.offerText || !input.offerText.includes(String(asked.percent)))
+            ? null
+            : input.offerText;
         const proposal = await proposeCampaign({
           businessId,
           userId,
-          percent: input.percent,
-          offerText: input.offerText,
+          percent,
+          offerText,
           campaignCopy: input.campaignCopy,
-          maxLeads: input.maxLeads,
-          olderThanDays: input.olderThanDays,
+          maxLeads: asked.maxLeads ?? input.maxLeads,
+          olderThanDays: asked.olderThanDays ?? input.olderThanDays,
           audience,
           fresh: true,
         });
         if (!proposal) return fail("A campaign could not be prepared right now.");
         if (proposal.drafts.length > 0) ctx.propose(proposal);
+
         return {
           ok: true,
           awaitingConfirmation: proposal.drafts.length > 0,

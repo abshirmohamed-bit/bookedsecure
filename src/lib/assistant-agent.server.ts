@@ -64,6 +64,8 @@ export async function runAssistantAgent(input: {
     role: input.role,
     timeZone,
     attachment: input.attachment ?? null,
+    request: input.question,
+
     record: (summary) => executed.push(summary),
     propose: (proposal) => proposals.push(proposal),
   });
