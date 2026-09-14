@@ -209,7 +209,7 @@ export function BusinessSettingsForm({
                   setForm({
                     ...form,
                     quiet_hours_start: event.target.checked ? 0 : 20,
-                    quiet_hours_end: 8,
+                    quiet_hours_end: event.target.checked ? 0 : 8,
                   })
                 }
                 className="h-4 w-4 accent-[var(--color-primary)]"
