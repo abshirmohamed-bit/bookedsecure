@@ -23,6 +23,8 @@ import {
 } from "@/lib/site-onboarding";
 
 const GATEWAY_SCRAPE_URL = "https://connector-gateway.lovable.dev/firecrawl/v2/scrape";
+const GATEWAY_MAP_URL = "https://connector-gateway.lovable.dev/firecrawl/v2/map";
+const MAX_SERVICE_PAGES = 10;
 
 const EXTRACTION_PROMPT = [
   "Read this business website and extract only what the page actually states.",
@@ -92,6 +94,11 @@ type FirecrawlScrape = {
   data?: FirecrawlScrape;
 };
 
+type FirecrawlMap = {
+  links?: Array<string | { url?: string | null }>;
+  data?: { links?: Array<string | { url?: string | null }> } | null;
+};
+
 /** Turns relative picture addresses from the site into absolute ones. */
 function withAbsoluteImages<T extends { imageUrl?: string | null }>(raw: unknown, base: string): T[] | null {
   if (!Array.isArray(raw)) return null;
@@ -106,6 +113,75 @@ function unwrap(payload: FirecrawlScrape): FirecrawlScrape {
   return payload.data && typeof payload.data === "object" ? { ...payload.data, ...payload } : payload;
 }
 
+function connectorHeaders(lovableKey: string, connectionKey: string): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${lovableKey}`,
+    "X-Connection-Api-Key": connectionKey,
+  };
+}
+
+function mappedUrls(payload: FirecrawlMap, siteUrl: string): string[] {
+  const raw = payload.links ?? payload.data?.links ?? [];
+  const origin = new URL(siteUrl).origin;
+  const scored = raw
+    .map((entry) => (typeof entry === "string" ? entry : entry.url ?? ""))
+    .filter((entry) => {
+      try {
+        const candidate = new URL(entry, siteUrl);
+        return candidate.origin === origin && candidate.href !== siteUrl;
+      } catch {
+        return false;
+      }
+    })
+    .map((entry) => {
+      const url = new URL(entry, siteUrl).toString();
+      const path = url.toLowerCase();
+      const score = ["service", "pricing", "price", "book", "detail", "coating", "package", "extra"].reduce(
+        (total, word) => total + (path.includes(word) ? 1 : 0),
+        0,
+      );
+      return { url, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  return [...new Set(scored.map((entry) => entry.url))].slice(0, MAX_SERVICE_PAGES);
+}
+
+function mergeScrapedItems<T extends { name?: string | null; imageUrl?: string | null }>(
+  groups: Array<T[] | null>,
+): T[] | null {
+  const merged = new Map<string, T>();
+  for (const group of groups) {
+    for (const item of group ?? []) {
+      const key = serviceMatchKey(item.name ?? "");
+      if (!key) continue;
+      const current = merged.get(key);
+      if (!current || (!current.imageUrl && item.imageUrl)) merged.set(key, { ...current, ...item });
+    }
+  }
+  return merged.size > 0 ? [...merged.values()] : null;
+}
+
+async function scrapePage(
+  url: string,
+  lovableKey: string,
+  connectionKey: string,
+): Promise<{ payload: FirecrawlScrape; extracted: Record<string, unknown> } | null> {
+  const response = await fetch(GATEWAY_SCRAPE_URL, {
+    method: "POST",
+    headers: connectorHeaders(lovableKey, connectionKey),
+    body: JSON.stringify({
+      url,
+      onlyMainContent: false,
+      waitFor: 3000,
+      formats: ["branding", { type: "json", schema: EXTRACTION_SCHEMA, prompt: EXTRACTION_PROMPT }],
+    }),
+  });
+  if (!response.ok) return null;
+  const payload = unwrap((await response.json()) as FirecrawlScrape);
+  return { payload, extracted: (payload.json ?? {}) as Record<string, unknown> };
+}
+
 /** Reads the tenant's own public website through the Firecrawl connector. */
 export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Promise<OnboardingProposal> {
   requireOwnerRole(app);
@@ -116,32 +192,40 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
   const connectionKey = process.env["FIRECRAWL_API_KEY"];
   if (!lovableKey || !connectionKey) throw new Error("Website reading is not configured yet.");
 
-  const response = await fetch(GATEWAY_SCRAPE_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${lovableKey}`,
-      "X-Connection-Api-Key": connectionKey,
-    },
-    body: JSON.stringify({
-      url,
-      onlyMainContent: false,
-      formats: ["branding", { type: "json", schema: EXTRACTION_SCHEMA, prompt: EXTRACTION_PROMPT }],
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    console.error(`[site-onboarding] scrape failed [${response.status}]: ${body}`);
+  const root = await scrapePage(url, lovableKey, connectionKey);
+  if (!root) {
     throw new Error(
-      response.status === 402 || response.status === 403
+      "That website could not be read. Check the address, or set your details up manually.",
+    );
+  }
+
+  const mapResponse = await fetch(GATEWAY_MAP_URL, {
+    method: "POST",
+    headers: connectorHeaders(lovableKey, connectionKey),
+    body: JSON.stringify({ url, limit: 100, includeSubdomains: false }),
+  });
+  const pageUrls = mapResponse.ok ? mappedUrls((await mapResponse.json()) as FirecrawlMap, url) : [];
+  const pageResults = await Promise.all(
+    pageUrls.map((pageUrl) => scrapePage(pageUrl, lovableKey, connectionKey)),
+  );
+
+  const payload = root.payload;
+  const extracted = root.extracted;
+  const childExtractions = pageResults.flatMap((result) => (result ? [result.extracted] : []));
+  const services = mergeScrapedItems(
+    [extracted, ...childExtractions].map((entry) => withAbsoluteImages(entry["services"], url)),
+  );
+  const addons = mergeScrapedItems(
+    [extracted, ...childExtractions].map((entry) => withAbsoluteImages(entry["addons"], url)),
+  );
+
+  if (!payload) {
+    throw new Error(
+      mapResponse.status === 402 || mapResponse.status === 403
         ? "Website reading is temporarily unavailable. Try again shortly."
         : "That website could not be read. Check the address, or set your details up manually.",
     );
   }
-
-  const payload = unwrap((await response.json()) as FirecrawlScrape);
-  const extracted = (payload.json ?? {}) as Record<string, unknown>;
   const branding = payload.branding ?? null;
 
   const site: ScrapedSite = {
@@ -152,8 +236,8 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
     phone: (extracted["phone"] as string | undefined) ?? null,
     openingHours: (extracted["openingHours"] as string | undefined) ?? null,
     logoUrl: branding?.logo ?? branding?.images?.logo ?? null,
-    services: withAbsoluteImages(extracted["services"], url),
-    addons: withAbsoluteImages(extracted["addons"], url),
+    services,
+    addons,
   };
 
   const proposal = buildOnboardingProposal(site, url);
@@ -229,7 +313,7 @@ export async function applySiteOnboarding(
 
   const { data: existingServices } = await supabaseAdmin
     .from("services")
-    .select("name")
+    .select("id, name, image_url")
     .eq("business_id", app.businessId);
   const taken = new Set((existingServices ?? []).map((row) => serviceMatchKey(row.name)));
 
@@ -247,6 +331,14 @@ export async function applySiteOnboarding(
     }));
   let imagesCopied = 0;
   let imagesSkipped = 0;
+  for (const existing of existingServices ?? []) {
+    if (existing.image_url) continue;
+    const source = proposal.services.find((service) => isSameService(service.name, existing.name));
+    const imageUrl = source ? resolveRemoteImageUrl(source.image_url, proposal.sourceUrl) : null;
+    if (!imageUrl) continue;
+    if (await copyServiceImageFromUrl(app, "service", existing.id, imageUrl)) imagesCopied += 1;
+    else imagesSkipped += 1;
+  }
   if (rows.length > 0) {
     const { data: inserted, error } = await supabaseAdmin
       .from("services")
