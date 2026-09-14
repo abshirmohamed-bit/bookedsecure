@@ -5,11 +5,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Plan } from "@/lib/plans";
+import type { PromoEntitlement } from "@/lib/promo";
+import type { CreditPack } from "@/lib/sms/credit-packs";
 import type { AccessLevel, SubscriptionState } from "@/lib/subscription";
 
 export type MyBilling = {
   plan: Plan;
   plans: Plan[];
+  /** The credit packs this business may buy, at the price it pays. */
+  packs: CreditPack[];
+  /** Promo pricing this business has redeemed, if any. */
+  promo: PromoEntitlement;
   subscription: SubscriptionState;
   access: AccessLevel;
   role: "owner" | "staff" | "platform_admin";
@@ -44,16 +50,19 @@ export const getMyBilling = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<MyBilling> => {
     const { requireAppContext } = await import("@/lib/app-context.server");
-    const { getPlanForBusiness, listOfferedPlans } = await import("@/lib/plans.server");
+    const { getPlanForBusiness, listPlansForBusiness } = await import("@/lib/plans.server");
     const { getSubscriptionForBusiness, getUsageSummary } = await import("@/lib/subscription.server");
     const { accessLevel } = await import("@/lib/subscription");
     const { getTextoAccount } = await import("@/lib/sms/texto-accounts.server");
+    const { resolvePromoEntitlement } = await import("@/lib/promo.server");
+    const { packsFor } = await import("@/lib/sms/credit-packs");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const app = await requireAppContext(context.supabase, context.userId);
-    const [plan, plans, subscription, usage, account, members] = await Promise.all([
+    const [plan, plans, promo, subscription, usage, account, members] = await Promise.all([
       getPlanForBusiness(app.businessId),
-      listOfferedPlans(),
+      listPlansForBusiness(app.businessId),
+      resolvePromoEntitlement(app.businessId),
       getSubscriptionForBusiness(app.businessId),
       getUsageSummary(app.businessId),
       getTextoAccount(app.businessId),
@@ -67,6 +76,8 @@ export const getMyBilling = createServerFn({ method: "GET" })
     return {
       plan,
       plans,
+      packs: [...packsFor(promo.creditPackSet)],
+      promo,
       subscription,
       access: accessLevel(subscription),
       role: app.role,
@@ -99,6 +110,20 @@ export const startSubscriptionCheckout = createServerFn({ method: "POST" })
       environment: data.environment,
       returnUrl: `${origin}${path}${joiner}checkout=complete&session_id={CHECKOUT_SESSION_ID}`,
     });
+  });
+
+/** Owner-only: apply a promo code to this business, for life. */
+export const applyPromoCode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ code: z.string().min(1).max(40) }).parse(input))
+  .handler(async ({ data, context }): Promise<{ ok: true; code: string } | { error: string }> => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { redeemPromoCode } = await import("@/lib/promo.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    const result = await redeemPromoCode({ businessId: app.businessId, userId: app.userId, code: data.code });
+    if (!result.ok) return { error: result.error };
+    return { ok: true, code: result.entitlement.code ?? data.code };
   });
 
 /** Owner-only: Stripe's hosted portal for card, plan changes and cancellation. */

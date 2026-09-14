@@ -5,10 +5,10 @@ import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getMyBilling, openBillingPortal, startSubscriptionCheckout } from "@/lib/subscription.functions";
+import { applyPromoCode, getMyBilling, openBillingPortal, startSubscriptionCheckout } from "@/lib/subscription.functions";
 import { getMessagingAccount, setAutoTopup, startCreditTopup } from "@/lib/sms/messaging-account.functions";
 import { describeSubscription, type BillingInterval } from "@/lib/subscription";
-import { CREDIT_PACKS, formatAud } from "@/lib/sms/credit-packs";
+import { CREDIT_PACKS, formatAud, type CreditPack } from "@/lib/sms/credit-packs";
 import type { Plan } from "@/lib/plans";
 import { getStripe, getStripeEnvironment, isTestModePayments } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
@@ -70,7 +70,7 @@ export function BillingPanel() {
     mutationFn: async (packId: string) => {
       const result = await buyCredits({ data: { packId, environment: getStripeEnvironment(), returnPath: "/settings/billing" } });
       if ("error" in result && result.error) throw new Error(result.error);
-      const pack = CREDIT_PACKS.find((p) => p.id === packId);
+      const pack = (billing.data?.packs ?? CREDIT_PACKS).find((p) => p.id === packId);
       return {
         clientSecret: (result as { clientSecret: string }).clientSecret,
         label: pack ? `${pack.label} · ${formatAud(pack.amountCents)}` : "Text credits",
@@ -203,6 +203,8 @@ export function BillingPanel() {
         ) : null}
       </section>
 
+      {isOwner ? <PromoCard appliedCode={data.promo.code} /> : null}
+
       {isOwner ? (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -273,7 +275,8 @@ export function BillingPanel() {
         <div>
           <h3 className="text-base font-semibold">Text credits</h3>
           <p className="text-sm text-muted-foreground">
-            One credit sends one text once your included texts are used up — {data.plan.overageCents}c each. Credits never expire.
+            One credit sends one text once your included texts are used up —{" "}
+            {data.promo.creditPriceCents ?? data.plan.overageCents}c each. Credits never expire.
           </p>
         </div>
         {data.access !== "full" ? (
@@ -284,7 +287,7 @@ export function BillingPanel() {
           <p className="text-sm text-muted-foreground">Only the business owner can buy credits.</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-3">
-            {CREDIT_PACKS.map((pack) => (
+            {data.packs.map((pack) => (
               <button
                 key={pack.id}
                 type="button"
@@ -302,14 +305,83 @@ export function BillingPanel() {
             ))}
           </div>
         )}
-        {data.access === "full" && isOwner ? <AutoTopupCard /> : null}
+        {data.access === "full" && isOwner ? <AutoTopupCard packs={data.packs} /> : null}
       </section>
     </div>
   );
 }
 
+/** Promo code entry. Once applied, the code stays on the account for good. */
+function PromoCard({ appliedCode }: { appliedCode: string | null }) {
+  const queryClient = useQueryClient();
+  const apply = useServerFn(applyPromoCode);
+  const [code, setCode] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: async (value: string) => {
+      const result = await apply({ data: { code: value } });
+      if ("error" in result) throw new Error(result.error);
+      return result.code;
+    },
+    onSuccess: (applied) => {
+      toast.success(`Code ${applied} applied — your pricing is updated.`);
+      setCode("");
+      setOpen(false);
+      void queryClient.invalidateQueries({ queryKey: MY_BILLING_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  if (appliedCode) {
+    return (
+      <p className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+        Code <span className="font-semibold">{appliedCode}</span> is applied to your account — your pricing below
+        reflects it and it stays with your account.
+      </p>
+    );
+  }
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="text-sm font-medium text-primary underline">
+        Have a promo code?
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (code.trim()) mutation.mutate(code);
+      }}
+    >
+      <label className="sr-only" htmlFor="promo-code">
+        Promo code
+      </label>
+      <input
+        id="promo-code"
+        value={code}
+        onChange={(event) => setCode(event.target.value)}
+        placeholder="Enter your code"
+        autoComplete="off"
+        className="h-9 min-w-40 rounded-md border border-input bg-background px-3 text-sm"
+      />
+      <Button type="submit" size="sm" disabled={mutation.isPending || !code.trim()}>
+        {mutation.isPending ? "Checking…" : "Apply"}
+      </Button>
+      <button type="button" className="text-xs text-muted-foreground underline" onClick={() => setOpen(false)}>
+        Cancel
+      </button>
+    </form>
+  );
+}
+
 /** Hands-off credits: buys the chosen pack on the saved card when low. */
-function AutoTopupCard() {
+function AutoTopupCard({ packs }: { packs: CreditPack[] }) {
   const queryClient = useQueryClient();
   const fetchAccount = useServerFn(getMessagingAccount);
   const saveAutoTopup = useServerFn(setAutoTopup);
@@ -333,7 +405,7 @@ function AutoTopupCard() {
   });
 
   if (!auto) return null;
-  const pack = CREDIT_PACKS.find((candidate) => candidate.id === auto.packId) ?? CREDIT_PACKS[1]!;
+  const pack = packs.find((candidate) => candidate.id === auto.packId) ?? packs[1] ?? CREDIT_PACKS[1]!;
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
