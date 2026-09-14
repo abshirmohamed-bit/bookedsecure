@@ -1,0 +1,2 @@
+ALTER TABLE public.affiliate_product_events
+  DROP CONSTRAINT IF EXISTS affiliate_product_events_user_id_fkey;
