@@ -43,6 +43,20 @@ export async function listOfferedPlans(): Promise<Plan[]> {
 }
 
 /**
+ * Every plan, hidden ones included. Used to map a paid Stripe price back to a
+ * plan: a hidden plan is not for sale to everyone, but a payment made against
+ * it must still be recorded as that plan.
+ */
+export async function listAllPlans(): Promise<Plan[]> {
+  const { data, error } = await supabaseAdmin
+    .from("plans")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toPlan);
+}
+
+/**
  * The plans one business may buy. A business holding a promo code that unlocks
  * a hidden plan sees that plan only; everyone else sees the public plans, so a
  * discounted plan can never appear on another tenant's screen.
