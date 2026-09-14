@@ -119,7 +119,45 @@ function findStatuses(text: string): LeadStatus[] {
  * Parses one owner request. Returns every action it recognises, in the order it
  * should be proposed. An empty array means "just answer the question".
  */
+/**
+ * The numbers an owner stated in plain English for a campaign: discount
+ * percentage, how many contacts, and how far back to look. Used to make sure a
+ * request like "make it 20% and only 130 leads" is honoured exactly, whatever
+ * the assistant itself chose to pass.
+ */
+export function parseCampaignNumbers(question: string): {
+  percent: number | null;
+  maxLeads: number | null;
+  olderThanDays: number | null;
+} {
+  const text = (question ?? "").trim();
+  if (text.length === 0) return { percent: null, maxLeads: null, olderThanDays: null };
+  return {
+    percent: parsePercent(text) ?? parseBarePercent(text),
+    maxLeads: parseCount(text) ?? parseBareSendCount(text),
+    olderThanDays: parseOlderThanDays(text),
+  };
+}
+
+/** "change the percentage 20", "make it 20 percent" written without a % sign. */
+function parseBarePercent(text: string): number | null {
+  const match =
+    /\b(?:percentage|percent|discount|off)\s*(?:to|at|of|is)?\s*(\d{1,2})\b|\b(\d{1,2})\s*(?:percentage|percent)\b/i.exec(
+      text,
+    );
+  const value = Number(match?.[1] ?? match?.[2]);
+  return Number.isFinite(value) && value >= 1 && value <= 90 ? value : null;
+}
+
+/** "just gonna send 130", "send it to 130 of them". */
+function parseBareSendCount(text: string): number | null {
+  const match = /\b(?:send|text|message|include|only|just)\b[^.\d]{0,20}(\d{1,4})\b/i.exec(text);
+  const value = Number(match?.[1]);
+  return Number.isFinite(value) && value >= 1 && value <= 5000 ? value : null;
+}
+
 export function parseOwnerRequest(question: string): OwnerActionRequest[] {
+
   const text = (question ?? "").trim();
   if (text.length === 0) return [];
   const requests: OwnerActionRequest[] = [];
