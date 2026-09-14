@@ -112,7 +112,7 @@ describe("bulk campaign personalisation", () => {
         signature: "Usamah Glocast Mobile Detailing",
       }),
     ).toBe(
-      "Hi Bella, Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer. Book now: https://bookedsecure.com/b/private-token Usamah Glocast Mobile Detailing Reply STOP to opt out.",
+      "Hi Bella, Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer. Book now: https://bookedsecure.com/b/private-token\n\nUsamah Glocast Mobile Detailing\nReply STOP to opt out.",
     );
   });
 
@@ -140,7 +140,7 @@ describe("bulk campaign personalisation", () => {
         signature: "Usamah Glocast Mobile Detailing",
       }),
     ).toBe(
-      "Hi Darrin, Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer off your next service with Glocast. Book now: https://bookedsecure.com/b/darrin-token Usamah Glocast Mobile Detailing Reply STOP to opt out.",
+      "Hi Darrin, Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer off your next service with Glocast. Book now: https://bookedsecure.com/b/darrin-token\n\nUsamah Glocast Mobile Detailing\nReply STOP to opt out.",
     );
   });
 });
