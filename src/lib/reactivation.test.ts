@@ -129,6 +129,20 @@ describe("bulk campaign personalisation", () => {
       else process.env["PUBLIC_APP_URL"] = previousOrigin;
     }
   });
+
+  it("uses the editable copy from a full owner-pasted template without duplicating protected fields", () => {
+    expect(
+      renderBulkReactivationMessage({
+        leadName: "Darrin Young",
+        campaignCopy:
+          "Hi (Lead Name), Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer off your next service with Glocast. Book now: (Tenant Quote Page URL) Usamah Glocast Mobile Detailing Reply STOP to opt out.",
+        quoteUrl: "https://bookedsecure.com/b/darrin-token",
+        signature: "Usamah Glocast Mobile Detailing",
+      }),
+    ).toBe(
+      "Hi Darrin, Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer off your next service with Glocast. Book now: https://bookedsecure.com/b/darrin-token Usamah Glocast Mobile Detailing Reply STOP to opt out.",
+    );
+  });
 });
 
 describe("offer proposal", () => {

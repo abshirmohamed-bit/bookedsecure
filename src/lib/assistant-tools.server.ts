@@ -559,10 +559,10 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         offerText: z.string().max(120).nullable().describe("Exact offer wording if the owner gave one, e.g. '15% off your next detail'."),
         campaignCopy: z
           .string()
-          .max(180)
+          .max(500)
           .nullable()
           .describe(
-            "The owner's exact editable message section only: omit Hi/name, Book now URL, tenant signature and Reply STOP because the system adds those safely per lead.",
+            "The owner's requested wording. Prefer only the editable middle section; if they paste the whole template, pass it and the server safely removes placeholder greeting/link/footer fields before personalising every draft.",
           ),
         maxLeads: z.number().int().min(1).max(500).nullable(),
         olderThanDays: z.number().int().min(1).max(3650).nullable(),
