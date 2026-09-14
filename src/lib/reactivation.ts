@@ -145,7 +145,14 @@ export function renderBulkReactivationMessage(input: {
   signature?: string | null;
 }): string {
   const name = firstName(input.leadName);
-  const campaignCopy = sanitiseCustomerText(input.campaignCopy.trim())
+  // Owners often paste the whole desired template into Cowork. Keep only its
+  // editable middle: trusted tenant/lead data supplies the personalised name,
+  // private link, signature and opt-out footer below.
+  const ownerCopy = input.campaignCopy
+    .trim()
+    .replace(/^hi\s+(?:\([^)]*(?:lead|first)[^)]*\)|\[[^\]]*(?:lead|first)[^\]]*\]|\{[^}]*(?:lead|first)[^}]*\})\s*,?\s*/i, "")
+    .split(/\bbook\s+now\s*:/i)[0] ?? "";
+  const campaignCopy = sanitiseCustomerText(ownerCopy)
     .slice(0, REACTIVATION_CAMPAIGN_COPY_MAX_LENGTH)
     .trim();
   const quoteUrl = typeof input.quoteUrl === "string" ? input.quoteUrl.trim() : "";

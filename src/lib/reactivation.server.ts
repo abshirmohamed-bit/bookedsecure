@@ -42,7 +42,7 @@ export function campaignSmsLink(
   slug: string | null | undefined,
   publicToken: string | null | undefined,
 ): string | null {
-  const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.com";
+  const origin = "https://bookedsecure.com";
   return campaignShortLink(origin, publicToken) ?? campaignQuoteUrl(tenantQuoteUrl(origin, slug), null);
 }
 
@@ -336,6 +336,8 @@ export async function draftReactivationCampaign(input: {
   businessId: string;
   userId: string;
   offerText?: string | null;
+  /** Owner-written message body between the personalised greeting and protected footer. */
+  campaignCopy?: string | null;
   maxLeads?: number;
   /** Only contacts added at least this many days ago. */
   olderThanDays?: number;
@@ -423,13 +425,22 @@ export async function draftReactivationCampaign(input: {
   );
 
   for (const candidate of scoped) {
-    const rendered = renderReactivationMessage({
-      businessName,
-      leadName: candidate.name,
-      offerText: offer.offer,
-      quoteUrl: campaignSmsLink(tenantSlug, candidate.publicToken),
-      signature: business?.sms_signature ?? null,
-    });
+    const quoteUrl = campaignSmsLink(tenantSlug, candidate.publicToken);
+    const rendered =
+      typeof input.campaignCopy === "string" && input.campaignCopy.trim().length > 0
+        ? renderBulkReactivationMessage({
+            leadName: candidate.name,
+            campaignCopy: input.campaignCopy,
+            quoteUrl,
+            signature: business?.sms_signature ?? null,
+          })
+        : renderReactivationMessage({
+            businessName,
+            leadName: candidate.name,
+            offerText: offer.offer,
+            quoteUrl,
+            signature: business?.sms_signature ?? null,
+          });
     const guarded = guardReactivationMessage(rendered, offer.offer);
     const body = guarded.text;
     const current = byLead.get(candidate.leadId);

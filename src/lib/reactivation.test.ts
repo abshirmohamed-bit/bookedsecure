@@ -10,7 +10,7 @@ import {
   shouldSendReactivationReminder,
   type ReactivationFacts,
 } from "@/lib/reactivation";
-import { factsFromLead } from "@/lib/reactivation.server";
+import { campaignSmsLink, factsFromLead } from "@/lib/reactivation.server";
 
 const dormant: ReactivationFacts = {
   hasMessages: false,
@@ -113,6 +113,34 @@ describe("bulk campaign personalisation", () => {
       }),
     ).toBe(
       "Hi Bella, Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer. Book now: https://bookedsecure.com/b/private-token Usamah Glocast Mobile Detailing Reply STOP to opt out.",
+    );
+  });
+
+  it("always generates the canonical BookedSecure customer link", () => {
+    const previousOrigin = process.env["PUBLIC_APP_URL"];
+    process.env["PUBLIC_APP_URL"] = "https://bookedsecure.lovable.app";
+    try {
+      expect(campaignSmsLink("acme", "private-token")).toBe(
+        "https://bookedsecure.com/b/private-token",
+      );
+      expect(campaignSmsLink("acme", null)).toBe("https://bookedsecure.com/quote/acme");
+    } finally {
+      if (previousOrigin === undefined) delete process.env["PUBLIC_APP_URL"];
+      else process.env["PUBLIC_APP_URL"] = previousOrigin;
+    }
+  });
+
+  it("uses the editable copy from a full owner-pasted template without duplicating protected fields", () => {
+    expect(
+      renderBulkReactivationMessage({
+        leadName: "Darrin Young",
+        campaignCopy:
+          "Hi (Lead Name), Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer off your next service with Glocast. Book now: (Tenant Quote Page URL) Usamah Glocast Mobile Detailing Reply STOP to opt out.",
+        quoteUrl: "https://bookedsecure.com/b/darrin-token",
+        signature: "Usamah Glocast Mobile Detailing",
+      }),
+    ).toBe(
+      "Hi Darrin, Glocast Mobile Auto Detailing again. Just checking whether you saw our 15% discount offer off your next service with Glocast. Book now: https://bookedsecure.com/b/darrin-token Usamah Glocast Mobile Detailing Reply STOP to opt out.",
     );
   });
 });
