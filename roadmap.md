@@ -1,6 +1,7 @@
 # Roadmap
 
 - [x] Build the approved tenant home with compact product discovery, full Cowork, and unchanged Operational Details.
+- [x] Collapse dashboard performance into one Operational Details button and simplify the opened view.
 
 - [x] Add Select all and tenant-safe bulk editing for personalised campaign drafts.
 
