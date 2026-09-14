@@ -1,14 +1,70 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowUpRight, BadgeInfo, PackageSearch, Sparkles } from "lucide-react";
+import { ArrowUpRight, PackageSearch, Sparkles } from "lucide-react";
 import { useEffect, useRef } from "react";
-import detailingToolkit from "@/assets/detailing-toolkit.jpg";
+import microfibreTowels from "@/assets/product-microfibre.jpg";
+import dualActionPolisher from "@/assets/product-polisher.jpg";
+import pressureWasher from "@/assets/product-pressure-washer.jpg";
+import wetDryVacuum from "@/assets/product-vacuum.jpg";
 import { Button } from "@/components/ui/button";
 import {
   listAffiliateProducts,
   recordAffiliateProductEvents,
   type AffiliateProduct,
 } from "@/lib/affiliate-products.functions";
+
+type DisplayProduct = AffiliateProduct & { trackEvents?: boolean };
+
+const starterProducts: DisplayProduct[] = [
+  {
+    id: "microfibre-towels",
+    brand: "Detailing essentials",
+    title: "Microfibre towel set",
+    category: "Finishing",
+    shortDescription: "Soft, reusable cloths for drying, polishing and interior work.",
+    imageUrl: microfibreTowels,
+    destinationUrl: "https://www.amazon.com.au/s?k=professional+microfibre+detailing+towels",
+    priceLabel: "Check current price",
+    disclosureLabel: "",
+    isAffiliate: false,
+  },
+  {
+    id: "dual-action-polisher",
+    brand: "Workshop equipment",
+    title: "Dual-action polisher",
+    category: "Paint correction",
+    shortDescription: "A versatile machine polisher for correction and finishing work.",
+    imageUrl: dualActionPolisher,
+    destinationUrl: "https://www.amazon.com.au/s?k=dual+action+car+polisher",
+    priceLabel: "Check current price",
+    disclosureLabel: "",
+    isAffiliate: false,
+  },
+  {
+    id: "wet-dry-vacuum",
+    brand: "Workshop equipment",
+    title: "Wet & dry vacuum",
+    category: "Interior",
+    shortDescription: "Compact extraction-ready cleaning power for mobile interior jobs.",
+    imageUrl: wetDryVacuum,
+    destinationUrl: "https://www.amazon.com.au/s?k=wet+dry+vacuum+car+detailing",
+    priceLabel: "Check current price",
+    disclosureLabel: "",
+    isAffiliate: false,
+  },
+  {
+    id: "pressure-washer",
+    brand: "Workshop equipment",
+    title: "Compact pressure washer",
+    category: "Exterior",
+    shortDescription: "Portable washing equipment with a lance, hose and foam bottle.",
+    imageUrl: pressureWasher,
+    destinationUrl: "https://www.amazon.com.au/s?k=pressure+washer+car+detailing",
+    priceLabel: "Check current price",
+    disclosureLabel: "",
+    isAffiliate: false,
+  },
+];
 
 export function ProductDiscoveryRow() {
   const fetchProducts = useServerFn(listAffiliateProducts);
@@ -19,6 +75,9 @@ export function ProductDiscoveryRow() {
     queryFn: () => fetchProducts(),
     staleTime: 5 * 60 * 1000,
   });
+  const displayProducts: DisplayProduct[] = products.data?.length
+    ? products.data.map((product) => ({ ...product, trackEvents: true }))
+    : starterProducts;
 
   useEffect(() => {
     const visibleIds = (products.data ?? []).map((product) => product.id);
@@ -38,52 +97,28 @@ export function ProductDiscoveryRow() {
             <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
             <h1 id="product-discovery-title" className="truncate text-sm font-semibold">Trending tools &amp; products</h1>
           </div>
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">Useful finds for mobile detailing businesses</p>
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">Shop useful gear for your detailing business</p>
         </div>
-        <span className="hidden shrink-0 items-center gap-1 text-[10px] text-muted-foreground sm:inline-flex">
-          <BadgeInfo className="size-3" aria-hidden="true" /> Affiliate links are labelled
-        </span>
       </div>
 
       {products.isLoading ? (
         <div className="flex h-28 items-center text-xs text-muted-foreground">Finding useful products…</div>
       ) : products.isError ? (
         <div className="flex h-28 items-center text-xs text-destructive">Product discovery is unavailable right now.</div>
-      ) : products.data?.length ? (
+      ) : (
         <div className="no-scrollbar flex snap-x gap-2.5 overflow-x-auto pb-1">
-          {products.data.map((product) => (
+          {displayProducts.map((product) => (
             <ProductCard
               key={product.id}
               product={product}
               onVisit={() => {
+                if (!product.trackEvents) return;
                 void recordEvents({
                   data: { productIds: [product.id], eventKind: "click", pagePath: "/dashboard" },
                 }).catch(() => undefined);
               }}
             />
           ))}
-        </div>
-      ) : (
-        <div className="grid h-28 grid-cols-[7rem_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-background sm:grid-cols-[10rem_minmax(0,1fr)]">
-          <img
-            src={detailingToolkit}
-            alt="Professional car detailing tools arranged on a workbench"
-            loading="lazy"
-            width={1200}
-            height={512}
-            className="h-full w-full object-cover"
-          />
-          <div className="flex min-w-0 items-center px-3 sm:px-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-xs font-semibold">
-                <PackageSearch className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
-                Curated marketplace opening soon
-              </div>
-              <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
-                Products appear here only after their price, destination and partnership disclosure are verified.
-              </p>
-            </div>
-          </div>
         </div>
       )}
     </section>
@@ -114,10 +149,10 @@ function ProductCard({ product, onVisit }: { product: AffiliateProduct; onVisit:
         <div className="mt-auto flex min-w-0 items-end justify-between gap-2">
           <div className="min-w-0">
             {product.priceLabel ? <p className="truncate text-[10px] font-semibold">{product.priceLabel}</p> : null}
-            <p className="truncate text-[9px] text-muted-foreground">{product.isAffiliate ? product.disclosureLabel : "Featured product"}</p>
+            <p className="truncate text-[9px] text-muted-foreground">Available online</p>
           </div>
-          <Button asChild size="icon-sm" variant="outline" className="size-7 shrink-0" title={`View ${product.title}`}>
-            <a href={product.destinationUrl} target="_blank" rel="noopener noreferrer sponsored" onClick={onVisit} aria-label={`View ${product.title} from ${product.brand}`}>
+          <Button asChild size="icon-sm" variant="outline" className="size-7 shrink-0" title={`Shop ${product.title}`}>
+            <a href={product.destinationUrl} target="_blank" rel="noopener noreferrer" onClick={onVisit} aria-label={`Shop ${product.title}`}>
               <ArrowUpRight className="size-3.5" />
             </a>
           </Button>
