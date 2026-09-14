@@ -87,7 +87,7 @@ export const startSubscriptionCheckout = createServerFn({ method: "POST" })
     const { createSubscriptionCheckout } = await import("@/lib/subscription-billing.server");
     const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
-    const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+    const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.com";
     const path = safePath(data.returnPath, "/settings/billing");
     const joiner = path.includes("?") ? "&" : "?";
     return await createSubscriptionCheckout({
@@ -110,7 +110,7 @@ export const openBillingPortal = createServerFn({ method: "POST" })
     const { createBillingPortalSession } = await import("@/lib/subscription-billing.server");
     const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
-    const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+    const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.com";
     return await createBillingPortalSession({
       businessId: app.businessId,
       environment: data.environment,

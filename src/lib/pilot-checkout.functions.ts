@@ -24,7 +24,7 @@ export const createPilotCheckoutSession = createServerFn({ method: "POST" })
     await requirePlatformAdmin(context.supabase, context.userId);
 
     const { createPilotCheckout } = await import("@/lib/billing.server");
-    const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+    const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.com";
     const result = await createPilotCheckout({
       applicationId: data.applicationId,
       adminUserId: context.userId,

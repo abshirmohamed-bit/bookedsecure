@@ -142,7 +142,7 @@ export const startCreditTopup = createServerFn({ method: "POST" })
     requireOwner(app);
 
     const { createCreditTopupCheckout } = await import("@/lib/sms/credit-topups.server");
-    const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.lovable.app";
+    const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.com";
     const path =
       data.returnPath && data.returnPath.startsWith("/") && !data.returnPath.startsWith("//")
         ? data.returnPath
