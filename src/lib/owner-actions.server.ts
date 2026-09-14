@@ -21,6 +21,7 @@ export type CampaignProposal = {
   kind: "campaign";
   campaignId: string;
   offerText: string;
+  displayText?: string;
   summary: string;
   drafts: Array<{ id: string; leadName: string | null; mobileNumber: string; body: string }>;
 };
@@ -140,6 +141,7 @@ export async function proposeCampaign(input: {
   if (!view.campaign) return null;
 
   const pending = view.drafts.filter((draft) => draft.status === "draft");
+  const requestedCopy = input.campaignCopy?.trim().slice(0, 180) ?? "";
   const windowNote = input.olderThanDays
     ? ` who have not been contacted in the last ${input.olderThanDays} day${input.olderThanDays === 1 ? "" : "s"}`
     : "";
@@ -147,10 +149,13 @@ export async function proposeCampaign(input: {
     kind: "campaign",
     campaignId: view.campaign.id,
     offerText: view.campaign.offerText,
+    ...(requestedCopy ? { displayText: requestedCopy } : {}),
     summary:
       pending.length === 0
         ? "No contacts qualify for that message right now."
-        : `${pending.length} contact${pending.length === 1 ? "" : "s"}${windowNote} ready to receive "${view.campaign.offerText}". Nothing sends until you approve.`,
+        : requestedCopy
+          ? `${pending.length} contact${pending.length === 1 ? "" : "s"}${windowNote} ready with your requested campaign wording. Nothing sends until you approve.`
+          : `${pending.length} contact${pending.length === 1 ? "" : "s"}${windowNote} ready to receive "${view.campaign.offerText}". Nothing sends until you approve.`,
     drafts: pending.map((draft) => ({
       id: draft.id,
       leadName: draft.leadName,

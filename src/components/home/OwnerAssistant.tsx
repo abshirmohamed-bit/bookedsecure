@@ -30,6 +30,7 @@ type CampaignProposal = {
   kind: "campaign";
   campaignId: string;
   offerText: string;
+  displayText?: string;
   summary: string;
   drafts: Array<{ id: string; leadName: string | null; mobileNumber: string; body: string }>;
 };
@@ -419,7 +420,9 @@ export function OwnerAssistant({
                           key={proposal.campaignId}
                           className="rounded-2xl border border-border bg-card p-4 text-sm"
                         >
-                          <p className="font-medium">Win-back campaign — {proposal.offerText}</p>
+                          <p className="font-medium">
+                            Win-back campaign — {proposal.displayText ?? proposal.offerText}
+                          </p>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {proposal.drafts.length} message
                             {proposal.drafts.length === 1 ? "" : "s"} ready. Review below, then
