@@ -114,6 +114,7 @@ export async function proposeCampaign(input: {
   userId: string;
   percent: number | null;
   offerText?: string | null;
+  campaignCopy?: string | null;
   maxLeads: number | null;
   olderThanDays: number | null;
   audience?: import("@/lib/reactivation.server").CampaignAudience;
@@ -130,6 +131,7 @@ export async function proposeCampaign(input: {
     businessId: input.businessId,
     userId: input.userId,
     offerText: offer,
+    campaignCopy: input.campaignCopy ?? null,
     ...(input.maxLeads ? { maxLeads: input.maxLeads } : {}),
     ...(input.olderThanDays ? { olderThanDays: input.olderThanDays } : {}),
     ...(input.audience ? { audience: input.audience } : {}),
@@ -261,6 +263,7 @@ export async function handleOwnerRequestFallback(input: {
         businessId: input.businessId,
         userId: input.userId,
         percent: request.percent,
+        campaignCopy: null,
         maxLeads: request.maxLeads,
         olderThanDays: request.olderThanDays,
       });

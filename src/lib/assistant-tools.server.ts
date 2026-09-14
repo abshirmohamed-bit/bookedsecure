@@ -550,13 +550,20 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
 
     draft_campaign: tool({
       description:
-        "Prepare an SMS campaign for a group of this business's consented leads and show it to the owner for approval. Audiences: 'dormant' (past customers with no history on file), 'uncontacted' (leads never texted, e.g. a fresh import), 'status' (one inbox status such as new or contacted), or 'leads' (specific lead ids from find_customers or query_leads). Opt-outs, suppressed numbers and deleted leads are always excluded. Nothing sends until the owner approves on screen.",
+        "Prepare or replace an SMS campaign for a group of this business's consented leads and show the actual saved messages to the owner for approval. If the owner supplies campaign wording, pass its editable middle section in campaignCopy so the saved drafts use it exactly; never merely repeat requested wording in your reply. Audiences: 'dormant' (past customers with no history on file), 'uncontacted' (leads never texted, e.g. a fresh import), 'status' (one inbox status such as new or contacted), or 'leads' (specific lead ids from find_customers or query_leads). Opt-outs, suppressed numbers and deleted leads are always excluded. Nothing sends until the owner approves on screen.",
       inputSchema: z.object({
         audience: z.enum(["dormant", "uncontacted", "status", "leads"]),
         status: z.enum(LEAD_STATUSES).nullable().describe("Required when audience is 'status'."),
         leadIds: z.array(z.string().uuid()).nullable().describe("Required when audience is 'leads'."),
         percent: z.number().int().min(1).max(90).nullable().describe("Discount percentage for the offer, if the owner named one."),
         offerText: z.string().max(120).nullable().describe("Exact offer wording if the owner gave one, e.g. '15% off your next detail'."),
+        campaignCopy: z
+          .string()
+          .max(180)
+          .nullable()
+          .describe(
+            "The owner's exact editable message section only: omit Hi/name, Book now URL, tenant signature and Reply STOP because the system adds those safely per lead.",
+          ),
         maxLeads: z.number().int().min(1).max(500).nullable(),
         olderThanDays: z.number().int().min(1).max(3650).nullable(),
       }),
@@ -583,6 +590,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
           userId,
           percent: input.percent,
           offerText: input.offerText,
+          campaignCopy: input.campaignCopy,
           maxLeads: input.maxLeads,
           olderThanDays: input.olderThanDays,
           audience,
