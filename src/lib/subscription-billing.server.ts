@@ -69,7 +69,11 @@ export async function createSubscriptionCheckout(input: {
   returnUrl: string;
   environment: StripeEnv;
 }): Promise<SubscriptionCheckoutResult> {
-  const plan = await getPlanById(input.planId);
+  // A plan is only sellable to this business if it is publicly offered or a
+  // promo code has unlocked it for them — the browser's planId is never trusted.
+  const { listPlansForBusiness } = await import("@/lib/plans.server");
+  const sellable = await listPlansForBusiness(input.businessId);
+  const plan = sellable.find((candidate) => candidate.id === input.planId) ?? null;
   if (!plan) return { error: "That plan is not available." };
   const lookupKey = input.interval === "year" ? plan.stripeAnnualPriceId : plan.stripeMonthlyPriceId;
   if (!lookupKey) return { error: "That plan has no price configured yet." };

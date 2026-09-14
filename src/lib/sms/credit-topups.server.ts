@@ -55,7 +55,11 @@ export async function createCreditTopupCheckout(input: {
   returnUrl: string;
   environment?: StripeEnv | undefined;
 }): Promise<TopupCheckoutResult> {
-  const pack: CreditPack | null = findCreditPack(input.packId);
+  // Which pack set this business is entitled to is decided here, on the server,
+  // so a discounted price can never be bought by a full-price tenant.
+  const { resolvePromoEntitlement } = await import("@/lib/promo.server");
+  const entitlement = await resolvePromoEntitlement(input.businessId);
+  const pack: CreditPack | null = findCreditPack(input.packId, entitlement.creditPackSet);
   if (!pack) return { error: "That credit pack is not available." };
 
   const { data: business } = await supabaseAdmin

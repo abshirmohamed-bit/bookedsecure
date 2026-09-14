@@ -149,8 +149,20 @@ export async function maybeAutoTopup(businessId: string): Promise<AutoTopupResul
       return { ok: false, reason: "cooldown" };
     }
 
+    // Automatic top-ups charge the same price the owner sees, including any
+    // promo pricing their business has redeemed.
+    // Promo pricing must never be able to stop an automatic top-up: if it
+    // cannot be read, fall back to the standard prices.
+    let packSet = "standard";
+    try {
+      const { resolvePromoEntitlement } = await import("@/lib/promo.server");
+      packSet = (await resolvePromoEntitlement(businessId)).creditPackSet;
+    } catch {
+      packSet = "standard";
+    }
     // Unknown stored pack id (e.g. renamed later): fall back to the middle pack.
-    const pack: CreditPack | null = findCreditPack(account.auto_topup_pack_id) ?? findCreditPack("pack_1500");
+    const pack: CreditPack | null =
+      findCreditPack(account.auto_topup_pack_id, packSet) ?? findCreditPack("pack_1500", packSet);
     if (!pack) return { ok: false, reason: "pack_not_found" };
 
     // Daily budget guard: at most MAX_PER_DAY automatic purchases per day.

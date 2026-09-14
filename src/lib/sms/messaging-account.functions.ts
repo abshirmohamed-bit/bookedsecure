@@ -63,6 +63,11 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
     // texts, and which tools are switched on for this business.
     const subscriptionPlan = await getPlanForBusiness(app.businessId);
 
+    // The credit packs this business may buy (promo pricing included).
+    const { resolvePromoEntitlement } = await import("@/lib/promo.server");
+    const { packsFor } = await import("@/lib/sms/credit-packs");
+    const entitledPacks = packsFor((await resolvePromoEntitlement(app.businessId)).creditPackSet);
+
     // Usage comes from the same period the send authoriser deducts from, so
     // Messaging and Plan & billing always show the same numbers. Subscribed
     // businesses use their plan period; legacy pilots fall back to the pilot's.
@@ -121,7 +126,7 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
         assignedAt: number.assigned_at,
         monthlyCostCents: number.monthly_cost_cents,
       })),
-      packs: CREDIT_PACKS.map((pack) => ({
+      packs: entitledPacks.map((pack) => ({
         id: pack.id,
         label: pack.label,
         credits: pack.credits,
