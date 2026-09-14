@@ -20,15 +20,15 @@ export function ProductDiscoveryRow() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const visibleIds = (products.data ?? []).map((product) => product.id);
-  const visibleSignature = visibleIds.join(",");
   useEffect(() => {
+    const visibleIds = (products.data ?? []).map((product) => product.id);
+    const visibleSignature = visibleIds.join(",");
     if (!visibleSignature || recordedSignature.current === visibleSignature) return;
     recordedSignature.current = visibleSignature;
     void recordEvents({
       data: { productIds: visibleIds, eventKind: "impression", pagePath: "/dashboard" },
     }).catch(() => undefined);
-  }, [recordEvents, visibleIds, visibleSignature]);
+  }, [products.data, recordEvents]);
 
   return (
     <section className="shrink-0 border-b border-border bg-card px-3 py-3 sm:px-4 lg:pr-52" aria-labelledby="product-discovery-title">

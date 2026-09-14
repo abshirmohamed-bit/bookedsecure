@@ -108,10 +108,12 @@ export function OwnerAssistant({
   threadId,
   initialTurns = [],
   onConversationChanged,
+  homeMode = false,
 }: {
   threadId: string;
   initialTurns?: OwnerAssistantTurn[];
   onConversationChanged?: () => void;
+  homeMode?: boolean;
 }) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
@@ -392,20 +394,20 @@ export function OwnerAssistant({
     <section className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
       <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
         {!hasConversation ? (
-          <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-5 py-5 text-center lg:pr-48">
-            <h1 className="text-balance font-heading text-2xl font-semibold leading-[1.15] tracking-tight sm:text-4xl">
-              Stop losing leads you already paid for.
+          <div className={`mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-5 py-5 text-center ${homeMode ? "lg:pr-48" : ""}`}>
+            <p className="text-xs font-semibold uppercase text-primary">Cowork</p>
+            <h1 className="mt-2 text-balance font-heading text-2xl font-semibold leading-[1.15] sm:text-4xl">
+              What would you like to get done?
             </h1>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-4">
-              Catch every ad enquiry, reply instantly, and rebook past customers — all from one
-              place.
+              Ask about your business, update leads, prepare campaigns, or attach a contact file.
             </p>
           </div>
         ) : null}
 
         {hasConversation ? (
           <Conversation className="min-h-0 min-w-0 flex-1 overscroll-contain">
-            <ConversationContent className="mx-auto w-full min-w-0 max-w-3xl gap-5 px-4 pb-6 pt-4 sm:px-8 lg:pt-28">
+            <ConversationContent className={`mx-auto w-full min-w-0 max-w-3xl gap-5 px-4 pb-6 pt-4 sm:px-8 ${homeMode ? "lg:pt-28" : "lg:pt-8"}`}>
             {turns.map((turn) => (
               <Message key={turn.id} from={turn.role === "you" ? "user" : "assistant"}>
                 {turn.role === "you" ? (

@@ -25,6 +25,6 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   return (
-    <AppShell title="Home"><AssistantWorkspace /></AppShell>
+    <AppShell title="Home"><AssistantWorkspace showDiscovery /></AppShell>
   );
 }
