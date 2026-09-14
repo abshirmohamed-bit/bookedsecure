@@ -9,7 +9,7 @@
  *   only writers of a business's subscription state.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { getPlanById, listOfferedPlans } from "@/lib/plans.server";
+import { getPlanById, listAllPlans, listOfferedPlans } from "@/lib/plans.server";
 import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "@/lib/stripe.server";
 import type { BillingInterval, SubscriptionStatus } from "@/lib/subscription";
 import {
@@ -178,7 +178,8 @@ function toStatus(stripeStatus: string): SubscriptionStatus {
 async function planFromPrice(price: any): Promise<{ planId: string; interval: BillingInterval } | null> {
   const key: string | null = price?.lookup_key ?? price?.metadata?.lovable_external_id ?? null;
   if (!key) return null;
-  const plans = await listOfferedPlans();
+  // Hidden plans included: a promo-code plan is still the plan that was paid for.
+  const plans = await listAllPlans();
   for (const plan of plans) {
     if (plan.stripeMonthlyPriceId === key) return { planId: plan.id, interval: "month" };
     if (plan.stripeAnnualPriceId === key) return { planId: plan.id, interval: "year" };
