@@ -14,6 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_product_events: {
+        Row: {
+          business_id: string
+          created_at: string
+          event_kind: string
+          id: string
+          page_path: string
+          product_id: string
+          user_id: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          event_kind: string
+          id?: string
+          page_path?: string
+          product_id: string
+          user_id?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          event_kind?: string
+          id?: string
+          page_path?: string
+          product_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_product_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_product_events_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_products: {
+        Row: {
+          brand: string
+          category: string
+          created_at: string
+          destination_url: string
+          disclosure_label: string
+          display_order: number
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_affiliate: boolean
+          price_label: string | null
+          short_description: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          brand: string
+          category: string
+          created_at?: string
+          destination_url: string
+          disclosure_label?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_affiliate?: boolean
+          price_label?: string | null
+          short_description: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          brand?: string
+          category?: string
+          created_at?: string
+          destination_url?: string
+          disclosure_label?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_affiliate?: boolean
+          price_label?: string | null
+          short_description?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_actions: {
         Row: {
           action_kind: string
