@@ -64,7 +64,7 @@ export function AnalyticsOverview() {
       <section className="rounded-lg border border-border bg-card p-4">
         <h3 className="text-sm font-semibold">Text messages</h3>
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
-          <SimpleDatum label="Sent" value={String(delivery.data.sent)} />
+          <SimpleDatum label="Outbound" value={String(delivery.data.total)} />
           <SimpleDatum label="Delivered" value={String(delivery.data.delivered)} />
           <SimpleDatum label="Delivery rate" value={delivery.data.deliveryRate == null ? "—" : `${Math.round(delivery.data.deliveryRate * 100)}%`} />
           <SimpleDatum label="Needs attention" value={String(delivery.data.failed + delivery.data.undelivered)} />
