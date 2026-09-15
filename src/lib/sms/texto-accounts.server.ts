@@ -647,7 +647,7 @@ async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumbe
 
 export type NumberClaimResult =
   | { ok: true; number: string; monthlyCostCents: number; alreadyOwned: boolean }
-  | { ok: false; reason: string; detail?: string };
+  | { ok: false; reason: string; detail?: string; code?: "no_payment_method" };
 
 /**
  * Owner-driven claim of one dedicated number for their own business.
