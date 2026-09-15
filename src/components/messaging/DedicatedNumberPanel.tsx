@@ -21,6 +21,7 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
   const queryClient = useQueryClient();
   const [browsing, setBrowsing] = useState(false);
   const [manualNumber, setManualNumber] = useState("");
+  const [needsCard, setNeedsCard] = useState(false);
 
   const available = useQuery({
     queryKey: ["purchasable-numbers"],
@@ -38,11 +39,15 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
 
     onSuccess: (result) => {
       if (result.ok) {
+        setNeedsCard(false);
         toast.success(`${result.number} is now your number for new conversations.`);
         setManualNumber("");
         void queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
         void queryClient.invalidateQueries({ queryKey: ["purchasable-numbers"] });
         void queryClient.invalidateQueries({ queryKey: ["settings"] });
+      } else if ("code" in result && result.code === "no_payment_method") {
+        setNeedsCard(true);
+        toast.error(result.reason);
       } else {
         toast.error(result.detail ? `${result.reason} (${result.detail})` : result.reason);
       }
@@ -61,6 +66,27 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
           away, and any number you already text from stays switched on so replies to earlier texts
           still reach you.
         </p>
+
+        {needsCard && (
+          <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            <p className="font-medium">One-off step: add your card with the number provider</p>
+            <p className="text-muted-foreground">
+              The provider only allows numbers to be bought from here once a card has been used once
+              in their own app. Buy a single number there, then come back:
+            </p>
+            <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
+              <li>Buy one dedicated Australian number in the provider's app with your card.</li>
+              <li>Paste that number into “Already bought a number yourself?” below to connect it.</li>
+              <li>
+                Every number after that can be claimed straight from this page — the saved card is
+                used automatically.
+              </li>
+            </ol>
+            <Button size="sm" variant="secondary" onClick={() => setNeedsCard(false)}>
+              I've added my card — try again
+            </Button>
+          </div>
+        )}
 
         {!browsing ? (
           <Button onClick={() => setBrowsing(true)}>Show me available numbers</Button>
