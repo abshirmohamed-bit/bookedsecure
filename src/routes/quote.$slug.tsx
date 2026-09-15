@@ -224,7 +224,7 @@ function ManualQuoteForm() {
           <p className="mt-2 text-sm text-muted-foreground">
             {isFlexible
               ? `${tenant.name} will review your request personally and get back to you.`
-              : `You'll hear from ${tenant.name} shortly. Reply to that message and we'll sort out the right detail for your vehicle.`}
+              : `You'll hear from ${tenant.name} shortly. Reply to that message and we'll sort out the right service for your ${subjectLabel.toLowerCase()}.`}
           </p>
         </div>
       </FormShell>
