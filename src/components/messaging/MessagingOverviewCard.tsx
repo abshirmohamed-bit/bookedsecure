@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { getMessagingAccount, setMessagingPaused } from "@/lib/sms/messaging-account.functions";
 import { formatAud, LOW_CREDIT_THRESHOLD } from "@/lib/sms/credit-packs";
 import { CREDITS_ANCHOR } from "@/components/billing/BillingPanel";
+import { useBillingRealtime } from "@/hooks/useBillingRealtime";
+
 
 const NUMBER_STATE_LABELS: Record<string, string> = {
   not_started: "Being set up",
