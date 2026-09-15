@@ -84,16 +84,16 @@ export function HomeLanding() {
           <div className="mx-auto flex min-h-[78vh] max-w-6xl items-center px-4 py-14">
             <div className="max-w-2xl">
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground">
-                Early-access pilot for Australian detailers
+                Early-access pilot for Australian service businesses
               </span>
               <h1 className="mt-5 font-heading text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
                 BookedSecure
               </h1>
               <p className="mt-3 font-heading text-2xl font-medium leading-tight sm:text-3xl">
-                Stop losing detailing enquiries you already paid for.
+                Stop losing enquiries you already paid for.
               </p>
               <p className="mt-4 max-w-xl text-base text-muted-foreground">
-                BookedSecure helps Australian detailing businesses respond faster, follow up
+                BookedSecure helps Australian service businesses respond faster, follow up
                 consistently, and turn more enquiries into booked jobs.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -105,7 +105,7 @@ export function HomeLanding() {
                 </a>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
-                Limited pilot spots available for Australian detailing businesses.
+                Limited pilot spots available for Australian service businesses.
               </p>
             </div>
           </div>
