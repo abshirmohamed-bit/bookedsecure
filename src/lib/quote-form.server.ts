@@ -51,7 +51,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
   const { data: business } = await supabaseAdmin
     .from("businesses")
     .select(
-      "id, name, slug, logo_url, service_area, privacy_policy_url, status, quote_form_active, flexible_requests_enabled, quote_mode",
+      "id, name, slug, logo_url, service_area, privacy_policy_url, status, quote_form_active, flexible_requests_enabled, quote_mode, quote_subject_label, quote_subject_options",
     )
     .eq("slug", slug)
     .maybeSingle();
