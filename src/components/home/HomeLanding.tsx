@@ -4,7 +4,7 @@ import { useState } from "react";
 import { submitPilotApplication } from "@/lib/pilot.functions";
 import { readAttribution } from "@/lib/pilot-schema";
 import { ArrowRight, CheckCircle2, MessageSquare, Repeat2, ClipboardList } from "lucide-react";
-import heroImage from "@/assets/detail-hero.jpg";
+import heroImage from "@/assets/service-hero.jpg";
 
 const STEPS = [
   {
