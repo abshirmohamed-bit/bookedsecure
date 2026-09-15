@@ -24,7 +24,7 @@ import {
   simulateInboundReply,
   updateLead,
 } from "@/lib/app.functions";
-import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency } from "@/lib/domain";
+import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency, quoteSubjectLabel } from "@/lib/domain";
 import { importMethodLabel, leadSourceLabel, originalSourceDetails } from "@/lib/lead-source";
 import { countSegments } from "@/lib/sms/segments";
 import { SuppressionRecoveryPanel } from "@/components/SuppressionRecoveryPanel";
