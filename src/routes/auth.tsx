@@ -15,7 +15,7 @@ export const Route = createFileRoute("/auth")({
       { title: "Sign in — BookedSecure" },
       {
         name: "description",
-        content: "Sign in to your SMS lead response dashboard to manage detailing enquiries.",
+        content: "Sign in to your SMS lead response dashboard to manage customer enquiries.",
       },
       { property: "og:title", content: "Sign in — BookedSecure" },
       {
