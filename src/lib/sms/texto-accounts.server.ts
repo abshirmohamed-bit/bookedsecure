@@ -550,6 +550,16 @@ function isRouteUnavailable(message: string): boolean {
   return message.includes("[404]") && message.includes("available_routes");
 }
 
+/**
+ * One canonical E.164 form for any number typed or returned by the provider.
+ * Spaces, dashes and brackets are stripped so "+61 412 345 678" and
+ * "+61412345678" are the same number everywhere (comparison, storage, inbound
+ * routing). Never store or compare an unnormalised number.
+ */
+export function toE164(raw: string): string {
+  return `+${raw.replace(/\D/g, "")}`;
+}
+
 /** True when the provider has no card on file for API number purchases. */
 export function isMissingProviderPaymentMethod(message: string): boolean {
   return message.includes("no_payment_method") || message.includes("No payment method registered");
