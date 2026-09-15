@@ -32,8 +32,8 @@ export const Route = createFileRoute("/quote/$slug")({
         meta: [{ title: "Enquiry form unavailable" }, { name: "robots", content: "noindex" }],
       };
     }
-    const title = `Get a mobile detailing quote — ${business}`;
-    const description = `Tell ${business} about your vehicle and get a fast SMS response with the right detailing option.`;
+    const title = `Get a quote — ${business}`;
+    const description = `Tell ${business} what you need and get a fast SMS response with the right service option.`;
     return {
       meta: [
         { title },
