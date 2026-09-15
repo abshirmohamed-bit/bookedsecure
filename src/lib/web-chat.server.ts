@@ -28,6 +28,7 @@ import {
   type WebChatTenant,
   chosenServicesText,
 } from "@/lib/web-chat";
+import { quoteSubjectLabel } from "@/lib/domain";
 import {
   AMBIGUOUS_CORRECTION_MESSAGE,
   FIELD_LABELS,
@@ -102,6 +103,7 @@ function toChatTenant(tenant: PublicTenant, offerPercent?: number | null): WebCh
     name: tenant.name,
     flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
     bookingEnabled: isBookingOnlyTenant(tenant.businessId),
+    quoteSubjectLabel: tenant.quoteSubjectLabel,
     addons: tenant.addons ?? [],
     services: tenant.services.map((service) => ({
       id: service.id,

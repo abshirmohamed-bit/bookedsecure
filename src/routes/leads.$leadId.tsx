@@ -24,7 +24,7 @@ import {
   simulateInboundReply,
   updateLead,
 } from "@/lib/app.functions";
-import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency } from "@/lib/domain";
+import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency, quoteSubjectLabel } from "@/lib/domain";
 import { importMethodLabel, leadSourceLabel, originalSourceDetails } from "@/lib/lead-source";
 import { countSegments } from "@/lib/sms/segments";
 import { SuppressionRecoveryPanel } from "@/components/SuppressionRecoveryPanel";
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/leads/$leadId")({
       {
         name: "description",
         content:
-          "Review the SMS conversation, AI summary and suggested reply for a detailing enquiry, and record the completed job.",
+          "Review the SMS conversation, AI summary and suggested reply for a customer enquiry, and record the completed job.",
       },
       { property: "og:title", content: "Lead conversation — BookedSecure" },
       {
@@ -140,7 +140,7 @@ function LeadDetail() {
   if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
   if (!data?.lead) return <p className="text-sm text-muted-foreground">Lead not found.</p>;
 
-  const { lead, messages, conversation, ai, job, services, notifications, automationJobs } = data;
+  const { lead, messages, conversation, ai, job, services, notifications, automationJobs, quoteSubjectLabel: subjectLabel } = data;
 
   const initials = (lead.name ?? "")
     .split(/\s+/)
@@ -191,7 +191,7 @@ function LeadDetail() {
               <Detail label="Email" value={lead.email} />
               <Detail label="Suburb" value={lead.suburb} />
               <Detail label="Address" value={lead.service_address} />
-              <Detail label="Vehicle" value={lead.vehicle_type} />
+              <Detail label={subjectLabel} value={lead.vehicle_type} />
               <Detail label="Added" value={new Date(lead.created_at).toLocaleString("en-AU")} />
             </dl>
 

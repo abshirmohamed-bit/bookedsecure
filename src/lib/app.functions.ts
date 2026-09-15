@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { LEAD_STATUSES } from "@/lib/domain";
+import { LEAD_STATUSES, quoteSubjectLabel } from "@/lib/domain";
 import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 
 const LeadIdSchema = z.object({ leadId: z.string().uuid() });
@@ -135,7 +135,7 @@ export const getLead = createServerFn({ method: "GET" })
         ).data ?? [])
       : [];
 
-    const [notifications, automationJobs] = await Promise.all([
+    const [notifications, automationJobs, business] = await Promise.all([
       supabaseAdmin
         .from("notifications")
         .select("id, kind, title, body, created_at, read_at")
@@ -149,6 +149,12 @@ export const getLead = createServerFn({ method: "GET" })
         )
         .eq("lead_id", data.leadId)
         .order("created_at", { ascending: true })
+        .then((response) => response.data),
+      supabaseAdmin
+        .from("businesses")
+        .select("quote_subject_label")
+        .eq("id", app.businessId)
+        .single()
         .then((response) => response.data),
     ]);
 
@@ -164,6 +170,7 @@ export const getLead = createServerFn({ method: "GET" })
       services: services.data ?? [],
       notifications: notifications ?? [],
       automationJobs: automationJobs ?? [],
+      quoteSubjectLabel: quoteSubjectLabel(business?.quote_subject_label),
     };
   });
 
@@ -589,6 +596,8 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
         default_sms_provider: z.enum(["simulated", "twilio", "telnyx"]),
         quiet_hours_start: z.number().int().min(0).max(23),
         quiet_hours_end: z.number().int().min(0).max(23),
+        quote_subject_label: z.string().max(40).nullable(),
+        quote_subject_options: z.array(z.string().max(80)).max(50).nullable(),
       })
       .parse(input),
   )

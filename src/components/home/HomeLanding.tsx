@@ -30,12 +30,12 @@ const STEPS = [
 ];
 
 const AUDIENCE = [
-  "Mobile detailing businesses",
+  "Mobile service businesses",
+  "Cleaning, lawn and garden operators",
+  "Trades and sole traders",
   "Automotive detailing studios",
-  "Paint correction specialists",
-  "Ceramic coating businesses",
-  "Interior detailing operators",
   "Owner-operators and small teams",
+  "Anyone who books jobs from enquiries",
 ];
 
 export function HomeLanding() {
@@ -84,16 +84,16 @@ export function HomeLanding() {
           <div className="mx-auto flex min-h-[78vh] max-w-6xl items-center px-4 py-14">
             <div className="max-w-2xl">
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground">
-                Early-access pilot for Australian detailers
+                Early-access pilot for Australian service businesses
               </span>
               <h1 className="mt-5 font-heading text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
                 BookedSecure
               </h1>
               <p className="mt-3 font-heading text-2xl font-medium leading-tight sm:text-3xl">
-                Stop losing detailing enquiries you already paid for.
+                Stop losing enquiries you already paid for.
               </p>
               <p className="mt-4 max-w-xl text-base text-muted-foreground">
-                BookedSecure helps Australian detailing businesses respond faster, follow up
+                BookedSecure helps Australian service businesses respond faster, follow up
                 consistently, and turn more enquiries into booked jobs.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -105,7 +105,7 @@ export function HomeLanding() {
                 </a>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
-                Limited pilot spots available for Australian detailing businesses.
+                Limited pilot spots available for Australian service businesses.
               </p>
             </div>
           </div>
@@ -116,8 +116,9 @@ export function HomeLanding() {
           <div className="mx-auto max-w-3xl px-4 py-14 text-center">
             <h2 className="text-2xl font-semibold sm:text-3xl">What BookedSecure does</h2>
             <p className="mt-4 text-base text-muted-foreground">
-              It is follow-up software built for detailers. Enquiries are captured, acknowledged and
-              tracked automatically, so you spend less time chasing and more time detailing.
+              It is follow-up software built for owner-operated service businesses. Enquiries are
+              captured, acknowledged and tracked automatically, so you spend less time chasing and
+              more time working.
             </p>
           </div>
         </section>
@@ -147,7 +148,7 @@ export function HomeLanding() {
           <div className="mx-auto max-w-6xl px-4 py-14">
             <h2 className="text-center text-2xl font-semibold sm:text-3xl">Who it is for</h2>
             <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground">
-              Australian detailing businesses that receive enquiries from websites, social media,
+              Australian service businesses that receive enquiries from websites, social media,
               Google, quote forms, phone calls and referrals.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -239,7 +240,7 @@ export function HomeLanding() {
                 </div>
                 <label className="block text-sm">
                   <span className="text-muted-foreground">
-                    What type of detailing work do you provide?
+                    What type of service work do you provide?
                   </span>
                   <textarea
                     name="services"

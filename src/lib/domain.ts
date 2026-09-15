@@ -114,6 +114,17 @@ export const VEHICLE_TYPES = [
   "Other",
 ];
 
+/** Customer-facing label for the item being serviced. Falls back to "Vehicle". */
+export function quoteSubjectLabel(input: string | null | undefined): string {
+  return (input ?? "").trim() || "Vehicle";
+}
+
+/** Dropdown options for the quote subject. Falls back to the default vehicle list. */
+export function quoteSubjectOptions(input: string[] | null | undefined): string[] {
+  const options = (input ?? []).map((item) => item.trim()).filter((item) => item.length > 0);
+  return options.length > 0 ? options : VEHICLE_TYPES;
+}
+
 export const OPT_OUT_KEYWORDS = ["stop", "unsubscribe", "cancel", "quit", "end", "optout", "opt out"];
 
 export function isOptOutMessage(body: string): boolean {

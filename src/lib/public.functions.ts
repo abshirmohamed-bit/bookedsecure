@@ -178,6 +178,8 @@ export const getPublicQuoteForm = createServerFn({ method: "GET" })
       privacyPolicyUrl: tenant.privacyPolicyUrl,
       flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
       quoteMode: tenant.quoteMode,
+      quoteSubjectLabel: tenant.quoteSubjectLabel,
+      quoteSubjectOptions: tenant.quoteSubjectOptions,
       services: tenant.services,
     };
   });

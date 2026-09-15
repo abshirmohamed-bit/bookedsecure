@@ -915,6 +915,8 @@ export type Database = {
           quiet_hours_start: number
           quote_form_active: boolean
           quote_mode: string
+          quote_subject_label: string | null
+          quote_subject_options: string[] | null
           service_area: string | null
           slug: string | null
           sms_credential_mode: string
@@ -962,6 +964,8 @@ export type Database = {
           quiet_hours_start?: number
           quote_form_active?: boolean
           quote_mode?: string
+          quote_subject_label?: string | null
+          quote_subject_options?: string[] | null
           service_area?: string | null
           slug?: string | null
           sms_credential_mode?: string
@@ -1009,6 +1013,8 @@ export type Database = {
           quiet_hours_start?: number
           quote_form_active?: boolean
           quote_mode?: string
+          quote_subject_label?: string | null
+          quote_subject_options?: string[] | null
           service_area?: string | null
           slug?: string | null
           sms_credential_mode?: string

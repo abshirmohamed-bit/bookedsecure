@@ -71,6 +71,8 @@ export type WebChatTenant = {
   flexibleRequestsEnabled: boolean;
   /** True when this tenant takes real bookings in the conversation. */
   bookingEnabled?: boolean;
+  /** Customer-facing label for the item being serviced (e.g. Vehicle, Property). */
+  quoteSubjectLabel: string;
   services: WebChatService[];
   /** The tenant's own add-on extras, each linked to their approved services. */
   addons?: ServiceAddon[];
@@ -174,11 +176,12 @@ export const CONTACT_ASK_TEXT =
 
 
 export function welcomeMessage(tenant: WebChatTenant): string {
+  const subject = tenant.quoteSubjectLabel.toLowerCase();
   return [
     `Hi — you're chatting with ${tenant.name}'s online quote assistant.`,
     tenant.bookingEnabled === true
       ? "Tell me what you need and I'll take a few details, then show you the times we actually have open."
-      : "I can explain the services we offer, take your vehicle details and pass everything to the team for review.",
+      : `I can explain the services we offer, take your ${subject} details and pass everything to the team for review.`,
     tenant.bookingEnabled === true
       ? "I can't quote a price here — the team confirms pricing with you directly."
       : "I can't confirm prices or bookings here — the owner reviews every enquiry and replies to you directly.",
@@ -415,7 +418,7 @@ export function reviewSummary(
           },
         ]
       : []),
-    { step: "vehicle", label: "Vehicle", value: collected.vehicle_type ?? "—" },
+    { step: "vehicle", label: tenant?.quoteSubjectLabel ?? "Vehicle", value: collected.vehicle_type ?? "—" },
     { step: "suburb", label: "Suburb", value: collected.suburb ?? "—" },
     { step: "address", label: "Address", value: collected.service_address ?? "—" },
     { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "—" },
@@ -542,7 +545,7 @@ function buildPrompt(
       };
     }
     case "vehicle":
-      return { step, kind: "text", text: "What's the vehicle? (make and model)" };
+      return { step, kind: "text", text: `What's the ${tenant.quoteSubjectLabel.toLowerCase()}?` };
     case "suburb":
       // Suburb and street address are asked together, the same way as name and
       // mobile. One answer can carry both, or just the suburb.
@@ -561,7 +564,7 @@ function buildPrompt(
       return {
         step,
         kind: "text",
-        text: "Anything we should focus on, like stains, pet hair or paint marks?",
+        text: "Anything we should focus on? Tell us what matters most for this job.",
       };
     case "name":
       return { step, kind: "text", text: CONTACT_ASK_TEXT };

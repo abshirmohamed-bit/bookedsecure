@@ -4,15 +4,15 @@ import { HomeLanding } from "@/components/home/HomeLanding";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "BookedSecure — turn every detailing enquiry into a booked job" },
+      { title: "BookedSecure — turn every enquiry into a booked job" },
       {
         name: "description",
         content:
-          "BookedSecure helps Australian detailing businesses reply instantly, follow up consistently and rebook past customers. Join the early-access pilot.",
+          "BookedSecure helps Australian service businesses reply instantly, follow up consistently and rebook past customers. Join the early-access pilot.",
       },
       {
         property: "og:title",
-        content: "BookedSecure — turn every detailing enquiry into a booked job",
+        content: "BookedSecure — turn every enquiry into a booked job",
       },
       {
         property: "og:description",

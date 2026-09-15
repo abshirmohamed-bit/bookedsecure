@@ -50,6 +50,7 @@ type Tenant = {
   logoUrl: string | null;
   serviceArea: string | null;
   privacyPolicyUrl: string | null;
+  quoteSubjectLabel: string;
 };
 
 /** A submitted-but-unconfirmed customer turn, kept visible through failures. */

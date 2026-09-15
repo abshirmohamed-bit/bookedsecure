@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { getPublicQuoteForm, submitQuoteRequest } from "@/lib/public.functions";
-import { VEHICLE_TYPES, normaliseAuMobile } from "@/lib/domain";
+import { quoteSubjectLabel, quoteSubjectOptions, normaliseAuMobile } from "@/lib/domain";
 import { TenantMark } from "@/components/TenantMark";
 import { AiQuoteChat } from "@/components/AiQuoteChat";
 import {
@@ -32,8 +32,8 @@ export const Route = createFileRoute("/quote/$slug")({
         meta: [{ title: "Enquiry form unavailable" }, { name: "robots", content: "noindex" }],
       };
     }
-    const title = `Get a mobile detailing quote — ${business}`;
-    const description = `Tell ${business} about your vehicle and get a fast SMS response with the right detailing option.`;
+    const title = `Get a quote — ${business}`;
+    const description = `Tell ${business} what you need and get a fast SMS response with the right service option.`;
     return {
       meta: [
         { title },
@@ -62,8 +62,6 @@ export const Route = createFileRoute("/quote/$slug")({
   component: TenantQuotePage,
 });
 
-const STEPS = ["Request", "Vehicle", "Condition", "Contact"] as const;
-
 function TenantQuotePage() {
   const tenant = Route.useLoaderData();
   // Mode is resolved server-side; anything other than ai_chat renders the
@@ -77,6 +75,7 @@ function TenantQuotePage() {
           logoUrl: tenant.logoUrl,
           serviceArea: tenant.serviceArea,
           privacyPolicyUrl: tenant.privacyPolicyUrl,
+          quoteSubjectLabel: tenant.quoteSubjectLabel,
         }}
       />
     );
@@ -86,6 +85,9 @@ function TenantQuotePage() {
 
 function ManualQuoteForm() {
   const tenant = Route.useLoaderData();
+  const subjectLabel = quoteSubjectLabel(tenant.quoteSubjectLabel);
+  const subjectOptions = quoteSubjectOptions(tenant.quoteSubjectOptions);
+  const STEPS = ["Request", subjectLabel, "Condition", "Contact"] as const;
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -222,7 +224,7 @@ function ManualQuoteForm() {
           <p className="mt-2 text-sm text-muted-foreground">
             {isFlexible
               ? `${tenant.name} will review your request personally and get back to you.`
-              : `You'll hear from ${tenant.name} shortly. Reply to that message and we'll sort out the right detail for your vehicle.`}
+              : `You'll hear from ${tenant.name} shortly. Reply to that message and we'll sort out the right service for your ${subjectLabel.toLowerCase()}.`}
           </p>
         </div>
       </FormShell>
@@ -238,7 +240,7 @@ function ManualQuoteForm() {
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold">{tenant.name}</h1>
               <p className="text-xs text-muted-foreground">
-                {tenant.serviceArea ?? "Mobile detailing"} — fast SMS response
+                {tenant.serviceArea ?? "Australian service business"} — fast SMS response
               </p>
             </div>
           </div>
@@ -335,21 +337,21 @@ function ManualQuoteForm() {
 
           {step === 1 && (
             <div className="space-y-4">
-              <Field label="What type of vehicle is it?">
+              <Field label={`What type of ${subjectLabel.toLowerCase()} is it?`}>
                 <select
                   value={form.vehicle_type}
                   onChange={(event) => set("vehicle_type", event.target.value)}
                   className="form-control"
                 >
-                  <option value="">Select vehicle type</option>
-                  {VEHICLE_TYPES.map((type) => (
+                  <option value="">Select {subjectLabel.toLowerCase()} type</option>
+                  {subjectOptions.map((type) => (
                     <option key={type} value={type}>
                       {type}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Which suburb is the vehicle in?">
+              <Field label={`Which suburb is the ${subjectLabel.toLowerCase()} in?`}>
                 <input
                   value={form.suburb}
                   onChange={(event) => set("suburb", event.target.value)}
@@ -370,7 +372,7 @@ function ManualQuoteForm() {
 
           {step === 2 && (
             <div className="space-y-4">
-              <Field label="When was it last professionally or thoroughly cleaned?">
+              <Field label="When was it last professionally or thoroughly serviced?">
                 <select
                   value={form.last_cleaned_at}
                   onChange={(event) => set("last_cleaned_at", event.target.value)}
@@ -395,7 +397,7 @@ function ManualQuoteForm() {
                   value={form.main_concerns}
                   onChange={(event) => set("main_concerns", event.target.value)}
                   rows={3}
-                  placeholder="Interior, exterior, stains, odour, paint, pet hair, something else…"
+                  placeholder="Tell us what matters most for this job…"
                   className="form-control min-h-24 py-2"
                 />
               </Field>
