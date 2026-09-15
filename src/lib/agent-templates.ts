@@ -28,7 +28,7 @@ export const AGENT_TEMPLATE_BODIES: Record<TemplateId, string> = {
   previous_customer_reactivation:
     "Hi {{first_name}}, {{business}} here. Due for another {{service}}? Book here: {{booking_link}}. Reply STOP to opt out.",
   contact_only_introduction_neutral:
-    "Hi {{first_name}}, it's {{business}}, mobile detailing. Would you like a quote? Reply YES, or STOP to opt out.",
+    "Hi {{first_name}}, it's {{business}}. Would you like a quote? Reply YES, or STOP to opt out.",
   booking_intent_fast_path_link:
     "Hi {{first_name}}, {{business}} here. Grab a time for your {{service}}: {{booking_link}}. Reply STOP to opt out.",
   slot_offer:
