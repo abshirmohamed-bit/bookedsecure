@@ -47,6 +47,7 @@ const intakeTenant: IntakeTenant = {
 const chatTenant = {
   name: "Glocast",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   services: services.map((service) => ({ id: service.id, name: service.name })),
 } as WebChatTenant;
 

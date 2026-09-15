@@ -43,6 +43,7 @@ const svc = (over: Partial<WebChatService> & { id: string; name: string }): WebC
 const tenant: WebChatTenant = {
   name: "Coastal Shine Detailing",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   bookingEnabled: true,
   services: [
     svc({ id: "s1", name: "Full Detail", price_guidance: "from $250", description: "Inside and out." }),
@@ -216,6 +217,7 @@ describe("user flow C — unsure customers and questions", () => {
     services: tenant.services.map((service) => ({ name: service.name, price_guidance: service.price_guidance ?? null })),
     serviceArea: "Inner West and South West Sydney",
     flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   } as never;
 
   it("recognises uncertainty instead of saving it as the service", () => {

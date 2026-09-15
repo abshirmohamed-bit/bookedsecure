@@ -5,6 +5,7 @@ import type { WebChatCollected, WebChatTenant } from "@/lib/web-chat";
 const tenant: WebChatTenant = {
   name: "Glocast",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   services: [
     { id: "1", name: "Full Interior Detail", description: null, included_items: null, excluded_items: null, qualification_note: null },
     { id: "2", name: "Ceramic Coating", description: null, included_items: null, excluded_items: null, qualification_note: null },

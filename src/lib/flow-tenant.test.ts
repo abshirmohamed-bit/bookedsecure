@@ -51,6 +51,7 @@ const TENANT_B = {
 const chatTenant = (t: typeof TENANT_A | typeof TENANT_B, offerPercent?: number | null): WebChatTenant => ({
   name: t.name,
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   bookingEnabled: true,
   services: t.services,
   ...(offerPercent === undefined ? {} : { offerPercent }),

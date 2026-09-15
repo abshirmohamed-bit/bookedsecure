@@ -11,6 +11,7 @@ import { resolveIntake, type WebChatAiExtraction } from "@/lib/web-chat-ai-extra
 const CHAT_TENANT: WebChatTenant = {
   name: "Glocast",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   services: [
     { id: "s-int", name: "Full Interior Detail", description: null },
     { id: "s-both", name: "Full Detail Interior + Exterior", description: null },

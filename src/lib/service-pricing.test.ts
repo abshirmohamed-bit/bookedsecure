@@ -6,6 +6,7 @@ import { promptFor, serviceAcknowledgement, type WebChatTenant } from "@/lib/web
 const tenant = (offerPercent: number | null = null): WebChatTenant => ({
   name: "Any Detailing Co",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   bookingEnabled: true,
   offerPercent,
   services: [
