@@ -215,6 +215,7 @@ export const claimNumberForBusiness = createServerFn({ method: "POST" })
         number: z.string().min(6).max(20),
         monthlyCostCents: z.number().int().min(0).max(100000).optional(),
         alreadyPurchased: z.boolean().optional(),
+        providerRef: z.string().min(1).max(100).optional(),
       })
       .parse(input),
   )
@@ -226,5 +227,7 @@ export const claimNumberForBusiness = createServerFn({ method: "POST" })
       number: data.number,
       ...(data.monthlyCostCents === undefined ? {} : { monthlyCostCents: data.monthlyCostCents }),
       ...(data.alreadyPurchased === undefined ? {} : { alreadyPurchased: data.alreadyPurchased }),
+      ...(data.providerRef === undefined ? {} : { providerRef: data.providerRef }),
     });
   });
+

@@ -651,6 +651,9 @@ export async function claimDedicatedNumber(input: {
   number: string;
   monthlyCostCents?: number;
   alreadyPurchased?: boolean;
+  /** Provider's own id for the for-sale listing, when the listing supplied one. */
+  providerRef?: string;
+
 }): Promise<NumberClaimResult> {
   const number = input.number.startsWith("+")
     ? input.number
