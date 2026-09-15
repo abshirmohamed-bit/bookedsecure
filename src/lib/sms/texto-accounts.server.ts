@@ -704,8 +704,13 @@ export async function claimDedicatedNumber(input: {
   }
 
   if (!alreadyOwned && !input.alreadyPurchased) {
+    const { data: biz } = await supabaseAdmin
+      .from("businesses")
+      .select("name")
+      .eq("id", input.businessId)
+      .maybeSingle();
     try {
-      await purchaseNumberFromTexto(number, input.providerRef);
+      await purchaseNumberFromTexto(number, input.providerRef, biz?.name ?? undefined);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       await auditEvent({
@@ -713,6 +718,15 @@ export async function claimDedicatedNumber(input: {
         eventType: "texto_number_purchase_failed",
         metadata: { number, detail, provider_ref: input.providerRef ?? null },
       });
+      if (error instanceof TextoAccountError && error.code === "no_payment_method") {
+        return {
+          ok: false,
+          code: "no_payment_method",
+          reason: "The number provider has no card on file yet.",
+          detail:
+            "Buy one number in the provider's own dashboard with your card, then either connect that number here or claim the next ones straight from this page.",
+        };
+      }
       return {
         ok: false,
         reason: "The number could not be bought automatically.",
