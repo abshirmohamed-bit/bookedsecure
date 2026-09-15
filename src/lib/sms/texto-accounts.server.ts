@@ -616,6 +616,22 @@ export async function purchaseNumberFromTexto(
 
 
 /**
+ * True when a purchase failure is about the account rather than the individual
+ * number, so trying a different number cannot possibly succeed.
+ */
+function isAccountLevelPurchaseFailure(error: unknown): boolean {
+  if (error instanceof TextoAccountError) {
+    if (error.code === "no_payment_method" || error.code === "disabled") return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    isRouteUnavailable(message) ||
+    isMissingProviderPaymentMethod(message) ||
+    message.includes("not switched on for this account")
+  );
+}
+
+/**
  * Buy a fresh number straight from Texto's for-sale list and lock it to this
  * business. Used when the local pool is empty so activation never waits on a
  * human. Returns null when nothing is for sale or the purchase fails (the
