@@ -20,13 +20,13 @@ export const Route = createFileRoute("/pricing")({
   ),
   head: () => ({
     meta: [
-      { title: "Pricing — BookedSecure for mobile detailers" },
+      { title: "Pricing — BookedSecure for service businesses" },
       {
         name: "description",
         content:
           "Two simple plans. Your own Australian number, an assistant that answers every enquiry in seconds, automatic follow-ups and a booking link. From $200 a month.",
       },
-      { property: "og:title", content: "Pricing — BookedSecure for mobile detailers" },
+      { property: "og:title", content: "Pricing — BookedSecure for service businesses" },
       {
         property: "og:description",
         content:
