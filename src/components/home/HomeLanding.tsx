@@ -148,7 +148,7 @@ export function HomeLanding() {
           <div className="mx-auto max-w-6xl px-4 py-14">
             <h2 className="text-center text-2xl font-semibold sm:text-3xl">Who it is for</h2>
             <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground">
-              Australian detailing businesses that receive enquiries from websites, social media,
+              Australian service businesses that receive enquiries from websites, social media,
               Google, quote forms, phone calls and referrals.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
