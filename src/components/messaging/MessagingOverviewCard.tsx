@@ -30,6 +30,10 @@ export function MessagingOverviewCard() {
     queryFn: () => fetchAccount(),
   });
 
+  // Credits and plan changes land from payments and sends, so keep this live.
+  useBillingRealtime(data?.business?.id ?? null);
+
+
   const pauseMutation = useMutation({
     mutationFn: (paused: boolean) => pauseSending({ data: { paused } }),
     onSuccess: (result) => {
