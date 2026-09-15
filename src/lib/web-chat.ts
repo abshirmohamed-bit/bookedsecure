@@ -418,7 +418,7 @@ export function reviewSummary(
           },
         ]
       : []),
-    { step: "vehicle", label: "Vehicle", value: collected.vehicle_type ?? "—" },
+    { step: "vehicle", label: tenant?.quoteSubjectLabel ?? "Vehicle", value: collected.vehicle_type ?? "—" },
     { step: "suburb", label: "Suburb", value: collected.suburb ?? "—" },
     { step: "address", label: "Address", value: collected.service_address ?? "—" },
     { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "—" },
