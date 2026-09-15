@@ -191,7 +191,7 @@ function LeadDetail() {
               <Detail label="Email" value={lead.email} />
               <Detail label="Suburb" value={lead.suburb} />
               <Detail label="Address" value={lead.service_address} />
-              <Detail label="Vehicle" value={lead.vehicle_type} />
+              <Detail label={subjectLabel} value={lead.vehicle_type} />
               <Detail label="Added" value={new Date(lead.created_at).toLocaleString("en-AU")} />
             </dl>
 
