@@ -34,7 +34,7 @@ export const Route = createFileRoute("/leads/deleted")({
       { property: "og:title", content: "Deleted leads — BookedSecure" },
       {
         property: "og:description",
-        content: "Review and restore removed detailing leads without losing any history.",
+        content: "Review and restore removed leads without losing any history.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
