@@ -37,7 +37,7 @@ export const Route = createFileRoute("/leads/$leadId")({
       {
         name: "description",
         content:
-          "Review the SMS conversation, AI summary and suggested reply for a detailing enquiry, and record the completed job.",
+          "Review the SMS conversation, AI summary and suggested reply for a customer enquiry, and record the completed job.",
       },
       { property: "og:title", content: "Lead conversation — BookedSecure" },
       {
