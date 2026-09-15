@@ -29,8 +29,13 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
   });
 
   const claim = useMutation({
-    mutationFn: (input: { number: string; monthlyCostCents?: number; alreadyPurchased?: boolean }) =>
-      claimNumber({ data: input }),
+    mutationFn: (input: {
+      number: string;
+      monthlyCostCents?: number;
+      alreadyPurchased?: boolean;
+      providerRef?: string;
+    }) => claimNumber({ data: input }),
+
     onSuccess: (result) => {
       if (result.ok) {
         toast.success(`${result.number} is now your number for new conversations.`);
