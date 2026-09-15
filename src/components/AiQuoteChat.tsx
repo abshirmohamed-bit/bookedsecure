@@ -469,6 +469,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                 options={serviceOptions}
                                 busy={busy}
                                 flexibleValue={FLEXIBLE_CHOICE}
+                                quantityLabel={tenant.quoteSubjectLabel}
                                 onSubmit={(value, label) => {
                                    setSelected(value);
                                    // Keep the tapped cards so the customer's own
