@@ -34,6 +34,10 @@ export type PublicTenant = {
   privacyPolicyUrl: string | null;
   flexibleRequestsEnabled: boolean;
   quoteMode: QuoteMode;
+  /** Customer-facing label for the item being serviced (e.g. Vehicle, Property, Lawn). */
+  quoteSubjectLabel: string;
+  /** Dropdown options for the quote subject. */
+  quoteSubjectOptions: string[];
   services: PublicService[];
   /** The tenant's own active add-on extras, each linked to their services. */
   addons: ServiceAddon[];
