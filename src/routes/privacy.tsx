@@ -34,8 +34,8 @@ function PrivacyPage() {
         </header>
         <div className="panel mt-4 space-y-4 p-5 text-sm text-muted-foreground sm:p-7">
           <p>
-            When you submit a detailing enquiry, the business collects your name, mobile number,
-            suburb and vehicle details so we can respond and recommend a suitable service.
+            When you submit a service enquiry, the business collects your name, mobile number,
+            suburb and item details so we can respond and recommend a suitable service.
           </p>
           <p>
             We send SMS messages about your enquiry, including a short follow-up if we don't hear
