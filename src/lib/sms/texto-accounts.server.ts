@@ -665,24 +665,43 @@ export async function claimDedicatedNumber(input: {
   const alreadyOwned = existingRow?.assigned_business_id === input.businessId;
 
   // `alreadyPurchased` is the manual fallback: the number was bought directly
-  // in the provider's dashboard, so only the local wiring is missing.
+  // in the provider's dashboard, so only the local wiring is missing. We check
+  // the provider really holds it before wiring it up, so a typo or a number
+  // that was never bought cannot be attached to the business.
+  if (!alreadyOwned && input.alreadyPurchased && liveAccountProvisioning()) {
+    const held = await numbersHeldAtProvider().catch(() => null);
+    if (held && !held.includes(number)) {
+      await auditEvent({
+        businessId: input.businessId,
+        eventType: "texto_number_connect_rejected",
+        metadata: { number, held_count: held.length },
+      });
+      return {
+        ok: false,
+        reason: "The provider does not show that number on your account yet.",
+        detail: "Buy it in the provider's dashboard first, then connect it here.",
+      };
+    }
+  }
+
   if (!alreadyOwned && !input.alreadyPurchased) {
     try {
-      await purchaseNumberFromTexto(number);
+      await purchaseNumberFromTexto(number, input.providerRef);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       await auditEvent({
         businessId: input.businessId,
         eventType: "texto_number_purchase_failed",
-        metadata: { number, detail },
+        metadata: { number, detail, provider_ref: input.providerRef ?? null },
       });
       return {
         ok: false,
-        reason: "The number provider would not complete the purchase.",
+        reason: "The number could not be bought automatically.",
         detail,
       };
     }
   }
+
 
   const { data: row } = await supabaseAdmin
     .from("texto_numbers")
