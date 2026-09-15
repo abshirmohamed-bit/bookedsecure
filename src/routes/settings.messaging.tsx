@@ -11,7 +11,7 @@ export const Route = createFileRoute("/settings/messaging")({
       {
         name: "description",
         content:
-          "Sending number, SMS signature, quiet hours and the SMS provider used to reply to detailing enquiries.",
+          "Sending number, SMS signature, quiet hours and the SMS provider used to reply to enquiries.",
       },
       { property: "og:title", content: "Messaging — BookedSecure" },
       {

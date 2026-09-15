@@ -28,7 +28,6 @@ import {
   type WebChatTenant,
   chosenServicesText,
 } from "@/lib/web-chat";
-import { quoteSubjectLabel } from "@/lib/domain";
 import {
   AMBIGUOUS_CORRECTION_MESSAGE,
   FIELD_LABELS,

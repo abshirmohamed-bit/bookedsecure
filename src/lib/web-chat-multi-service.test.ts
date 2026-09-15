@@ -15,6 +15,7 @@ const WAX = "33333333-3333-3333-3333-333333333333";
 const tenant: WebChatTenant = {
   name: "Any Detailing Co",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   services: [
     {
       id: INTERIOR,

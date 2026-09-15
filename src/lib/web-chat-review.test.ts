@@ -12,6 +12,7 @@ import { CORRECTABLE_STEPS, detectCorrection, parseChangeDirective } from "@/lib
 const tenant: WebChatTenant = {
   name: "Glocast Detailing",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   services: [
     {
       id: "11111111-1111-1111-1111-111111111111",

@@ -15,6 +15,7 @@ import { applyAnswer, nextStep, promptFor, type WebChatCollected, type WebChatTe
 const tenant: WebChatTenant = {
   name: "Glocast Detailing",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   services: [
     {
       id: "710cdf04-aae0-48e3-b84a-0e01ccec1da8",

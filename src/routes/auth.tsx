@@ -15,7 +15,7 @@ export const Route = createFileRoute("/auth")({
       { title: "Sign in — BookedSecure" },
       {
         name: "description",
-        content: "Sign in to your SMS lead response dashboard to manage detailing enquiries.",
+        content: "Sign in to your SMS lead response dashboard to manage customer enquiries.",
       },
       { property: "og:title", content: "Sign in — BookedSecure" },
       {
@@ -89,7 +89,7 @@ function AuthPage() {
         <div className="font-heading text-lg font-semibold">BookedSecure</div>
         <div className="max-w-xl">
           <p className="text-sm font-medium text-primary">
-            Lead operations for detailing businesses
+            Lead operations for service businesses
           </p>
           <h1 className="mt-4 font-heading text-5xl font-semibold leading-tight">
             Keep every enquiry moving towards a booking.

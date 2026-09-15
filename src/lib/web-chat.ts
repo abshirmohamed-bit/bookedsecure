@@ -1049,7 +1049,8 @@ export function applyAnswer(
       return { ok: true, collected: next, echo: matched.map((addon) => addon.name).join(", ") };
     }
     case "vehicle": {
-      if (value.length < 2) return { ok: false, error: "Please tell me the vehicle type." };
+      const subject = tenant.quoteSubjectLabel?.toLowerCase() ?? "vehicle";
+      if (value.length < 2) return { ok: false, error: `Please tell me the ${subject} type.` };
       const rejection = shapeRejection("vehicle", value);
       if (rejection) return { ok: false, error: rejection };
       next.vehicle_type = value;

@@ -12,7 +12,7 @@ export const Route = createFileRoute("/privacy")({
       { property: "og:title", content: "Privacy & SMS consent — BookedSecure" },
       {
         property: "og:description",
-        content: "Privacy and SMS opt-out information for detailing enquiries.",
+        content: "Privacy and SMS opt-out information for service enquiries.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -34,8 +34,8 @@ function PrivacyPage() {
         </header>
         <div className="panel mt-4 space-y-4 p-5 text-sm text-muted-foreground sm:p-7">
           <p>
-            When you submit a detailing enquiry, the business collects your name, mobile number,
-            suburb and vehicle details so we can respond and recommend a suitable service.
+            When you submit a service enquiry, the business collects your name, mobile number,
+            suburb and item details so we can respond and recommend a suitable service.
           </p>
           <p>
             We send SMS messages about your enquiry, including a short follow-up if we don't hear

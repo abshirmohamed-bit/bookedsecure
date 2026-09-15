@@ -697,7 +697,7 @@ function JobPanel({
           service_performed:
             form.service_performed ||
             services.find((service) => service.id === form.service_id)?.name ||
-            "Detailing service",
+            "Service",
           completed_at: form.completed_at,
           completed_value: Number(form.completed_value),
           notes: form.notes || null,

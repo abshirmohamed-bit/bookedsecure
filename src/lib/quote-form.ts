@@ -11,9 +11,9 @@ export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
 };
 
 export const REQUEST_TYPE_HELP: Record<RequestType, string> = {
-  quote: "Tell us about the vehicle and we'll text back with the right option.",
+  quote: "Tell us about the job and we'll text back with the right option.",
   service: "Pick the service you want, or describe it if you're not sure.",
-  recommendation: "Describe the condition and we'll suggest what suits it best.",
+  recommendation: "Describe what you need and we'll suggest what suits it best.",
 };
 
 export function isRequestType(value: unknown): value is RequestType {

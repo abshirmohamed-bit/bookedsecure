@@ -9,6 +9,7 @@ const TENANT: WebChatTenant = {
   name: "Glocast",
   serviceArea: "Sydney metro",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   services: [
     { id: "s-pet", name: "Pet Hair & Odour Treatment", priceGuidance: null, durationMinutes: 60 },
     { id: "s-int", name: "Full Interior Detail", priceGuidance: null, durationMinutes: 120 },

@@ -43,11 +43,13 @@ export function ServiceChooser({
   options,
   busy,
   flexibleValue,
+  quantityLabel = "Vehicle",
   onSubmit,
 }: {
   options: ServiceOption[];
   busy: boolean;
   flexibleValue: string;
+  quantityLabel?: string;
   onSubmit: (value: string, label: string) => void;
 }) {
   const services = options.filter((option) => option.value !== flexibleValue);
@@ -399,25 +401,25 @@ export function ServiceChooser({
                     <span
                       className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card"
                       role="group"
-                      aria-label={`Vehicles for ${option.label}`}
+                      aria-label={`${quantityLabel}s for ${option.label}`}
                     >
                       <button
                         type="button"
                         disabled={busy || count <= 1}
                         onClick={() => adjustQuantity(option.value, -1)}
-                        aria-label={`Fewer vehicles for ${option.label}`}
+                        aria-label={`Fewer ${quantityLabel.toLowerCase()}s for ${option.label}`}
                         className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
                       >
                         <Minus className="h-3 w-3" aria-hidden="true" />
                       </button>
                       <span className="min-w-[3.4rem] text-center text-[0.65rem] font-semibold text-foreground">
-                        {count} {count === 1 ? "vehicle" : "vehicles"}
+                        {count} {count === 1 ? quantityLabel.toLowerCase() : `${quantityLabel.toLowerCase()}s`}
                       </span>
                       <button
                         type="button"
                         disabled={busy || count >= MAX_SERVICE_QUANTITY}
                         onClick={() => adjustQuantity(option.value, 1)}
-                        aria-label={`More vehicles for ${option.label}`}
+                        aria-label={`More ${quantityLabel.toLowerCase()}s for ${option.label}`}
                         className="grid h-7 w-7 place-items-center text-foreground disabled:opacity-40"
                       >
                         <Plus className="h-3 w-3" aria-hidden="true" />

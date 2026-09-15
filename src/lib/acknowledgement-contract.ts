@@ -3,7 +3,7 @@
 // only when it matches the frozen contract exactly.
 
 export const ACKNOWLEDGEMENT_TEMPLATE =
-  "Hi {{first_name}}, thanks for contacting {{business_name}}. We've received your detailing enquiry. Reply with your vehicle type and main concern so we can help. Reply STOP to opt out.";
+  "Hi {{first_name}}, thanks for contacting {{business_name}}. We've received your service enquiry. Reply with the type of item and your main concern so we can help. Reply STOP to opt out.";
 
 const PHOTO_PATTERN = /\bphoto|\bpic(?:ture)?s?\b|\bimage\b/i;
 

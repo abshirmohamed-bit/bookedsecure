@@ -5,6 +5,7 @@ import { matchOfferByText, NO_SLOT_CHOICE, type PilotOffer } from "@/lib/web-cha
 const tenant: WebChatTenant = {
   name: "Glocast",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   bookingEnabled: true,
   services: [
     {

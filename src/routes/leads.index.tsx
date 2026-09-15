@@ -14,7 +14,7 @@ export const Route = createFileRoute("/leads/")({
       { property: "og:title", content: "Lead inbox — BookedSecure" },
       {
         property: "og:description",
-        content: "See which detailing enquiries need attention and how they are converting.",
+        content: "See which enquiries need attention and how they are converting.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

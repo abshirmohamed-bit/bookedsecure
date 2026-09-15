@@ -85,6 +85,7 @@ describe("customer-facing boundaries apply the sanitizer", () => {
       { id: "s1", name: "Full Interior Detail — deep clean", description: null } as never,
     ],
     flexibleRequestsEnabled: false,
+    quoteSubjectLabel: "Vehicle",
   } as never;
 
   it("cleans quote chat prompts", () => {

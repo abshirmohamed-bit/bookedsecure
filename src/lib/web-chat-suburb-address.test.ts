@@ -8,6 +8,7 @@ import { applyAnswer, nextStep, splitSuburbAddress, type WebChatTenant } from "@
 const tenant: WebChatTenant = {
   name: "Coastal Shine Detailing",
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   services: [
     {
       id: "s1",

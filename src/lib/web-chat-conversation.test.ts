@@ -43,6 +43,7 @@ const TENANT: WebChatTenant = {
     { id: "s-ext", name: "Exterior Wash", description: null },
   ],
   flexibleRequestsEnabled: true,
+  quoteSubjectLabel: "Vehicle",
   bookingEnabled: true,
 } as unknown as WebChatTenant;
 
