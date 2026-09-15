@@ -1068,6 +1068,20 @@ export async function sendSms(input: {
   // this only writes the audit trail so the account history stays complete.
   if (creditsSpent > 0) {
     await recordMessageSpend(input.businessId, creditsSpent);
+  } else {
+    // Sent out of the plan's included allowance: the provider still charges the
+    // platform for it, so book that cost against this tenant. Credit-funded
+    // texts are not booked here — their cost was booked when the pack was paid.
+    try {
+      const { recordIncludedMessageCost } = await import("@/lib/provider-costs.server");
+      await recordIncludedMessageCost({
+        businessId: input.businessId,
+        messageId,
+        segments,
+      });
+    } catch (error) {
+      console.error("[lead-engine] provider cost bookkeeping failed:", error);
+    }
   }
 
   const leadUpdate: Record<string, unknown> = {

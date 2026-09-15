@@ -42,6 +42,7 @@ import { Route as SettingsTeamRouteImport } from './routes/settings.team'
 import { Route as UnfinishedIndexRouteImport } from './routes/unfinished.index'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
+import { Route as ApiPublicHooksProviderStatementsRouteImport } from './routes/api/public/hooks/provider-statements'
 import { Route as ApiPublicHooksTopupExpiryRouteImport } from './routes/api/public/hooks/topup-expiry'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -220,6 +221,12 @@ const ApiPublicHooksPilotExpiryRoute =
     path: '/api/public/hooks/pilot-expiry',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksProviderStatementsRoute =
+  ApiPublicHooksProviderStatementsRouteImport.update({
+    id: '/api/public/hooks/provider-statements',
+    path: '/api/public/hooks/provider-statements',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksTopupExpiryRoute =
   ApiPublicHooksTopupExpiryRouteImport.update({
     id: '/api/public/hooks/topup-expiry',
@@ -316,6 +323,7 @@ export interface FileRoutesByFullPath {
   '/unfinished/': typeof UnfinishedIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
+  '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -361,6 +369,7 @@ export interface FileRoutesByTo {
   '/unfinished': typeof UnfinishedIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
+  '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -408,6 +417,7 @@ export interface FileRoutesById {
   '/unfinished/': typeof UnfinishedIndexRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
+  '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -456,6 +466,7 @@ export interface FileRouteTypes {
     | '/unfinished/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
+    | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
     | '/api/public/leads/intake'
     | '/api/public/payments/webhook'
@@ -501,6 +512,7 @@ export interface FileRouteTypes {
     | '/unfinished'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
+    | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
     | '/api/public/leads/intake'
     | '/api/public/payments/webhook'
@@ -547,6 +559,7 @@ export interface FileRouteTypes {
     | '/unfinished/'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
+    | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
     | '/api/public/leads/intake'
     | '/api/public/payments/webhook'
@@ -587,6 +600,7 @@ export interface RootRouteChildren {
   UnfinishedIndexRoute: typeof UnfinishedIndexRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
+  ApiPublicHooksProviderStatementsRoute: typeof ApiPublicHooksProviderStatementsRoute
   ApiPublicHooksTopupExpiryRoute: typeof ApiPublicHooksTopupExpiryRoute
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -833,6 +847,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksPilotExpiryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/provider-statements': {
+      id: '/api/public/hooks/provider-statements'
+      path: '/api/public/hooks/provider-statements'
+      fullPath: '/api/public/hooks/provider-statements'
+      preLoaderRoute: typeof ApiPublicHooksProviderStatementsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/topup-expiry': {
       id: '/api/public/hooks/topup-expiry'
       path: '/api/public/hooks/topup-expiry'
@@ -974,6 +995,7 @@ const rootRouteChildren: RootRouteChildren = {
   UnfinishedIndexRoute: UnfinishedIndexRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
+  ApiPublicHooksProviderStatementsRoute: ApiPublicHooksProviderStatementsRoute,
   ApiPublicHooksTopupExpiryRoute: ApiPublicHooksTopupExpiryRoute,
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,

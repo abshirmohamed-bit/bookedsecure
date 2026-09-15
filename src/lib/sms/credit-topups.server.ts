@@ -197,6 +197,21 @@ export async function handleCreditTopupSession(
     metadata: { credits: row.credits, amount_cents: row.amount_cents, currency: row.currency },
   });
 
+  // Book the provider's share of this payment against this tenant. Never let a
+  // bookkeeping fault undo credits the tenant has already paid for.
+  try {
+    const { settleCreditTopup } = await import("@/lib/provider-costs.server");
+    await settleCreditTopup({
+      businessId: row.business_id,
+      topupId: row.id,
+      credits: row.credits,
+      amountCents: row.amount_cents,
+      at: new Date(eventCreated * 1000),
+    });
+  } catch (error) {
+    console.error("[credit-topup] provider cost bookkeeping failed:", error);
+  }
+
   return { ok: true, detail: `Added ${row.credits} SMS credits` };
 }
 
