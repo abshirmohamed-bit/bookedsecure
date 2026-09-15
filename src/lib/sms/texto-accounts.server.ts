@@ -591,6 +591,7 @@ export async function claimDedicatedNumber(input: {
   businessId: string;
   number: string;
   monthlyCostCents?: number;
+  alreadyPurchased?: boolean;
 }): Promise<NumberClaimResult> {
   const number = input.number.startsWith("+")
     ? input.number
