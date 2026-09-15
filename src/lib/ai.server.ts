@@ -333,7 +333,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
   const ownerReview = Boolean((lead as { requires_owner_review?: boolean | null }).requires_owner_review);
 
   const system = [
-    "You assist an Australian mobile car detailing business with lead qualification.",
+    "You assist an Australian service business with lead qualification.",
     "You are an assistant, not the decision maker. A human always approves messages.",
     "Rules you must never break:",
     "- Never state, quote, estimate or imply a price, dollar figure, discount or deal.",
