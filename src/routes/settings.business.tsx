@@ -28,7 +28,7 @@ export const Route = createFileRoute("/settings/business")({
       {
         name: "description",
         content:
-          "Business name, service area, opening hours and the approved detailing service catalogue used in quotes.",
+          "Business name, service area, opening hours and the approved service catalogue used in quotes.",
       },
       { property: "og:title", content: "Business settings — BookedSecure" },
       {
