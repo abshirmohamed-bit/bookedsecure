@@ -12,6 +12,8 @@ import { CREDIT_PACKS, formatAud, type CreditPack } from "@/lib/sms/credit-packs
 import type { Plan } from "@/lib/plans";
 import { getStripe, getStripeEnvironment, isTestModePayments } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
+import { useBillingRealtime } from "@/hooks/useBillingRealtime";
+
 
 export const MY_BILLING_KEY = ["my-billing"] as const;
 /** Anchor used by other pages (Messaging) to land on the credit packs. */
@@ -42,6 +44,9 @@ type ActiveCheckout = { clientSecret: string; label: string; kind: "plan" | "cre
 export function BillingPanel() {
   const billing = useMyBilling();
   const queryClient = useQueryClient();
+  // Payments, credit packs and text charges all land from outside this screen.
+  useBillingRealtime(billing.data?.businessId ?? null);
+
   const checkout = useServerFn(startSubscriptionCheckout);
   const buyCredits = useServerFn(startCreditTopup);
   const portal = useServerFn(openBillingPortal);

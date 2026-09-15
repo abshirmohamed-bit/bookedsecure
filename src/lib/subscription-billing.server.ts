@@ -41,7 +41,18 @@ export async function resolveBusinessCustomer(
   input: { businessId: string; businessName: string | null; email: string | null },
 ): Promise<string> {
   const state = await getSubscriptionForBusiness(input.businessId);
-  if (state.stripeCustomerId) return state.stripeCustomerId;
+  if (state.stripeCustomerId) {
+    // A stored id belongs to whichever environment created it. Test-mode ids do
+    // not exist in live (and vice versa), so confirm it before reusing it —
+    // otherwise checkout fails with "No such customer".
+    try {
+      const stored = await stripe.customers.retrieve(state.stripeCustomerId);
+      if (!("deleted" in stored) || !stored.deleted) return state.stripeCustomerId;
+    } catch {
+      // Unknown in this environment: fall through and resolve a fresh customer.
+    }
+  }
+
   const found = await stripe.customers.search({
     query: `metadata['bookedsecureBusinessId']:'${input.businessId}'`,
     limit: 1,
