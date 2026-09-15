@@ -36,6 +36,7 @@ function MessagingSettingsPage() {
         {(data) => (
           <>
             <MessagingOverviewCard />
+            <DedicatedNumberPanel readOnly={data.role !== "owner"} />
             <BusinessSettingsForm
               business={data.business}
               readOnly={data.role !== "owner"}
