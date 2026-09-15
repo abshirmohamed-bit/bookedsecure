@@ -337,21 +337,21 @@ function ManualQuoteForm() {
 
           {step === 1 && (
             <div className="space-y-4">
-              <Field label="What type of vehicle is it?">
+              <Field label={`What type of ${subjectLabel.toLowerCase()} is it?`}>
                 <select
                   value={form.vehicle_type}
                   onChange={(event) => set("vehicle_type", event.target.value)}
                   className="form-control"
                 >
-                  <option value="">Select vehicle type</option>
-                  {VEHICLE_TYPES.map((type) => (
+                  <option value="">Select {subjectLabel.toLowerCase()} type</option>
+                  {subjectOptions.map((type) => (
                     <option key={type} value={type}>
                       {type}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Which suburb is the vehicle in?">
+              <Field label={`Which suburb is the ${subjectLabel.toLowerCase()} in?`}>
                 <input
                   value={form.suburb}
                   onChange={(event) => set("suburb", event.target.value)}
@@ -372,7 +372,7 @@ function ManualQuoteForm() {
 
           {step === 2 && (
             <div className="space-y-4">
-              <Field label="When was it last professionally or thoroughly cleaned?">
+              <Field label="When was it last professionally or thoroughly serviced?">
                 <select
                   value={form.last_cleaned_at}
                   onChange={(event) => set("last_cleaned_at", event.target.value)}
@@ -397,7 +397,7 @@ function ManualQuoteForm() {
                   value={form.main_concerns}
                   onChange={(event) => set("main_concerns", event.target.value)}
                   rows={3}
-                  placeholder="Interior, exterior, stains, odour, paint, pet hair, something else…"
+                  placeholder="Tell us what matters most for this job…"
                   className="form-control min-h-24 py-2"
                 />
               </Field>
