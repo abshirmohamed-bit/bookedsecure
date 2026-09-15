@@ -12,6 +12,8 @@ import { CREDIT_PACKS, formatAud, type CreditPack } from "@/lib/sms/credit-packs
 import type { Plan } from "@/lib/plans";
 import { getStripe, getStripeEnvironment, isTestModePayments } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
+import { useBillingRealtime } from "@/hooks/useBillingRealtime";
+
 
 export const MY_BILLING_KEY = ["my-billing"] as const;
 /** Anchor used by other pages (Messaging) to land on the credit packs. */
