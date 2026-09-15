@@ -42,6 +42,9 @@ type ActiveCheckout = { clientSecret: string; label: string; kind: "plan" | "cre
 export function BillingPanel() {
   const billing = useMyBilling();
   const queryClient = useQueryClient();
+  // Payments, credit packs and text charges all land from outside this screen.
+  useBillingRealtime(billing.data?.businessId ?? null);
+
   const checkout = useServerFn(startSubscriptionCheckout);
   const buyCredits = useServerFn(startCreditTopup);
   const portal = useServerFn(openBillingPortal);
