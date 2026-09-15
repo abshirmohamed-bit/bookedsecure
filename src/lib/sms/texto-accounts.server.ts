@@ -322,13 +322,20 @@ async function ensurePrimarySender(
   businessId: string,
   accountId: string,
   phoneNumber: string,
+  options: { deactivateOtherSenders?: boolean } = {},
 ): Promise<void> {
   // Switch this business (and only this business) over: every other sender it
-  // had — Telnyx, Twilio, simulated — stops being primary and is deactivated so
-  // the tenant's dedicated Texto number is the one every outbound text uses.
+  // had — Telnyx, Twilio, simulated — stops being primary, so the dedicated
+  // Texto number is what every new conversation goes out from. Older numbers
+  // stay active by default so replies to texts already sent from them still
+  // reach this business and existing threads keep their original number.
   await supabaseAdmin
     .from("sms_senders")
-    .update({ is_primary: false, active: false, updated_at: nowIso() })
+    .update({
+      is_primary: false,
+      ...(options.deactivateOtherSenders ? { active: false } : {}),
+      updated_at: nowIso(),
+    })
     .eq("business_id", businessId)
     .neq("phone_number", phoneNumber);
 
