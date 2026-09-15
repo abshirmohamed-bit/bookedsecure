@@ -71,6 +71,8 @@ export type WebChatTenant = {
   flexibleRequestsEnabled: boolean;
   /** True when this tenant takes real bookings in the conversation. */
   bookingEnabled?: boolean;
+  /** Customer-facing label for the item being serviced (e.g. Vehicle, Property). */
+  quoteSubjectLabel: string;
   services: WebChatService[];
   /** The tenant's own add-on extras, each linked to their approved services. */
   addons?: ServiceAddon[];
