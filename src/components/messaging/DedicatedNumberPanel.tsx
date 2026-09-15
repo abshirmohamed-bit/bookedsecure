@@ -21,6 +21,7 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
   const queryClient = useQueryClient();
   const [browsing, setBrowsing] = useState(false);
   const [manualNumber, setManualNumber] = useState("");
+  const [needsCard, setNeedsCard] = useState(false);
 
   const available = useQuery({
     queryKey: ["purchasable-numbers"],
