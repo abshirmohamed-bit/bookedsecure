@@ -7,7 +7,7 @@ import {
 import { firstName, renderTemplate } from "@/lib/domain";
 
 const EXPECTED =
-  "Hi Usamah, thanks for contacting Glocast. We've received your service enquiry. Reply with the type of item and your main concern so we can help. Reply STOP to opt out.;
+  "Hi Usamah, thanks for contacting Glocast. We've received your service enquiry. Reply with the type of item and your main concern so we can help. Reply STOP to opt out.";
 
 describe("acknowledgement contract", () => {
   it("renders the exact live acknowledgement text", () => {
