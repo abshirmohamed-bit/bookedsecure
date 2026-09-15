@@ -550,19 +550,28 @@ function isRouteUnavailable(message: string): boolean {
   return message.includes("[404]") && message.includes("available_routes");
 }
 
+/** True when the provider has no card on file for API number purchases. */
+export function isMissingProviderPaymentMethod(message: string): boolean {
+  return message.includes("no_payment_method") || message.includes("No payment method registered");
+}
+
 /**
- * Buy a dedicated number from Texto. `POST /numbers/purchase` is advertised in
- * the provider's route manifest but is not served on this account: every body
- * shape returns the router's catch-all 404 while other POST routes answer
- * normally. We still try the documented shapes (in case it is switched on for
- * this account later) and, when the route itself is unavailable, raise a clear
- * error pointing at the manual purchase fallback.
+ * Buy a dedicated number from Texto via the documented `POST /numbers/purchase`
+ * ({ number, label }). Older bodies are kept as fallbacks in case the route is
+ * served by an older build. Two failures get their own plain-language error:
+ * the route being switched off, and no card registered at the provider (which
+ * only clears once one number has been bought in the provider's own dashboard).
  */
-export async function purchaseNumberFromTexto(number: string, providerRef?: string): Promise<void> {
+export async function purchaseNumberFromTexto(
+  number: string,
+  providerRef?: string,
+  label?: string,
+): Promise<void> {
   if (!liveAccountProvisioning()) {
     throw new TextoAccountError("Live Texto account operations are disabled.", "disabled");
   }
   const bodies: Record<string, unknown>[] = [
+    { number, ...(label ? { label } : {}) },
     { number },
     { numbers: [number] },
     { msisdn: number },
