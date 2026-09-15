@@ -592,6 +592,9 @@ export async function purchaseNumberFromTexto(
     }
   }
   const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  if (isMissingProviderPaymentMethod(detail)) {
+    throw new TextoAccountError("no_payment_method", "no_payment_method");
+  }
   if (isRouteUnavailable(detail)) {
     throw new TextoAccountError(
       "The provider's buy-a-number service is not switched on for this account, so the number could not be bought automatically. Buy it in the provider's own dashboard and connect it here.",
