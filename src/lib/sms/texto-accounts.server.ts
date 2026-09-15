@@ -522,8 +522,7 @@ export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
   return out;
 }
 
-  return out;
-}
+
 
 /** Numbers the provider says this account actually holds (`GET /numbers`). */
 export async function numbersHeldAtProvider(): Promise<string[]> {
