@@ -116,8 +116,9 @@ export function HomeLanding() {
           <div className="mx-auto max-w-3xl px-4 py-14 text-center">
             <h2 className="text-2xl font-semibold sm:text-3xl">What BookedSecure does</h2>
             <p className="mt-4 text-base text-muted-foreground">
-              It is follow-up software built for detailers. Enquiries are captured, acknowledged and
-              tracked automatically, so you spend less time chasing and more time detailing.
+              It is follow-up software built for owner-operated service businesses. Enquiries are
+              captured, acknowledged and tracked automatically, so you spend less time chasing and
+              more time working.
             </p>
           </div>
         </section>
