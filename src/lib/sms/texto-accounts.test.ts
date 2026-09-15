@@ -534,7 +534,7 @@ describe("texto reporting", () => {
 });
 
 describe("sender switch-over", () => {
-  it("deactivates the tenant's previous carrier sender only once a Texto number is assigned", async () => {
+  it("demotes the tenant's previous carrier sender but keeps it receiving replies", async () => {
     store.sms_senders.push({ id: "s-old", business_id: "biz-1", phone_number: "+61400000001", provider: "telnyx", is_primary: true, active: true });
     store.sms_senders.push({ id: "s-other", business_id: "biz-2", phone_number: "+61400000002", provider: "telnyx", is_primary: true, active: true });
 
@@ -546,7 +546,9 @@ describe("sender switch-over", () => {
     const done = await provisionTextoAccount({ businessId: "biz-1", businessName: "A", ownerEmail: "a@x.com" });
     expect(done.ok).toBe(true);
     const old = store.sms_senders.find((s) => s.id === "s-old");
-    expect(old.active).toBe(false);
+    // Still active so replies to texts already sent from it keep arriving,
+    // but no longer the number new conversations go out from.
+    expect(old.active).toBe(true);
     expect(old.is_primary).toBe(false);
     // Another tenant's sender is untouched.
     expect(store.sms_senders.find((s) => s.id === "s-other").active).toBe(true);
