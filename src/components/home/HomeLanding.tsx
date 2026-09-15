@@ -30,12 +30,12 @@ const STEPS = [
 ];
 
 const AUDIENCE = [
-  "Mobile detailing businesses",
+  "Mobile service businesses",
+  "Cleaning, lawn and garden operators",
+  "Trades and sole traders",
   "Automotive detailing studios",
-  "Paint correction specialists",
-  "Ceramic coating businesses",
-  "Interior detailing operators",
   "Owner-operators and small teams",
+  "Anyone who books jobs from enquiries",
 ];
 
 export function HomeLanding() {
