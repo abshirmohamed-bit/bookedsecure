@@ -106,6 +106,8 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     flexibleRequestsEnabled: business.flexible_requests_enabled !== false,
     // Unknown / missing mode never fails open into the AI experience.
     quoteMode: resolveQuoteMode(business.quote_mode),
+    quoteSubjectLabel: quoteSubjectLabel(business.quote_subject_label),
+    quoteSubjectOptions: quoteSubjectOptions(business.quote_subject_options),
     services: (services ?? []).map((service) => ({
       id: service.id,
       name: service.name,
