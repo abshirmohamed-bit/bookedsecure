@@ -520,20 +520,74 @@ export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
   return out;
 }
 
+/** Numbers the provider says this account actually holds (`GET /numbers`). */
+export async function numbersHeldAtProvider(): Promise<string[]> {
+  if (!liveAccountProvisioning()) return [];
+  const body = await textoRequest<AvailableNumberListing | unknown[]>("/numbers", { method: "GET" });
+  const entries = Array.isArray(body) ? body : (body.numbers ?? []);
+  const out: string[] = [];
+  for (const entry of entries) {
+    const record = entry !== null && typeof entry === "object" ? (entry as Record<string, unknown>) : null;
+    const raw =
+      typeof entry === "string"
+        ? entry
+        : ((record?.["number"] ?? record?.["phone"] ?? record?.["e164"] ?? record?.["msisdn"] ?? null) as
+            | string
+            | null);
+    if (typeof raw === "string" && raw.length > 0) {
+      out.push(raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`);
+    }
+  }
+  return out;
+}
+
+/** True when the provider replied with its catch-all "route not found" page. */
+function isRouteUnavailable(message: string): boolean {
+  return message.includes("[404]") && message.includes("available_routes");
+}
+
 /**
- * Buy a dedicated number from Texto (`POST /numbers/purchase`). The route is
- * confirmed by Texto's live router even though the published spec omits it;
- * the body is the plain E.164 number, matching the assign/recall payloads.
+ * Buy a dedicated number from Texto. `POST /numbers/purchase` is advertised in
+ * the provider's route manifest but is not served on this account: every body
+ * shape returns the router's catch-all 404 while other POST routes answer
+ * normally. We still try the documented shapes (in case it is switched on for
+ * this account later) and, when the route itself is unavailable, raise a clear
+ * error pointing at the manual purchase fallback.
  */
-export async function purchaseNumberFromTexto(number: string): Promise<void> {
+export async function purchaseNumberFromTexto(number: string, providerRef?: string): Promise<void> {
   if (!liveAccountProvisioning()) {
     throw new TextoAccountError("Live Texto account operations are disabled.", "disabled");
   }
-  await textoRequest("/numbers/purchase", {
-    method: "POST",
-    body: JSON.stringify({ number }),
-  });
+  const bodies: Record<string, unknown>[] = [
+    { number },
+    { numbers: [number] },
+    { msisdn: number },
+    ...(providerRef ? [{ id: providerRef }, { number_id: providerRef }] : []),
+  ];
+  let lastError: unknown;
+  for (const body of bodies) {
+    try {
+      await textoRequest("/numbers/purchase", { method: "POST", body: JSON.stringify(body) });
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[texto] purchase attempt failed for ${number} with ${JSON.stringify(body)}: ${message}`);
+      // A route-level 404 will repeat for every body shape; a real rejection
+      // (400/409/insufficient funds) should stop us trying other shapes.
+      if (!isRouteUnavailable(message)) break;
+    }
+  }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  if (isRouteUnavailable(detail)) {
+    throw new TextoAccountError(
+      "The provider's buy-a-number service is not switched on for this account, so the number could not be bought automatically. Buy it in the provider's own dashboard and connect it here.",
+      "provider_error",
+    );
+  }
+  throw lastError instanceof Error ? lastError : new TextoAccountError(detail, "provider_error");
 }
+
 
 /**
  * Buy a fresh number straight from Texto's for-sale list and lock it to this
