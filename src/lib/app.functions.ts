@@ -589,6 +589,8 @@ export const saveBusinessSettings = createServerFn({ method: "POST" })
         default_sms_provider: z.enum(["simulated", "twilio", "telnyx"]),
         quiet_hours_start: z.number().int().min(0).max(23),
         quiet_hours_end: z.number().int().min(0).max(23),
+        quote_subject_label: z.string().max(40).nullable(),
+        quote_subject_options: z.array(z.string().max(80)).max(50).nullable(),
       })
       .parse(input),
   )
