@@ -85,6 +85,9 @@ function TenantQuotePage() {
 
 function ManualQuoteForm() {
   const tenant = Route.useLoaderData();
+  const subjectLabel = quoteSubjectLabel(tenant.quoteSubjectLabel);
+  const subjectOptions = quoteSubjectOptions(tenant.quoteSubjectOptions);
+  const STEPS = ["Request", subjectLabel, "Condition", "Contact"] as const;
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
