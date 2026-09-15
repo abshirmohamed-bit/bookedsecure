@@ -308,7 +308,9 @@ async function authorizeSubscribedSend(
   });
   return {
     allowed: false,
-    reason: `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Top up credits in Plan & billing to keep sending.`,
+    reason: period.included_segments > 0
+      ? `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Top up credits in Plan & billing to keep sending.`
+      : "You have no text credits left. Top up credits in Plan & billing to keep sending.",
   };
 }
 
@@ -414,7 +416,9 @@ export async function authorizeLiveSend(
     });
     return {
       allowed: false,
-      reason: `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Top up credits in Plan & billing to keep sending.`,
+      reason: period.included_segments > 0
+      ? `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Top up credits in Plan & billing to keep sending.`
+      : "You have no text credits left. Top up credits in Plan & billing to keep sending.",
     };
   }
 
