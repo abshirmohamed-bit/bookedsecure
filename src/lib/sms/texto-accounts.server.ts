@@ -513,7 +513,7 @@ export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
         ? entry
         : ((record?.["number"] ?? record?.["phone"] ?? record?.["e164"] ?? record?.["msisdn"] ?? null) as string | null);
     if (!raw || typeof raw !== "string") continue;
-    const number = raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`;
+    const number = toE164(raw);
     const price = record ? Number(record["price_monthly"] ?? record["monthly_price"] ?? 15) : 15;
     const monthly = Number.isFinite(price) ? Math.round(price * 100) : 1500;
     const providerRef = typeof record?.["id"] === "string" ? (record["id"] as string) : undefined;
@@ -539,7 +539,7 @@ export async function numbersHeldAtProvider(): Promise<string[]> {
             | string
             | null);
     if (typeof raw === "string" && raw.length > 0) {
-      out.push(raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`);
+      out.push(toE164(raw));
     }
   }
   return out;
@@ -676,9 +676,7 @@ export async function claimDedicatedNumber(input: {
   providerRef?: string;
 
 }): Promise<NumberClaimResult> {
-  const number = input.number.startsWith("+")
-    ? input.number
-    : `+${input.number.replace(/\D/g, "")}`;
+  const number = toE164(input.number);
   const account = await getOrCreateTextoAccount(input.businessId);
 
   const { data: existingRow } = await supabaseAdmin
