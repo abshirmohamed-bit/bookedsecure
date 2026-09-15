@@ -38,6 +38,10 @@ export type Business = {
   default_sms_provider: string;
   quiet_hours_start: number;
   quiet_hours_end: number;
+  /** Customer-facing label for the item being serviced (e.g. Vehicle, Property, Lawn). */
+  quote_subject_label: string | null;
+  /** Dropdown options for the quote subject, one per line. */
+  quote_subject_options: string[] | null;
 };
 
 export function useSettings() {
