@@ -513,7 +513,7 @@ export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
         ? entry
         : ((record?.["number"] ?? record?.["phone"] ?? record?.["e164"] ?? record?.["msisdn"] ?? null) as string | null);
     if (!raw || typeof raw !== "string") continue;
-    const number = raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`;
+    const number = toE164(raw);
     const price = record ? Number(record["price_monthly"] ?? record["monthly_price"] ?? 15) : 15;
     const monthly = Number.isFinite(price) ? Math.round(price * 100) : 1500;
     const providerRef = typeof record?.["id"] === "string" ? (record["id"] as string) : undefined;
@@ -539,7 +539,7 @@ export async function numbersHeldAtProvider(): Promise<string[]> {
             | string
             | null);
     if (typeof raw === "string" && raw.length > 0) {
-      out.push(raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`);
+      out.push(toE164(raw));
     }
   }
   return out;
@@ -548,6 +548,16 @@ export async function numbersHeldAtProvider(): Promise<string[]> {
 /** True when the provider replied with its catch-all "route not found" page. */
 function isRouteUnavailable(message: string): boolean {
   return message.includes("[404]") && message.includes("available_routes");
+}
+
+/**
+ * One canonical E.164 form for any number typed or returned by the provider.
+ * Spaces, dashes and brackets are stripped so "+61 412 345 678" and
+ * "+61412345678" are the same number everywhere (comparison, storage, inbound
+ * routing). Never store or compare an unnormalised number.
+ */
+export function toE164(raw: string): string {
+  return `+${raw.replace(/\D/g, "")}`;
 }
 
 /** True when the provider has no card on file for API number purchases. */
@@ -606,6 +616,22 @@ export async function purchaseNumberFromTexto(
 
 
 /**
+ * True when a purchase failure is about the account rather than the individual
+ * number, so trying a different number cannot possibly succeed.
+ */
+function isAccountLevelPurchaseFailure(error: unknown): boolean {
+  if (error instanceof TextoAccountError) {
+    if (error.code === "no_payment_method" || error.code === "disabled") return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    isRouteUnavailable(message) ||
+    isMissingProviderPaymentMethod(message) ||
+    message.includes("not switched on for this account")
+  );
+}
+
+/**
  * Buy a fresh number straight from Texto's for-sale list and lock it to this
  * business. Used when the local pool is empty so activation never waits on a
  * human. Returns null when nothing is for sale or the purchase fails (the
@@ -621,6 +647,10 @@ async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumbe
       await purchaseNumberFromTexto(candidate.number);
     } catch (error) {
       console.error(`[texto] purchase of ${candidate.number} failed:`, error);
+      // Account-level failures (buy route switched off, no card on file, live
+      // operations disabled) apply to every number for sale, so retrying the
+      // rest only multiplies identical provider errors. Stop at the first one.
+      if (isAccountLevelPurchaseFailure(error)) break;
       continue;
     }
     // Record it locally as already assigned so the pool stays truthful.
@@ -666,9 +696,7 @@ export async function claimDedicatedNumber(input: {
   providerRef?: string;
 
 }): Promise<NumberClaimResult> {
-  const number = input.number.startsWith("+")
-    ? input.number
-    : `+${input.number.replace(/\D/g, "")}`;
+  const number = toE164(input.number);
   const account = await getOrCreateTextoAccount(input.businessId);
 
   const { data: existingRow } = await supabaseAdmin
