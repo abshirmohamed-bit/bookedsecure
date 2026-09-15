@@ -631,6 +631,10 @@ async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumbe
       await purchaseNumberFromTexto(candidate.number);
     } catch (error) {
       console.error(`[texto] purchase of ${candidate.number} failed:`, error);
+      // Account-level failures (buy route switched off, no card on file, live
+      // operations disabled) apply to every number for sale, so retrying the
+      // rest only multiplies identical provider errors. Stop at the first one.
+      if (isAccountLevelPurchaseFailure(error)) break;
       continue;
     }
     // Record it locally as already assigned so the pool stays truthful.
