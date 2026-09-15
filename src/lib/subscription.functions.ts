@@ -74,8 +74,10 @@ export const getMyBilling = createServerFn({ method: "GET" })
     ]);
 
     return {
+      businessId: app.businessId,
       plan,
       plans,
+
       packs: [...packsFor(promo.creditPackSet)],
       promo,
       subscription,
