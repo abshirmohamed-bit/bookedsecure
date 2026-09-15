@@ -140,7 +140,7 @@ function LeadDetail() {
   if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
   if (!data?.lead) return <p className="text-sm text-muted-foreground">Lead not found.</p>;
 
-  const { lead, messages, conversation, ai, job, services, notifications, automationJobs } = data;
+  const { lead, messages, conversation, ai, job, services, notifications, automationJobs, quoteSubjectLabel: subjectLabel } = data;
 
   const initials = (lead.name ?? "")
     .split(/\s+/)
