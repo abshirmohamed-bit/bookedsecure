@@ -240,7 +240,7 @@ export function HomeLanding() {
                 </div>
                 <label className="block text-sm">
                   <span className="text-muted-foreground">
-                    What type of detailing work do you provide?
+                    What type of service work do you provide?
                   </span>
                   <textarea
                     name="services"
