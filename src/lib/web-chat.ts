@@ -545,7 +545,7 @@ function buildPrompt(
       };
     }
     case "vehicle":
-      return { step, kind: "text", text: "What's the vehicle? (make and model)" };
+      return { step, kind: "text", text: `What's the ${tenant.quoteSubjectLabel.toLowerCase()}?` };
     case "suburb":
       // Suburb and street address are asked together, the same way as name and
       // mobile. One answer can carry both, or just the suburb.
@@ -564,7 +564,7 @@ function buildPrompt(
       return {
         step,
         kind: "text",
-        text: "Anything we should focus on, like stains, pet hair or paint marks?",
+        text: "Anything we should focus on? Tell us what matters most for this job.",
       };
     case "name":
       return { step, kind: "text", text: CONTACT_ASK_TEXT };
