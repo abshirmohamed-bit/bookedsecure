@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { MessagingOverviewCard } from "@/components/messaging/MessagingOverviewCard";
+import { DedicatedNumberPanel } from "@/components/messaging/DedicatedNumberPanel";
 import { MessagingAdvanced } from "@/components/messaging/MessagingAdvanced";
 import { BusinessSettingsForm, SettingsPageBody } from "@/components/settings/sections";
 

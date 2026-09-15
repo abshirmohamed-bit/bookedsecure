@@ -29,7 +29,7 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
   });
 
   const claim = useMutation({
-    mutationFn: (input: { number: string; monthlyCostCents?: number }) =>
+    mutationFn: (input: { number: string; monthlyCostCents?: number; alreadyPurchased?: boolean }) =>
       claimNumber({ data: input }),
     onSuccess: (result) => {
       if (result.ok) {
@@ -117,7 +117,7 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
             <Button
               variant="secondary"
               disabled={claim.isPending || manualNumber.replace(/\D/g, "").length < 8}
-              onClick={() => claim.mutate({ number: manualNumber, alreadyPurchased: true } as never)}
+              onClick={() => claim.mutate({ number: manualNumber, alreadyPurchased: true })}
             >
               Connect it
             </Button>
