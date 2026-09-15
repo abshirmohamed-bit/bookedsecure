@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { getPublicQuoteForm, submitQuoteRequest } from "@/lib/public.functions";
-import { VEHICLE_TYPES, normaliseAuMobile } from "@/lib/domain";
+import { quoteSubjectLabel, quoteSubjectOptions, normaliseAuMobile } from "@/lib/domain";
 import { TenantMark } from "@/components/TenantMark";
 import { AiQuoteChat } from "@/components/AiQuoteChat";
 import {
