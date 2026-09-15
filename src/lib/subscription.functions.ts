@@ -10,6 +10,8 @@ import type { CreditPack } from "@/lib/sms/credit-packs";
 import type { AccessLevel, SubscriptionState } from "@/lib/subscription";
 
 export type MyBilling = {
+  /** This business's own id, used to watch its rows for live updates. */
+  businessId: string;
   plan: Plan;
   plans: Plan[];
   /** The credit packs this business may buy, at the price it pays. */
