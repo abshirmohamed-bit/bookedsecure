@@ -609,7 +609,9 @@ export async function claimDedicatedNumber(input: {
 
   const alreadyOwned = existingRow?.assigned_business_id === input.businessId;
 
-  if (!alreadyOwned) {
+  // `alreadyPurchased` is the manual fallback: the number was bought directly
+  // in the provider's dashboard, so only the local wiring is missing.
+  if (!alreadyOwned && !input.alreadyPurchased) {
     try {
       await purchaseNumberFromTexto(number);
     } catch (error) {
