@@ -477,12 +477,13 @@ async function recallTextoProviderNumber(subaccountId: string, number: string): 
 
 /* ------------------------------------------------------- self-serve numbers */
 
-export type PurchasableNumber = { number: string; monthlyCostCents: number };
+export type PurchasableNumber = { number: string; monthlyCostCents: number; providerRef?: string };
 
 type AvailableNumberListing = {
   numbers?: Array<
     | string
     | {
+        id?: string;
         number?: string;
         phone?: string;
         e164?: string;
@@ -515,25 +516,82 @@ export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
     const number = raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`;
     const price = record ? Number(record["price_monthly"] ?? record["monthly_price"] ?? 15) : 15;
     const monthly = Number.isFinite(price) ? Math.round(price * 100) : 1500;
-    out.push({ number, monthlyCostCents: monthly || 1500 });
+    const providerRef = typeof record?.["id"] === "string" ? (record["id"] as string) : undefined;
+    out.push({ number, monthlyCostCents: monthly || 1500, ...(providerRef ? { providerRef } : {}) });
   }
   return out;
 }
 
+
+
+/** Numbers the provider says this account actually holds (`GET /numbers`). */
+export async function numbersHeldAtProvider(): Promise<string[]> {
+  if (!liveAccountProvisioning()) return [];
+  const body = await textoRequest<AvailableNumberListing | unknown[]>("/numbers", { method: "GET" });
+  const entries = Array.isArray(body) ? body : (body.numbers ?? []);
+  const out: string[] = [];
+  for (const entry of entries) {
+    const record = entry !== null && typeof entry === "object" ? (entry as Record<string, unknown>) : null;
+    const raw =
+      typeof entry === "string"
+        ? entry
+        : ((record?.["number"] ?? record?.["phone"] ?? record?.["e164"] ?? record?.["msisdn"] ?? null) as
+            | string
+            | null);
+    if (typeof raw === "string" && raw.length > 0) {
+      out.push(raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`);
+    }
+  }
+  return out;
+}
+
+/** True when the provider replied with its catch-all "route not found" page. */
+function isRouteUnavailable(message: string): boolean {
+  return message.includes("[404]") && message.includes("available_routes");
+}
+
 /**
- * Buy a dedicated number from Texto (`POST /numbers/purchase`). The route is
- * confirmed by Texto's live router even though the published spec omits it;
- * the body is the plain E.164 number, matching the assign/recall payloads.
+ * Buy a dedicated number from Texto. `POST /numbers/purchase` is advertised in
+ * the provider's route manifest but is not served on this account: every body
+ * shape returns the router's catch-all 404 while other POST routes answer
+ * normally. We still try the documented shapes (in case it is switched on for
+ * this account later) and, when the route itself is unavailable, raise a clear
+ * error pointing at the manual purchase fallback.
  */
-export async function purchaseNumberFromTexto(number: string): Promise<void> {
+export async function purchaseNumberFromTexto(number: string, providerRef?: string): Promise<void> {
   if (!liveAccountProvisioning()) {
     throw new TextoAccountError("Live Texto account operations are disabled.", "disabled");
   }
-  await textoRequest("/numbers/purchase", {
-    method: "POST",
-    body: JSON.stringify({ number }),
-  });
+  const bodies: Record<string, unknown>[] = [
+    { number },
+    { numbers: [number] },
+    { msisdn: number },
+    ...(providerRef ? [{ id: providerRef }, { number_id: providerRef }] : []),
+  ];
+  let lastError: unknown;
+  for (const body of bodies) {
+    try {
+      await textoRequest("/numbers/purchase", { method: "POST", body: JSON.stringify(body) });
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[texto] purchase attempt failed for ${number} with ${JSON.stringify(body)}: ${message}`);
+      // A route-level 404 will repeat for every body shape; a real rejection
+      // (400/409/insufficient funds) should stop us trying other shapes.
+      if (!isRouteUnavailable(message)) break;
+    }
+  }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  if (isRouteUnavailable(detail)) {
+    throw new TextoAccountError(
+      "The provider's buy-a-number service is not switched on for this account, so the number could not be bought automatically. Buy it in the provider's own dashboard and connect it here.",
+      "provider_error",
+    );
+  }
+  throw lastError instanceof Error ? lastError : new TextoAccountError(detail, "provider_error");
 }
+
 
 /**
  * Buy a fresh number straight from Texto's for-sale list and lock it to this
@@ -592,6 +650,9 @@ export async function claimDedicatedNumber(input: {
   number: string;
   monthlyCostCents?: number;
   alreadyPurchased?: boolean;
+  /** Provider's own id for the for-sale listing, when the listing supplied one. */
+  providerRef?: string;
+
 }): Promise<NumberClaimResult> {
   const number = input.number.startsWith("+")
     ? input.number
@@ -611,24 +672,43 @@ export async function claimDedicatedNumber(input: {
   const alreadyOwned = existingRow?.assigned_business_id === input.businessId;
 
   // `alreadyPurchased` is the manual fallback: the number was bought directly
-  // in the provider's dashboard, so only the local wiring is missing.
+  // in the provider's dashboard, so only the local wiring is missing. We check
+  // the provider really holds it before wiring it up, so a typo or a number
+  // that was never bought cannot be attached to the business.
+  if (!alreadyOwned && input.alreadyPurchased && liveAccountProvisioning()) {
+    const held = await numbersHeldAtProvider().catch(() => null);
+    if (held && !held.includes(number)) {
+      await auditEvent({
+        businessId: input.businessId,
+        eventType: "texto_number_connect_rejected",
+        metadata: { number, held_count: held.length },
+      });
+      return {
+        ok: false,
+        reason: "The provider does not show that number on your account yet.",
+        detail: "Buy it in the provider's dashboard first, then connect it here.",
+      };
+    }
+  }
+
   if (!alreadyOwned && !input.alreadyPurchased) {
     try {
-      await purchaseNumberFromTexto(number);
+      await purchaseNumberFromTexto(number, input.providerRef);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       await auditEvent({
         businessId: input.businessId,
         eventType: "texto_number_purchase_failed",
-        metadata: { number, detail },
+        metadata: { number, detail, provider_ref: input.providerRef ?? null },
       });
       return {
         ok: false,
-        reason: "The number provider would not complete the purchase.",
+        reason: "The number could not be bought automatically.",
         detail,
       };
     }
   }
+
 
   const { data: row } = await supabaseAdmin
     .from("texto_numbers")
