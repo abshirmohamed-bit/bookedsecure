@@ -43,11 +43,13 @@ export function ServiceChooser({
   options,
   busy,
   flexibleValue,
+  quantityLabel = "Vehicle",
   onSubmit,
 }: {
   options: ServiceOption[];
   busy: boolean;
   flexibleValue: string;
+  quantityLabel?: string;
   onSubmit: (value: string, label: string) => void;
 }) {
   const services = options.filter((option) => option.value !== flexibleValue);
