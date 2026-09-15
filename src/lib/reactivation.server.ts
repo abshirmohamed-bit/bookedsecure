@@ -535,8 +535,10 @@ export async function bulkUpdateReactivationDrafts(input: {
     .in("id", uniqueDraftIds);
   if (error) throw new Error(error.message);
 
-  let updated = 0;
-  const updatedDrafts: Array<{ id: string; body: string }> = [];
+  // First pass: render and validate every selected message. Nothing is written
+  // until all of them pass, so a single over-long message can never leave the
+  // campaign half-rewritten.
+  const prepared: Array<{ id: string; body: string }> = [];
   for (const draft of drafts ?? []) {
     const lead = (draft as {
       leads?: { name?: string | null; public_token?: string | null } | null;
@@ -551,23 +553,35 @@ export async function bulkUpdateReactivationDrafts(input: {
     if (guarded.flagged.length > 0 || guarded.text.length > 320 || guarded.text.length < 2) {
       throw new Error(
         guarded.text.length > 320
-          ? "The personalised message is over 320 characters. Shorten the campaign text."
-          : "That campaign text includes unsupported pricing, timing, or booking claims.",
+          ? "The personalised message is over 320 characters for at least one contact, so no messages were changed. Shorten the campaign text."
+          : "That campaign text includes unsupported pricing, timing, or booking claims, so no messages were changed.",
       );
     }
+    prepared.push({ id: draft.id, body: guarded.text });
+  }
+
+  // Second pass: persist. Any write failure here reports how many were saved.
+  let updated = 0;
+  const updatedDrafts: Array<{ id: string; body: string }> = [];
+  for (const row of prepared) {
     const { error: updateError } = await supabaseAdmin
       .from("reactivation_drafts")
-      .update({ body: guarded.text, edited: true })
-      .eq("id", draft.id)
+      .update({ body: row.body, edited: true })
+      .eq("id", row.id)
       .eq("business_id", input.businessId)
       .eq("campaign_id", input.campaignId)
       .eq("status", "draft");
-    if (updateError) throw new Error(updateError.message);
+    if (updateError) {
+      throw new Error(
+        `${updateError.message} (${updated} of ${prepared.length} messages were updated — please retry.)`,
+      );
+    }
     updated += 1;
-    updatedDrafts.push({ id: draft.id, body: guarded.text });
+    updatedDrafts.push(row);
   }
   return { updated, drafts: updatedDrafts };
 }
+
 
 export async function cancelReactivationCampaign(input: {
   businessId: string;
