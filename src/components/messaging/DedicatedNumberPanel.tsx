@@ -39,11 +39,15 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
 
     onSuccess: (result) => {
       if (result.ok) {
+        setNeedsCard(false);
         toast.success(`${result.number} is now your number for new conversations.`);
         setManualNumber("");
         void queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
         void queryClient.invalidateQueries({ queryKey: ["purchasable-numbers"] });
         void queryClient.invalidateQueries({ queryKey: ["settings"] });
+      } else if ("code" in result && result.code === "no_payment_method") {
+        setNeedsCard(true);
+        toast.error(result.reason);
       } else {
         toast.error(result.detail ? `${result.reason} (${result.detail})` : result.reason);
       }
