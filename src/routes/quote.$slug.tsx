@@ -62,8 +62,6 @@ export const Route = createFileRoute("/quote/$slug")({
   component: TenantQuotePage,
 });
 
-const STEPS = ["Request", "Vehicle", "Condition", "Contact"] as const;
-
 function TenantQuotePage() {
   const tenant = Route.useLoaderData();
   // Mode is resolved server-side; anything other than ai_chat renders the
@@ -77,6 +75,7 @@ function TenantQuotePage() {
           logoUrl: tenant.logoUrl,
           serviceArea: tenant.serviceArea,
           privacyPolicyUrl: tenant.privacyPolicyUrl,
+          quoteSubjectLabel: tenant.quoteSubjectLabel,
         }}
       />
     );
