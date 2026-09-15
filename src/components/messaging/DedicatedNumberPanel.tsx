@@ -97,7 +97,9 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
                     claim.mutate({
                       number: number.number,
                       monthlyCostCents: number.monthlyCostCents,
+                      ...(number.providerRef ? { providerRef: number.providerRef } : {}),
                     });
+
                   }}
                 >
                   {claim.isPending ? "Claiming…" : "Claim this number"}
