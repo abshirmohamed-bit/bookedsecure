@@ -2500,6 +2500,56 @@ export type Database = {
           },
         ]
       }
+      provider_costs: {
+        Row: {
+          amount_cents: number
+          business_id: string
+          created_at: string
+          id: string
+          kind: string
+          metadata: Json | null
+          month: string
+          quantity: number
+          source: string | null
+          source_ref: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          business_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          metadata?: Json | null
+          month: string
+          quantity?: number
+          source?: string | null
+          source_ref?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          business_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          metadata?: Json | null
+          month?: string
+          quantity?: number
+          source?: string | null
+          source_ref?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_costs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_page_events: {
         Row: {
           business_id: string
@@ -3161,6 +3211,53 @@ export type Database = {
           stripe_event_id?: string
         }
         Relationships: []
+      }
+      tenant_month_statements: {
+        Row: {
+          business_id: string
+          created_at: string
+          generated_at: string
+          id: string
+          margin_cents: number
+          month: string
+          provider_cost_cents: number
+          revenue_cents: number
+          segments_sent: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          margin_cents?: number
+          month: string
+          provider_cost_cents?: number
+          revenue_cents?: number
+          segments_sent?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          margin_cents?: number
+          month?: string
+          provider_cost_cents?: number
+          revenue_cents?: number
+          segments_sent?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_month_statements_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tenant_requests: {
         Row: {

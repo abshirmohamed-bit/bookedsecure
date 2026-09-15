@@ -321,6 +321,23 @@ export async function handleSubscriptionInvoicePaid(invoice: any) {
     await applySubscriptionState(businessId, { status: "active", pastDueSince: null });
     await audit(businessId, "subscription_payment_recovered", { invoiceId: invoice.id });
   }
+
+  // Book the provider's share of this payment (the tenant's number for the
+  // month) and remember what they paid, so cost and margin stay truthful.
+  // Idempotent on the invoice id: a redelivered event books nothing new.
+  try {
+    const { settleSubscriptionInvoice } = await import("@/lib/provider-costs.server");
+    const paidCents = Number(invoice.amount_paid ?? invoice.total ?? 0);
+    await settleSubscriptionInvoice({
+      businessId,
+      invoiceId: String(invoice.id),
+      amountPaidCents: Number.isFinite(paidCents) ? paidCents : 0,
+      ...(typeof invoice.created === "number" ? { at: new Date(invoice.created * 1000) } : {}),
+    });
+  } catch (error) {
+    console.error("[subscription] provider cost bookkeeping failed:", error);
+  }
+
   return { ok: true as const, detail: "Subscription invoice paid" };
 }
 
