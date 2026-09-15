@@ -477,12 +477,13 @@ async function recallTextoProviderNumber(subaccountId: string, number: string): 
 
 /* ------------------------------------------------------- self-serve numbers */
 
-export type PurchasableNumber = { number: string; monthlyCostCents: number };
+export type PurchasableNumber = { number: string; monthlyCostCents: number; providerRef?: string };
 
 type AvailableNumberListing = {
   numbers?: Array<
     | string
     | {
+        id?: string;
         number?: string;
         phone?: string;
         e164?: string;
@@ -515,8 +516,12 @@ export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
     const number = raw.startsWith("+") ? raw : `+${raw.replace(/\D/g, "")}`;
     const price = record ? Number(record["price_monthly"] ?? record["monthly_price"] ?? 15) : 15;
     const monthly = Number.isFinite(price) ? Math.round(price * 100) : 1500;
-    out.push({ number, monthlyCostCents: monthly || 1500 });
+    const providerRef = typeof record?.["id"] === "string" ? (record["id"] as string) : undefined;
+    out.push({ number, monthlyCostCents: monthly || 1500, ...(providerRef ? { providerRef } : {}) });
   }
+  return out;
+}
+
   return out;
 }
 
