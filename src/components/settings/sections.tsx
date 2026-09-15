@@ -143,6 +143,8 @@ export function BusinessSettingsForm({
     default_sms_provider: business.default_sms_provider as "simulated" | "twilio" | "telnyx",
     quiet_hours_start: business.quiet_hours_start,
     quiet_hours_end: business.quiet_hours_end,
+    quote_subject_label: business.quote_subject_label ?? "",
+    quote_subject_options: (business.quote_subject_options ?? []).join("\n"),
   });
 
   const mutation = useMutation({
@@ -156,6 +158,14 @@ export function BusinessSettingsForm({
           sms_signature: form.sms_signature || null,
           privacy_policy_url: form.privacy_policy_url || null,
           logo_url: form.logo_url || null,
+          quote_subject_label: form.quote_subject_label.trim() || null,
+          quote_subject_options:
+            form.quote_subject_options.trim().length > 0
+              ? form.quote_subject_options
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter((line) => line.length > 0)
+              : null,
         },
       }),
     onSuccess: () => {
