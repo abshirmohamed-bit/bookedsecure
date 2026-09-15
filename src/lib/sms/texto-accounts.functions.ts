@@ -175,3 +175,56 @@ export const retryTextoProvisioning = createServerFn({ method: "POST" })
       ? { ok: true as const, number: result.number.number, state: result.account.provisioning_state }
       : { ok: false as const, reason: result.reason, queued: result.queued, state: result.account.provisioning_state };
   });
+
+/* ------------------------------------------------------------------ owner: claim a dedicated number */
+
+async function requireOwnBusinessOwner(context: { supabase: any; userId: string }) {
+  const { requireAppContext } = await import("@/lib/app-context.server");
+  const app = await requireAppContext(context.supabase, context.userId);
+  if (app.role !== "owner") throw new Error("Only the business owner can manage numbers.");
+  return app;
+}
+
+/** Owner-only: numbers the provider currently has for sale, with monthly price. */
+export const listNumbersForPurchase = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireOwnBusinessOwner(context);
+    const { listPurchasableNumbers, liveAccountProvisioning } = await loadAccountModule();
+    if (!liveAccountProvisioning()) {
+      return { live: false as const, numbers: [], reason: "Number buying is not switched on yet." };
+    }
+    try {
+      const numbers = await listPurchasableNumbers();
+      return { live: true as const, numbers, reason: null };
+    } catch (error) {
+      return {
+        live: true as const,
+        numbers: [],
+        reason: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+
+/** Owner-only: buy one of those numbers and make it this business's number. */
+export const claimNumberForBusiness = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        number: z.string().min(6).max(20),
+        monthlyCostCents: z.number().int().min(0).max(100000).optional(),
+        alreadyPurchased: z.boolean().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const app = await requireOwnBusinessOwner(context);
+    const { claimDedicatedNumber } = await loadAccountModule();
+    return claimDedicatedNumber({
+      businessId: app.businessId,
+      number: data.number,
+      ...(data.monthlyCostCents === undefined ? {} : { monthlyCostCents: data.monthlyCostCents }),
+      ...(data.alreadyPurchased === undefined ? {} : { alreadyPurchased: data.alreadyPurchased }),
+    });
+  });

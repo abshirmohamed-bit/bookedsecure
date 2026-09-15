@@ -322,13 +322,20 @@ async function ensurePrimarySender(
   businessId: string,
   accountId: string,
   phoneNumber: string,
+  options: { deactivateOtherSenders?: boolean } = {},
 ): Promise<void> {
   // Switch this business (and only this business) over: every other sender it
-  // had — Telnyx, Twilio, simulated — stops being primary and is deactivated so
-  // the tenant's dedicated Texto number is the one every outbound text uses.
+  // had — Telnyx, Twilio, simulated — stops being primary, so the dedicated
+  // Texto number is what every new conversation goes out from. Older numbers
+  // stay active by default so replies to texts already sent from them still
+  // reach this business and existing threads keep their original number.
   await supabaseAdmin
     .from("sms_senders")
-    .update({ is_primary: false, active: false, updated_at: nowIso() })
+    .update({
+      is_primary: false,
+      ...(options.deactivateOtherSenders ? { active: false } : {}),
+      updated_at: nowIso(),
+    })
     .eq("business_id", businessId)
     .neq("phone_number", phoneNumber);
 
@@ -567,6 +574,106 @@ async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumbe
   }
   return null;
 }
+
+export type NumberClaimResult =
+  | { ok: true; number: string; monthlyCostCents: number; alreadyOwned: boolean }
+  | { ok: false; reason: string; detail?: string };
+
+/**
+ * Owner-driven claim of one dedicated number for their own business.
+ *
+ * Safe to re-run: if the business already holds this number nothing is bought
+ * twice, and a number already assigned to another business is refused. On
+ * success the number becomes the business's primary sender while any older
+ * number stays active so replies to earlier texts still arrive.
+ */
+export async function claimDedicatedNumber(input: {
+  businessId: string;
+  number: string;
+  monthlyCostCents?: number;
+  alreadyPurchased?: boolean;
+}): Promise<NumberClaimResult> {
+  const number = input.number.startsWith("+")
+    ? input.number
+    : `+${input.number.replace(/\D/g, "")}`;
+  const account = await getOrCreateTextoAccount(input.businessId);
+
+  const { data: existingRow } = await supabaseAdmin
+    .from("texto_numbers")
+    .select("*")
+    .eq("number", number)
+    .maybeSingle();
+
+  if (existingRow?.assigned_business_id && existingRow.assigned_business_id !== input.businessId) {
+    return { ok: false, reason: "That number is already taken. Choose another one." };
+  }
+
+  const alreadyOwned = existingRow?.assigned_business_id === input.businessId;
+
+  // `alreadyPurchased` is the manual fallback: the number was bought directly
+  // in the provider's dashboard, so only the local wiring is missing.
+  if (!alreadyOwned && !input.alreadyPurchased) {
+    try {
+      await purchaseNumberFromTexto(number);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      await auditEvent({
+        businessId: input.businessId,
+        eventType: "texto_number_purchase_failed",
+        metadata: { number, detail },
+      });
+      return {
+        ok: false,
+        reason: "The number provider would not complete the purchase.",
+        detail,
+      };
+    }
+  }
+
+  const { data: row } = await supabaseAdmin
+    .from("texto_numbers")
+    .upsert(
+      {
+        number,
+        monthly_cost_cents: input.monthlyCostCents ?? existingRow?.monthly_cost_cents ?? 1500,
+        status: "assigned",
+        assigned_business_id: input.businessId,
+        assigned_at: existingRow?.assigned_at ?? nowIso(),
+        recalled_at: null,
+        updated_at: nowIso(),
+      },
+      { onConflict: "number" },
+    )
+    .select("*")
+    .maybeSingle();
+
+  if (liveSubaccountProvisioning() && account.subaccount_id) {
+    await assignTextoProviderNumber(account.subaccount_id, number).catch((error) =>
+      console.error("[texto] sub-account number assignment failed:", error),
+    );
+  }
+
+  await ensurePrimarySender(input.businessId, account.id, number);
+  await updateTextoAccount(account.id, {
+    provisioning_state: "active",
+    failed_reason: null,
+    provisioned_at: account.provisioned_at ?? nowIso(),
+  });
+
+  await auditEvent({
+    businessId: input.businessId,
+    eventType: alreadyOwned ? "texto_number_reclaimed" : "texto_number_purchased",
+    metadata: { number, live: liveAccountProvisioning() },
+  });
+
+  return {
+    ok: true,
+    number,
+    monthlyCostCents: row?.monthly_cost_cents ?? input.monthlyCostCents ?? 1500,
+    alreadyOwned,
+  };
+}
+
 
 /* ------------------------------------------------------------------ provisioning */
 
