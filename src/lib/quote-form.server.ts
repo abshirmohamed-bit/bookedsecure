@@ -7,6 +7,7 @@ import { sanitiseLogoUrl } from "@/lib/tenant-branding";
 import { resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
 import type { ServiceAddon } from "@/lib/service-addons";
 import { sanitiseServiceImageUrl } from "@/lib/service-images";
+import { quoteSubjectLabel, quoteSubjectOptions } from "@/lib/domain";
 
 export type PublicService = {
   id: string;
