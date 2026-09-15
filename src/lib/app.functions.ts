@@ -135,7 +135,7 @@ export const getLead = createServerFn({ method: "GET" })
         ).data ?? [])
       : [];
 
-    const [notifications, automationJobs] = await Promise.all([
+    const [notifications, automationJobs, business] = await Promise.all([
       supabaseAdmin
         .from("notifications")
         .select("id, kind, title, body, created_at, read_at")
@@ -149,6 +149,12 @@ export const getLead = createServerFn({ method: "GET" })
         )
         .eq("lead_id", data.leadId)
         .order("created_at", { ascending: true })
+        .then((response) => response.data),
+      supabaseAdmin
+        .from("businesses")
+        .select("quote_subject_label")
+        .eq("id", app.businessId)
+        .single()
         .then((response) => response.data),
     ]);
 
@@ -164,6 +170,7 @@ export const getLead = createServerFn({ method: "GET" })
       services: services.data ?? [],
       notifications: notifications ?? [],
       automationJobs: automationJobs ?? [],
+      quoteSubjectLabel: quoteSubjectLabel(business?.quote_subject_label),
     };
   });
 
