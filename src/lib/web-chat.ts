@@ -176,11 +176,12 @@ export const CONTACT_ASK_TEXT =
 
 
 export function welcomeMessage(tenant: WebChatTenant): string {
+  const subject = tenant.quoteSubjectLabel.toLowerCase();
   return [
     `Hi — you're chatting with ${tenant.name}'s online quote assistant.`,
     tenant.bookingEnabled === true
       ? "Tell me what you need and I'll take a few details, then show you the times we actually have open."
-      : "I can explain the services we offer, take your vehicle details and pass everything to the team for review.",
+      : `I can explain the services we offer, take your ${subject} details and pass everything to the team for review.`,
     tenant.bookingEnabled === true
       ? "I can't quote a price here — the team confirms pricing with you directly."
       : "I can't confirm prices or bookings here — the owner reviews every enquiry and replies to you directly.",
