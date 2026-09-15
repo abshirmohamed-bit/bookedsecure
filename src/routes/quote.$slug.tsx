@@ -240,7 +240,7 @@ function ManualQuoteForm() {
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold">{tenant.name}</h1>
               <p className="text-xs text-muted-foreground">
-                {tenant.serviceArea ?? "Mobile detailing"} — fast SMS response
+                {tenant.serviceArea ?? "Australian service business"} — fast SMS response
               </p>
             </div>
           </div>
