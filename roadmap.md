@@ -41,3 +41,11 @@
 - [x] Cancel/downgrade path: portal cancel releases the number back locally at period end; no manual overseeing.
 - [ ] Auto top-up on saved card when balance drops below tenant's threshold (default $5-worth), with guard rails.
 - [ ] Live segment/credit counter under the message composer.
+
+## Provider costs, your cut, and what tenants see (approved plan)
+- [x] Private cost ledger per tenant per month (number rental, credits, included-allowance texts).
+- [x] Settlement on every paid subscription invoice and credit top-up; idempotent on the Stripe id.
+- [x] Monthly statements derived from the ledger (revenue, provider cost, profit, texts) + CSV export.
+- [x] Low provider-balance alert with the exact shortfall.
+- [x] Nothing tenant-facing changed; the tables have no client read access.
+- [ ] Blocked on the provider: no API to add funds to the balance — funding stays manual until they expose one.
