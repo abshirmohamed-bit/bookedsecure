@@ -12,7 +12,7 @@ export const Route = createFileRoute("/privacy")({
       { property: "og:title", content: "Privacy & SMS consent — BookedSecure" },
       {
         property: "og:description",
-        content: "Privacy and SMS opt-out information for detailing enquiries.",
+        content: "Privacy and SMS opt-out information for service enquiries.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
