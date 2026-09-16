@@ -835,6 +835,89 @@ export type Database = {
           },
         ]
       }
+      business_identity: {
+        Row: {
+          abn: string
+          address_line1: string
+          address_line2: string | null
+          business_id: string
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          country: string
+          created_at: string
+          declaration_accepted_at: string | null
+          declaration_accepted_by: string | null
+          legal_name: string
+          message_types: string[]
+          postcode: string
+          state: string
+          status: string
+          suburb: string
+          trading_name: string | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+          website: string | null
+        }
+        Insert: {
+          abn?: string
+          address_line1?: string
+          address_line2?: string | null
+          business_id: string
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string
+          country?: string
+          created_at?: string
+          declaration_accepted_at?: string | null
+          declaration_accepted_by?: string | null
+          legal_name?: string
+          message_types?: string[]
+          postcode?: string
+          state?: string
+          status?: string
+          suburb?: string
+          trading_name?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          website?: string | null
+        }
+        Update: {
+          abn?: string
+          address_line1?: string
+          address_line2?: string | null
+          business_id?: string
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string
+          country?: string
+          created_at?: string
+          declaration_accepted_at?: string | null
+          declaration_accepted_by?: string | null
+          legal_name?: string
+          message_types?: string[]
+          postcode?: string
+          state?: string
+          status?: string
+          suburb?: string
+          trading_name?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_identity_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_promo_codes: {
         Row: {
           applied_at: string
