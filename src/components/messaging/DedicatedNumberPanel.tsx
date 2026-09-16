@@ -150,7 +150,12 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
             <Button
               variant="secondary"
               disabled={claim.isPending || manualNumber.replace(/\D/g, "").length < 8}
-              onClick={() => claim.mutate({ number: manualNumber, alreadyPurchased: true })}
+              onClick={() =>
+                claim.mutate({
+                  number: `+${manualNumber.replace(/\D/g, "")}`,
+                  alreadyPurchased: true,
+                })
+              }
             >
               Connect it
             </Button>
