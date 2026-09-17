@@ -428,7 +428,10 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
         {/* Conversation column: ~two-thirds of the frame on desktop, full width on mobile */}
         <div className="mx-auto flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden lg:w-2/3 lg:min-w-[640px] lg:max-w-[900px]">
           <Conversation className="min-h-0 flex-1 overscroll-contain [&>div]:overflow-y-auto [&>div]:overscroll-contain">
-            <ConversationContent className="gap-3 px-3 py-4 sm:px-6" aria-live="polite">
+            <ConversationContent
+              className="min-h-full justify-end gap-3 px-3 py-4 sm:px-6"
+              aria-live="polite"
+            >
               <div className="w-full">
                 <ul className="flex flex-col gap-3">
                   {visibleTurns.map((turn, index) => {
@@ -772,12 +775,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   ref={input}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
-                  onFocus={() => {
-                    setComposerFocused(true);
-                    window.requestAnimationFrame(() =>
-                      bottom.current?.scrollIntoView({ block: "end", behavior: "auto" }),
-                    );
-                  }}
+                  onFocus={() => setComposerFocused(true)}
                   onBlur={() => setComposerFocused(false)}
                   placeholder={
                     finished === "completed"
