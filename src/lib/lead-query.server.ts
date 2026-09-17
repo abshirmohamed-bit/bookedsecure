@@ -168,6 +168,33 @@ export function shapeLeadRow(row: Record<string, unknown>): LeadInboxRow {
   };
 }
 
+/** Splits what was typed into separate words, dropping unsafe characters. */
+export function searchWords(raw: string): string[] {
+  return raw
+    .replace(/[%_,()."\\]/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 0)
+    .slice(0, 4);
+}
+
+/**
+ * Forms of one word worth searching for: the word itself, Australian mobiles in
+ * both 04… and 61… form, and — for longer words — the word without its first or
+ * last character, so a single mistyped or missed letter still finds the lead
+ * ("lesha" finds "Iesha").
+ */
+export function searchVariants(word: string): string[] {
+  const variants = new Set<string>([word]);
+  if (/^0\d+$/.test(word)) variants.add(`61${word.slice(1)}`);
+  if (/^61\d+$/.test(word)) variants.add(`0${word.slice(2)}`);
+  if (/^[a-z]+$/i.test(word) && word.length >= 4) {
+    variants.add(word.slice(1));
+    variants.add(word.slice(0, -1));
+  }
+  return [...variants];
+}
+
 /** Applies the tenant + filter predicates to a query builder, before pagination. */
 export function applyPredicates<T>(query: T, predicates: LeadPredicate[]): T {
   let builder = query as unknown as Record<string, (...args: unknown[]) => unknown>;
