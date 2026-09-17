@@ -2,7 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { getMessagingAccount, setMessagingPaused } from "@/lib/sms/messaging-account.functions";
+import {
+  getMessagingAccount,
+  getProviderMessagingStatus,
+  setMessagingPaused,
+} from "@/lib/sms/messaging-account.functions";
 import { formatAud, LOW_CREDIT_THRESHOLD } from "@/lib/sms/credit-packs";
 import { CREDITS_ANCHOR } from "@/components/billing/BillingPanel";
 import { useBillingRealtime } from "@/hooks/useBillingRealtime";
