@@ -24,13 +24,13 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          "Two simple plans. Your own Australian number, an assistant that answers every enquiry in seconds, automatic follow-ups and a booking link. From $200 a month.",
+          "One simple plan at $100 a month. An assistant that answers every enquiry in seconds, automatic follow-ups, booking links and win-back campaigns. Your number and texts are bought separately.",
       },
       { property: "og:title", content: "Pricing — BookedSecure for service businesses" },
       {
         property: "og:description",
         content:
-          "Answer every enquiry in seconds, follow up automatically and fill your week. Two plans, monthly or a year upfront.",
+          "Answer every enquiry in seconds, follow up automatically and fill your week. One plan, monthly or a year upfront.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -41,18 +41,18 @@ export const Route = createFileRoute("/pricing")({
 
 /** What every plan gets, in the words an owner would use. */
 const INCLUDED_EVERY_PLAN: readonly string[] = [
-  "Your own dedicated Australian mobile number",
   "A branded quote page customers fill in on their phone",
   "An assistant that answers enquiries in seconds, using your services and prices",
   "Instant text confirmation on every new enquiry",
   "Booking links with your real availability",
   "Automatic follow-ups — straight away, a few hours later, and next day",
+  "Win-back campaigns to past customers, and bulk campaigns to your list",
   "Every message waits for your approval before it goes out",
   "One inbox for every lead, reply and booking",
   "Opt-out, STOP handling and quiet hours looked after for you",
   "Bring your existing customer list in from a spreadsheet",
   "Reporting on enquiries, replies, bookings and texts used",
-  "Daily sending limits so nothing can run away",
+  "Unlimited team members and daily sending limits so nothing can run away",
 ];
 
 function PricingPage() {
