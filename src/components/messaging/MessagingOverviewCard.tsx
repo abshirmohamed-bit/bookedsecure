@@ -28,6 +28,7 @@ const NUMBER_STATE_LABELS: Record<string, string> = {
  */
 export function MessagingOverviewCard() {
   const fetchAccount = useServerFn(getMessagingAccount);
+  const fetchProvider = useServerFn(getProviderMessagingStatus);
   const pauseSending = useServerFn(setMessagingPaused);
   const queryClient = useQueryClient();
 
@@ -36,8 +37,18 @@ export function MessagingOverviewCard() {
     queryFn: () => fetchAccount(),
   });
 
+  // What the provider itself reports right now, refreshed in the background.
+  const { data: provider } = useQuery({
+    queryKey: ["messaging-provider-status"],
+    queryFn: () => fetchProvider(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
   // Credits and plan changes land from payments and sends, so keep this live.
   useBillingRealtime(data?.business?.id ?? null);
+
+
 
 
   const pauseMutation = useMutation({
