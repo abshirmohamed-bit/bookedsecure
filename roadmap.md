@@ -49,3 +49,10 @@
 - [x] Low provider-balance alert with the exact shortfall.
 - [x] Nothing tenant-facing changed; the tables have no client read access.
 - [ ] Blocked on the provider: no API to add funds to the balance — funding stays manual until they expose one.
+
+## Approach A — platform as carriage provider (approved plan)
+- [x] Business identity record per tenant (private table, owner-only writes, admin read).
+- [x] Identity form on the Messaging page, shown before the number step.
+- [x] Hard gate: no complete identity record, no number bought or connected.
+- [x] Admin list of identity records with the numbers they stand behind.
+- [ ] Blocked on the provider: first card registration must be done once in their own dashboard.

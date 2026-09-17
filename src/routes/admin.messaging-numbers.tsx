@@ -11,6 +11,7 @@ import {
   retryTextoProvisioning,
   syncTextoNumberPool,
 } from "@/lib/sms/texto-accounts.functions";
+import { listBusinessIdentityRecords } from "@/lib/tenant-identity.functions";
 
 const TITLE = "Dedicated numbers — BookedSecure admin";
 
@@ -159,6 +160,8 @@ function NumberPool() {
         )}
       </div>
 
+      <IdentityRecords />
+
       <div className="panel grid gap-3 p-4">
         <h2 className="text-sm font-semibold text-foreground">Number pool</h2>
         {data.numbers.length === 0 ? (
@@ -201,5 +204,60 @@ function NumberPool() {
         </form>
       </div>
     </section>
+  );
+}
+
+/**
+ * Who each number belongs to. BookedSecure buys every number itself, so this is
+ * the single place to answer an ownership request from an authority.
+ */
+function IdentityRecords() {
+  const fetchRecords = useServerFn(listBusinessIdentityRecords);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["admin-business-identities"],
+    queryFn: () => fetchRecords({}),
+    retry: false,
+  });
+
+  return (
+    <div className="panel grid gap-3 p-4">
+      <h2 className="text-sm font-semibold text-foreground">Business identity records</h2>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading records…</p>
+      ) : error ? (
+        <p className="text-sm text-destructive">{(error as Error).message}</p>
+      ) : !data || data.records.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No business has completed its identity details yet.
+        </p>
+      ) : (
+        <ul className="grid gap-2 text-sm">
+          {data.records.map((row) => (
+            <li key={row.businessId} className="border-b border-border pb-2 last:border-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-foreground">{row.legalName || row.businessName}</span>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-foreground">
+                  {row.complete ? "complete" : "incomplete"}
+                </span>
+                {row.numbers.length > 0 ? (
+                  <span className="ml-auto font-mono text-xs text-muted-foreground">
+                    {row.numbers.join(", ")}
+                  </span>
+                ) : (
+                  <span className="ml-auto text-xs text-muted-foreground">no number</span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                ABN {row.abn || "—"} · {row.suburb} {row.state} · {row.contactName} ·{" "}
+                {row.contactEmail} · {row.contactPhone}
+                {row.submittedAt
+                  ? ` · declared ${new Date(row.submittedAt).toLocaleString("en-AU")}`
+                  : ""}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

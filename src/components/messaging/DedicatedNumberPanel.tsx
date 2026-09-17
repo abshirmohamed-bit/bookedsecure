@@ -48,6 +48,11 @@ export function DedicatedNumberPanel({ readOnly }: { readOnly?: boolean }) {
       } else if ("code" in result && result.code === "no_payment_method") {
         setNeedsCard(true);
         toast.error(result.reason);
+      } else if ("code" in result && result.code === "identity_required") {
+        toast.error(result.detail ? `${result.reason} ${result.detail}` : result.reason);
+        document
+          .getElementById("business-identity")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
       } else {
         toast.error(result.detail ? `${result.reason} (${result.detail})` : result.reason);
       }

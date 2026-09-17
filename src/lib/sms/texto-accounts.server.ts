@@ -638,6 +638,13 @@ function isAccountLevelPurchaseFailure(error: unknown): boolean {
  * caller then queues the business and alerts the operator).
  */
 async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumber | null> {
+  // Never buy a number for a business whose identity record is incomplete.
+  const { identityGate } = await import("@/lib/tenant-identity.server");
+  const gate = await identityGate(businessId);
+  if (!gate.ok) {
+    console.error(`[texto] identity record incomplete for ${businessId}; purchase skipped`);
+    return null;
+  }
   const forSale = await listPurchasableNumbers().catch((error) => {
     console.error("[texto] listing available numbers failed:", error);
     return [] as PurchasableNumber[];
@@ -677,7 +684,13 @@ async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumbe
 
 export type NumberClaimResult =
   | { ok: true; number: string; monthlyCostCents: number; alreadyOwned: boolean }
-  | { ok: false; reason: string; detail?: string; code?: "no_payment_method" };
+  | {
+      ok: false;
+      reason: string;
+      detail?: string;
+      code?: "no_payment_method" | "identity_required";
+      missing?: string[];
+    };
 
 /**
  * Owner-driven claim of one dedicated number for their own business.
@@ -697,6 +710,22 @@ export async function claimDedicatedNumber(input: {
 
 }): Promise<NumberClaimResult> {
   const number = toE164(input.number);
+
+  // BookedSecure buys and holds every number, so it must be able to say which
+  // business stands behind this one. No complete identity record, no number.
+  const { identityGate } = await import("@/lib/tenant-identity.server");
+  const gate = await identityGate(input.businessId);
+  if (!gate.ok) {
+    const { describeMissingIdentityFields } = await import("@/lib/tenant-identity");
+    return {
+      ok: false,
+      code: "identity_required",
+      missing: gate.missing,
+      reason: "Your business details are needed before a number can be issued.",
+      detail: `Still needed: ${describeMissingIdentityFields(gate.missing)}.`,
+    };
+  }
+
   const account = await getOrCreateTextoAccount(input.businessId);
 
   const { data: existingRow } = await supabaseAdmin
