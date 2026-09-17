@@ -285,7 +285,7 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`relative flex w-full snap-start ${tallCards ? "h-[10.2rem] sm:h-[12rem]" : "h-[7.6rem] sm:h-[9rem]"} cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-2 ${
+                  className={`relative grid w-full snap-start ${tallCards ? "h-[10.2rem] grid-rows-[auto_minmax(0,1fr)_auto_auto] sm:h-[12rem]" : "h-[8.25rem] grid-rows-[minmax(0,1fr)_auto_auto] sm:h-[9rem]"} cursor-pointer overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-2 ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -318,7 +318,7 @@ export function ServiceChooser({
 
                   <p
                     title={option.label}
-                    className={`min-w-0 flex-1 break-words pr-4 font-semibold leading-[1.15] ${
+                    className={`min-h-0 min-w-0 overflow-hidden break-words pr-4 font-semibold leading-[1.15] ${
                       option.label.length > 24
                         ? "line-clamp-3 text-[0.6rem] sm:text-[0.7rem]"
                         : "line-clamp-2 text-[0.66rem] sm:text-[0.78rem]"

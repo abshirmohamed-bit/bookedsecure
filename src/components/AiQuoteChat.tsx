@@ -89,7 +89,12 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   /** The selection card the customer tapped to read in full. */
   const [selectionDetail, setSelectionDetail] = useState<SelectionCardView | null>(null);
   const [selectionEcho, setSelectionEcho] = useState<string | null>(null);
-  /** Visible height of the screen, so the on-screen keyboard never distorts it. */
+  /** The iPhone keyboard changes both the visible height and its page offset. */
+  const [visibleViewport, setVisibleViewport] = useState<{
+    height: number;
+    offsetTop: number;
+  } | null>(null);
+  const [composerFocused, setComposerFocused] = useState(false);
   /** Local-only: the customer chose "Something else" and is describing it. */
   const [describing, setDescribing] = useState(false);
   /** Local-only: the customer typed their own request, so the service list
@@ -187,6 +192,30 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     void begin();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant.slug]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    let frame = 0;
+    const apply = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        setVisibleViewport({
+          height: Math.round(viewport.height),
+          offsetTop: Math.round(viewport.offsetTop),
+        });
+      });
+    };
+    apply();
+    viewport.addEventListener("resize", apply);
+    viewport.addEventListener("scroll", apply);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      viewport.removeEventListener("resize", apply);
+      viewport.removeEventListener("scroll", apply);
+    };
+  }, []);
 
   // Measurement only: records that this page was opened and where the visitor
   // came from, once per browser session. Never blocks or alters the chat.
@@ -313,12 +342,12 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   type="button"
                   onClick={() => setSelectionDetail(card)}
                   aria-label={`View full details of ${card.label}`}
-                  className="flex w-[7.2rem] cursor-pointer flex-col rounded-lg border border-primary bg-card p-1.5 text-left shadow-sm ring-1 ring-primary/40 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[8.5rem] sm:p-2"
+                  className="relative grid h-[8.25rem] w-[7.2rem] cursor-pointer grid-rows-[auto_minmax(0,1fr)_auto_auto] overflow-hidden rounded-lg border border-primary bg-card p-1.5 text-left shadow-sm ring-1 ring-primary/40 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[8.5rem] sm:p-2"
                 >
                   <span className="mb-1 flex h-4 w-4 items-center justify-center self-end rounded-full border border-primary bg-primary text-primary-foreground">
                     <Check className="h-3 w-3" aria-hidden="true" />
                   </span>
-                  <p className="min-w-0 break-words text-[0.66rem] font-semibold leading-[1.15] sm:text-[0.78rem]">
+                  <p className="line-clamp-3 min-h-0 min-w-0 overflow-hidden break-words text-[0.66rem] font-semibold leading-[1.15] sm:text-[0.78rem]">
                     {card.label}
                   </p>
                   <p className="mt-1 truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
@@ -329,18 +358,20 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                       {card.duration}
                     </p>
                   )}
-                  {(card.extras ?? []).map((extra) => (
-                    <p
-                      key={extra.name}
-                      className="mt-0.5 flex min-w-0 items-baseline gap-1 text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.62rem]"
-                    >
-                      <span className="min-w-0 truncate">+{extra.name}</span>
-                      {extra.price && (
-                        <span className="shrink-0 font-semibold text-primary">{extra.price}</span>
-                      )}
-                    </p>
-                  ))}
-                  <span className="mt-1 text-[0.54rem] font-semibold uppercase tracking-wide text-primary/80 sm:text-[0.58rem]">
+                  <div className="min-w-0 overflow-hidden">
+                    {(card.extras ?? []).slice(0, 1).map((extra) => (
+                      <p
+                        key={extra.name}
+                        className="mt-0.5 flex min-w-0 items-baseline gap-1 overflow-hidden text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.62rem]"
+                      >
+                        <span className="min-w-0 truncate">+{extra.name}</span>
+                        {extra.price && (
+                          <span className="shrink-0 font-semibold text-primary">{extra.price}</span>
+                        )}
+                      </p>
+                    ))}
+                  </div>
+                  <span className="mt-1 truncate text-[0.54rem] font-semibold uppercase tracking-wide text-primary/80 sm:text-[0.58rem]">
                     Tap for details
                   </span>
                 </button>
@@ -361,7 +392,15 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
   return (
     <main
-      className="fixed inset-0 flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden overscroll-none bg-background"
+      className="fixed inset-x-0 top-0 flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden overscroll-none bg-background"
+      style={
+        visibleViewport
+          ? {
+              height: `${visibleViewport.height}px`,
+              transform: `translateY(${visibleViewport.offsetTop}px)`,
+            }
+          : undefined
+      }
     >
       <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col overflow-hidden sm:py-6">
         {/* Branded header — standalone, stable, never scrolls with the transcript */}
@@ -733,6 +772,13 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   ref={input}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
+                  onFocus={() => {
+                    setComposerFocused(true);
+                    window.requestAnimationFrame(() =>
+                      bottom.current?.scrollIntoView({ block: "end", behavior: "auto" }),
+                    );
+                  }}
+                  onBlur={() => setComposerFocused(false)}
                   placeholder={
                     finished === "completed"
                       ? "Need to change something? Tell me here…"
@@ -765,12 +811,14 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
               </PromptInput>
             )}
 
-            <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-muted-foreground">
-              <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span>
-                Prices shown are {tenant.name}'s own and confirmed by them. Powered by BookedSecure.
-              </span>
-            </p>
+            {!composerFocused && (
+              <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-muted-foreground">
+                <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  Prices shown are {tenant.name}'s own and confirmed by them. Powered by BookedSecure.
+                </span>
+              </p>
+            )}
 
             <div aria-hidden className="sr-only">
               <label>
