@@ -1,47 +1,47 @@
-# One payment from tenants, margin to you, Texto paid by the platform
+# One $100 plan, tenants get their own number and credits at Texto
 
-## The decision
+## Audit — what exists today (verified)
 
-Keep **one** Stripe payment per tenant. Do not split it into three payments and do not let tenants pay Texto directly.
+- **Plans in the database:** Essentials $200/mo ($2,000/yr, 900 texts), Pro $300/mo ($3,000/yr, 1,500 texts), plus a hidden Founder plan $15/mo with 0 texts. Overage 6c (Founder 3c).
+- **Stripe:** real embedded Checkout for subscriptions (`subscription-billing.server.ts`) and credit packs (`credit-topups.server.ts`); live signed webhook at `/api/public/payments/webhook` feeding `billing.server.ts`.
+- **Credit packs:** two price sets — standard 500/$30, 1,500/$90, 5,000/$300 and a 3c founder set. Purchases add credits locally and allocate to the tenant's Texto sub-account when live.
+- **Numbers:** the Messaging page has a "Your own number" panel that lists provider numbers, buys them over Texto's API (charging the platform card) or connects a number pasted by hand. Provisioning on paid invoices tries the same purchase and queues on failure.
+- **Texto sub-accounts:** create, credit allocate/recall, number assign/recall and reporting are all already implemented; there is no funding or credit-purchase API, so the parent balance must be topped up manually.
+- **Nothing today points tenants at your Texto sign-up link.**
 
-Reason: the moment a tenant pays Texto with their own card, they see Texto's prices ($15 number, 3c texts), your margin becomes visible, and you get two billing relationships, two dunning flows and two cancellation paths for the same customer. Of Texto's three funding modes, the only one that fits a bundled $200/$300 product is **"Allocate credits to each sub-account"**.
+The gap versus what you now want: the number is bundled and bought on your card, pricing is two tiers, and there is no self-serve path for a tenant to get their own number or top up at Texto.
 
-So the money flow is:
+## What changes
 
-```text
-Tenant  --$200/$300 (one Stripe subscription)-->  BookedSecure (your account)
-BookedSecure --platform card / prepaid balance--> Texto  ($15 number + 3c texts)
-Remainder stays in your Stripe balance = your margin
-```
+### 1. One plan
 
-Your card at Texto is the only card in the chain. Tenants never see Texto.
+- Retire Essentials and Pro (hidden, existing tenants untouched until they move).
+- New single plan: **$100 a month**, everything included — win-back campaigns, bulk campaigns, custom automation, unlimited team. **No texts and no phone number included.**
+- Annual option at the same 10-months-for-12 ratio unless you say otherwise ($1,000/yr).
+- Founder stays exactly as it is for Glocast.
+- Pricing page and billing panel show one plan and say plainly that the number and texts are bought separately.
 
-## Why it felt broken
+### 2. Number: tenant buys it at Texto, we detect it
 
-Nothing in the payment design is wrong. The one gap is that Texto's balance has to have money in it before the platform can buy a number or allocate credits, and Texto has no funding API yet. That is a Texto account setting, not something our code can fix. Until they enable auto-recharge or an invoicing arrangement, you keep a float in the Texto balance and top it up occasionally — that is one action a month, not one action per tenant.
+- Remove the "Your own number" panel (available-number list, claim, and manual connect) entirely.
+- Replace it with a short "Get your texting number" card: what it costs at Texto ($15/month + GST), and a button to your sign-up link `https://app.texto.com.au/signup?r=bookedsecure`, which creates them as your sub-account automatically.
+- After they buy, BookedSecure detects it: on page load and on a "I've bought my number" button, we read your Texto accounts and their numbers, match the sub-account to the tenant, store the number and switch it on as their sending number. Existing Telnyx numbers stay active so old replies keep arriving.
+- Automatic purchase-on-your-card is switched off, so your card is never charged for a tenant again.
 
-Number purchasing itself is now unblocked: the card is registered on the Texto account, so the platform can buy numbers over the API from here on.
+### 3. Credits: tenant's choice
 
-## What we build
-
-1. **Texto sub-account per tenant** — created automatically on first paid invoice, funding mode "allocate credits", Sender ID/number sharing off, so each tenant has its own wallet and cannot spend beyond what we allocate.
-2. **Automatic number purchase** — on first paid invoice, buy one Australian number through Texto's API and assign it to the tenant's sub-account. If the provider refuses (no balance, KYC, route), the tenant is queued and you get one alert; every subsequent paid invoice retries automatically.
-3. **Automatic credit allocation** — each paid invoice allocates that month's included texts into the tenant's sub-account wallet. Credit-pack purchases allocate on top.
-4. **Balance guard** — before any purchase or allocation, check the Texto balance. If it cannot cover the month ahead, alert you with the exact shortfall instead of failing silently.
-5. **Private books** — the existing per-tenant cost ledger keeps recording $15 rental + text cost + GST against each tenant so revenue, provider cost and margin per tenant stay visible to you only.
-
-## GST
-
-Your retail prices should be stated GST-inclusive, since your tenants are Australian consumers of your service: $200 and $300 include GST (so $181.82 + $18.18 and $272.73 + $27.27). Texto's $15 + $1.50 GST is a cost to you and the GST on it is an input credit, not something to pass through as a separate line. Two changes needed: mark Stripe prices as tax-inclusive for AU, and record provider costs GST-inclusive at $16.50 so your margin figure is true.
+- **Buy through BookedSecure** — the existing credit packs stay, and on payment we allocate those credits into their Texto sub-account from your parent balance (this is where your margin lives). This requires you to hold a credit balance at Texto; the existing low-balance alert covers it.
+- **Buy at Texto** — same card the tenant already used for the number, with Texto's own automatic top-up. A second button on the credits card links them there. No margin on these.
+- Both paths show the same live balance, so a tenant topping up at Texto sees it in BookedSecure.
 
 ## What tenants see
 
-One line: their plan at $200 or $300 per month, GST included, with their own number and their texts included. No number line, no credit line, no Texto.
+One $100/month plan for the platform. A card telling them to get their $15/month number at the provider, and a credits card where they can buy packs from us or top up at the provider themselves. No manual step for you, ever.
 
 ## Technical notes
 
-- Stripe: enable AU tax behaviour `inclusive` on the plan prices and credit packs; no new checkout flows.
-- Texto: turn on account hierarchy with slug `bookedsecure`, funding "allocate credits", sharing off, and confirm sub-account create/allocate/assign endpoints respond for our key.
-- Provisioning stays in the invoice-paid path in `src/lib/subscription-billing.server.ts` calling into `src/lib/sms/texto-accounts.server.ts`; add sub-account create + credit allocate + balance precheck there.
-- Cost ledger in `src/lib/provider-costs.server.ts` moves to GST-inclusive rates ($16.50 rental, 3.3c per text).
-- Still waiting on Texto for auto-recharge / credit-purchase endpoint / monthly invoicing — any one of the three removes your monthly top-up entirely. Nothing else in this plan depends on it.
+- `plans` row insert for the new `platform` plan (all feature flags on, `included_segments = 0`, `team_member_limit` null) plus `is_offered = false` on essentials/pro; Stripe products/prices `platform_monthly` / `platform_annual` created via the payments tools in sandbox and live.
+- Delete `DedicatedNumberPanel.tsx` and its `listNumbersForPurchase` / `claimNumberForBusiness` usage; keep the server helpers used by admin tooling.
+- New `TextoSignupPanel` + a `linkTextoSubAccount` server fn that walks `GET /accounts`, `GET /account/:id/numbers` and writes `texto_accounts` / `texto_numbers`, matching by sub-account email or slug reference.
+- `provisionMessagingForBusiness` no longer calls `purchaseNumberFromTexto`; it links an already-purchased number or leaves the tenant in `queued_no_number` with a self-serve prompt.
+- Credit-pack payment path unchanged; it already allocates into the sub-account. Provider-cost ledger keeps recording rental and text cost per tenant.
