@@ -186,21 +186,16 @@ export function applyPredicates<T>(query: T, predicates: LeadPredicate[]): T {
         builder = builder["not"]!(predicate.column, "is", null) as typeof builder;
         break;
       case "search": {
-        // Match name, mobile or email. PostgREST `.or` uses commas as syntax,
-        // so strip the characters that could break or alter the pattern.
-        const term = predicate.value.replace(/[%_,()."\\]/g, "").trim();
-        if (term.length > 0) {
-          // Mobiles are stored in +61 form; a tenant typing the local 04…
-          // form must still find them.
-          const terms = [term];
-          if (/^0\d+$/.test(term)) terms.push(`61${term.slice(1)}`);
-          if (/^61\d+$/.test(term)) terms.push(`0${term.slice(2)}`);
-          const clauses = terms.flatMap((value) => [
+        // Every word typed must match the name, mobile or email. Chained `.or`
+        // calls are ANDed, so "yatim iesha" finds "Iesha Yatim" either way
+        // round. PostgREST reads commas as syntax, so unsafe characters go.
+        for (const word of searchWords(predicate.value)) {
+          const clauses = searchVariants(word).flatMap((value) => [
             `name.ilike.%${value}%`,
             `mobile_number.ilike.%${value}%`,
             `email.ilike.%${value}%`,
           ]);
-          builder = builder["or"]!(clauses.join(",")) as typeof builder;
+          if (clauses.length > 0) builder = builder["or"]!(clauses.join(",")) as typeof builder;
         }
         break;
       }
