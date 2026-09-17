@@ -97,7 +97,7 @@ const TEXT_FIELDS = {
   phone_number: "Sending number",
   service_area: "Service area / suburbs",
   opening_hours: "Opening hours",
-  sms_signature: "SMS signature",
+  sms_signature: "Your sign-off",
   privacy_policy_url: "Privacy policy URL",
   logo_url: "Logo URL (shown on your quote form)",
   timezone: "Timezone",
@@ -117,6 +117,7 @@ export function BusinessSettingsForm({
   showProvider = false,
   showQuietHours = false,
   showAutomationSwitch = false,
+  showSignaturePreview = false,
   note,
 }: {
   business: Business;
@@ -126,6 +127,7 @@ export function BusinessSettingsForm({
   showProvider?: boolean;
   showQuietHours?: boolean;
   showAutomationSwitch?: boolean;
+  showSignaturePreview?: boolean;
   note?: string;
 }) {
   const save = useServerFn(saveBusinessSettings);
@@ -194,7 +196,7 @@ export function BusinessSettingsForm({
             </label>
           ))}
           <label className="block text-xs">
-            <span className="mb-1 block text-muted-foreground">Quote subject label</span>
+            <span className="mb-1 block text-muted-foreground">What you ask customers about</span>
             <input
               disabled={readOnly}
               value={form.quote_subject_label}
@@ -203,21 +205,7 @@ export function BusinessSettingsForm({
               className="form-control disabled:opacity-60"
             />
             <span className="mt-1 block text-[10px] text-muted-foreground">
-              What the customer is asked about (defaults to Vehicle).
-            </span>
-          </label>
-          <label className="block text-xs sm:col-span-2">
-            <span className="mb-1 block text-muted-foreground">Quote subject options</span>
-            <textarea
-              disabled={readOnly}
-              value={form.quote_subject_options}
-              onChange={(event) => setForm({ ...form, quote_subject_options: event.target.value })}
-              rows={4}
-              placeholder="Small&#10;Medium&#10;Large&#10;Other"
-              className="form-control min-h-20 py-2 disabled:opacity-60"
-            />
-            <span className="mt-1 block text-[10px] text-muted-foreground">
-              One option per line. Shown in the manual quote form and used as suggestions.
+              Used on your quote form when asking what the job is for.
             </span>
           </label>
           {showProvider && (
@@ -239,6 +227,18 @@ export function BusinessSettingsForm({
                 <option value="telnyx">Telnyx (live SMS)</option>
               </select>
             </label>
+          )}
+          {showSignaturePreview && (
+            <div className="col-span-full rounded-md border border-border bg-secondary/40 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                How a text ends
+              </p>
+              <p className="mt-1 text-xs">
+                …thanks, we&apos;ll see you then.
+                <br />
+                {form.sms_signature.trim() || business.name}
+              </p>
+            </div>
           )}
           {showQuietHours && (
             <label className="col-span-full flex items-center gap-2 text-sm">

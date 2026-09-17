@@ -2,7 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { getMessagingAccount, setMessagingPaused } from "@/lib/sms/messaging-account.functions";
+import {
+  getMessagingAccount,
+  getProviderMessagingStatus,
+  setMessagingPaused,
+} from "@/lib/sms/messaging-account.functions";
 import { formatAud, LOW_CREDIT_THRESHOLD } from "@/lib/sms/credit-packs";
 import { CREDITS_ANCHOR } from "@/components/billing/BillingPanel";
 import { useBillingRealtime } from "@/hooks/useBillingRealtime";
@@ -24,6 +28,7 @@ const NUMBER_STATE_LABELS: Record<string, string> = {
  */
 export function MessagingOverviewCard() {
   const fetchAccount = useServerFn(getMessagingAccount);
+  const fetchProvider = useServerFn(getProviderMessagingStatus);
   const pauseSending = useServerFn(setMessagingPaused);
   const queryClient = useQueryClient();
 
@@ -32,8 +37,18 @@ export function MessagingOverviewCard() {
     queryFn: () => fetchAccount(),
   });
 
+  // What the provider itself reports right now, refreshed in the background.
+  const { data: provider } = useQuery({
+    queryKey: ["messaging-provider-status"],
+    queryFn: () => fetchProvider(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
   // Credits and plan changes land from payments and sends, so keep this live.
   useBillingRealtime(data?.business?.id ?? null);
+
+
 
 
   const pauseMutation = useMutation({
@@ -65,11 +80,17 @@ export function MessagingOverviewCard() {
   };
 
   const isOwner = data.role === "owner";
-  const balance = data.account?.creditBalance ?? 0;
+  const storedBalance = data.account?.creditBalance ?? 0;
+  // Prefer what the provider reports; fall back to our own figure and say so.
+  const liveBalance = provider?.ok ? provider.credits : null;
+  const balance = liveBalance ?? storedBalance;
   const lowBalance = balance <= LOW_CREDIT_THRESHOLD;
+  const balanceMismatch = liveBalance !== null && liveBalance !== storedBalance;
   const activeNumber =
     data.numbers.find((number) => number.status === "assigned") ?? data.numbers[0];
+  const numberLabel = (provider?.ok ? provider.number : null) ?? activeNumber?.number ?? null;
   const state = data.account?.provisioningState ?? "not_started";
+  const providerStatus = provider?.ok ? provider.status : null;
   const paused = data.business ? !data.business.automation_enabled : false;
   const usedPct =
     plan.includedSegments > 0
@@ -83,11 +104,11 @@ export function MessagingOverviewCard() {
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-md border border-border p-3">
             <p className="text-xs text-muted-foreground">Your number</p>
-            <p className="mt-1 text-lg font-semibold">
-              {activeNumber?.number ?? "Not assigned yet"}
-            </p>
+            <p className="mt-1 text-lg font-semibold">{numberLabel ?? "Not connected yet"}</p>
             <p className="text-xs text-muted-foreground">
-              {NUMBER_STATE_LABELS[state] ?? state} · from your messaging provider
+              {providerStatus === "active" && numberLabel
+                ? "Live with your messaging provider"
+                : (NUMBER_STATE_LABELS[state] ?? state)}
             </p>
           </div>
           <div className="rounded-md border border-border p-3">
@@ -103,10 +124,20 @@ export function MessagingOverviewCard() {
             <p className="text-xs text-muted-foreground">Credits left</p>
             <p className="mt-1 text-lg font-semibold">{balance.toLocaleString()}</p>
             <p className={`text-xs ${lowBalance ? "text-destructive" : "text-muted-foreground"}`}>
-              Extra texts {plan.overageCents}c each
+              {liveBalance !== null
+                ? `Live from your provider · extra texts ${plan.overageCents}c each`
+                : `Our records · extra texts ${plan.overageCents}c each`}
             </p>
           </div>
         </div>
+
+        {balanceMismatch ? (
+          <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+            Your provider shows {liveBalance.toLocaleString()} credits while our records show{" "}
+            {storedBalance.toLocaleString()}. Top up with your provider to keep texts going out.
+          </p>
+        ) : null}
+
 
         <div className="rounded-md border border-border p-3">
           <div className="flex items-baseline justify-between">

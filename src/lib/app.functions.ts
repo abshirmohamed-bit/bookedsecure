@@ -152,7 +152,7 @@ export const getLead = createServerFn({ method: "GET" })
         .then((response) => response.data),
       supabaseAdmin
         .from("businesses")
-        .select("quote_subject_label")
+        .select("quote_subject_label, timezone")
         .eq("id", app.businessId)
         .single()
         .then((response) => response.data),
@@ -171,6 +171,8 @@ export const getLead = createServerFn({ method: "GET" })
       notifications: notifications ?? [],
       automationJobs: automationJobs ?? [],
       quoteSubjectLabel: quoteSubjectLabel(business?.quote_subject_label),
+      // Booking times are shown and typed in the business's own timezone.
+      timeZone: business?.timezone ?? "Australia/Sydney",
     };
   });
 
@@ -396,7 +398,18 @@ export const scheduleJob = createServerFn({ method: "POST" })
     const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
 
-    const scheduledAt = new Date(data.scheduled_at).toISOString();
+    // The owner types a plain "18/09/2026 09:00" with no timezone. It must be
+    // read in the business timezone, or the booking lands hours away.
+    const { localDateTimeToIso, DEFAULT_TIME_ZONE } = await import("@/lib/business-time");
+    const { data: businessRow } = await supabaseAdmin
+      .from("businesses")
+      .select("timezone")
+      .eq("id", app.businessId)
+      .maybeSingle();
+    const scheduledAt = localDateTimeToIso(
+      data.scheduled_at,
+      businessRow?.timezone ?? DEFAULT_TIME_ZONE,
+    );
     const { data: existing } = await supabaseAdmin
       .from("jobs")
       .select("id")

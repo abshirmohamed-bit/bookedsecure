@@ -25,6 +25,7 @@ import {
   updateLead,
 } from "@/lib/app.functions";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency, quoteSubjectLabel } from "@/lib/domain";
+import { isoToLocalDateTimeInput, todayInZone } from "@/lib/business-time";
 import { importMethodLabel, leadSourceLabel, originalSourceDetails } from "@/lib/lead-source";
 import { countSegments } from "@/lib/sms/segments";
 import { SuppressionRecoveryPanel } from "@/components/SuppressionRecoveryPanel";
@@ -472,6 +473,7 @@ function LeadDetail() {
             services={services}
             onDone={invalidate}
             scheduleFn={scheduleJob}
+            timeZone={data.timeZone}
           />
 
           <ActivityPanel notifications={notifications} automationJobs={automationJobs} />
@@ -670,23 +672,28 @@ function JobPanel({
   services,
   onDone,
   scheduleFn,
+  timeZone,
 }: {
   leadId: string;
   job: JobRow;
   services: { id: string; name: string; price_guidance: string | null }[];
   onDone: () => void;
   scheduleFn: typeof scheduleJob;
+  timeZone: string;
 }) {
   const complete = useServerFn(recordCompletedJob);
   const schedule = useServerFn(scheduleFn);
   const [form, setForm] = useState({
     service_id: "",
     service_performed: job?.service_performed ?? "",
-    completed_at: new Date().toISOString().slice(0, 10),
+    completed_at: todayInZone(timeZone),
     completed_value: job?.completed_value ? String(job.completed_value) : "",
     notes: "",
   });
-  const [scheduledAt, setScheduledAt] = useState(job?.scheduled_at?.slice(0, 16) ?? "");
+  // Shown in the business's own timezone, so what is typed is what is saved.
+  const [scheduledAt, setScheduledAt] = useState(
+    isoToLocalDateTimeInput(job?.scheduled_at, timeZone),
+  );
 
   const completeMutation = useMutation({
     mutationFn: () =>
