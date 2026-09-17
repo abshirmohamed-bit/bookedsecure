@@ -773,7 +773,7 @@ export function OwnerAssistant({
             onChange={(event) => setQuestion(event.target.value)}
             maxLength={OWNER_ASSISTANT_MAX_QUESTION}
             placeholder="Message Assistant…"
-            className="min-h-12 max-h-[120px]"
+            className="min-h-12 max-h-[120px] text-base"
           />
            <PromptInputFooter className="min-h-11">
             <div className="flex items-center gap-2">

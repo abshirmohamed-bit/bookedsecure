@@ -90,7 +90,6 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const [selectionDetail, setSelectionDetail] = useState<SelectionCardView | null>(null);
   const [selectionEcho, setSelectionEcho] = useState<string | null>(null);
   /** Visible height of the screen, so the on-screen keyboard never distorts it. */
-  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   /** Local-only: the customer chose "Something else" and is describing it. */
   const [describing, setDescribing] = useState(false);
   /** Local-only: the customer typed their own request, so the service list
@@ -212,23 +211,6 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [turns.length, busy, prompt?.step, finished, describing, pending?.answer, error]);
-
-  // The chat frame follows the visible area of the screen, so opening the mobile
-  // keyboard shrinks the conversation instead of pushing the composer off-screen.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const viewport = window.visualViewport;
-    const apply = () => setViewportHeight(viewport ? viewport.height : window.innerHeight);
-    apply();
-    viewport?.addEventListener("resize", apply);
-    viewport?.addEventListener("scroll", apply);
-    window.addEventListener("orientationchange", apply);
-    return () => {
-      viewport?.removeEventListener("resize", apply);
-      viewport?.removeEventListener("scroll", apply);
-      window.removeEventListener("orientationchange", apply);
-    };
-  }, []);
 
   // Display-only: the stored introduction and service-step instruction are not
   // shown; one concise opening message with the service list leads instead.
@@ -379,8 +361,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
 
   return (
     <main
-      className="fixed left-0 top-0 flex h-[100dvh] w-full max-w-full flex-col overflow-hidden overscroll-none bg-background"
-      style={viewportHeight ? { height: `${viewportHeight}px` } : undefined}
+      className="fixed inset-0 flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden overscroll-none bg-background"
     >
       <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col overflow-hidden sm:py-6">
         {/* Branded header — standalone, stable, never scrolls with the transcript */}
@@ -771,7 +752,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   }
 
                   maxLength={500}
-                  className="min-h-12 px-3 py-3 text-sm"
+                  className="min-h-12 px-3 py-3 text-base"
                   aria-label="Your answer"
                 />
                 <PromptInputFooter className="justify-end">
