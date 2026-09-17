@@ -164,6 +164,20 @@ export const startCreditTopup = createServerFn({ method: "POST" })
     return { clientSecret: result.clientSecret };
   });
 
+/**
+ * Read-only live figures from the messaging provider for this business, so the
+ * Messaging screen can show the provider's own credit balance and number
+ * instead of only our stored copy. Never writes anything.
+ */
+export const getProviderMessagingStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    const { getProviderSnapshot } = await import("@/lib/sms/texto-accounts.server");
+    return await getProviderSnapshot(app.businessId);
+  });
+
 /** Owner-only: pause or resume all automated sending for this business. */
 export const setMessagingPaused = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
