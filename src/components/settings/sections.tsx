@@ -228,6 +228,18 @@ export function BusinessSettingsForm({
               </select>
             </label>
           )}
+          {showSignaturePreview && (
+            <div className="col-span-full rounded-md border border-border bg-secondary/40 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                How a text ends
+              </p>
+              <p className="mt-1 text-xs">
+                …thanks, we&apos;ll see you then.
+                <br />
+                {form.sms_signature.trim() || business.name}
+              </p>
+            </div>
+          )}
           {showQuietHours && (
             <label className="col-span-full flex items-center gap-2 text-sm">
               <input
