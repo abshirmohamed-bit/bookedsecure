@@ -87,7 +87,7 @@ export function MessagingOverviewCard() {
               {activeNumber?.number ?? "Not assigned yet"}
             </p>
             <p className="text-xs text-muted-foreground">
-              {NUMBER_STATE_LABELS[state] ?? state} · included in your plan
+              {NUMBER_STATE_LABELS[state] ?? state} · from your messaging provider
             </p>
           </div>
           <div className="rounded-md border border-border p-3">
@@ -113,28 +113,32 @@ export function MessagingOverviewCard() {
             <p className="text-xs text-muted-foreground">Texts this month</p>
             <p className="text-sm font-semibold">
               {plan.usedSegments.toLocaleString()}
-              <span className="text-xs font-normal text-muted-foreground">
-                {" "}
-                / {plan.includedSegments.toLocaleString()} included
-              </span>
+              {plan.includedSegments > 0 ? (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {" "}
+                  / {plan.includedSegments.toLocaleString()} included
+                </span>
+              ) : null}
             </p>
           </div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
-            <div
-              className={`h-full rounded-full ${usedPct >= 100 ? "bg-destructive" : "bg-primary"}`}
-              style={{ width: `${usedPct}%` }}
-            />
-          </div>
+          {plan.includedSegments > 0 ? (
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className={`h-full rounded-full ${usedPct >= 100 ? "bg-destructive" : "bg-primary"}`}
+                style={{ width: `${usedPct}%` }}
+              />
+            </div>
+          ) : null}
           <p className="mt-2 text-xs text-muted-foreground">
-            After your included texts, each text uses one credit ({plan.overageCents}c). Top up any
-            time in Plan &amp; billing to keep sending.
+            Each text uses one credit ({plan.overageCents}c). Buy credits in Plan &amp; billing, or
+            top up in your own provider account.
           </p>
         </div>
 
         {state === "queued_no_number" ? (
           <p className="rounded-md border border-border bg-secondary/40 p-3 text-xs">
-            We&apos;re assigning your dedicated number. Sending stays off until it&apos;s ready — you
-            don&apos;t need to do anything.
+            Your texting number isn&apos;t connected yet. Get it from the messaging provider below,
+            then press “I&apos;ve got my number”.
           </p>
         ) : null}
 

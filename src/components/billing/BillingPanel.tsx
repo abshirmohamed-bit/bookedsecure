@@ -9,6 +9,7 @@ import { applyPromoCode, getMyBilling, openBillingPortal, startSubscriptionCheck
 import { getMessagingAccount, setAutoTopup, startCreditTopup } from "@/lib/sms/messaging-account.functions";
 import { describeSubscription, type BillingInterval } from "@/lib/subscription";
 import { CREDIT_PACKS, formatAud, type CreditPack } from "@/lib/sms/credit-packs";
+import { PROVIDER_LOGIN_URL } from "@/lib/sms/texto-signup";
 import type { Plan } from "@/lib/plans";
 import { getStripe, getStripeEnvironment, isTestModePayments } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
@@ -26,15 +27,16 @@ export function useMyBilling() {
 
 function planPoints(plan: Plan): string[] {
   return [
-    `${plan.includedSegments.toLocaleString()} text credits included every month`,
-    "Dedicated Australian text number",
+    plan.includedSegments > 0
+      ? `${plan.includedSegments.toLocaleString()} text credits included every month`
+      : "Your own Australian number and credits bought separately",
     "Fully integrated cowork AI assistant",
     "AI-led quote page and instant replies",
     plan.automationCustomEnabled ? "Customisable follow-up sequences" : "Proven default follow-up sequence",
     plan.campaignsEnabled ? "Bulk text campaigns to your leads" : null,
     plan.reactivationEnabled ? "Bring past customers back" : null,
     plan.teamMemberLimit === null ? "Unlimited team members" : `Up to ${plan.teamMemberLimit} team members`,
-    `Extra texts ${plan.overageCents}c each, or buy credit packs`,
+    `Credits ${plan.overageCents}c per text, bought in packs`,
   ].filter((p): p is string => Boolean(p));
 }
 
@@ -280,13 +282,14 @@ export function BillingPanel() {
         <div>
           <h3 className="text-base font-semibold">Text credits</h3>
           <p className="text-sm text-muted-foreground">
-            One credit sends one text once your included texts are used up —{" "}
-            {data.promo.creditPriceCents ?? data.plan.overageCents}c each. Credits never expire.
+            One credit sends one text —{" "}
+            {data.promo.creditPriceCents ?? data.plan.overageCents}c each. Credits never expire. Buy
+            them here, or top up in your own provider account if you prefer.
           </p>
         </div>
         {data.access !== "full" ? (
           <p className="rounded-md border border-border bg-secondary/40 p-3 text-sm text-muted-foreground">
-            Choose a plan first — every plan includes texts each month, and credit packs top that up.
+            Choose a plan first, then buy the credits that send your texts.
           </p>
         ) : !isOwner ? (
           <p className="text-sm text-muted-foreground">Only the business owner can buy credits.</p>
@@ -310,7 +313,24 @@ export function BillingPanel() {
             ))}
           </div>
         )}
-        {data.access === "full" && isOwner ? <AutoTopupCard packs={data.packs} /> : null}
+        {data.access === "full" && isOwner ? (
+          <>
+            <AutoTopupCard packs={data.packs} />
+            <p className="text-xs text-muted-foreground">
+              Prefer to pay the provider directly?{" "}
+              <a
+                href={PROVIDER_LOGIN_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Top up in your provider account
+              </a>{" "}
+              with the same card you use for your number, and set their automatic top-up. Your
+              balance here updates either way.
+            </p>
+          </>
+        ) : null}
       </section>
     </div>
   );

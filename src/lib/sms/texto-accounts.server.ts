@@ -632,12 +632,11 @@ function isAccountLevelPurchaseFailure(error: unknown): boolean {
 }
 
 /**
- * Buy a fresh number straight from Texto's for-sale list and lock it to this
- * business. Used when the local pool is empty so activation never waits on a
- * human. Returns null when nothing is for sale or the purchase fails (the
- * caller then queues the business and alerts the operator).
+ * Buy a fresh number straight from Texto's for-sale list on the platform card
+ * and lock it to this business. Kept for platform-admin use only — tenants buy
+ * their own numbers at the provider, so this is never called automatically.
  */
-async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumber | null> {
+export async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumber | null> {
   // Never buy a number for a business whose identity record is incomplete.
   const { identityGate } = await import("@/lib/tenant-identity.server");
   const gate = await identityGate(businessId);
@@ -680,6 +679,197 @@ async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumbe
     if (row) return row;
   }
   return null;
+}
+
+/* ------------------------------------------- self-serve sub-account linking */
+
+type SubAccountListing = {
+  id?: string | number;
+  account_id?: string | number;
+  email?: string;
+  owner_email?: string;
+  business_name?: string;
+  name?: string;
+};
+
+/** Sub-accounts under our parent account (`GET /accounts`). */
+export async function listTextoSubAccounts(): Promise<
+  Array<{ id: string; email: string | null; name: string | null }>
+> {
+  if (!liveAccountProvisioning()) return [];
+  const body = await textoRequest<{ accounts?: SubAccountListing[] } | SubAccountListing[]>(
+    "/accounts",
+    { method: "GET" },
+  );
+  const entries = Array.isArray(body) ? body : (body.accounts ?? []);
+  const out: Array<{ id: string; email: string | null; name: string | null }> = [];
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object") continue;
+    const rawId = entry.account_id ?? entry.id;
+    if (rawId === undefined || rawId === null) continue;
+    out.push({
+      id: String(rawId),
+      email: (entry.email ?? entry.owner_email ?? null) || null,
+      name: (entry.business_name ?? entry.name ?? null) || null,
+    });
+  }
+  return out;
+}
+
+/** Numbers held by one sub-account (`GET /account/{id}/numbers`). */
+export async function numbersForSubAccount(subaccountId: string): Promise<string[]> {
+  if (!liveAccountProvisioning()) return [];
+  const body = await textoRequest<AvailableNumberListing | unknown[]>(
+    `/account/${encodeURIComponent(subaccountId)}/numbers`,
+    { method: "GET" },
+  );
+  const entries = Array.isArray(body) ? body : (body.numbers ?? []);
+  const out: string[] = [];
+  for (const entry of entries) {
+    const record = entry !== null && typeof entry === "object" ? (entry as Record<string, unknown>) : null;
+    const raw =
+      typeof entry === "string"
+        ? entry
+        : ((record?.["number"] ?? record?.["phone"] ?? record?.["e164"] ?? record?.["msisdn"] ?? null) as
+            | string
+            | null);
+    if (typeof raw === "string" && raw.length > 0) out.push(toE164(raw));
+  }
+  return out;
+}
+
+function normaliseName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export type SelfServeLinkResult =
+  | { ok: true; number: string; alreadyLinked: boolean }
+  | { ok: false; code: "not_live" | "no_account" | "no_number" | "taken" | "error"; reason: string; detail?: string };
+
+/**
+ * Find the tenant's own provider sub-account (created when they signed up
+ * through our referral link) and connect the number they bought there.
+ *
+ * Safe to re-run: an already-connected number is reported back unchanged, and
+ * a number belonging to another business is refused. The tenant's previous
+ * number stays active so replies to earlier texts still arrive.
+ */
+export async function linkSelfServeNumber(businessId: string): Promise<SelfServeLinkResult> {
+  if (!liveAccountProvisioning()) {
+    return {
+      ok: false,
+      code: "not_live",
+      reason: "Number checking is not switched on yet. Please try again shortly.",
+    };
+  }
+
+  const account = await getOrCreateTextoAccount(businessId);
+
+  const { data: business } = await supabaseAdmin
+    .from("businesses")
+    .select("name")
+    .eq("id", businessId)
+    .maybeSingle();
+  const { data: owner } = await supabaseAdmin
+    .from("profiles")
+    .select("email")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  let subaccountId = account.subaccount_id ?? null;
+  try {
+    if (!subaccountId) {
+      const subs = await listTextoSubAccounts();
+      const email = (owner?.email ?? "").trim().toLowerCase();
+      const name = normaliseName(business?.name ?? "");
+      const match =
+        (email ? subs.find((s) => (s.email ?? "").trim().toLowerCase() === email) : undefined) ??
+        (name ? subs.find((s) => normaliseName(s.name ?? "") === name) : undefined);
+      if (!match) {
+        return {
+          ok: false,
+          code: "no_account",
+          reason: "We can't see your provider account yet.",
+          detail:
+            "Sign up with the link on this page using the same email address as your BookedSecure login, buy your number, then check again.",
+        };
+      }
+      subaccountId = match.id;
+      await updateTextoAccount(account.id, {
+        subaccount_id: subaccountId,
+        subaccount_reference: subaccountId,
+      });
+    }
+
+    const numbers = await numbersForSubAccount(subaccountId);
+    const number = numbers[0];
+    if (!number) {
+      return {
+        ok: false,
+        code: "no_number",
+        reason: "Your provider account is connected, but no number is on it yet.",
+        detail: "Buy your Australian number at the provider, then check again here.",
+      };
+    }
+
+    const { data: existingRow } = await supabaseAdmin
+      .from("texto_numbers")
+      .select("*")
+      .eq("number", number)
+      .maybeSingle();
+
+    if (existingRow?.assigned_business_id && existingRow.assigned_business_id !== businessId) {
+      return {
+        ok: false,
+        code: "taken",
+        reason: "That number is already connected to another business.",
+      };
+    }
+
+    const alreadyLinked = existingRow?.assigned_business_id === businessId;
+
+    await supabaseAdmin.from("texto_numbers").upsert(
+      {
+        number,
+        monthly_cost_cents: existingRow?.monthly_cost_cents ?? 1500,
+        status: "assigned",
+        assigned_business_id: businessId,
+        assigned_at: existingRow?.assigned_at ?? nowIso(),
+        recalled_at: null,
+        updated_at: nowIso(),
+      },
+      { onConflict: "number" },
+    );
+
+    await ensurePrimarySender(businessId, account.id, number);
+    await updateTextoAccount(account.id, {
+      provisioning_state: "active",
+      failed_reason: null,
+      provisioned_at: account.provisioned_at ?? nowIso(),
+    });
+    await auditEvent({
+      businessId,
+      eventType: alreadyLinked ? "texto_number_relinked" : "texto_number_self_serve_linked",
+      metadata: { number, subaccount_id: subaccountId },
+    });
+
+    return { ok: true, number, alreadyLinked };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    await auditEvent({
+      businessId,
+      eventType: "texto_number_link_failed",
+      metadata: { detail, subaccount_id: subaccountId },
+    });
+    return {
+      ok: false,
+      code: "error",
+      reason: "We couldn't check your number with the provider just now.",
+      detail,
+    };
+  }
 }
 
 export type NumberClaimResult =
@@ -934,17 +1124,18 @@ export async function provisionTextoAccount(input: {
       }
     }
 
-    // Pool empty? Buy one straight from Texto so activation is hands-off.
-    // The $15/month is already part of the plan price — the tenant never sees
-    // a separate charge for their number.
+    // Nothing in the pool? The tenant buys their own number at the provider
+    // through our referral link, so look for it there. The platform card is
+    // never charged for a tenant's number.
     if (!number && liveAccountProvisioning()) {
-      number = await purchaseNumberForBusiness(businessId);
-      if (number) {
-        await auditEvent({
-          businessId,
-          eventType: "texto_number_purchased",
-          metadata: { number: number.number, monthly_cost_cents: number.monthly_cost_cents },
-        });
+      const linked = await linkSelfServeNumber(businessId).catch(() => null);
+      if (linked?.ok) {
+        const { data: row } = await supabaseAdmin
+          .from("texto_numbers")
+          .select("*")
+          .eq("number", linked.number)
+          .maybeSingle();
+        number = row ?? null;
       }
     }
 

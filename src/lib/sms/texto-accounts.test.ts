@@ -333,6 +333,9 @@ beforeEach(() => {
     store[key] = [];
   }
   nextId = 1;
+  // Never talk to the real provider from tests, whatever the local env says.
+  delete process.env.TEXTO_ACCOUNT_PROVISIONING;
+  delete process.env.TEXTO_SUBACCOUNT_PROVISIONING;
 });
 
 const {
