@@ -187,7 +187,7 @@ export function BusinessIdentityPanel({ readOnly }: { readOnly?: boolean }) {
             <Field label="State" required>
               <Select
                 value={form.state || undefined}
-                disabled={readOnly}
+                disabled={Boolean(readOnly)}
                 onValueChange={(value) => set({ state: value })}
               >
                 <SelectTrigger>
