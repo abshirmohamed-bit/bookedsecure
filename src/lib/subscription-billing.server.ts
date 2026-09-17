@@ -349,6 +349,16 @@ export async function handleSubscriptionInvoicePaid(invoice: any) {
     console.error("[subscription] provider cost bookkeeping failed:", error);
   }
 
+  // Every paid invoice re-runs provisioning. Idempotent: a tenant that already
+  // has an active number is a no-op, while one that was queued (provider had no
+  // stock, no saved card, etc.) gets its number bought automatically on the
+  // next payment instead of waiting for a human.
+  try {
+    await provisionMessagingForBusiness(businessId);
+  } catch (error) {
+    console.error("[subscription] provisioning retry on invoice.paid failed:", error);
+  }
+
   return { ok: true as const, detail: "Subscription invoice paid" };
 }
 
