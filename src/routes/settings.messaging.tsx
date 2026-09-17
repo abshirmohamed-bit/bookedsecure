@@ -45,7 +45,8 @@ function MessagingSettingsPage() {
               title="How your texts look"
               textFields={["sms_signature"]}
               showQuietHours
-              note="Your sign-off is added to the end of your texts. Quiet hours use your business timezone — nothing is sent to customers between these hours."
+              showSignaturePreview
+              note="Your sign-off goes on the end of every text you send. Unless you turn quiet hours off below, nothing is sent to customers between 8pm and 8am your time."
             />
             <MessagingAdvanced
               provider={data.provider}
