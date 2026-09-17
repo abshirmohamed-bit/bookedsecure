@@ -186,7 +186,7 @@ export function BusinessIdentityPanel({ readOnly }: { readOnly?: boolean }) {
           <div className="grid grid-cols-2 gap-3">
             <Field label="State" required>
               <Select
-                value={form.state || undefined}
+                value={form.state}
                 disabled={Boolean(readOnly)}
                 onValueChange={(value) => set({ state: value })}
               >
