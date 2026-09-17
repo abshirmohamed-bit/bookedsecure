@@ -194,7 +194,7 @@ export function BusinessSettingsForm({
             </label>
           ))}
           <label className="block text-xs">
-            <span className="mb-1 block text-muted-foreground">Quote subject label</span>
+            <span className="mb-1 block text-muted-foreground">What you ask customers about</span>
             <input
               disabled={readOnly}
               value={form.quote_subject_label}
@@ -203,21 +203,7 @@ export function BusinessSettingsForm({
               className="form-control disabled:opacity-60"
             />
             <span className="mt-1 block text-[10px] text-muted-foreground">
-              What the customer is asked about (defaults to Vehicle).
-            </span>
-          </label>
-          <label className="block text-xs sm:col-span-2">
-            <span className="mb-1 block text-muted-foreground">Quote subject options</span>
-            <textarea
-              disabled={readOnly}
-              value={form.quote_subject_options}
-              onChange={(event) => setForm({ ...form, quote_subject_options: event.target.value })}
-              rows={4}
-              placeholder="Small&#10;Medium&#10;Large&#10;Other"
-              className="form-control min-h-20 py-2 disabled:opacity-60"
-            />
-            <span className="mt-1 block text-[10px] text-muted-foreground">
-              One option per line. Shown in the manual quote form and used as suggestions.
+              Used on your quote form when asking what the job is for.
             </span>
           </label>
           {showProvider && (
