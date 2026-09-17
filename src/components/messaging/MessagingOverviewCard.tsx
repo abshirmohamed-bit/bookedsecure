@@ -80,11 +80,17 @@ export function MessagingOverviewCard() {
   };
 
   const isOwner = data.role === "owner";
-  const balance = data.account?.creditBalance ?? 0;
+  const storedBalance = data.account?.creditBalance ?? 0;
+  // Prefer what the provider reports; fall back to our own figure and say so.
+  const liveBalance = provider?.ok ? provider.credits : null;
+  const balance = liveBalance ?? storedBalance;
   const lowBalance = balance <= LOW_CREDIT_THRESHOLD;
+  const balanceMismatch = liveBalance !== null && liveBalance !== storedBalance;
   const activeNumber =
     data.numbers.find((number) => number.status === "assigned") ?? data.numbers[0];
+  const numberLabel = (provider?.ok ? provider.number : null) ?? activeNumber?.number ?? null;
   const state = data.account?.provisioningState ?? "not_started";
+  const providerStatus = provider?.ok ? provider.status : null;
   const paused = data.business ? !data.business.automation_enabled : false;
   const usedPct =
     plan.includedSegments > 0
@@ -98,11 +104,11 @@ export function MessagingOverviewCard() {
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-md border border-border p-3">
             <p className="text-xs text-muted-foreground">Your number</p>
-            <p className="mt-1 text-lg font-semibold">
-              {activeNumber?.number ?? "Not assigned yet"}
-            </p>
+            <p className="mt-1 text-lg font-semibold">{numberLabel ?? "Not connected yet"}</p>
             <p className="text-xs text-muted-foreground">
-              {NUMBER_STATE_LABELS[state] ?? state} · from your messaging provider
+              {providerStatus === "active" && numberLabel
+                ? "Live with your messaging provider"
+                : (NUMBER_STATE_LABELS[state] ?? state)}
             </p>
           </div>
           <div className="rounded-md border border-border p-3">
@@ -118,10 +124,20 @@ export function MessagingOverviewCard() {
             <p className="text-xs text-muted-foreground">Credits left</p>
             <p className="mt-1 text-lg font-semibold">{balance.toLocaleString()}</p>
             <p className={`text-xs ${lowBalance ? "text-destructive" : "text-muted-foreground"}`}>
-              Extra texts {plan.overageCents}c each
+              {liveBalance !== null
+                ? `Live from your provider · extra texts ${plan.overageCents}c each`
+                : `Our records · extra texts ${plan.overageCents}c each`}
             </p>
           </div>
         </div>
+
+        {balanceMismatch ? (
+          <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+            Your provider shows {liveBalance.toLocaleString()} credits while our records show{" "}
+            {storedBalance.toLocaleString()}. Top up with your provider to keep texts going out.
+          </p>
+        ) : null}
+
 
         <div className="rounded-md border border-border p-3">
           <div className="flex items-baseline justify-between">
