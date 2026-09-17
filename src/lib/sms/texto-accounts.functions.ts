@@ -185,49 +185,15 @@ async function requireOwnBusinessOwner(context: { supabase: any; userId: string 
   return app;
 }
 
-/** Owner-only: numbers the provider currently has for sale, with monthly price. */
-export const listNumbersForPurchase = createServerFn({ method: "POST" })
+/**
+ * Owner-only: find the number this business bought at the provider (through our
+ * referral sign-up link) and connect it as their texting number.
+ */
+export const linkMyProviderNumber = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await requireOwnBusinessOwner(context);
-    const { listPurchasableNumbers, liveAccountProvisioning } = await loadAccountModule();
-    if (!liveAccountProvisioning()) {
-      return { live: false as const, numbers: [], reason: "Number buying is not switched on yet." };
-    }
-    try {
-      const numbers = await listPurchasableNumbers();
-      return { live: true as const, numbers, reason: null };
-    } catch (error) {
-      return {
-        live: true as const,
-        numbers: [],
-        reason: error instanceof Error ? error.message : String(error),
-      };
-    }
-  });
-
-/** Owner-only: buy one of those numbers and make it this business's number. */
-export const claimNumberForBusiness = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        number: z.string().min(6).max(20),
-        monthlyCostCents: z.number().int().min(0).max(100000).optional(),
-        alreadyPurchased: z.boolean().optional(),
-        providerRef: z.string().min(1).max(100).optional(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
     const app = await requireOwnBusinessOwner(context);
-    const { claimDedicatedNumber } = await loadAccountModule();
-    return claimDedicatedNumber({
-      businessId: app.businessId,
-      number: data.number,
-      ...(data.monthlyCostCents === undefined ? {} : { monthlyCostCents: data.monthlyCostCents }),
-      ...(data.alreadyPurchased === undefined ? {} : { alreadyPurchased: data.alreadyPurchased }),
-      ...(data.providerRef === undefined ? {} : { providerRef: data.providerRef }),
-    });
+    const { linkSelfServeNumber } = await loadAccountModule();
+    return linkSelfServeNumber(app.businessId);
   });
 

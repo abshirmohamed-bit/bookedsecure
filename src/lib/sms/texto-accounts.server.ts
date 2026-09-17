@@ -632,12 +632,11 @@ function isAccountLevelPurchaseFailure(error: unknown): boolean {
 }
 
 /**
- * Buy a fresh number straight from Texto's for-sale list and lock it to this
- * business. Used when the local pool is empty so activation never waits on a
- * human. Returns null when nothing is for sale or the purchase fails (the
- * caller then queues the business and alerts the operator).
+ * Buy a fresh number straight from Texto's for-sale list on the platform card
+ * and lock it to this business. Kept for platform-admin use only — tenants buy
+ * their own numbers at the provider, so this is never called automatically.
  */
-async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumber | null> {
+export async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumber | null> {
   // Never buy a number for a business whose identity record is incomplete.
   const { identityGate } = await import("@/lib/tenant-identity.server");
   const gate = await identityGate(businessId);
