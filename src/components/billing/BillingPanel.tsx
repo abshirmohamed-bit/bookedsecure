@@ -281,13 +281,14 @@ export function BillingPanel() {
         <div>
           <h3 className="text-base font-semibold">Text credits</h3>
           <p className="text-sm text-muted-foreground">
-            One credit sends one text once your included texts are used up —{" "}
-            {data.promo.creditPriceCents ?? data.plan.overageCents}c each. Credits never expire.
+            One credit sends one text —{" "}
+            {data.promo.creditPriceCents ?? data.plan.overageCents}c each. Credits never expire. Buy
+            them here, or top up in your own provider account if you prefer.
           </p>
         </div>
         {data.access !== "full" ? (
           <p className="rounded-md border border-border bg-secondary/40 p-3 text-sm text-muted-foreground">
-            Choose a plan first — every plan includes texts each month, and credit packs top that up.
+            Choose a plan first, then buy the credits that send your texts.
           </p>
         ) : !isOwner ? (
           <p className="text-sm text-muted-foreground">Only the business owner can buy credits.</p>
@@ -311,7 +312,24 @@ export function BillingPanel() {
             ))}
           </div>
         )}
-        {data.access === "full" && isOwner ? <AutoTopupCard packs={data.packs} /> : null}
+        {data.access === "full" && isOwner ? (
+          <>
+            <AutoTopupCard packs={data.packs} />
+            <p className="text-xs text-muted-foreground">
+              Prefer to pay the provider directly?{" "}
+              <a
+                href={PROVIDER_LOGIN_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Top up in your provider account
+              </a>{" "}
+              with the same card you use for your number, and set their automatic top-up. Your
+              balance here updates either way.
+            </p>
+          </>
+        ) : null}
       </section>
     </div>
   );
