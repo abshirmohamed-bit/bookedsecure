@@ -65,13 +65,13 @@ function PricingPage() {
           <p className="text-sm font-semibold text-primary">BookedSecure</p>
           <h1 className="mt-2 page-heading">Every enquiry answered, every follow-up done</h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-            You get your own Australian number and an assistant that replies in seconds, quotes
-            from your own price list, books the job and chases the ones who go quiet. Pay monthly
-            or a year upfront.
+            An assistant that replies in seconds, quotes from your own price list, books the job and
+            chases the ones who go quiet. Pay monthly or a year upfront. Your own Australian number
+            and your texts come from our messaging provider and are paid to them directly.
           </p>
         </header>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="mx-auto mt-6 grid max-w-md gap-4">
           {plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} />
           ))}
@@ -88,8 +88,9 @@ function PricingPage() {
             ))}
           </ul>
           <p className="mt-4 text-xs text-muted-foreground">
-            Prices are in Australian dollars. Extra texts beyond your monthly allowance are bought
-            in credit packs from your Messaging page, and sending stops until you top up — you can
+            Prices are in Australian dollars. Your dedicated Australian number is $15 a month plus
+            GST from our messaging provider, paid with your own card. Texts are bought as credits —
+            from us or straight from the provider — and sending stops when you run out, so you can
             never get a surprise bill.
           </p>
         </section>
@@ -113,8 +114,12 @@ function PlanCard({ plan }: { plan: Plan }) {
         {monthsFree > 0 ? ` — ${monthsFree} months free` : ""}
       </p>
       <ul className="mt-4 space-y-2 text-sm">
-        <li>{plan.includedSegments.toLocaleString()} texts included every month</li>
-        <li>Extra texts {plan.overageCents}c each, bought as credits</li>
+        {plan.includedSegments > 0 ? (
+          <li>{plan.includedSegments.toLocaleString()} texts included every month</li>
+        ) : (
+          <li>Your own Australian number, $15 a month plus GST from the provider</li>
+        )}
+        <li>Texts {plan.overageCents}c each, bought as credits</li>
         <li>
           {plan.reactivationEnabled
             ? "Win-back campaigns to past customers"
