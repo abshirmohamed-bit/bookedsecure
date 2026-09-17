@@ -1472,6 +1472,57 @@ export async function getTextoGroupReport(window: {
   };
 }
 
+/* ------------------------------------------------------------------ live snapshot */
+
+export type ProviderSnapshot =
+  | {
+      ok: true;
+      credits: number | null;
+      number: string | null;
+      status: string | null;
+      subaccountId: string;
+    }
+  | { ok: false; reason: "not_live" | "no_account" | "error"; detail?: string };
+
+/**
+ * Reads the tenant's real state straight from the provider so the Messaging
+ * screen shows what the provider believes, not just our own copy of it.
+ *
+ * Read-only and time-limited: a slow or failing provider degrades to our stored
+ * figures rather than blocking the page.
+ */
+export async function getProviderSnapshot(businessId: string): Promise<ProviderSnapshot> {
+  if (!liveAccountProvisioning()) return { ok: false, reason: "not_live" };
+  const account = await getTextoAccount(businessId);
+  if (!account?.subaccount_id) return { ok: false, reason: "no_account" };
+
+  try {
+    const body = await textoRequest<{
+      account?: { credits?: number; sending_number?: string | null; account_status?: string | null };
+      credits?: number;
+      sending_number?: string | null;
+      account_status?: string | null;
+    }>(`/account/${encodeURIComponent(account.subaccount_id)}`, {
+      method: "GET",
+      signal: AbortSignal.timeout(6000),
+    });
+    const record = body.account ?? body;
+    return {
+      ok: true,
+      credits: typeof record.credits === "number" ? record.credits : null,
+      number: record.sending_number ? toE164(record.sending_number) : null,
+      status: record.account_status ?? null,
+      subaccountId: account.subaccount_id,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "error",
+      detail: error instanceof Error ? error.message : "Provider did not respond.",
+    };
+  }
+}
+
 /* ------------------------------------------------------------------ capability query */
 
 export function textoAccountCapabilities(): Pick<
