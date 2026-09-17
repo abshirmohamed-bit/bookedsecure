@@ -100,7 +100,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   return (
     <div
       className={cn(
-        "min-h-screen bg-background transition-[padding] duration-200 lg:pl-[19.5rem]",
+        isAssistantHome
+          ? "flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-background transition-[padding] duration-200 lg:pl-[19.5rem]"
+          : "min-h-screen bg-background transition-[padding] duration-200 lg:pl-[19.5rem]",
         tenantRailCollapsed && "lg:pl-16",
       )}
     >
@@ -269,7 +271,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         </div>
       </header>
        <SubscriptionBanner />
-       <main className={cn("min-w-0", isAssistantHome ? "overflow-hidden" : "mx-auto max-w-[1500px] px-4 py-5 sm:px-6")}>{children}</main>
+       <main className={cn("min-w-0", isAssistantHome ? "min-h-0 flex-1 overflow-hidden" : "mx-auto max-w-[1500px] px-4 py-5 sm:px-6")}>{children}</main>
     </div>
   );
 }

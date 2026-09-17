@@ -406,7 +406,7 @@ export function OwnerAssistant({
         ) : null}
 
         {hasConversation ? (
-          <Conversation className="min-h-0 min-w-0 flex-1 overscroll-contain">
+          <Conversation className="min-h-0 min-w-0 flex-1 overscroll-contain [&>div]:overflow-y-auto">
             <ConversationContent className={`mx-auto w-full min-w-0 max-w-3xl gap-5 px-4 pb-6 pt-4 sm:px-8 ${homeMode ? "lg:pt-28" : "lg:pt-8"}`}>
             {turns.map((turn) => (
               <Message key={turn.id} from={turn.role === "you" ? "user" : "assistant"}>
@@ -773,7 +773,7 @@ export function OwnerAssistant({
             onChange={(event) => setQuestion(event.target.value)}
             maxLength={OWNER_ASSISTANT_MAX_QUESTION}
             placeholder="Message Assistant…"
-            className="min-h-12 max-h-[120px]"
+            className="min-h-12 max-h-[120px] text-base"
           />
            <PromptInputFooter className="min-h-11">
             <div className="flex items-center gap-2">
