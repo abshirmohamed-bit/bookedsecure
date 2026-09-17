@@ -703,6 +703,22 @@ export async function claimDedicatedNumber(input: {
 
 }): Promise<NumberClaimResult> {
   const number = toE164(input.number);
+
+  // BookedSecure buys and holds every number, so it must be able to say which
+  // business stands behind this one. No complete identity record, no number.
+  const { identityGate } = await import("@/lib/tenant-identity.server");
+  const gate = await identityGate(input.businessId);
+  if (!gate.ok) {
+    const { describeMissingIdentityFields } = await import("@/lib/tenant-identity");
+    return {
+      ok: false,
+      code: "identity_required",
+      missing: gate.missing,
+      reason: "Your business details are needed before a number can be issued.",
+      detail: `Still needed: ${describeMissingIdentityFields(gate.missing)}.`,
+    };
+  }
+
   const account = await getOrCreateTextoAccount(input.businessId);
 
   const { data: existingRow } = await supabaseAdmin
