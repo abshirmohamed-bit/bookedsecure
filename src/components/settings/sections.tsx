@@ -97,7 +97,7 @@ const TEXT_FIELDS = {
   phone_number: "Sending number",
   service_area: "Service area / suburbs",
   opening_hours: "Opening hours",
-  sms_signature: "SMS signature",
+  sms_signature: "Your sign-off",
   privacy_policy_url: "Privacy policy URL",
   logo_url: "Logo URL (shown on your quote form)",
   timezone: "Timezone",
@@ -117,6 +117,7 @@ export function BusinessSettingsForm({
   showProvider = false,
   showQuietHours = false,
   showAutomationSwitch = false,
+  showSignaturePreview = false,
   note,
 }: {
   business: Business;
@@ -126,6 +127,7 @@ export function BusinessSettingsForm({
   showProvider?: boolean;
   showQuietHours?: boolean;
   showAutomationSwitch?: boolean;
+  showSignaturePreview?: boolean;
   note?: string;
 }) {
   const save = useServerFn(saveBusinessSettings);
