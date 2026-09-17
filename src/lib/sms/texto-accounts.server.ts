@@ -638,6 +638,13 @@ function isAccountLevelPurchaseFailure(error: unknown): boolean {
  * caller then queues the business and alerts the operator).
  */
 async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumber | null> {
+  // Never buy a number for a business whose identity record is incomplete.
+  const { identityGate } = await import("@/lib/tenant-identity.server");
+  const gate = await identityGate(businessId);
+  if (!gate.ok) {
+    console.error(`[texto] identity record incomplete for ${businessId}; purchase skipped`);
+    return null;
+  }
   const forSale = await listPurchasableNumbers().catch((error) => {
     console.error("[texto] listing available numbers failed:", error);
     return [] as PurchasableNumber[];
