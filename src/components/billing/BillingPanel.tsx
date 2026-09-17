@@ -185,11 +185,17 @@ export function BillingPanel() {
         {data.access === "full" ? (
           <dl className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-md border border-border bg-background p-3">
-              <dt className="text-xs text-muted-foreground">Included texts this month</dt>
+              <dt className="text-xs text-muted-foreground">
+                {data.plan.includedSegments > 0 ? "Included texts this month" : "Texts sent this month"}
+              </dt>
               <dd className="mt-1 text-sm font-medium">
-                {data.usage ? `${data.usage.segmentsUsed.toLocaleString()} of ${data.usage.includedSegments.toLocaleString()} used` : `${data.plan.includedSegments.toLocaleString()} included`}
+                {data.plan.includedSegments > 0
+                  ? data.usage
+                    ? `${data.usage.segmentsUsed.toLocaleString()} of ${data.usage.includedSegments.toLocaleString()} used`
+                    : `${data.plan.includedSegments.toLocaleString()} included`
+                  : `${(data.usage?.segmentsUsed ?? 0).toLocaleString()} sent`}
               </dd>
-              {data.usage ? (
+              {data.usage && data.plan.includedSegments > 0 ? (
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                   <div className={cn("h-full rounded-full", usedPct >= 90 ? "bg-destructive" : "bg-primary")} style={{ width: `${usedPct}%` }} />
                 </div>
@@ -198,7 +204,11 @@ export function BillingPanel() {
             <div className="rounded-md border border-border bg-background p-3">
               <dt className="text-xs text-muted-foreground">Credit balance</dt>
               <dd className="mt-1 text-sm font-medium">{data.creditBalance.toLocaleString()} credits</dd>
-              <p className="mt-1 text-xs text-muted-foreground">Used only after included texts run out.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {data.plan.includedSegments > 0
+                  ? "Used only after included texts run out."
+                  : "One credit sends one text."}
+              </p>
             </div>
             <div className="rounded-md border border-border bg-background p-3">
               <dt className="text-xs text-muted-foreground">Team</dt>
