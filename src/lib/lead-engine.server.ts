@@ -183,28 +183,6 @@ export async function resolveSender(input: {
     if (data) return toResolvedSender(data);
   }
 
-  if (input.leadId) {
-    const { data: last } = await supabaseAdmin
-      .from("messages")
-      .select("sender_id")
-      .eq("business_id", input.businessId)
-      .eq("lead_id", input.leadId)
-      .not("sender_id", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (last?.sender_id) {
-      const { data } = await supabaseAdmin
-        .from("sms_senders")
-        .select(SENDER_COLUMNS)
-        .eq("id", last.sender_id)
-        .eq("business_id", input.businessId)
-        .eq("active", true)
-        .maybeSingle();
-      if (data) return toResolvedSender(data);
-    }
-  }
-
   const { data: primary } = await supabaseAdmin
     .from("sms_senders")
     .select(SENDER_COLUMNS)
@@ -215,8 +193,35 @@ export async function resolveSender(input: {
     .limit(1)
     .maybeSingle();
 
+  if (input.leadId) {
+    // Stay on an older number only while the customer is actually replying to
+    // it (previous campaigns keep their thread). Everything else moves to the
+    // current primary number.
+    const { data: lastInbound } = await supabaseAdmin
+      .from("messages")
+      .select("sender_id")
+      .eq("business_id", input.businessId)
+      .eq("lead_id", input.leadId)
+      .eq("direction", "inbound")
+      .not("sender_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (lastInbound?.sender_id && lastInbound.sender_id !== primary?.id) {
+      const { data } = await supabaseAdmin
+        .from("sms_senders")
+        .select(SENDER_COLUMNS)
+        .eq("id", lastInbound.sender_id)
+        .eq("business_id", input.businessId)
+        .eq("active", true)
+        .maybeSingle();
+      if (data) return toResolvedSender(data);
+    }
+  }
+
   return primary ? toResolvedSender(primary) : null;
 }
+
 
 /**
  * Tenant lookup for inbound/callback webhooks: the receiving number is the key.
