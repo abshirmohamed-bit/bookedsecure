@@ -3,6 +3,7 @@
 - [x] Fix mobile chat keyboard layout by tracking the iPhone visible viewport and hiding footer copy while typing.
 - [x] Clip service and selected-service card content inside stable mobile card rows.
 - [x] Keep short quote conversations anchored above the composer without a focus-triggered page jump.
+- [x] Remove the app-controlled bottom gap while the mobile quote input is focused.
 
 - [x] Build the approved tenant home with compact product discovery, full Cowork, and unchanged Operational Details.
 - [x] Collapse dashboard performance into one Operational Details button and simplify the opened view.
