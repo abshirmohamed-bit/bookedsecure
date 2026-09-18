@@ -761,7 +761,13 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
           </Conversation>
 
           {/* Composer — aligned with the conversation column */}
-          <div className="shrink-0 border-t border-border bg-card px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+          <div
+            className={`shrink-0 border-t border-border bg-card px-3 pt-3 sm:px-6 ${
+              composerFocused
+                ? "pb-0"
+                : "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            }`}
+          >
             {showComposer && (
               <PromptInput
                 className="rounded-lg border-input bg-background shadow-sm"
