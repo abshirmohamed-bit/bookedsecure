@@ -29,6 +29,7 @@ import {
   BOOKING_CONFIRM_CHOICE,
   NO_SLOT_CHOICE,
 } from "@/lib/web-chat-booking";
+import type { QuoteServiceLayout } from "@/lib/quote-service-layout";
 
 type Turn = { role: "customer" | "assistant" | "system"; body: string };
 
@@ -51,6 +52,7 @@ type Tenant = {
   serviceArea: string | null;
   privacyPolicyUrl: string | null;
   quoteSubjectLabel: string;
+  quoteServiceLayout: QuoteServiceLayout;
 };
 
 /** A submitted-but-unconfirmed customer turn, kept visible through failures. */
@@ -334,35 +336,35 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     // for the rest of the conversation, instead of a plain line of text.
     if (selectionEcho && body === selectionEcho && selectionCards.length > 0) {
       return (
-        <div className="ml-auto max-w-[86%]">
-          <ul className="flex flex-wrap justify-end gap-1.5">
+        <div className="ml-auto w-full max-w-[90%] sm:max-w-[76%]">
+          <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {selectionCards.map((card) => (
               <li key={card.label}>
                 <button
                   type="button"
                   onClick={() => setSelectionDetail(card)}
                   aria-label={`View full details of ${card.label}`}
-                  className="relative grid h-[8.25rem] w-[7.2rem] cursor-pointer grid-rows-[auto_minmax(0,1fr)_auto_auto] overflow-hidden rounded-lg border border-primary bg-card p-1.5 text-left shadow-sm ring-1 ring-primary/40 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[8.5rem] sm:p-2"
+                    className="relative grid min-h-[5.5rem] w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto_auto] gap-x-3 overflow-hidden rounded-lg border border-primary bg-card px-3 py-2.5 text-left shadow-sm ring-1 ring-primary/40 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <span className="mb-1 flex h-4 w-4 items-center justify-center self-end rounded-full border border-primary bg-primary text-primary-foreground">
+                   <span className="col-start-2 row-start-1 flex h-5 w-5 items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground">
                     <Check className="h-3 w-3" aria-hidden="true" />
                   </span>
-                  <p className="line-clamp-3 min-h-0 min-w-0 overflow-hidden break-words text-[0.66rem] font-semibold leading-[1.15] sm:text-[0.78rem]">
+                   <p className="col-start-1 row-start-1 min-h-0 min-w-0 break-words text-sm font-semibold leading-snug">
                     {card.label}
                   </p>
-                  <p className="mt-1 truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
+                   <p className="col-span-2 mt-1 break-words text-xs font-bold leading-tight text-primary">
                     {card.price ?? "On enquiry"}
                   </p>
                   {card.duration && (
-                    <p className="truncate text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.64rem]">
+                     <p className="col-span-2 text-xs leading-tight text-muted-foreground">
                       {card.duration}
                     </p>
                   )}
-                  <div className="min-w-0 overflow-hidden">
+                   <div className="col-span-2 min-w-0 overflow-hidden">
                     {(card.extras ?? []).slice(0, 1).map((extra) => (
                       <p
                         key={extra.name}
-                        className="mt-0.5 flex min-w-0 items-baseline gap-1 overflow-hidden text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.62rem]"
+                         className="mt-1 flex min-w-0 items-baseline gap-1 overflow-hidden text-xs leading-tight text-muted-foreground"
                       >
                         <span className="min-w-0 truncate">+{extra.name}</span>
                         {extra.price && (
@@ -371,7 +373,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                       </p>
                     ))}
                   </div>
-                  <span className="mt-1 truncate text-[0.54rem] font-semibold uppercase tracking-wide text-primary/80 sm:text-[0.58rem]">
+                   <span className="col-span-2 mt-1 text-[0.65rem] font-semibold uppercase text-primary/80">
                     Tap for details
                   </span>
                 </button>
@@ -493,6 +495,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                 busy={busy}
                                 flexibleValue={FLEXIBLE_CHOICE}
                                 quantityLabel={tenant.quoteSubjectLabel}
+                                layout={tenant.quoteServiceLayout}
                                 onSubmit={(value, label) => {
                                    setSelected(value);
                                    // Keep the tapped cards so the customer's own

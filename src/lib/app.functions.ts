@@ -658,6 +658,42 @@ export const saveQuotePageMode = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/** Owner-only choice for how services appear inside the public AI quote conversation. */
+export const saveQuoteServiceLayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        quote_service_layout: z.enum([
+          "focused_list",
+          "compact_grid",
+          "guided_conversation",
+        ]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+    const { error } = await supabaseAdmin
+      .from("businesses")
+      .update({ quote_service_layout: data.quote_service_layout })
+      .eq("id", app.businessId);
+    if (error) throw new Error(error.message);
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "quote_service_layout_changed",
+      entityType: "business",
+      entityId: app.businessId,
+      metadata: { quote_service_layout: data.quote_service_layout },
+    });
+    return { ok: true as const };
+  });
+
 export const getSmsSetup = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

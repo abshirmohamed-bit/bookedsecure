@@ -998,6 +998,7 @@ export type Database = {
           quiet_hours_start: number
           quote_form_active: boolean
           quote_mode: string
+          quote_service_layout: string
           quote_subject_label: string | null
           quote_subject_options: string[] | null
           service_area: string | null
@@ -1047,6 +1048,7 @@ export type Database = {
           quiet_hours_start?: number
           quote_form_active?: boolean
           quote_mode?: string
+          quote_service_layout?: string
           quote_subject_label?: string | null
           quote_subject_options?: string[] | null
           service_area?: string | null
@@ -1096,6 +1098,7 @@ export type Database = {
           quiet_hours_start?: number
           quote_form_active?: boolean
           quote_mode?: string
+          quote_service_layout?: string
           quote_subject_label?: string | null
           quote_subject_options?: string[] | null
           service_area?: string | null

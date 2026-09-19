@@ -8,6 +8,10 @@ import { resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
 import type { ServiceAddon } from "@/lib/service-addons";
 import { sanitiseServiceImageUrl } from "@/lib/service-images";
 import { quoteSubjectLabel, quoteSubjectOptions } from "@/lib/domain";
+import {
+  resolveQuoteServiceLayout,
+  type QuoteServiceLayout,
+} from "@/lib/quote-service-layout";
 
 export type PublicService = {
   id: string;
@@ -35,6 +39,7 @@ export type PublicTenant = {
   privacyPolicyUrl: string | null;
   flexibleRequestsEnabled: boolean;
   quoteMode: QuoteMode;
+  quoteServiceLayout: QuoteServiceLayout;
   /** Customer-facing label for the item being serviced (e.g. Vehicle, Property, Lawn). */
   quoteSubjectLabel: string;
   /** Dropdown options for the quote subject. */
@@ -52,7 +57,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
   const { data: business } = await supabaseAdmin
     .from("businesses")
     .select(
-      "id, name, slug, logo_url, service_area, privacy_policy_url, status, quote_form_active, flexible_requests_enabled, quote_mode, quote_subject_label, quote_subject_options",
+      "id, name, slug, logo_url, service_area, privacy_policy_url, status, quote_form_active, flexible_requests_enabled, quote_mode, quote_service_layout, quote_subject_label, quote_subject_options",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -106,6 +111,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     flexibleRequestsEnabled: business.flexible_requests_enabled !== false,
     // Unknown / missing mode never fails open into the AI experience.
     quoteMode: resolveQuoteMode(business.quote_mode),
+    quoteServiceLayout: resolveQuoteServiceLayout(business.quote_service_layout),
     quoteSubjectLabel: quoteSubjectLabel(business.quote_subject_label),
     quoteSubjectOptions: quoteSubjectOptions(business.quote_subject_options),
     services: (services ?? []).map((service) => ({
