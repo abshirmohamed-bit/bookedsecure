@@ -40,24 +40,21 @@ export function HomeLanding() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-background">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-3 px-4 py-3 sm:flex sm:items-center sm:justify-between">
-          <a href="#top" className="flex min-w-0 items-center gap-1.5" aria-label="BookedSecure home">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+          <a href="#top" className="flex min-w-0 items-center gap-2" aria-label="BookedSecure home">
             <img
               src={brandMark.url}
               alt=""
               className="h-9 w-10 shrink-0 object-cover object-center mix-blend-multiply sm:h-10 sm:w-12"
             />
-            <span className="truncate text-sm font-semibold">BookedSecure</span>
+            <span className="truncate text-base font-semibold">BookedSecure</span>
           </a>
-          <div className="grid grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 sm:flex">
+          <div className="flex items-center gap-1">
             <Button asChild variant="ghost" className="min-h-11 px-3 text-muted-foreground">
               <Link to="/pricing">Pricing</Link>
             </Button>
             <Button asChild variant="ghost" className="min-h-11 px-3 text-muted-foreground">
               <Link to="/auth">Sign in</Link>
-            </Button>
-            <Button asChild className="min-h-11 min-w-0 px-3 sm:px-4">
-              <Link to="/auth">Get BookedSecure</Link>
             </Button>
           </div>
         </div>
