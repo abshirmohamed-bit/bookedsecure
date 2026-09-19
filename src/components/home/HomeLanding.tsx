@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, MessageSquare, Repeat2, ClipboardList } from "lucide-react";
 import heroImage from "@/assets/service-hero.jpg";
+import { Button } from "@/components/ui/button";
 
 const STEPS = [
   {
@@ -37,38 +38,29 @@ const AUDIENCE = [
 export function HomeLanding() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+      <header className="border-b border-border bg-background">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-3 px-4 py-3 sm:flex sm:items-center sm:justify-between">
           <a href="#top" className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
               B
             </span>
             <span className="text-sm font-semibold tracking-tight">BookedSecure</span>
           </a>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <Link
-              to="/pricing"
-              className="inline-flex min-h-10 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Pricing
-            </Link>
-            <Link
-              to="/auth"
-              className="inline-flex min-h-10 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Sign in
-            </Link>
-            <Link
-              to="/auth"
-              className="inline-flex min-h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              Get BookedSecure
-            </Link>
+          <div className="grid grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 sm:flex">
+            <Button asChild variant="ghost" className="min-h-11 px-3 text-muted-foreground">
+              <Link to="/pricing">Pricing</Link>
+            </Button>
+            <Button asChild variant="ghost" className="min-h-11 px-3 text-muted-foreground">
+              <Link to="/auth">Sign in</Link>
+            </Button>
+            <Button asChild className="min-h-11 min-w-0 px-3 sm:px-4">
+              <Link to="/auth">Get BookedSecure</Link>
+            </Button>
           </div>
         </div>
       </header>
 
-      <main id="top" className="pb-24 sm:pb-0">
+      <main id="top">
         {/* Hero */}
         <section className="relative isolate min-h-[78vh] overflow-hidden">
           <img
@@ -94,13 +86,12 @@ export function HomeLanding() {
                 BookedSecure helps Australian service businesses respond faster, follow up
                 consistently, and turn more enquiries into booked jobs.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  to="/auth"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  Get BookedSecure today <ArrowRight className="h-4 w-4" />
-                </Link>
+              <div className="mt-7">
+                <Button asChild size="lg" className="min-h-12 w-full px-5 sm:w-auto">
+                  <Link to="/auth">
+                    Get BookedSecure today <ArrowRight aria-hidden="true" />
+                  </Link>
+                </Button>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
                 Stop losing jobs to slow follow-up — set up in a day, no lock-in.
@@ -184,15 +175,6 @@ export function HomeLanding() {
         </footer>
       </main>
 
-      {/* Sticky mobile CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 p-3 backdrop-blur sm:hidden">
-        <Link
-          to="/auth"
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground"
-        >
-          Get BookedSecure
-        </Link>
-      </div>
     </div>
   );
 }
