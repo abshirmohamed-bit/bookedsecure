@@ -29,6 +29,7 @@ import {
   BOOKING_CONFIRM_CHOICE,
   NO_SLOT_CHOICE,
 } from "@/lib/web-chat-booking";
+import type { QuoteServiceLayout } from "@/lib/quote-service-layout";
 
 type Turn = { role: "customer" | "assistant" | "system"; body: string };
 
@@ -51,6 +52,7 @@ type Tenant = {
   serviceArea: string | null;
   privacyPolicyUrl: string | null;
   quoteSubjectLabel: string;
+  quoteServiceLayout: QuoteServiceLayout;
 };
 
 /** A submitted-but-unconfirmed customer turn, kept visible through failures. */
@@ -493,6 +495,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                 busy={busy}
                                 flexibleValue={FLEXIBLE_CHOICE}
                                 quantityLabel={tenant.quoteSubjectLabel}
+                                layout={tenant.quoteServiceLayout}
                                 onSubmit={(value, label) => {
                                    setSelected(value);
                                    // Keep the tapped cards so the customer's own

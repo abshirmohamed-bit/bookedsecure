@@ -9,11 +9,19 @@ import {
   saveAutomationRule,
   saveBusinessSettings,
   saveQuotePageMode,
+  saveQuoteServiceLayout,
   saveService,
   saveServiceAddon,
   deleteServiceAddon,
 } from "@/lib/app.functions";
 import { QUOTE_MODES, QUOTE_MODE_LABELS, resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
+import {
+  QUOTE_SERVICE_LAYOUTS,
+  QUOTE_SERVICE_LAYOUT_DESCRIPTIONS,
+  QUOTE_SERVICE_LAYOUT_LABELS,
+  resolveQuoteServiceLayout,
+  type QuoteServiceLayout,
+} from "@/lib/quote-service-layout";
 import { removeTeamMember, setTeamAccess } from "@/lib/team.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { removeServiceImage, uploadServiceImage } from "@/lib/tenant-account.functions";
@@ -42,6 +50,7 @@ export type Business = {
   quote_subject_label: string | null;
   /** Dropdown options for the quote subject, one per line. */
   quote_subject_options: string[] | null;
+  quote_service_layout: string;
 };
 
 export function useSettings() {
@@ -1006,22 +1015,37 @@ export function TeamList({
  */
 export function QuotePageModeCard({
   quoteMode,
+  quoteServiceLayout,
   slug,
   readOnly,
 }: {
   quoteMode: string | null;
+  quoteServiceLayout: string | null;
   slug: string | null;
   readOnly: boolean;
 }) {
   const save = useServerFn(saveQuotePageMode);
+  const saveLayout = useServerFn(saveQuoteServiceLayout);
   const queryClient = useQueryClient();
   const current = resolveQuoteMode(quoteMode);
   const [selected, setSelected] = useState<QuoteMode>(current);
+  const currentLayout = resolveQuoteServiceLayout(quoteServiceLayout);
+  const [selectedLayout, setSelectedLayout] = useState<QuoteServiceLayout>(currentLayout);
 
   const mutation = useMutation({
     mutationFn: (mode: QuoteMode) => save({ data: { quote_mode: mode } }),
     onSuccess: async () => {
       toast.success("Quote page mode updated");
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const layoutMutation = useMutation({
+    mutationFn: (layout: QuoteServiceLayout) =>
+      saveLayout({ data: { quote_service_layout: layout } }),
+    onSuccess: async () => {
+      toast.success("Service display updated");
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -1062,6 +1086,55 @@ export function QuotePageModeCard({
           </label>
         ))}
       </div>
+
+      {current === "ai_chat" && (
+        <div className="mt-5 border-t border-border pt-4">
+          <h3 className="text-sm font-semibold">Service display</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Choose how customers browse your services on the Quote Page.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {QUOTE_SERVICE_LAYOUTS.map((layout) => (
+              <label
+                key={layout}
+                className={`cursor-pointer rounded-md border p-3 ${
+                  selectedLayout === layout ? "border-primary bg-primary/5" : "border-input"
+                }`}
+              >
+                <span className="flex items-start gap-2">
+                  <input
+                    type="radio"
+                    name="quote-service-layout"
+                    value={layout}
+                    checked={selectedLayout === layout}
+                    disabled={readOnly}
+                    onChange={() => setSelectedLayout(layout)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">
+                      {QUOTE_SERVICE_LAYOUT_LABELS[layout]}
+                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                      {QUOTE_SERVICE_LAYOUT_DESCRIPTIONS[layout]}
+                    </span>
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {!readOnly && (
+            <button
+              type="button"
+              disabled={selectedLayout === currentLayout || layoutMutation.isPending}
+              onClick={() => layoutMutation.mutate(selectedLayout)}
+              className="mt-3 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {layoutMutation.isPending ? "Saving…" : "Save service display"}
+            </button>
+          )}
+        </div>
+      )}
 
       {!readOnly && (
         <button

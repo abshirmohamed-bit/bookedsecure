@@ -178,6 +178,7 @@ export const getPublicQuoteForm = createServerFn({ method: "GET" })
       privacyPolicyUrl: tenant.privacyPolicyUrl,
       flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
       quoteMode: tenant.quoteMode,
+      quoteServiceLayout: tenant.quoteServiceLayout,
       quoteSubjectLabel: tenant.quoteSubjectLabel,
       quoteSubjectOptions: tenant.quoteSubjectOptions,
       services: tenant.services,

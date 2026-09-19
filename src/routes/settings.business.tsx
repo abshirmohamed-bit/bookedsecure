@@ -116,6 +116,7 @@ function BusinessSettingsPage() {
             <TenantAccountPanel />
             <QuotePageModeCard
               quoteMode={data.business.quote_mode}
+              quoteServiceLayout={data.business.quote_service_layout}
               slug={data.business.slug}
               readOnly={data.role !== "owner"}
             />

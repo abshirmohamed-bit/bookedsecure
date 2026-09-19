@@ -76,6 +76,7 @@ function TenantQuotePage() {
           serviceArea: tenant.serviceArea,
           privacyPolicyUrl: tenant.privacyPolicyUrl,
           quoteSubjectLabel: tenant.quoteSubjectLabel,
+          quoteServiceLayout: tenant.quoteServiceLayout,
         }}
       />
     );
