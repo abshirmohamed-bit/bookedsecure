@@ -67,3 +67,12 @@
 - [x] Rebuild the mobile Quote Page with tenant-selectable Focused list, Compact grid, and Guided conversation service displays.
 - [x] Align landing-page calls to action on mobile and remove the floating duplicate button.
 - [x] Verify the uploaded mobile landing-page screenshots against the corrected button layout.
+
+## Five trades, one guided journey, owner control room
+- [x] Trade presets for the five headline trades plus office cleaning and test-and-tag.
+- [x] Trade picker on the setup page and in Business settings (owner only, audited).
+- [x] Six-step guided journey derived from real saved state, shown on Home.
+- [x] Paywall: saving imported contacts into the inbox now needs an active subscription.
+- [x] Owner control room at /admin/overview: money, subscriptions, provider balance, work queue, businesses.
+- [x] PRD for the control room saved to Files.
+- [ ] Blocked on the provider: buying numbers and topping up credits stay manual until their API supports both.
