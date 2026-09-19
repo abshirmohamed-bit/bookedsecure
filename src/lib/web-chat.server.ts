@@ -1310,11 +1310,17 @@ export async function maybeHandleIntake(args: {
     };
   }
 
-  const outcome = resolveOutcome(next);
+  // An optional detail already asked its limit is let go here, so this path
+  // moves on instead of circling the same question in different words.
+  const advancedNext = advancePastRepeats(next, nextStep);
+  const resumeStep = advancedNext.step;
+  const repeatAsks = resumeStep ? askCount(advancedNext.collected, resumeStep) : 0;
+  const stored = resumeStep ? recordAsk(advancedNext.collected, resumeStep) : advancedNext.collected;
+  const outcome = resolveOutcome(stored);
   await supabaseAdmin
     .from("web_conversations")
     .update({
-      collected: next as never,
+      collected: stored as never,
       selected_service_id: next.service_id ?? null,
       service_name_snapshot: next.service_name ?? null,
       requires_owner_review: outcome.requiresOwnerReview,
@@ -1323,7 +1329,7 @@ export async function maybeHandleIntake(args: {
     .eq("id", args.conversationId)
     .eq("business_id", tenant.businessId);
 
-  const outstanding = outstandingFields(next);
+  const outstanding = outstandingFields(stored);
 
   // Every answer is composed from facts this tenant already configured.
   const facts: AnswerFacts = {
