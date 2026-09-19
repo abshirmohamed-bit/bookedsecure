@@ -30,6 +30,7 @@ import { AccountMenu } from "@/components/AccountMenu";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { TenantMark } from "@/components/TenantMark";
 import { Button } from "@/components/ui/button";
+import brandMark from "@/assets/bookedsecure-mark.jpg.asset.json";
 
 import { useAuth } from "@/hooks/useAuth";
 import { getSession } from "@/lib/app.functions";
@@ -111,9 +112,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           to="/dashboard"
           title="BookedSecure home"
           aria-label="BookedSecure home"
-          className="grid size-10 place-items-center rounded-md bg-primary font-heading text-lg font-bold text-primary-foreground shadow-sm"
+          className="grid size-10 place-items-center rounded-md bg-primary shadow-sm"
         >
-          B
+          <img
+            src={brandMark.url}
+            alt="BookedSecure"
+            className="h-7 w-7 shrink-0 object-cover object-center mix-blend-multiply"
+          />
         </Link>
         <div className="mt-6 flex flex-col gap-2">
           <FeedbackButton rail />
