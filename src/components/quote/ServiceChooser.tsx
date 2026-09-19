@@ -250,7 +250,10 @@ export function ServiceChooser({
           </span>
           <select
             value={activeGroup?.label ?? ""}
-            onChange={(event) => setGroupLabel(event.target.value)}
+            onChange={(event) => {
+              setGroupLabel(event.target.value);
+              setGuidedIndex(0);
+            }}
             className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {groups.map((group) => (
@@ -313,7 +316,7 @@ export function ServiceChooser({
                       ? "grid min-h-[5.75rem] grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto_auto] gap-x-3 px-3 py-2.5"
                       : layout === "guided_conversation"
                         ? "grid min-h-[12rem] grid-rows-[auto_minmax(0,1fr)_auto_auto] p-4"
-                        : `${tallCards ? "h-[11rem] grid grid-rows-[auto_minmax(0,1fr)_auto_auto]" : "h-[9.5rem] grid grid-rows-[minmax(0,1fr)_auto_auto]"} p-2.5`
+                        : `${tallCards ? "min-h-[11rem] grid grid-rows-[auto_minmax(0,1fr)_auto_auto]" : "min-h-[9.5rem] grid grid-rows-[minmax(0,1fr)_auto_auto]"} p-2.5`
                   } ${
                     busy ? "opacity-50" : ""
                   } ${
