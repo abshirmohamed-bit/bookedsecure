@@ -1376,8 +1376,11 @@ export async function maybeHandleIntake(args: {
         )
       : null;
 
-  const resumeStep = nextStep(next);
-  const prompt = resumeStep ? promptFor(resumeStep, chatTenant, next) : null;
+  const basePrompt = resumeStep ? promptFor(resumeStep, chatTenant, stored) : null;
+  const prompt =
+    basePrompt && resumeStep
+      ? { ...basePrompt, text: escalatedAsk(resumeStep, basePrompt.text, repeatAsks) }
+      : null;
 
   // Name and mobile are one question. When both are still missing the server's
   // own combined ask is used, so the customer is never asked for the name in one
@@ -1394,6 +1397,12 @@ export async function maybeHandleIntake(args: {
     if (grouped) ask = acknowledgement || answer ? grouped.replace(/^Got it\.\s*/, "") : grouped;
     else if (prompt) ask = prompt.text;
   }
+  // Second time round for the same detail: add the example, and say plainly when
+  // an optional detail has been left for the team.
+  if (ask && resumeStep && !ambiguity && repeatAsks > 0) ask = escalatedAsk(resumeStep, ask, repeatAsks);
+  if (ask && advancedNext.letGoSteps[0])
+    ask = `${letGoMessage(advancedNext.letGoSteps[0])} ${ask}`;
+
 
   // The model's wording replaces the fixed acknowledgement/answer sentences when
   // it survived guarding; when it already asks something, the server's own ask
