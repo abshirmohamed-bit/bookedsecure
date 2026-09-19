@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { OwnerAssistant, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
+import { OnboardingJourney } from "@/components/home/OnboardingJourney";
 import { PerformanceIsland } from "@/components/home/PerformanceIsland";
 import { ProductDiscoveryRow } from "@/components/home/ProductDiscoveryRow";
 import { clearAssistantConversation, createAssistantConversation, deleteAssistantConversation, getAssistantConversation, getAssistantHome } from "@/lib/assistant-history.functions";
@@ -201,6 +202,7 @@ export function AssistantWorkspace({
         <Button type="button" size="icon" variant="outline" onClick={() => setMobileHistory(true)} className="size-11 shrink-0 rounded-full bg-card shadow lg:pointer-events-auto lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></Button>
         <div className="min-w-0 flex-1 lg:pointer-events-auto lg:ml-auto lg:w-44 lg:flex-none"><PerformanceIsland /></div>
       </div>
+       <OnboardingJourney />
        {showDiscovery ? <ProductDiscoveryRow /> : null}
        <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} homeMode={showDiscovery} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
     </main>
