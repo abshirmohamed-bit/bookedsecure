@@ -58,6 +58,13 @@ import {
 } from "@/lib/web-chat-intake";
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import {
+  advancePastRepeats,
+  askCount,
+  escalatedAsk,
+  letGoMessage,
+  recordAsk,
+} from "@/lib/web-chat-repeat";
+import {
   aiCorrectionMessage,
   resolveIntake,
 } from "@/lib/web-chat-ai-extraction";
@@ -604,8 +611,24 @@ export async function replyToWebChat(input: {
 
   const applied = applyAnswer(collected, step, input.answer, chatTenant);
   if (!applied.ok) {
-    const prompt = promptFor(step, chatTenant, collected);
-    const errorText = hasCorrectionCue(input.answer) ? AMBIGUOUS_CORRECTION_MESSAGE : applied.error;
+    // The same detail is coming round again. It is counted, so it can be asked
+    // once more with an example and then let go, instead of being reworded
+    // indefinitely.
+    const attempts = askCount(collected, step);
+    const advanced = advancePastRepeats(recordAsk(collected, step), nextStep);
+    const resumeStep = advanced.step;
+    await supabaseAdmin
+      .from("web_conversations")
+      .update({ collected: advanced.collected as never })
+      .eq("id", conversation.id)
+      .eq("business_id", tenant.businessId);
+
+    const movedOn = resumeStep !== step;
+    const prompt = resumeStep ? promptFor(resumeStep, chatTenant, advanced.collected) : null;
+    const baseError = hasCorrectionCue(input.answer) ? AMBIGUOUS_CORRECTION_MESSAGE : applied.error;
+    const errorText = movedOn
+      ? [letGoMessage(step), prompt?.text ?? ""].filter(Boolean).join(" ")
+      : escalatedAsk(step, baseError, attempts);
     await addMessage(tenant.businessId, conversation.id, "customer", input.answer.slice(0, 500));
     await addMessage(tenant.businessId, conversation.id, "assistant", errorText);
     return {
@@ -621,7 +644,7 @@ export async function replyToWebChat(input: {
       completed: false,
       declined: false,
       duplicate: false,
-      error: errorText,
+      ...(movedOn ? {} : { error: errorText }),
     };
   }
 
@@ -654,13 +677,16 @@ export async function replyToWebChat(input: {
     };
   }
 
-  const followUp = nextStep(next);
+  const advancedNext = advancePastRepeats(next, nextStep);
+  const followUp = advancedNext.step;
 
   if (followUp) {
+    const asks = askCount(advancedNext.collected, followUp);
+    const stored = recordAsk(advancedNext.collected, followUp);
     await supabaseAdmin
       .from("web_conversations")
       .update({
-        collected: next as never,
+        collected: stored as never,
         selected_service_id: next.service_id ?? null,
         service_name_snapshot: next.service_name ?? null,
         requires_owner_review: outcome.requiresOwnerReview,
@@ -669,7 +695,8 @@ export async function replyToWebChat(input: {
       .eq("id", conversation.id)
       .eq("business_id", tenant.businessId);
 
-    const prompt = promptFor(followUp, chatTenant, next);
+    const basePrompt = promptFor(followUp, chatTenant, stored);
+    const prompt = { ...basePrompt, text: escalatedAsk(followUp, basePrompt.text, asks) };
     // Extras just chosen: show the service and add-on prices together, with the
     // combined figure, before the final check.
     const extrasPriced =
@@ -683,7 +710,11 @@ export async function replyToWebChat(input: {
         : null);
     // One message per turn: the acknowledgement and the next question read as a
     // single reply so the customer never gets two bubbles for one turn.
-    const [reply] = asSingleReply([detail ?? "", prompt.text]);
+    const [reply] = asSingleReply([
+      detail ?? "",
+      advancedNext.letGoSteps[0] ? letGoMessage(advancedNext.letGoSteps[0]) : "",
+      prompt.text,
+    ]);
     const body = reply ?? prompt.text;
     await addMessage(tenant.businessId, conversation.id, "assistant", body);
     return {
