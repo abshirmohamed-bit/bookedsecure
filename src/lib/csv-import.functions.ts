@@ -53,10 +53,12 @@ export const saveCrmImportBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => BatchSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { saveImportBatch } = await import("@/lib/import-save.server");
-    const app = await requireAppContext(context.supabase, context.userId);
+    // Uploading and previewing a list stays free; saving those contacts into
+    // the inbox is part of the paid product, so the subscription is required.
+    const app = await requireWriteContext(context.supabase, context.userId);
     requireOwner(app);
     return saveImportBatch(supabaseAdmin, {
       businessId: app.businessId,

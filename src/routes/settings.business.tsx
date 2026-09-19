@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { AvailabilityEditor } from "@/components/settings/availability";
 import { TenantAccountPanel } from "@/components/settings/TenantAccountPanel";
+import { TradePicker } from "@/components/settings/TradePicker";
 
 import {
   AddonsEditor,
@@ -113,6 +114,7 @@ function BusinessSettingsPage() {
                 "timezone",
               ]}
             />
+            <TradePicker readOnly={data.role !== "owner"} />
             <TenantAccountPanel />
             <QuotePageModeCard
               quoteMode={data.business.quote_mode}

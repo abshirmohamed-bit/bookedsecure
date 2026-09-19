@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
+import { TradePicker } from "@/components/settings/TradePicker";
 import { getSetupState } from "@/lib/site-onboarding.functions";
 
 export const Route = createFileRoute("/setup")({
@@ -61,6 +62,10 @@ function SetupPage() {
         </div>
 
         <div className="mt-8">
+          <TradePicker readOnly={readOnly} />
+        </div>
+
+        <div className="mt-4">
           <SiteOnboardingPanel
             readOnly={readOnly}
             onApplied={() => navigate({ to: "/dashboard", replace: true })}
