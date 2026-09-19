@@ -19,6 +19,7 @@ import { z } from "zod";
 import { normaliseAuMobile } from "@/lib/domain";
 import { CUSTOMER_PUNCTUATION_INSTRUCTION } from "@/lib/customer-text";
 import { applyAnswer, type WebChatCollected, type WebChatStep, type WebChatTenant } from "@/lib/web-chat";
+import { askHistoryForPrompt } from "@/lib/web-chat-repeat";
 import {
   QUESTION_TOPICS,
   classifyQuestionTopic,
