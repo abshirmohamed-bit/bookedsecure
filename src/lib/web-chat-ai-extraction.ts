@@ -212,6 +212,8 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
     "",
     `Question currently open: ${context.openStep}`,
     `Fields still missing: ${context.outstanding.length > 0 ? context.outstanding.join(", ") : "(none)"}`,
+    `Questions already put to this customer: ${askHistoryForPrompt(context.collected)}`,
+    "Never ask again for something already asked twice, and never reword a question the customer has already been asked. If they have not given it after two asks, say it can be sorted with them directly and move to the next missing detail, or stay silent on it if nothing else is missing.",
     "",
     "Recent conversation:",
     recent || "(no earlier turns)",

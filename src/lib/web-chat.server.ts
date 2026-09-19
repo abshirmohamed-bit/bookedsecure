@@ -1410,7 +1410,10 @@ export async function maybeHandleIntake(args: {
   // never dropped: that one is a control decision, not phrasing. On a contact
   // turn the model's own question is dropped instead, so the single combined
   // name-and-mobile question is what the customer reads.
-  const modelWording = contactTurn ? dropQuestions(modelReply) : modelReply;
+  // When the same detail is being asked again, the server's escalated wording is
+  // used instead of the model's, so the customer gets a new angle rather than the
+  // same question reworded.
+  const modelWording = repeatAsks > 0 ? null : contactTurn ? dropQuestions(modelReply) : modelReply;
   // One message per turn: acknowledgement, answer and ask read as a single
   // reply so the customer never gets two bubbles for one turn.
   const replies = asSingleReply(
