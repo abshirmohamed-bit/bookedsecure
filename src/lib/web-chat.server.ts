@@ -58,6 +58,13 @@ import {
 } from "@/lib/web-chat-intake";
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import {
+  advancePastRepeats,
+  askCount,
+  escalatedAsk,
+  letGoMessage,
+  recordAsk,
+} from "@/lib/web-chat-repeat";
+import {
   aiCorrectionMessage,
   resolveIntake,
 } from "@/lib/web-chat-ai-extraction";
@@ -604,8 +611,24 @@ export async function replyToWebChat(input: {
 
   const applied = applyAnswer(collected, step, input.answer, chatTenant);
   if (!applied.ok) {
-    const prompt = promptFor(step, chatTenant, collected);
-    const errorText = hasCorrectionCue(input.answer) ? AMBIGUOUS_CORRECTION_MESSAGE : applied.error;
+    // The same detail is coming round again. It is counted, so it can be asked
+    // once more with an example and then let go, instead of being reworded
+    // indefinitely.
+    const attempts = askCount(collected, step);
+    const advanced = advancePastRepeats(recordAsk(collected, step), nextStep);
+    const resumeStep = advanced.step;
+    await supabaseAdmin
+      .from("web_conversations")
+      .update({ collected: advanced.collected as never })
+      .eq("id", conversation.id)
+      .eq("business_id", tenant.businessId);
+
+    const movedOn = resumeStep !== step;
+    const prompt = resumeStep ? promptFor(resumeStep, chatTenant, advanced.collected) : null;
+    const baseError = hasCorrectionCue(input.answer) ? AMBIGUOUS_CORRECTION_MESSAGE : applied.error;
+    const errorText = movedOn
+      ? [letGoMessage(step), prompt?.text ?? ""].filter(Boolean).join(" ")
+      : escalatedAsk(step, baseError, attempts);
     await addMessage(tenant.businessId, conversation.id, "customer", input.answer.slice(0, 500));
     await addMessage(tenant.businessId, conversation.id, "assistant", errorText);
     return {
@@ -621,7 +644,7 @@ export async function replyToWebChat(input: {
       completed: false,
       declined: false,
       duplicate: false,
-      error: errorText,
+      ...(movedOn ? {} : { error: errorText }),
     };
   }
 
@@ -654,13 +677,16 @@ export async function replyToWebChat(input: {
     };
   }
 
-  const followUp = nextStep(next);
+  const advancedNext = advancePastRepeats(next, nextStep);
+  const followUp = advancedNext.step;
 
   if (followUp) {
+    const asks = askCount(advancedNext.collected, followUp);
+    const stored = recordAsk(advancedNext.collected, followUp);
     await supabaseAdmin
       .from("web_conversations")
       .update({
-        collected: next as never,
+        collected: stored as never,
         selected_service_id: next.service_id ?? null,
         service_name_snapshot: next.service_name ?? null,
         requires_owner_review: outcome.requiresOwnerReview,
@@ -669,7 +695,8 @@ export async function replyToWebChat(input: {
       .eq("id", conversation.id)
       .eq("business_id", tenant.businessId);
 
-    const prompt = promptFor(followUp, chatTenant, next);
+    const basePrompt = promptFor(followUp, chatTenant, stored);
+    const prompt = { ...basePrompt, text: escalatedAsk(followUp, basePrompt.text, asks) };
     // Extras just chosen: show the service and add-on prices together, with the
     // combined figure, before the final check.
     const extrasPriced =
@@ -683,7 +710,11 @@ export async function replyToWebChat(input: {
         : null);
     // One message per turn: the acknowledgement and the next question read as a
     // single reply so the customer never gets two bubbles for one turn.
-    const [reply] = asSingleReply([detail ?? "", prompt.text]);
+    const [reply] = asSingleReply([
+      detail ?? "",
+      advancedNext.letGoSteps[0] ? letGoMessage(advancedNext.letGoSteps[0]) : "",
+      prompt.text,
+    ]);
     const body = reply ?? prompt.text;
     await addMessage(tenant.businessId, conversation.id, "assistant", body);
     return {
@@ -1279,11 +1310,17 @@ export async function maybeHandleIntake(args: {
     };
   }
 
-  const outcome = resolveOutcome(next);
+  // An optional detail already asked its limit is let go here, so this path
+  // moves on instead of circling the same question in different words.
+  const advancedNext = advancePastRepeats(next, nextStep);
+  const resumeStep = advancedNext.step;
+  const repeatAsks = resumeStep ? askCount(advancedNext.collected, resumeStep) : 0;
+  const stored = resumeStep ? recordAsk(advancedNext.collected, resumeStep) : advancedNext.collected;
+  const outcome = resolveOutcome(stored);
   await supabaseAdmin
     .from("web_conversations")
     .update({
-      collected: next as never,
+      collected: stored as never,
       selected_service_id: next.service_id ?? null,
       service_name_snapshot: next.service_name ?? null,
       requires_owner_review: outcome.requiresOwnerReview,
@@ -1292,7 +1329,7 @@ export async function maybeHandleIntake(args: {
     .eq("id", args.conversationId)
     .eq("business_id", tenant.businessId);
 
-  const outstanding = outstandingFields(next);
+  const outstanding = outstandingFields(stored);
 
   // Every answer is composed from facts this tenant already configured.
   const facts: AnswerFacts = {
@@ -1339,8 +1376,11 @@ export async function maybeHandleIntake(args: {
         )
       : null;
 
-  const resumeStep = nextStep(next);
-  const prompt = resumeStep ? promptFor(resumeStep, chatTenant, next) : null;
+  const basePrompt = resumeStep ? promptFor(resumeStep, chatTenant, stored) : null;
+  const prompt =
+    basePrompt && resumeStep
+      ? { ...basePrompt, text: escalatedAsk(resumeStep, basePrompt.text, repeatAsks) }
+      : null;
 
   // Name and mobile are one question. When both are still missing the server's
   // own combined ask is used, so the customer is never asked for the name in one
@@ -1357,6 +1397,12 @@ export async function maybeHandleIntake(args: {
     if (grouped) ask = acknowledgement || answer ? grouped.replace(/^Got it\.\s*/, "") : grouped;
     else if (prompt) ask = prompt.text;
   }
+  // Second time round for the same detail: add the example, and say plainly when
+  // an optional detail has been left for the team.
+  if (ask && resumeStep && !ambiguity && repeatAsks > 0) ask = escalatedAsk(resumeStep, ask, repeatAsks);
+  if (ask && advancedNext.letGoSteps[0])
+    ask = `${letGoMessage(advancedNext.letGoSteps[0])} ${ask}`;
+
 
   // The model's wording replaces the fixed acknowledgement/answer sentences when
   // it survived guarding; when it already asks something, the server's own ask
@@ -1364,7 +1410,10 @@ export async function maybeHandleIntake(args: {
   // never dropped: that one is a control decision, not phrasing. On a contact
   // turn the model's own question is dropped instead, so the single combined
   // name-and-mobile question is what the customer reads.
-  const modelWording = contactTurn ? dropQuestions(modelReply) : modelReply;
+  // When the same detail is being asked again, the server's escalated wording is
+  // used instead of the model's, so the customer gets a new angle rather than the
+  // same question reworded.
+  const modelWording = repeatAsks > 0 ? null : contactTurn ? dropQuestions(modelReply) : modelReply;
   // One message per turn: acknowledgement, answer and ask read as a single
   // reply so the customer never gets two bubbles for one turn.
   const replies = asSingleReply(

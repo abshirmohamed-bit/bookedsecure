@@ -125,6 +125,11 @@ export type WebChatCollected = {
   booking_declined?: boolean | null;
   /** Set only when the customer has explicitly confirmed the held slot. */
   booking_confirmed?: boolean | null;
+  /**
+   * How many times each question has actually been put to the customer. Used
+   * only to stop the same detail being asked again and again.
+   */
+  asked?: Record<string, number> | null;
 };
 
 export type WebChatReviewField = { step: WebChatStep; label: string; value: string };
