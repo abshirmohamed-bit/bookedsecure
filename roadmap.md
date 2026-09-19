@@ -66,3 +66,4 @@
 - [x] Replace the landing page with the approved copy only (no pilot application form).
 - [x] Rebuild the mobile Quote Page with tenant-selectable Focused list, Compact grid, and Guided conversation service displays.
 - [x] Align landing-page calls to action on mobile and remove the floating duplicate button.
+- [ ] Verify the uploaded mobile landing-page screenshots against the corrected button layout.
