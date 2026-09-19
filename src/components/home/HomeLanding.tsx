@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, MessageSquare, Repeat2, ClipboardList } from "lucide-react";
 import heroImage from "@/assets/service-hero.jpg";
+import brandMark from "@/assets/bookedsecure-mark.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 
 const STEPS = [
@@ -40,11 +41,13 @@ export function HomeLanding() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-background">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-3 px-4 py-3 sm:flex sm:items-center sm:justify-between">
-          <a href="#top" className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-              B
-            </span>
-            <span className="text-sm font-semibold tracking-tight">BookedSecure</span>
+          <a href="#top" className="flex min-w-0 items-center gap-1.5" aria-label="BookedSecure home">
+            <img
+              src={brandMark.url}
+              alt=""
+              className="h-9 w-10 shrink-0 object-cover object-center mix-blend-multiply sm:h-10 sm:w-12"
+            />
+            <span className="truncate text-sm font-semibold">BookedSecure</span>
           </a>
           <div className="grid grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2 sm:flex">
             <Button asChild variant="ghost" className="min-h-11 px-3 text-muted-foreground">
