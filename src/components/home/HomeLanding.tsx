@@ -1,8 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { submitPilotApplication } from "@/lib/pilot.functions";
-import { readAttribution } from "@/lib/pilot-schema";
 import { ArrowRight, CheckCircle2, MessageSquare, Repeat2, ClipboardList } from "lucide-react";
 import heroImage from "@/assets/service-hero.jpg";
 
@@ -39,11 +35,6 @@ const AUDIENCE = [
 ];
 
 export function HomeLanding() {
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const submitApplication = useServerFn(submitPilotApplication);
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
@@ -54,19 +45,25 @@ export function HomeLanding() {
             </span>
             <span className="text-sm font-semibold tracking-tight">BookedSecure</span>
           </a>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Link
+              to="/pricing"
+              className="inline-flex min-h-10 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Pricing
+            </Link>
             <Link
               to="/auth"
               className="inline-flex min-h-10 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Sign in
             </Link>
-            <a
-              href="#pilot"
+            <Link
+              to="/auth"
               className="inline-flex min-h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
-              Join the pilot
-            </a>
+              Get BookedSecure
+            </Link>
           </div>
         </div>
       </header>
@@ -83,29 +80,30 @@ export function HomeLanding() {
           <div className="absolute inset-0 -z-10 bg-background/85" />
           <div className="mx-auto flex min-h-[78vh] max-w-6xl items-center px-4 py-14">
             <div className="max-w-2xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground">
-                Early-access pilot for Australian service businesses
-              </span>
-              <h1 className="mt-5 font-heading text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-                BookedSecure
+              <h1 className="font-heading text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+                Stop paying for leads that go nowhere
               </h1>
-              <p className="mt-3 font-heading text-2xl font-medium leading-tight sm:text-3xl">
-                Stop losing enquiries you already paid for.
+              <p className="mt-4 font-heading text-2xl font-medium leading-tight sm:text-3xl">
+                It's really simple.
               </p>
               <p className="mt-4 max-w-xl text-base text-muted-foreground">
+                Capture new leads. Re-engage the ones you already paid for. Turn more enquiries into
+                bookings.
+              </p>
+              <p className="mt-3 max-w-xl text-base text-muted-foreground">
                 BookedSecure helps Australian service businesses respond faster, follow up
                 consistently, and turn more enquiries into booked jobs.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <a
-                  href="#pilot"
+                <Link
+                  to="/auth"
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 >
-                  Join the BookedSecure pilot <ArrowRight className="h-4 w-4" />
-                </a>
+                  Get BookedSecure today <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
-                Limited pilot spots available for Australian service businesses.
+                Stop losing jobs to slow follow-up — set up in a day, no lock-in.
               </p>
             </div>
           </div>
@@ -116,8 +114,8 @@ export function HomeLanding() {
           <div className="mx-auto max-w-3xl px-4 py-14 text-center">
             <h2 className="text-2xl font-semibold sm:text-3xl">What BookedSecure does</h2>
             <p className="mt-4 text-base text-muted-foreground">
-              It is follow-up software built for owner-operated service businesses. Enquiries are
-              captured, acknowledged and tracked automatically, so you spend less time chasing and
+              Every enquiry you don't answer is a job that goes to someone else. BookedSecure
+              captures, acknowledges and follows up automatically, so you spend less time chasing and
               more time working.
             </p>
           </div>
@@ -165,127 +163,19 @@ export function HomeLanding() {
           </div>
         </section>
 
-        {/* Final CTA + form */}
-        <section id="pilot" className="border-t border-border bg-surface">
-          <div className="mx-auto max-w-2xl px-4 py-14">
-            <h2 className="text-center text-2xl font-semibold sm:text-3xl">
-              Join the early-access pilot
-            </h2>
-            <p className="mt-3 text-center text-sm text-muted-foreground">
-              Register your interest below. We'll review your details and contact you about next
-              steps.
-            </p>
-
-            {submitted ? (
-              <div className="panel mt-8 p-5 text-sm">
-                <p className="font-medium">Thanks.</p>
-                <p className="mt-2 text-muted-foreground">
-                  We've received your BookedSecure pilot application. We'll review the details and
-                  follow up with the next steps.
-                </p>
-              </div>
-            ) : (
-              <form
-                className="panel mt-8 space-y-4 p-5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  if (submitting) return;
-                  const form = event.currentTarget;
-                  const values = new FormData(form);
-                  const attribution = readAttribution(
-                    window.location.search,
-                    document.referrer,
-                    window.location.pathname,
-                  );
-                  const volume = String(values.get("volume") ?? "").trim();
-                  const payload = {
-                    contact_name: String(values.get("name") ?? ""),
-                    business_name: String(values.get("business") ?? ""),
-                    email: String(values.get("email") ?? ""),
-                    phone: String(values.get("mobile") ?? ""),
-                    location: String(values.get("location") ?? ""),
-                    weekly_enquiry_volume: volume === "" ? null : volume,
-                    services: String(values.get("services") ?? ""),
-                    challenge: String(values.get("challenge") ?? ""),
-                    company: String(values.get("company") ?? ""),
-                    ...attribution,
-                  };
-
-                  setSubmitting(true);
-                  setError(null);
-                  submitApplication({ data: payload })
-                    .then((result) => {
-                      if (result.ok) {
-                        form.reset();
-                        setSubmitted(true);
-                      } else {
-                        setError(
-                          result.error ?? "We couldn't save your application. Please try again.",
-                        );
-                      }
-                    })
-                    .catch(() => {
-                      setError("We couldn't save your application. Please try again shortly.");
-                    })
-                    .finally(() => setSubmitting(false));
-                }}
-              >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Name" name="name" required />
-                  <Field label="Business name" name="business" required />
-                  <Field label="Email address" name="email" type="email" required />
-                  <Field label="Mobile number" name="mobile" type="tel" required />
-                  <Field label="Business location" name="location" required />
-                  <Field label="Approx. enquiries each week" name="volume" type="number" required />
-                </div>
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">
-                    What type of service work do you provide?
-                  </span>
-                  <textarea
-                    name="services"
-                    rows={2}
-                    className="form-control mt-1.5 min-h-20 py-2"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">
-                    What is your biggest follow-up challenge?
-                  </span>
-                  <select name="challenge" className="form-control mt-1.5" defaultValue="">
-                    <option value="">Select an option</option>
-                    <option>I cannot respond quickly enough</option>
-                    <option>I forget to follow up</option>
-                    <option>Leads come from too many places</option>
-                    <option>I lose track of conversations</option>
-                    <option>I am not sure which enquiries are still active</option>
-                    <option>Other</option>
-                  </select>
-                </label>
-                <input
-                  type="text"
-                  name="company"
-                  tabIndex={-1}
-                  autoComplete="off"
-                  aria-hidden="true"
-                  className="hidden"
-                />
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-                >
-                  {submitting ? "Sending…" : "Request early access"}
-                </button>
-              </form>
-            )}
-          </div>
-        </section>
-
         <footer className="mx-auto max-w-4xl px-4 py-10 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">BookedSecure</p>
-          <p className="mt-3">
+          <div className="flex flex-wrap items-center gap-4">
+            <Link to="/pricing" className="transition-colors hover:text-foreground">
+              Pricing
+            </Link>
+            <Link to="/privacy" className="transition-colors hover:text-foreground">
+              Privacy &amp; SMS consent
+            </Link>
+            <Link to="/auth" className="transition-colors hover:text-foreground">
+              Sign in
+            </Link>
+          </div>
+          <p className="mt-4">
             BookedSecure does not guarantee message delivery, customer responses, bookings, revenue
             outcomes or legal compliance for a particular business. Businesses remain responsible
             for obtaining appropriate customer consent and using communications in accordance with
@@ -296,32 +186,13 @@ export function HomeLanding() {
 
       {/* Sticky mobile CTA */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 p-3 backdrop-blur sm:hidden">
-        <a
-          href="#pilot"
+        <Link
+          to="/auth"
           className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground"
         >
-          Join the BookedSecure pilot
-        </a>
+          Get BookedSecure
+        </Link>
       </div>
     </div>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type = "text",
-  required,
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="block text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <input name={name} type={type} required={required} className="form-control mt-1.5" />
-    </label>
   );
 }

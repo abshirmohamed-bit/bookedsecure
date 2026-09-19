@@ -61,3 +61,6 @@
 - [x] Hard gate: no complete identity record, no number bought or connected.
 - [x] Admin list of identity records with the numbers they stand behind.
 - [ ] Blocked on the provider: first card registration must be done once in their own dashboard.
+
+- [x] Stop the quote chat re-asking the same detail: count asks, add an example, then let optional details go.
+- [x] Replace the landing page with the approved copy only (no pilot application form).
