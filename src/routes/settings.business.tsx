@@ -119,6 +119,10 @@ function BusinessSettingsPage() {
             <QuotePageModeCard
               quoteMode={data.business.quote_mode}
               quoteServiceLayout={data.business.quote_service_layout}
+              quoteAgentEnabled={
+                (data.business as { quote_agent_enabled?: boolean | null }).quote_agent_enabled !==
+                false
+              }
               slug={data.business.slug}
               readOnly={data.role !== "owner"}
             />
