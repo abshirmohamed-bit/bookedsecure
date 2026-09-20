@@ -3,6 +3,7 @@ import { ArrowRight, CheckCircle2, MessageSquare, Repeat2, ClipboardList } from 
 import heroImage from "@/assets/service-hero.jpg";
 import brandMark from "@/assets/bookedsecure-mark.jpg.asset.json";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const STEPS = [
   {
