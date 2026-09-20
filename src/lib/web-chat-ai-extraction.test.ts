@@ -4,8 +4,10 @@
 // call, no SMS, no booking, no lead write, no provider call.
 import { describe, expect, it, vi } from "vitest";
 import {
+  AI_EXTRACTION_TURN_CHARS,
   applyAiCorrections,
   buildAiExtractionPrompt,
+  condenseTurn,
   buildAiExtractionSystem,
   mayCarryMultipleFields,
   mergeAiExtraction,
