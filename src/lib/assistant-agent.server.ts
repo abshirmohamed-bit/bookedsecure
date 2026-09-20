@@ -74,8 +74,9 @@ export async function runAssistantAgent(input: {
     { role: "user", content: question },
   ];
 
-  const result = streamText({
-    model: gateway(apiKey)(AGENT_MODEL),
+  // One brain: the same agent runtime the public quote assistant uses.
+  const answer = await runAgentTurn({
+    apiKey,
     system: buildAssistantSystemPrompt({
       businessName: business?.name ?? null,
       role: input.role,
@@ -90,11 +91,8 @@ export async function runAssistantAgent(input: {
     }),
     messages,
     tools,
-    stopWhen: stepCountIs(50),
+    effort: "medium",
+    maxSteps: 50,
   });
-
-  // Consumed server-side: the request is one-shot, but streaming keeps bytes
-  // flowing so a longer tool run is never cut off.
-  const answer = (await result.text).trim();
   return { answer, executed, proposals };
 }
