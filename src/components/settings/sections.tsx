@@ -12,6 +12,7 @@ import {
   saveQuoteServiceLayout,
   saveQuoteAgentEnabled,
   saveService,
+  deleteService,
   saveServiceAddon,
   deleteServiceAddon,
 } from "@/lib/app.functions";
@@ -545,6 +546,7 @@ function DurationField({
 
 export function ServicesEditor({ services, readOnly }: { services: Service[]; readOnly: boolean }) {
   const save = useServerFn(saveService);
+  const remove = useServerFn(deleteService);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Service | null>(null);
   const groups = groupItems(services, (service) => service.category);
@@ -567,6 +569,16 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
       }),
     onSuccess: () => {
       toast.success("Service saved");
+      setEditing(null);
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (service: Service) => remove({ data: { id: service.id } }),
+    onSuccess: () => {
+      toast.success("Service removed");
       setEditing(null);
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
@@ -639,12 +651,31 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                       )}
                     </p>
                     {!readOnly && (
-                      <button
-                        onClick={() => setEditing(service)}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex shrink-0 items-center gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setEditing(service)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          disabled={removeMutation.isPending}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Remove “${service.name}”? It will disappear from your quote page and cannot be restored.`,
+                              )
+                            ) {
+                              removeMutation.mutate(service);
+                            }
+                          }}
+                          className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </div>
                   <p className="mt-1 text-sm font-semibold text-primary">
