@@ -198,7 +198,7 @@ describe.each(TRADE_IDS)("journey — %s", (trade) => {
     );
     const row = prepareRow(table.headers, table.rows[0]!, 1, { filename: "old-list.csv" });
     expect(row.validation_errors).toEqual([]);
-    expect(row.normalized_payload.status).toBe("completed");
+    expect(row.normalized_payload.proposed_status).toBe("completed");
     expect(row.normalized_payload.mobile_number).toBe("+61412345678");
     expect(row.normalized_payload.name).toBe("Jo Sample");
   });
