@@ -1,11 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Phone, Trash2, X } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  MapPin,
+  Phone,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { deleteBookingRecord, getBookings } from "@/lib/bookings.functions";
+import { Input } from "@/components/ui/input";
+import { completeBookingRecord, deleteBookingRecord, getBookings } from "@/lib/bookings.functions";
 
 import {
   bookingStateText,
