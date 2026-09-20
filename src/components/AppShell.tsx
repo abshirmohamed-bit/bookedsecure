@@ -94,6 +94,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
   const breadcrumb = navBreadcrumb(pathname);
   const business = appSession.data?.business ?? null;
+  const isPlatformOwner = Boolean(appSession.data?.isPlatformAdmin);
   const tenantName = business?.name ?? null;
   const quotePath = tenantQuotePath(business?.slug ?? null);
 
