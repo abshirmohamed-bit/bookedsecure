@@ -66,7 +66,7 @@ export function AnalyticsOverview() {
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
           <SimpleDatum label="Outbound" value={String(delivery.data.total)} />
           <SimpleDatum label="Delivered" value={String(delivery.data.delivered)} />
-          <SimpleDatum label="Delivery rate" value={delivery.data.deliveryRate == null ? "—" : `${Math.round(delivery.data.deliveryRate * 100)}%`} />
+          <SimpleDatum label="Delivery rate" value={delivery.data.deliveryRate == null ? "Not available" : `${Math.round(delivery.data.deliveryRate * 100)}%`} />
           <SimpleDatum label="Needs attention" value={String(delivery.data.failed + delivery.data.undelivered)} />
         </dl>
       </section>

@@ -11,13 +11,13 @@ import { PILOT_STATUSES, PILOT_STATUS_LABELS, type PilotStatus } from "@/lib/pil
 export const Route = createFileRoute("/admin/pilot-applications")({
   head: () => ({
     meta: [
-      { title: "Pilot applications — BookedSecure admin" },
+      { title: "Pilot applications | BookedSecure admin" },
       {
         name: "description",
         content:
           "Platform administrator review queue for BookedSecure early-access pilot applications, including status, notes and attribution.",
       },
-      { property: "og:title", content: "Pilot applications — BookedSecure admin" },
+      { property: "og:title", content: "Pilot applications | BookedSecure admin" },
       {
         property: "og:description",
         content: "Review, search and update BookedSecure pilot applications.",
@@ -194,13 +194,13 @@ function PilotApplications() {
                 </td>
                 <td className="px-4 py-3">{row.contact_name}</td>
                 <td className="px-4 py-3">{row.email}</td>
-                <td className="px-4 py-3">{row.phone ?? "—"}</td>
+                <td className="px-4 py-3">{row.phone ?? "Not available"}</td>
                 <td className="px-4 py-3">
                   {PILOT_STATUS_LABELS[row.status as PilotStatus] ?? row.status}
                 </td>
                 <td className="px-4 py-3">{new Date(row.submitted_at).toLocaleString()}</td>
-                <td className="px-4 py-3">{row.utm_source ?? "—"}</td>
-                <td className="px-4 py-3 max-w-[200px] truncate">{row.referrer ?? "—"}</td>
+                <td className="px-4 py-3">{row.utm_source ?? "Not available"}</td>
+                <td className="px-4 py-3 max-w-[200px] truncate">{row.referrer ?? "Not available"}</td>
               </tr>
             ))}
             {applications.length === 0 ? (
@@ -338,7 +338,7 @@ function Detail({ label, value }: { label: string; value: string | null | undefi
   return (
     <div>
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 break-words">{value ?? "—"}</dd>
+      <dd className="mt-0.5 break-words">{value ?? "Not available"}</dd>
     </div>
   );
 }

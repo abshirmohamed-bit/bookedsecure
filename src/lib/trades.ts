@@ -1,5 +1,5 @@
 /**
- * Trade presets — client-safe types and pure helpers.
+ * Trade presets. client-safe types and pure helpers.
  *
  * A trade is what the business actually does. It is never used to special-case
  * one tenant: it only supplies neutral starting points (service names,
@@ -120,7 +120,7 @@ export const TRADE_PRESETS: Record<TradeId, TradePreset> = {
     reserviceDays: { min: 180, max: 365 },
     summerReserviceDays: null,
     serviceSeeds: [
-      { name: "Test and tag — per site visit", durationMinutes: 120 },
+      { name: "Test and tag. per site visit", durationMinutes: 120 },
       { name: "RCD safety switch testing", durationMinutes: 90 },
     ],
     subjectNoun: "site",

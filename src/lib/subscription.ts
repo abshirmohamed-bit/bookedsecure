@@ -1,5 +1,5 @@
 /**
- * Subscription access model — client-safe types and pure helpers.
+ * Subscription access model. client-safe types and pure helpers.
  *
  * Every business is in exactly one state:
  *  - preview   : signed up, not paying. View-only (CSV upload allowed).

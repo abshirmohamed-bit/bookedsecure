@@ -41,7 +41,7 @@ function stateClasses(state: BookingEntry["state"]): string {
 }
 
 function money(value: number | null): string {
-  if (value === null) return "—";
+  if (value === null) return "Not available";
   return `$${value.toLocaleString("en-AU", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
@@ -267,7 +267,7 @@ export function BookingsCalendar() {
                           <span
                             className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${stateClasses(entry.state)}`}
                           >
-                            {entry.scheduledAt ? timeLabel(entry.scheduledAt, timezone) : "—"}
+                            {entry.scheduledAt ? timeLabel(entry.scheduledAt, timezone) : "Not available"}
                           </span>
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
@@ -343,7 +343,7 @@ export function BookingsCalendar() {
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${stateClasses(entry.state)}`}
                         >
-                          {entry.scheduledAt ? timeLabel(entry.scheduledAt, timezone) : "—"}
+                          {entry.scheduledAt ? timeLabel(entry.scheduledAt, timezone) : "Not available"}
                         </span>
                       </div>
                       <p className="truncate text-xs text-muted-foreground">

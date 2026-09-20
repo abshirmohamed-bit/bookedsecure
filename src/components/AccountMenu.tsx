@@ -16,7 +16,7 @@ import {
 /**
  * Top-right account menu: who am I, which business am I operating, and the
  * occasional configuration destinations. Reuses the existing getSettings read
- * (fetched only once the menu is opened) — no new queries are introduced.
+ * (fetched only once the menu is opened). no new queries are introduced.
  */
 export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void; rail?: boolean }) {
   const [open, dispatch] = useReducer(accountMenuReducer, false);

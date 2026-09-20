@@ -5,7 +5,7 @@
  * Every function is tenant-scoped to the caller's own business. Buying credits
  * and pausing are owner-only; staff can see the balance but not spend money or
  * change sending state. Nothing here can assign a number or enable live
- * sending — that stays with the platform.
+ * sending. that stays with the platform.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -207,7 +207,7 @@ export const setMessagingPaused = createServerFn({ method: "POST" })
 
 /**
  * Owner-only: raise a cancellation request. Nothing is cancelled, deleted or
- * refunded automatically — the platform releases the number and closes the
+ * refunded automatically. the platform releases the number and closes the
  * account after reviewing the request.
  */
 export const requestCancellation = createServerFn({ method: "POST" })

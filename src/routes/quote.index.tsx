@@ -3,13 +3,13 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/quote/")({
   head: () => ({
     meta: [
-      { title: "Enquiry forms — BookedSecure" },
+      { title: "Enquiry forms | BookedSecure" },
       {
         name: "description",
         content:
           "Each BookedSecure business has its own enquiry link. Use the link your service provider gave you to send your request.",
       },
-      { property: "og:title", content: "Enquiry forms — BookedSecure" },
+      { property: "og:title", content: "Enquiry forms | BookedSecure" },
       {
         property: "og:description",
         content: "Use the enquiry link your service provider gave you to request a quote or service.",
@@ -35,7 +35,7 @@ function QuoteIndexPage() {
         <div className="p-5">
           <p className="mt-2 text-sm text-muted-foreground">
             Enquiry forms are specific to each business, so this page can't send a request on its
-            own. Open the link your provider gave you — it looks like{" "}
+            own. Open the link your provider gave you. it looks like{" "}
             <code className="rounded bg-secondary px-1 py-0.5 text-xs">/quote/their-business</code>.
           </p>
           <p className="mt-4 text-sm text-muted-foreground">

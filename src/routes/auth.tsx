@@ -19,12 +19,12 @@ export const Route = createFileRoute("/auth")({
   },
   head: () => ({
     meta: [
-      { title: "Sign in — BookedSecure" },
+      { title: "Sign in | BookedSecure" },
       {
         name: "description",
         content: "Sign in to your SMS lead response dashboard to manage customer enquiries.",
       },
-      { property: "og:title", content: "Sign in — BookedSecure" },
+      { property: "og:title", content: "Sign in | BookedSecure" },
       {
         property: "og:description",
         content: "Team access to lead capture, SMS follow-up and completed-job reporting.",

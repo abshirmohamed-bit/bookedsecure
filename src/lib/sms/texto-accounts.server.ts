@@ -51,7 +51,7 @@ export function liveAccountProvisioning(): boolean {
 
 /**
  * Optional second layer: create a Texto sub-account per tenant and allocate
- * credits at Texto. Off by default — the recommended shape is one parent
+ * credits at Texto. Off by default. the recommended shape is one parent
  * account holding every number, with BookedSecure doing per-tenant metering.
  */
 export function liveSubaccountProvisioning(): boolean {
@@ -325,7 +325,7 @@ async function ensurePrimarySender(
   options: { deactivateOtherSenders?: boolean } = {},
 ): Promise<void> {
   // Switch this business (and only this business) over: every other sender it
-  // had — Telnyx, Twilio, simulated — stops being primary, so the dedicated
+  // had. Telnyx, Twilio, simulated. stops being primary, so the dedicated
   // Texto number is what every new conversation goes out from. Older numbers
   // stay active by default so replies to texts already sent from them still
   // reach this business and existing threads keep their original number.
@@ -497,7 +497,7 @@ type AvailableNumberListing = {
 /**
  * Numbers Texto currently has for sale (`GET /numbers/available`). The
  * response shape is not in the published spec, so each entry is normalised
- * defensively — strings or objects with any of the common phone fields.
+ * defensively. strings or objects with any of the common phone fields.
  */
 export async function listPurchasableNumbers(): Promise<PurchasableNumber[]> {
   if (!liveAccountProvisioning()) return [];
@@ -633,7 +633,7 @@ function isAccountLevelPurchaseFailure(error: unknown): boolean {
 
 /**
  * Buy a fresh number straight from Texto's for-sale list on the platform card
- * and lock it to this business. Kept for platform-admin use only — tenants buy
+ * and lock it to this business. Kept for platform-admin use only. tenants buy
  * their own numbers at the provider, so this is never called automatically.
  */
 export async function purchaseNumberForBusiness(businessId: string): Promise<TextoNumber | null> {
@@ -1056,7 +1056,7 @@ export async function provisionTextoAccount(input: {
 
   let account = await getOrCreateTextoAccount(businessId);
 
-  // Already active with a number — nothing to do.
+  // Already active with a number. nothing to do.
   const assigned = await listAssignedNumbers(businessId);
   if (account.provisioning_state === "active" && assigned.length > 0 && assigned[0]) {
     return { ok: true, account, number: assigned[0] };
@@ -1147,7 +1147,7 @@ export async function provisionTextoAccount(input: {
         metadata: { account_id: account.id },
       });
       await notifyPlatformOperator(
-        `Texto number needed — ${businessName} (business ${businessId}) is subscribed but no dedicated number could be bought or assigned. Check Texto's available stock and the account balance, then run "Sync numbers" and "Retry" in /admin/messaging-numbers.`,
+        `Texto number needed. ${businessName} (business ${businessId}) is subscribed but no dedicated number could be bought or assigned. Check Texto's available stock and the account balance, then run "Sync numbers" and "Retry" in /admin/messaging-numbers.`,
         { kind: "texto_queued_no_number", business_id: businessId },
       );
       return {
@@ -1293,7 +1293,7 @@ export async function checkTextoCredits(
   if (account.provisioning_state !== "active") {
     return {
       ok: false,
-      reason: `Texto account is ${account.provisioning_state} — messaging is not live yet.`,
+      reason: `Texto account is ${account.provisioning_state}. messaging is not live yet.`,
     };
   }
   // Whether the text is covered (included allowance or purchased credits) is

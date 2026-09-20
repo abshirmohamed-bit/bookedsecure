@@ -198,7 +198,7 @@ export async function cancelBooking(input: {
 }
 
 /**
- * Permanently removes a job record — for entries logged by mistake, including
+ * Permanently removes a job record. for entries logged by mistake, including
  * completed ones. The customer and their message history are kept; only this
  * job leaves the schedule and the revenue totals. Tenant-scoped.
  */

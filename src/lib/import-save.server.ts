@@ -21,7 +21,7 @@ import {
 
 type Client = SupabaseClient<Database>;
 
-/** Fields we may fill in on an existing lead — only when currently empty. */
+/** Fields we may fill in on an existing lead. only when currently empty. */
 const GAP_FILL_FIELDS = [
   "email",
   "email_normalised",

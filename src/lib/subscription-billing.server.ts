@@ -43,7 +43,7 @@ export async function resolveBusinessCustomer(
   const state = await getSubscriptionForBusiness(input.businessId);
   if (state.stripeCustomerId) {
     // A stored id belongs to whichever environment created it. Test-mode ids do
-    // not exist in live (and vice versa), so confirm it before reusing it —
+    // not exist in live (and vice versa), so confirm it before reusing it -
     // otherwise checkout fails with "No such customer".
     try {
       const stored = await stripe.customers.retrieve(state.stripeCustomerId);
@@ -81,7 +81,7 @@ export async function createSubscriptionCheckout(input: {
   environment: StripeEnv;
 }): Promise<SubscriptionCheckoutResult> {
   // A plan is only sellable to this business if it is publicly offered or a
-  // promo code has unlocked it for them — the browser's planId is never trusted.
+  // promo code has unlocked it for them. the browser's planId is never trusted.
   const { listPlansForBusiness } = await import("@/lib/plans.server");
   const sellable = await listPlansForBusiness(input.businessId);
   const plan = sellable.find((candidate) => candidate.id === input.planId) ?? null;
@@ -155,7 +155,7 @@ export async function createBillingPortalSession(input: {
   environment: StripeEnv;
 }): Promise<PortalResult> {
   const state = await getSubscriptionForBusiness(input.businessId);
-  if (!state.stripeCustomerId) return { error: "No billing account yet — choose a plan first." };
+  if (!state.stripeCustomerId) return { error: "No billing account yet. choose a plan first." };
   try {
     const stripe = createStripeClient(input.environment);
     const portal = await stripe.billingPortal.sessions.create({
@@ -289,7 +289,7 @@ export async function syncSubscription(subscription: any, knownBusinessId?: stri
 
   // Cancelled while previously active: return their number to the pool so
   // another tenant can claim it, and stop their texts at the source. A recall
-  // failure must never block the billing sync — it's retried on the next
+  // failure must never block the billing sync. it's retried on the next
   // number-pool sync.
   if (status === "canceled" && wasFull) {
     try {
@@ -365,7 +365,7 @@ export async function handleSubscriptionInvoicePaid(invoice: any) {
 /** First activation: make sure the tenant has a messaging account to send from. */
 /**
  * First activation of a paid plan: give the tenant its dedicated number.
- * Re-runs safely — an account that is already active with a number is a
+ * Re-runs safely. an account that is already active with a number is a
  * no-op, and a queued/failed one is retried. The previous sender is only
  * switched off inside provisioning once a Texto number is actually assigned,
  * so a tenant keeps sending on its old number until the new one is real.

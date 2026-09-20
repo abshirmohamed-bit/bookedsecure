@@ -28,7 +28,7 @@ export function isPilotServiceName(name: string | null | undefined): boolean {
 }
 
 /**
- * Booking eligibility — tenant-neutral.
+ * Booking eligibility. tenant-neutral.
  *
  * Any tenant in booking-only production mode (the platform default) may take a
  * booking for ANY of its own approved, active services that has a server-side
@@ -198,17 +198,17 @@ export function bookingConfirmMessage(input: {
 }
 
 export const BOOKING_CHANGE_MESSAGE =
-  "No problem — nothing has been booked. Here are the times that are open right now.";
+  "No problem. nothing has been booked. Here are the times that are open right now.";
 
 export const BOOKING_CONFLICT_MESSAGE =
-  "Sorry — that time was just taken while we were talking. Here are the times that are still open.";
+  "Sorry. that time was just taken while we were talking. Here are the times that are still open.";
 
 export const BOOKING_UNAVAILABLE_MESSAGE =
   "Those times have just closed and I can't find another one right now, so I've left your enquiry with the team to arrange a time with you directly.";
 
 export function bookingDeclinedMessage(businessName: string): string {
   return [
-    `No problem — nothing is booked.`,
+    `No problem. nothing is booked.`,
     `${businessName} has your enquiry and will be in touch to arrange a time that works for you.`,
   ].join(" ");
 }

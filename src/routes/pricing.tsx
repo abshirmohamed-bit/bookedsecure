@@ -4,7 +4,7 @@ import { getPublicPlans } from "@/lib/plans.functions";
 
 /**
  * Public pricing page. Plans and prices come from the database so nothing is
- * hardcoded here — the page shows whatever is currently offered.
+ * hardcoded here. the page shows whatever is currently offered.
  */
 export const Route = createFileRoute("/pricing")({
   loader: () => getPublicPlans(),
@@ -20,13 +20,13 @@ export const Route = createFileRoute("/pricing")({
   ),
   head: () => ({
     meta: [
-      { title: "Pricing — BookedSecure for service businesses" },
+      { title: "Pricing | BookedSecure for service businesses" },
       {
         name: "description",
         content:
           "One simple plan at $100 a month. An assistant that answers every enquiry in seconds, automatic follow-ups, booking links and win-back campaigns. Your number and texts are bought separately.",
       },
-      { property: "og:title", content: "Pricing — BookedSecure for service businesses" },
+      { property: "og:title", content: "Pricing | BookedSecure for service businesses" },
       {
         property: "og:description",
         content:
@@ -45,7 +45,7 @@ const INCLUDED_EVERY_PLAN: readonly string[] = [
   "An assistant that answers enquiries in seconds, using your services and prices",
   "Instant text confirmation on every new enquiry",
   "Booking links with your real availability",
-  "Automatic follow-ups — straight away, a few hours later, and next day",
+  "Automatic follow-ups. straight away, a few hours later, and next day",
   "Win-back campaigns to past customers, and bulk campaigns to your list",
   "Every message waits for your approval before it goes out",
   "One inbox for every lead, reply and booking",
@@ -89,8 +89,8 @@ function PricingPage() {
           </ul>
           <p className="mt-4 text-xs text-muted-foreground">
             Prices are in Australian dollars. Your dedicated Australian number is $15 a month plus
-            GST from our messaging provider, paid with your own card. Texts are bought as credits —
-            from us or straight from the provider — and sending stops when you run out, so you can
+            GST from our messaging provider, paid with your own card. Texts are bought as credits -
+            from us or straight from the provider. and sending stops when you run out, so you can
             never get a surprise bill.
           </p>
         </section>
@@ -111,7 +111,7 @@ function PlanCard({ plan }: { plan: Plan }) {
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
         or {formatMoney(plan.annualPriceMinorUnits)} for the year
-        {monthsFree > 0 ? ` — ${monthsFree} months free` : ""}
+        {monthsFree > 0 ? `. ${monthsFree} months free` : ""}
       </p>
       <ul className="mt-4 space-y-2 text-sm">
         {plan.includedSegments > 0 ? (

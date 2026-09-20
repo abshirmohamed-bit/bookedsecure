@@ -140,7 +140,7 @@ export async function deliverOwnerBookingConfirmation(input: {
     timezone,
   });
 
-  // The tenant's own active primary sending line — never another tenant's, and
+  // The tenant's own active primary sending line. never another tenant's, and
   // never the owner's number in the customer FROM role.
   const sender = await resolveSender({ businessId: input.businessId });
   if (!sender) {

@@ -4,7 +4,7 @@
  *
  * A `<input type="datetime-local">` value has no timezone ("2026-09-18T09:00").
  * Passing it to `new Date(...)` on the server reads it in the server's zone
- * (UTC), so 9:00 am Sydney was being stored as 9:00 am UTC — 7:00 pm Sydney.
+ * (UTC), so 9:00 am Sydney was being stored as 9:00 am UTC. 7:00 pm Sydney.
  * Every conversion in both directions goes through this module instead.
  */
 

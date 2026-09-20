@@ -5,16 +5,16 @@ import { AssistantWorkspace } from "@/components/home/AssistantWorkspace";
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "Home — BookedSecure" },
+      { title: "Home | BookedSecure" },
       {
         name: "description",
         content:
           "Ask about your business, set up from your website, and see how your enquiries turn into completed work.",
       },
-      { property: "og:title", content: "Home — BookedSecure" },
+      { property: "og:title", content: "Home | BookedSecure" },
       {
         property: "og:description",
-        content: "Assistant, website setup and performance in one place — nothing sends without approval.",
+        content: "Assistant, website setup and performance in one place. nothing sends without approval.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

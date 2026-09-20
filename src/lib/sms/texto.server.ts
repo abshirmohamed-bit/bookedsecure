@@ -234,7 +234,7 @@ export function createTextoProvider(deps: {
           available: credits > 0,
           detail:
             credits > 0
-              ? `Texto connected — ${credits} credits remaining.`
+              ? `Texto connected. ${credits} credits remaining.`
               : "Texto connected but the credit balance is empty.",
         };
       } catch (error) {

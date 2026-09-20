@@ -31,7 +31,7 @@ export function FeedbackButton({ rail = false }: { rail?: boolean }) {
     mutationFn: (input: { kind: FeedbackKind; message: string }) =>
       submit({ data: { ...input, pagePath: pathname } }),
     onSuccess: () => {
-      toast.success("Thanks — that has been sent to the BookedSecure team.");
+      toast.success("Thanks. that has been sent to the BookedSecure team.");
       close();
     },
     onError: (error: unknown) =>

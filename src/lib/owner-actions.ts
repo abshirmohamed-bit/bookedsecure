@@ -173,7 +173,7 @@ export function parseOwnerRequest(question: string): OwnerActionRequest[] {
 
   if (STATUS_VERB.test(text)) {
     const statuses = findStatuses(text);
-    // "mark the new ones as contacted" — the last named status is the target.
+    // "mark the new ones as contacted". the last named status is the target.
     const target = [...statuses].reverse().find((status) => isSafeStatusTarget(status)) ?? null;
     if (target && statuses.length > 0) {
       const from = statuses.find((status) => status !== target) ?? null;

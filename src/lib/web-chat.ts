@@ -1,5 +1,5 @@
 // Pure state machine for the public AI quote conversation.
-// No database, no network, no model call — every prompt is derived from the
+// No database, no network, no model call. every prompt is derived from the
 // tenant's own approved data, so nothing here can invent a service or a price.
 
 import { normaliseAuMobile } from "@/lib/domain";
@@ -185,13 +185,13 @@ export const CONTACT_ASK_TEXT =
 export function welcomeMessage(tenant: WebChatTenant): string {
   const subject = tenant.quoteSubjectLabel.toLowerCase();
   return [
-    `Hi — you're chatting with ${tenant.name}'s online quote assistant.`,
+    `Hi. you're chatting with ${tenant.name}'s online quote assistant.`,
     tenant.bookingEnabled === true
       ? "Tell me what you need and I'll take a few details, then show you the times we actually have open."
       : `I can explain the services we offer, take your ${subject} details and pass everything to the team for review.`,
     tenant.bookingEnabled === true
-      ? "I can't quote a price here — the team confirms pricing with you directly."
-      : "I can't confirm prices or bookings here — the owner reviews every enquiry and replies to you directly.",
+      ? "I can't quote a price here. the team confirms pricing with you directly."
+      : "I can't confirm prices or bookings here. the owner reviews every enquiry and replies to you directly.",
   ].join(" ");
 }
 
@@ -218,7 +218,7 @@ export function serviceDetail(
  * Details already on file for a contact arriving via their own campaign link.
  * The campaign could only have been sent because name/number (and usually
  * email) already exist, so those steps are prefilled and never re-asked.
- * A placeholder name ("web visitor", "unknown", …) is NOT prefilled — the
+ * A placeholder name ("web visitor", "unknown", …) is NOT prefilled. the
  * name step still runs so a real name is captured.
  */
 /**
@@ -308,7 +308,7 @@ export function nextStep(collected: WebChatCollected): WebChatStep | null {
 
 /**
  * The tenant's own price text for every chosen service and extra, plus a
- * combined figure when — and only when — every one of those prices is a single
+ * combined figure when. and only when. every one of those prices is a single
  * dollar amount the tenant entered. Nothing is invented or discounted here: a
  * missing or ranged price simply means no combined figure is shown.
  */
@@ -425,12 +425,12 @@ export function reviewSummary(
           },
         ]
       : []),
-    { step: "vehicle", label: tenant?.quoteSubjectLabel ?? "Vehicle", value: collected.vehicle_type ?? "—" },
-    { step: "suburb", label: "Suburb", value: collected.suburb ?? "—" },
-    { step: "address", label: "Address", value: collected.service_address ?? "—" },
-    { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "—" },
-    { step: "name", label: "Name", value: collected.name ?? "—" },
-    { step: "mobile", label: "Mobile", value: collected.mobile_number ?? "—" },
+    { step: "vehicle", label: tenant?.quoteSubjectLabel ?? "Vehicle", value: collected.vehicle_type ?? "Not available" },
+    { step: "suburb", label: "Suburb", value: collected.suburb ?? "Not available" },
+    { step: "address", label: "Address", value: collected.service_address ?? "Not available" },
+    { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "Not available" },
+    { step: "name", label: "Name", value: collected.name ?? "Not available" },
+    { step: "mobile", label: "Mobile", value: collected.mobile_number ?? "Not available" },
     { step: "email", label: "Email", value: collected.email ?? "Not provided" },
   ];
 }
@@ -518,7 +518,7 @@ function buildPrompt(
       return {
         step,
         kind: "choice",
-        text: "Tell me what you need in your own words — for example “ceramic coating for my Mazda in Punchbowl next Tuesday”. You can also pick a service below.",
+        text: "Tell me what you need in your own words. for example “ceramic coating for my Mazda in Punchbowl next Tuesday”. You can also pick a service below.",
         options: [
           ...tenant.services.map((service) => ({
             value: service.id,
@@ -643,7 +643,7 @@ function buildPrompt(
  * A corrected or restated service ("change the service to Full Interior
  * Detail") must land on the tenant's approved service, not on a free-text
  * request that would send a perfectly ordinary booking to owner review.
- * Deterministic name matching only — never a guess, never a new service.
+ * Deterministic name matching only. never a guess, never a new service.
  */
 function serviceByName(
   value: string,
@@ -974,7 +974,7 @@ export function applyAnswer(
         if (!tenant.flexibleRequestsEnabled) return { ok: false, error: "Please choose one of the listed services." };
         next.service_id = null;
         next.service_name = null;
-        next.typed_request = "Not sure yet — described below";
+        next.typed_request = "Not sure yet. described below";
         applyServiceAddons(next, tenant, null);
         return { ok: true, collected: next, echo: "Something else or not sure" };
       }
@@ -988,7 +988,7 @@ export function applyAnswer(
       }
       if (value.length < 2) return { ok: false, error: "Please choose a service or describe what you need." };
       // A restated or corrected service that names one of the tenant's own
-      // approved services is that service — it never becomes a free-text
+      // approved services is that service. it never becomes a free-text
       // request, so booking stays available.
       const named = serviceByName(value, tenant.services);
       if (named.kind === "one") {
@@ -1152,14 +1152,14 @@ export function applyAnswer(
       return { ok: true, collected: next, echo: mobile };
     }
     case "email": {
-      // The customer's own words for "I don't have one" are accepted as a skip —
+      // The customer's own words for "I don't have one" are accepted as a skip -
       // they are never stored as an email address.
       if (value === "" || /^(skip|none|nope?|no|no email|n\/a|na|nil)$/i.test(value)) {
         next.email = null;
         return { ok: true, collected: next, echo: "No email" };
       }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) || value.length > 120) {
-        return { ok: false, error: "That email doesn't look right — or say “skip”." };
+        return { ok: false, error: "That email doesn't look right. or say “skip”." };
       }
       next.email = value;
       return { ok: true, collected: next, echo: value };
@@ -1176,7 +1176,7 @@ export function applyAnswer(
       return {
         ok: false,
         error:
-          "No problem — which detail should I change? For example “change my suburb to Parramatta” or “my name is Abshiro”.",
+          "No problem. which detail should I change? For example “change my suburb to Parramatta” or “my name is Abshiro”.",
       };
     }
     case "consent": {
@@ -1234,7 +1234,7 @@ export function applyAnswer(
       }
       return {
         ok: false,
-        error: "Just to be safe — should I confirm that time, or would you rather pick a different one?",
+        error: "Just to be safe. should I confirm that time, or would you rather pick a different one?",
       };
     }
   }
@@ -1271,7 +1271,7 @@ export function completionMessage(tenant: WebChatTenant, outcome: WebChatOutcome
 
 
 export const DECLINED_MESSAGE =
-  "No problem — without consent we can't contact you about this enquiry, so I haven't passed your details on. You're welcome to call the business directly instead.";
+  "No problem. without consent we can't contact you about this enquiry, so I haven't passed your details on. You're welcome to call the business directly instead.";
 
 export const DUPLICATE_MESSAGE =
   "It looks like we already have a very recent enquiry from this mobile number, so I haven't created a second one. The team will be in touch about the first one.";

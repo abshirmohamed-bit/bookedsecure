@@ -291,7 +291,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
           });
           const when = formatInZone(startsAt, timeZone);
           ctx.record(
-            `Booked for ${when}${input.serviceName ? ` — ${input.serviceName}` : ""}.${result.clash ? " Another job is already booked at that time." : ""}`,
+            `Booked for ${when}${input.serviceName ? `. ${input.serviceName}` : ""}.${result.clash ? " Another job is already booked at that time." : ""}`,
           );
           return { ok: true, jobId: result.jobId, when, clash: result.clash };
         } catch (error) {
@@ -343,7 +343,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
 
     delete_job: tool({
       description:
-        "Permanently delete a job record from this business, whatever its state — use this when the owner says a booking or completed job was logged by mistake, was not requested, or should be removed from their totals. Get jobId from find_customers or list_upcoming_bookings. The customer and their messages are kept.",
+        "Permanently delete a job record from this business, whatever its state. use this when the owner says a booking or completed job was logged by mistake, was not requested, or should be removed from their totals. Get jobId from find_customers or list_upcoming_bookings. The customer and their messages are kept.",
       inputSchema: z.object({
         jobId: z.string().uuid(),
         reason: z.string().nullable(),

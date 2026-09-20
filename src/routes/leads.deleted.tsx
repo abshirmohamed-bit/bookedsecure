@@ -25,13 +25,13 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 export const Route = createFileRoute("/leads/deleted")({
   head: () => ({
     meta: [
-      { title: "Deleted leads — BookedSecure" },
+      { title: "Deleted leads | BookedSecure" },
       {
         name: "description",
         content:
           "Owner-only recovery view: review leads removed from the lead inbox and restore them in place with their original history intact.",
       },
-      { property: "og:title", content: "Deleted leads — BookedSecure" },
+      { property: "og:title", content: "Deleted leads | BookedSecure" },
       {
         property: "og:description",
         content: "Review and restore removed leads without losing any history.",
@@ -118,7 +118,7 @@ function DeletedLeadsPage() {
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
               Owner-only. These leads are hidden from the active inbox and analytics. Their source,
               import history, conversations and audit trail are preserved, and restoring keeps the
-              original record — nothing is re-imported or duplicated.
+              original record. nothing is re-imported or duplicated.
             </p>
           </div>
           <Link
@@ -208,7 +208,7 @@ function DeletedLeadsPage() {
                       </td>
                       <td className="px-4 py-2.5 font-medium">{lead.name}</td>
                       <td className="px-4 py-2.5 tabular text-xs text-muted-foreground">
-                        {maskPhone(lead.mobile_number) ?? "—"}
+                        {maskPhone(lead.mobile_number) ?? "Not available"}
                       </td>
                       <td className="px-4 py-2.5 text-xs text-muted-foreground">
                         {leadSourceLabel(lead)}
@@ -222,10 +222,10 @@ function DeletedLeadsPage() {
                               hour: "2-digit",
                               minute: "2-digit",
                             })
-                          : "—"}
+                          : "Not available"}
                       </td>
                       <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                        {lead.deletion_reason ?? "—"}
+                        {lead.deletion_reason ?? "Not available"}
                       </td>
                     </tr>
                   ))}
@@ -278,7 +278,7 @@ function DeletedLeadsPage() {
                     {outcome.leadId}
                   </span>
                   {outcome.reason && (
-                    <span className="text-muted-foreground">— {outcome.reason}</span>
+                    <span className="text-muted-foreground">- {outcome.reason}</span>
                   )}
                 </li>
               ))}
@@ -315,7 +315,7 @@ function DeletedLeadsPage() {
                       <tr key={row.id} className="border-b border-border/60">
                         <td className="px-3 py-2 font-medium">{row.name}</td>
                         <td className="px-3 py-2 tabular text-muted-foreground">
-                          {row.phone ?? "—"}
+                          {row.phone ?? "Not available"}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">
                           {row.source}

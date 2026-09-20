@@ -1,7 +1,7 @@
 /**
  * Natural-language booking intake for the public booking-only conversation.
  *
- * Pure functions only — no database, no network, no model call. Everything here
+ * Pure functions only. no database, no network, no model call. Everything here
  * either matches the customer's own words against the tenant's APPROVED data
  * (services, locations) or parses a value the customer literally supplied.
  *
@@ -138,7 +138,7 @@ function normaliseServiceName(input: string): string {
  * 1. exact normalised catalogue match,
  * 2. the catalogue name stated verbatim in the message, accepted only when no
  *    wording OUTSIDE that phrase points at a different approved service,
- * 3. partial token overlap — the only place a tie becomes a clarification.
+ * 3. partial token overlap. the only place a tie becomes a clarification.
  */
 export function matchApprovedService(raw: string, services: IntakeService[]): ServiceMatch {
   const target = normaliseServiceName(raw);
@@ -239,7 +239,7 @@ export function parseApprovedLocations(serviceArea: string | null | undefined): 
 
 /**
  * The suburb the customer actually stated, when it is not in the tenant's
- * approved-location list. Read verbatim from their own words — the approved list
+ * approved-location list. Read verbatim from their own words. the approved list
  * is used to detect ambiguity, never to discard a suburb the customer gave.
  */
 /** Openers that look like a capitalised suburb but never are. */
@@ -685,7 +685,7 @@ export const INTAKE_FIELD_QUESTIONS: Record<IntakeField, string> = {
 };
 
 /**
- * All fields still genuinely missing — asked together, never one at a time.
+ * All fields still genuinely missing. asked together, never one at a time.
  * A field already supplied and validated is never listed again.
  */
 export function groupedMissingMessage(fields: IntakeField[]): string | null {
@@ -702,13 +702,13 @@ export function ambiguityMessage(ambiguity: IntakeAmbiguity): string {
   const list = options.length > 1 ? `${options.slice(0, -1).join(", ")} or ${options[options.length - 1]}` : options[0];
   switch (ambiguity.field) {
     case "service":
-      return `Just to be sure I book the right thing — did you mean ${list}?`;
+      return `Just to be sure I book the right thing. did you mean ${list}?`;
     case "location":
-      return `Which location did you mean — ${list}?`;
+      return `Which location did you mean. ${list}?`;
     case "date":
-      return `Which day suits you — ${list}?`;
+      return `Which day suits you. ${list}?`;
     case "time":
-      return `Which time did you mean — ${list}?`;
+      return `Which time did you mean. ${list}?`;
   }
 }
 
@@ -725,7 +725,7 @@ export const UNSUPPORTED_REQUEST_MESSAGE =
 
 /**
  * Applies every extracted value through the SAME validation the step-by-step
- * questions use. A value that fails validation is simply not stored — it is
+ * questions use. A value that fails validation is simply not stored. it is
  * never coerced, and the field stays open so the customer can supply it.
  */
 export function applyIntake(
@@ -771,7 +771,7 @@ export function applyIntake(
     .join(", ");
   const noteParts = [extraction.notes, preference].filter((part): part is string => Boolean(part));
   if (noteParts.length > 0 && !(next.concerns ?? "").trim())
-    put("concerns", noteParts.join(" — "), "concerns");
+    put("concerns", noteParts.join(". "), "concerns");
 
   return { collected: next, applied };
 }
@@ -799,7 +799,7 @@ export type FieldUpdate = { field: CorrectableStep; value: string; echo: string 
  * "change the vehicle to a Mazda CX-5 and the suburb to Bankstown".
  *
  * The message is split into clauses so each named field gets ONLY its own value
- * — the value of one field can never bleed into another. Every value still goes
+ *. the value of one field can never bleed into another. Every value still goes
  * through that field's own validation; a clause that fails validation is
  * reported, not stored.
  */
@@ -821,7 +821,7 @@ export function applyFieldDirectives(
     const fields = (Object.keys(FIELD_WORDS) as CorrectableStep[]).filter((field) =>
       FIELD_WORDS[field].test(clause),
     );
-    // A clause naming two fields is not split further — ambiguous clauses are skipped.
+    // A clause naming two fields is not split further. ambiguous clauses are skipped.
     if (fields.length !== 1) continue;
     const field = fields[0]!;
     if (updates.some((update) => update.field === field)) continue;
@@ -842,5 +842,5 @@ export function applyFieldDirectives(
 export function fieldUpdateMessage(updates: FieldUpdate[]): string {
   const parts = updates.map((update) => `your ${FIELD_LABELS[update.field]} to ${update.echo}`);
   const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
-  return `Got it — I've updated ${list}.`;
+  return `Got it. I've updated ${list}.`;
 }

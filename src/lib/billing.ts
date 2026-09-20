@@ -50,18 +50,18 @@ export function assertCheckoutEligible(app: BillingApplication): EligibilityResu
     return {
       ok: false,
       error:
-        "This pilot's consideration was satisfied by platform credits — no Stripe checkout may be created.",
+        "This pilot's consideration was satisfied by platform credits. no Stripe checkout may be created.",
     };
   }
 
   if (app.accessState === "canceled") {
-    return { ok: false, error: "This pilot was canceled — a new commercial decision is required." };
+    return { ok: false, error: "This pilot was canceled. a new commercial decision is required." };
   }
   if (app.accessState === "pilot_expired") {
-    return { ok: false, error: "This pilot has expired — continuation requires admin approval." };
+    return { ok: false, error: "This pilot has expired. continuation requires admin approval." };
   }
   if (app.accessState === "past_due") {
-    return { ok: false, error: "This pilot has a failed payment — resolve it before re-inviting." };
+    return { ok: false, error: "This pilot has a failed payment. resolve it before re-inviting." };
   }
   if (app.stripeSubscriptionId) {
     return { ok: false, error: "A pilot subscription already exists for this application." };
@@ -131,7 +131,7 @@ export function resolveCancellationState(
   }
   return {
     accessState: app.accessState,
-    reason: `Subscription canceled — access preserved until ${effectivePilotEnd(app) ?? "period end"}`,
+    reason: `Subscription canceled. access preserved until ${effectivePilotEnd(app) ?? "period end"}`,
   };
 }
 
@@ -162,7 +162,7 @@ export type RenewalPreventionResult = { confirmed: boolean; attempts: number; er
  *
  * The pilot is a single 30-day period, so the subscription must never renew.
  * `confirmed` is true only when Stripe echoes back `cancel_at_period_end:
- * true` — a thrown error, a missing field or a `false` value are all treated
+ * true`. a thrown error, a missing field or a `false` value are all treated
  * as "not disabled", after a bounded number of retries. Nothing is charged,
  * refunded or otherwise cancelled here.
  */

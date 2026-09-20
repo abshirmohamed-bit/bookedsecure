@@ -241,7 +241,7 @@ export function canonicalField(header: string): string | null {
   return null;
 }
 
-/** Headers with no mapping target — preserved in raw_row and surfaced in preview. */
+/** Headers with no mapping target. preserved in raw_row and surfaced in preview. */
 export function unmappedColumns(headers: string[]): string[] {
   return headers.filter((header) => canonicalField(header) === null);
 }
@@ -255,7 +255,7 @@ const STAGE_MAP: Record<string, LeadStatus> = {
   lead: "previous_lead",
   open: "previous_lead",
   // Historical CRM (GoDaddy) stages. Conservative: a stage is a lead status
-  // label only — mapping never creates a job, revenue, booking, conversation
+  // label only. mapping never creates a job, revenue, booking, conversation
   // or automation event.
   intake: "previous_lead",
   converted: "completed",
@@ -450,7 +450,7 @@ function titleCase(word: string): string {
  * order: an explicit name column, separate first/last columns, then the email
  * address's own wording (`jane.smith@…` → "Jane Smith"). A single name is
  * accepted as-is. Returns null only when nothing usable exists.
- * Pure — it never invents a surname and never mixes values between rows.
+ * Pure. it never invents a surname and never mixes values between rows.
  */
 export function deriveName(input: {
   name?: string | null;
@@ -509,7 +509,7 @@ export type ResolvedPhone = {
  * Deterministic phone resolution for a staged row: normalize → repair candidate
  * → validate. High-confidence repairs are applied to the staged normalized
  * value; the raw value is returned untouched inside `repair.original`.
- * Pure — no writes, no provider calls, and no subscriber digit is invented.
+ * Pure. no writes, no provider calls, and no subscriber digit is invented.
  */
 export function resolvePhoneWithRepair(raw: string, options?: RepairOptions): ResolvedPhone {
   const repair = repairPhone(raw, options ?? {});
@@ -546,7 +546,7 @@ export function parseCreatedAt(raw: string): string | null {
   const trimmed = (raw ?? "").trim();
   if (!trimmed) return null;
 
-  // MM/DD/YYYY h:mm AM|PM (CRM exports) — deterministic UTC parse.
+  // MM/DD/YYYY h:mm AM|PM (CRM exports). deterministic UTC parse.
   const mdyTime = trimmed.match(
     /^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp])\.?[Mm]\.?$/,
   );

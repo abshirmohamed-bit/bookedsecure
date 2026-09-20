@@ -160,7 +160,7 @@ export const simulatedProvider: SmsProvider = {
     return verifySharedSecret(headers, url);
   },
   async checkBalance() {
-    return { available: true, detail: "Simulated provider — no carrier balance required." };
+    return { available: true, detail: "Simulated provider. no carrier balance required." };
   },
   formatProviderError(error) {
     return error instanceof Error ? error.message : String(error);

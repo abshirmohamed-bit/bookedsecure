@@ -2,7 +2,7 @@
  * Structured AI extraction for the public quote conversation.
  *
  * PURE module: schema, prompt construction, candidate normalisation and
- * correction application. No network, no database, no model call — the call
+ * correction application. No network, no database, no model call. the call
  * itself lives in `web-chat-ai-extraction.server.ts`.
  *
  * Governing principle: the model only READS the customer's message and proposes
@@ -81,7 +81,7 @@ export const WebChatAiExtractionSchema = z.object({
   /**
    * The model's natural wording for this turn: acknowledge what landed, answer
    * what was asked, and ask for at most the one thing still needed. It is
-   * PHRASING ONLY — every claim in it is filtered by the server before the
+   * PHRASING ONLY. every claim in it is filtered by the server before the
    * customer reads it, and it can never change state.
    */
   reply: z.string().nullable(),
@@ -254,7 +254,7 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
  *
  * The AI result is the STRONGER signal: where both produced a value, the AI
  * value wins; where the AI produced nothing, the regex value survives. Nothing
- * here writes to state — that is still `applyIntake`, which validates every
+ * here writes to state. that is still `applyIntake`, which validates every
  * value and preserves fields already collected.
  */
 export function mergeAiExtraction(

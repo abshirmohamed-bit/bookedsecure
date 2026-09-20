@@ -5,7 +5,7 @@ import { getQuoteFunnel } from "@/lib/quote-funnel.functions";
 
 /**
  * Quote-page funnel: where visitors from your link actually stop.
- * Every number is measured — opens come from recorded page opens and bookings
+ * Every number is measured. opens come from recorded page opens and bookings
  * come from confirmed jobs, never from the conversation record.
  */
 export function QuoteFunnelPanel() {
@@ -23,7 +23,7 @@ export function QuoteFunnelPanel() {
 
   return (
     <section className="panel overflow-hidden">
-      <h2 className="section-heading">Quote page — last {data.days} days</h2>
+      <h2 className="section-heading">Quote page. last {data.days} days</h2>
       <div className="space-y-2 p-4">
         {data.steps.map((step) => (
           <div key={step.stage} className="flex items-center gap-3">

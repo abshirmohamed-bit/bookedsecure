@@ -9,13 +9,13 @@ import type { TenantRow } from "@/lib/owner-console.server";
 export const Route = createFileRoute("/admin/overview")({
   head: () => ({
     meta: [
-      { title: "Control room — BookedSecure" },
+      { title: "Control room | BookedSecure" },
       {
         name: "description",
         content:
           "Platform owner view: revenue, provider cost, profit, subscriptions and the jobs waiting on you.",
       },
-      { property: "og:title", content: "Control room — BookedSecure" },
+      { property: "og:title", content: "Control room | BookedSecure" },
       {
         property: "og:description",
         content: "Revenue, provider cost, profit and the work queue for the platform owner.",
@@ -171,7 +171,7 @@ function ConsoleView() {
               {tenants.map((tenant) => (
                 <tr key={tenant.businessId} className="border-t border-border">
                   <td className="py-1.5 pr-3">{tenant.name}</td>
-                  <td className="py-1.5 pr-3 text-muted-foreground">{tenant.trade ?? "—"}</td>
+                  <td className="py-1.5 pr-3 text-muted-foreground">{tenant.trade ?? "Not available"}</td>
                   <td className="py-1.5 pr-3 text-muted-foreground">{tenant.planId}</td>
                   <td className="py-1.5 pr-3">{tenant.subscriptionStatus}</td>
                   <td className="py-1.5 pr-3">{tenant.numbers > 0 ? "Yes" : "No"}</td>

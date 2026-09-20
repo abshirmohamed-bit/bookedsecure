@@ -5,7 +5,7 @@ export const MAX_SLUG_LENGTH = 40;
 
 /**
  * Canonical slug form: lowercase, hyphen separated, no leading/trailing hyphen.
- * Returns null when nothing usable remains — callers must treat null as "unknown tenant",
+ * Returns null when nothing usable remains. callers must treat null as "unknown tenant",
  * never as "use the default tenant".
  */
 export function normaliseSlug(raw: string | null | undefined): string | null {

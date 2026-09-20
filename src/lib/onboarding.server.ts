@@ -1,5 +1,5 @@
 /**
- * The onboarding journey — I/O layer.
+ * The onboarding journey. I/O layer.
  *
  * Every fact is read from the caller's own business. Nothing here writes, apart
  * from `saveTrade`, which only ever touches the caller's own business row.
@@ -69,8 +69,8 @@ export async function readOnboardingSnapshot(app: AppContext): Promise<Onboardin
 }
 
 /**
- * Owner-only: records what the business does, and — only when the business has
- * no services at all — adds that trade's starting services so a business
+ * Owner-only: records what the business does, and. only when the business has
+ * no services at all. adds that trade's starting services so a business
  * without a website still has something to work with. Anything already saved is
  * left exactly as it is.
  */

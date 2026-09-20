@@ -3,7 +3,7 @@
  *
  * Tenants list their services under their own headings ("Interior",
  * "Interior + Exterior", "Paint", "Premium", "Maintenance"). That heading is
- * the tenant's own wording, read from their website or typed by them — nothing
+ * the tenant's own wording, read from their website or typed by them. nothing
  * here invents, translates or hardcodes a group name.
  *
  * A service with no heading is shown under OTHER_GROUP so nothing is ever

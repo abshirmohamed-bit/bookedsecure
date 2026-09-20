@@ -123,7 +123,7 @@ export function addonsPromptText(
     names.length === 1
       ? names[0]!
       : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
-  return `Would you like any extras with that — ${list}? If what you want isn't there, type it in, or say no extras.`;
+  return `Would you like any extras with that. ${list}? If what you want isn't there, type it in, or say no extras.`;
 }
 
 /** Plain-language summary for the owner alert and the booking summary. */

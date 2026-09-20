@@ -1,5 +1,5 @@
 /**
- * Owner control room: request layer. Platform admin only — every call is gated
+ * Owner control room: request layer. Platform admin only. every call is gated
  * by `requirePlatformAdmin`, so no tenant can ever read another tenant's money.
  */
 import { createServerFn } from "@tanstack/react-start";

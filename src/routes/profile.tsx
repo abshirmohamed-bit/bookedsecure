@@ -7,13 +7,13 @@ import { SettingsPageBody } from "@/components/settings/sections";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Your profile — BookedSecure" },
+      { title: "Your profile | BookedSecure" },
       {
         name: "description",
         content:
           "Your sign-in email, role and the business workspace you are currently operating in BookedSecure.",
       },
-      { property: "og:title", content: "Your profile — BookedSecure" },
+      { property: "og:title", content: "Your profile | BookedSecure" },
       {
         property: "og:description",
         content: "Your account details and current business workspace.",
@@ -34,7 +34,7 @@ function ProfilePage() {
         {(data) => (
           <section className="panel p-4">
             <dl className="grid gap-4 sm:grid-cols-2">
-              <Row label="Email" value={session?.user.email ?? "—"} />
+              <Row label="Email" value={session?.user.email ?? "Not available"} />
               <Row label="Role" value={ROLE_LABELS[data.role] ?? data.role} />
               <Row label="Business" value={data.business.name} />
               <Row label="Timezone" value={data.business.timezone} />

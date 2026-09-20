@@ -157,7 +157,7 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatMinutes(minutes: number | null): string {
-  if (minutes === null) return "—";
+  if (minutes === null) return "Not available";
   if (minutes < 60) return `${Math.round(minutes)}m`;
   const hours = minutes / 60;
   if (hours < 24) return `${hours.toFixed(1)}h`;

@@ -20,7 +20,7 @@ function when(value: string | null | undefined): string {
 /**
  * Shows reachability and automation eligibility as two separate facts, and
  * offers the owner-only resume action. Frontend visibility is presentation
- * only — the server re-checks the owner role.
+ * only. the server re-checks the owner role.
  */
 export function SuppressionRecoveryPanel({
   lead,
@@ -66,7 +66,7 @@ export function SuppressionRecoveryPanel({
             <span className="text-muted-foreground/70">Automation: </span>
             {AUTOMATION_PAUSED_LABEL}
             {view.pausedAt ? ` on ${when(view.pausedAt)}` : ""}
-            {view.pausedReason ? ` — ${view.pausedReason}` : ""}
+            {view.pausedReason ? `. ${view.pausedReason}` : ""}
           </p>
           <p className="text-muted-foreground">
             <span className="text-muted-foreground/70">Evidence: </span>
@@ -77,7 +77,7 @@ export function SuppressionRecoveryPanel({
           {view.reachableRecently && (
             <p className="text-muted-foreground">
               This lead is reachable recently and still paused. A delivery or reply never resumes
-              automation on its own — you decide.
+              automation on its own. you decide.
             </p>
           )}
         </div>

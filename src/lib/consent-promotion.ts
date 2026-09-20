@@ -1,7 +1,7 @@
 // Consent promotion: the canonical lead consent fields.
 //
 // Pure and deterministic. Consent is only ever derived from an affirmative
-// consent capture on the submission being processed — never from a phone
+// consent capture on the submission being processed. never from a phone
 // number, an email, CRM provenance, a prior enquiry or a lead stage. The
 // helpers here decide which columns a capture writes onto the exact lead that
 // owns the consent event, and nothing else. They touch no owner-review, no

@@ -9,7 +9,7 @@ const STEPS = [
   {
     icon: ClipboardList,
     title: "Capture every enquiry",
-    body: "Leads flow in from your website, social pages, quote form, phone or manual entry — all in one place.",
+    body: "Leads flow in from your website, social pages, quote form, phone or manual entry. all in one place.",
   },
   {
     icon: MessageSquare,
@@ -24,7 +24,7 @@ const STEPS = [
   {
     icon: CheckCircle2,
     title: "Confirm the next step",
-    body: "You stay in control — review the lead, answer questions and move it towards a quote or booking.",
+    body: "You stay in control. review the lead, answer questions and move it towards a quote or booking.",
   },
 ];
 
@@ -100,7 +100,7 @@ export function HomeLanding() {
                 </Button>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
-                Stop losing jobs to slow follow-up — set up in a day, no lock-in.
+                Stop losing jobs to slow follow-up. set up in a day, no lock-in.
               </p>
             </div>
           </div>

@@ -87,12 +87,12 @@ export function PilotCheckoutPanel(props: Props) {
         <div>
           <dt className="uppercase tracking-wide">Pilot start</dt>
           <dd>
-            {props.pilotStartedAt ? new Date(props.pilotStartedAt).toLocaleDateString() : "—"}
+            {props.pilotStartedAt ? new Date(props.pilotStartedAt).toLocaleDateString() : "Not available"}
           </dd>
         </div>
         <div>
           <dt className="uppercase tracking-wide">Pilot end</dt>
-          <dd>{props.pilotEndsAt ? new Date(props.pilotEndsAt).toLocaleDateString() : "—"}</dd>
+          <dd>{props.pilotEndsAt ? new Date(props.pilotEndsAt).toLocaleDateString() : "Not available"}</dd>
         </div>
       </dl>
 
@@ -131,7 +131,7 @@ export function PilotCheckoutPanel(props: Props) {
 
       {isTestModePayments() ? (
         <p className="text-xs text-muted-foreground">
-          Payments are in test mode — no real money moves.
+          Payments are in test mode. no real money moves.
         </p>
       ) : null}
 

@@ -5,7 +5,7 @@
 //   * a later delivery receipt or inbound reply updates reachability evidence
 //   * that positive evidence NEVER resumes automation by itself
 //   * only the business owner may clear the pause, after explicit confirmation
-//   * clearing the pause sends nothing — it only restores eligibility
+//   * clearing the pause sends nothing. it only restores eligibility
 //
 // Pure module: no I/O, so the server action, the UI and the tests share exactly
 // the same wording and the same decisions. It never claims a number is dead.
@@ -86,8 +86,8 @@ export function assessSuppressionRecovery(
     pausedAt,
     evidence: evidenceKind
       ? evidenceKind === "reply"
-        ? "Customer replied by SMS — the number was in use at that time."
-        : "Provider confirmed delivery — the number accepted a message at that time."
+        ? "Customer replied by SMS. the number was in use at that time."
+        : "Provider confirmed delivery. the number accepted a message at that time."
       : null,
     evidenceAt: evidenceKind === "reply" ? replied : evidenceKind === "delivery" ? delivered : null,
     evidenceKind,

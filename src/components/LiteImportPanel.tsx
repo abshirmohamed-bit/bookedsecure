@@ -47,7 +47,7 @@ export function LiteImportPanel({
   const saveContacts = useServerFn(saveCrmImportBatch);
   const [report, setReport] = useState<SaveReport | null>(null);
   // Batches this session already prepared. Preparation is idempotent, so a
-  // repeat run would be harmless — this only avoids pointless work.
+  // repeat run would be harmless. this only avoids pointless work.
   const preparedRef = useRef<Set<string>>(new Set());
 
   const prepare = useMutation({
@@ -128,7 +128,7 @@ export function LiteImportPanel({
       <div>
         <h1 className="page-heading">Import contacts</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Bring your old customers into your leads inbox — no clean-up needed.
+          Bring your old customers into your leads inbox. no clean-up needed.
         </p>
       </div>
 

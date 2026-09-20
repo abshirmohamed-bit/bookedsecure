@@ -104,9 +104,9 @@ export function StagedRowEditor({
       });
     },
     onSuccess: async (result) => {
-      // No customer contact values are logged or toasted — state names only.
+      // No customer contact values are logged or toasted. state names only.
       toast.success(
-        `Row ${result.rowNumber} saved (staged only) — now ${STAGED_ROW_STATE_LABELS[result.state]}`,
+        `Row ${result.rowNumber} saved (staged only). now ${STAGED_ROW_STATE_LABELS[result.state]}`,
       );
       onDirtyChange?.(false);
       await queryClient.invalidateQueries({ queryKey: ["crm-import-batch", batchId] });
@@ -180,7 +180,7 @@ export function StagedRowEditor({
                     }
                     className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
-                    <option value="">— not set —</option>
+                    <option value="">- not set -</option>
                     {LEAD_STATUSES.map((status) => (
                       <option key={status} value={status}>
                         {status}

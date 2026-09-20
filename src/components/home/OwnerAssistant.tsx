@@ -423,7 +423,7 @@ export function OwnerAssistant({
                           className="rounded-2xl border border-border bg-card p-4 text-sm"
                         >
                           <p className="font-medium">
-                            Win-back campaign — {proposal.displayText ?? proposal.offerText}
+                            Win-back campaign. {proposal.displayText ?? proposal.offerText}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {proposal.drafts.length} message
@@ -683,7 +683,7 @@ export function OwnerAssistant({
                           className="rounded-2xl border border-border bg-card p-4 text-sm"
                         >
                           <p className="font-medium">
-                            {proposal.remove ? "Remove add-on" : "Add-on availability"} —{" "}
+                            {proposal.remove ? "Remove add-on" : "Add-on availability"} -{" "}
                             {proposal.addonName}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">{proposal.summary}</p>
@@ -808,7 +808,7 @@ export function OwnerAssistant({
                 </button>
                 {remembered.data ? (
                   <span
-                    title="Kept from earlier — just ask about it, no need to upload again"
+                    title="Kept from earlier. just ask about it, no need to upload again"
                     className="inline-flex min-h-10 max-w-[11rem] items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground sm:min-h-8"
                   >
                     <Paperclip className="h-3 w-3 shrink-0" aria-hidden="true" />

@@ -233,7 +233,7 @@ export async function importStagedRowAsLead(
       status: "reconciliation_required",
       row_number: rowNumber,
       lead_id: lead.id,
-      error: `The live lead was created but the preview row could not be updated: ${linkError.message}. Reconcile manually — do not retry the import for this row.`,
+      error: `The live lead was created but the preview row could not be updated: ${linkError.message}. Reconcile manually. do not retry the import for this row.`,
     };
   }
 

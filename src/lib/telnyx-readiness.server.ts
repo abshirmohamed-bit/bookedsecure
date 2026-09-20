@@ -1,6 +1,6 @@
 // Read-only Telnyx activation readiness check.
 //
-// Strictly diagnostic: it performs GET requests only — it never sends a
+// Strictly diagnostic: it performs GET requests only. it never sends a
 // message, never provisions or releases a number, and never touches tenant,
 // billing or sender activation state. Secret VALUES are never returned; only
 // "present / missing" booleans reach the caller.

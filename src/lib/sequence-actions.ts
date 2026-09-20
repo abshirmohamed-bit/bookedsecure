@@ -1,4 +1,4 @@
-// Phase 3: deterministic sequence *action planning* — dry-run only.
+// Phase 3: deterministic sequence *action planning*. dry-run only.
 //
 // Pure. No I/O, no sends, no writes, no scheduling, no provider calls, no
 // enrolment, and no `current_sequence` mutation. Given a Phase 2
@@ -9,7 +9,7 @@
 // Invariants enforced here (asserted by tests):
 //  - every action carries `wouldSend: false`;
 //  - `capture_consent` is representable but never produces a send;
-//  - `booking_confirm` is NEVER emitted — booking confirmation stays owned by
+//  - `booking_confirm` is NEVER emitted. booking confirmation stays owned by
 //    the existing idempotent `commitWebChatBooking` path;
 //  - `booking_confirmation_followup` plans nothing at all;
 //  - `handoff` is planned only; it does not notify or audit here;
@@ -298,7 +298,7 @@ export function planSequenceActions(input: {
   if (templateId) {
     if (!templateAllowed(templateId, facts.leadContext)) {
       // Neutral-language guard: never silently downgrade to a history-implying
-      // template — the content action is planned as blocked instead.
+      // template. the content action is planned as blocked instead.
       actions.push(noAction("owner_review", `Template ${templateId} implies unverified history.`));
     } else {
       const contentBlocked: BlockReason | null = !consentSatisfied

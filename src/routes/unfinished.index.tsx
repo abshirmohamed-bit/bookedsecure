@@ -9,9 +9,9 @@ import { deleteUnfinishedProspects, getUnfinishedProspects } from "@/lib/quote-f
 
 export const Route = createFileRoute("/unfinished/")({
   head: () => {
-    const title = "Unfinished enquiries — BookedSecure";
+    const title = "Unfinished enquiries | BookedSecure";
     const description =
-      "People who started a quote and gave their mobile number without finishing. View only — nothing is texted to them.";
+      "People who started a quote and gave their mobile number without finishing. View only. nothing is texted to them.";
     return {
       meta: [
         { title },
@@ -76,7 +76,7 @@ function UnfinishedPage() {
           <h1 className="font-heading text-xl font-semibold">Unfinished enquiries</h1>
           <p className="text-sm text-muted-foreground">
             They gave a mobile number but didn't finish. Kept separate from your lead inbox, and
-            nothing is ever texted to them — calling is your call.
+            nothing is ever texted to them. calling is your call.
           </p>
         </header>
 
@@ -154,10 +154,10 @@ function UnfinishedPage() {
                     </div>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
                       <Datum label="Mobile" value={prospect.mobile} />
-                      <Datum label="Suburb" value={prospect.suburb ?? "—"} />
+                      <Datum label="Suburb" value={prospect.suburb ?? "Not available"} />
                       <Datum
                         label="Looking at"
-                        value={prospect.services.length > 0 ? prospect.services.join(", ") : "—"}
+                        value={prospect.services.length > 0 ? prospect.services.join(", ") : "Not available"}
                       />
                       <Datum label="Got as far as" value={prospect.stageLabel} />
                     </dl>

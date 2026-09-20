@@ -119,7 +119,7 @@ export function BusinessIdentityPanel({ readOnly }: { readOnly?: boolean }) {
 
         {complete ? (
           <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
-            Your details are complete{form.updatedAt ? "" : ""} — nothing else is needed here.
+            Your details are complete{form.updatedAt ? "" : ""}. nothing else is needed here.
           </p>
         ) : (
           <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
