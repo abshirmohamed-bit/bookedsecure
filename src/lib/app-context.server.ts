@@ -9,9 +9,12 @@ export type AppContext = {
   userId: string;
   businessId: string;
   role: "owner" | "staff" | "platform_admin";
+  /** True when this user runs BookedSecure itself: never blocked by billing. */
+  isPlatformAdmin: boolean;
   name: string | null;
   email: string | null;
 };
+
 
 export async function requireAppContext(supabase: Client, userId: string): Promise<AppContext> {
   // Both reads are tenant-scoped by the caller's own id, so they are safe to
@@ -41,9 +44,11 @@ export async function requireAppContext(supabase: Client, userId: string): Promi
     userId,
     businessId: profile.business_id,
     role,
+    isPlatformAdmin: roleValues.includes("platform_admin"),
     name: profile.name,
     email: profile.email,
   };
+
 }
 
 /** Never trust an id from the browser: confirm it belongs to the caller's business. */
@@ -61,6 +66,7 @@ export async function assertLeadOwnership(businessId: string, leadId: string): P
  * Like `requireAppContext`, but for anything that changes tenant data.
  * A business in preview (not paying) can look around and upload a CSV, and
  * nothing else; a plan feature can be required at the same time.
+ * The platform's own operators are exempt: BookedSecure does not pay itself.
  */
 export async function requireWriteContext(
   supabase: Client,
@@ -68,11 +74,14 @@ export async function requireWriteContext(
   feature?: import("@/lib/subscription").PlanFeature,
 ): Promise<AppContext> {
   const ctx = await requireAppContext(supabase, userId);
+  if (ctx.isPlatformAdmin) return ctx;
   const { requireActiveSubscription, requirePlanFeature } = await import("@/lib/subscription.server");
   if (feature) await requirePlanFeature(ctx.businessId, feature);
   else await requireActiveSubscription(ctx.businessId);
   return ctx;
 }
+
+
 
 export function requireOwner(ctx: AppContext): void {
   if (ctx.role === "staff") throw new Error("Only the business owner can change these settings.");

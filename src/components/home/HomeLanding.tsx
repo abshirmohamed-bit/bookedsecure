@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, MessageSquare, Repeat2, ClipboardList } from "lucide-react";
 import heroImage from "@/assets/service-hero.jpg";
-import brandMark from "@/assets/bookedsecure-mark.jpg.asset.json";
+import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -49,7 +49,7 @@ export function HomeLanding() {
             <img
               src={brandMark.url}
               alt=""
-              className="h-9 w-10 shrink-0 object-cover object-center mix-blend-multiply sm:h-10 sm:w-12"
+              className="h-9 w-10 shrink-0 object-contain object-center sm:h-10 sm:w-12"
             />
             <span className="truncate text-base font-semibold">BookedSecure</span>
           </a>
