@@ -113,7 +113,12 @@ export async function runQuoteAgentTurn(input: {
 
   const chatTenant = toAgentTenant(tenant);
   const collected = { ...((conversation.collected ?? {}) as WebChatCollected) };
-  const timeZone = assistantTimeZone(tenant.timezone ?? null);
+  const { data: businessRow } = await supabaseAdmin
+    .from("businesses")
+    .select("timezone")
+    .eq("id", tenant.businessId)
+    .maybeSingle();
+  const timeZone = assistantTimeZone(businessRow?.timezone ?? null);
   const local = nowInZone(timeZone);
 
   let leadId = (conversation.lead_id as string | null) ?? null;
