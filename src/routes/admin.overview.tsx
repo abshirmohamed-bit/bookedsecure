@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { getOwnerConsole } from "@/lib/owner-console.functions";
 import type { TenantRow } from "@/lib/owner-console.server";
@@ -55,7 +56,7 @@ function ConsoleView() {
       </p>
     );
 
-  const { money: summary, tenants, queue } = data;
+  const { money: summary, tenants, queue, pipeline } = data;
 
   return (
     <div className="space-y-5">
@@ -96,6 +97,59 @@ function ConsoleView() {
         <QueueList title="Payment failed" rows={queue.paymentProblem} />
       </section>
 
+      <section className="panel space-y-3 p-4">
+        <div>
+          <h2 className="text-sm font-semibold">Tenants arriving</h2>
+          <p className="text-xs text-muted-foreground">
+            Send new businesses to your start page. Add <code>?ref=</code> to any ad or partner link
+            and it shows up here.
+          </p>
+        </div>
+        <InviteLink />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Tile label="Signed up this week" value={String(pipeline.signupsThisWeek)} />
+          <Tile label="Signed up this month" value={String(pipeline.signupsThisMonth)} />
+          <Tile label="Started paying this month" value={String(pipeline.subscribedThisMonth)} />
+          <Tile label="Sign-ups that pay" value={`${pipeline.conversionPercent}%`} />
+        </div>
+        <div className="rounded-lg border border-border p-3">
+          <p className="text-xs font-medium">Where they came from</p>
+          {pipeline.bySource.length === 0 ? (
+            <p className="mt-1 text-xs text-muted-foreground">No sign-ups yet.</p>
+          ) : (
+            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+              {pipeline.bySource.map((row) => (
+                <li key={row.source}>
+                  {row.source}: {row.signups} signed up, {row.subscribed} paying
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="rounded-lg border border-border p-3">
+          <p className="text-xs font-medium">
+            Not paying yet{" "}
+            <span className="text-muted-foreground">({pipeline.notYetPaying.length})</span>
+          </p>
+          {pipeline.notYetPaying.length === 0 ? (
+            <p className="mt-1 text-xs text-muted-foreground">Everyone who signed up is paying.</p>
+          ) : (
+            <ul className="mt-1 space-y-1 text-xs">
+              {pipeline.notYetPaying.map((row) => (
+                <li key={row.businessId} className="flex flex-wrap gap-x-2 text-muted-foreground">
+                  <span className="font-medium text-foreground">{row.name}</span>
+                  <span>{row.stuckStep ?? "Setup finished, waiting on a plan"}</span>
+                  <span>· from {row.signupSource ?? "direct"}</span>
+                  {row.signupAt ? (
+                    <span>· {new Date(row.signupAt).toLocaleDateString("en-AU")}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
       <section className="panel space-y-2 p-4">
         <h2 className="text-sm font-semibold">Businesses</h2>
         <div className="overflow-x-auto">
@@ -131,6 +185,34 @@ function ConsoleView() {
           </table>
         </div>
       </section>
+    </div>
+  );
+}
+
+function InviteLink() {
+  const url =
+    typeof window === "undefined" ? "/start" : `${window.location.origin}/start?ref=your-campaign`;
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3">
+      <code className="min-w-0 flex-1 truncate text-xs">{url}</code>
+      <button
+        type="button"
+        className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+        onClick={() => {
+          void navigator.clipboard?.writeText(url);
+          toast.success("Invite link copied.");
+        }}
+      >
+        Copy
+      </button>
+      <a
+        href="/start"
+        target="_blank"
+        rel="noreferrer"
+        className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
+      >
+        Open
+      </a>
     </div>
   );
 }

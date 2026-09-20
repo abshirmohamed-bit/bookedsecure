@@ -22,7 +22,8 @@ export function OnboardingJourney() {
     retry: false,
   });
 
-  if (!data || data.complete || data.role === "staff") return null;
+  // The platform owner's own workspace is a sandbox, not a business being set up.
+  if (!data || data.complete || data.role !== "owner") return null;
 
   return (
     <section className="relative z-30 mx-3 mb-2 shrink-0 rounded-lg border border-border bg-card shadow-sm">

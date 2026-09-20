@@ -22,6 +22,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as StartRouteImport } from './routes/start'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
 import { Route as AdminMessagingNumbersRouteImport } from './routes/admin.messaging-numbers'
 import { Route as AdminOverviewRouteImport } from './routes/admin.overview'
@@ -119,6 +120,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
   path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StartRoute = StartRouteImport.update({
+  id: '/start',
+  path: '/start',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
@@ -309,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/start': typeof StartRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
   '/admin/overview': typeof AdminOverviewRoute
@@ -356,6 +363,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
+  '/start': typeof StartRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
   '/admin/overview': typeof AdminOverviewRoute
@@ -405,6 +413,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/start': typeof StartRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
   '/admin/overview': typeof AdminOverviewRoute
@@ -455,6 +464,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/start'
     | '/admin/feedback'
     | '/admin/messaging-numbers'
     | '/admin/overview'
@@ -502,6 +512,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/setup'
+    | '/start'
     | '/admin/feedback'
     | '/admin/messaging-numbers'
     | '/admin/overview'
@@ -550,6 +561,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/start'
     | '/admin/feedback'
     | '/admin/messaging-numbers'
     | '/admin/overview'
@@ -599,6 +611,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SetupRoute: typeof SetupRoute
+  StartRoute: typeof StartRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminMessagingNumbersRoute: typeof AdminMessagingNumbersRoute
   AdminOverviewRoute: typeof AdminOverviewRoute
@@ -718,6 +731,13 @@ declare module '@tanstack/react-router' {
       path: '/setup'
       fullPath: '/setup'
       preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/start': {
+      id: '/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof StartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/feedback': {
@@ -1002,6 +1022,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SetupRoute: SetupRoute,
+  StartRoute: StartRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
   AdminMessagingNumbersRoute: AdminMessagingNumbersRoute,
   AdminOverviewRoute: AdminOverviewRoute,

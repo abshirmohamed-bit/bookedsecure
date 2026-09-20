@@ -9,8 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSetupState } from "@/lib/site-onboarding.functions";
 import { getPlatformAccess } from "@/lib/owner-console.functions";
+import { recordSignupSource } from "@/lib/onboarding.functions";
+import { takeSignupSource } from "@/lib/signup-source";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { new?: boolean } => {
+    const value = search["new"];
+    return value === true || value === "true" || value === "1" ? { new: true } : {};
+  },
   head: () => ({
     meta: [
       { title: "Sign in — BookedSecure" },
@@ -31,11 +37,13 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const { session, loading } = useAuth();
   const fetchSetupState = useServerFn(getSetupState);
   const fetchPlatformAccess = useServerFn(getPlatformAccess);
+  const saveSignupSource = useServerFn(recordSignupSource);
   const routingSession = useRef<string | null>(null);
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(search.new ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -46,6 +54,10 @@ function AuthPage() {
   useEffect(() => {
     if (loading || !session || routingSession.current === session.user.id) return;
     routingSession.current = session.user.id;
+    // Attribution first: if this visitor arrived from an ad or partner link,
+    // the tags are attached to their business before anything else happens.
+    const tags = takeSignupSource();
+    if (tags) void saveSignupSource({ data: tags }).catch(() => undefined);
     // Same sign-in form for everyone; only a platform admin lands in the
     // control room. Tenants never see that this destination exists.
     void fetchPlatformAccess()
@@ -58,7 +70,7 @@ function AuthPage() {
         navigate({ to: state.needsSetup ? "/setup" : "/dashboard", replace: true });
       })
       .catch(() => navigate({ to: "/dashboard", replace: true }));
-  }, [fetchPlatformAccess, fetchSetupState, loading, session, navigate]);
+  }, [fetchPlatformAccess, fetchSetupState, saveSignupSource, loading, session, navigate]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();

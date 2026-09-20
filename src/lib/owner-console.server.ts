@@ -40,6 +40,25 @@ export type TenantRow = {
   segmentsSent: number;
   marginCents: number;
   complianceComplete: boolean;
+  /** When the business signed up, and the campaign it arrived from. */
+  signupAt: string | null;
+  signupSource: string | null;
+  signupRef: string | null;
+  serviceCount: number;
+  /** The setup step this business has not finished yet, if any. */
+  stuckStep: string | null;
+};
+
+export type Pipeline = {
+  signupsThisWeek: number;
+  signupsThisMonth: number;
+  subscribedThisMonth: number;
+  /** Share of all signups that ended up paying, as a whole percentage. */
+  conversionPercent: number;
+  /** How many signups came from each recorded source. */
+  bySource: { source: string; signups: number; subscribed: number }[];
+  /** Signups that have not subscribed yet, newest first. */
+  notYetPaying: TenantRow[];
 };
 
 export type WorkQueue = {
@@ -49,17 +68,34 @@ export type WorkQueue = {
   paymentProblem: TenantRow[];
 };
 
+/** The first setup step a business has not finished, in plain words. */
+function stuckStep(facts: {
+  trade: string | null;
+  serviceCount: number;
+  complianceComplete: boolean;
+  subscribed: boolean;
+  leads: number;
+}): string | null {
+  if (!facts.trade) return "Has not chosen a trade";
+  if (facts.serviceCount === 0) return "No services or prices yet";
+  if (!facts.complianceComplete) return "Business details not finished";
+  if (!facts.subscribed) return "Has not chosen a plan";
+  if (facts.leads === 0) return "No customers imported yet";
+  return null;
+}
+
 const ACTIVE_STATES = ["active", "trialing", "founder", "paid", "paid_by_platform_credits"];
 
 export async function readOwnerConsole(month: string = monthKey()): Promise<{
   money: MoneySummary;
   tenants: TenantRow[];
   queue: WorkQueue;
+  pipeline: Pipeline;
 }> {
   const [businesses, statements, numbers, leadCounts, topups, balance] = await Promise.all([
     supabaseAdmin
       .from("businesses")
-      .select("id, name, trade, plan_id, subscription_status")
+      .select("id, name, trade, plan_id, subscription_status, created_at, signup_source, signup_ref")
       .order("name"),
     listStatements(month),
     supabaseAdmin.from("texto_numbers").select("assigned_business_id, status"),
@@ -69,6 +105,12 @@ export async function readOwnerConsole(month: string = monthKey()): Promise<{
   ]);
 
   const identities = await supabaseAdmin.from("business_identity").select("business_id, status");
+  const serviceRows = await supabaseAdmin.from("services").select("business_id");
+  const servicesBy = new Map<string, number>();
+  for (const row of serviceRows.data ?? []) {
+    if (!row.business_id) continue;
+    servicesBy.set(row.business_id, (servicesBy.get(row.business_id) ?? 0) + 1);
+  }
   const accounts = await supabaseAdmin
     .from("texto_accounts")
     .select("business_id, credit_balance");
@@ -137,6 +179,17 @@ export async function readOwnerConsole(month: string = monthKey()): Promise<{
       segmentsSent: statement?.segmentsSent ?? 0,
       marginCents: statement?.marginCents ?? 0,
       complianceComplete: identityBy.has(business.id),
+      signupAt: business.created_at ?? null,
+      signupSource: business.signup_source ?? null,
+      signupRef: business.signup_ref ?? null,
+      serviceCount: servicesBy.get(business.id) ?? 0,
+      stuckStep: stuckStep({
+        trade: business.trade,
+        serviceCount: servicesBy.get(business.id) ?? 0,
+        complianceComplete: identityBy.has(business.id),
+        subscribed: ACTIVE_STATES.includes(business.subscription_status),
+        leads: leadsBy.get(business.id) ?? 0,
+      }),
     };
   });
 
@@ -187,5 +240,43 @@ export async function readOwnerConsole(month: string = monthKey()): Promise<{
     paymentProblem: tenants.filter((tenant) => tenant.subscriptionStatus === "past_due"),
   };
 
-  return { money, tenants, queue };
+  // Where tenants come from and where they get stuck: the funnel the platform
+  // owner watches when ads start sending people to the start page.
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const signedUpThisMonth = tenants.filter(
+    (tenant) => tenant.signupAt && new Date(tenant.signupAt).getTime() >= monthStart,
+  );
+  const subscribedTenants = tenants.filter((tenant) =>
+    ACTIVE_STATES.includes(tenant.subscriptionStatus),
+  );
+  const sourceMap = new Map<string, { signups: number; subscribed: number }>();
+  for (const tenant of tenants) {
+    const key = tenant.signupSource ?? "Direct / unknown";
+    const entry = sourceMap.get(key) ?? { signups: 0, subscribed: 0 };
+    entry.signups += 1;
+    if (ACTIVE_STATES.includes(tenant.subscriptionStatus)) entry.subscribed += 1;
+    sourceMap.set(key, entry);
+  }
+
+  const pipeline: Pipeline = {
+    signupsThisWeek: tenants.filter(
+      (tenant) => tenant.signupAt && new Date(tenant.signupAt).getTime() >= weekAgo,
+    ).length,
+    signupsThisMonth: signedUpThisMonth.length,
+    subscribedThisMonth: signedUpThisMonth.filter((tenant) =>
+      ACTIVE_STATES.includes(tenant.subscriptionStatus),
+    ).length,
+    conversionPercent:
+      tenants.length === 0 ? 0 : Math.round((subscribedTenants.length / tenants.length) * 100),
+    bySource: [...sourceMap.entries()]
+      .map(([source, value]) => ({ source, ...value }))
+      .sort((a, b) => b.signups - a.signups),
+    notYetPaying: tenants
+      .filter((tenant) => !ACTIVE_STATES.includes(tenant.subscriptionStatus))
+      .sort(
+        (a, b) => new Date(b.signupAt ?? 0).getTime() - new Date(a.signupAt ?? 0).getTime(),
+      ),
+  };
+
+  return { money, tenants, queue, pipeline };
 }
