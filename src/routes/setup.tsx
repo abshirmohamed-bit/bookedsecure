@@ -8,6 +8,9 @@ import { TradePicker } from "@/components/settings/TradePicker";
 import { getSetupState } from "@/lib/site-onboarding.functions";
 
 export const Route = createFileRoute("/setup")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    step: search.step === "trade" || search.step === "website" ? search.step : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Set up your business — BookedSecure" },
@@ -31,6 +34,7 @@ export const Route = createFileRoute("/setup")({
 
 function SetupPage() {
   const navigate = useNavigate();
+  const { step } = Route.useSearch();
   const fetchSetup = useServerFn(getSetupState);
   const setup = useQuery({ queryKey: ["setup-state"], queryFn: () => fetchSetup(), retry: false });
   const readOnly = (setup.data?.role ?? "owner") !== "owner";
@@ -38,10 +42,10 @@ function SetupPage() {
   // Nobody who is already set up should land here: staff never need it, and an
   // owner with services saved goes straight to Home.
   useEffect(() => {
-    if (setup.data && !setup.data.needsSetup) navigate({ to: "/dashboard", replace: true });
-  }, [setup.data, navigate]);
+    if (setup.data && !setup.data.needsSetup && !step) navigate({ to: "/dashboard", replace: true });
+  }, [setup.data, navigate, step]);
 
-  if (setup.isLoading || (setup.data && !setup.data.needsSetup)) {
+  if (setup.isLoading || (setup.data && !setup.data.needsSetup && !step)) {
     return <main className="min-h-screen bg-background" aria-busy="true" />;
   }
 
@@ -61,11 +65,11 @@ function SetupPage() {
           </p>
         </div>
 
-        <div className="mt-8">
+        <div id="trade" className="mt-8 scroll-mt-6">
           <TradePicker readOnly={readOnly} />
         </div>
 
-        <div className="mt-4">
+        <div id="website" className="mt-4 scroll-mt-6">
           <SiteOnboardingPanel
             readOnly={readOnly}
             onApplied={() => navigate({ to: "/dashboard", replace: true })}
