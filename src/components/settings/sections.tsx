@@ -723,7 +723,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                   Changes apply to your quote page and campaign offers.
                 </SheetDescription>
               </SheetHeader>
-              <div className="space-y-3 overflow-y-auto px-5 py-2">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-2">
                 {(
                   [
                     ["name", "Name"],
