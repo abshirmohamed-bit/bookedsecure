@@ -184,7 +184,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               />
             </>
           ) : null}
-          <SidebarLabel className={isPlatformOwner ? "mt-5" : undefined}>
+          <SidebarLabel {...(isPlatformOwner ? { className: "mt-5" } : {})}>
             {isPlatformOwner ? "Sandbox (what tenants see)" : "Workspace"}
           </SidebarLabel>
           {PRIMARY_NAV.map((item) => (

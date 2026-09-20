@@ -13,9 +13,10 @@ import { recordSignupSource } from "@/lib/onboarding.functions";
 import { takeSignupSource } from "@/lib/signup-source";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    new: search["new"] === true || search["new"] === "true" || search["new"] === "1" ? true : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { new?: boolean } => {
+    const value = search["new"];
+    return value === true || value === "true" || value === "1" ? { new: true } : {};
+  },
   head: () => ({
     meta: [
       { title: "Sign in — BookedSecure" },
