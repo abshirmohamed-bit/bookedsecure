@@ -714,10 +714,10 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
       </div>
 
       <Sheet open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
-        <SheetContent side="bottom" className="h-auto max-h-[90dvh] rounded-t-xl border-t p-0">
+        <SheetContent side="bottom" className="flex h-auto max-h-[90dvh] flex-col rounded-t-xl border-t p-0">
           {editing && (
             <>
-              <SheetHeader className="px-5 pt-5 pb-2 text-left">
+              <SheetHeader className="shrink-0 px-5 pt-5 pb-2 text-left">
                 <SheetTitle>{editing.id ? "Edit service" : "Add service"}</SheetTitle>
                 <SheetDescription>
                   Changes apply to your quote page and campaign offers.
