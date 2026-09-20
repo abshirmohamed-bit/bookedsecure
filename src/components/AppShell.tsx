@@ -109,7 +109,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
     >
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-16 flex-col items-center border-r border-sidebar-border bg-sidebar py-3 lg:flex">
         <Link
-          to="/dashboard"
+          to="/"
           title="BookedSecure home"
           aria-label="BookedSecure home"
           className="grid size-10 place-items-center rounded-md bg-primary shadow-sm"
