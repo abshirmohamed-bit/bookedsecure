@@ -68,8 +68,16 @@ export async function readOnboardingSnapshot(app: AppContext): Promise<Onboardin
   };
 }
 
-/** Owner-only: records what the business does. Never touches anything else. */
-export async function saveTrade(app: AppContext, trade: string): Promise<{ trade: TradeId }> {
+/**
+ * Owner-only: records what the business does, and — only when the business has
+ * no services at all — adds that trade's starting services so a business
+ * without a website still has something to work with. Anything already saved is
+ * left exactly as it is.
+ */
+export async function saveTrade(
+  app: AppContext,
+  trade: string,
+): Promise<{ trade: TradeId; seededServices: number }> {
   if (app.role === "staff") throw new Error("Only the business owner can change these settings.");
   if (!isTradeId(trade)) throw new Error("That is not one of the trades we support yet.");
   const { error } = await supabaseAdmin
@@ -77,6 +85,8 @@ export async function saveTrade(app: AppContext, trade: string): Promise<{ trade
     .update({ trade })
     .eq("id", app.businessId);
   if (error) throw new Error(error.message);
+
+  const seededServices = await seedStarterServices(app, trade);
   await supabaseAdmin.from("audit_events").insert({
     business_id: app.businessId,
     user_id: app.userId,
