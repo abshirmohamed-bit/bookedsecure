@@ -436,6 +436,46 @@ export function BookingsCalendar() {
                 </div>
               ) : null}
             </dl>
+            {selected.state === "scheduled" ? (
+              <div className="mt-4 rounded-xl border border-border bg-secondary/40 p-3">
+                <p className="text-sm font-semibold">Job finished?</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Mark it done so it counts in your totals. Add what the customer paid if you know it.
+                </p>
+                <label className="mt-2 block text-xs text-muted-foreground" htmlFor="booking-amount">
+                  Amount paid (optional)
+                </label>
+                <Input
+                  id="booking-amount"
+                  inputMode="decimal"
+                  placeholder="e.g. 250"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  className="mt-1 text-base"
+                />
+                <Button
+                  type="button"
+                  disabled={finishJob.isPending}
+                  className="mt-3 min-h-11 w-full"
+                  onClick={() => {
+                    const trimmed = amount.trim().replace(/[$,]/g, "");
+                    const parsed = trimmed === "" ? null : Number(trimmed);
+                    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
+                      toast.error("Enter the amount as a number, or leave it empty.");
+                      return;
+                    }
+                    finishJob.mutate({
+                      jobId: selected.jobId,
+                      leadId: selected.leadId,
+                      paidAmount: parsed,
+                    });
+                  }}
+                >
+                  <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                  {finishJob.isPending ? "Saving…" : "Mark this job complete"}
+                </Button>
+              </div>
+            ) : null}
             <Link
               to="/leads/$leadId"
               params={{ leadId: selected.leadId }}
