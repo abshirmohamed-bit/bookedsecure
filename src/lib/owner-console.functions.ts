@@ -21,3 +21,20 @@ export const getOwnerConsole = createServerFn({ method: "GET" })
     const { monthKey } = await import("@/lib/provider-costs.server");
     return await readOwnerConsole(data?.month ?? monthKey());
   });
+
+/**
+ * Non-throwing membership check used only to decide where a sign-in lands and
+ * whether the control-room link is rendered. It reveals nothing but the
+ * caller's own role, so it is safe for every signed-in user to call.
+ */
+export const getPlatformAccess = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .eq("role", "platform_admin")
+      .maybeSingle();
+    return { isPlatformAdmin: Boolean(data) };
+  });

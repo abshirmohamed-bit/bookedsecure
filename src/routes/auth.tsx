@@ -8,6 +8,7 @@ import { ArrowRight, CheckCircle2, MessageSquareText, ShieldCheck } from "lucide
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSetupState } from "@/lib/site-onboarding.functions";
+import { getPlatformAccess } from "@/lib/owner-console.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -32,6 +33,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
   const fetchSetupState = useServerFn(getSetupState);
+  const fetchPlatformAccess = useServerFn(getPlatformAccess);
   const routingSession = useRef<string | null>(null);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
