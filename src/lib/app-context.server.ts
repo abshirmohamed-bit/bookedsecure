@@ -66,6 +66,7 @@ export async function assertLeadOwnership(businessId: string, leadId: string): P
  * Like `requireAppContext`, but for anything that changes tenant data.
  * A business in preview (not paying) can look around and upload a CSV, and
  * nothing else; a plan feature can be required at the same time.
+ * The platform's own operators are exempt: BookedSecure does not pay itself.
  */
 export async function requireWriteContext(
   supabase: Client,
@@ -73,11 +74,14 @@ export async function requireWriteContext(
   feature?: import("@/lib/subscription").PlanFeature,
 ): Promise<AppContext> {
   const ctx = await requireAppContext(supabase, userId);
+  if (ctx.isPlatformAdmin) return ctx;
   const { requireActiveSubscription, requirePlanFeature } = await import("@/lib/subscription.server");
   if (feature) await requirePlanFeature(ctx.businessId, feature);
   else await requireActiveSubscription(ctx.businessId);
   return ctx;
 }
+
+
 
 export function requireOwner(ctx: AppContext): void {
   if (ctx.role === "staff") throw new Error("Only the business owner can change these settings.");
