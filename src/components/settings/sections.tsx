@@ -10,6 +10,7 @@ import {
   saveBusinessSettings,
   saveQuotePageMode,
   saveQuoteServiceLayout,
+  saveQuoteAgentEnabled,
   saveService,
   saveServiceAddon,
   deleteServiceAddon,
@@ -1016,16 +1017,19 @@ export function TeamList({
 export function QuotePageModeCard({
   quoteMode,
   quoteServiceLayout,
+  quoteAgentEnabled,
   slug,
   readOnly,
 }: {
   quoteMode: string | null;
   quoteServiceLayout: string | null;
+  quoteAgentEnabled: boolean;
   slug: string | null;
   readOnly: boolean;
 }) {
   const save = useServerFn(saveQuotePageMode);
   const saveLayout = useServerFn(saveQuoteServiceLayout);
+  const saveAgent = useServerFn(saveQuoteAgentEnabled);
   const queryClient = useQueryClient();
   const current = resolveQuoteMode(quoteMode);
   const [selected, setSelected] = useState<QuoteMode>(current);
@@ -1046,6 +1050,15 @@ export function QuotePageModeCard({
       saveLayout({ data: { quote_service_layout: layout } }),
     onSuccess: async () => {
       toast.success("Service display updated");
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const agentMutation = useMutation({
+    mutationFn: (enabled: boolean) => saveAgent({ data: { quote_agent_enabled: enabled } }),
+    onSuccess: async (_result, enabled) => {
+      toast.success(enabled ? "AI agent turned on" : "AI agent turned off");
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -1089,7 +1102,33 @@ export function QuotePageModeCard({
 
       {current === "ai_chat" && (
         <div className="mt-5 border-t border-border pt-4">
-          <h3 className="text-sm font-semibold">Service display</h3>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold">AI agent</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                When on, one AI answers questions, collects details and books real times on your
+                Quote Page. When off, customers get the fixed step-by-step conversation instead.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={quoteAgentEnabled}
+              disabled={readOnly || agentMutation.isPending}
+              onClick={() => agentMutation.mutate(!quoteAgentEnabled)}
+              className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                quoteAgentEnabled ? "bg-primary" : "bg-muted"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-card shadow transition-transform ${
+                  quoteAgentEnabled ? "translate-x-[1.375rem]" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          <h3 className="mt-5 text-sm font-semibold">Service display</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Choose how customers browse your services on the Quote Page.
           </p>

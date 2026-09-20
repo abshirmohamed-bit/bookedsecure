@@ -1,0 +1,1 @@
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS quote_agent_enabled boolean NOT NULL DEFAULT true;

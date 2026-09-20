@@ -396,7 +396,7 @@ export async function replyToWebChat(input: {
   // conversation and decides the flow itself. Prices, times and bookings still
   // come only from this tenant's own records through its tools. If the agent
   // cannot run at all, the deterministic flow below carries the conversation.
-  if (QUOTE_AGENT_ENABLED) {
+  if (QUOTE_AGENT_ENABLED && tenant.quoteAgentEnabled) {
     try {
       const { runQuoteAgentTurn } = await import("@/lib/quote-agent.server");
       const agentState = await runQuoteAgentTurn({
