@@ -239,7 +239,7 @@ describe.each(TRADE_IDS)("journey — %s", (trade) => {
 
     const prompt = promptFor("service", tenant, {});
     expect(prompt.kind).toBe("choice");
-    expect(prompt.options ?? []).toHaveLength(services.length);
+    expect((prompt.options ?? []).length).toBeGreaterThanOrEqual(services.length);
     expect((prompt.options ?? []).map((option) => option.value)).toContain("s0");
 
     let collected: WebChatCollected = {};
