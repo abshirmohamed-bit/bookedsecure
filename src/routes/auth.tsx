@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSetupState } from "@/lib/site-onboarding.functions";
 import { getPlatformAccess } from "@/lib/owner-console.functions";
+import { recordSignupSource } from "@/lib/onboarding.functions";
+import { takeSignupSource } from "@/lib/signup-source";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -67,7 +69,7 @@ function AuthPage() {
         navigate({ to: state.needsSetup ? "/setup" : "/dashboard", replace: true });
       })
       .catch(() => navigate({ to: "/dashboard", replace: true }));
-  }, [fetchPlatformAccess, fetchSetupState, loading, session, navigate]);
+  }, [fetchPlatformAccess, fetchSetupState, saveSignupSource, loading, session, navigate]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
