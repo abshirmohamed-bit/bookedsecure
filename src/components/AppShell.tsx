@@ -16,6 +16,7 @@ import {
   MessageCircle,
   PanelLeft,
   Settings,
+  ShieldCheck,
   Sparkles,
   SquareArrowOutUpRight,
   Users,
@@ -326,7 +327,8 @@ function SidebarLink({
     | "/settings/messaging"
     | "/settings/automation"
     | "/settings/team"
-    | "/settings/billing";
+    | "/settings/billing"
+    | "/admin/overview";
   label: string;
   active: boolean;
   icon: typeof BarChart3;
