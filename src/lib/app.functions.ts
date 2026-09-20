@@ -694,6 +694,34 @@ export const saveQuoteServiceLayout = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/** Owner-only switch between the AI agent and the fixed step-by-step flow on the quote page. */
+export const saveQuoteAgentEnabled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ quote_agent_enabled: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+    const { error } = await supabaseAdmin
+      .from("businesses")
+      .update({ quote_agent_enabled: data.quote_agent_enabled })
+      .eq("id", app.businessId);
+    if (error) throw new Error(error.message);
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "quote_agent_enabled_changed",
+      entityType: "business",
+      entityId: app.businessId,
+      metadata: { quote_agent_enabled: data.quote_agent_enabled },
+    });
+    return { ok: true as const };
+  });
+
 export const getSmsSetup = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
