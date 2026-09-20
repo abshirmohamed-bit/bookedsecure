@@ -135,10 +135,11 @@ export function buildQuoteAgentSystem(input: {
       ? [
           "",
           "Add-ons:",
-          ...tenant.addons.map((addon) =>
-            `- ${addon.name}${addon.price_text ? ` | price: ${addon.price_text}` : ""}${
-              addon.available === false ? " (currently unavailable)" : ""
-            }`,
+          ...tenant.addons.map(
+            (addon) =>
+              `- ${addon.name}${addon.price_guidance ? ` | price: ${addon.price_guidance}` : ""}${
+                addon.active === false ? " (currently unavailable)" : ""
+              }`,
           ),
         ]
       : []),
