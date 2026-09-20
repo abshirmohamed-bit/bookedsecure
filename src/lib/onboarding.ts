@@ -59,8 +59,8 @@ const STEP_COPY: Record<
     search: { step: "trade" },
   },
   website: {
-    title: "Add your website",
-    detail: "We read it and fill in your services, prices and hours for you to approve.",
+    title: "Check your services and prices",
+    detail: "Paste your website and we fill them in, or edit the starter list from your trade.",
     path: "/setup",
     search: { step: "website" },
   },

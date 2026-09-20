@@ -68,8 +68,16 @@ export async function readOnboardingSnapshot(app: AppContext): Promise<Onboardin
   };
 }
 
-/** Owner-only: records what the business does. Never touches anything else. */
-export async function saveTrade(app: AppContext, trade: string): Promise<{ trade: TradeId }> {
+/**
+ * Owner-only: records what the business does, and — only when the business has
+ * no services at all — adds that trade's starting services so a business
+ * without a website still has something to work with. Anything already saved is
+ * left exactly as it is.
+ */
+export async function saveTrade(
+  app: AppContext,
+  trade: string,
+): Promise<{ trade: TradeId; seededServices: number }> {
   if (app.role === "staff") throw new Error("Only the business owner can change these settings.");
   if (!isTradeId(trade)) throw new Error("That is not one of the trades we support yet.");
   const { error } = await supabaseAdmin
@@ -77,13 +85,42 @@ export async function saveTrade(app: AppContext, trade: string): Promise<{ trade
     .update({ trade })
     .eq("id", app.businessId);
   if (error) throw new Error(error.message);
+
+  const seededServices = await seedStarterServices(app, trade);
   await supabaseAdmin.from("audit_events").insert({
     business_id: app.businessId,
     user_id: app.userId,
     event_type: "trade_changed",
     entity_type: "business",
     entity_id: app.businessId,
-    metadata: { trade },
+    metadata: { trade, seeded_services: seededServices },
   });
-  return { trade };
+  return { trade, seededServices };
+}
+
+/**
+ * Adds the trade's starting services, but only to a business with none. Returns
+ * how many were added, so nothing is ever claimed that did not happen.
+ */
+async function seedStarterServices(app: AppContext, trade: TradeId): Promise<number> {
+  const { TRADE_PRESETS } = await import("@/lib/trades");
+  const { count } = await supabaseAdmin
+    .from("services")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", app.businessId);
+  if ((count ?? 0) > 0) return 0;
+
+  const rows = TRADE_PRESETS[trade].serviceSeeds.map((seed) => ({
+    business_id: app.businessId,
+    name: seed.name,
+    category: null,
+    description: null,
+    price_guidance: null,
+    duration_minutes: seed.durationMinutes,
+    campaign_eligible: true,
+    active: true,
+  }));
+  const { error } = await supabaseAdmin.from("services").insert(rows);
+  if (error) throw new Error(error.message);
+  return rows.length;
 }
