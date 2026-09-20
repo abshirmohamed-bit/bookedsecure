@@ -112,7 +112,7 @@ export function isSuppressedOpeningTurn(body: string): boolean {
 export function shortServiceArea(area: string | null | undefined): string {
   const raw = (area ?? "").trim();
   if (!raw) return "";
-  const head = raw.split(/\s*[(–-:]/)[0] ?? raw;
+  const head = raw.split(/\s*[(–:\-]/)[0] ?? raw;
   return head.replace(/[,;]\s*$/, "").trim();
 }
 
