@@ -51,6 +51,10 @@ function AuthPage() {
   useEffect(() => {
     if (loading || !session || routingSession.current === session.user.id) return;
     routingSession.current = session.user.id;
+    // Attribution first: if this visitor arrived from an ad or partner link,
+    // the tags are attached to their business before anything else happens.
+    const tags = takeSignupSource();
+    if (tags) void saveSignupSource({ data: tags }).catch(() => undefined);
     // Same sign-in form for everyone; only a platform admin lands in the
     // control room. Tenants never see that this destination exists.
     void fetchPlatformAccess()
