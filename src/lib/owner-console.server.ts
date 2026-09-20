@@ -148,25 +148,32 @@ export async function readOwnerConsole(month: string = monthKey()): Promise<{
     else subscriptions.none += 1;
   }
 
+  // Money only counts real customers: the platform's own workspaces are not
+  // revenue, so their statements and credit packs stay out of every figure.
+  const tenantIds = new Set(tenants.map((tenant) => tenant.businessId));
+  const tenantStatements = statements.filter((row) => tenantIds.has(row.businessId));
   const monthStart = new Date(`${month}T00:00:00Z`).getTime();
   const creditPackRevenueCents = (topups.data ?? [])
     .filter(
       (row) =>
-        row.status === "paid" && new Date(row.created_at ?? 0).getTime() >= monthStart,
+        row.status === "paid" &&
+        (row.business_id ? tenantIds.has(row.business_id) : false) &&
+        new Date(row.created_at ?? 0).getTime() >= monthStart,
     )
     .reduce((total, row) => total + Number(row.amount_cents ?? 0), 0);
 
   const money: MoneySummary = {
     month,
-    revenueCents: statements.reduce((total, row) => total + row.revenueCents, 0),
-    providerCostCents: statements.reduce((total, row) => total + row.providerCostCents, 0),
-    marginCents: statements.reduce((total, row) => total + row.marginCents, 0),
-    segmentsSent: statements.reduce((total, row) => total + row.segmentsSent, 0),
-    tenantsBilled: statements.length,
+    revenueCents: tenantStatements.reduce((total, row) => total + row.revenueCents, 0),
+    providerCostCents: tenantStatements.reduce((total, row) => total + row.providerCostCents, 0),
+    marginCents: tenantStatements.reduce((total, row) => total + row.marginCents, 0),
+    segmentsSent: tenantStatements.reduce((total, row) => total + row.segmentsSent, 0),
+    tenantsBilled: tenantStatements.length,
     creditPackRevenueCents,
     subscriptions,
     providerBalance: balance,
   };
+
 
   const paying = tenants.filter((tenant) => ACTIVE_STATES.includes(tenant.subscriptionStatus));
   const queue: WorkQueue = {
