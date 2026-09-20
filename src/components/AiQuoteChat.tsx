@@ -45,6 +45,12 @@ type SelectionCardView = {
   extras?: { name: string; price: string | null }[];
 };
 
+type SelectionRecord = {
+  answer: string;
+  label: string;
+  cards: SelectionCardView[];
+};
+
 type Tenant = {
   slug: string;
   name: string;
@@ -91,6 +97,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   /** The selection card the customer tapped to read in full. */
   const [selectionDetail, setSelectionDetail] = useState<SelectionCardView | null>(null);
   const [selectionEcho, setSelectionEcho] = useState<string | null>(null);
+  /** Every service choice in this conversation, keyed by both its internal
+   * value and customer-facing label so restored server turns remain visual. */
+  const [selectionHistory, setSelectionHistory] = useState<SelectionRecord[]>([]);
   /** The iPhone keyboard changes both the visible height and its page offset. */
   const [visibleViewport, setVisibleViewport] = useState<{
     height: number;
@@ -113,11 +122,18 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const selectionKey = `bookedsecure:sel:${tenant.slug}`;
 
   /** Keeps the tapped cards, so a refresh still shows the choice as cards. */
-  function rememberSelection(label: string, cards: SelectionCardView[]) {
+  function rememberSelection(answer: string, label: string, cards: SelectionCardView[]) {
     setSelectionCards(cards);
     setSelectionEcho(label);
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(selectionKey, JSON.stringify({ label, cards }));
+      setSelectionHistory((current) => {
+        const history = [
+          ...current.filter((record) => record.answer !== answer && record.label !== label),
+          { answer, label, cards },
+        ];
+        window.sessionStorage.setItem(selectionKey, JSON.stringify({ label, cards, history }));
+        return history;
+      });
     }
   }
 
@@ -130,10 +146,16 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
       const parsed = JSON.parse(saved) as {
         label?: string;
         cards?: SelectionCardView[];
+        history?: SelectionRecord[];
       };
       if (parsed.label && Array.isArray(parsed.cards) && parsed.cards.length > 0) {
         setSelectionEcho(parsed.label);
         setSelectionCards(parsed.cards);
+        setSelectionHistory(
+          Array.isArray(parsed.history) && parsed.history.length > 0
+            ? parsed.history
+            : [{ answer: parsed.label, label: parsed.label, cards: parsed.cards }],
+        );
       }
     } catch {
       window.sessionStorage.removeItem(selectionKey);
@@ -334,11 +356,16 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   const customerBubble = (body: string) => {
     // A service selection stays visible as the same cards the customer tapped,
     // for the rest of the conversation, instead of a plain line of text.
-    if (selectionEcho && body === selectionEcho && selectionCards.length > 0) {
+    const savedSelection = selectionHistory.find(
+      (record) => body === record.answer || body === record.label,
+    );
+    const cards = savedSelection?.cards ??
+      (selectionEcho && body === selectionEcho ? selectionCards : []);
+    if (cards.length > 0) {
       return (
         <div className="ml-auto w-full max-w-[90%] sm:max-w-[76%]">
           <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {selectionCards.map((card) => (
+            {cards.map((card) => (
               <li key={card.label}>
                 <button
                   type="button"
@@ -539,7 +566,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                             })),
                                         };
                                       });
-                                   rememberSelection(label, cards);
+                                    rememberSelection(value, label, cards);
                                    send(value, label);
                                 }}
                               />
