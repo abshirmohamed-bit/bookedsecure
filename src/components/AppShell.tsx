@@ -142,12 +142,22 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         )}
       >
         <div className="grid h-20 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-sidebar-border px-4">
-          <TenantMark name={tenantName} logoUrl={business?.logo_url ?? null} size={38} />
+          {isPlatformOwner ? (
+            <img
+              src={brandMark.url}
+              alt="BookedSecure"
+              className="h-[38px] w-[38px] shrink-0 object-contain object-center"
+            />
+          ) : (
+            <TenantMark name={tenantName} logoUrl={business?.logo_url ?? null} size={38} />
+          )}
           <div className="min-w-0">
             <p className="truncate font-heading text-base font-semibold text-sidebar-foreground">
-              {tenantHeaderTitle(tenantName)}
+              {isPlatformOwner ? "BookedSecure" : tenantHeaderTitle(tenantName)}
             </p>
-            <p className="text-[11px] font-medium text-muted-foreground">Tenant workspace</p>
+            <p className="text-[11px] font-medium text-muted-foreground">
+              {isPlatformOwner ? "Platform owner" : "Tenant workspace"}
+            </p>
           </div>
           <Button
             type="button"
