@@ -48,6 +48,11 @@ function SetupPage() {
     if (setup.data && !setup.data.needsSetup && !step) navigate({ to: "/dashboard", replace: true });
   }, [setup.data, navigate, step]);
 
+  useEffect(() => {
+    if (!step || setup.isLoading) return;
+    document.getElementById(step)?.scrollIntoView({ block: "start" });
+  }, [setup.isLoading, step]);
+
   if (setup.isLoading || (setup.data && !setup.data.needsSetup && !step)) {
     return <main className="min-h-screen bg-background" aria-busy="true" />;
   }

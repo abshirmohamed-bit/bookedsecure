@@ -23,6 +23,22 @@ describe("onboarding journey", () => {
     expect(steps[0]!.current).toBe(true);
     expect(steps.filter((s) => s.current)).toHaveLength(1);
     expect(onboardingProgressLabel(steps)).toBe("0 of 6 done");
+    expect(steps.find((step) => step.id === "trade")).toMatchObject({
+      path: "/setup",
+      search: { step: "trade" },
+    });
+    expect(steps.find((step) => step.id === "website")).toMatchObject({
+      path: "/setup",
+      search: { step: "website" },
+    });
+    expect(steps.find((step) => step.id === "compliance")).toMatchObject({
+      path: "/settings/messaging",
+      hash: "business-identity",
+    });
+    expect(steps.find((step) => step.id === "campaign")).toMatchObject({
+      path: "/leads",
+      hash: "reactivation",
+    });
   });
 
   it("holds importing and campaigns behind the subscription", () => {

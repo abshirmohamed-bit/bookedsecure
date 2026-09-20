@@ -68,6 +68,7 @@ const STEP_COPY: Record<
     title: "Your business details",
     detail: "Legal name, ABN, address and contact — needed before we can get you a number.",
     path: "/settings/messaging",
+    hash: "business-identity",
   },
   subscribe: {
     title: "Start your subscription",
