@@ -52,3 +52,28 @@ export const deleteBookingRecord = createServerFn({ method: "POST" })
     });
   });
 
+/** Marks one booked job as done for the signed-in tenant, with an optional amount paid. */
+export const completeBookingRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        jobId: z.string().uuid(),
+        leadId: z.string().uuid(),
+        paidAmount: z.number().min(0).max(1_000_000).nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { completeJob } = await import("@/lib/bookings-write.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    return completeJob({
+      businessId: app.businessId,
+      userId: app.userId,
+      leadId: data.leadId,
+      jobId: data.jobId,
+      paidAmount: data.paidAmount ?? null,
+    });
+  });
+
