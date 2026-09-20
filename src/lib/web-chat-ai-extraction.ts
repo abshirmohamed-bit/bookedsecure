@@ -205,7 +205,10 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
   };
   const recent = context.turns
     .slice(-AI_EXTRACTION_TURNS)
-    .map((turn) => `${turn.role === "customer" ? "Customer" : "Assistant"}: ${turn.body}`)
+    .map(
+      (turn) =>
+        `${turn.role === "customer" ? "Customer" : "Assistant"}: ${condenseTurn(turn.role, turn.body)}`,
+    )
     .join("\n");
   return [
     "Current confirmed state (already collected and validated):",
