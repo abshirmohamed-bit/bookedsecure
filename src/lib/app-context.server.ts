@@ -44,9 +44,11 @@ export async function requireAppContext(supabase: Client, userId: string): Promi
     userId,
     businessId: profile.business_id,
     role,
+    isPlatformAdmin: roleValues.includes("platform_admin"),
     name: profile.name,
     email: profile.email,
   };
+
 }
 
 /** Never trust an id from the browser: confirm it belongs to the caller's business. */
