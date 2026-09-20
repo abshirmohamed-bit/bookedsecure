@@ -291,7 +291,7 @@ export function opensBySource(
 ): { label: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const event of events) {
-    const label = [event.source ?? "direct", event.campaign].filter(Boolean).join(". ");
+    const label = [event.source ?? "direct", event.campaign].filter(Boolean).join(": ");
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   return [...counts.entries()]

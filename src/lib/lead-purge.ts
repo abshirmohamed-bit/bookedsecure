@@ -232,6 +232,6 @@ export function summarisePurgeResult(result: PurgeResult): string {
     `${result.deleted} permanently deleted`,
     `${result.blocked} blocked`,
   ];
-  if (result.idempotentReplay) parts.push("repeat request. nothing new deleted");
+  if (result.idempotentReplay) parts.push("repeat request: nothing new deleted");
   return parts.join(" · ");
 }
