@@ -353,3 +353,16 @@ describe("failure safety", () => {
     expect(result.collected.vehicle_type ?? null).toBeNull();
   });
 });
+
+describe("context size per turn", () => {
+  it("condenses long earlier turns so replies are not slowed by the service menu", () => {
+    const menu = `Menu ${"service $199.99 2 hrs includes everything ".repeat(60)}`;
+    const assistant = condenseTurn("assistant", menu);
+    expect(assistant.length).toBeLessThanOrEqual(AI_EXTRACTION_TURN_CHARS + 1);
+    expect(assistant.endsWith("…")).toBe(true);
+    // The customer's own words keep more room than the menu does.
+    expect(condenseTurn("customer", menu).length).toBeGreaterThan(assistant.length);
+    // Short turns are untouched.
+    expect(condenseTurn("customer", "my hilux in auburn")).toBe("my hilux in auburn");
+  });
+});
