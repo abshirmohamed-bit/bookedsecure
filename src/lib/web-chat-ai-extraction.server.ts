@@ -50,13 +50,15 @@ export async function extractWithAi(
       prompt: buildAiExtractionPrompt(context),
     });
 
-    await recordAiUsage({
+    // Bookkeeping, not part of the answer: recorded without making the customer
+    // wait for the write. Still counted, still capped on the next turn.
+    void recordAiUsage({
       businessId,
       purpose: "web_chat_extraction",
       model: ANALYSIS_MODEL,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
-    });
+    }).catch(() => undefined);
 
     const parsed = WebChatAiExtractionParseSchema.safeParse(
       (result as unknown as { output?: unknown }).output,

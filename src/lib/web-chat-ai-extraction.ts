@@ -153,6 +153,21 @@ export type AiExtractionContext = {
 
 export const AI_EXTRACTION_TURNS = 6;
 
+/**
+ * How much of an earlier turn is worth re-reading. Service menus and long
+ * descriptions are already known to the server; resending them every turn only
+ * makes the customer wait longer for the same understanding.
+ */
+export const AI_EXTRACTION_TURN_CHARS = 400;
+/** The customer's own words always matter more, so they keep more room. */
+export const AI_EXTRACTION_CUSTOMER_TURN_CHARS = 700;
+
+export function condenseTurn(role: string, body: string): string {
+  const limit = role === "customer" ? AI_EXTRACTION_CUSTOMER_TURN_CHARS : AI_EXTRACTION_TURN_CHARS;
+  const text = body.trim().replace(/\s+/g, " ");
+  return text.length <= limit ? text : `${text.slice(0, limit)}…`;
+}
+
 export function buildAiExtractionSystem(context: AiExtractionContext): string {
   return [
     `You read customer messages for ${context.businessName}, an Australian mobile car detailing business.`,
@@ -205,7 +220,10 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
   };
   const recent = context.turns
     .slice(-AI_EXTRACTION_TURNS)
-    .map((turn) => `${turn.role === "customer" ? "Customer" : "Assistant"}: ${turn.body}`)
+    .map(
+      (turn) =>
+        `${turn.role === "customer" ? "Customer" : "Assistant"}: ${condenseTurn(turn.role, turn.body)}`,
+    )
     .join("\n");
   return [
     "Current confirmed state (already collected and validated):",
