@@ -42,6 +42,8 @@ export const WEB_CHAT_STEPS = [
   "consent",
   "booking",
   "booking_confirm",
+  /** An agent-led turn: the assistant wrote the question itself. */
+  "agent",
 ] as const;
 export type WebChatStep = (typeof WEB_CHAT_STEPS)[number];
 
@@ -508,6 +510,10 @@ function buildPrompt(
   collected: WebChatCollected = {},
 ): WebChatPrompt {
   switch (step) {
+    // Agent-led turns carry the assistant's own wording; the prompt is built by
+    // the agent runner, not here.
+    case "agent":
+      return { step, text: "", kind: "text" };
     case "service":
       return {
         step,
@@ -914,6 +920,9 @@ export function applyAnswer(
   const next: WebChatCollected = { ...collected };
 
   switch (step) {
+    // Agent-led turns are applied by the agent's own tools, never here.
+    case "agent":
+      return { ok: true, collected: next, echo: value };
     case "service": {
       // Card selection: one or more of the tenant's own services, plus any of
       // their linked extras the customer ticked. Unknown ids are dropped.

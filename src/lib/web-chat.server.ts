@@ -79,6 +79,7 @@ import {
   type AnswerFacts,
 } from "@/lib/web-chat-conversation";
 import { extractWithAi, type AiExtractor } from "@/lib/web-chat-ai-extraction.server";
+import { QUOTE_AGENT_ENABLED } from "@/lib/quote-agent";
 
 
 
@@ -390,6 +391,25 @@ export async function replyToWebChat(input: {
 }): Promise<WebChatState | null> {
   const tenant = await resolvePublicTenant(input.slug);
   if (!tenant || tenant.quoteMode !== "ai_chat") return null;
+
+  // One AI, agent-led: the same brain as the owner assistant runs the customer
+  // conversation and decides the flow itself. Prices, times and bookings still
+  // come only from this tenant's own records through its tools. If the agent
+  // cannot run at all, the deterministic flow below carries the conversation.
+  if (QUOTE_AGENT_ENABLED) {
+    try {
+      const { runQuoteAgentTurn } = await import("@/lib/quote-agent.server");
+      const agentState = await runQuoteAgentTurn({
+        slug: input.slug,
+        conversationId: input.conversationId,
+        answer: input.answer,
+        formUrl: input.formUrl,
+      });
+      if (agentState) return agentState;
+    } catch (error) {
+      console.error("[web-chat] agent turn failed, falling back", error);
+    }
+  }
 
   const { data: conversation } = await supabaseAdmin
     .from("web_conversations")
