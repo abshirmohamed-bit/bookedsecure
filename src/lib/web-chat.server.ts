@@ -79,6 +79,7 @@ import {
   type AnswerFacts,
 } from "@/lib/web-chat-conversation";
 import { extractWithAi, type AiExtractor } from "@/lib/web-chat-ai-extraction.server";
+import { QUOTE_AGENT_ENABLED } from "@/lib/quote-agent";
 
 
 
