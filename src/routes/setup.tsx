@@ -9,7 +9,10 @@ import { getSetupState } from "@/lib/site-onboarding.functions";
 
 export const Route = createFileRoute("/setup")({
   validateSearch: (search: Record<string, unknown>) => ({
-    step: search.step === "trade" || search.step === "website" ? search.step : undefined,
+    step:
+      search["step"] === "trade" || search["step"] === "website"
+        ? search["step"]
+        : undefined,
   }),
   head: () => ({
     meta: [

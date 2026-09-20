@@ -51,8 +51,8 @@ export function OnboardingJourney() {
             <li key={step.id}>
               <Link
                 to={step.path}
-                search={step.search}
-                hash={step.hash}
+                {...(step.search ? { search: step.search } : {})}
+                {...(step.hash ? { hash: step.hash } : {})}
                 className={cn(
                   "grid min-h-12 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 rounded-md border border-transparent px-2.5 py-2 transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                   step.current && "border-primary bg-primary/5",

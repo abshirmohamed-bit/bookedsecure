@@ -42,7 +42,16 @@ export type OnboardingStep = {
   blockedBy: OnboardingStepId | null;
 };
 
-const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; path: string }> = {
+const STEP_COPY: Record<
+  OnboardingStepId,
+  {
+    title: string;
+    detail: string;
+    path: string;
+    search?: { step: "trade" | "website" };
+    hash?: string;
+  }
+> = {
   trade: {
     title: "Tell us your trade",
     detail: "So your services, wording and follow-up timing start out right.",
