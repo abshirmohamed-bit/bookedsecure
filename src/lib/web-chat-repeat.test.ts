@@ -44,6 +44,14 @@ describe("quote chat repeat guard", () => {
     expect(escalatedAsk("vehicle", "What's the vehicle?", 1)).not.toContain("skip");
   });
 
+  it("does not duplicate examples or skip wording if escalation is reapplied", () => {
+    const required = escalatedAsk("mobile", "What's your mobile number?", 1);
+    expect(escalatedAsk("mobile", required, 1)).toBe(required);
+
+    const optional = escalatedAsk("concerns", "Anything to focus on?", 1);
+    expect(escalatedAsk("concerns", optional, 1)).toBe(optional);
+  });
+
   it("lets an optional detail go after a fair chance", () => {
     let state = base();
     expect(shouldLetGo(state, "concerns")).toBe(false);

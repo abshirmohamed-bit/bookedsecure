@@ -1377,10 +1377,7 @@ export async function maybeHandleIntake(args: {
       : null;
 
   const basePrompt = resumeStep ? promptFor(resumeStep, chatTenant, stored) : null;
-  const prompt =
-    basePrompt && resumeStep
-      ? { ...basePrompt, text: escalatedAsk(resumeStep, basePrompt.text, repeatAsks) }
-      : null;
+  const prompt = basePrompt;
 
   // Name and mobile are one question. When both are still missing the server's
   // own combined ask is used, so the customer is never asked for the name in one

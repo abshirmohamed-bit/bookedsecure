@@ -71,8 +71,10 @@ export function escalatedAsk(step: string, base: string, count: number): string 
   if (count <= 0) return base;
   const example = EXAMPLES[step];
   const parts = [base.replace(/\s+$/, "")];
-  if (example) parts.push(`— ${example}`);
-  if (isOptionalStep(step)) parts.push("Or say “skip” and we'll sort it with you directly.");
+  if (example && !base.includes(example)) parts.push(`— ${example}`);
+  if (isOptionalStep(step) && !base.includes("Or say “skip”")) {
+    parts.push("Or say “skip” and we'll sort it with you directly.");
+  }
   return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 

@@ -25,7 +25,7 @@ export function OnboardingJourney() {
   if (!data || data.complete || data.role === "staff") return null;
 
   return (
-    <section className="mx-3 mb-2 shrink-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <section className="relative z-30 mx-3 mb-2 shrink-0 rounded-lg border border-border bg-card shadow-sm">
       <Button
         type="button"
         variant="ghost"
@@ -46,7 +46,10 @@ export function OnboardingJourney() {
         />
       </Button>
       {open ? (
-        <ol id="onboarding-checklist" className="border-t border-border p-1.5">
+        <ol
+          id="onboarding-checklist"
+          className="absolute inset-x-0 top-full max-h-[min(60dvh,24rem)] overflow-y-auto rounded-b-lg border border-t-0 border-border bg-card p-1.5 shadow-lg"
+        >
           {data.steps.map((step) => (
             <li key={step.id}>
               <Link
