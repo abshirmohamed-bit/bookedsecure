@@ -95,23 +95,31 @@ export async function readOwnerConsole(month: string = monthKey()): Promise<{
     (identities.data ?? []).filter((row) => row.business_id).map((row) => row.business_id as string),
   );
 
-  // A platform admin's own workspace is not a customer: keep it out of the
-  // tenant table, the money counts and the work queues.
-  const adminRoles = await supabaseAdmin
-    .from("user_roles")
-    .select("user_id")
-    .eq("role", "platform_admin");
-  const adminIds = (adminRoles.data ?? []).map((row) => row.user_id);
-  const platformBusinessIds = new Set<string>();
-  if (adminIds.length > 0) {
-    const adminProfiles = await supabaseAdmin
-      .from("profiles")
-      .select("business_id")
-      .in("id", adminIds);
-    for (const row of adminProfiles.data ?? []) {
-      if (row.business_id) platformBusinessIds.add(row.business_id);
-    }
+  // A platform admin's own private workspace is not a customer: keep it out of
+  // the tenant table, the money counts and the work queues. A workspace only
+  // counts as "admin only" when nobody in it is an owner or staff member — an
+  // admin who also runs a real business (their profile carries owner/staff)
+  // must still show up as a tenant.
+  const membership = await supabaseAdmin.from("profiles").select("id, business_id");
+  const roles = await supabaseAdmin.from("user_roles").select("user_id, role");
+  const rolesByUser = new Map<string, Set<string>>();
+  for (const row of roles.data ?? []) {
+    const set = rolesByUser.get(row.user_id) ?? new Set<string>();
+    set.add(row.role);
+    rolesByUser.set(row.user_id, set);
   }
+  const hasAdmin = new Set<string>();
+  const hasTenantMember = new Set<string>();
+  for (const row of membership.data ?? []) {
+    if (!row.business_id) continue;
+    const userRoles = rolesByUser.get(row.id) ?? new Set<string>();
+    if (userRoles.has("platform_admin")) hasAdmin.add(row.business_id);
+    if (userRoles.has("owner") || userRoles.has("staff")) hasTenantMember.add(row.business_id);
+  }
+  const platformBusinessIds = new Set<string>(
+    [...hasAdmin].filter((id) => !hasTenantMember.has(id)),
+  );
+
 
   const tenants: TenantRow[] = (businesses.data ?? [])
     .filter((business) => !platformBusinessIds.has(business.id))
