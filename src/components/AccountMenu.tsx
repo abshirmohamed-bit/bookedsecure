@@ -97,6 +97,18 @@ export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void
             </p>
           </div>
           <ul className="py-1">
+            {data?.role === "platform_admin" ? (
+              <li>
+                <Link
+                  to="/admin/overview"
+                  role="menuitem"
+                  onClick={() => dispatch({ type: "select_item" })}
+                  className="block px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary focus-visible:bg-secondary focus-visible:outline-none"
+                >
+                  Control room
+                </Link>
+              </li>
+            ) : null}
             {ACCOUNT_MENU_ITEMS.map((item) => (
               <li key={item.to}>
                 <Link

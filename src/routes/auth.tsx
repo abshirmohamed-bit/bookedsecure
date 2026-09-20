@@ -8,6 +8,7 @@ import { ArrowRight, CheckCircle2, MessageSquareText, ShieldCheck } from "lucide
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSetupState } from "@/lib/site-onboarding.functions";
+import { getPlatformAccess } from "@/lib/owner-console.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -32,6 +33,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
   const fetchSetupState = useServerFn(getSetupState);
+  const fetchPlatformAccess = useServerFn(getPlatformAccess);
   const routingSession = useRef<string | null>(null);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -44,12 +46,19 @@ function AuthPage() {
   useEffect(() => {
     if (loading || !session || routingSession.current === session.user.id) return;
     routingSession.current = session.user.id;
-    void fetchSetupState()
-      .then((state) =>
-        navigate({ to: state.needsSetup ? "/setup" : "/dashboard", replace: true }),
-      )
+    // Same sign-in form for everyone; only a platform admin lands in the
+    // control room. Tenants never see that this destination exists.
+    void fetchPlatformAccess()
+      .then(async (access) => {
+        if (access.isPlatformAdmin) {
+          navigate({ to: "/admin/overview", replace: true });
+          return;
+        }
+        const state = await fetchSetupState();
+        navigate({ to: state.needsSetup ? "/setup" : "/dashboard", replace: true });
+      })
       .catch(() => navigate({ to: "/dashboard", replace: true }));
-  }, [fetchSetupState, loading, session, navigate]);
+  }, [fetchPlatformAccess, fetchSetupState, loading, session, navigate]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();

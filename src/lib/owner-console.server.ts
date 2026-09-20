@@ -95,7 +95,27 @@ export async function readOwnerConsole(month: string = monthKey()): Promise<{
     (identities.data ?? []).filter((row) => row.business_id).map((row) => row.business_id as string),
   );
 
-  const tenants: TenantRow[] = (businesses.data ?? []).map((business) => {
+  // A platform admin's own workspace is not a customer: keep it out of the
+  // tenant table, the money counts and the work queues.
+  const adminRoles = await supabaseAdmin
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "platform_admin");
+  const adminIds = (adminRoles.data ?? []).map((row) => row.user_id);
+  const platformBusinessIds = new Set<string>();
+  if (adminIds.length > 0) {
+    const adminProfiles = await supabaseAdmin
+      .from("profiles")
+      .select("business_id")
+      .in("id", adminIds);
+    for (const row of adminProfiles.data ?? []) {
+      if (row.business_id) platformBusinessIds.add(row.business_id);
+    }
+  }
+
+  const tenants: TenantRow[] = (businesses.data ?? [])
+    .filter((business) => !platformBusinessIds.has(business.id))
+    .map((business) => {
     const statement = statementBy.get(business.id);
     return {
       businessId: business.id,
