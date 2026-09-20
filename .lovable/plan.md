@@ -8,15 +8,15 @@ Turn the large setup grid into a small **Get set up!** control that opens a clea
 - **Business details** opens Messaging, where the required identity form is shown.
 - **Start your subscription** opens Plan & billing.
 - **Add your old customers** opens the contact-import screen.
-- **Run your first campaign** returns to Home, where Cowork can create it.
-- Both **Tell us your trade** and **Add your website** point to Setup. For an already-configured tenant, Setup immediately redirects back to Home, so completed setup links cannot be revisited there.
+- **Run your first campaign** currently returns to Home, but no visible campaign action is presented there. The direct campaign workspace is on the Leads page, so this destination is misleading.
+- Both **Tell us your trade** and **Add your website** point to Setup. For an already-configured tenant, Setup immediately redirects back to Home, so those controls cannot be revisited from the checklist.
 
 ## Changes
 1. Replace the always-visible grid with one compact **Get set up!** button showing a checklist icon, progress, and expand/collapse indicator.
 2. Keep the list collapsed initially. Pressing the button reveals all six steps as one vertical list; pressing it again closes the list.
 3. Preserve real saved progress, current-step emphasis, completed ticks, subscription locks, and owner/staff visibility rules.
 4. Make every row comfortably tappable on mobile and keep labels/details wrapping cleanly without widening the Home screen.
-5. Correct the setup destinations so trade and website actions remain reachable instead of bouncing configured owners back to Home. Keep the remaining four destinations connected to their verified screens.
+5. Correct the destinations so trade and website controls remain reachable instead of bouncing configured owners back to Home, and send **Run your first campaign** directly to the campaign workspace. Keep compliance, subscription, and import connected to their verified screens.
 6. Add accessible expanded/collapsed state and keyboard operation to the trigger.
 
 ## Validation
