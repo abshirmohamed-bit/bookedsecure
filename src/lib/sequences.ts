@@ -121,7 +121,7 @@ export function selectSequence(input: SequenceDecisionInput): SequenceDecision {
   if (input.unsupportedRequest)
     return d("human_handoff", "Request is outside supported services", "certain", "none_no_outbound", true);
   if (input.toolFailure)
-    return d("human_handoff", "Tool or provider failure — automation stops", "certain", "none_no_outbound", true);
+    return d("human_handoff", "Tool or provider failure. automation stops", "certain", "none_no_outbound", true);
   if (input.conflictingContext || ctx === "owner_review")
     return d("human_handoff", "Conflicting or unverified context needs owner review", "certain", "none_no_outbound", true);
   if (input.requestedQuote && ctx === "contact_only_unqualified")
@@ -139,7 +139,7 @@ export function selectSequence(input: SequenceDecisionInput): SequenceDecision {
       ? d("human_handoff", "Booking intent but no tenant booking link configured", "certain", "none_no_outbound", true)
       : d(
           "booking_intent_fast_path",
-          "Explicit booking intent — send current booking link and stop qualification",
+          "Explicit booking intent. send current booking link and stop qualification",
           "certain",
           input.consentStatus === "granted" ? "existing_consent_required" : "consent_capture_required",
         );
@@ -155,7 +155,7 @@ export function selectSequence(input: SequenceDecisionInput): SequenceDecision {
   if (input.bookingStatus === "scheduled" || ctx === "booked_lead")
     return d(
       "booking_confirmation_followup",
-      "Booking already scheduled — post-booking state only, no outbound sequence (confirmation SMS is sent once by the booking commit path)",
+      "Booking already scheduled. post-booking state only, no outbound sequence (confirmation SMS is sent once by the booking commit path)",
       "certain",
       "none_no_outbound",
     );
@@ -163,13 +163,13 @@ export function selectSequence(input: SequenceDecisionInput): SequenceDecision {
   // 14: context-driven selection.
   switch (ctx) {
     case "quote_chat_lead":
-      return d("quote_chat_completion", "Quote chat in progress — collect only missing fields", "certain", "existing_consent_required");
+      return d("quote_chat_completion", "Quote chat in progress. collect only missing fields", "certain", "existing_consent_required");
     case "active_form_enquiry":
     case "campaign_reply":
     case "active_conversation":
       return d(
         "active_enquiry_qualification",
-        input.hasInboundReply ? "Live enquiry with a reply — continue toward booking" : "Live enquiry — qualify toward booking",
+        input.hasInboundReply ? "Live enquiry with a reply. continue toward booking" : "Live enquiry. qualify toward booking",
         "certain",
         "existing_consent_required",
       );
@@ -178,15 +178,15 @@ export function selectSequence(input: SequenceDecisionInput): SequenceDecision {
     case "verified_historical_enquiry":
       return input.hasBookingLink === false
         ? d("human_handoff", "Historical enquiry but no booking link configured", "certain", "none_no_outbound", true)
-        : d("historical_booking_link", "Verified previous enquiry — send current booking link, no re-qualification", "certain", "existing_consent_required");
+        : d("historical_booking_link", "Verified previous enquiry. send current booking link, no re-qualification", "certain", "existing_consent_required");
     case "previous_customer":
-      return d("previous_customer_reactivation", "Completed job on record — reactivation with booking link", "certain", "existing_consent_required");
+      return d("previous_customer_reactivation", "Completed job on record. reactivation with booking link", "certain", "existing_consent_required");
     case "contact_only_unqualified":
     case "manually_added_contact":
     case "cold_lead":
       return d(
         "contact_only_introduction",
-        "Only name, email and phone are known — neutral introduction, no implied history",
+        "Only name, email and phone are known. neutral introduction, no implied history",
         "certain",
         "consent_capture_required",
       );

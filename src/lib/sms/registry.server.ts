@@ -1,10 +1,10 @@
 // Provider registry: the one place that decides which adapter handles a message.
 //
 // Selection order (first match wins):
-//   1. SMS_PROVIDER_OVERRIDE   — emergency/feature-flag override for all tenants
-//   2. the value passed in     — normally sms_senders.provider, else the business default
-//   3. SMS_PROVIDER            — deployment default
-//   4. "simulated"             — always safe
+//   1. SMS_PROVIDER_OVERRIDE  . emergency/feature-flag override for all tenants
+//   2. the value passed in    . normally sms_senders.provider, else the business default
+//   3. SMS_PROVIDER           . deployment default
+//   4. "simulated"            . always safe
 
 import {
   PROVIDER_CAPABILITIES,

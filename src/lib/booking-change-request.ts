@@ -15,12 +15,12 @@ import { applyFieldDirectives, fieldUpdateMessage, type FieldUpdate } from "@/li
 /** Fields whose new value changes what the crew turns up to, so the owner must see it. */
 export const BOOKING_AFFECTING_FIELDS: CorrectableStep[] = ["service", "suburb", "vehicle"];
 
-/** Words that mean "move/cancel the appointment" — never actioned automatically. */
+/** Words that mean "move/cancel the appointment". never actioned automatically. */
 const RESCHEDULE_CUE =
   /\b(reschedul\w*|re-?book\w*|cancel\w*|postpon\w*|move\s+(?:it|the|my)\b|different\s+(?:day|time|date)|another\s+(?:day|time|date)|earlier|later\s+(?:day|time|date))\b/i;
 
 export const CHANGE_REQUEST_UNCLEAR =
-  "Your booking is confirmed. If you'd like to change any details, tell me what to update — for example \u201Cchange my suburb to Burwood\u201D.";
+  "Your booking is confirmed. If you'd like to change any details, tell me what to update. for example \u201Cchange my suburb to Burwood\u201D.";
 
 export type ChangeRequestOutcome = {
   /** Nothing recognisable to act on. */
@@ -34,7 +34,7 @@ export type ChangeRequestOutcome = {
 };
 
 function reviewSentence(tenantName: string): string {
-  return `Your booking time stays as confirmed — ${tenantName} will confirm the change with you before anything about the visit changes.`;
+  return `Your booking time stays as confirmed. ${tenantName} will confirm the change with you before anything about the visit changes.`;
 }
 
 /**
@@ -42,7 +42,7 @@ function reviewSentence(tenantName: string): string {
  *
  * Detail updates are applied to the collected values through the same
  * validation as a normal answer. Reschedule or cancellation wording is never
- * applied — it is escalated to the owner.
+ * applied. it is escalated to the owner.
  */
 export function evaluateBookingChangeRequest(input: {
   collected: WebChatCollected;

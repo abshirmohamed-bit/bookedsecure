@@ -26,7 +26,7 @@ export async function resolveEventId(input: {
   return { eventId: await eventFingerprint(input.providerId, input.rawBody), source: "hash" };
 }
 
-/** Postgres unique-violation — the only error that means "already recorded". */
+/** Postgres unique-violation. the only error that means "already recorded". */
 export function isUniqueViolation(error: unknown): boolean {
   const code = (error as { code?: unknown } | null)?.code;
   if (typeof code === "string" && code === "23505") return true;
@@ -69,8 +69,8 @@ function safeReason(error: unknown): string {
 /**
  * Records the event and reports whether this caller owns processing.
  *
- * Insert-first, so the unique index on (provider, event_id) — not application
- * state — is what guarantees exactly-once. Only a unique violation (23505) means
+ * Insert-first, so the unique index on (provider, event_id). not application
+ * state. is what guarantees exactly-once. Only a unique violation (23505) means
  * "already recorded"; any other database error is a real failure so the caller
  * can answer non-2xx and let the provider retry.
  *
@@ -144,7 +144,7 @@ export async function claimWebhookEvent(
 }
 
 /**
- * Marks the event handled — only after message persistence, lead/conversation,
+ * Marks the event handled. only after message persistence, lead/conversation,
  * usage and audit work all succeeded. If the mark itself fails the caller must
  * not answer 2xx, otherwise a completed event could look unprocessed forever.
  */
@@ -179,7 +179,7 @@ export async function markWebhookFailed(
 
 /**
  * Structured webhook logging. Never logs message bodies, credentials, or full
- * payloads — only routing metadata needed to diagnose delivery problems.
+ * payloads. only routing metadata needed to diagnose delivery problems.
  */
 export function logWebhook(
   level: "info" | "warn" | "error",

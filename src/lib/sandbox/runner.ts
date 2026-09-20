@@ -334,7 +334,7 @@ function bookingStage(fixture: SandboxFixture): {
     decision: { ...confirm, stage: `booking_${fixture.bookingBehaviour}` },
     slot: { selected, declined: false },
     commitFailed: !confirm.allowed,
-    // "Would create job" only — the sandbox never writes an offer or a job.
+    // "Would create job" only. the sandbox never writes an offer or a job.
     wouldCreateJob: confirm.allowed,
   };
 }

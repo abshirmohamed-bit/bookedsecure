@@ -51,7 +51,7 @@ export async function enqueueJob(input: {
   idempotencyKey: string;
   payload?: Record<string, unknown>;
   runAt?: Date;
-  /** Optional agent-sequence attribution (metadata only — never activates anything). */
+  /** Optional agent-sequence attribution (metadata only. never activates anything). */
   attribution?: AgentAttributionInput | undefined;
 }): Promise<{ job: JobRow | null; created: boolean; reason?: string }> {
   const validated = normaliseAgentAttribution(input.attribution);
@@ -168,7 +168,7 @@ async function guardLead(job: JobRow): Promise<Outcome | null> {
     .maybeSingle();
   if (!lead) return { ok: false, retriable: false, reason: "Lead no longer exists." };
   if (lead.opted_out_at)
-    return { ok: false, retriable: false, reason: "Lead opted out — automation stopped." };
+    return { ok: false, retriable: false, reason: "Lead opted out. automation stopped." };
   if (STOP_STATUSES.has(lead.status))
     return { ok: false, retriable: false, reason: `Lead status "${lead.status}" stops automation.` };
 
@@ -235,7 +235,7 @@ async function performJob(job: JobRow): Promise<Outcome> {
   });
 
   if (result.sent) return { ok: true };
-  if (result.duplicate) return { ok: true, note: "Duplicate suppressed — already sent." };
+  if (result.duplicate) return { ok: true, note: "Duplicate suppressed. already sent." };
   return {
     ok: false,
     retriable: result.retriable === true,

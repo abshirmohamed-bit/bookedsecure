@@ -5,9 +5,9 @@ import { BillingPanel } from "@/components/billing/BillingPanel";
 export const Route = createFileRoute("/settings/billing")({
   head: () => ({
     meta: [
-      { title: "Plan & billing — BookedSecure" },
+      { title: "Plan & billing | BookedSecure" },
       { name: "description", content: "Your BookedSecure plan, text credits and billing." },
-      { property: "og:title", content: "Plan & billing — BookedSecure" },
+      { property: "og:title", content: "Plan & billing | BookedSecure" },
       { property: "og:description", content: "Choose a plan, buy text credits and manage billing." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

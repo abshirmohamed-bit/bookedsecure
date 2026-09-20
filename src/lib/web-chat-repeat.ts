@@ -4,7 +4,7 @@
  * PURE module. It records how many times each question has actually been put to
  * the customer and decides what to do when the same detail comes round again:
  * ask once more with a concrete example, then either let an optional detail go
- * or leave it for the team — never rephrase the same question forever.
+ * or leave it for the team. never rephrase the same question forever.
  *
  * Nothing here books, prices, messages or invents a value. The only state it
  * writes is the per-step ask counter and, for an optional detail the customer
@@ -17,7 +17,7 @@ import type { WebChatCollected, WebChatStep } from "@/lib/web-chat";
 export const OPTIONAL_COLLECTION_STEPS = ["address", "concerns"] as const;
 
 /** Value stored when an optional detail is let go rather than asked again. */
-export const LEFT_FOR_TEAM = "Not provided — to confirm with the customer";
+export const LEFT_FOR_TEAM = "Not provided. to confirm with the customer";
 
 /** Asks allowed per detail before it is let go or handed to the team. */
 export const MAX_ASKS_PER_FIELD = 3;
@@ -71,7 +71,7 @@ export function escalatedAsk(step: string, base: string, count: number): string 
   if (count <= 0) return base;
   const example = EXAMPLES[step];
   const parts = [base.replace(/\s+$/, "")];
-  if (example && !base.includes(example)) parts.push(`— ${example}`);
+  if (example && !base.includes(example)) parts.push(`- ${example}`);
   if (isOptionalStep(step) && !base.includes("Or say “skip”")) {
     parts.push("Or say “skip” and we'll sort it with you directly.");
   }

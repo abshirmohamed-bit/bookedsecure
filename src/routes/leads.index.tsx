@@ -5,13 +5,13 @@ import { LeadsWorkspace } from "@/components/LeadsWorkspace";
 export const Route = createFileRoute("/leads/")({
   head: () => ({
     meta: [
-      { title: "Lead inbox — BookedSecure" },
+      { title: "Lead inbox | BookedSecure" },
       {
         name: "description",
         content:
           "The lead inbox: enquiries needing a reply, follow-up status and completed-job revenue.",
       },
-      { property: "og:title", content: "Lead inbox — BookedSecure" },
+      { property: "og:title", content: "Lead inbox | BookedSecure" },
       {
         property: "og:description",
         content: "See which enquiries need attention and how they are converting.",

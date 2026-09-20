@@ -25,13 +25,13 @@ import {
 export const Route = createFileRoute("/settings/business")({
   head: () => ({
     meta: [
-      { title: "Business settings — BookedSecure" },
+      { title: "Business settings | BookedSecure" },
       {
         name: "description",
         content:
           "Business name, service area, opening hours and the approved service catalogue used in quotes.",
       },
-      { property: "og:title", content: "Business settings — BookedSecure" },
+      { property: "og:title", content: "Business settings | BookedSecure" },
       {
         property: "og:description",
         content: "Manage business details and the approved service catalogue.",

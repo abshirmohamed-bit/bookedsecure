@@ -136,7 +136,7 @@ export function sideEffectsClean(summary: ImportSummary): boolean {
 }
 
 export function summaryHeadline(summary: ImportSummary): string {
-  return `Last import — ${IMPORT_MODE_LABELS[summary.mode]}`;
+  return `Last import. ${IMPORT_MODE_LABELS[summary.mode]}`;
 }
 
 // --- import activity ---------------------------------------------------------
@@ -224,9 +224,9 @@ export function activityOutcomeTone(outcome: RowOutcome): MetricTone {
 export function activityResultText(row: RowResult): string {
   const label = ROW_OUTCOME_LABELS[row.outcome as RowOutcome] ?? row.outcome;
   const reasons = row.reasons.length
-    ? ` — ${row.reasons.map((reason) => COMMIT_BLOCK_LABELS[reason as CommitBlockReason] ?? reason).join(", ")}`
+    ? `. ${row.reasons.map((reason) => COMMIT_BLOCK_LABELS[reason as CommitBlockReason] ?? reason).join(", ")}`
     : "";
-  const error = row.error ? ` — ${row.error}` : "";
+  const error = row.error ? `. ${row.error}` : "";
   return `${label}${reasons}${error}`;
 }
 
@@ -331,16 +331,16 @@ export function canaryTechnicalText(
 ): string {
   const lines = [
     `Status: ${result.status}`,
-    `Batch ID: ${context.batchId ?? "—"}`,
+    `Batch ID: ${context.batchId ?? "Not available"}`,
     `Preview row: ${result.row_number}`,
-    `Lead ID: ${result.lead_id ?? "—"}`,
-    `Commit timestamp: ${context.ranAt ?? "—"}`,
+    `Lead ID: ${result.lead_id ?? "Not available"}`,
+    `Commit timestamp: ${context.ranAt ?? "Not available"}`,
     `Live leads before: ${result.leads_before}`,
     `Live leads after: ${result.leads_after}`,
-    `Idempotency / rerun result: ${result.rerun_status ?? "—"}`,
+    `Idempotency / rerun result: ${result.rerun_status ?? "Not available"}`,
     "Checks:",
     ...result.checks.map(
-      (check) => `  ${check.passed ? "PASS" : "FAIL"} — ${check.check}: ${check.detail}`,
+      (check) => `  ${check.passed ? "PASS" : "FAIL"}. ${check.check}: ${check.detail}`,
     ),
   ];
   return lines.join("\n");

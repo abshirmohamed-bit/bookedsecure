@@ -1,4 +1,4 @@
-// Tenant owner booking-confirmation notification — pure policy, no I/O.
+// Tenant owner booking-confirmation notification. pure policy, no I/O.
 //
 // This is an internal operational alert to the business owner after an
 // authoritative booking commit. It is never a campaign, follow-up,
@@ -15,7 +15,7 @@ export const OWNER_BOOKING_CONFIRMED_TEMPLATE_ID = "owner_booking_confirmed.v1" 
 export const OWNER_BOOKING_CONFIRMED_TEMPLATE_V1 =
   "{{tenant_name}} booking confirmed: {{service}} for {{customer_name}} in {{suburb}} on {{date}} at {{time}}. Check the dashboard for full details.";
 
-/** Owner notification idempotency key — one per confirmed booking. */
+/** Owner notification idempotency key. one per confirmed booking. */
 export function ownerBookingConfirmationIdempotencyKey(bookingId: string): string {
   return `tenant_owner_booking_confirmation:${bookingId}`;
 }
@@ -67,8 +67,8 @@ export function evaluateOwnerNotificationEligibility(
       outcome: cancelled ? "blocked_cancelled" : "blocked_no_booking",
       sendable: false,
       reason: cancelled
-        ? "The booking was cancelled — no owner notification was sent."
-        : "No committed booking and job exist — no owner notification was sent.",
+        ? "The booking was cancelled. no owner notification was sent."
+        : "No committed booking and job exist. no owner notification was sent.",
     };
   }
   const raw = (facts.ownerNotificationNumber ?? "").trim();

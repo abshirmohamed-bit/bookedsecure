@@ -412,7 +412,7 @@ export function LeadsWorkspace() {
               <ul className="mt-1 list-disc pl-4 text-muted-foreground">
                 {lastResult.failures.map((failure) => (
                   <li key={failure.leadId}>
-                    {failure.name ?? failure.leadId} — {failure.reason}
+                    {failure.name ?? failure.leadId}. {failure.reason}
                   </li>
                 ))}
               </ul>
@@ -497,7 +497,7 @@ export function LeadsWorkspace() {
                     {lead.mobile_number}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                    {lead.service_intent ?? "—"}
+                    {lead.service_intent ?? "Not available"}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -546,7 +546,7 @@ export function LeadsWorkspace() {
                   <td className="px-3 py-2.5 text-right tabular text-xs">
                     {lead.job?.completion_status === "completed" && lead.job.completed_value
                       ? formatCurrency(Number(lead.job.completed_value))
-                      : "—"}
+                      : "Not available"}
                   </td>
                 </tr>
               ))}
@@ -725,7 +725,7 @@ function AddLeadForm({ onDone }: { onDone: () => void }) {
     onSuccess: (result) => {
       toast.success(
         result.duplicate
-          ? "That number already has a recent lead — opened the existing one."
+          ? "That number already has a recent lead. opened the existing one."
           : result.acknowledgementSent
             ? "Lead created and acknowledgement SMS sent."
             : `Lead created. ${result.note ?? "No SMS sent."}`,

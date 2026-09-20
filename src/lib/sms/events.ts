@@ -51,7 +51,7 @@ export type NormalizedMessagingEvent = {
   /** The customer number involved. */
   contactNumber: string | null;
   providerMessageId: string | null;
-  /** Message text — only populated for inbound events. */
+  /** Message text. only populated for inbound events. */
   text: string | null;
   deliveryStatus: InternalDeliveryStatus;
   provider: ProviderDiagnostics;

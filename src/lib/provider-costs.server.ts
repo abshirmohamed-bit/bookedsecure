@@ -12,7 +12,7 @@
  *     booked once per paid subscription invoice, and only while they hold one.
  *   - credits: credits bought by a top-up, at the provider's per-text cost.
  *   - message: a text sent out of a plan's included allowance. Purchased
- *     credits are NOT booked here — their cost was already booked when the
+ *     credits are NOT booked here. their cost was already booked when the
  *     pack was paid for, so booking both would double count.
  *
  * Idempotency: every ledger row carries a `source_ref` (Stripe invoice id,
@@ -154,7 +154,7 @@ export async function settleCreditTopup(input: {
 /**
  * A text sent out of a plan's included allowance still costs the platform at
  * the provider. Texts paid from purchased credits are deliberately not booked
- * here — that cost was booked when the pack was paid for.
+ * here. that cost was booked when the pack was paid for.
  */
 export async function recordIncludedMessageCost(input: {
   businessId: string;

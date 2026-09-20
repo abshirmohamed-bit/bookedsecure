@@ -32,7 +32,7 @@ export const Route = createFileRoute("/quote/$slug")({
         meta: [{ title: "Enquiry form unavailable" }, { name: "robots", content: "noindex" }],
       };
     }
-    const title = `Get a quote — ${business}`;
+    const title = `Get a quote. ${business}`;
     const description = `Tell ${business} what you need and get a fast SMS response with the right service option.`;
     return {
       meta: [
@@ -220,7 +220,7 @@ function ManualQuoteForm() {
         <div className="text-center">
           <CheckCircle2 className="mx-auto h-10 w-10 text-primary" />
           <h1 className="mt-4 text-xl font-semibold">
-            Thanks {form.name.split(" ")[0]} — we've got it
+            Thanks {form.name.split(" ")[0]}. we've got it
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {isFlexible
@@ -241,7 +241,7 @@ function ManualQuoteForm() {
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold">{tenant.name}</h1>
               <p className="text-xs text-muted-foreground">
-                {tenant.serviceArea ?? "Australian service business"} — fast SMS response
+                {tenant.serviceArea ?? "Australian service business"}. fast SMS response
               </p>
             </div>
           </div>

@@ -140,7 +140,7 @@ describe("permanent deletion policy (pure)", () => {
         outcomes: [],
         idempotentReplay: true,
       }),
-    ).toBe("2 selected · 1 permanently deleted · 1 blocked · repeat request — nothing new deleted");
+    ).toBe("2 selected · 1 permanently deleted · 1 blocked · repeat request: nothing new deleted");
   });
 });
 

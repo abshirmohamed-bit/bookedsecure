@@ -1,5 +1,5 @@
 // Pure quote-form domain rules: request types, required fields, attribution and idempotency.
-// No database, no network — safe to import from browser code and unit tests.
+// No database, no network. safe to import from browser code and unit tests.
 
 export const REQUEST_TYPES = ["quote", "service", "recommendation"] as const;
 export type RequestType = (typeof REQUEST_TYPES)[number];

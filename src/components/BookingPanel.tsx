@@ -11,7 +11,7 @@ import {
 
 /**
  * Owner-facing booking workflow. Every time shown here was computed by the
- * server from tenant availability — never typed in, and never produced by the
+ * server from tenant availability. never typed in, and never produced by the
  * AI. Confirming is the only way a lead becomes Booked, and the server
  * revalidates the slot at that moment.
  */
@@ -144,7 +144,7 @@ export function BookingPanel({
                   <option value="">Select the customer reply…</option>
                   {inboundMessages.map((message) => (
                     <option key={message.id} value={message.id}>
-                      {new Date(message.created_at).toLocaleString("en-AU")} —{" "}
+                      {new Date(message.created_at).toLocaleString("en-AU")} -{" "}
                       {message.body.slice(0, 40)}
                     </option>
                   ))}

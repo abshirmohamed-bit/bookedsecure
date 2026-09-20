@@ -330,7 +330,7 @@ export async function loadOpenCampaign(businessId: string): Promise<Reactivation
 
 /**
  * Builds one draft campaign covering every eligible dormant lead. Writes only
- * draft rows — no messages, no jobs, no lead mutation, no provider calls.
+ * draft rows. no messages, no jobs, no lead mutation, no provider calls.
  */
 export async function draftReactivationCampaign(input: {
   businessId: string;
@@ -573,7 +573,7 @@ export async function bulkUpdateReactivationDrafts(input: {
       .eq("status", "draft");
     if (updateError) {
       throw new Error(
-        `${updateError.message} (${updated} of ${prepared.length} messages were updated — please retry.)`,
+        `${updateError.message} (${updated} of ${prepared.length} messages were updated. please retry.)`,
       );
     }
     updated += 1;

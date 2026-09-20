@@ -37,7 +37,7 @@ import { provisionTextoAccount } from "@/lib/sms/texto-accounts.server";
 
 /**
  * The pilot programme runs in Stripe test mode only. Going live is a separate,
- * explicit commercial decision — never inferred from the environment.
+ * explicit commercial decision. never inferred from the environment.
  */
 export function pilotStripeEnv(): StripeEnv {
   return "sandbox";
@@ -280,7 +280,7 @@ async function handlePaidSession(session: any, eventCreated: number) {
   }
 
   if (!shouldStartPilot(app, session.id)) {
-    return { ok: true as const, detail: "Pilot already started — no change" };
+    return { ok: true as const, detail: "Pilot already started. no change" };
   }
 
   const paidAt = new Date(eventCreated * 1000).toISOString();
@@ -314,7 +314,7 @@ async function handlePaidSession(session: any, eventCreated: number) {
     .eq("id", app.id);
 
   // Prevent a second automatic charge: the initial period is the whole pilot.
-  // Fail closed — the application is only treated as safely non-renewing once
+  // Fail closed. the application is only treated as safely non-renewing once
   // Stripe confirms `cancel_at_period_end`, and `hasMessagingAccess` keeps live
   // sending blocked until then.
   let renewalStopped = false;
@@ -349,7 +349,7 @@ async function handlePaidSession(session: any, eventCreated: number) {
           ? {}
           : {
               access_state_reason:
-                "Automatic renewal is not confirmed as disabled — live messaging is on hold.",
+                "Automatic renewal is not confirmed as disabled. live messaging is on hold.",
             }),
       })
       .eq("id", app.id);
@@ -492,7 +492,7 @@ export async function processStripeEvent(event: StripeEventLike, env: StripeEnv 
       case "checkout.session.async_payment_succeeded": {
         const session = event.data.object;
         if (session.payment_status === "unpaid") {
-          detail = "Payment pending settlement — nothing activated yet";
+          detail = "Payment pending settlement. nothing activated yet";
           break;
         }
         // Credit top-ups are a separate, self-serve purchase: they add SMS

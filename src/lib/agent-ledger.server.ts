@@ -3,7 +3,7 @@
 // `agent_actions` is the single write-ahead record and idempotency authority for
 // every agent action. This module records, claims, completes and rolls back
 // ledger rows. It NEVER sends an SMS, calls a provider, enqueues a job, creates
-// a booking or notifies an owner — the executor (a later step, still gated off)
+// a booking or notifies an owner. the executor (a later step, still gated off)
 // is the only caller allowed to invoke tools, and it must hold a claim first.
 //
 // Rollback is non-destructive by contract: nothing here deletes ledger rows,

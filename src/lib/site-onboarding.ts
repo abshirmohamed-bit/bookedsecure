@@ -6,7 +6,7 @@
  * performs I/O, and nothing here invents a fact: every value either comes from
  * the tenant's site or is left empty.
  *
- * Tenant-neutral by construction — no business name, service, price or suburb
+ * Tenant-neutral by construction. no business name, service, price or suburb
  * is ever hardcoded.
  */
 
@@ -119,8 +119,8 @@ function text(value: unknown, max: number): string | null {
  * Sale-price markup often collapses into one run-on blob such as
  * "$119.99$189.99SAVE 37%" (sale price, was-price, discount badge). The price
  * the customer actually pays is the sale price, so that is what is kept and the
- * badge wording is dropped. Anything the tenant wrote as real words — a range
- * ("$250 to $320"), "from $250", "price on enquiry" — is returned untouched.
+ * badge wording is dropped. Anything the tenant wrote as real words. a range
+ * ("$250 to $320"), "from $250", "price on enquiry". is returned untouched.
  */
 export function normalisePriceGuidance(value: unknown, max = 200): string | null {
   const raw = text(value, 400);
@@ -136,8 +136,8 @@ export function normalisePriceGuidance(value: unknown, max = 200): string | null
 
   const amounts = withoutBadge.match(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g) ?? [];
 
-  // A written range or qualifier is the tenant's own wording — keep it as-is.
-  const hasRangeWording = /\b(?:from|to|between|and|starting|up to|each|per|min|inc|incl)\b|[–—]|(?<=\d)\s*-\s*(?=\$?\d)/i.test(
+  // A written range or qualifier is the tenant's own wording. keep it as-is.
+  const hasRangeWording = /\b(?:from|to|between|and|starting|up to|each|per|min|inc|incl)\b|[–-]|(?<=\d)\s*-\s*(?=\$?\d)/i.test(
     withoutBadge,
   );
   if (amounts.length > 1 && !hasRangeWording) {
@@ -229,7 +229,7 @@ function daysFromToken(segment: string): number[] {
   if (/\bweekdays?\b/.test(lower)) return [1, 2, 3, 4, 5];
   if (/\bweekends?\b/.test(lower)) return [0, 6];
 
-  const dayPattern = /([a-z]{3,9})\s*(?:-|–|—|to)\s*([a-z]{3,9})|([a-z]{3,9})/g;
+  const dayPattern = /([a-z]{3,9})\s*(?:-|–|-|to)\s*([a-z]{3,9})|([a-z]{3,9})/g;
   let match: RegExpExecArray | null;
   while ((match = dayPattern.exec(lower))) {
     const [, fromRaw, toRaw, singleRaw] = match;
@@ -269,7 +269,7 @@ export function parseOpeningHours(input: string | null | undefined): Availabilit
     if (effectiveDays.length === 0) continue;
 
     const timeMatch =
-      /(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*(?:-|–|—|to|until|till)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i.exec(
+      /(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*(?:-|–|-|to|until|till)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/i.exec(
         chunk,
       );
     if (!timeMatch) continue;
@@ -408,7 +408,7 @@ function proposeServices(raw: ScrapedService[] | null | undefined): ProposedServ
  * Turns extras listed on the site into proposed add-ons, each attached to the
  * services the site associates them with. An extra whose service cannot be
  * matched is attached to every proposed service, which the owner can narrow
- * before saving — nothing is ever invented.
+ * before saving. nothing is ever invented.
  */
 function proposeAddons(
   raw: ScrapedAddon[] | null | undefined,

@@ -4,7 +4,7 @@
 // conversations, messages, jobs, automation or pipeline state, never calls a
 // provider, and never performs IO of any kind. It derives its numbers from the
 // SAME shared preview rows and the SAME shared eligibility engine that the
-// advanced view uses (`evaluateCommitEligibility`) — there is no second
+// advanced view uses (`evaluateCommitEligibility`). there is no second
 // validation implementation.
 
 import {
@@ -188,7 +188,7 @@ export function advancedHighlight(input: {
       animated: false,
       className: "",
       annotation: null,
-      ariaLabel: `${ADVANCED_VIEW_LABEL} — detailed import controls`,
+      ariaLabel: `${ADVANCED_VIEW_LABEL}. detailed import controls`,
     };
   }
   const animated = input.reducedMotion !== true;
@@ -197,7 +197,7 @@ export function advancedHighlight(input: {
     animated,
     className: animated ? `${BASE_RING} animate-pulse` : BASE_RING,
     annotation: `${held} ${held === 1 ? "contact needs" : "contacts need"} review in ${ADVANCED_VIEW_LABEL}`,
-    ariaLabel: `${ADVANCED_VIEW_LABEL} — ${held} ${held === 1 ? "contact needs" : "contacts need"} review`,
+    ariaLabel: `${ADVANCED_VIEW_LABEL}. ${held} ${held === 1 ? "contact needs" : "contacts need"} review`,
   };
 }
 
@@ -279,9 +279,9 @@ export type LiteSyncOutcome = "saved" | "already_saved" | "held" | "failed";
 
 export const LITE_SYNC_OUTCOME_LABELS: Record<LiteSyncOutcome, string> = {
   saved: "Saved to your CRM",
-  already_saved: "Already in your CRM — nothing was added again",
+  already_saved: "Already in your CRM. nothing was added again",
   held: "Held for your review",
-  failed: "Could not be saved — safe to try again",
+  failed: "Could not be saved. safe to try again",
 };
 
 /** Translate one existing engine outcome into plain business language. */

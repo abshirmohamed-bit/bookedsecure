@@ -3,7 +3,7 @@
  *
  * One place answers "what pricing is this business entitled to", so the plan
  * list, the subscription checkout, the credit packs and the automatic top-up
- * all agree — and a browser can never ask for a price it hasn't earned.
+ * all agree. and a browser can never ask for a price it hasn't earned.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { canRedeem, NO_PROMO, normalisePromoCode, type PromoEntitlement } from "@/lib/promo";

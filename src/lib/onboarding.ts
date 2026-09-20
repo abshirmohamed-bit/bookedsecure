@@ -1,5 +1,5 @@
 /**
- * The onboarding journey — pure step logic.
+ * The onboarding journey. pure step logic.
  *
  * The journey is derived from real tenant state (trade chosen, services saved,
  * compliance record complete, subscription active, contacts imported, campaign
@@ -66,7 +66,7 @@ const STEP_COPY: Record<
   },
   compliance: {
     title: "Your business details",
-    detail: "Legal name, ABN, address and contact — needed before we can get you a number.",
+    detail: "Legal name, ABN, address and contact. needed before we can get you a number.",
     path: "/settings/messaging",
     hash: "business-identity",
   },
@@ -107,7 +107,7 @@ function isStepDone(id: OnboardingStepId, facts: OnboardingFacts): boolean {
 
 /**
  * The paywall: setup and the website read are free, everything after the
- * subscription step waits for payment. This mirrors the server-side gate — it
+ * subscription step waits for payment. This mirrors the server-side gate. it
  * is here so the screen can explain the wait instead of showing a dead button.
  */
 export function isBehindPaywall(id: OnboardingStepId): boolean {

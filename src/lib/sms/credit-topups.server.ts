@@ -114,7 +114,7 @@ export async function createCreditTopupCheckout(input: {
       // Save the card for future off-session charges so automatic top-ups
       // work without the owner having to come back and pay again.
       payment_intent_data: {
-        description: `${pack.label} — BookedSecure SMS top-up`,
+        description: `${pack.label} | BookedSecure SMS top-up`,
         setup_future_usage: "off_session",
       },
       metadata: {
@@ -229,7 +229,7 @@ export async function listCreditTopups(businessId: string, limit = 5) {
 /**
  * Abandoned checkouts: a pending top-up whose Stripe session was never
  * completed is marked expired after 24 hours so it stops showing as an open
- * purchase. A paid session that arrives later is still honoured — settlement
+ * purchase. A paid session that arrives later is still honoured. settlement
  * checks the Stripe payment, not this status, and re-marks the row paid.
  */
 export async function expireAbandonedTopups(olderThanHours = 24): Promise<{ expired: number }> {

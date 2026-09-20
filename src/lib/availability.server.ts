@@ -428,7 +428,7 @@ async function autoConfirmIfNormalPath(input: {
 
 /**
  * Records the customer's explicit selection of ONE server-returned option.
- * `messageId` must be an inbound message on this lead — the deterministic proof
+ * `messageId` must be an inbound message on this lead. the deterministic proof
  * of customer confirmation. The conditional update plus the partial unique index
  * on (business_id, slot_start) makes double-booking impossible.
  */
@@ -638,14 +638,14 @@ export async function confirmBooking(input: {
     });
     return {
       ok: false,
-      reason: sms.reason ?? "Confirmation SMS was not sent — the lead is not booked.",
+      reason: sms.reason ?? "Confirmation SMS was not sent. the lead is not booked.",
       decision: { allowed: false, reason: null, needsHumanReview: true },
       smsSent: false,
       ...(sms.reason === undefined ? {} : { smsReason: sms.reason }),
     };
   }
 
-  // Scheduled job record only — never a completed job and never a value.
+  // Scheduled job record only. never a completed job and never a value.
   const { data: existingJob } = await supabaseAdmin
     .from("jobs")
     .select("id, completion_status")
@@ -675,7 +675,7 @@ export async function confirmBooking(input: {
     if (jobError || !created) {
       return {
         ok: false,
-        reason: "That time was taken while confirming — nothing was booked.",
+        reason: "That time was taken while confirming. nothing was booked.",
         decision: { allowed: false, reason: "slot_unavailable", needsHumanReview: true },
       };
     }

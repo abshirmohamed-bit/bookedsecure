@@ -108,7 +108,7 @@ function preservationFor(leadId: string, facts: BookingFacts): LeadBookingProjec
 
 /**
  * Writes back the scheduled projection for every booked lead in `leadIds`.
- * Tenant- and lead-scoped, booking columns only — never consent, quote status,
+ * Tenant- and lead-scoped, booking columns only. never consent, quote status,
  * owner review, offers, jobs, messages or automation.
  */
 async function preserveBookingProjections(
@@ -300,7 +300,7 @@ export async function softDeleteLeads(
     })
     .eq("id", created.id);
 
-  // Audit trail: ids and counts only — never phone numbers or message bodies.
+  // Audit trail: ids and counts only. never phone numbers or message bodies.
   await client.from("audit_events").insert({
     business_id: input.businessId,
     user_id: input.actorUserId,

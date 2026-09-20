@@ -40,7 +40,7 @@ import { validateServiceImageUpload, type ServiceImageKind } from "@/lib/service
 
 /**
  * Shared settings building blocks. The underlying server functions and
- * permission rules are unchanged — these components only group the existing
+ * permission rules are unchanged. these components only group the existing
  * controls into user-intent sections (business, messaging, automation, team).
  */
 
@@ -380,7 +380,7 @@ export type Service = {
 
 /**
  * Picture attached to a service or extra. Shown on the customer's quote card;
- * owners can replace or remove it here. Purely visual — never used in texts.
+ * owners can replace or remove it here. Purely visual. never used in texts.
  */
 export function ServiceImageControl({
   kind,
@@ -546,7 +546,7 @@ function DurationField({
       )}
       {!isValidDuration(value) && (
         <p className="mt-1 text-destructive">
-          Set an appointment duration — a service cannot be active or bookable without one.
+          Set an appointment duration. a service cannot be active or bookable without one.
         </p>
       )}
     </div>
@@ -699,7 +699,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                     {isValidDuration(service.duration_minutes) ? (
                       formatDuration(Number(service.duration_minutes))
                     ) : (
-                      <span className="text-destructive">Duration not set — cannot be booked</span>
+                      <span className="text-destructive">Duration not set. cannot be booked</span>
                     )}
                     {" · "}
                     {service.campaign_eligible !== false
@@ -877,7 +877,7 @@ export function RulesEditor({ rules, readOnly }: { rules: Rule[]; readOnly: bool
                   Step {rule.step} · {rule.rule_type.replace(/_/g, " ")}
                   {!rule.active && (
                     <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      disabled — skipped by scheduler
+                      disabled. skipped by scheduler
                     </span>
                   )}
                 </p>
@@ -891,7 +891,7 @@ export function RulesEditor({ rules, readOnly }: { rules: Rule[]; readOnly: bool
                     onClick={() => {
                       const next = { ...draft, active: !draft.active };
                       setDrafts({ ...drafts, [rule.id]: next });
-                      // Toggling persists immediately — no separate save needed.
+                      // Toggling persists immediately. no separate save needed.
                       mutation.mutate(next);
                     }}
                     className={`relative h-5 w-9 rounded-full transition-colors disabled:opacity-50 ${
@@ -1311,7 +1311,7 @@ export function AddonsEditor({
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const serviceName = (id: string) => services.find((service) => service.id === id)?.name ?? "—";
+  const serviceName = (id: string) => services.find((service) => service.id === id)?.name ?? "Not available";
 
   return (
     <section className="panel p-4">

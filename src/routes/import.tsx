@@ -25,13 +25,13 @@ import { LiteImportPanel } from "@/components/LiteImportPanel";
 export const Route = createFileRoute("/import")({
   head: () => ({
     meta: [
-      { title: "Add your old customers — BookedSecure" },
+      { title: "Add your old customers | BookedSecure" },
       {
         name: "description",
         content:
           "Upload a contact file and BookedSecure saves your past customers into your leads inbox.",
       },
-      { property: "og:title", content: "Add your old customers — BookedSecure" },
+      { property: "og:title", content: "Add your old customers | BookedSecure" },
       {
         property: "og:description",
         content: "Upload a contact file and save your past customers into your leads inbox.",

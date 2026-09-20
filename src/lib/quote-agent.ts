@@ -77,8 +77,8 @@ function serviceLine(service: WebChatTenant["services"][number]): string {
 /**
  * The customer agent's instructions.
  *
- * It decides the flow itself — what to ask, in what order, and when to offer
- * times — but every fact it may state comes from this tenant's saved services
+ * It decides the flow itself. what to ask, in what order, and when to offer
+ * times. but every fact it may state comes from this tenant's saved services
  * and add-ons, and anything that changes records happens only through a tool.
  */
 export function buildQuoteAgentSystem(input: {

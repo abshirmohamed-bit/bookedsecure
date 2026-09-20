@@ -3,7 +3,7 @@
  *
  * Read-only aggregation for the person who runs BookedSecure: what came in,
  * what the provider costs, what is left, which tenants need something done.
- * Nothing here is ever exposed to a tenant — every function is called behind
+ * Nothing here is ever exposed to a tenant. every function is called behind
  * `requirePlatformAdmin`, and the two money tables have no client access at all.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -139,7 +139,7 @@ export async function readOwnerConsole(month: string = monthKey()): Promise<{
 
   // A platform admin's own private workspace is not a customer: keep it out of
   // the tenant table, the money counts and the work queues. A workspace only
-  // counts as "admin only" when nobody in it is an owner or staff member — an
+  // counts as "admin only" when nobody in it is an owner or staff member. an
   // admin who also runs a real business (their profile carries owner/staff)
   // must still show up as a tenant.
   const membership = await supabaseAdmin.from("profiles").select("id, business_id");

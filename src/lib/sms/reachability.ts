@@ -31,12 +31,12 @@ export const REACHABILITY_LABELS: Record<ReachabilityState, string> = {
   unknown: "Reachability unknown",
   reachable_recently: "Reachable recently",
   unreachable_recently: "Unreachable recently",
-  suppressed_pending_review: "Suppressed — needs review",
+  suppressed_pending_review: "Suppressed. needs review",
 };
 
 /** Plain-language explanations. Deliberately never claim a number is dead. */
 export const REACHABILITY_DESCRIPTIONS: Record<ReachabilityState, string> = {
-  unknown: "No delivery receipt or reply yet — nothing is known about this number.",
+  unknown: "No delivery receipt or reply yet. nothing is known about this number.",
   reachable_recently:
     "A message was delivered or the customer replied. This proves contact at that time, not permanently.",
   unreachable_recently:
@@ -93,7 +93,7 @@ function latest(...values: Array<string | null | undefined>): string | null {
 /**
  * Derive the reachability state from stored evidence alone. The newest positive
  * signal (delivery receipt or inbound reply) always wins over an older
- * permanent failure — recovery is automatic and never needs a manual reset.
+ * permanent failure. recovery is automatic and never needs a manual reset.
  */
 export function assessReachability(record: ReachabilityRecord): ReachabilityAssessment {
   const delivered = record.last_successful_delivery_at ?? null;
@@ -109,8 +109,8 @@ export function assessReachability(record: ReachabilityRecord): ReachabilityAsse
     return {
       state: "reachable_recently",
       evidence: byReply
-        ? "Customer replied by SMS — the number was in use at that time."
-        : "Provider confirmed delivery — the number accepted a message at that time.",
+        ? "Customer replied by SMS. the number was in use at that time."
+        : "Provider confirmed delivery. the number accepted a message at that time.",
       evidenceAt: positive,
       suppress: false,
     };

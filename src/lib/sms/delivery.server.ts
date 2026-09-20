@@ -3,7 +3,7 @@
 //
 // Hard rules enforced here:
 //   * never sends an SMS, never creates a message, conversation, job or revenue
-//   * never trusts a tenant id from a payload — the caller passes the business
+//   * never trusts a tenant id from a payload. the caller passes the business
 //     resolved from the verified provider-number association
 //   * a terminal state is never overwritten (see decideTransition)
 //   * duplicate/late events are no-ops that still answer successfully
@@ -117,7 +117,7 @@ export async function applyDeliveryEvent(
     : null;
 
   // Provider metadata is always recorded, even when the state itself cannot move
-  // forward — that is the audit trail for late and out-of-order events.
+  // forward. that is the audit trail for late and out-of-order events.
   const metadata: Record<string, unknown> = {
     provider_raw_status: event.rawStatus ?? null,
     last_provider_event_at: now,
@@ -215,7 +215,7 @@ export async function applyDeliveryEvent(
 /**
  * Permanent recipient failure: suppress future automated SMS and stop any live
  * follow-up sequence. The lead, its conversation, messages, jobs and revenue are
- * all left intact — only messaging eligibility changes.
+ * all left intact. only messaging eligibility changes.
  */
 async function suppressLeadForPermanentFailure(
   client: Client,

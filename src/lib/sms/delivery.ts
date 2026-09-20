@@ -1,7 +1,7 @@
 // Delivery observability: the internal delivery-state model, monotonic state
 // transitions, and Telnyx failure classification.
 //
-// Pure module — no I/O, so the engine, the webhook handler, the reconciliation
+// Pure module. no I/O, so the engine, the webhook handler, the reconciliation
 // path and the tests all share exactly the same decisions.
 
 export const DELIVERY_STATUSES = [
@@ -50,7 +50,7 @@ export function statusRank(status: string): number {
 
 export type TransitionDecision = {
   apply: boolean;
-  /** Why the event was ignored — for logs and audit, never customer data. */
+  /** Why the event was ignored. for logs and audit, never customer data. */
   reason?: "terminal_state" | "not_forward" | "same_state" | "unknown_status";
 };
 
@@ -78,7 +78,7 @@ export function decideTransition(current: string, next: string): TransitionDecis
 export type FailureClass =
   /** Will not succeed on retry, and the recipient number is the cause. */
   | "permanent"
-  /** Will not succeed until sender/account configuration is fixed — not the lead's fault. */
+  /** Will not succeed until sender/account configuration is fixed. not the lead's fault. */
   | "configuration"
   /** Retryable carrier/transport condition. */
   | "temporary"
@@ -90,10 +90,10 @@ export type FailureClass =
  * Only codes documented as recipient-permanent suppress a lead.
  */
 const PERMANENT_RECIPIENT: Record<string, string> = {
-  "40001": "Not routable — destination is a landline or non-routable number.",
+  "40001": "Not routable. destination is a landline or non-routable number.",
   "40003": "Blocked as spam permanently by the recipient carrier.",
   "40009": "Message content rejected by the carrier.",
-  "40012": "Invalid destination number — carrier rejected the recipient.",
+  "40012": "Invalid destination number. carrier rejected the recipient.",
   "40300": "Recipient has opted out (STOP).",
   "40309": "Destination region is not supported.",
   "40310": "Destination number is invalid.",
@@ -118,11 +118,11 @@ const CONFIGURATION: Record<string, string> = {
 };
 
 const TEMPORARY: Record<string, string> = {
-  "40002": "Blocked as spam — retry later with different content or pacing.",
+  "40002": "Blocked as spam. retry later with different content or pacing.",
   "40004": "Recipient carrier rejected the message for an unknown reason.",
   "40005": "Temporary sending-rate problem.",
   "40006": "Recipient carrier is temporarily unavailable.",
-  "40008": "Carrier did not acknowledge delivery — undeliverable for now.",
+  "40008": "Carrier did not acknowledge delivery. undeliverable for now.",
   "40011": "Rate limit exceeded.",
   "40014": "Message expired in the queue.",
   "40016": "Carrier sending limit exceeded.",

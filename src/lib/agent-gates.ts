@@ -7,7 +7,7 @@
 // Hard rules enforced here (asserted by tests):
 //  - a client-supplied mode is never trusted: `resolveExecutionMode` ignores
 //    any requested mode and derives the mode from server-verified gates only;
-//  - tenant opt-in alone never authorises outreach — campaign approval,
+//  - tenant opt-in alone never authorises outreach. campaign approval,
 //    sequence approval, template-version approval, an explicit lead scope and
 //    an explicit execution authorisation are all independently required;
 //  - there is no implicit "all leads" audience: the lead must appear in the
@@ -197,7 +197,7 @@ export function evaluateActivationGates(facts: GateFacts): readonly GateFailure[
   const f: GateFailure[] = [];
   const fail = (gate: GateId, detail: string) => f.push({ gate, detail });
 
-  // Tenant scope first — a mismatch is never recoverable.
+  // Tenant scope first. a mismatch is never recoverable.
   if (facts.leadBusinessId !== facts.businessId)
     fail("tenant_scope", "lead belongs to another business");
   if (facts.campaignBusinessId !== facts.businessId)
@@ -249,8 +249,8 @@ export function evaluateActivationGates(facts: GateFacts): readonly GateFailure[
         fail(
           "quiet_hours",
           facts.messagePath === "new_lead_response"
-            ? "inside quiet hours — new-lead response did not meet every exemption condition"
-            : "inside quiet hours — sequence follow-up deferred, not dropped",
+            ? "inside quiet hours. new-lead response did not meet every exemption condition"
+            : "inside quiet hours. sequence follow-up deferred, not dropped",
         );
     }
     if (facts.dailySendCap <= 0) fail("daily_volume_limit", "daily send cap is not configured");
@@ -266,7 +266,7 @@ export function evaluateActivationGates(facts: GateFacts): readonly GateFailure[
   else if (facts.leadsInActivation > facts.maxLeadsPerActivation)
     fail("activation_lead_cap", "activation exceeds the tenant lead cap");
 
-  if (!facts.planStillCurrent) fail("plan_freshness", "plan is stale — re-plan before executing");
+  if (!facts.planStillCurrent) fail("plan_freshness", "plan is stale. re-plan before executing");
 
   // Human involvement blocks agent execution only; manual messaging is untouched.
   f.push(...evaluateOwnerHandling(facts));

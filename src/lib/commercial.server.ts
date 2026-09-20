@@ -3,7 +3,7 @@
  *
  * Reads the singleton commercial_config row, freezes per-pilot terms
  * snapshots, and decides whether a business may send live SMS
- * (`authorizeLiveSend`). All access uses the service-role client — the
+ * (`authorizeLiveSend`). All access uses the service-role client. the
  * underlying tables have no client-facing grants, and platform admins reach
  * them only through server functions that pass requirePlatformAdmin first.
  */
@@ -335,7 +335,7 @@ export async function authorizeLiveSend(
   if (!pilot) {
     return {
       allowed: false,
-      reason: "This business does not have an active subscription — choose a plan to start texting.",
+      reason: "This business does not have an active subscription. choose a plan to start texting.",
     };
   }
 

@@ -22,7 +22,7 @@ export type ServiceFactsInput = {
   qualification_note?: string | null;
 };
 
-/** Omits any setting the tenant has not filled in — never substitutes a value. */
+/** Omits any setting the tenant has not filled in. never substitutes a value. */
 export function buildBusinessFacts(business: BusinessFactsInput): string[] {
   const facts: string[] = [`Business name: ${business.name}`];
   const push = (label: string, value: string | null | undefined) => {
@@ -45,7 +45,7 @@ export function buildBusinessFacts(business: BusinessFactsInput): string[] {
   return facts;
 }
 
-/** Approved catalogue lines. Price guidance is context only — never quotable. */
+/** Approved catalogue lines. Price guidance is context only. never quotable. */
 export function buildServiceFacts(services: ServiceFactsInput[]): string[] {
   return services.map((service) => {
     const parts = [`- ${service.name}`];

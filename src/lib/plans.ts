@@ -1,5 +1,5 @@
 /**
- * Subscription plans — client-safe types and pure helpers.
+ * Subscription plans. client-safe types and pure helpers.
  *
  * Plans live in the `plans` table so pricing is never hardcoded in a screen.
  * One plan is offered: the BookedSecure platform subscription. The phone number

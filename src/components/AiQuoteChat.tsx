@@ -63,7 +63,7 @@ type Pending = { answer: string; label: string; step: string | null };
  * assistant collects details from the tenant's own approved service list and the
  * owner reviews every enquiry. No SMS is sent on this path.
  *
- * This file is presentation only — every prompt, option and message comes from
+ * This file is presentation only. every prompt, option and message comes from
  * the server state machine. Tenant name, logo, service area and services are all
  * supplied by the tenant-scoped loader / conversation state; nothing is hard-coded.
  */
@@ -405,7 +405,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
       }
     >
       <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col overflow-hidden sm:py-6">
-        {/* Branded header — standalone, stable, never scrolls with the transcript */}
+        {/* Branded header. standalone, stable, never scrolls with the transcript */}
         <header className="brand-wash grid w-full shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:rounded-lg sm:border sm:px-5 sm:pt-3">
           <div className="relative shrink-0">
             <TenantMark name={tenant.name} logoUrl={tenant.logoUrl} size={44} />
@@ -570,7 +570,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                     </>
                   )}
 
-                  {/* Optimistic customer turn — shown before the assistant replies */}
+                  {/* Optimistic customer turn. shown before the assistant replies */}
                   {pending && (
                     <li className="flex flex-row-reverse items-end gap-2">
                       {customerBubble(pending.label)}
@@ -599,7 +599,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   )}
                 </ul>
 
-                {/* Final review — every field individually changeable */}
+                {/* Final review. every field individually changeable */}
                 {!finished && !busy && !pending && prompt?.kind === "review" && (
                   <div className="mt-4 space-y-3 rounded-lg border border-border bg-card p-3 shadow-sm">
                     <ul className="divide-y divide-border">
@@ -639,7 +639,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   </div>
                 )}
 
-                {/* Pilot booking step — every time shown is server-computed */}
+                {/* Pilot booking step. every time shown is server-computed */}
                 {!finished && !busy && !pending && onBookingStep && bookingOptions.length > 0 && (
                   <div className="mt-4 space-y-2 rounded-lg border border-border bg-card p-3 shadow-sm">
                     {bookingOptions
@@ -667,7 +667,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                   </div>
                 )}
 
-                {/* Final confirmation — nothing is booked until this is pressed */}
+                {/* Final confirmation. nothing is booked until this is pressed */}
                 {!finished && !busy && !pending && onBookingConfirmStep && (
                   <div className="mt-4 space-y-2 rounded-lg border border-border bg-card p-3 shadow-sm">
                     <button
@@ -763,7 +763,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
             <ConversationScrollButton />
           </Conversation>
 
-          {/* Composer — aligned with the conversation column */}
+          {/* Composer. aligned with the conversation column */}
           <div
             className={`shrink-0 border-t border-border bg-card px-3 pt-3 sm:px-6 ${
               composerFocused

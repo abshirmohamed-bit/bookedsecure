@@ -174,7 +174,7 @@ export function ImportActivityPanel({
                       </ToneBadge>
                     </td>
                     <td className="px-2 py-2 text-muted-foreground">{activityResultText(row)}</td>
-                    <td className="px-2 py-2 text-muted-foreground">{timestamp ?? "—"}</td>
+                    <td className="px-2 py-2 text-muted-foreground">{timestamp ?? "Not available"}</td>
                     <td className="px-2 py-2">
                       {row.lead_id ? (
                         <Link
@@ -185,7 +185,7 @@ export function ImportActivityPanel({
                           Open lead
                         </Link>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </td>
                   </tr>

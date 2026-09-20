@@ -113,7 +113,7 @@ export function parseFutureDate(text: string, now: Date): string | null {
     return build(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate());
   }
 
-  // "next Friday" / "on Friday" — the next occurrence of that weekday.
+  // "next Friday" / "on Friday". the next occurrence of that weekday.
   const weekdayIndex = WEEKDAYS.findIndex((day) => new RegExp(`\\b${day}\\b`, "i").test(text));
   if (weekdayIndex >= 0) {
     let delta = (weekdayIndex - now.getUTCDay() + 7) % 7;

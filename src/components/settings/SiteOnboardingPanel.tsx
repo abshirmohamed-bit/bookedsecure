@@ -193,7 +193,7 @@ export function SiteOnboardingPanel({
               onClick={() => apply.mutate()}
               disabled={readOnly || apply.isPending}
             >
-              {apply.isPending ? "Saving…" : "Looks good — save it"}
+              {apply.isPending ? "Saving…" : "Looks good. save it"}
             </Button>
             <Button
               type="button"

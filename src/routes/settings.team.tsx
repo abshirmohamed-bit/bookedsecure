@@ -5,12 +5,12 @@ import { SettingsPageBody, TeamList } from "@/components/settings/sections";
 export const Route = createFileRoute("/settings/team")({
   head: () => ({
     meta: [
-      { title: "Team access — BookedSecure" },
+      { title: "Team access | BookedSecure" },
       {
         name: "description",
         content: "See who can view and respond to enquiries in this workspace.",
       },
-      { property: "og:title", content: "Team access — BookedSecure" },
+      { property: "og:title", content: "Team access | BookedSecure" },
       {
         property: "og:description",
         content: "People with access to the lead workspace.",

@@ -38,7 +38,7 @@ export const getCrmImportBatch = createServerFn({ method: "GET" })
     const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
     // Missing/deleted batches are a normal race (e.g. a stale selection after a
-    // delete), not an exception — return null so the UI can render a notice.
+    // delete), not an exception. return null so the UI can render a notice.
     const preview = await loadBatchPreview(supabaseAdmin, app.businessId, data.batchId);
     return preview ?? null;
   });
@@ -87,7 +87,7 @@ export const listCrmImportBatches = createServerFn({ method: "GET" })
 
 /**
  * Deletes one preview batch and its staged rows. Owner-gated, tenant resolved
- * from the authenticated session — the batch id from the browser is only ever
+ * from the authenticated session. the batch id from the browser is only ever
  * used inside a business-scoped filter. Live data is never touched.
  */
 export const deleteCrmImportBatch = createServerFn({ method: "POST" })
@@ -122,7 +122,7 @@ const DecisionSchema = z.object({
 
 /**
  * Preview-only row review. Owner-gated, tenant resolved from the session.
- * Touches only the staged row's review state — no leads, conversations,
+ * Touches only the staged row's review state. no leads, conversations,
  * messages, jobs, automation or provider calls.
  */
 export const setCrmImportRowDecision = createServerFn({ method: "POST" })
@@ -215,7 +215,7 @@ const EditSchema = z.object({
 
 /**
  * Edit one staged preview row and revalidate it. Owner-gated, tenant resolved
- * from the session — the batch id and row number from the browser are only used
+ * from the session. the batch id and row number from the browser are only used
  * inside a business-scoped filter. Preview-only: no live leads, conversations,
  * messages, jobs, revenue, notifications, automation or provider calls.
  */

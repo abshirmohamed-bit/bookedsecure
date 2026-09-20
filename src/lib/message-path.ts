@@ -1,6 +1,6 @@
 // Quiet-hours policy paths for outbound SMS.
 //
-// Two — and only two — policy paths exist:
+// Two. and only two. policy paths exist:
 //
 //   new_lead_response   a direct, service-related reply to an enquiry the
 //                       customer just started in the active quote flow;
@@ -88,7 +88,7 @@ export type ConditionFailure = { condition: string; detail: string };
 
 /**
  * Evaluates the thirteen new-lead-response conditions. A single failure means
- * the message is not quiet-hours exempt; it does not by itself permit a send —
+ * the message is not quiet-hours exempt; it does not by itself permit a send -
  * the activation gates still decide that.
  */
 export function evaluateNewLeadResponseExemption(facts: NewLeadResponseFacts): {
@@ -231,7 +231,7 @@ export function buildOutboundDecision(input: {
     ? "outside quiet hours"
     : quietHoursApplied
       ? path === "sequence_follow_up"
-        ? `sequence follow-up inside quiet hours (${quietHours.quiet_hours_start}:00–${quietHours.quiet_hours_end}:00 ${quietHours.timezone}) — deferred, not dropped`
+        ? `sequence follow-up inside quiet hours (${quietHours.quiet_hours_start}:00–${quietHours.quiet_hours_end}:00 ${quietHours.timezone}). deferred, not dropped`
         : `new-lead response failed exemption conditions: ${exemption.failures
             .map((f) => f.condition)
             .join(", ")}`

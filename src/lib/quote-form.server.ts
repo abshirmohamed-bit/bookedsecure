@@ -136,7 +136,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
 
 /**
  * Verifies a submitted service id belongs to the resolved tenant and is active.
- * Returns the historical name snapshot. A mismatch throws — never silently dropped.
+ * Returns the historical name snapshot. A mismatch throws. never silently dropped.
  */
 export async function resolveTenantService(
   businessId: string,

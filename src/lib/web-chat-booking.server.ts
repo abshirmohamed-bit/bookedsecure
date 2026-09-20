@@ -131,7 +131,7 @@ export async function refreshBookingOffers(input: {
  * A conversation resumed after a refresh must never re-present an offer that
  * has since expired or been taken, and must never be able to produce a second
  * booking for a lead that is already booked. Everything is re-derived from the
- * database and from live availability — the stored `pilot_offers` on the
+ * database and from live availability. the stored `pilot_offers` on the
  * conversation are treated as untrusted display state.
  */
 export async function rehydrateBookingOffers(input: {
@@ -196,7 +196,7 @@ export async function rehydrateBookingOffers(input: {
 /**
  * Revalidates the customer's chosen slot and commits the booking.
  *
- * Availability is recomputed here — an expired, occupied, malformed or
+ * Availability is recomputed here. an expired, occupied, malformed or
  * cross-tenant slot is rejected even though it was once offered. The commit
  * itself runs inside one database routine (job + offer confirmation + peer
  * withdrawal + lead status), so a partial booking cannot exist. A replay of the

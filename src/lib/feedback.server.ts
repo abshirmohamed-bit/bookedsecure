@@ -97,7 +97,7 @@ async function notifyPlatform(input: {
   const heading =
     input.kind === "issue_report" ? "New issue reported" : "New feature/tool request";
   const text = [
-    `${heading} — ${(business as { name?: string | null } | null)?.name ?? "Unknown business"}`,
+    `${heading}. ${(business as { name?: string | null } | null)?.name ?? "Unknown business"}`,
     `Business ID: ${input.businessId}`,
     input.pagePath ? `Page: ${input.pagePath}` : null,
     "",

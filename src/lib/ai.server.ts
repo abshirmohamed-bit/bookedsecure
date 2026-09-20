@@ -124,7 +124,7 @@ export function guardReply(
 
 export const ANALYSIS_MODEL = "google/gemini-3.7-flash";
 
-/** Shape the runner needs from a generate call — SDK output plus token usage. */
+/** Shape the runner needs from a generate call. SDK output plus token usage. */
 export type GenerateOutcome = {
   output?: unknown;
   text?: string;
@@ -303,7 +303,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
   // Business Settings are the single source of truth for operational facts.
   const settingsContext = business
     ? buildBusinessSettingsContext(business, services ?? [])
-    : "Business Settings unavailable — do not state any operational facts.";
+    : "Business Settings unavailable. do not state any operational facts.";
 
   // The allow-list: built from this tenant's active services plus the lead's
   // own snapshot, and passed separately from the general settings context.

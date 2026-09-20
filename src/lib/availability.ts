@@ -22,7 +22,7 @@ export type AvailabilityWindow = {
 };
 
 export type AvailabilityConfig = {
-  /** Tenant timezone (IANA). Required — never defaulted silently. */
+  /** Tenant timezone (IANA). Required. never defaulted silently. */
   timezone: string;
   active: boolean;
   leadTimeMinutes: number;
@@ -181,7 +181,7 @@ export type ResolveInput = {
   config: AvailabilityConfig;
   /**
    * Appointment length in minutes. Always the selected approved service's
-   * server-side `duration_minutes` — there is no business-wide fallback and it
+   * server-side `duration_minutes`. there is no business-wide fallback and it
    * is never taken from the browser, the customer or model text.
    */
   slotMinutes: number;
@@ -254,7 +254,7 @@ export function resolveAvailableSlots(input: ResolveInput): AvailableSlot[] {
 
 /**
  * Authoritative slot check. A slot is valid only when the resolver would offer
- * it right now — so an expired, malformed, out-of-hours or occupied slot is
+ * it right now. so an expired, malformed, out-of-hours or occupied slot is
  * rejected even if it was once offered.
  */
 export function isSlotStillAvailable(
@@ -273,9 +273,9 @@ export function isSlotStillAvailable(
 }
 
 export function describeAvailability(config: AvailabilityConfig): string {
-  if (!config.active) return "Bookable availability is switched off — no slots are offered.";
+  if (!config.active) return "Bookable availability is switched off. no slots are offered.";
   const windows = parseWeeklyWindows(config.weeklyWindows);
-  if (windows.length === 0) return "No bookable windows configured — no slots are offered.";
+  if (windows.length === 0) return "No bookable windows configured. no slots are offered.";
   return windows
     .map((window) => `${WEEKDAY_LABELS[window.weekday]} ${window.start}–${window.end}`)
     .join(", ");

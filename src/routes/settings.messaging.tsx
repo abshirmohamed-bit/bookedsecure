@@ -9,13 +9,13 @@ import { BusinessSettingsForm, SettingsPageBody } from "@/components/settings/se
 export const Route = createFileRoute("/settings/messaging")({
   head: () => ({
     meta: [
-      { title: "Messaging — BookedSecure" },
+      { title: "Messaging | BookedSecure" },
       {
         name: "description",
         content:
           "Sending number, SMS signature, quiet hours and the SMS provider used to reply to enquiries.",
       },
-      { property: "og:title", content: "Messaging — BookedSecure" },
+      { property: "og:title", content: "Messaging | BookedSecure" },
       {
         property: "og:description",
         content: "Control how and when SMS replies are sent to customers.",

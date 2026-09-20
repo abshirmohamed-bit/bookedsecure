@@ -180,7 +180,7 @@ export function searchWords(raw: string): string[] {
 
 /**
  * Forms of one word worth searching for: the word itself, Australian mobiles in
- * both 04… and 61… form, and — for longer words — the word without its first or
+ * both 04… and 61… form, and. for longer words. the word without its first or
  * last character, so a single mistyped or missed letter still finds the lead
  * ("lesha" finds "Iesha").
  */
@@ -234,7 +234,7 @@ export function applyPredicates<T>(query: T, predicates: LeadPredicate[]): T {
 /**
  * Fetches one page of the caller's leads.
  *
- * `businessId` must come from the authenticated app context — never from the
+ * `businessId` must come from the authenticated app context. never from the
  * browser. Ordering is a deterministic total order (activity desc, id desc), so
  * rows are never duplicated or skipped across pages when timestamps match.
  */

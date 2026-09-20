@@ -442,7 +442,7 @@ export const analyseConversation = createServerFn({ method: "POST" })
     } catch (error) {
       const { AI_ANALYSIS_FAILURE_MESSAGE } = await import("@/lib/ai-analysis-contract");
       const message = error instanceof Error ? error.message : String(error);
-      // Already owner-facing (concise reason + correlation ref) — pass it through.
+      // Already owner-facing (concise reason + correlation ref). pass it through.
       if (message.startsWith(AI_ANALYSIS_FAILURE_MESSAGE)) throw new Error(message);
       throw new Error(`AI analysis failed: ${message}`);
     }

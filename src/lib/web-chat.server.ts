@@ -189,7 +189,7 @@ async function loadTurns(conversationId: string): Promise<WebChatTurn[]> {
 
 /**
  * Puts a quiet (swept) conversation back to active so a returning customer can
- * carry on where they left off. Status only — no answer is changed here.
+ * carry on where they left off. Status only. no answer is changed here.
  */
 async function reopenConversation(businessId: string, conversationId: string): Promise<void> {
   await supabaseAdmin
@@ -385,7 +385,7 @@ export async function replyToWebChat(input: {
   /**
    * Idempotency guard: the step the client believed it was answering. When the
    * conversation has already moved past it (a retried or double-submitted turn),
-   * the answer is not applied again — the current state is returned instead.
+   * the answer is not applied again. the current state is returned instead.
    */
   expectedStep?: string | null;
 }): Promise<WebChatState | null> {
@@ -435,7 +435,7 @@ export async function replyToWebChat(input: {
 
   if (conversation.status !== "active" || turns.length > MAX_MESSAGES) {
     // A confirmed booking is historical. A later message can still update the
-    // customer's own details, but it never moves, rebooks or cancels the slot —
+    // customer's own details, but it never moves, rebooks or cancels the slot -
     // anything that would affect the visit goes to the owner for review.
     const change =
       conversation.status === "completed" && conversation.lead_id && turns.length <= MAX_MESSAGES
@@ -517,7 +517,7 @@ export async function replyToWebChat(input: {
   // value is matched only against this tenant's approved services and
   // locations, or parsed from the customer's own words, and stored through the
   // same validation the individual questions use. Whatever is still missing is
-  // then asked for TOGETHER — never one rigid question at a time — and any
+  // then asked for TOGETHER. never one rigid question at a time. and any
   // genuine ambiguity is put back to the customer instead of guessed.
   // Multi-field change directive ("change the vehicle to a Mazda CX-5 and the
   // suburb to Bankstown"). Each clause updates exactly one field with its own
@@ -526,7 +526,7 @@ export async function replyToWebChat(input: {
   // when the customer expressed EXPLICIT change intent ("change my suburb to
   // Parramatta"). A first-turn narrative that merely mentions a name or number
   // is information, so it must reach intake/AI extraction and never be claimed
-  // — and partially discarded — by the directive parser.
+  //. and partially discarded. by the directive parser.
   const explicitChange = hasExplicitChangeIntent(input.answer);
 
   const runDirectives = () =>
@@ -797,7 +797,7 @@ export async function replyToWebChat(input: {
     duplicate = result.duplicate;
   } else {
     // Returning contact (arrived via their personal campaign link): the new
-    // enquiry's details are merged onto their OWN record — fill-only for
+    // enquiry's details are merged onto their OWN record. fill-only for
     // profile fields, refreshed for the current request. No duplicate lead.
     const { data: existing } = await supabaseAdmin
       .from("leads")
@@ -1030,7 +1030,7 @@ export async function replyToWebChat(input: {
  * The customer's answer is one of the offer ids the server generated for THIS
  * conversation. Everything is re-checked server-side: tenant, lead, offer and
  * live availability. On a conflict the customer's message stays in the
- * transcript and fresh options are returned — the conversation never restarts.
+ * transcript and fresh options are returned. the conversation never restarts.
  *
  * No SMS, no `messages` row, no provider call, no AI usage event and no
  * automation job is created anywhere on this path.
@@ -1241,7 +1241,7 @@ async function handleBookingSelection(input: {
  * Natural-language intake branch.
  *
  * Returns a state only when the customer's message genuinely carried more than
- * the single open question — otherwise it returns null and the existing
+ * the single open question. otherwise it returns null and the existing
  * step-by-step handling proceeds unchanged.
  */
 export async function maybeHandleIntake(args: {
@@ -1303,7 +1303,7 @@ export async function maybeHandleIntake(args: {
   // uncertainty. Everyone else keeps the previous step-machine behaviour.
   const conversational = isConversationalIntakeTenant(tenant.businessId);
   const answeringTurn = conversational && (question !== null || uncertain);
-  // A single validated field is now enough — the old "fewer than two fields"
+  // A single validated field is now enough. the old "fewer than two fields"
   // rule discarded understanding the model had already produced.
   if (!ambiguity && !unsupported && !answeringTurn && applied.length === 0 && !beyondOpenStep) {
     return null;
@@ -1535,7 +1535,7 @@ async function maybeHandleFieldDirectives(args: {
  *
  * Detail updates are written to the conversation and to the canonical lead
  * fields; the confirmed offer and job rows are never touched. Anything that
- * affects what the crew turns up to — or any reschedule/cancel wording — flags
+ * affects what the crew turns up to. or any reschedule/cancel wording. flags
  * the lead for owner review and raises one de-duplicated owner alert.
  */
 async function handleBookingChangeRequest(args: {
@@ -1572,7 +1572,7 @@ async function handleBookingChangeRequest(args: {
       .eq("id", args.conversationId)
       .eq("business_id", args.tenant.businessId);
 
-    // Canonical lead detail fields only — booking rows stay authoritative.
+    // Canonical lead detail fields only. booking rows stay authoritative.
     await supabaseAdmin
       .from("leads")
       .update({

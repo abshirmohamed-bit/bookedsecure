@@ -3,7 +3,7 @@
 // Pure, deterministic, no I/O, no writes, no sends. A lead that completed the
 // public quote conversation (`/quote/<slug>` or `ai_chat:<slug>`) with an
 // approved service, contact, vehicle, suburb and explicit SMS consent is an
-// ACTIVE ENQUIRY — even when the customer declined every offered slot or no
+// ACTIVE ENQUIRY. even when the customer declined every offered slot or no
 // suitable slot was selected. Declining slots is not evidence of a cold
 // contact, so such a lead must never be classified `contact_only_unqualified`
 // nor put on `contact_only_introduction`.
@@ -38,7 +38,7 @@ export type CompletedQuoteFacts = {
   suburb?: string | null;
   /** Explicit SMS consent, captured on this exact lead. */
   consentStatus?: string | null;
-  /** Authoritative booking state, read from offers/jobs — never a projection. */
+  /** Authoritative booking state, read from offers/jobs. never a projection. */
   hasConfirmedBooking?: boolean;
   hasScheduledJob?: boolean;
   /** Customer declined offered slots, or picked none. */

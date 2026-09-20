@@ -16,13 +16,13 @@ export const Route = createFileRoute("/setup")({
   }),
   head: () => ({
     meta: [
-      { title: "Set up your business — BookedSecure" },
+      { title: "Set up your business | BookedSecure" },
       {
         name: "description",
         content:
           "Paste your website address and BookedSecure fills in your business details, services, prices and hours for you.",
       },
-      { property: "og:title", content: "Set up your business — BookedSecure" },
+      { property: "og:title", content: "Set up your business | BookedSecure" },
       {
         property: "og:description",
         content: "One step: paste your website and we do the rest of your setup.",

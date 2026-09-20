@@ -26,7 +26,7 @@ export const EXCLUSION_REASON_LABELS: Record<ExclusionReason, string> = {
   manually_excluded: "Manually excluded",
 };
 
-export const DRY_RUN_LABEL = "DRY RUN ONLY — NO LIVE DATA WILL CHANGE";
+export const DRY_RUN_LABEL = "DRY RUN ONLY. NO LIVE DATA WILL CHANGE";
 
 /** Validation codes that make a row's phone unusable for SMS. */
 export const PHONE_ISSUE_CODES = [
@@ -115,7 +115,7 @@ export function hasExistingDuplicate(
 
 /**
  * Validate a requested decision change for one row. Rows with phone issues can
- * never become `include` — they stay pending or are manually excluded. Excluded
+ * never become `include`. they stay pending or are manually excluded. Excluded
  * rows must carry one of the allowed reasons.
  */
 export function resolveDecisionChange(
@@ -140,7 +140,7 @@ export function resolveDecisionChange(
 // --- automated preview classification ----------------------------------------
 // Deterministic, pure and preview-only. It decides ONLY whether a staged row is
 // eligible for the dry-run candidate set. `include` never means "create or
-// update this lead" — the live import remains a separate future feature.
+// update this lead". the live import remains a separate future feature.
 
 export const CLASSIFIER_VERSION = "preview-classifier-v1";
 
@@ -154,7 +154,7 @@ export type DuplicateStatus = (typeof DUPLICATE_STATUSES)[number];
 
 export const DUPLICATE_STATUS_LABELS: Record<DuplicateStatus, string> = {
   not_checked: "Not checked",
-  checked_no_match: "Checked — no match",
+  checked_no_match: "Checked. no match",
   potential_duplicate: "Potential duplicate",
   lookup_error: "Lookup error",
 };

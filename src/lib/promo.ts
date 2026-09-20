@@ -1,5 +1,5 @@
 /**
- * Promo codes — client-safe types and pure rules.
+ * Promo codes. client-safe types and pure rules.
  *
  * A promo code is a row, not a special case in code: it names the plan it
  * unlocks, the credit pack set it grants, how many businesses may ever redeem

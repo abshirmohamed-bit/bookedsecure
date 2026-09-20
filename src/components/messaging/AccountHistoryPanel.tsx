@@ -65,7 +65,7 @@ export function AccountHistoryPanel() {
         <div className="mt-4 border-t border-border pt-4">
           {openCancellation ? (
             <p className="text-xs text-muted-foreground">
-              Cancellation requested {new Date(openCancellation.created_at).toLocaleDateString()} —
+              Cancellation requested {new Date(openCancellation.created_at).toLocaleDateString()} -
               we&apos;ll be in touch.
             </p>
           ) : (

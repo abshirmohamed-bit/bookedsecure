@@ -130,7 +130,7 @@ export function BillingPanel() {
         </button>
         {isTestModePayments() ? (
           <p className="rounded-md border border-border bg-secondary/40 p-2 text-xs text-muted-foreground">
-            Payments are in test mode — no real money moves.
+            Payments are in test mode. no real money moves.
           </p>
         ) : null}
         <p className="text-sm text-muted-foreground">{active.label}</p>
@@ -143,8 +143,8 @@ export function BillingPanel() {
               onComplete: () => {
                 toast.success(
                   active.kind === "plan"
-                    ? "Payment received — your plan is switching on."
-                    : "Payment received — your credits will appear in a moment.",
+                    ? "Payment received. your plan is switching on."
+                    : "Payment received. your credits will appear in a moment.",
                 );
                 setActive(null);
                 refreshAfterPayment();
@@ -282,7 +282,7 @@ export function BillingPanel() {
               );
             })}
           </div>
-          {isTestModePayments() ? <p className="text-xs text-muted-foreground">Payments are in test mode — no real money moves.</p> : null}
+          {isTestModePayments() ? <p className="text-xs text-muted-foreground">Payments are in test mode. no real money moves.</p> : null}
         </section>
       ) : (
         <p className="text-sm text-muted-foreground">Only the business owner can change the plan.</p>
@@ -292,7 +292,7 @@ export function BillingPanel() {
         <div>
           <h3 className="text-base font-semibold">Text credits</h3>
           <p className="text-sm text-muted-foreground">
-            One credit sends one text —{" "}
+            One credit sends one text -{" "}
             {data.promo.creditPriceCents ?? data.plan.overageCents}c each. Credits never expire. Buy
             them here, or top up in your own provider account if you prefer.
           </p>
@@ -360,7 +360,7 @@ function PromoCard({ appliedCode }: { appliedCode: string | null }) {
       return result.code;
     },
     onSuccess: (applied) => {
-      toast.success(`Code ${applied} applied — your pricing is updated.`);
+      toast.success(`Code ${applied} applied. your pricing is updated.`);
       setCode("");
       setOpen(false);
       void queryClient.invalidateQueries({ queryKey: MY_BILLING_KEY });
@@ -372,7 +372,7 @@ function PromoCard({ appliedCode }: { appliedCode: string | null }) {
   if (appliedCode) {
     return (
       <p className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
-        Code <span className="font-semibold">{appliedCode}</span> is applied to your account — your pricing below
+        Code <span className="font-semibold">{appliedCode}</span> is applied to your account. your pricing below
         reflects it and it stays with your account.
       </p>
     );
@@ -433,7 +433,7 @@ function AutoTopupCard({ packs }: { packs: CreditPack[] }) {
       return enabled;
     },
     onSuccess: (enabled) => {
-      toast.success(enabled ? "Automatic top-ups on — we'll buy credits when you run low." : "Automatic top-ups off.");
+      toast.success(enabled ? "Automatic top-ups on. we'll buy credits when you run low." : "Automatic top-ups off.");
       queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not save that setting."),
@@ -449,12 +449,12 @@ function AutoTopupCard({ packs }: { packs: CreditPack[] }) {
           <h4 className="text-sm font-semibold">Automatic top-ups</h4>
           <p className="mt-1 text-sm text-muted-foreground">
             {auto.enabled
-              ? `On — when you drop below ${auto.thresholdCredits.toLocaleString()} credits, we'll buy ${pack.label} (${formatAud(pack.amountCents)}) on your saved card.`
-              : "Off — when you run out, texts pause until you buy credits above."}
+              ? `On. when you drop below ${auto.thresholdCredits.toLocaleString()} credits, we'll buy ${pack.label} (${formatAud(pack.amountCents)}) on your saved card.`
+              : "Off. when you run out, texts pause until you buy credits above."}
           </p>
           {auto.failures > 0 ? (
             <p className="mt-1 text-xs text-destructive">
-              Last automatic charge failed{auto.failures >= 2 ? " twice, so we've switched this off — update your card in Manage billing and turn it back on" : ""}.
+              Last automatic charge failed{auto.failures >= 2 ? " twice, so we've switched this off. update your card in Manage billing and turn it back on" : ""}.
             </p>
           ) : null}
         </div>

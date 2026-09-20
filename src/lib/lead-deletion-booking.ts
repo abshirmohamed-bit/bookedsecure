@@ -29,7 +29,7 @@ export type AuthoritativeBookingState = {
   booked: boolean;
 };
 
-/** Reads the authoritative booking tables only — never the lead projection. */
+/** Reads the authoritative booking tables only. never the lead projection. */
 export function authoritativeBookingState(input: {
   leadId: string;
   offers?: readonly AuthoritativeOffer[];
@@ -96,7 +96,7 @@ export const DELETION_FORBIDDEN_COLUMNS = [
 export const BLOCK_DELETION_OF_BOOKED_LEADS = false;
 
 export const BOOKED_DELETION_BLOCK_REASON =
-  "Has a confirmed booking or scheduled job — cancel the booking before removing the lead";
+  "Has a confirmed booking or scheduled job. cancel the booking before removing the lead";
 
 export function deletionBlockedByBooking(
   authoritative: AuthoritativeBookingState,

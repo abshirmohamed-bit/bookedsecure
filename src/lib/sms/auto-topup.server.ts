@@ -3,14 +3,14 @@
  *
  * When a business turns this on in Plan & billing, the system buys their
  * chosen credit pack on their saved Stripe card as soon as the purchased
- * credit balance drops below their threshold — no manual step, no service
+ * credit balance drops below their threshold. no manual step, no service
  * interruption.
  *
  * Guard rails (fail-closed, all tenant-scoped):
  * - only businesses that opted in are ever charged;
  * - one automatic attempt at a time, at most 3 per day, 15-minute cooldown;
  * - two consecutive failures switch the feature off and alert the owner;
- * - the saved card comes from a previous successful payment only — the card
+ * - the saved card comes from a previous successful payment only. the card
  *   itself is held by Stripe, never by us.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -98,7 +98,7 @@ async function findSavedCard(businessId: string): Promise<{
           typeof intent.customer === "string" ? intent.customer : (intent.customer?.id ?? null);
         if (paymentMethod && customerId) return { env, customerId, paymentMethodId: paymentMethod };
       } catch {
-        // not in this environment — try the next source
+        // not in this environment. try the next source
       }
     }
     if (
@@ -129,7 +129,7 @@ export type AutoTopupResult =
 
 /**
  * Attempt one automatic top-up for a business. Safe to call on every send;
- * the guard rails make repeated calls a no-op. Never throws — billing must
+ * the guard rails make repeated calls a no-op. Never throws. billing must
  * never break messaging.
  */
 export async function maybeAutoTopup(businessId: string): Promise<AutoTopupResult> {
@@ -208,7 +208,7 @@ export async function maybeAutoTopup(businessId: string): Promise<AutoTopupResul
         payment_method: card.paymentMethodId,
         off_session: true,
         confirm: true,
-        description: `${pack.label} — BookedSecure automatic SMS top-up`,
+        description: `${pack.label} | BookedSecure automatic SMS top-up`,
         metadata: {
           creditTopupId: row.id,
           bookedsecureBusinessId: businessId,

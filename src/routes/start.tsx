@@ -6,7 +6,7 @@ import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
 import { readSignupSource, rememberSignupSource } from "@/lib/signup-source";
 
 /**
- * Public start page — the landing spot for ads, partner links and emails.
+ * Public start page. the landing spot for ads, partner links and emails.
  * It remembers the campaign tags it was opened with, then hands the visitor to
  * the ordinary sign-up form and the six-step setup journey.
  */
@@ -20,13 +20,13 @@ export const Route = createFileRoute("/start")({
   }),
   head: () => ({
     meta: [
-      { title: "Start your free setup — BookedSecure" },
+      { title: "Start your free setup | BookedSecure" },
       {
         name: "description",
         content:
           "Set up BookedSecure for your service business in six steps: your trade, your website, your details, then start turning old customers into bookings.",
       },
-      { property: "og:title", content: "Start your free setup — BookedSecure" },
+      { property: "og:title", content: "Start your free setup | BookedSecure" },
       {
         property: "og:description",
         content: "Six guided steps from sign-up to your first text campaign. Setup is free.",
@@ -72,7 +72,7 @@ function StartPage() {
           Turn the customers you already paid for into bookings.
         </h1>
         <p className="mt-4 text-muted-foreground">
-          BookedSecure answers your enquiries, follows them up by text, and books the job — with
+          BookedSecure answers your enquiries, follows them up by text, and books the job. with
           your prices, your wording and your approval.
         </p>
 

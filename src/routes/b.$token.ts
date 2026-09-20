@@ -2,7 +2,7 @@
 //
 // The contact's private token identifies their lead record, so this loader
 // resolves their tenant's own quote page and redirects there with the token
-// attached — the chat then recognises them exactly as with the long link.
+// attached. the chat then recognises them exactly as with the long link.
 // Universal: no tenant identifier lives in code; an unknown token simply
 // lands on the home page.
 

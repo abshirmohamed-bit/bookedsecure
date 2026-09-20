@@ -2,7 +2,7 @@
  * Stripe access for the BookedSecure paid pilot.
  *
  * All calls are routed through the Lovable connector gateway, which holds the
- * real Stripe secret key — the env vars here are opaque connection
+ * real Stripe secret key. the env vars here are opaque connection
  * identifiers, never Stripe secrets, and never reach the browser.
  */
 import Stripe from "stripe";

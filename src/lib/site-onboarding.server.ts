@@ -360,7 +360,7 @@ export async function applySiteOnboarding(
   if (skipped > 0)
     notes.push(`${skipped} service(s) you already offer were left exactly as they are.`);
 
-  // Add-on extras are attached to the tenant's OWN services — the ones just
+  // Add-on extras are attached to the tenant's OWN services. the ones just
   // added and the ones they already had. An extra they already have is never
   // touched, and an extra that matches no service of theirs is not saved.
   const { data: allServices } = await supabaseAdmin

@@ -21,7 +21,7 @@ export function isPurgeConfirmed(typed: string | null | undefined): boolean {
 /** Retention rules: records the project must keep are never destroyed. */
 export const PURGE_BLOCK_REASONS = {
   not_found: "Lead not found for this business",
-  not_soft_deleted: "Lead is still active — remove it from the inbox first",
+  not_soft_deleted: "Lead is still active. remove it from the inbox first",
   message_history: "Has SMS message history required for provider reconciliation",
   consent_history: "Has consent records required for compliance",
   financial_history: "Has job, booking or revenue records required for financial history",
@@ -185,7 +185,7 @@ export type PurgeConfirmation = {
 };
 
 export const PURGE_WARNING =
-  "Permanent deletion cannot be undone. These leads will be erased from the database and cannot be restored. They will also stop counting towards duplicate protection, so the same customer could be imported or re-enquire as a new lead. Messages, consent records, jobs and revenue are never destroyed — a lead holding any of those is blocked instead.";
+  "Permanent deletion cannot be undone. These leads will be erased from the database and cannot be restored. They will also stop counting towards duplicate protection, so the same customer could be imported or re-enquire as a new lead. Messages, consent records, jobs and revenue are never destroyed. a lead holding any of those is blocked instead.";
 
 export function purgeButtonLabel(count: number): string {
   return `Permanently delete ${count} ${count === 1 ? "lead" : "leads"}`;
@@ -232,6 +232,6 @@ export function summarisePurgeResult(result: PurgeResult): string {
     `${result.deleted} permanently deleted`,
     `${result.blocked} blocked`,
   ];
-  if (result.idempotentReplay) parts.push("repeat request — nothing new deleted");
+  if (result.idempotentReplay) parts.push("repeat request: nothing new deleted");
   return parts.join(" · ");
 }
