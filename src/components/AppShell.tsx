@@ -232,6 +232,19 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             icon={CreditCard}
             onClick={() => setMobileNavOpen(false)}
           />
+          {appSession.data?.isPlatformAdmin ? (
+            <>
+              <SidebarLabel className="mt-5">Platform</SidebarLabel>
+              <SidebarLink
+                to="/admin/overview"
+                label="Control room"
+                active={pathname.startsWith("/admin")}
+                icon={ShieldCheck}
+                onClick={() => setMobileNavOpen(false)}
+              />
+            </>
+          ) : null}
+
         </nav>
         {isAssistantHome ? <div id="assistant-context-slot" className="min-h-0 flex-1 border-t border-sidebar-border" /> : <div className="flex-1" />}
         <div className="shrink-0 border-t border-sidebar-border p-3">
