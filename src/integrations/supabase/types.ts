@@ -996,6 +996,7 @@ export type Database = {
           privacy_policy_url: string | null
           quiet_hours_end: number
           quiet_hours_start: number
+          quote_agent_enabled: boolean
           quote_form_active: boolean
           quote_mode: string
           quote_service_layout: string
@@ -1047,6 +1048,7 @@ export type Database = {
           privacy_policy_url?: string | null
           quiet_hours_end?: number
           quiet_hours_start?: number
+          quote_agent_enabled?: boolean
           quote_form_active?: boolean
           quote_mode?: string
           quote_service_layout?: string
@@ -1098,6 +1100,7 @@ export type Database = {
           privacy_policy_url?: string | null
           quiet_hours_end?: number
           quiet_hours_start?: number
+          quote_agent_enabled?: boolean
           quote_form_active?: boolean
           quote_mode?: string
           quote_service_layout?: string
