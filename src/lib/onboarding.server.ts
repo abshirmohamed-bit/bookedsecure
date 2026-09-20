@@ -93,7 +93,34 @@ export async function saveTrade(
     event_type: "trade_changed",
     entity_type: "business",
     entity_id: app.businessId,
-    metadata: { trade },
+    metadata: { trade, seeded_services: seededServices },
   });
-  return { trade };
+  return { trade, seededServices };
+}
+
+/**
+ * Adds the trade's starting services, but only to a business with none. Returns
+ * how many were added, so nothing is ever claimed that did not happen.
+ */
+async function seedStarterServices(app: AppContext, trade: TradeId): Promise<number> {
+  const { TRADE_PRESETS } = await import("@/lib/trades");
+  const { count } = await supabaseAdmin
+    .from("services")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", app.businessId);
+  if ((count ?? 0) > 0) return 0;
+
+  const rows = TRADE_PRESETS[trade].serviceSeeds.map((seed) => ({
+    business_id: app.businessId,
+    name: seed.name,
+    category: null,
+    description: null,
+    price_guidance: null,
+    duration_minutes: seed.durationMinutes,
+    campaign_eligible: true,
+    active: true,
+  }));
+  const { error } = await supabaseAdmin.from("services").insert(rows);
+  if (error) throw new Error(error.message);
+  return rows.length;
 }
