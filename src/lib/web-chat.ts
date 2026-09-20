@@ -922,7 +922,7 @@ export function applyAnswer(
   switch (step) {
     // Agent-led turns are applied by the agent's own tools, never here.
     case "agent":
-      return { collected: next, echo: value };
+      return { ok: true, collected: next, echo: value };
     case "service": {
       // Card selection: one or more of the tenant's own services, plus any of
       // their linked extras the customer ticked. Unknown ids are dropped.
