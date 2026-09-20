@@ -33,6 +33,8 @@ export type OnboardingStep = {
   detail: string;
   /** Where the owner goes to do this step. */
   path: string;
+  search?: { step: "trade" | "website" };
+  hash?: string;
   done: boolean;
   /** True for the one step the owner should do next. */
   current: boolean;
@@ -40,21 +42,33 @@ export type OnboardingStep = {
   blockedBy: OnboardingStepId | null;
 };
 
-const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; path: string }> = {
+const STEP_COPY: Record<
+  OnboardingStepId,
+  {
+    title: string;
+    detail: string;
+    path: string;
+    search?: { step: "trade" | "website" };
+    hash?: string;
+  }
+> = {
   trade: {
     title: "Tell us your trade",
     detail: "So your services, wording and follow-up timing start out right.",
     path: "/setup",
+    search: { step: "trade" },
   },
   website: {
     title: "Add your website",
     detail: "We read it and fill in your services, prices and hours for you to approve.",
     path: "/setup",
+    search: { step: "website" },
   },
   compliance: {
     title: "Your business details",
     detail: "Legal name, ABN, address and contact — needed before we can get you a number.",
     path: "/settings/messaging",
+    hash: "business-identity",
   },
   subscribe: {
     title: "Start your subscription",
@@ -69,7 +83,8 @@ const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; path:
   campaign: {
     title: "Run your first campaign",
     detail: "Pick the customers yourself, or ask Cowork to do it for you.",
-    path: "/dashboard",
+    path: "/leads",
+    hash: "reactivation",
   },
 };
 

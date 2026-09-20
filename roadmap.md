@@ -75,4 +75,5 @@
 - [x] Paywall: saving imported contacts into the inbox now needs an active subscription.
 - [x] Owner control room at /admin/overview: money, subscriptions, provider balance, work queue, businesses.
 - [x] PRD for the control room saved to Files.
+- [x] Collapse the Home setup journey into an expandable vertical checklist and verify every destination.
 - [ ] Blocked on the provider: buying numbers and topping up credits stay manual until their API supports both.
