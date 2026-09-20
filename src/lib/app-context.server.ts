@@ -9,9 +9,12 @@ export type AppContext = {
   userId: string;
   businessId: string;
   role: "owner" | "staff" | "platform_admin";
+  /** True when this user runs BookedSecure itself: never blocked by billing. */
+  isPlatformAdmin: boolean;
   name: string | null;
   email: string | null;
 };
+
 
 export async function requireAppContext(supabase: Client, userId: string): Promise<AppContext> {
   // Both reads are tenant-scoped by the caller's own id, so they are safe to
