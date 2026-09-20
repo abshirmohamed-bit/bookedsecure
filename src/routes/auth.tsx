@@ -11,6 +11,9 @@ import { getSetupState } from "@/lib/site-onboarding.functions";
 import { getPlatformAccess } from "@/lib/owner-console.functions";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    new: search["new"] === true || search["new"] === "true" || search["new"] === "1" ? true : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — BookedSecure" },
