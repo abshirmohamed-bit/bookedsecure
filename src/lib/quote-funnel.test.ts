@@ -162,7 +162,7 @@ describe("readAttribution", () => {
         { source: "direct", campaign: null },
       ]),
     ).toEqual([
-      { label: "facebook — spring", count: 2 },
+      { label: "facebook. spring", count: 2 },
       { label: "direct", count: 1 },
     ]);
   });
