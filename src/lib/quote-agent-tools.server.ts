@@ -163,7 +163,7 @@ export function buildQuoteAgentTools(ctx: QuoteAgentToolContext) {
         ctx.collected.service_id = service?.id ?? null;
         ctx.collected.service_name = service?.name ?? null;
         ctx.collected.typed_request = input.described_request ?? null;
-        ctx.collected.consent = true;
+        ctx.collected.consent = "granted";
         await ctx.save({
           lead_id: ctx.leadId,
           selected_service_id: service?.id ?? null,
