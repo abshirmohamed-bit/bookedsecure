@@ -770,7 +770,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                   Include in campaign offers
                 </label>
               </div>
-              <SheetFooter className="px-5 pb-5 pt-2">
+              <SheetFooter className="shrink-0 px-5 pb-5 pt-2">
                 <button
                   onClick={() => setEditing(null)}
                   className="w-full rounded-md border border-input px-3 py-2 text-sm text-muted-foreground hover:bg-secondary"
