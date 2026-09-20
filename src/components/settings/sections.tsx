@@ -2,6 +2,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+
 import { groupItems } from "@/lib/service-groups";
 import { formatDuration } from "@/components/settings/availability";
 import {
@@ -704,72 +713,87 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
         ))}
       </div>
 
-      {editing && (
-        <div className="mt-4 space-y-2 rounded-md border border-primary/30 bg-secondary/40 p-3">
-          {(
-            [
-              ["name", "Name"],
-              ["category", "Group (e.g. Interior, Paint, Premium)"],
-              ["price_guidance", "Price guidance"],
-              ["description", "Description"],
-              ["included_items", "What's included"],
-              ["excluded_items", "What's not included"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="block text-xs">
-              <span className="mb-1 block text-muted-foreground">{label}</span>
-              <input
-                value={editing[key] ?? ""}
-                onChange={(event) => setEditing({ ...editing, [key]: event.target.value })}
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
-              />
-            </label>
-          ))}
-          <DurationField
-            value={editing.duration_minutes}
-            onChange={(minutes) => setEditing({ ...editing, duration_minutes: minutes })}
-          />
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={editing.active}
-              onChange={(event) => setEditing({ ...editing, active: event.target.checked })}
-              className="h-4 w-4 accent-[var(--color-primary)]"
-            />
-            Active
-          </label>
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={editing.campaign_eligible !== false}
-              onChange={(event) =>
-                setEditing({ ...editing, campaign_eligible: event.target.checked })
-              }
-              className="h-4 w-4 accent-[var(--color-primary)]"
-            />
-            Include in campaign offers
-          </label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setEditing(null)}
-              className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground"
-            >
-              Cancel
-            </button>
-            <button
-              disabled={
-                editing.name.length < 2 ||
-                !isValidDuration(editing.duration_minutes) ||
-                mutation.isPending
-              }
-              onClick={() => mutation.mutate(editing)}
-              className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-            >
-              Save service
-            </button>
-          </div>
-        </div>
-      )}
+      <Sheet open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <SheetContent side="bottom" className="h-auto max-h-[90dvh] rounded-t-xl border-t p-0">
+          {editing && (
+            <>
+              <SheetHeader className="px-5 pt-5 pb-2 text-left">
+                <SheetTitle>{editing.id ? "Edit service" : "Add service"}</SheetTitle>
+                <SheetDescription>
+                  Changes apply to your quote page and campaign offers.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="space-y-3 overflow-y-auto px-5 py-2">
+                {(
+                  [
+                    ["name", "Name"],
+                    ["category", "Group (e.g. Interior, Paint, Premium)"],
+                    ["price_guidance", "Price guidance"],
+                    ["description", "Description"],
+                    ["included_items", "What's included"],
+                    ["excluded_items", "What's not included"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="block text-xs">
+                    <span className="mb-1 block text-muted-foreground">{label}</span>
+                    <input
+                      value={editing[key] ?? ""}
+                      onChange={(event) =>
+                        setEditing({ ...editing, [key]: event.target.value })
+                      }
+                      className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+                    />
+                  </label>
+                ))}
+                <DurationField
+                  value={editing.duration_minutes}
+                  onChange={(minutes) => setEditing({ ...editing, duration_minutes: minutes })}
+                />
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={editing.active}
+                    onChange={(event) => setEditing({ ...editing, active: event.target.checked })}
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                  />
+                  Active
+                </label>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={editing.campaign_eligible !== false}
+                    onChange={(event) =>
+                      setEditing({ ...editing, campaign_eligible: event.target.checked })
+                    }
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                  />
+                  Include in campaign offers
+                </label>
+              </div>
+              <SheetFooter className="px-5 pb-5 pt-2">
+                <button
+                  onClick={() => setEditing(null)}
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm text-muted-foreground hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={
+                    editing.name.length < 2 ||
+                    !isValidDuration(editing.duration_minutes) ||
+                    mutation.isPending
+                  }
+                  onClick={() => mutation.mutate(editing)}
+                  className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  Save changes
+                </button>
+              </SheetFooter>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
     </section>
   );
 }
