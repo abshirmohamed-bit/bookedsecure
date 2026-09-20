@@ -864,6 +864,59 @@ export const saveService = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Permanently removes one of the owner's own services and its customer-facing picture. */
+export const deleteService = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { isOwnServiceImagePath } = await import("@/lib/service-images");
+    const { TENANT_LOGO_BUCKET } = await import("@/lib/tenant-logo");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+
+    const { data: service } = await supabaseAdmin
+      .from("services")
+      .select("id, name, image_storage_path")
+      .eq("id", data.id)
+      .eq("business_id", app.businessId)
+      .maybeSingle();
+    if (!service) throw new Error("That service was not found in your business.");
+
+    // This older relationship predates the other ON DELETE SET NULL links.
+    // Clear it first so historic leads stay intact while the service can be removed.
+    const { error: leadError } = await supabaseAdmin
+      .from("leads")
+      .update({ verified_service_id: null })
+      .eq("business_id", app.businessId)
+      .eq("verified_service_id", service.id);
+    if (leadError) throw new Error(leadError.message);
+
+    const { error } = await supabaseAdmin
+      .from("services")
+      .delete()
+      .eq("id", service.id)
+      .eq("business_id", app.businessId);
+    if (error) throw new Error(error.message);
+
+    const imagePath = service.image_storage_path ?? null;
+    if (imagePath && isOwnServiceImagePath(app.businessId, imagePath)) {
+      await supabaseAdmin.storage.from(TENANT_LOGO_BUCKET).remove([imagePath]);
+    }
+
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "service_removed",
+      entityType: "service",
+      entityId: service.id,
+      metadata: { name: service.name },
+    });
+    return { ok: true as const };
+  });
+
 /**
  * Owner-only add-on service. An add-on always belongs to the caller's own
  * business and is always linked to at least one of that business's own approved
