@@ -171,7 +171,21 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </Button>
         </div>
         <nav aria-label="Tenant navigation" className={cn("shrink-0 overflow-y-auto px-3 py-4", isAssistantHome && "max-h-[48dvh]")}>
-          <SidebarLabel>Workspace</SidebarLabel>
+          {isPlatformOwner ? (
+            <>
+              <SidebarLabel>Platform</SidebarLabel>
+              <SidebarLink
+                to="/admin/overview"
+                label="Control room"
+                active={pathname.startsWith("/admin")}
+                icon={ShieldCheck}
+                onClick={() => setMobileNavOpen(false)}
+              />
+            </>
+          ) : null}
+          <SidebarLabel className={isPlatformOwner ? "mt-5" : undefined}>
+            {isPlatformOwner ? "Sandbox (what tenants see)" : "Workspace"}
+          </SidebarLabel>
           {PRIMARY_NAV.map((item) => (
             <SidebarLink
               key={item.to}
@@ -243,18 +257,6 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             icon={CreditCard}
             onClick={() => setMobileNavOpen(false)}
           />
-          {appSession.data?.isPlatformAdmin ? (
-            <>
-              <SidebarLabel className="mt-5">Platform</SidebarLabel>
-              <SidebarLink
-                to="/admin/overview"
-                label="Control room"
-                active={pathname.startsWith("/admin")}
-                icon={ShieldCheck}
-                onClick={() => setMobileNavOpen(false)}
-              />
-            </>
-          ) : null}
 
         </nav>
         {isAssistantHome ? <div id="assistant-context-slot" className="min-h-0 flex-1 border-t border-sidebar-border" /> : <div className="flex-1" />}
