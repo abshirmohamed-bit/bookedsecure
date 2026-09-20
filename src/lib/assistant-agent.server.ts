@@ -6,23 +6,13 @@
  * `buildAssistantTools`, and the business, user and role are fixed from the
  * authenticated request, so a request can never reach another tenant.
  */
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { stepCountIs, streamText, type ModelMessage } from "ai";
+import { type ModelMessage } from "ai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { runAgentTurn } from "@/lib/agent-core.server";
 import { buildAssistantTools } from "@/lib/assistant-tools.server";
 import { assistantTimeZone, nowInZone } from "@/lib/assistant-time";
 import { buildAssistantSystemPrompt } from "@/lib/owner-assistant";
 import type { OwnerProposal } from "@/lib/owner-actions.server";
-
-const AGENT_MODEL = "google/gemini-3.8-flash";
-
-function gateway(apiKey: string) {
-  return createOpenAICompatible({
-    name: "lovable",
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-  });
-}
 
 export type AssistantAgentResult = {
   answer: string;
