@@ -38,6 +38,9 @@ const AUDIENCE = [
 ];
 
 export function HomeLanding() {
+  const { session } = useAuth();
+  const isSignedIn = Boolean(session);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-background">
@@ -55,7 +58,9 @@ export function HomeLanding() {
               <Link to="/pricing">Pricing</Link>
             </Button>
             <Button asChild variant="ghost" className="min-h-11 px-3 text-muted-foreground">
-              <Link to="/auth">Sign in</Link>
+              <Link to={isSignedIn ? "/dashboard" : "/auth"}>
+                {isSignedIn ? "Dashboard" : "Sign in"}
+              </Link>
             </Button>
           </div>
         </div>
