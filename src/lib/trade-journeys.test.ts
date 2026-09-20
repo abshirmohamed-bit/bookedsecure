@@ -194,11 +194,11 @@ describe.each(TRADE_IDS)("journey — %s", (trade) => {
 
   it("6. imports a messy row from their old customer list", () => {
     const table = parseCsv(
-      "Full Name,Mobile,Email address,Stage\n" +
-        ` Jo  Sample ,0412 345 678, JO@Example.test ,past customer\n`,
+      "Full Name,Mobile,Email address,Stage\n" + ` Jo  Sample ,0412 345 678, JO@Example.test ,completed\n`,
     );
     const row = prepareRow(table.headers, table.rows[0]!, 1, { filename: "old-list.csv" });
     expect(row.validation_errors).toEqual([]);
+    expect(row.normalized_payload.status).toBe("completed");
     expect(row.normalized_payload.mobile_number).toBe("+61412345678");
     expect(row.normalized_payload.name).toBe("Jo Sample");
   });
@@ -207,22 +207,21 @@ describe.each(TRADE_IDS)("journey — %s", (trade) => {
     const offer = proposeOffer();
     const message = renderReactivationMessage({
       businessName: business.name,
-      offer,
-      link: `https://example.test/quote/${trade}`,
       leadName: "Jo",
-      serviceName: TRADE_PRESETS[trade].serviceSeeds[0]!.name,
+      offerText: offer,
+      quoteUrl: `https://example.test/quote/${trade}`,
     });
     expect(message).toContain(business.name);
     expect(message).toContain(offer);
+    expect(message.length).toBeLessThanOrEqual(320);
     const guarded = guardReactivationMessage(message, offer);
     expect(guarded.flagged).toEqual([]);
-    const unapproved = checkApproval({
-      approvedAt: null,
-      approvedBy: null,
-      text: message,
-      offer,
-    } as never);
-    expect(unapproved.ok).toBe(false);
+
+    // Nothing sends without the owner attesting, on a draft, with a selection.
+    expect(checkApproval({ attested: false, campaignStatus: "draft", approvedDraftCount: 5 }).ok).toBe(false);
+    expect(checkApproval({ attested: true, campaignStatus: "draft", approvedDraftCount: 0 }).ok).toBe(false);
+    expect(checkApproval({ attested: true, campaignStatus: "sent", approvedDraftCount: 5 }).ok).toBe(false);
+    expect(checkApproval({ attested: true, campaignStatus: "draft", approvedDraftCount: 1 }).ok).toBe(true);
   });
 
   it("8. their own customer books through the quote page", () => {
@@ -240,7 +239,8 @@ describe.each(TRADE_IDS)("journey — %s", (trade) => {
 
     const prompt = promptFor("service", tenant, {});
     expect(prompt.kind).toBe("choice");
-    expect((prompt.options ?? []).map((option) => option.label)).toContain(services[0]!.name);
+    expect(prompt.options ?? []).toHaveLength(services.length);
+    expect((prompt.options ?? []).map((option) => option.value)).toContain("s0");
 
     let collected: WebChatCollected = {};
     const answers: Record<string, string> = {
