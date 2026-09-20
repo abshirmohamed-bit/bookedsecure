@@ -70,6 +70,22 @@ export function BookingsCalendar() {
       toast.error(error instanceof Error ? error.message : "That job could not be deleted."),
   });
 
+  const [amount, setAmount] = useState("");
+  const completeJobFn = useServerFn(completeBookingRecord);
+  const finishJob = useMutation({
+    mutationFn: (input: { jobId: string; leadId: string; paidAmount: number | null }) =>
+      completeJobFn({ data: input }),
+    onSuccess: async () => {
+      setSelected(null);
+      setAmount("");
+      toast.success("Job marked as done.");
+      await queryClient.invalidateQueries();
+    },
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : "That job could not be completed."),
+  });
+
+
 
   const timezone = data?.timezone ?? null;
   const bookings = data?.bookings ?? [];
