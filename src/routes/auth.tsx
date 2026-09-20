@@ -34,11 +34,13 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const { session, loading } = useAuth();
   const fetchSetupState = useServerFn(getSetupState);
   const fetchPlatformAccess = useServerFn(getPlatformAccess);
+  const saveSignupSource = useServerFn(recordSignupSource);
   const routingSession = useRef<string | null>(null);
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(search.new ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
