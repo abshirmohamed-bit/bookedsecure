@@ -42,6 +42,8 @@ export const WEB_CHAT_STEPS = [
   "consent",
   "booking",
   "booking_confirm",
+  /** An agent-led turn: the assistant wrote the question itself. */
+  "agent",
 ] as const;
 export type WebChatStep = (typeof WEB_CHAT_STEPS)[number];
 
