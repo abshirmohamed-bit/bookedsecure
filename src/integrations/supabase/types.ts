@@ -1003,6 +1003,8 @@ export type Database = {
           quote_subject_label: string | null
           quote_subject_options: string[] | null
           service_area: string | null
+          signup_ref: string | null
+          signup_source: string | null
           slug: string | null
           sms_credential_mode: string
           sms_signature: string | null
@@ -1055,6 +1057,8 @@ export type Database = {
           quote_subject_label?: string | null
           quote_subject_options?: string[] | null
           service_area?: string | null
+          signup_ref?: string | null
+          signup_source?: string | null
           slug?: string | null
           sms_credential_mode?: string
           sms_signature?: string | null
@@ -1107,6 +1111,8 @@ export type Database = {
           quote_subject_label?: string | null
           quote_subject_options?: string[] | null
           service_area?: string | null
+          signup_ref?: string | null
+          signup_source?: string | null
           slug?: string | null
           sms_credential_mode?: string
           sms_signature?: string | null
