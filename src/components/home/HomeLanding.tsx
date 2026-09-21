@@ -13,6 +13,7 @@ import {
 import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
 import appShot from "@/assets/bookedsecure-app.jpg.asset.json";
 import mobileDemo from "@/assets/bookedsecure-mobile-demo.mp4.asset.json";
+import mobileDemoPoster from "@/assets/bookedsecure-mobile-demo-poster.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
@@ -92,6 +93,7 @@ export function HomeLanding() {
                   <div className="aspect-[384/832] overflow-hidden rounded-[1.8rem] bg-landing-surface">
                     <video
                       src={mobileDemo.url}
+                      poster={mobileDemoPoster.url}
                       className="h-full w-full object-cover"
                       autoPlay
                       loop
