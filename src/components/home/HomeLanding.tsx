@@ -166,8 +166,6 @@ export function HomeLanding() {
           </div>
         </section>
 
-        <SectionSpacer />
-
         <section className="bg-transparent">
           <div className="mx-auto grid max-w-7xl px-5 sm:grid-cols-3 sm:px-8 lg:px-12">
             {["Capture new leads", "Follow up consistently", "Turn enquiries into bookings"].map((label) => (
