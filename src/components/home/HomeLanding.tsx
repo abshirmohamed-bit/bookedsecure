@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
+import appShot from "@/assets/bookedsecure-app.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -46,7 +47,7 @@ const AUDIENCE = [
 ];
 
 function SectionSpacer() {
-  return <div className="h-screen" aria-hidden="true" />;
+  return <div className="h-[67vh]" aria-hidden="true" />;
 }
 
 export function HomeLanding() {
@@ -101,6 +102,24 @@ export function HomeLanding() {
                 </Button>
               </div>
             </div>
+            <figure className="mt-14 sm:mt-20" aria-label="BookedSecure workspace preview">
+              <div className="rounded-2xl bg-landing-copy/[0.04] p-1.5 shadow-2xl shadow-landing-shadow sm:rounded-3xl sm:p-2">
+                <div className="overflow-hidden rounded-xl bg-landing-surface sm:rounded-2xl">
+                  <div className="flex items-center gap-1.5 px-4 py-2.5 sm:py-3">
+                    <span className="h-2 w-2 rounded-full bg-landing-accent/70 sm:h-2.5 sm:w-2.5" />
+                    <span className="h-2 w-2 rounded-full bg-landing-accent-alt/70 sm:h-2.5 sm:w-2.5" />
+                    <span className="h-2 w-2 rounded-full bg-landing-muted/40 sm:h-2.5 sm:w-2.5" />
+                  </div>
+                  <img
+                    src={appShot.url}
+                    alt="The BookedSecure workspace with the Cowork assistant"
+                    className="block w-full"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+              <div className="mx-auto h-2.5 w-[88%] rounded-b-2xl bg-landing-elevated shadow-lg shadow-landing-shadow sm:h-3 sm:rounded-b-3xl" aria-hidden="true" />
+            </figure>
           </div>
         </section>
 
