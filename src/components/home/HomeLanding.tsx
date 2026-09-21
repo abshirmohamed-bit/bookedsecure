@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
+import appShot from "@/assets/bookedsecure-app.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -46,7 +47,7 @@ const AUDIENCE = [
 ];
 
 function SectionSpacer() {
-  return <div className="h-screen" aria-hidden="true" />;
+  return <div className="h-[67vh]" aria-hidden="true" />;
 }
 
 export function HomeLanding() {
