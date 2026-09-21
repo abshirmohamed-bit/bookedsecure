@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
-  CalendarCheck2,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -52,8 +51,8 @@ export function HomeLanding() {
 
   return (
     <div className="min-h-screen bg-landing-bg text-landing-copy">
-      <header className="border-b border-landing-border bg-landing-bg/95 backdrop-blur">
-        <div className="mx-auto grid min-h-16 max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-6 lg:px-8">
+      <header className="border-b border-landing-border bg-landing-bg/90 backdrop-blur-xl">
+        <div className="mx-auto grid min-h-20 max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-5 sm:px-8 lg:px-12">
           <a href="#top" className="flex min-w-0 items-center gap-2" aria-label="BookedSecure home">
             <img
               src={brandMark.url}
@@ -66,7 +65,7 @@ export function HomeLanding() {
             <Button asChild variant="ghost" className="min-h-10 px-2.5 text-landing-muted hover:bg-landing-elevated hover:text-landing-copy sm:px-4">
               <Link to="/pricing">Pricing</Link>
             </Button>
-            <Button asChild className="min-h-10 bg-landing-blue px-3 text-landing-blue-foreground hover:bg-landing-blue-strong sm:px-5">
+            <Button asChild className="min-h-10 bg-landing-action px-3 text-landing-action-foreground hover:bg-landing-action-hover sm:px-5">
               <Link to={isSignedIn ? "/dashboard" : "/auth"}>
                 {isSignedIn ? "Dashboard" : "Sign in"}
               </Link>
@@ -77,24 +76,24 @@ export function HomeLanding() {
 
       <main id="top">
         <section className="border-b border-landing-border">
-          <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-12 lg:items-center lg:gap-8 lg:px-8 lg:py-28">
-            <div className="lg:col-span-7">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-landing-border bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted">
-                <span className="h-1.5 w-1.5 rounded-full bg-landing-green" />
+          <div className="mx-auto grid min-h-[42rem] max-w-7xl items-center px-5 py-24 sm:min-h-[48rem] sm:px-8 sm:py-32 lg:grid-cols-12 lg:px-12 lg:py-40">
+            <div className="lg:col-span-9 xl:col-span-8">
+              <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-landing-border bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted shadow-sm shadow-landing-shadow">
+                <span className="h-1.5 w-1.5 rounded-full bg-landing-accent" />
                 For Australian service businesses
               </div>
-              <h1 className="max-w-3xl font-heading text-5xl font-semibold leading-[1.02] sm:text-6xl lg:text-7xl">
-                Stop paying for leads <span className="text-landing-blue">that go nowhere.</span>
+              <h1 className="max-w-4xl font-heading text-5xl font-semibold leading-[1.04] sm:text-7xl lg:text-8xl">
+                Stop paying for leads <span className="text-landing-accent">that go nowhere.</span>
               </h1>
-              <p className="mt-6 font-heading text-2xl font-medium sm:text-3xl">It's really simple.</p>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-landing-copy">
+              <p className="mt-8 font-heading text-2xl font-medium sm:text-3xl">It's really simple.</p>
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-landing-copy sm:text-xl">
                 Capture new leads. Re-engage the ones you already paid for. Turn more enquiries into bookings.
               </p>
-              <p className="mt-4 max-w-2xl leading-7 text-landing-muted">
+              <p className="mt-5 max-w-2xl leading-7 text-landing-muted">
                 BookedSecure helps Australian service businesses respond faster, follow up consistently, and turn more enquiries into booked jobs.
               </p>
-              <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-                <Button asChild size="lg" className="min-h-12 w-full bg-landing-blue px-6 text-landing-blue-foreground hover:bg-landing-blue-strong sm:w-auto">
+              <div className="mt-10 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+                <Button asChild size="lg" className="min-h-12 w-full bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover sm:w-auto">
                   <Link to={isSignedIn ? "/dashboard" : "/auth"}>
                     {isSignedIn ? "Go to Dashboard" : "Get BookedSecure today"}
                     <ArrowRight aria-hidden="true" />
@@ -103,51 +102,14 @@ export function HomeLanding() {
                 <p className="text-sm text-landing-muted">Stop losing jobs to slow follow-up. Set up in a day, no lock-in.</p>
               </div>
             </div>
-
-            <div className="relative lg:col-span-5 lg:pl-6">
-              <div className="overflow-hidden rounded-lg border border-landing-border bg-landing-surface shadow-2xl shadow-landing-shadow">
-                <div className="flex items-center justify-between border-b border-landing-border px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <img src={brandMark.url} alt="" className="h-7 w-7 object-contain" />
-                    <span className="text-sm font-semibold">BookedSecure</span>
-                  </div>
-                  <span className="flex items-center gap-1.5 text-xs text-landing-muted">
-                    <span className="h-1.5 w-1.5 rounded-full bg-landing-green" /> Live
-                  </span>
-                </div>
-                <div className="p-4 sm:p-5">
-                  <p className="text-xs font-medium uppercase text-landing-muted">New enquiry</p>
-                  <p className="mt-2 font-heading text-xl font-semibold">Exterior detail enquiry</p>
-                  <div className="mt-4 rounded-md border border-landing-border bg-landing-elevated p-4 text-sm leading-6">
-                    Hi, I’d like a quote for my SUV this Saturday.
-                  </div>
-                  <div className="mt-4 rounded-md border border-landing-blue/30 bg-landing-blue-soft p-4">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-landing-blue-light">
-                      <CheckCircle2 className="h-4 w-4" /> Reply sent instantly
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-landing-copy">Thanks for getting in touch. Let’s find the right service and time for you.</p>
-                  </div>
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    <div className="rounded-md border border-landing-border bg-landing-elevated p-3">
-                      <span className="text-xs text-landing-muted">Status</span>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm font-medium"><span className="h-1.5 w-1.5 rounded-full bg-landing-green" /> Follow-up ready</p>
-                    </div>
-                    <div className="rounded-md border border-landing-border bg-landing-elevated p-3">
-                      <span className="text-xs text-landing-muted">Next step</span>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm font-medium"><CalendarCheck2 className="h-3.5 w-3.5 text-landing-blue-light" /> Booking</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
         <section className="border-b border-landing-border bg-landing-surface">
-          <div className="mx-auto grid max-w-7xl divide-y divide-landing-border px-4 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-7xl divide-y divide-landing-border px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8 lg:px-12">
             {["Capture new leads", "Follow up consistently", "Turn enquiries into bookings"].map((label) => (
-              <div key={label} className="flex items-center gap-3 py-5 sm:px-6 first:sm:pl-0 last:sm:pr-0">
-                <Check className="h-4 w-4 shrink-0 text-landing-green" />
+              <div key={label} className="flex items-center gap-3 py-7 sm:px-7 first:sm:pl-0 last:sm:pr-0">
+                <Check className="h-4 w-4 shrink-0 text-landing-accent-alt" />
                 <span className="text-sm font-medium">{label}</span>
               </div>
             ))}
@@ -155,9 +117,9 @@ export function HomeLanding() {
         </section>
 
         <section className="border-b border-landing-border">
-          <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-12 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-14 px-5 py-24 sm:px-8 sm:py-36 lg:grid-cols-12 lg:px-12 lg:py-44">
             <div className="lg:col-span-5">
-              <p className="text-sm font-semibold text-landing-blue-light">What BookedSecure does</p>
+              <p className="text-sm font-semibold text-landing-accent">What BookedSecure does</p>
               <h2 className="mt-3 max-w-md font-heading text-3xl font-semibold leading-tight sm:text-4xl">Every enquiry you don't answer is a job that goes to someone else.</h2>
             </div>
             <div className="lg:col-span-6 lg:col-start-7 lg:flex lg:items-end">
@@ -167,14 +129,14 @@ export function HomeLanding() {
         </section>
 
         <section id="how-it-works" className="border-b border-landing-border bg-landing-surface">
-          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
-            <p className="text-sm font-semibold text-landing-blue-light">How it works</p>
+          <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 sm:py-36 lg:px-12 lg:py-44">
+            <p className="text-sm font-semibold text-landing-accent">How it works</p>
             <h2 className="mt-3 font-heading text-3xl font-semibold sm:text-4xl">From enquiry to next step.</h2>
-            <div className="mt-10 grid border-y border-landing-border sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-14 grid border-y border-landing-border sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((step, i) => (
               <div key={step.title} className="border-b border-landing-border py-6 sm:border-r sm:px-6 lg:border-b-0 first:sm:pl-0 last:border-r-0 last:sm:pr-0">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm text-landing-blue-light">0{i + 1}</span>
+                  <span className="font-mono text-sm text-landing-accent">0{i + 1}</span>
                   <step.icon className="h-5 w-5 text-landing-muted" />
                 </div>
                 <h3 className="mt-10 text-lg font-semibold">{step.title}</h3>
@@ -186,9 +148,9 @@ export function HomeLanding() {
         </section>
 
         <section>
-          <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-12 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-14 px-5 py-24 sm:px-8 sm:py-36 lg:grid-cols-12 lg:px-12 lg:py-44">
             <div className="lg:col-span-4">
-              <p className="text-sm font-semibold text-landing-blue-light">Who it is for</p>
+              <p className="text-sm font-semibold text-landing-accent">Who it is for</p>
               <h2 className="mt-3 font-heading text-3xl font-semibold sm:text-4xl">Built for service businesses.</h2>
               <p className="mt-5 leading-7 text-landing-muted">Australian service businesses that receive enquiries from websites, social media, Google, quote forms, phone calls and referrals.</p>
             </div>
@@ -196,11 +158,11 @@ export function HomeLanding() {
               {AUDIENCE.map((item) => (
                 <div
                   key={item}
-                  className="group grid min-h-20 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-landing-border bg-landing-surface p-4 text-sm transition-colors hover:border-landing-blue/50 hover:bg-landing-elevated"
+                  className="group grid min-h-24 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-landing-border bg-landing-surface p-5 text-sm shadow-sm shadow-landing-shadow transition-colors hover:border-landing-accent/50 hover:bg-landing-elevated"
                 >
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-landing-green" />
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-landing-accent-alt" />
                   <span>{item}</span>
-                  <ChevronRight className="h-4 w-4 text-landing-muted transition-transform group-hover:translate-x-0.5 group-hover:text-landing-blue-light" />
+                  <ChevronRight className="h-4 w-4 text-landing-muted transition-transform group-hover:translate-x-0.5 group-hover:text-landing-accent" />
                 </div>
               ))}
             </div>
@@ -208,18 +170,18 @@ export function HomeLanding() {
         </section>
 
         <section className="border-y border-landing-border bg-landing-surface">
-          <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-12 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-20 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
             <div>
-              <p className="flex items-center gap-2 text-sm font-semibold text-landing-blue-light"><Sparkles className="h-4 w-4" /> BookedSecure</p>
+              <p className="flex items-center gap-2 text-sm font-semibold text-landing-accent"><Sparkles className="h-4 w-4" /> BookedSecure</p>
               <h2 className="mt-2 font-heading text-2xl font-semibold sm:text-3xl">Turn more enquiries into bookings.</h2>
             </div>
-            <Button asChild size="lg" className="min-h-12 w-full shrink-0 bg-landing-blue px-6 text-landing-blue-foreground hover:bg-landing-blue-strong md:w-auto">
+            <Button asChild size="lg" className="min-h-12 w-full shrink-0 bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover md:w-auto">
               <Link to={isSignedIn ? "/dashboard" : "/auth"}>Get BookedSecure today <ArrowRight aria-hidden="true" /></Link>
             </Button>
           </div>
         </section>
 
-        <footer className="mx-auto max-w-7xl px-4 py-10 text-xs text-landing-muted sm:px-6 lg:px-8">
+        <footer className="mx-auto max-w-7xl px-5 py-14 text-xs text-landing-muted sm:px-8 lg:px-12">
           <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div className="flex items-center gap-2 text-landing-copy">
               <img src={brandMark.url} alt="" className="h-7 w-7 object-contain" />
