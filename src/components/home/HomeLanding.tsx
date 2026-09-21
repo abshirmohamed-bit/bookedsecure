@@ -60,7 +60,7 @@ export function HomeLanding() {
 
   return (
     <div className="min-h-screen bg-landing-bg text-landing-copy">
-      <header className="bg-landing-bg/90 backdrop-blur-xl">
+      <header className="bg-transparent backdrop-blur-xl">
         <div className="mx-auto grid min-h-20 max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-5 sm:px-8 lg:px-12">
           <a href="#top" className="flex min-w-0 items-center gap-2" aria-label="BookedSecure home">
             <img
@@ -88,7 +88,7 @@ export function HomeLanding() {
           <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:px-12 lg:py-20">
             <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-16 xl:gap-24">
               <div className="lg:col-span-7 xl:col-span-7">
-                <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted shadow-sm shadow-landing-shadow">
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-transparent px-3 py-1.5 text-xs font-medium text-landing-muted">
                   <span className="h-1.5 w-1.5 rounded-full bg-landing-accent" />
                   For Australian service businesses
                 </div>
@@ -108,8 +108,8 @@ export function HomeLanding() {
                 </div>
               </div>
               <div className="flex justify-center lg:col-span-5 lg:justify-end xl:col-span-5">
-                <div className="relative w-full max-w-[18rem] rounded-[2.25rem] bg-landing-copy p-2 shadow-2xl shadow-landing-shadow sm:max-w-[20rem] lg:max-w-[18rem] xl:max-w-[20rem]">
-                  <div className="pointer-events-none absolute left-1/2 top-3 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-landing-copy" aria-hidden="true" />
+                <div className="relative w-full max-w-[18rem] rounded-[2.25rem] bg-landing-elevated p-2 shadow-2xl shadow-landing-shadow sm:max-w-[20rem] lg:max-w-[18rem] xl:max-w-[20rem]">
+                  <div className="pointer-events-none absolute left-1/2 top-3 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-landing-elevated" aria-hidden="true" />
                   <div className="aspect-[384/832] overflow-hidden rounded-[1.8rem] bg-landing-surface">
                     <video
                       src={mobileDemo.url}
@@ -130,7 +130,7 @@ export function HomeLanding() {
               <DialogTrigger asChild>
                 <Button variant="ghost" className="group relative mt-12 block h-auto w-full p-0 sm:mt-16" aria-label="Open workspace preview full screen">
                   <figure aria-label="BookedSecure workspace preview">
-                    <div className="rounded-2xl bg-landing-copy/[0.04] p-1.5 shadow-2xl shadow-landing-shadow sm:rounded-3xl sm:p-2">
+                    <div className="rounded-2xl bg-landing-elevated p-1.5 shadow-2xl shadow-landing-shadow sm:rounded-3xl sm:p-2">
                       <div className="overflow-hidden rounded-xl bg-landing-surface sm:rounded-2xl">
                         <div className="flex items-center gap-1.5 px-4 py-2.5 sm:py-3">
                           <span className="h-2 w-2 rounded-full bg-landing-accent/70 sm:h-2.5 sm:w-2.5" />
@@ -168,7 +168,7 @@ export function HomeLanding() {
 
         <SectionSpacer />
 
-        <section className="bg-landing-surface">
+        <section className="bg-transparent">
           <div className="mx-auto grid max-w-7xl px-5 sm:grid-cols-3 sm:px-8 lg:px-12">
             {["Capture new leads", "Follow up consistently", "Turn enquiries into bookings"].map((label) => (
               <div key={label} className="flex items-center gap-3 py-7 sm:px-7 first:sm:pl-0 last:sm:pr-0">
@@ -195,7 +195,7 @@ export function HomeLanding() {
 
         <SectionSpacer />
 
-        <section id="how-it-works" className="bg-landing-surface">
+        <section id="how-it-works" className="bg-transparent">
           <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24 lg:px-12 lg:py-28">
             <p className="text-sm font-semibold text-landing-accent">How it works</p>
             <h2 className="mt-3 font-heading text-3xl font-semibold sm:text-4xl">From enquiry to next step.</h2>
@@ -227,7 +227,7 @@ export function HomeLanding() {
               {AUDIENCE.map((item) => (
                 <div
                   key={item}
-                  className="group grid min-h-24 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md bg-landing-surface p-5 text-sm shadow-sm shadow-landing-shadow transition-colors hover:bg-landing-elevated"
+                  className="group grid min-h-24 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md bg-transparent p-5 text-sm"
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-landing-accent-alt" />
                   <span>{item}</span>
@@ -240,7 +240,7 @@ export function HomeLanding() {
 
         <SectionSpacer />
 
-        <section className="bg-landing-surface">
+        <section className="bg-transparent">
           <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-20 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
             <div>
               <p className="flex items-center gap-2 text-sm font-semibold text-landing-accent"><Sparkles className="h-4 w-4" /> BookedSecure</p>
@@ -252,7 +252,7 @@ export function HomeLanding() {
           </div>
         </section>
 
-        <footer className="bg-landing-surface mx-auto max-w-7xl px-5 py-14 text-xs text-landing-muted sm:px-8 lg:px-12">
+        <footer className="mx-auto max-w-7xl bg-transparent px-5 py-14 text-xs text-landing-muted sm:px-8 lg:px-12">
           <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div className="flex items-center gap-2 text-landing-copy">
               <img src={brandMark.url} alt="" className="h-7 w-7 object-contain" />
