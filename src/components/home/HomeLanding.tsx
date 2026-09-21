@@ -6,12 +6,15 @@ import {
   ChevronRight,
   ClipboardList,
   MessageSquare,
+  ZoomIn,
   Repeat2,
   Sparkles,
 } from "lucide-react";
 import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
 import appShot from "@/assets/bookedsecure-app.jpg.asset.json";
+import mobileDemo from "@/assets/bookedsecure-mobile-demo.mp4.asset.json";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 
 const STEPS = [
@@ -47,7 +50,7 @@ const AUDIENCE = [
 ];
 
 function SectionSpacer() {
-  return <div className="h-[67vh]" aria-hidden="true" />;
+  return <div className="h-[18vh] min-h-20 max-h-48" aria-hidden="true" />;
 }
 
 export function HomeLanding() {
@@ -81,8 +84,25 @@ export function HomeLanding() {
 
       <main id="top">
         <section>
-          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-12 lg:px-12 lg:py-32">
+          <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:grid-cols-12 lg:px-12 lg:py-20">
             <div className="lg:col-span-9 xl:col-span-8">
+              <div className="mb-12 flex justify-center sm:mb-16">
+                <div className="relative w-full max-w-[18rem] rounded-[2.25rem] bg-landing-copy p-2 shadow-2xl shadow-landing-shadow sm:max-w-[20rem]">
+                  <div className="pointer-events-none absolute left-1/2 top-3 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-landing-copy" aria-hidden="true" />
+                  <div className="aspect-[384/832] overflow-hidden rounded-[1.8rem] bg-landing-surface">
+                    <video
+                      src={mobileDemo.url}
+                      className="h-full w-full object-cover"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                      aria-label="BookedSecure mobile quote assistant demonstration"
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted shadow-sm shadow-landing-shadow">
                 <span className="h-1.5 w-1.5 rounded-full bg-landing-accent" />
                 For Australian service businesses
@@ -102,24 +122,43 @@ export function HomeLanding() {
                 </Button>
               </div>
             </div>
-            <figure className="mt-14 sm:mt-20" aria-label="BookedSecure workspace preview">
-              <div className="rounded-2xl bg-landing-copy/[0.04] p-1.5 shadow-2xl shadow-landing-shadow sm:rounded-3xl sm:p-2">
-                <div className="overflow-hidden rounded-xl bg-landing-surface sm:rounded-2xl">
-                  <div className="flex items-center gap-1.5 px-4 py-2.5 sm:py-3">
-                    <span className="h-2 w-2 rounded-full bg-landing-accent/70 sm:h-2.5 sm:w-2.5" />
-                    <span className="h-2 w-2 rounded-full bg-landing-accent-alt/70 sm:h-2.5 sm:w-2.5" />
-                    <span className="h-2 w-2 rounded-full bg-landing-muted/40 sm:h-2.5 sm:w-2.5" />
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" className="group relative mt-12 block h-auto w-full p-0 sm:mt-16" aria-label="Open workspace preview full screen">
+                  <figure aria-label="BookedSecure workspace preview">
+                    <div className="rounded-2xl bg-landing-copy/[0.04] p-1.5 shadow-2xl shadow-landing-shadow sm:rounded-3xl sm:p-2">
+                      <div className="overflow-hidden rounded-xl bg-landing-surface sm:rounded-2xl">
+                        <div className="flex items-center gap-1.5 px-4 py-2.5 sm:py-3">
+                          <span className="h-2 w-2 rounded-full bg-landing-accent/70 sm:h-2.5 sm:w-2.5" />
+                          <span className="h-2 w-2 rounded-full bg-landing-accent-alt/70 sm:h-2.5 sm:w-2.5" />
+                          <span className="h-2 w-2 rounded-full bg-landing-muted/40 sm:h-2.5 sm:w-2.5" />
+                        </div>
+                        <img
+                          src={appShot.url}
+                          alt="The BookedSecure workspace with the Cowork assistant"
+                          className="block w-full"
+                          loading="lazy"
+                        />
+                      </div>
                   </div>
+                    <div className="mx-auto h-2.5 w-[88%] rounded-b-2xl bg-landing-elevated shadow-lg shadow-landing-shadow sm:h-3 sm:rounded-b-3xl" aria-hidden="true" />
+                    <span className="absolute bottom-5 right-5 grid h-11 w-11 place-items-center rounded-full bg-landing-copy text-landing-action-foreground opacity-90 shadow-lg transition-transform group-hover:scale-105">
+                      <ZoomIn aria-hidden="true" />
+                    </span>
+                  </figure>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none gap-0 border-0 bg-landing-copy p-4 shadow-none sm:rounded-none sm:p-8 [&>button]:bg-landing-surface [&>button]:p-2 [&>button]:text-landing-copy [&>button]:opacity-100">
+                <DialogTitle className="sr-only">BookedSecure workspace preview</DialogTitle>
+                <div className="flex h-full min-h-0 items-center justify-center overflow-auto">
                   <img
                     src={appShot.url}
                     alt="The BookedSecure workspace with the Cowork assistant"
-                    className="block w-full"
-                    loading="lazy"
+                    className="max-h-none min-w-[64rem] max-w-none rounded-lg shadow-2xl sm:min-w-[80rem]"
                   />
                 </div>
-              </div>
-              <div className="mx-auto h-2.5 w-[88%] rounded-b-2xl bg-landing-elevated shadow-lg shadow-landing-shadow sm:h-3 sm:rounded-b-3xl" aria-hidden="true" />
-            </figure>
+              </DialogContent>
+            </Dialog>
           </div>
         </section>
 
@@ -139,7 +178,7 @@ export function HomeLanding() {
         <SectionSpacer />
 
         <section>
-          <div className="mx-auto grid max-w-7xl gap-14 px-5 py-24 sm:px-8 sm:py-36 lg:grid-cols-12 lg:px-12 lg:py-44">
+          <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-12 lg:px-12 lg:py-28">
             <div className="lg:col-span-5">
               <p className="text-sm font-semibold text-landing-accent">What BookedSecure does</p>
               <h2 className="mt-3 max-w-md font-heading text-3xl font-semibold leading-tight sm:text-4xl">Every enquiry you don't answer is a job that goes to someone else.</h2>
@@ -153,7 +192,7 @@ export function HomeLanding() {
         <SectionSpacer />
 
         <section id="how-it-works" className="bg-landing-surface">
-          <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 sm:py-36 lg:px-12 lg:py-44">
+          <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24 lg:px-12 lg:py-28">
             <p className="text-sm font-semibold text-landing-accent">How it works</p>
             <h2 className="mt-3 font-heading text-3xl font-semibold sm:text-4xl">From enquiry to next step.</h2>
             <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4">
@@ -174,7 +213,7 @@ export function HomeLanding() {
         <SectionSpacer />
 
         <section>
-          <div className="mx-auto grid max-w-7xl gap-14 px-5 py-24 sm:px-8 sm:py-36 lg:grid-cols-12 lg:px-12 lg:py-44">
+          <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-12 lg:px-12 lg:py-28">
             <div className="lg:col-span-4">
               <p className="text-sm font-semibold text-landing-accent">Who it is for</p>
               <h2 className="mt-3 font-heading text-3xl font-semibold sm:text-4xl">Built for service businesses.</h2>
