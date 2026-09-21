@@ -100,12 +100,11 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   /** Every service choice in this conversation, keyed by both its internal
    * value and customer-facing label so restored server turns remain visual. */
   const [selectionHistory, setSelectionHistory] = useState<SelectionRecord[]>([]);
-  /** The iPhone keyboard changes both the visible height and its page offset. */
-  const [visibleViewport, setVisibleViewport] = useState<{
-    height: number;
-    offsetTop: number;
-  } | null>(null);
+  /** The viewport meta uses interactive-widget=resizes-content, so the browser
+   * shrinks the layout viewport itself when the keyboard opens. No JS resizing:
+   * scripted compensation fought the native animation and caused a visible jump. */
   const [composerFocused, setComposerFocused] = useState(false);
+
   /** Local-only: the customer chose "Something else" and is describing it. */
   const [describing, setDescribing] = useState(false);
   /** Local-only: the customer typed their own request, so the service list
