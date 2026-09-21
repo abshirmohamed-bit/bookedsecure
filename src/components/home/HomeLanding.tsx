@@ -45,6 +45,10 @@ const AUDIENCE = [
   "Anyone who books jobs from enquiries",
 ];
 
+function SectionSpacer() {
+  return <div className="h-screen" aria-hidden="true" />;
+}
+
 export function HomeLanding() {
   const { session } = useAuth();
   const isSignedIn = Boolean(session);
@@ -83,14 +87,10 @@ export function HomeLanding() {
                 For Australian service businesses
               </div>
               <h1 className="max-w-4xl font-heading text-5xl font-semibold leading-[1.04] sm:text-7xl lg:text-8xl">
-                Stop paying for leads <span className="text-landing-accent">that go nowhere.</span>
+                It's really simple.
               </h1>
-              <p className="mt-8 font-heading text-2xl font-medium sm:text-3xl">It's really simple.</p>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-landing-copy sm:text-xl">
+              <p className="mt-8 max-w-2xl text-lg leading-8 text-landing-copy sm:text-xl">
                 Capture new leads. Re-engage the ones you already paid for. Turn more enquiries into bookings.
-              </p>
-              <p className="mt-5 max-w-2xl leading-7 text-landing-muted">
-                BookedSecure helps Australian service businesses respond faster, follow up consistently, and turn more enquiries into booked jobs.
               </p>
               <div className="mt-10 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
                 <Button asChild size="lg" className="min-h-12 w-full bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover sm:w-auto">
@@ -99,11 +99,12 @@ export function HomeLanding() {
                     <ArrowRight aria-hidden="true" />
                   </Link>
                 </Button>
-                <p className="text-sm text-landing-muted">Stop losing jobs to slow follow-up. Set up in a day, no lock-in.</p>
               </div>
             </div>
           </div>
         </section>
+
+        <SectionSpacer />
 
         <section className="border-b border-landing-border bg-landing-surface">
           <div className="mx-auto grid max-w-7xl divide-y divide-landing-border px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8 lg:px-12">
@@ -116,6 +117,8 @@ export function HomeLanding() {
           </div>
         </section>
 
+        <SectionSpacer />
+
         <section className="border-b border-landing-border">
           <div className="mx-auto grid max-w-7xl gap-14 px-5 py-24 sm:px-8 sm:py-36 lg:grid-cols-12 lg:px-12 lg:py-44">
             <div className="lg:col-span-5">
@@ -127,6 +130,8 @@ export function HomeLanding() {
             </div>
           </div>
         </section>
+
+        <SectionSpacer />
 
         <section id="how-it-works" className="border-b border-landing-border bg-landing-surface">
           <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 sm:py-36 lg:px-12 lg:py-44">
@@ -146,6 +151,8 @@ export function HomeLanding() {
             </div>
           </div>
         </section>
+
+        <SectionSpacer />
 
         <section>
           <div className="mx-auto grid max-w-7xl gap-14 px-5 py-24 sm:px-8 sm:py-36 lg:grid-cols-12 lg:px-12 lg:py-44">
@@ -169,6 +176,8 @@ export function HomeLanding() {
           </div>
         </section>
 
+        <SectionSpacer />
+
         <section className="border-y border-landing-border bg-landing-surface">
           <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-20 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
             <div>
@@ -180,6 +189,8 @@ export function HomeLanding() {
             </Button>
           </div>
         </section>
+
+        <SectionSpacer />
 
         <footer className="mx-auto max-w-7xl px-5 py-14 text-xs text-landing-muted sm:px-8 lg:px-12">
           <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
