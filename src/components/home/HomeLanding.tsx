@@ -55,7 +55,7 @@ export function HomeLanding() {
 
   return (
     <div className="min-h-screen bg-landing-bg text-landing-copy">
-      <header className="border-b border-landing-border bg-landing-bg/90 backdrop-blur-xl">
+      <header className="bg-landing-bg/90 backdrop-blur-xl">
         <div className="mx-auto grid min-h-20 max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-5 sm:px-8 lg:px-12">
           <a href="#top" className="flex min-w-0 items-center gap-2" aria-label="BookedSecure home">
             <img
@@ -79,10 +79,10 @@ export function HomeLanding() {
       </header>
 
       <main id="top">
-        <section className="border-b border-landing-border">
+        <section>
           <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-12 lg:px-12 lg:py-32">
             <div className="lg:col-span-9 xl:col-span-8">
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-landing-border bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted shadow-sm shadow-landing-shadow">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted shadow-sm shadow-landing-shadow">
                 <span className="h-1.5 w-1.5 rounded-full bg-landing-accent" />
                 For Australian service businesses
               </div>
@@ -106,8 +106,8 @@ export function HomeLanding() {
 
         <SectionSpacer />
 
-        <section className="border-b border-landing-border bg-landing-surface">
-          <div className="mx-auto grid max-w-7xl divide-y divide-landing-border px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8 lg:px-12">
+        <section className="bg-landing-surface">
+          <div className="mx-auto grid max-w-7xl px-5 sm:grid-cols-3 sm:px-8 lg:px-12">
             {["Capture new leads", "Follow up consistently", "Turn enquiries into bookings"].map((label) => (
               <div key={label} className="flex items-center gap-3 py-7 sm:px-7 first:sm:pl-0 last:sm:pr-0">
                 <Check className="h-4 w-4 shrink-0 text-landing-accent-alt" />
@@ -119,7 +119,7 @@ export function HomeLanding() {
 
         <SectionSpacer />
 
-        <section className="border-b border-landing-border">
+        <section>
           <div className="mx-auto grid max-w-7xl gap-14 px-5 py-24 sm:px-8 sm:py-36 lg:grid-cols-12 lg:px-12 lg:py-44">
             <div className="lg:col-span-5">
               <p className="text-sm font-semibold text-landing-accent">What BookedSecure does</p>
@@ -133,13 +133,13 @@ export function HomeLanding() {
 
         <SectionSpacer />
 
-        <section id="how-it-works" className="border-b border-landing-border bg-landing-surface">
+        <section id="how-it-works" className="bg-landing-surface">
           <div className="mx-auto max-w-7xl px-5 py-24 sm:px-8 sm:py-36 lg:px-12 lg:py-44">
             <p className="text-sm font-semibold text-landing-accent">How it works</p>
             <h2 className="mt-3 font-heading text-3xl font-semibold sm:text-4xl">From enquiry to next step.</h2>
-            <div className="mt-14 grid border-y border-landing-border sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((step, i) => (
-              <div key={step.title} className="border-b border-landing-border py-6 sm:border-r sm:px-6 lg:border-b-0 first:sm:pl-0 last:border-r-0 last:sm:pr-0">
+              <div key={step.title} className="py-6 sm:px-6 first:sm:pl-0 last:sm:pr-0">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-sm text-landing-accent">0{i + 1}</span>
                   <step.icon className="h-5 w-5 text-landing-muted" />
@@ -165,7 +165,7 @@ export function HomeLanding() {
               {AUDIENCE.map((item) => (
                 <div
                   key={item}
-                  className="group grid min-h-24 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-landing-border bg-landing-surface p-5 text-sm shadow-sm shadow-landing-shadow transition-colors hover:border-landing-accent/50 hover:bg-landing-elevated"
+                  className="group grid min-h-24 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md bg-landing-surface p-5 text-sm shadow-sm shadow-landing-shadow transition-colors hover:bg-landing-elevated"
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-landing-accent-alt" />
                   <span>{item}</span>
@@ -178,7 +178,7 @@ export function HomeLanding() {
 
         <SectionSpacer />
 
-        <section className="border-y border-landing-border bg-landing-surface">
+        <section className="bg-landing-surface">
           <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-20 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
             <div>
               <p className="flex items-center gap-2 text-sm font-semibold text-landing-accent"><Sparkles className="h-4 w-4" /> BookedSecure</p>
@@ -190,9 +190,7 @@ export function HomeLanding() {
           </div>
         </section>
 
-        <SectionSpacer />
-
-        <footer className="mx-auto max-w-7xl px-5 py-14 text-xs text-landing-muted sm:px-8 lg:px-12">
+        <footer className="bg-landing-surface mx-auto max-w-7xl px-5 py-14 text-xs text-landing-muted sm:px-8 lg:px-12">
           <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div className="flex items-center gap-2 text-landing-copy">
               <img src={brandMark.url} alt="" className="h-7 w-7 object-contain" />
@@ -210,7 +208,7 @@ export function HomeLanding() {
             </Link>
             </div>
           </div>
-          <p className="mt-8 max-w-4xl border-t border-landing-border pt-6 leading-5">
+          <p className="mt-8 max-w-4xl pt-6 leading-5">
             BookedSecure does not guarantee message delivery, customer responses, bookings, revenue
             outcomes or legal compliance for a particular business. Businesses remain responsible
             for obtaining appropriate customer consent and using communications in accordance with
