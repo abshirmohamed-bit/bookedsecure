@@ -62,12 +62,12 @@
   --color-landing-border: var(--landing-border);
   --color-landing-copy: var(--landing-copy);
   --color-landing-muted: var(--landing-muted);
-  --color-landing-blue: var(--landing-blue);
-  --color-landing-blue-strong: var(--landing-blue-strong);
-  --color-landing-blue-light: var(--landing-blue-light);
-  --color-landing-blue-soft: var(--landing-blue-soft);
-  --color-landing-blue-foreground: var(--landing-blue-foreground);
-  --color-landing-green: var(--landing-green);
+  --color-landing-action: var(--landing-action);
+  --color-landing-action-hover: var(--landing-action-hover);
+  --color-landing-action-foreground: var(--landing-action-foreground);
+  --color-landing-accent: var(--landing-accent);
+  --color-landing-accent-alt: var(--landing-accent-alt);
+  --color-landing-accent-soft: var(--landing-accent-soft);
   --color-landing-shadow: var(--landing-shadow);
 }
 
@@ -121,20 +121,20 @@
     color-mix(in oklab, var(--chat-user) 26%, var(--card)),
     var(--card) 70%
   );
-  /* Public landing page: dark operations palette. */
-  --landing-bg: oklch(0.15 0.025 260);
-  --landing-surface: oklch(0.19 0.028 260);
-  --landing-elevated: oklch(0.23 0.03 260);
-  --landing-border: oklch(0.32 0.025 260);
-  --landing-copy: oklch(0.97 0.005 255);
-  --landing-muted: oklch(0.7 0.025 255);
-  --landing-blue: oklch(0.62 0.2 255);
-  --landing-blue-strong: oklch(0.55 0.22 257);
-  --landing-blue-light: oklch(0.74 0.14 250);
-  --landing-blue-soft: oklch(0.28 0.07 255);
-  --landing-blue-foreground: oklch(1 0 0);
-  --landing-green: oklch(0.72 0.16 165);
-  --landing-shadow: oklch(0.05 0.02 260 / 0.55);
+  /* Public landing page: light editorial palette with purple/pink accents. */
+  --landing-bg: oklch(0.975 0.012 255);
+  --landing-surface: oklch(0.995 0.003 255);
+  --landing-elevated: oklch(0.965 0.014 290);
+  --landing-border: oklch(0.885 0.018 270);
+  --landing-copy: oklch(0.19 0.03 270);
+  --landing-muted: oklch(0.49 0.025 270);
+  --landing-action: oklch(0.21 0.035 270);
+  --landing-action-hover: oklch(0.29 0.055 285);
+  --landing-action-foreground: oklch(0.99 0.002 255);
+  --landing-accent: oklch(0.58 0.22 300);
+  --landing-accent-alt: oklch(0.64 0.22 345);
+  --landing-accent-soft: oklch(0.94 0.035 315);
+  --landing-shadow: oklch(0.25 0.04 280 / 0.08);
 }
 
 .dark {
