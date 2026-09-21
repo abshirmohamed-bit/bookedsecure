@@ -190,7 +190,7 @@ export function HomeLanding() {
           </div>
         </section>
 
-        <footer className="mx-auto max-w-7xl px-5 py-14 text-xs text-landing-muted sm:px-8 lg:px-12">
+        <footer className="bg-landing-surface mx-auto max-w-7xl px-5 py-14 text-xs text-landing-muted sm:px-8 lg:px-12">
           <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div className="flex items-center gap-2 text-landing-copy">
               <img src={brandMark.url} alt="" className="h-7 w-7 object-contain" />
