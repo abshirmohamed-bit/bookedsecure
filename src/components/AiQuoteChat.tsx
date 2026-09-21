@@ -216,29 +216,6 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant.slug]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    let frame = 0;
-    const apply = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        setVisibleViewport({
-          height: Math.round(viewport.height),
-          offsetTop: Math.round(viewport.offsetTop),
-        });
-      });
-    };
-    apply();
-    viewport.addEventListener("resize", apply);
-    viewport.addEventListener("scroll", apply);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      viewport.removeEventListener("resize", apply);
-      viewport.removeEventListener("scroll", apply);
-    };
-  }, []);
 
   // Measurement only: records that this page was opened and where the visitor
   // came from, once per browser session. Never blocks or alters the chat.
