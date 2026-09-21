@@ -80,19 +80,19 @@ export function HomeLanding() {
 
       <main id="top">
         <section className="border-b border-landing-border">
-          <div className="mx-auto grid min-h-[42rem] max-w-7xl items-center px-5 py-24 sm:min-h-[48rem] sm:px-8 sm:py-32 lg:grid-cols-12 lg:px-12 lg:py-40">
+          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-12 lg:px-12 lg:py-32">
             <div className="lg:col-span-9 xl:col-span-8">
-              <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-landing-border bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted shadow-sm shadow-landing-shadow">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-landing-border bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted shadow-sm shadow-landing-shadow">
                 <span className="h-1.5 w-1.5 rounded-full bg-landing-accent" />
                 For Australian service businesses
               </div>
               <h1 className="max-w-4xl font-heading text-5xl font-semibold leading-[1.04] sm:text-7xl lg:text-8xl">
                 It's really simple.
               </h1>
-              <p className="mt-8 max-w-2xl text-lg leading-8 text-landing-copy sm:text-xl">
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-landing-copy sm:text-xl">
                 Capture new leads. Re-engage the ones you already paid for. Turn more enquiries into bookings.
               </p>
-              <div className="mt-10 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+              <div className="mt-8 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
                 <Button asChild size="lg" className="min-h-12 w-full bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover sm:w-auto">
                   <Link to={isSignedIn ? "/dashboard" : "/auth"}>
                     {isSignedIn ? "Go to Dashboard" : "Get BookedSecure today"}
