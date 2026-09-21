@@ -166,9 +166,8 @@ export function HomeLanding() {
               Every enquiry you don't answer is a job that goes to someone else.
             </h2>
             <p className="mx-auto mt-7 max-w-2xl text-base leading-7 text-landing-ink/65 sm:text-lg">
-              Every enquiry you don't answer is a job that goes to someone else. BookedSecure
-              captures, acknowledges and follows up automatically, so you spend less time chasing and
-              more time working.
+              BookedSecure captures, acknowledges and follows up automatically, so you spend less
+              time chasing and more time working.
             </p>
           </div>
         </section>
