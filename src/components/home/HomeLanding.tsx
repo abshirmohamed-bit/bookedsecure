@@ -85,10 +85,30 @@ export function HomeLanding() {
 
       <main id="top">
         <section>
-          <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:grid-cols-12 lg:px-12 lg:py-20">
-            <div className="lg:col-span-9 xl:col-span-8">
-              <div className="mb-12 flex justify-center sm:mb-16">
-                <div className="relative w-full max-w-[18rem] rounded-[2.25rem] bg-landing-copy p-2 shadow-2xl shadow-landing-shadow sm:max-w-[20rem]">
+          <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:px-12 lg:py-20">
+            <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-16 xl:gap-24">
+              <div className="lg:col-span-7 xl:col-span-7">
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted shadow-sm shadow-landing-shadow">
+                  <span className="h-1.5 w-1.5 rounded-full bg-landing-accent" />
+                  For Australian service businesses
+                </div>
+                <h1 className="max-w-4xl font-heading text-5xl font-semibold leading-[1.04] sm:text-7xl lg:text-8xl">
+                  It's really simple.
+                </h1>
+                <p className="mt-5 max-w-2xl text-lg leading-8 text-landing-copy sm:text-xl">
+                  Capture new leads. Re-engage the ones you already paid for. Turn more enquiries into bookings.
+                </p>
+                <div className="mt-8 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+                  <Button asChild size="lg" className="min-h-12 w-full bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover sm:w-auto">
+                    <Link to={isSignedIn ? "/dashboard" : "/auth"}>
+                      {isSignedIn ? "Go to Dashboard" : "Get BookedSecure today"}
+                      <ArrowRight aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+              <div className="flex justify-center lg:col-span-5 lg:justify-end xl:col-span-5">
+                <div className="relative w-full max-w-[18rem] rounded-[2.25rem] bg-landing-copy p-2 shadow-2xl shadow-landing-shadow sm:max-w-[20rem] lg:max-w-[18rem] xl:max-w-[20rem]">
                   <div className="pointer-events-none absolute left-1/2 top-3 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-landing-copy" aria-hidden="true" />
                   <div className="aspect-[384/832] overflow-hidden rounded-[1.8rem] bg-landing-surface">
                     <video
@@ -104,24 +124,6 @@ export function HomeLanding() {
                     />
                   </div>
                 </div>
-              </div>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-landing-surface px-3 py-1.5 text-xs font-medium text-landing-muted shadow-sm shadow-landing-shadow">
-                <span className="h-1.5 w-1.5 rounded-full bg-landing-accent" />
-                For Australian service businesses
-              </div>
-              <h1 className="max-w-4xl font-heading text-5xl font-semibold leading-[1.04] sm:text-7xl lg:text-8xl">
-                It's really simple.
-              </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-landing-copy sm:text-xl">
-                Capture new leads. Re-engage the ones you already paid for. Turn more enquiries into bookings.
-              </p>
-              <div className="mt-8 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-                <Button asChild size="lg" className="min-h-12 w-full bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover sm:w-auto">
-                  <Link to={isSignedIn ? "/dashboard" : "/auth"}>
-                    {isSignedIn ? "Go to Dashboard" : "Get BookedSecure today"}
-                    <ArrowRight aria-hidden="true" />
-                  </Link>
-                </Button>
               </div>
             </div>
             <Dialog>
