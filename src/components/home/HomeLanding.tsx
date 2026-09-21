@@ -68,7 +68,7 @@ export function HomeLanding() {
               alt=""
               className="h-9 w-9 shrink-0 object-contain object-center"
             />
-            <span className="truncate font-heading text-base font-semibold">BookedSecure</span>
+            <span className="truncate font-heading text-base font-semibold text-landing-accent">BookedSecure</span>
           </a>
           <nav className="flex shrink-0 items-center gap-1" aria-label="Main navigation">
             <Button asChild variant="ghost" className="min-h-10 px-2.5 text-landing-muted hover:bg-landing-elevated hover:text-landing-copy sm:px-4">
@@ -92,7 +92,7 @@ export function HomeLanding() {
                   <span className="h-1.5 w-1.5 rounded-full bg-landing-accent" />
                   For Australian service businesses
                 </div>
-                <h1 className="max-w-4xl font-heading text-5xl font-semibold leading-[1.04] sm:text-7xl lg:text-8xl">
+                <h1 className="max-w-4xl font-heading text-5xl font-semibold leading-[1.04] text-landing-accent sm:text-7xl lg:text-8xl">
                   It's really simple.
                 </h1>
                 <p className="mt-5 max-w-2xl text-lg leading-8 text-landing-copy sm:text-xl">
@@ -183,7 +183,7 @@ export function HomeLanding() {
           <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-12 lg:px-12 lg:py-28">
             <div className="lg:col-span-5">
               <p className="text-sm font-semibold text-landing-accent">What BookedSecure does</p>
-              <h2 className="mt-3 max-w-md font-heading text-3xl font-semibold leading-tight sm:text-4xl">Every enquiry you don't answer is a job that goes to someone else.</h2>
+              <h2 className="mt-3 max-w-md font-heading text-3xl font-semibold leading-tight text-landing-accent sm:text-4xl">Every enquiry you don't answer is a job that goes to someone else.</h2>
             </div>
             <div className="lg:col-span-6 lg:col-start-7 lg:flex lg:items-end">
               <p className="max-w-2xl text-lg leading-8 text-landing-muted">BookedSecure captures, acknowledges and follows up automatically, so you spend less time chasing and more time working.</p>
@@ -196,7 +196,7 @@ export function HomeLanding() {
         <section id="how-it-works" className="bg-transparent">
           <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24 lg:px-12 lg:py-28">
             <p className="text-sm font-semibold text-landing-accent">How it works</p>
-            <h2 className="mt-3 font-heading text-3xl font-semibold sm:text-4xl">From enquiry to next step.</h2>
+            <h2 className="mt-3 font-heading text-3xl font-semibold text-landing-accent sm:text-4xl">From enquiry to next step.</h2>
             <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((step, i) => (
               <div key={step.title} className="py-6 sm:px-6 first:sm:pl-0 last:sm:pr-0">
@@ -204,7 +204,7 @@ export function HomeLanding() {
                   <span className="font-mono text-sm text-landing-accent">0{i + 1}</span>
                   <step.icon className="h-5 w-5 text-landing-muted" />
                 </div>
-                <h3 className="mt-10 text-lg font-semibold">{step.title}</h3>
+                <h3 className="mt-10 text-lg font-semibold text-landing-accent">{step.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-landing-muted">{step.body}</p>
               </div>
             ))}
@@ -218,7 +218,7 @@ export function HomeLanding() {
           <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-12 lg:px-12 lg:py-28">
             <div className="lg:col-span-4">
               <p className="text-sm font-semibold text-landing-accent">Who it is for</p>
-              <h2 className="mt-3 font-heading text-3xl font-semibold sm:text-4xl">Built for service businesses.</h2>
+              <h2 className="mt-3 font-heading text-3xl font-semibold text-landing-accent sm:text-4xl">Built for service businesses.</h2>
               <p className="mt-5 leading-7 text-landing-muted">Australian service businesses that receive enquiries from websites, social media, Google, quote forms, phone calls and referrals.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:col-span-7 lg:col-start-6">
@@ -242,7 +242,7 @@ export function HomeLanding() {
           <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-20 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
             <div>
               <p className="flex items-center gap-2 text-sm font-semibold text-landing-accent"><Sparkles className="h-4 w-4" /> BookedSecure</p>
-              <h2 className="mt-2 font-heading text-2xl font-semibold sm:text-3xl">Turn more enquiries into bookings.</h2>
+              <h2 className="mt-2 font-heading text-2xl font-semibold text-landing-accent sm:text-3xl">Turn more enquiries into bookings.</h2>
             </div>
             <Button asChild size="lg" className="min-h-12 w-full shrink-0 bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover md:w-auto">
               <Link to={isSignedIn ? "/dashboard" : "/auth"}>Get BookedSecure today <ArrowRight aria-hidden="true" /></Link>
@@ -254,7 +254,7 @@ export function HomeLanding() {
           <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div className="flex items-center gap-2 text-landing-copy">
               <img src={brandMark.url} alt="" className="h-7 w-7 object-contain" />
-              <span className="font-heading text-sm font-semibold">BookedSecure</span>
+              <span className="font-heading text-sm font-semibold text-landing-accent">BookedSecure</span>
             </div>
             <div className="flex flex-wrap items-center gap-4">
             <Link to="/pricing" className="transition-colors hover:text-landing-copy">
