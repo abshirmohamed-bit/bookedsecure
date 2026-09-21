@@ -100,12 +100,11 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   /** Every service choice in this conversation, keyed by both its internal
    * value and customer-facing label so restored server turns remain visual. */
   const [selectionHistory, setSelectionHistory] = useState<SelectionRecord[]>([]);
-  /** The iPhone keyboard changes both the visible height and its page offset. */
-  const [visibleViewport, setVisibleViewport] = useState<{
-    height: number;
-    offsetTop: number;
-  } | null>(null);
+  /** The viewport meta uses interactive-widget=resizes-content, so the browser
+   * shrinks the layout viewport itself when the keyboard opens. No JS resizing:
+   * scripted compensation fought the native animation and caused a visible jump. */
   const [composerFocused, setComposerFocused] = useState(false);
+
   /** Local-only: the customer chose "Something else" and is describing it. */
   const [describing, setDescribing] = useState(false);
   /** Local-only: the customer typed their own request, so the service list
@@ -217,29 +216,6 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant.slug]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    let frame = 0;
-    const apply = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        setVisibleViewport({
-          height: Math.round(viewport.height),
-          offsetTop: Math.round(viewport.offsetTop),
-        });
-      });
-    };
-    apply();
-    viewport.addEventListener("resize", apply);
-    viewport.addEventListener("scroll", apply);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      viewport.removeEventListener("resize", apply);
-      viewport.removeEventListener("scroll", apply);
-    };
-  }, []);
 
   // Measurement only: records that this page was opened and where the visitor
   // came from, once per browser session. Never blocks or alters the chat.
@@ -420,17 +396,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
   };
 
   return (
-    <main
-      className="fixed inset-x-0 top-0 flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden overscroll-none bg-background"
-      style={
-        visibleViewport
-          ? {
-              height: `${visibleViewport.height}px`,
-              transform: `translateY(${visibleViewport.offsetTop}px)`,
-            }
-          : undefined
-      }
-    >
+    <main className="fixed inset-x-0 top-0 flex h-[100dvh] min-h-0 w-full max-w-full flex-col overflow-hidden overscroll-none bg-background">
+
       <div className="mx-auto flex h-full w-full max-w-[1400px] flex-col overflow-hidden sm:py-6">
         {/* Branded header. standalone, stable, never scrolls with the transcript */}
         <header className="brand-wash grid w-full shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:rounded-lg sm:border sm:px-5 sm:pt-3">
@@ -791,13 +758,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
           </Conversation>
 
           {/* Composer. aligned with the conversation column */}
-          <div
-            className={`shrink-0 border-t border-border bg-card px-3 pt-3 sm:px-6 ${
-              composerFocused
-                ? "pb-0"
-                : "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-            }`}
-          >
+          <div className="shrink-0 border-t border-border bg-card px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+
             {showComposer && (
               <PromptInput
                 className="rounded-lg border-input bg-background shadow-sm"
