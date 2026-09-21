@@ -56,6 +56,19 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-landing-bg: var(--landing-bg);
+  --color-landing-surface: var(--landing-surface);
+  --color-landing-elevated: var(--landing-elevated);
+  --color-landing-border: var(--landing-border);
+  --color-landing-copy: var(--landing-copy);
+  --color-landing-muted: var(--landing-muted);
+  --color-landing-blue: var(--landing-blue);
+  --color-landing-blue-strong: var(--landing-blue-strong);
+  --color-landing-blue-light: var(--landing-blue-light);
+  --color-landing-blue-soft: var(--landing-blue-soft);
+  --color-landing-blue-foreground: var(--landing-blue-foreground);
+  --color-landing-green: var(--landing-green);
+  --color-landing-shadow: var(--landing-shadow);
 }
 
 :root {
@@ -108,6 +121,20 @@
     color-mix(in oklab, var(--chat-user) 26%, var(--card)),
     var(--card) 70%
   );
+  /* Public landing page: dark operations palette. */
+  --landing-bg: oklch(0.15 0.025 260);
+  --landing-surface: oklch(0.19 0.028 260);
+  --landing-elevated: oklch(0.23 0.03 260);
+  --landing-border: oklch(0.32 0.025 260);
+  --landing-copy: oklch(0.97 0.005 255);
+  --landing-muted: oklch(0.7 0.025 255);
+  --landing-blue: oklch(0.62 0.2 255);
+  --landing-blue-strong: oklch(0.55 0.22 257);
+  --landing-blue-light: oklch(0.74 0.14 250);
+  --landing-blue-soft: oklch(0.28 0.07 255);
+  --landing-blue-foreground: oklch(1 0 0);
+  --landing-green: oklch(0.72 0.16 165);
+  --landing-shadow: oklch(0.05 0.02 260 / 0.55);
 }
 
 .dark {
