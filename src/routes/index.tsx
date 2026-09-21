@@ -4,7 +4,7 @@ import { HomeLanding } from "@/components/home/HomeLanding";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "BookedSecure. stop paying for leads that go nowhere" },
+      { title: "BookedSecure. It's really simple." },
       {
         name: "description",
         content:
@@ -12,12 +12,12 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:title",
-        content: "BookedSecure. stop paying for leads that go nowhere",
+        content: "BookedSecure. It's really simple.",
       },
       {
         property: "og:description",
         content:
-          "Respond faster, follow up consistently, and turn more enquiries into booked jobs.",
+          "Capture new leads, re-engage the ones you already paid for, and turn more enquiries into bookings.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
