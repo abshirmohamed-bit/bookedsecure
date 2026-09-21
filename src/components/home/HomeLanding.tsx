@@ -50,10 +50,6 @@ const AUDIENCE = [
   "Anyone who books jobs from enquiries",
 ];
 
-function SectionSpacer() {
-  return <div className="h-[18vh] min-h-20 max-h-48" aria-hidden="true" />;
-}
-
 export function HomeLanding() {
   const { session } = useAuth();
   const isSignedIn = Boolean(session);
@@ -166,8 +162,6 @@ export function HomeLanding() {
           </div>
         </section>
 
-        <SectionSpacer />
-
         <section className="bg-transparent">
           <div className="mx-auto grid max-w-7xl px-5 sm:grid-cols-3 sm:px-8 lg:px-12">
             {["Capture new leads", "Follow up consistently", "Turn enquiries into bookings"].map((label) => (
@@ -178,8 +172,6 @@ export function HomeLanding() {
             ))}
           </div>
         </section>
-
-        <SectionSpacer />
 
         <section>
           <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-12 lg:px-12 lg:py-28">
@@ -192,8 +184,6 @@ export function HomeLanding() {
             </div>
           </div>
         </section>
-
-        <SectionSpacer />
 
         <section id="how-it-works" className="bg-transparent">
           <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24 lg:px-12 lg:py-28">
@@ -213,8 +203,6 @@ export function HomeLanding() {
             </div>
           </div>
         </section>
-
-        <SectionSpacer />
 
         <section>
           <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-12 lg:px-12 lg:py-28">
@@ -237,8 +225,6 @@ export function HomeLanding() {
             </div>
           </div>
         </section>
-
-        <SectionSpacer />
 
         <section className="bg-transparent">
           <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-20 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-12">
