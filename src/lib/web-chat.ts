@@ -191,7 +191,7 @@ export function welcomeMessage(tenant: WebChatTenant): string {
       : `I can explain the services we offer, take your ${subject} details and pass everything to the team for review.`,
     tenant.bookingEnabled === true
       ? "I can't quote a price here; the team confirms pricing with you directly."
-      : "I can't confirm prices or bookings here. the owner reviews every enquiry and replies to you directly.",
+      : "I can't confirm prices or bookings here; the owner reviews every enquiry and replies to you directly.",
   ].join(" ");
 }
 
@@ -425,12 +425,12 @@ export function reviewSummary(
           },
         ]
       : []),
-    { step: "vehicle", label: tenant?.quoteSubjectLabel ?? "Vehicle", value: collected.vehicle_type ?? "Not available" },
-    { step: "suburb", label: "Suburb", value: collected.suburb ?? "Not available" },
-    { step: "address", label: "Address", value: collected.service_address ?? "Not available" },
-    { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "Not available" },
-    { step: "name", label: "Name", value: collected.name ?? "Not available" },
-    { step: "mobile", label: "Mobile", value: collected.mobile_number ?? "Not available" },
+    { step: "vehicle", label: tenant?.quoteSubjectLabel ?? "Vehicle", value: collected.vehicle_type ?? "Not provided yet" },
+    { step: "suburb", label: "Suburb", value: collected.suburb ?? "Not provided yet" },
+    { step: "address", label: "Address", value: collected.service_address ?? "Not provided yet" },
+    { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "Not provided yet" },
+    { step: "name", label: "Name", value: collected.name ?? "Not provided yet" },
+    { step: "mobile", label: "Mobile", value: collected.mobile_number ?? "Not provided yet" },
     { step: "email", label: "Email", value: collected.email ?? "Not provided" },
   ];
 }
@@ -518,7 +518,7 @@ function buildPrompt(
       return {
         step,
         kind: "choice",
-        text: "Tell me what you need in your own words. for example “ceramic coating for my Mazda in Punchbowl next Tuesday”. You can also pick a service below.",
+        text: "Tell me what you need in your own words, for example “ceramic coating for my Mazda in Punchbowl next Tuesday”. You can also pick a service below.",
         options: [
           ...tenant.services.map((service) => ({
             value: service.id,

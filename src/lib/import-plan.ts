@@ -141,7 +141,7 @@ export function planSummaryLines(plan: ImportPlan): string[] {
 
 export const SAVE_ACTION_LABEL = "Save contacts to my inbox";
 export const NO_MESSAGES_COPY = "No texts are ever sent to imported contacts.";
-export const PREPARE_COPY = "Getting your contacts ready. fixing phone formats and matching names…";
+export const PREPARE_COPY = "Getting your contacts ready, fixing phone formats and matching names…";
 export const PREPARE_STEPS = [
   "Reading your columns, however they are named",
   "Repairing Australian mobile numbers",
