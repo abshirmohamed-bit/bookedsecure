@@ -257,7 +257,7 @@ function LeadDetail() {
 
             {lead.opted_out_at && (
               <p className="mt-2 text-xs text-destructive">
-                Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")}. automated SMS
+                Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")}. Automated SMS
                 blocked.
               </p>
             )}
@@ -279,7 +279,7 @@ function LeadDetail() {
             )}
             {lead.lead_origin === "crm_import" && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Imported historical lead. the import sent no acknowledgement SMS, owner alert or
+                Imported historical lead. The import sent no acknowledgement SMS, owner alert or
                 follow-up sequence.
               </p>
             )}
@@ -365,7 +365,7 @@ function LeadDetail() {
                       {message.failure_class === "permanent"
                         ? " Future automated SMS is suppressed for this lead."
                         : message.failure_class === "temporary"
-                          ? " Temporary problem. no automatic retry was sent."
+                          ? " Temporary problem, no automatic retry was sent."
                           : ""}
                     </p>
                   )}
@@ -436,7 +436,7 @@ function LeadDetail() {
                 {ai.suggested_reply && (
                   <div className="rounded-md border border-border bg-secondary/50 p-3">
                     <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <Bot className="h-3.5 w-3.5" /> Suggested reply. needs your approval
+                      <Bot className="h-3.5 w-3.5" /> Suggested reply, needs your approval
                     </p>
                     <p className="mt-1.5 whitespace-pre-wrap text-sm">{ai.suggested_reply}</p>
                     <button
@@ -520,7 +520,7 @@ function when(value: string | null) {
         hour: "2-digit",
         minute: "2-digit",
       })
-    : "Not available";
+    : "Not recorded";
 }
 
 function ActivityPanel({
@@ -575,7 +575,7 @@ function Detail({ label, value }: { label: string; value: string | null | undefi
   return (
     <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-2">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words text-sm">{value || "Not available"}</dd>
+      <dd className="min-w-0 break-words text-sm">{value || "Not recorded"}</dd>
     </div>
   );
 }
@@ -834,17 +834,17 @@ function ImportedSourcePanel({
   const importInfo = (meta["import"] ?? {}) as Record<string, unknown>;
   const original = originalSourceDetails(meta);
   const entries: [string, string][] = [
-    ["Suburb", suburb ?? "Not available"],
-    ["Vehicle", vehicleType ?? "Not available"],
-    ["Service interest", serviceIntent ?? "Not available"],
+    ["Suburb", suburb ?? "Not recorded"],
+    ["Vehicle", vehicleType ?? "Not recorded"],
+    ["Service interest", serviceIntent ?? "Not recorded"],
     ["Import method", "CRM CSV"],
-    ["Original channel", original.channel ?? "Not available"],
-    ["Original platform", original.platform ?? "Not available"],
-    ["Form name", original.form ?? "Not available"],
-    ["Campaign", original.campaign ?? "Not available"],
-    ["Original created date", original.createdAt ?? "Not available"],
-    ["Import batch", String(importInfo["batch_id"] ?? "Not available")],
-    ["Import row", String(importInfo["row_number"] ?? "Not available")],
+    ["Original channel", original.channel ?? "Not recorded"],
+    ["Original platform", original.platform ?? "Not recorded"],
+    ["Form name", original.form ?? "Not recorded"],
+    ["Campaign", original.campaign ?? "Not recorded"],
+    ["Original created date", original.createdAt ?? "Not recorded"],
+    ["Import batch", String(importInfo["batch_id"] ?? "Not recorded")],
+    ["Import row", String(importInfo["row_number"] ?? "Not recorded")],
   ];
 
   return (
