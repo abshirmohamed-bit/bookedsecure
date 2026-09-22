@@ -331,13 +331,13 @@ export function canaryTechnicalText(
 ): string {
   const lines = [
     `Status: ${result.status}`,
-    `Batch ID: ${context.batchId ?? "Not available"}`,
+    `Batch ID: ${context.batchId ?? "Not recorded"}`,
     `Preview row: ${result.row_number}`,
-    `Lead ID: ${result.lead_id ?? "Not available"}`,
-    `Commit timestamp: ${context.ranAt ?? "Not available"}`,
+    `Lead ID: ${result.lead_id ?? "Not recorded"}`,
+    `Commit timestamp: ${context.ranAt ?? "Not recorded"}`,
     `Live leads before: ${result.leads_before}`,
     `Live leads after: ${result.leads_after}`,
-    `Idempotency / rerun result: ${result.rerun_status ?? "Not available"}`,
+    `Idempotency / rerun result: ${result.rerun_status ?? "Not recorded"}`,
     "Checks:",
     ...result.checks.map(
       (check) => `  ${check.passed ? "PASS" : "FAIL"}. ${check.check}: ${check.detail}`,

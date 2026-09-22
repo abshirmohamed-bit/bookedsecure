@@ -208,11 +208,11 @@ export type CorrectionResult =
   | { kind: "invalid"; field: CorrectableStep; message: string };
 
 export const AMBIGUOUS_CORRECTION_MESSAGE =
-  "Sorry. I want to get this right. Which detail should I update: your name, vehicle, suburb, condition, mobile number or email? For example “change my suburb to Parramatta”.";
+  "Sorry, I want to get this right. Which detail should I update: your name, vehicle, suburb, condition, mobile number or email? For example “change my suburb to Parramatta”.";
 
 export function clarifyMessage(fields: CorrectableStep[]): string {
   const labels = (fields.length >= 2 ? fields : filledFallback()).map((field) => FIELD_LABELS[field]);
-  return `Sorry. I want to get this right. Do you want me to update your ${labels
+  return `Sorry, I want to get this right. Do you want me to update your ${labels
     .slice(0, -1)
     .join(", ")} or your ${labels[labels.length - 1]}?`;
 }
@@ -245,7 +245,7 @@ export function detectCorrection(
       kind: "reask",
       field: directive,
       collected: clearField(collected, directive),
-      message: `No problem. let's update your ${FIELD_LABELS[directive]}.`,
+      message: `No problem, let's update your ${FIELD_LABELS[directive]}.`,
     };
   }
 
@@ -273,7 +273,7 @@ export function detectCorrection(
         kind: "reask",
         field,
         collected: clearField(collected, field),
-        message: `No problem. let's redo your ${FIELD_LABELS[field]}.`,
+        message: `No problem, let's redo your ${FIELD_LABELS[field]}.`,
       };
     }
     return { kind: "none" };
@@ -290,7 +290,7 @@ export function detectCorrection(
       kind: "reask",
       field,
       collected: clearField(collected, field),
-      message: `No problem. let's fix your ${FIELD_LABELS[field]}.`,
+      message: `No problem, let's fix your ${FIELD_LABELS[field]}.`,
     };
   }
 

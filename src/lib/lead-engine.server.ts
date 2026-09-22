@@ -526,7 +526,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Mobile number was not a valid Australian mobile. lead marked invalid, no SMS sent.",
+      note: "Mobile number was not a valid Australian mobile, so the lead was marked invalid and no SMS was sent.",
     };
   }
 
@@ -536,7 +536,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Flagged for owner review. no automated SMS was queued for this enquiry.",
+      note: "Flagged for owner review, so no automated SMS was queued for this enquiry.",
     };
   }
 
@@ -547,7 +547,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Captured from the web conversation. no SMS was queued.",
+      note: "Captured from the web conversation, so no SMS was queued.",
     };
   }
 
@@ -557,7 +557,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "No SMS consent recorded. no automated SMS was queued.",
+      note: "No SMS consent recorded, so no automated SMS was queued.",
     };
   }
 
@@ -579,7 +579,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Acknowledgement is switched off for this business. no SMS was queued.",
+      note: "Acknowledgement is switched off for this business, so no SMS was queued.",
     };
   }
 
@@ -697,7 +697,7 @@ export async function sendSms(input: {
 
   if (!lead) return { sent: false, retriable: false, reason: "Lead not found for this business." };
   if (lead.opted_out_at)
-    return { sent: false, retriable: false, reason: "Lead has opted out. no SMS sent." };
+    return { sent: false, retriable: false, reason: "Lead has opted out, so no SMS was sent." };
   if (lead.status === "invalid")
     return { sent: false, retriable: false, reason: "Lead number is invalid." };
 
@@ -715,13 +715,13 @@ export async function sendSms(input: {
       return {
         sent: false,
         retriable: false,
-        reason: "Unknown agent action reference for this business. nothing was sent.",
+        reason: "Unknown agent action reference for this business, so nothing was sent.",
       };
     if (action.lead_id && action.lead_id !== input.leadId)
       return {
         sent: false,
         retriable: false,
-        reason: "Agent action reference belongs to a different lead. nothing was sent.",
+        reason: "Agent action reference belongs to a different lead, so nothing was sent.",
       };
   }
 
@@ -990,7 +990,7 @@ export async function sendSms(input: {
       return {
         sent: false,
         retriable: true,
-        reason: "Could not reserve the outbound message. nothing was sent.",
+        reason: "Could not reserve the outbound message, so nothing was sent.",
       };
     }
     messageId = reservation.data.id;
@@ -1022,7 +1022,7 @@ export async function sendSms(input: {
         sent: false,
         retriable: false,
         messageId,
-        reason: `Carrier outcome unknown. held for reconciliation, not resent: ${detail}`,
+        reason: `Carrier outcome unknown, held for reconciliation and not resent: ${detail}`,
       };
     }
 
@@ -1435,7 +1435,7 @@ export async function processDueFollowUps(): Promise<{
         .from("conversations")
         .update({ next_follow_up_at: new Date(now.getTime() + 60 * 60 * 1000).toISOString() })
         .eq("id", conversation.id);
-      skipped.push({ leadId: conversation.lead_id, reason: "Quiet hours. deferred." });
+      skipped.push({ leadId: conversation.lead_id, reason: "Quiet hours, deferred." });
       continue;
     }
 
@@ -1477,7 +1477,7 @@ export async function processDueFollowUps(): Promise<{
         .from("conversations")
         .update({ next_follow_up_at: null })
         .eq("id", conversation.id);
-      skipped.push({ leadId: lead.id, reason: "Booking confirmed. follow-ups stopped." });
+      skipped.push({ leadId: lead.id, reason: "Booking confirmed, follow-ups stopped." });
       continue;
     }
 
