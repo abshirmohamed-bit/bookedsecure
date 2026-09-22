@@ -185,12 +185,12 @@ export const CONTACT_ASK_TEXT =
 export function welcomeMessage(tenant: WebChatTenant): string {
   const subject = tenant.quoteSubjectLabel.toLowerCase();
   return [
-    `Hi. you're chatting with ${tenant.name}'s online quote assistant.`,
+    `Hi, you're chatting with ${tenant.name}'s online quote assistant.`,
     tenant.bookingEnabled === true
       ? "Tell me what you need and I'll take a few details, then show you the times we actually have open."
       : `I can explain the services we offer, take your ${subject} details and pass everything to the team for review.`,
     tenant.bookingEnabled === true
-      ? "I can't quote a price here. the team confirms pricing with you directly."
+      ? "I can't quote a price here; the team confirms pricing with you directly."
       : "I can't confirm prices or bookings here. the owner reviews every enquiry and replies to you directly.",
   ].join(" ");
 }
@@ -974,7 +974,7 @@ export function applyAnswer(
         if (!tenant.flexibleRequestsEnabled) return { ok: false, error: "Please choose one of the listed services." };
         next.service_id = null;
         next.service_name = null;
-        next.typed_request = "Not sure yet. described below";
+        next.typed_request = "Not sure yet, described below";
         applyServiceAddons(next, tenant, null);
         return { ok: true, collected: next, echo: "Something else or not sure" };
       }
@@ -1159,7 +1159,7 @@ export function applyAnswer(
         return { ok: true, collected: next, echo: "No email" };
       }
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) || value.length > 120) {
-        return { ok: false, error: "That email doesn't look right. or say “skip”." };
+        return { ok: false, error: "That email doesn't look right, or say “skip”." };
       }
       next.email = value;
       return { ok: true, collected: next, echo: value };
@@ -1176,7 +1176,7 @@ export function applyAnswer(
       return {
         ok: false,
         error:
-          "No problem. which detail should I change? For example “change my suburb to Parramatta” or “my name is Abshiro”.",
+          "No problem, which detail should I change? For example “change my suburb to Parramatta” or “my name is Abshiro”.",
       };
     }
     case "consent": {
@@ -1234,7 +1234,7 @@ export function applyAnswer(
       }
       return {
         ok: false,
-        error: "Just to be safe. should I confirm that time, or would you rather pick a different one?",
+        error: "Just to be safe, should I confirm that time, or would you rather pick a different one?",
       };
     }
   }
@@ -1271,7 +1271,7 @@ export function completionMessage(tenant: WebChatTenant, outcome: WebChatOutcome
 
 
 export const DECLINED_MESSAGE =
-  "No problem. without consent we can't contact you about this enquiry, so I haven't passed your details on. You're welcome to call the business directly instead.";
+  "No problem. Without consent we can't contact you about this enquiry, so I haven't passed your details on. You're welcome to call the business directly instead.";
 
 export const DUPLICATE_MESSAGE =
   "It looks like we already have a very recent enquiry from this mobile number, so I haven't created a second one. The team will be in touch about the first one.";

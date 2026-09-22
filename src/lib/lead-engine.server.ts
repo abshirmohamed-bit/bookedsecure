@@ -526,7 +526,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Mobile number was not a valid Australian mobile. lead marked invalid, no SMS sent.",
+      note: "Mobile number was not a valid Australian mobile, so the lead was marked invalid and no SMS was sent.",
     };
   }
 
@@ -536,7 +536,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Flagged for owner review. no automated SMS was queued for this enquiry.",
+      note: "Flagged for owner review, so no automated SMS was queued for this enquiry.",
     };
   }
 

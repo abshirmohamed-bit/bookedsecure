@@ -122,7 +122,7 @@ export function planSummaryLines(plan: ImportPlan): string[] {
   const lines = [`We read ${contacts(plan.total)} in your file.`];
   if (plan.save > 0) lines.push(`${contacts(plan.save)} are new and ready to save.`);
   if (plan.update > 0) {
-    lines.push(`${contacts(plan.update)} are already in your inbox. we'll fill in any gaps.`);
+    lines.push(`${contacts(plan.update)} are already in your inbox; we'll fill in any gaps.`);
   }
   if (plan.already_there > 0) {
     lines.push(`${contacts(plan.already_there)} from this file were saved earlier.`);
@@ -155,7 +155,7 @@ export type SaveOutcome = "saved" | "updated" | "already_there" | "skipped" | "f
 
 export const SAVE_OUTCOME_LABELS: Record<SaveOutcome, string> = {
   saved: "saved to your inbox",
-  updated: "already there. missing details filled in",
+  updated: "already there, missing details filled in",
   already_there: "already saved earlier",
   skipped: "left out",
   failed: "could not be saved",
