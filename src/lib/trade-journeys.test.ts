@@ -187,6 +187,12 @@ describe.each(TRADE_IDS)("journey — %s", (trade) => {
     expect(blocked.find((step) => step.id === "campaign")!.blockedBy).toBe("subscribe");
 
     expect(accessLevel(paid)).toBe("full");
+    expect(
+      accessLevel({ ...paid, status: "trialing", currentPeriodEnd: "2026-01-15T00:00:00.000Z" }, new Date("2026-01-10T00:00:00.000Z")),
+    ).toBe("full");
+    expect(
+      accessLevel({ ...paid, status: "trialing", currentPeriodEnd: "2026-01-15T00:00:00.000Z" }, new Date("2026-01-15T00:00:00.000Z")),
+    ).toBe("preview");
     const open = buildOnboardingSteps({ ...setUp, subscriptionActive: true });
     expect(open.find((step) => step.id === "import")!.blockedBy).toBeNull();
     expect(open.find((step) => step.id === "import")!.current).toBe(true);
