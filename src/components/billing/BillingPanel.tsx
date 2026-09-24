@@ -14,6 +14,7 @@ import type { Plan } from "@/lib/plans";
 import { getStripe, getStripeEnvironment, isTestModePayments } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
 import { useBillingRealtime } from "@/hooks/useBillingRealtime";
+import { TextoNumberPanel } from "@/components/messaging/TextoNumberPanel";
 
 
 export const MY_BILLING_KEY = ["my-billing"] as const;
@@ -288,6 +289,8 @@ export function BillingPanel() {
         <p className="text-sm text-muted-foreground">Only the business owner can change the plan.</p>
       )}
 
+      {data.access === "full" && isOwner ? <NumberStep /> : null}
+
       <section id={CREDITS_ANCHOR} className="scroll-mt-4 space-y-3">
         <div>
           <h3 className="text-base font-semibold">Text credits</h3>
@@ -416,6 +419,41 @@ function PromoCard({ appliedCode }: { appliedCode: string | null }) {
 }
 
 /** Hands-off credits: buys the chosen pack on the saved card when low. */
+/**
+ * Step 1 after subscribing: the tenant's own texting number. The plan fee is
+ * BookedSecure's service only; the number ($15/month + GST) is bought and
+ * billed by the provider on the tenant's own card. Hidden once connected.
+ */
+function NumberStep() {
+  const fetchAccount = useServerFn(getMessagingAccount);
+  const account = useQuery({ queryKey: ["messaging-account"], queryFn: () => fetchAccount(), staleTime: 30_000 });
+  const numbers = (account.data?.numbers ?? []) as Array<{ number: string; status: string }>;
+  const active = numbers.find((n) => n.status === "active" || n.status === "assigned");
+  if (account.isLoading) return null;
+  if (active) {
+    return (
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h3 className="text-base font-semibold">Your texting number</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {active.number} is connected. The provider bills it to your card each month ($15 + GST).
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section className="space-y-2">
+      <div>
+        <h3 className="text-base font-semibold">Step 1: Get your texting number</h3>
+        <p className="text-sm text-muted-foreground">
+          Your plan covers BookedSecure only. Your own Australian number is $15 a month + GST, set up once with
+          your card at the provider and billed by them each month. Then add credits below.
+        </p>
+      </div>
+      <TextoNumberPanel />
+    </section>
+  );
+}
+
 function AutoTopupCard({ packs }: { packs: CreditPack[] }) {
   const queryClient = useQueryClient();
   const fetchAccount = useServerFn(getMessagingAccount);
@@ -428,18 +466,25 @@ function AutoTopupCard({ packs }: { packs: CreditPack[] }) {
   const auto = account.data?.account?.autoTopup;
 
   const mutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      await saveAutoTopup({ data: { enabled } });
-      return enabled;
+    mutationFn: async (input: { enabled: boolean; thresholdCredits?: number; packId?: string }) => {
+      await saveAutoTopup({ data: input });
+      return input.enabled;
     },
     onSuccess: (enabled) => {
-      toast.success(enabled ? "Automatic top-ups on. we'll buy credits when you run low." : "Automatic top-ups off.");
+      toast.success(enabled ? "Automatic top-ups saved." : "Automatic top-ups off.");
       queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not save that setting."),
   });
 
-  if (!auto) return null;
+  if (account.isLoading) return null;
+  if (!auto) {
+    return (
+      <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+        Automatic top-ups can be set once your texting number is connected.
+      </p>
+    );
+  }
   const pack = packs.find((candidate) => candidate.id === auto.packId) ?? packs[1] ?? CREDIT_PACKS[1]!;
 
   return (
@@ -461,12 +506,51 @@ function AutoTopupCard({ packs }: { packs: CreditPack[] }) {
         <Button
           variant={auto.enabled ? "outline" : "default"}
           size="sm"
-          onClick={() => mutation.mutate(!auto.enabled)}
+          onClick={() => mutation.mutate({ enabled: !auto.enabled })}
           disabled={mutation.isPending}
         >
           {auto.enabled ? "Turn off" : "Turn on"}
         </Button>
       </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="text-xs text-muted-foreground">
+          Top up when I drop below
+          <select
+            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground"
+            value={auto.thresholdCredits}
+            disabled={mutation.isPending}
+            onChange={(event) =>
+              mutation.mutate({ enabled: auto.enabled, thresholdCredits: Number(event.target.value) })
+            }
+          >
+            {[...new Set([25, 50, 100, 200, 500, 1000, auto.thresholdCredits])]
+              .sort((a, b) => a - b)
+              .map((value) => (
+                <option key={value} value={value}>
+                  {value.toLocaleString()} credits
+                </option>
+              ))}
+          </select>
+        </label>
+        <label className="text-xs text-muted-foreground">
+          Buy this pack
+          <select
+            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground"
+            value={pack.id}
+            disabled={mutation.isPending}
+            onChange={(event) => mutation.mutate({ enabled: auto.enabled, packId: event.target.value })}
+          >
+            {packs.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label} · {formatAud(option.amountCents)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Uses the card saved from your plan or your last credit purchase. No need to leave this page.
+      </p>
     </div>
   );
 }
