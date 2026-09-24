@@ -97,10 +97,13 @@ export function HomeLanding() {
                 </p>
                 <div className="mt-8 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
                   <Button asChild size="lg" className="min-h-12 w-full bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover sm:w-auto">
-                    <Link to={isSignedIn ? "/dashboard" : "/auth"}>
-                      {isSignedIn ? "Go to Dashboard" : "Get BookedSecure today"}
-                      <ArrowRight aria-hidden="true" />
-                    </Link>
+                    {isSignedIn ? (
+                      <Link to="/dashboard">Go to Dashboard <ArrowRight aria-hidden="true" /></Link>
+                    ) : (
+                      <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20access">
+                        Contact BookedSecure <ArrowRight aria-hidden="true" />
+                      </a>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -242,7 +245,13 @@ export function HomeLanding() {
               <h2 className="mt-2 font-heading text-2xl font-semibold text-landing-accent sm:text-3xl">Turn more enquiries into bookings.</h2>
             </div>
             <Button asChild size="lg" className="min-h-12 w-full shrink-0 bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover md:w-auto">
-              <Link to={isSignedIn ? "/dashboard" : "/auth"}>Get BookedSecure today <ArrowRight aria-hidden="true" /></Link>
+              {isSignedIn ? (
+                <Link to="/dashboard">Go to Dashboard <ArrowRight aria-hidden="true" /></Link>
+              ) : (
+                <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20access">
+                  Contact BookedSecure <ArrowRight aria-hidden="true" />
+                </a>
+              )}
             </Button>
           </div>
         </section>

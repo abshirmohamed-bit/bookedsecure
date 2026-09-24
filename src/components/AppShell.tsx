@@ -11,6 +11,7 @@ import {
   FileUp,
   Inbox,
   Menu,
+  Mail,
   MessageCircle,
   PanelLeft,
   Settings,
@@ -249,6 +250,14 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             icon={Users}
             onClick={() => setMobileNavOpen(false)}
           />
+          {!isPlatformOwner ? (
+            <a
+              href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20account%20access"
+              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <Mail className="h-4 w-4" aria-hidden="true" /> Contact BookedSecure
+            </a>
+          ) : null}
         </nav>
         {isAssistantHome ? <div id="assistant-context-slot" className="min-h-0 flex-1 border-t border-sidebar-border" /> : <div className="flex-1" />}
         <div className="shrink-0 border-t border-sidebar-border p-3">
