@@ -3,6 +3,7 @@
  *
  * Every business is in exactly one state:
  *  - preview   : signed up, not paying. View-only (CSV upload allowed).
+ *  - trialing  : temporary full access until the recorded trial end date.
  *  - active    : paying. Full access to everything its plan includes.
  *  - past_due  : a renewal failed. Full access for a short grace window,
  *                then preview until Stripe collects.
@@ -13,7 +14,7 @@
  */
 import type { Plan } from "@/lib/plans";
 
-export type SubscriptionStatus = "preview" | "active" | "past_due" | "canceled";
+export type SubscriptionStatus = "preview" | "trialing" | "active" | "past_due" | "canceled";
 export type BillingInterval = "month" | "year";
 export type AccessLevel = "full" | "preview";
 
@@ -47,6 +48,8 @@ export const PREVIEW_MESSAGE =
 
 export function accessLevel(state: Pick<SubscriptionState, "status" | "currentPeriodEnd" | "pastDueSince">, now: Date = new Date()): AccessLevel {
   switch (state.status) {
+    case "trialing":
+      return state.currentPeriodEnd && new Date(state.currentPeriodEnd) > now ? "full" : "preview";
     case "active":
       return "full";
     case "canceled":
@@ -87,6 +90,14 @@ export function describeSubscription(
   const end = state.currentPeriodEnd ? new Date(state.currentPeriodEnd) : null;
   const endLabel = end ? end.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : null;
   switch (state.status) {
+    case "trialing":
+      return {
+        headline: `${planName} · 14-day trial`,
+        detail: accessLevel(state, now) === "full"
+          ? `Trial access ends ${endLabel ?? "at the end of the trial"}. Your number and text credits are bought separately.`
+          : "Your trial has ended. Choose a plan to keep full access.",
+        tone: accessLevel(state, now) === "full" ? "neutral" : "warning",
+      };
     case "active":
       return {
         headline: `${planName} · ${state.interval === "year" ? "yearly" : "monthly"}`,
