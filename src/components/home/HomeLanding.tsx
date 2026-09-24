@@ -16,6 +16,7 @@ import mobileDemo from "@/assets/bookedsecure-mobile-demo.mp4.asset.json";
 import mobileDemoPoster from "@/assets/bookedsecure-mobile-demo-poster.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { PricingBenefits } from "@/components/pricing/PricingBenefits";
 import { useAuth } from "@/hooks/useAuth";
 
 const STEPS = [
@@ -165,6 +166,8 @@ export function HomeLanding() {
             </Dialog>
           </div>
         </section>
+
+        <PricingBenefits landing />
 
         <section className="bg-transparent">
           <div className="mx-auto grid max-w-7xl px-5 sm:grid-cols-3 sm:px-8 lg:px-12">
