@@ -27,8 +27,6 @@ export const Route = createFileRoute("/pricing")({
 });
 
 function PricingPage() {
-  const plans = Route.useLoaderData();
-
   return (
     <main className="min-h-screen bg-landing-bg text-landing-copy">
       <nav className="mx-auto flex min-h-20 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-12" aria-label="Contact navigation">
