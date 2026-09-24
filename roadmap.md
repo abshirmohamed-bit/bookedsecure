@@ -77,3 +77,8 @@
 - [x] PRD for the control room saved to Files.
 - [x] Collapse the Home setup journey into an expandable vertical checklist and verify every destination.
 - [ ] Blocked on the provider: buying numbers and topping up credits stay manual until their API supports both.
+
+## Detail Dynasty Sydney onboarding
+- [x] Add an expiry-aware 14-day trial access state without provisioning a number or credits.
+- [ ] Create and confirm detail.dynastysydney@gmail.com, blocked until a non-compromised temporary password is supplied.
+- [ ] Assign the BookedSecure plan trial and verify full access, zero credits, and no assigned SMS number.
