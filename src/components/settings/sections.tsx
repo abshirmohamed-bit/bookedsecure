@@ -21,6 +21,7 @@ import {
   saveQuoteServiceLayout,
   saveQuoteAgentEnabled,
   saveService,
+  deleteAllServices,
   deleteService,
   saveServiceAddon,
   deleteServiceAddon,
@@ -556,8 +557,10 @@ function DurationField({
 export function ServicesEditor({ services, readOnly }: { services: Service[]; readOnly: boolean }) {
   const save = useServerFn(saveService);
   const remove = useServerFn(deleteService);
+  const removeAll = useServerFn(deleteAllServices);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Service | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const groups = groupItems(services, (service) => service.category);
 
   const mutation = useMutation({
@@ -594,32 +597,79 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const removeAllMutation = useMutation({
+    mutationFn: () => removeAll({}),
+    onSuccess: (result) => {
+      toast.success(`Removed ${result.removed} service${result.removed === 1 ? "" : "s"}.`);
+      setConfirmingClear(false);
+      setEditing(null);
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   return (
     <section className="panel p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Approved services (AI may only use these)</h2>
         {!readOnly && (
-          <button
-            onClick={() =>
-              setEditing({
-                id: "",
-                name: "",
-                category: "",
-                duration_minutes: 120,
-                description: "",
-                price_guidance: "",
-                campaign_eligible: true,
-                included_items: "",
-                excluded_items: "",
-                active: true,
-              })
-            }
-            className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            Add service
-          </button>
+          <div className="flex items-center gap-2">
+            {services.length > 0 &&
+              (confirmingClear ? (
+                <>
+                  <button
+                    onClick={() => removeAllMutation.mutate()}
+                    disabled={removeAllMutation.isPending}
+                    className="rounded-md border border-destructive px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                  >
+                    {removeAllMutation.isPending
+                      ? "Deleting…"
+                      : `Yes, delete all ${services.length}`}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingClear(false)}
+                    disabled={removeAllMutation.isPending}
+                    className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Keep them
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirmingClear(true)}
+                  className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Delete all
+                </button>
+              ))}
+            <button
+              onClick={() =>
+                setEditing({
+                  id: "",
+                  name: "",
+                  category: "",
+                  duration_minutes: 120,
+                  description: "",
+                  price_guidance: "",
+                  campaign_eligible: true,
+                  included_items: "",
+                  excluded_items: "",
+                  active: true,
+                })
+              }
+              className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Add service
+            </button>
+          </div>
         )}
       </div>
+      {confirmingClear && (
+        <p className="mt-2 text-xs text-destructive">
+          This removes every service and its add-on links so you can re-read your website for a
+          fresh list. Past leads and bookings are kept.
+        </p>
+      )}
 
       <p className="mt-1 text-xs text-muted-foreground">
         Grouped exactly as your customers see them on your quote page.
