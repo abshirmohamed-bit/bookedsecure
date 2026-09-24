@@ -100,8 +100,8 @@ export function HomeLanding() {
                     {isSignedIn ? (
                       <Link to="/dashboard">Go to Dashboard <ArrowRight aria-hidden="true" /></Link>
                     ) : (
-                      <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20access">
-                        Contact BookedSecure <ArrowRight aria-hidden="true" />
+                      <a href="tel:+61466907824">
+                        Call +61 466 907 824 <ArrowRight aria-hidden="true" />
                       </a>
                     )}
                   </Button>
@@ -248,8 +248,8 @@ export function HomeLanding() {
               {isSignedIn ? (
                 <Link to="/dashboard">Go to Dashboard <ArrowRight aria-hidden="true" /></Link>
               ) : (
-                <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20access">
-                  Contact BookedSecure <ArrowRight aria-hidden="true" />
+                <a href="tel:+61466907824">
+                  Call +61 466 907 824 <ArrowRight aria-hidden="true" />
                 </a>
               )}
             </Button>

@@ -174,10 +174,10 @@ export function MessagingOverviewCard() {
         {isOwner ? (
           <div className="flex flex-wrap gap-2">
             <a
-              href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20credits"
+              href="tel:+61466907824"
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
             >
-              Contact BookedSecure
+              Call +61 466 907 824
             </a>
             <button
               type="button"

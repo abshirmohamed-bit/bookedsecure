@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Add +61 466 907 824 as the customer-facing BookedSecure contact number.
+
 - [x] Hide self-service subscription plans on the public site and inside tenant workspaces; direct access enquiries to BookedSecure.
 
 - [x] Fix mobile chat keyboard layout by tracking the iPhone visible viewport and hiding footer copy while typing.

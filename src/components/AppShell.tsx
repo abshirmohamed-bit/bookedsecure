@@ -252,10 +252,10 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           />
           {!isPlatformOwner ? (
             <a
-              href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20account%20access"
+              href="tel:+61466907824"
               className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <Mail className="h-4 w-4" aria-hidden="true" /> Contact BookedSecure
+              <Mail className="h-4 w-4" aria-hidden="true" /> Call +61 466 907 824
             </a>
           ) : null}
         </nav>

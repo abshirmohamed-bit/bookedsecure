@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Mail } from "lucide-react";
+import { ArrowLeft, Mail, Phone } from "lucide-react";
 import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
 import { Button } from "@/components/ui/button";
 
@@ -49,11 +49,18 @@ function PricingPage() {
             We are setting up access directly with each business for now. Get in touch and we will
             discuss whether BookedSecure is right for your business and help you get started.
           </p>
-          <Button asChild size="lg" className="mt-10 min-h-12 bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover">
-            <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20access">
-              <Mail aria-hidden="true" /> Contact BookedSecure
-            </a>
-          </Button>
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button asChild size="lg" className="min-h-12 bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover">
+              <a href="tel:+61466907824">
+                <Phone aria-hidden="true" /> Call +61 466 907 824
+              </a>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="min-h-12 border-landing-accent/30 bg-transparent px-6 text-landing-copy">
+              <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20access">
+                <Mail aria-hidden="true" /> Email BookedSecure
+              </a>
+            </Button>
+          </div>
         </header>
       </div>
     </main>
