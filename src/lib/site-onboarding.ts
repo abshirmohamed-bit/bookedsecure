@@ -450,6 +450,62 @@ function proposeAddons(
   return addons;
 }
 
+/** Picture address without size/crop suffixes, so resized copies of one image compare equal. */
+function imageIdentity(value: string): string {
+  try {
+    const url = new URL(value);
+    const path = url.pathname.split("/:/")[0] ?? url.pathname;
+    return `${url.host}${path}`.toLowerCase();
+  } catch {
+    return value.toLowerCase();
+  }
+}
+
+/** Singular, case-insensitive heading key so "Ceramic Coatings" and "CERAMIC COATING" are one group. */
+function headingKey(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => (word.length > 3 && word.endsWith("s") && !word.endsWith("ss") ? word.slice(0, -1) : word))
+    .join(" ");
+}
+
+/**
+ * Cleans scraped cards in place, for every tenant:
+ * - drops a picture that is really the site's logo, or one shared by three or
+ *   more cards (a placeholder), so cards without their own photo stay blank;
+ * - merges headings that only differ by case or plural into the first one seen,
+ *   keeping the order the site shows them in.
+ */
+export function tidyScrapedCards(
+  cards: Array<{ category: string | null; image_url: string | null }>,
+  logoUrl: string | null,
+): void {
+  const logo = logoUrl ? imageIdentity(logoUrl) : null;
+  const counts = new Map<string, number>();
+  for (const card of cards) {
+    if (!card.image_url) continue;
+    const id = imageIdentity(card.image_url);
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  const labels = new Map<string, string>();
+  for (const card of cards) {
+    if (card.image_url) {
+      const id = imageIdentity(card.image_url);
+      const isLogo = (logo && id === logo) || /logo/i.test(id);
+      if (isLogo || (counts.get(id) ?? 0) >= 3) card.image_url = null;
+    }
+    if (card.category) {
+      const key = headingKey(card.category);
+      const first = labels.get(key);
+      if (first) card.category = first;
+      else labels.set(key, card.category);
+    }
+  }
+}
+
 /** Builds the owner-reviewable proposal from whatever the website provided. */
 export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): OnboardingProposal {
   // Some sites list their extras in the same block as their services. Anything
@@ -469,10 +525,14 @@ export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): O
     }));
 
   const services = proposeServices(listedServices);
-  const addons = proposeAddons(
+  const rawAddons = proposeAddons(
     [...(Array.isArray(site.addons) ? site.addons : []), ...listedAsAddons],
     services,
   );
+  const logoForImages = site.logoUrl ?? null;
+  tidyScrapedCards(services, logoForImages);
+  tidyScrapedCards(rawAddons, logoForImages);
+  const addons = rawAddons;
   const openingHours = text(site.openingHours, 200);
   const weeklyWindows = parseOpeningHours(openingHours);
   const serviceArea = text(site.serviceArea, 300) ?? text(site.suburb, 300);
