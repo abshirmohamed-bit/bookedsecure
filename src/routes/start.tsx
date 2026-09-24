@@ -43,7 +43,7 @@ const STEPS = [
   "Add your website and we read your services",
   "Check your services and prices",
   "Confirm your business details",
-  "Choose your plan",
+  "Contact BookedSecure to activate your workspace",
   "Upload your old customers and send your first campaign",
 ];
 
@@ -94,7 +94,7 @@ function StartPage() {
           </Link>
         </Button>
         <p className="mt-3 text-xs text-muted-foreground">
-          Setting up costs nothing. You only choose a plan when you are ready to text customers.
+          Setting up costs nothing. Contact BookedSecure when you are ready to activate your workspace.
         </p>
       </main>
     </div>

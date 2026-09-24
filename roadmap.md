@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Hide self-service subscription plans on the public site and inside tenant workspaces; direct access enquiries to BookedSecure.
+
 - [x] Fix mobile chat keyboard layout by tracking the iPhone visible viewport and hiding footer copy while typing.
 - [x] Clip service and selected-service card content inside stable mobile card rows.
 - [x] Keep short quote conversations anchored above the composer without a focus-triggered page jump.

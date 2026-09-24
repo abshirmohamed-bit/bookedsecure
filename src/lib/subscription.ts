@@ -44,7 +44,7 @@ export const PLAN_FEATURE_LABELS: Record<PlanFeature, string> = {
 };
 
 export const PREVIEW_MESSAGE =
-  "Your workspace is in preview. Choose a plan to start booking, texting and using your assistant.";
+  "Your workspace is in preview. Contact BookedSecure to activate booking, texting and your assistant.";
 
 export function accessLevel(state: Pick<SubscriptionState, "status" | "currentPeriodEnd" | "pastDueSince">, now: Date = new Date()): AccessLevel {
   switch (state.status) {
@@ -95,7 +95,7 @@ export function describeSubscription(
         headline: `${planName} · 14-day trial`,
         detail: accessLevel(state, now) === "full"
           ? `Trial access ends ${endLabel ?? "at the end of the trial"}. Your number and text credits are bought separately.`
-          : "Your trial has ended. Choose a plan to keep full access.",
+          : "Your trial has ended. Contact BookedSecure to restore full access.",
         tone: accessLevel(state, now) === "full" ? "neutral" : "warning",
       };
     case "active":
@@ -121,7 +121,7 @@ export function describeSubscription(
         detail:
           accessLevel(state, now) === "full"
             ? `You keep access until ${endLabel ?? "the end of the period"}.`
-            : "Your subscription has ended. Choose a plan to pick up where you left off.",
+            : "Your access has ended. Contact BookedSecure to pick up where you left off.",
         tone: "warning",
       };
     default:

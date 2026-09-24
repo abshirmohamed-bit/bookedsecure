@@ -16,7 +16,6 @@ import mobileDemo from "@/assets/bookedsecure-mobile-demo.mp4.asset.json";
 import mobileDemoPoster from "@/assets/bookedsecure-mobile-demo-poster.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PricingBenefits } from "@/components/pricing/PricingBenefits";
 import { useAuth } from "@/hooks/useAuth";
 
 const STEPS = [
@@ -72,9 +71,6 @@ export function HomeLanding() {
             <span className="truncate font-heading text-base font-semibold text-landing-accent">BookedSecure</span>
           </a>
           <nav className="flex shrink-0 items-center gap-1" aria-label="Main navigation">
-            <Button asChild variant="ghost" className="min-h-10 px-2.5 text-landing-muted hover:bg-landing-elevated hover:text-landing-copy sm:px-4">
-              <Link to="/pricing">Pricing</Link>
-            </Button>
             <Button asChild className="min-h-10 bg-landing-action px-3 text-landing-action-foreground hover:bg-landing-action-hover sm:px-5">
               <Link to={isSignedIn ? "/dashboard" : "/auth"}>
                 {isSignedIn ? "Dashboard" : "Sign in"}
@@ -101,10 +97,13 @@ export function HomeLanding() {
                 </p>
                 <div className="mt-8 flex flex-col items-start gap-5 sm:flex-row sm:items-center">
                   <Button asChild size="lg" className="min-h-12 w-full bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover sm:w-auto">
-                    <Link to={isSignedIn ? "/dashboard" : "/auth"}>
-                      {isSignedIn ? "Go to Dashboard" : "Get BookedSecure today"}
-                      <ArrowRight aria-hidden="true" />
-                    </Link>
+                    {isSignedIn ? (
+                      <Link to="/dashboard">Go to Dashboard <ArrowRight aria-hidden="true" /></Link>
+                    ) : (
+                      <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20access">
+                        Contact BookedSecure <ArrowRight aria-hidden="true" />
+                      </a>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -166,8 +165,6 @@ export function HomeLanding() {
             </Dialog>
           </div>
         </section>
-
-        <PricingBenefits landing />
 
         <section className="bg-transparent">
           <div className="mx-auto grid max-w-7xl px-5 sm:grid-cols-3 sm:px-8 lg:px-12">
@@ -248,7 +245,13 @@ export function HomeLanding() {
               <h2 className="mt-2 font-heading text-2xl font-semibold text-landing-accent sm:text-3xl">Turn more enquiries into bookings.</h2>
             </div>
             <Button asChild size="lg" className="min-h-12 w-full shrink-0 bg-landing-action px-6 text-landing-action-foreground hover:bg-landing-action-hover md:w-auto">
-              <Link to={isSignedIn ? "/dashboard" : "/auth"}>Get BookedSecure today <ArrowRight aria-hidden="true" /></Link>
+              {isSignedIn ? (
+                <Link to="/dashboard">Go to Dashboard <ArrowRight aria-hidden="true" /></Link>
+              ) : (
+                <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20access">
+                  Contact BookedSecure <ArrowRight aria-hidden="true" />
+                </a>
+              )}
             </Button>
           </div>
         </section>
@@ -260,9 +263,6 @@ export function HomeLanding() {
               <span className="font-heading text-sm font-semibold text-landing-accent">BookedSecure</span>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-            <Link to="/pricing" className="transition-colors hover:text-landing-copy">
-              Pricing
-            </Link>
             <Link to="/privacy" className="transition-colors hover:text-landing-copy">
               Privacy &amp; SMS consent
             </Link>

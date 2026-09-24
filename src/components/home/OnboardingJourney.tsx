@@ -77,7 +77,7 @@ export function OnboardingJourney() {
                   <span className="block text-xs font-medium leading-5">{step.title}</span>
                   <span className="block text-[0.7rem] font-normal leading-snug text-muted-foreground">
                     {step.blockedBy && !step.done
-                      ? "Opens once your subscription starts."
+                      ? "Contact BookedSecure to unlock this step."
                       : step.detail}
                   </span>
                 </span>

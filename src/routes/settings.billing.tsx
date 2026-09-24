@@ -1,14 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { BillingPanel } from "@/components/billing/BillingPanel";
+import { Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/settings/billing")({
   head: () => ({
     meta: [
-      { title: "Plan & billing | BookedSecure" },
-      { name: "description", content: "Your BookedSecure plan, text credits and billing." },
-      { property: "og:title", content: "Plan & billing | BookedSecure" },
-      { property: "og:description", content: "Choose a plan, buy text credits and manage billing." },
+      { title: "Account access | BookedSecure" },
+      { name: "description", content: "Contact BookedSecure about your account access." },
+      { property: "og:title", content: "Account access | BookedSecure" },
+      { property: "og:description", content: "Contact BookedSecure for help with access to your workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -18,13 +19,19 @@ export const Route = createFileRoute("/settings/billing")({
 
 function BillingSettingsPage() {
   return (
-    <AppShell title="Plan & billing">
-      <div className="mx-auto max-w-4xl space-y-4">
-        <header>
-          <h1 className="text-xl font-semibold">Plan & billing</h1>
-          <p className="text-sm text-muted-foreground">Your plan, text credits and payment details.</p>
-        </header>
-        <BillingPanel />
+    <AppShell title="Account access">
+      <div className="mx-auto max-w-xl py-8 text-center sm:py-14">
+        <Mail className="mx-auto h-8 w-8 text-primary" aria-hidden="true" />
+        <h1 className="mt-4 text-2xl font-semibold">Contact BookedSecure</h1>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+          Account access is arranged directly with each business for now. Contact us if you would
+          like to activate your workspace or need help with your account.
+        </p>
+        <Button asChild className="mt-6">
+          <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20account%20access">
+            <Mail aria-hidden="true" /> Email BookedSecure
+          </a>
+        </Button>
       </div>
     </AppShell>
   );
