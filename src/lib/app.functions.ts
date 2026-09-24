@@ -918,6 +918,76 @@ export const deleteService = createServerFn({ method: "POST" })
   });
 
 /**
+ * Permanently removes every service in the owner's own business, plus the
+ * add-on links pointing at them, so the owner can re-read their website for a
+ * fresh catalogue. Lead history is preserved.
+ */
+export const deleteAllServices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { isOwnServiceImagePath } = await import("@/lib/service-images");
+    const { TENANT_LOGO_BUCKET } = await import("@/lib/tenant-logo");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+
+    const { data: services, error: listError } = await supabaseAdmin
+      .from("services")
+      .select("id, name, image_storage_path")
+      .eq("business_id", app.businessId);
+    if (listError) throw new Error(listError.message);
+    const rows = services ?? [];
+    if (rows.length === 0) return { ok: true as const, removed: 0 };
+
+    const ids = rows.map((row) => row.id);
+
+    // Preserve historic leads before removing the services they pointed at.
+    const { error: leadError } = await supabaseAdmin
+      .from("leads")
+      .update({ verified_service_id: null })
+      .eq("business_id", app.businessId)
+      .in("verified_service_id", ids);
+    if (leadError) throw new Error(leadError.message);
+
+    // Remove add-on links first so orphaned links can never survive.
+    const { error: linkError } = await supabaseAdmin
+      .from("service_addon_links")
+      .delete()
+      .eq("business_id", app.businessId)
+      .in("service_id", ids);
+    if (linkError) throw new Error(linkError.message);
+
+    const { error } = await supabaseAdmin
+      .from("services")
+      .delete()
+      .eq("business_id", app.businessId)
+      .in("id", ids);
+    if (error) throw new Error(error.message);
+
+    const imagePaths = rows
+      .map((row) => row.image_storage_path)
+      .filter(
+        (path): path is string =>
+          typeof path === "string" && isOwnServiceImagePath(app.businessId, path),
+      );
+    if (imagePaths.length > 0) {
+      await supabaseAdmin.storage.from(TENANT_LOGO_BUCKET).remove(imagePaths);
+    }
+
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "services_cleared",
+      entityType: "service",
+      entityId: null,
+      metadata: { removed: rows.length },
+    });
+    return { ok: true as const, removed: rows.length };
+  });
+
+/**
  * Owner-only add-on service. An add-on always belongs to the caller's own
  * business and is always linked to at least one of that business's own approved
  * services, so it can never be offered on its own or across tenants.
