@@ -80,5 +80,5 @@
 
 ## Detail Dynasty Sydney onboarding
 - [x] Add an expiry-aware 14-day trial access state without provisioning a number or credits.
-- [ ] Create and confirm detail.dynastysydney@gmail.com, blocked until a non-compromised temporary password is supplied.
-- [ ] Assign the BookedSecure plan trial and verify full access, zero credits, and no assigned SMS number.
+- [x] Create and confirm detail.dynastysydney@gmail.com as the owner of Detail Dynasty Sydney.
+- [x] Assign the BookedSecure plan trial and verify full access, zero credits, and no assigned SMS number.
