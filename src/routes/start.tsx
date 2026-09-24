@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
 import { readSignupSource, rememberSignupSource } from "@/lib/signup-source";
@@ -94,7 +94,10 @@ function StartPage() {
           </Link>
         </Button>
         <p className="mt-3 text-xs text-muted-foreground">
-          Setting up costs nothing. Contact BookedSecure when you are ready to activate your workspace.
+          Setting up costs nothing. When you are ready to activate your workspace, call{" "}
+          <a href="tel:+61466907824" className="inline-flex items-center gap-1 font-medium text-foreground underline underline-offset-2">
+            <Phone className="h-3 w-3" aria-hidden="true" /> +61 466 907 824
+          </a>.
         </p>
       </main>
     </div>
