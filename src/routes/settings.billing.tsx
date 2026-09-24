@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { Mail } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/settings/billing")({
@@ -27,11 +27,18 @@ function BillingSettingsPage() {
           Account access is arranged directly with each business for now. Contact us if you would
           like to activate your workspace or need help with your account.
         </p>
-        <Button asChild className="mt-6">
-          <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20account%20access">
-            <Mail aria-hidden="true" /> Email BookedSecure
-          </a>
-        </Button>
+        <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+          <Button asChild>
+            <a href="tel:+61466907824">
+              <Phone aria-hidden="true" /> Call +61 466 907 824
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20account%20access">
+              <Mail aria-hidden="true" /> Email BookedSecure
+            </a>
+          </Button>
+        </div>
       </div>
     </AppShell>
   );

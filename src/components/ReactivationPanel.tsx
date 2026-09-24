@@ -140,8 +140,8 @@ export function ReactivationPanel() {
               You have {data?.candidates ?? 0} past contacts who could be invited back. Bringing
                them back isn&apos;t enabled for your workspace yet.
             </p>
-             <a href="mailto:bookedsecure@gmail.com?subject=Enable%20win-back%20campaigns" className="mt-2 inline-block text-xs font-medium underline">
-               Contact BookedSecure
+             <a href="tel:+61466907824" className="mt-2 inline-block text-xs font-medium underline">
+               Call +61 466 907 824
             </a>
           </div>
         </div>

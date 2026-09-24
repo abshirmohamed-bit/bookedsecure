@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useReducer, useRef } from "react";
-import { LogOut, Mail } from "lucide-react";
+import { LogOut, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSettings } from "@/lib/app.functions";
 import { useAuth } from "@/hooks/useAuth";
@@ -125,12 +125,12 @@ export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void
             {data?.role && data.role !== "platform_admin" ? (
               <li>
                 <a
-                  href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20account%20access"
+                  href="tel:+61466907824"
                   role="menuitem"
                   onClick={() => dispatch({ type: "select_item" })}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground focus-visible:outline-none"
                 >
-                  <Mail className="h-3.5 w-3.5" aria-hidden="true" /> Contact BookedSecure
+                  <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call +61 466 907 824
                 </a>
               </li>
             ) : null}
