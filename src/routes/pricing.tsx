@@ -1,4 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowLeft, Check, Sparkles } from "lucide-react";
+import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
+import { PricingBenefits } from "@/components/pricing/PricingBenefits";
+import { Button } from "@/components/ui/button";
 import { annualMonthsFree, formatMoney, type Plan } from "@/lib/plans";
 import { getPublicPlans } from "@/lib/plans.functions";
 
@@ -39,61 +43,41 @@ export const Route = createFileRoute("/pricing")({
   component: PricingPage,
 });
 
-/** What every plan gets, in the words an owner would use. */
-const INCLUDED_EVERY_PLAN: readonly string[] = [
-  "A branded quote page customers fill in on their phone",
-  "An assistant that answers enquiries in seconds, using your services and prices",
-  "Instant text confirmation on every new enquiry",
-  "Booking links with your real availability",
-  "Automatic follow-ups. straight away, a few hours later, and next day",
-  "Win-back campaigns to past customers, and bulk campaigns to your list",
-  "Every message waits for your approval before it goes out",
-  "One inbox for every lead, reply and booking",
-  "Opt-out, STOP handling and quiet hours looked after for you",
-  "Bring your existing customer list in from a spreadsheet",
-  "Reporting on enquiries, replies, bookings and texts used",
-  "Unlimited team members and daily sending limits so nothing can run away",
-];
-
 function PricingPage() {
   const plans = Route.useLoaderData();
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10 sm:py-16">
-      <div className="mx-auto max-w-4xl">
-        <header className="brand-wash rounded-lg border border-border p-5 text-center sm:p-8">
-          <p className="text-sm font-semibold text-primary">BookedSecure</p>
-          <h1 className="mt-2 page-heading">Every enquiry answered, every follow-up done</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+    <main className="min-h-screen bg-landing-bg text-landing-copy">
+      <nav className="mx-auto flex min-h-20 max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-12" aria-label="Pricing navigation">
+        <Link to="/" className="flex items-center gap-2" aria-label="BookedSecure home">
+          <img src={brandMark.url} alt="" className="h-9 w-9 object-contain" />
+          <span className="font-heading text-base font-semibold text-landing-accent">BookedSecure</span>
+        </Link>
+        <Button asChild variant="ghost" className="text-landing-muted hover:bg-landing-elevated hover:text-landing-copy">
+          <Link to="/"><ArrowLeft aria-hidden="true" /> Home</Link>
+        </Button>
+      </nav>
+
+      <div className="mx-auto max-w-3xl px-5 pb-20 pt-12 sm:px-8 sm:pb-28 sm:pt-20">
+        <header className="text-center">
+          <p className="text-sm font-semibold text-landing-accent">Simple, complete pricing</p>
+          <h1 className="mt-3 font-heading text-4xl font-semibold leading-tight text-landing-copy sm:text-6xl">
+            Every enquiry answered,<br className="hidden sm:block" /> every follow-up done
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-landing-muted sm:text-lg">
             An assistant that replies in seconds, quotes from your own price list, books the job and
             chases the ones who go quiet. Pay monthly or a year upfront. Your own Australian number
             and your texts come from our messaging provider and are paid to them directly.
           </p>
         </header>
 
-        <div className="mx-auto mt-6 grid max-w-md gap-4">
+        <div className="mx-auto mt-12 grid max-w-xl gap-6 sm:mt-16">
           {plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} />
           ))}
         </div>
 
-        <section className="panel mt-6 p-5 sm:p-7">
-          <h2 className="text-sm font-semibold">In every plan</h2>
-          <ul className="mt-3 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-            {INCLUDED_EVERY_PLAN.map((item) => (
-              <li key={item} className="flex gap-2">
-                <span aria-hidden="true">·</span>
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 text-xs text-muted-foreground">
-            Prices are in Australian dollars. Your dedicated Australian number is $15 a month plus
-            GST from our messaging provider, paid with your own card. Texts are bought as credits -
-            from us or straight from the provider. and sending stops when you run out, so you can
-            never get a surprise bill.
-          </p>
-        </section>
+        <div className="mt-12 sm:mt-16"><PricingBenefits /></div>
       </div>
     </main>
   );
@@ -102,41 +86,52 @@ function PricingPage() {
 function PlanCard({ plan }: { plan: Plan }) {
   const monthsFree = annualMonthsFree(plan);
   return (
-    <article className="panel flex h-full flex-col p-5 sm:p-6">
-      <h2 className="text-base font-semibold">{plan.name}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
-      <p className="mt-4 text-3xl font-semibold">
+    <article className="flex h-full flex-col overflow-hidden rounded-2xl bg-card p-7 shadow-xl shadow-landing-shadow sm:p-10">
+      <div className="flex items-center gap-2 text-sm font-semibold text-landing-accent">
+        <Sparkles className="h-4 w-4" aria-hidden="true" /> Full access
+      </div>
+      <h2 className="mt-4 font-heading text-2xl font-semibold text-landing-copy">{plan.name}</h2>
+      <p className="mt-2 text-sm leading-6 text-landing-muted">{plan.tagline}</p>
+      <p className="mt-8 font-heading text-5xl font-semibold text-landing-copy sm:text-6xl">
         {formatMoney(plan.monthlyPriceMinorUnits)}
-        <span className="text-sm font-normal text-muted-foreground"> / month</span>
+        <span className="ml-2 font-sans text-base font-normal text-landing-muted">/ month</span>
       </p>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-2 text-sm font-medium text-landing-accent">
         or {formatMoney(plan.annualPriceMinorUnits)} for the year
         {monthsFree > 0 ? `. ${monthsFree} months free` : ""}
       </p>
-      <ul className="mt-4 space-y-2 text-sm">
+      <ul className="mt-8 space-y-4 pt-7 text-sm text-landing-copy">
         {plan.includedSegments > 0 ? (
-          <li>{plan.includedSegments.toLocaleString()} texts included every month</li>
+          <PlanPoint>{plan.includedSegments.toLocaleString()} texts included every month</PlanPoint>
         ) : (
-          <li>Your own Australian number, $15 a month plus GST from the provider</li>
+          <PlanPoint>Your own Australian number, $15 a month plus GST from the provider</PlanPoint>
         )}
-        <li>Texts {plan.overageCents}c each, bought as credits</li>
-        <li>
+        <PlanPoint>Texts {plan.overageCents}c each, bought as credits</PlanPoint>
+        <PlanPoint>
           {plan.reactivationEnabled
             ? "Win-back campaigns to past customers"
             : "Win-back campaigns not included"}
-        </li>
-        <li>
+        </PlanPoint>
+        <PlanPoint>
           {plan.teamMemberLimit === null
             ? "Unlimited team members"
             : `Up to ${plan.teamMemberLimit} team members`}
-        </li>
+        </PlanPoint>
       </ul>
-      <a
-        href="/auth"
-        className="mt-auto inline-block rounded-md bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground"
-      >
-        Get started with {plan.name}
-      </a>
+      <Button asChild size="lg" className="mt-10 min-h-12 w-full bg-landing-action text-landing-action-foreground hover:bg-landing-action-hover">
+        <Link to="/auth">Get started with {plan.name}</Link>
+      </Button>
     </article>
+  );
+}
+
+function PlanPoint({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-3">
+      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-landing-accent-soft text-landing-accent">
+        <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden="true" />
+      </span>
+      <span>{children}</span>
+    </li>
   );
 }
