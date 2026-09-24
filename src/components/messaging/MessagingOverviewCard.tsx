@@ -8,7 +8,6 @@ import {
   setMessagingPaused,
 } from "@/lib/sms/messaging-account.functions";
 import { formatAud, LOW_CREDIT_THRESHOLD } from "@/lib/sms/credit-packs";
-import { CREDITS_ANCHOR } from "@/components/billing/BillingPanel";
 import { useBillingRealtime } from "@/hooks/useBillingRealtime";
 
 
@@ -115,7 +114,7 @@ export function MessagingOverviewCard() {
             <p className="text-xs text-muted-foreground">Texts going out</p>
             <p className="mt-1 text-lg font-semibold">{paused ? "Paused" : "Active"}</p>
             <p className="text-xs text-muted-foreground">
-              {plan.name} plan · {formatAud(plan.priceMinorUnits)} / {plan.billingInterval}
+              {paused ? "Contact BookedSecure if you need help" : "Ready to send from this workspace"}
             </p>
           </div>
           <div
@@ -161,8 +160,8 @@ export function MessagingOverviewCard() {
             </div>
           ) : null}
           <p className="mt-2 text-xs text-muted-foreground">
-            Each text uses one credit ({plan.overageCents}c). Buy credits in Plan &amp; billing, or
-            top up in your own provider account.
+            Each text uses one credit ({plan.overageCents}c). Top up in your own provider account,
+            or contact BookedSecure for help.
           </p>
         </div>
 
@@ -175,13 +174,12 @@ export function MessagingOverviewCard() {
 
         {isOwner ? (
           <div className="flex flex-wrap gap-2">
-            <Link
-              to="/settings/billing"
-              hash={CREDITS_ANCHOR}
+            <a
+              href="mailto:bookedsecure@gmail.com?subject=BookedSecure%20credits"
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
             >
-              Top up credits
-            </Link>
+              Contact BookedSecure
+            </a>
             <button
               type="button"
               onClick={() => pauseMutation.mutate(!paused)}

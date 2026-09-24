@@ -16,7 +16,6 @@ import mobileDemo from "@/assets/bookedsecure-mobile-demo.mp4.asset.json";
 import mobileDemoPoster from "@/assets/bookedsecure-mobile-demo-poster.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PricingBenefits } from "@/components/pricing/PricingBenefits";
 import { useAuth } from "@/hooks/useAuth";
 
 const STEPS = [
@@ -72,9 +71,6 @@ export function HomeLanding() {
             <span className="truncate font-heading text-base font-semibold text-landing-accent">BookedSecure</span>
           </a>
           <nav className="flex shrink-0 items-center gap-1" aria-label="Main navigation">
-            <Button asChild variant="ghost" className="min-h-10 px-2.5 text-landing-muted hover:bg-landing-elevated hover:text-landing-copy sm:px-4">
-              <Link to="/pricing">Pricing</Link>
-            </Button>
             <Button asChild className="min-h-10 bg-landing-action px-3 text-landing-action-foreground hover:bg-landing-action-hover sm:px-5">
               <Link to={isSignedIn ? "/dashboard" : "/auth"}>
                 {isSignedIn ? "Dashboard" : "Sign in"}
@@ -167,8 +163,6 @@ export function HomeLanding() {
           </div>
         </section>
 
-        <PricingBenefits landing />
-
         <section className="bg-transparent">
           <div className="mx-auto grid max-w-7xl px-5 sm:grid-cols-3 sm:px-8 lg:px-12">
             {["Capture new leads", "Follow up consistently", "Turn enquiries into bookings"].map((label) => (
@@ -260,9 +254,6 @@ export function HomeLanding() {
               <span className="font-heading text-sm font-semibold text-landing-accent">BookedSecure</span>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-            <Link to="/pricing" className="transition-colors hover:text-landing-copy">
-              Pricing
-            </Link>
             <Link to="/privacy" className="transition-colors hover:text-landing-copy">
               Privacy &amp; SMS consent
             </Link>
