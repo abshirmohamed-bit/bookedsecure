@@ -21,6 +21,7 @@ import {
   saveQuoteServiceLayout,
   saveQuoteAgentEnabled,
   saveService,
+  deleteAllServices,
   deleteService,
   saveServiceAddon,
   deleteServiceAddon,
@@ -556,8 +557,10 @@ function DurationField({
 export function ServicesEditor({ services, readOnly }: { services: Service[]; readOnly: boolean }) {
   const save = useServerFn(saveService);
   const remove = useServerFn(deleteService);
+  const removeAll = useServerFn(deleteAllServices);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Service | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const groups = groupItems(services, (service) => service.category);
 
   const mutation = useMutation({
