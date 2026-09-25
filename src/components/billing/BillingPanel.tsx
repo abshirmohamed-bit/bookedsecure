@@ -349,6 +349,108 @@ export function BillingPanel() {
   );
 }
 
+/** Credits purchase + auto top-up, shown on the Messaging page (no plan UI). */
+export function CreditsPanel() {
+  const billing = useMyBilling();
+  const queryClient = useQueryClient();
+  useBillingRealtime(billing.data?.businessId ?? null);
+  const buyCredits = useServerFn(startCreditTopup);
+  const [active, setActive] = useState<{ clientSecret: string; label: string } | null>(null);
+
+  useEffect(() => {
+    if (!billing.data || active) return;
+    if (window.location.hash !== `#${CREDITS_ANCHOR}`) return;
+    document.getElementById(CREDITS_ANCHOR)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [billing.data, active]);
+
+  const topupMutation = useMutation({
+    mutationFn: async (packId: string) => {
+      const result = await buyCredits({
+        data: { packId, environment: getStripeEnvironment(), returnPath: "/settings/messaging" },
+      });
+      if ("error" in result && result.error) throw new Error(result.error);
+      const pack = (billing.data?.packs ?? CREDIT_PACKS).find((p) => p.id === packId);
+      return {
+        clientSecret: (result as { clientSecret: string }).clientSecret,
+        label: pack ? `${pack.label} · ${formatAud(pack.amountCents)}` : "Text credits",
+      };
+    },
+    onSuccess: setActive,
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  if (billing.isLoading || !billing.data) return null;
+  const data = billing.data;
+  const isOwner = data.role === "owner" || data.role === "platform_admin";
+  if (data.access !== "full" || !isOwner) return null;
+
+  return (
+    <section id={CREDITS_ANCHOR} className="scroll-mt-4 space-y-3 rounded-lg border border-border bg-card p-4">
+      <div>
+        <h3 className="text-base font-semibold">Text credits</h3>
+        <p className="text-sm text-muted-foreground">
+          One credit sends one text, {data.promo.creditPriceCents ?? data.plan.overageCents}c each.
+          Credits never expire.
+        </p>
+      </div>
+      {active ? (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => {
+              setActive(null);
+              topupMutation.reset();
+            }}
+            className="text-xs font-medium text-muted-foreground underline"
+          >
+            Choose a different amount
+          </button>
+          <p className="text-sm text-muted-foreground">{active.label}</p>
+          <div className="rounded-md bg-background p-1">
+            <EmbeddedCheckoutProvider
+              key={active.clientSecret}
+              stripe={getStripe()}
+              options={{
+                clientSecret: active.clientSecret,
+                onComplete: () => {
+                  toast.success("Payment received. Your credits will appear in a moment.");
+                  setActive(null);
+                  void queryClient.invalidateQueries({ queryKey: MY_BILLING_KEY });
+                  void queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
+                },
+              }}
+            >
+              <EmbeddedCheckout />
+            </EmbeddedCheckoutProvider>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {data.packs.map((pack) => (
+            <button
+              key={pack.id}
+              type="button"
+              onClick={() => topupMutation.mutate(pack.id)}
+              disabled={topupMutation.isPending}
+              className="flex flex-col rounded-lg border border-border bg-background p-4 text-left hover:border-primary disabled:opacity-60"
+            >
+              <span className="text-base font-semibold">{pack.label}</span>
+              <span className="mt-1 text-2xl font-semibold">{formatAud(pack.amountCents)}</span>
+              <span className="mt-3 rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground">
+                {topupMutation.isPending && topupMutation.variables === pack.id ? "Opening secure payment…" : "Buy credits"}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <AutoTopupCard packs={data.packs} />
+      {isTestModePayments() ? (
+        <p className="text-xs text-muted-foreground">Payments are in test mode. No real money moves.</p>
+      ) : null}
+    </section>
+  );
+}
+
 /** Promo code entry. Once applied, the code stays on the account for good. */
 function PromoCard({ appliedCode }: { appliedCode: string | null }) {
   const queryClient = useQueryClient();
