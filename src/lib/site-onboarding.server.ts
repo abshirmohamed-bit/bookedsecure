@@ -195,6 +195,38 @@ type ScrapeResult = {
   tabCount: number;
 };
 
+const MAX_SCRAPE_ATTEMPTS = 4;
+const MAX_CONCURRENT_SCRAPES = 3;
+const MAX_RETRY_WAIT_MS = 20_000;
+
+/** Pages that still failed after retries during the current read (per request). */
+let skippedPages = { count: 0 };
+
+let activeScrapes = 0;
+const scrapeQueue: Array<() => void> = [];
+
+/** Keeps only a few website reads running at once so the reader is not rate limited. */
+async function withScrapeSlot<T>(run: () => Promise<T>): Promise<T> {
+  if (activeScrapes >= MAX_CONCURRENT_SCRAPES) {
+    await new Promise<void>((resolve) => scrapeQueue.push(resolve));
+  }
+  activeScrapes++;
+  try {
+    return await run();
+  } finally {
+    activeScrapes--;
+    scrapeQueue.shift()?.();
+  }
+}
+
+/** Honours the provider's "retry after" hint, falling back to exponential backoff. */
+function retryDelayMs(response: Response, body: string, attempt: number): number {
+  const header = Number(response.headers.get("retry-after"));
+  const fromBody = /retry after (\d+(?:\.\d+)?)\s*s/i.exec(body)?.[1];
+  const seconds = Number.isFinite(header) && header > 0 ? header : fromBody ? Number(fromBody) : 2 ** (attempt + 1);
+  return Math.min(Math.max(seconds * 1000, 1000), MAX_RETRY_WAIT_MS) + Math.floor(Math.random() * 500);
+}
+
 async function scrapePage(
   url: string,
   lovableKey: string,
@@ -212,18 +244,26 @@ async function scrapePage(
     );
   }
   const json = { type: "json", schema: EXTRACTION_SCHEMA, prompt: EXTRACTION_PROMPT };
-  const response = await fetch(GATEWAY_SCRAPE_URL, {
-    method: "POST",
-    headers: connectorHeaders(lovableKey, connectionKey),
-    body: JSON.stringify({
-      url,
-      onlyMainContent: false,
-      actions,
-      formats: options.withBranding === false ? [json] : ["branding", json],
-    }),
+  const body = JSON.stringify({
+    url,
+    onlyMainContent: false,
+    actions,
+    formats: options.withBranding === false ? [json] : ["branding", json],
   });
-  if (!response.ok) {
-    console.error(`[site-onboarding] scrape failed [${response.status}] ${url}`, await response.text());
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < MAX_SCRAPE_ATTEMPTS; attempt++) {
+    response = await withScrapeSlot(() =>
+      fetch(GATEWAY_SCRAPE_URL, { method: "POST", headers: connectorHeaders(lovableKey, connectionKey), body }),
+    );
+    if (response.status !== 429 || attempt === MAX_SCRAPE_ATTEMPTS - 1) break;
+    const text = await response.text();
+    const waitMs = retryDelayMs(response, text, attempt);
+    console.warn(`[site-onboarding] rate limited, retrying in ${waitMs}ms ${url}`);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  if (!response || !response.ok) {
+    console.error(`[site-onboarding] scrape failed [${response?.status}] ${url}`, await response?.text());
+    skippedPages.count++;
     return null;
   }
   const raw = (await response.json()) as FirecrawlScrape & {
@@ -262,6 +302,8 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
   const connectionKey = process.env["FIRECRAWL_API_KEY"];
   if (!lovableKey || !connectionKey) throw new Error("Website reading is not configured yet.");
 
+  skippedPages = { count: 0 };
+  const skipped = skippedPages;
   const root = await scrapePage(url, lovableKey, connectionKey);
   if (!root) {
     throw new Error(
@@ -316,6 +358,11 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
   };
 
   const proposal = buildOnboardingProposal(site, url);
+  if (skipped.count > 0) {
+    proposal.warnings.push(
+      `${skipped.count} page${skipped.count === 1 ? "" : "s"} of your site could not be read right now, so some services or prices may be missing. Try "Read my site" again in a minute.`,
+    );
+  }
 
   // Show the owner up front which of their services already exist, so the
   // preview matches exactly what saving will do.
