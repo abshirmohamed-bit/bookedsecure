@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { MessagingOverviewCard } from "@/components/messaging/MessagingOverviewCard";
 import { TextoNumberPanel } from "@/components/messaging/TextoNumberPanel";
+import { CreditsPanel } from "@/components/billing/BillingPanel";
 import { BusinessIdentityPanel } from "@/components/messaging/BusinessIdentityPanel";
 import { MessagingAdvanced } from "@/components/messaging/MessagingAdvanced";
 import { BusinessSettingsForm, SettingsPageBody } from "@/components/settings/sections";
@@ -39,6 +40,7 @@ function MessagingSettingsPage() {
             <MessagingOverviewCard />
             <BusinessIdentityPanel readOnly={data.role !== "owner"} />
             <TextoNumberPanel readOnly={data.role !== "owner"} />
+            <CreditsPanel />
             <BusinessSettingsForm
               business={data.business}
               readOnly={data.role !== "owner"}

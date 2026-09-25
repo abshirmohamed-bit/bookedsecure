@@ -174,10 +174,14 @@ export function MessagingOverviewCard() {
         {isOwner ? (
           <div className="flex flex-wrap gap-2">
             <a
-              href="tel:+61466907824"
+              href="#credits"
+              onClick={(event) => {
+                event.preventDefault();
+                document.getElementById("credits")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
               className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
             >
-              Call +61 466 907 824
+              Top up credits
             </a>
             <button
               type="button"
