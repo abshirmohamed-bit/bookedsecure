@@ -177,16 +177,33 @@ export function MessagingOverviewCard() {
 
         {isOwner ? (
           <div className="flex flex-wrap gap-2">
-            <a
-              href="#credits"
-              onClick={(event) => {
-                event.preventDefault();
-                document.getElementById("credits")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-            >
-              Top up credits
-            </a>
+            {canBuyCredits ? (
+              <a
+                href="#credits"
+                onClick={(event) => {
+                  event.preventDefault();
+                  const target = document.getElementById("credits");
+                  if (target) {
+                    target.scrollIntoView({ behavior: "smooth", block: "start" });
+                  } else {
+                    // The credits section is not on this page (stale cached
+                    // response); fall back to the phone number, never a dead click.
+                    window.location.href = "tel:+61466907824";
+                  }
+                }}
+                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              >
+                Top up credits
+              </a>
+            ) : (
+              <a
+                href="tel:+61466907824"
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              >
+                <Phone className="h-4 w-4" aria-hidden="true" />
+                Call to top up credits
+              </a>
+            )}
             <button
               type="button"
               onClick={() => pauseMutation.mutate(!paused)}
