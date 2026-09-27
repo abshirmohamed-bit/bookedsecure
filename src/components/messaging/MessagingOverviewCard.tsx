@@ -79,6 +79,9 @@ export function MessagingOverviewCard() {
   };
 
   const isOwner = data.role === "owner";
+  // The credits panel only renders for full access; when access has ended the
+  // owner must call instead, so never show the in-page button in that state.
+  const canBuyCredits = data.access !== "preview";
   const storedBalance = data.account?.creditBalance ?? 0;
   // Prefer what the provider reports; fall back to our own figure and say so.
   const liveBalance = provider?.ok ? provider.credits : null;
