@@ -63,6 +63,11 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
     // texts, and which tools are switched on for this business.
     const subscriptionPlan = await getPlanForBusiness(app.businessId);
 
+    // Whether this business can buy credits in the app right now (the credits
+    // panel is only rendered for full access).
+    const { getAccessLevel } = await import("@/lib/subscription.server");
+    const access = await getAccessLevel(app.businessId);
+
     // The credit packs this business may buy (promo pricing included).
     const { resolvePromoEntitlement } = await import("@/lib/promo.server");
     const { packsFor } = await import("@/lib/sms/credit-packs");
@@ -89,6 +94,7 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
 
     return {
       role: app.role,
+      access,
       business: businessResult.data ?? null,
       plan: {
         id: subscriptionPlan.id,
