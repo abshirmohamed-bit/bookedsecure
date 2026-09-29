@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -11,8 +11,15 @@ import { supabase } from "@/integrations/supabase/client";
  * refreshes the billing / messaging / settings reads so the screen never shows
  * a stale balance or an out-of-date plan.
  */
+let nextChannelId = 0;
+
 export function useBillingRealtime(businessId: string | null | undefined) {
   const queryClient = useQueryClient();
+  // Two panels on one page (overview card + credits panel) both watch the same
+  // business. Reusing one channel topic throws "cannot add postgres_changes
+  // callbacks after subscribe()" on the second mount, so every consumer gets
+  // its own channel and cleans up only its own.
+  const channelKeyRef = useRef(`billing-${++nextChannelId}`);
 
   useEffect(() => {
     const refresh = () => {
@@ -30,7 +37,7 @@ export function useBillingRealtime(businessId: string | null | undefined) {
     }
 
     const channel = supabase
-      .channel(`billing-${businessId}`)
+      .channel(`${channelKeyRef.current}-${businessId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "businesses", filter: `id=eq.${businessId}` },
