@@ -39,12 +39,18 @@ export type AgentRunInput = {
  */
 export async function runAgentTurn(input: AgentRunInput): Promise<string> {
   const provider = agentProvider(input.apiKey);
+  let streamError: unknown = null;
   const result = streamText({
     model: provider.responses(AGENT_MODEL),
     system: input.system,
     messages: input.messages,
     tools: input.tools,
     stopWhen: stepCountIs(input.maxSteps ?? 50),
+    onError: ({ error }) => {
+      // Provider failures (e.g. a 402 from the gateway) surface here first;
+      // keep the real error so callers can tell billing apart from a bad turn.
+      streamError ??= error;
+    },
     providerOptions: {
       openai: {
         forceReasoning: true,
@@ -55,5 +61,9 @@ export async function runAgentTurn(input: AgentRunInput): Promise<string> {
       },
     },
   });
-  return (await result.text).trim();
+  try {
+    return (await result.text).trim();
+  } catch (error) {
+    throw streamError ?? error;
+  }
 }
