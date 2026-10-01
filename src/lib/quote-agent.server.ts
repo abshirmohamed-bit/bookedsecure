@@ -34,6 +34,15 @@ export type AgentTurnState = {
 const HELP_MESSAGE =
   "Thanks for that. I could not finish that just now, so the team will pick this up and come back to you shortly.";
 
+/** Shown when the AI service itself is unavailable (billing/credits), not a bad turn. */
+const AI_UNAVAILABLE_MESSAGE =
+  "Thanks for that. Our assistant is taking a short break right now. Please try again in a little while, and the team has been notified in the meantime.";
+
+function isBillingFailure(error: unknown): boolean {
+  const text = String((error as { message?: string })?.message ?? error);
+  return /\b402\b|payment required|insufficient|credits/i.test(text);
+}
+
 async function addTurn(
   businessId: string,
   conversationId: string,
