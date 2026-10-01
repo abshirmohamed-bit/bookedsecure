@@ -230,9 +230,11 @@ export async function runQuoteAgentTurn(input: {
   // never with model wording alone.
   const body = bookedNow
     ? [guarded.reply, bookedNow.confirmation].filter((part) => part.length > 0).join(" ")
-    : guarded.reply.length > 0
-      ? guarded.reply
-      : HELP_MESSAGE;
+      : guarded.reply.length > 0
+        ? guarded.reply
+        : aiUnavailable
+          ? AI_UNAVAILABLE_MESSAGE
+          : HELP_MESSAGE;
 
   const requiresOwnerReview = Boolean(conversation.requires_owner_review) || handoff !== null;
   const completed = Boolean(bookedNow);
