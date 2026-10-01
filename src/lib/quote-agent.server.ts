@@ -236,7 +236,8 @@ export async function runQuoteAgentTurn(input: {
           ? AI_UNAVAILABLE_MESSAGE
           : HELP_MESSAGE;
 
-  const requiresOwnerReview = Boolean(conversation.requires_owner_review) || handoff !== null;
+  const requiresOwnerReview =
+    Boolean(conversation.requires_owner_review) || handoff !== null || aiUnavailable;
   const completed = Boolean(bookedNow);
 
   await save({
