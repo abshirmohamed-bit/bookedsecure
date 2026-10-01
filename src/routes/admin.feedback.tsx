@@ -37,7 +37,7 @@ export const Route = createFileRoute("/admin/feedback")({
     <AppShell title="Tenant feedback">
       <div className="panel p-4">
         <h1 className="page-heading">Tenant feedback</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{String((error as Error)?.message ?? error)}</p>
       </div>
     </AppShell>
   ),
