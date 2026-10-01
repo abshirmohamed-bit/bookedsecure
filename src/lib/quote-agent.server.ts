@@ -34,6 +34,22 @@ export type AgentTurnState = {
 const HELP_MESSAGE =
   "Thanks for that. I could not finish that just now, so the team will pick this up and come back to you shortly.";
 
+/** Shown when the AI service itself is unavailable (billing/credits), not a bad turn. */
+const AI_UNAVAILABLE_MESSAGE =
+  "Thanks for that. Our assistant is taking a short break right now. Please try again in a little while, and the team has been notified in the meantime.";
+
+function isBillingFailure(error: unknown): boolean {
+  // The gateway's 402 surfaces inside the stream, so the awaited text throws
+  // AI_NoOutputGeneratedError with the real AI_APICallError as its cause.
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current; depth += 1) {
+    const text = String((current as { message?: string })?.message ?? current);
+    if (/\b402\b|payment required|insufficient|credits/i.test(text)) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
 async function addTurn(
   businessId: string,
   conversationId: string,
@@ -200,6 +216,7 @@ export async function runQuoteAgentTurn(input: {
   await addTurn(tenant.businessId, conversation.id, "customer", input.answer.slice(0, 500));
 
   let answer = "";
+  let aiUnavailable = false;
   try {
     answer = await runAgentTurn({
       apiKey,
@@ -210,6 +227,7 @@ export async function runQuoteAgentTurn(input: {
       maxSteps: 12,
     });
   } catch (error) {
+    aiUnavailable = isBillingFailure(error);
     console.error("[quote-agent] turn failed", error);
   }
 
@@ -219,11 +237,14 @@ export async function runQuoteAgentTurn(input: {
   // never with model wording alone.
   const body = bookedNow
     ? [guarded.reply, bookedNow.confirmation].filter((part) => part.length > 0).join(" ")
-    : guarded.reply.length > 0
-      ? guarded.reply
-      : HELP_MESSAGE;
+      : guarded.reply.length > 0
+        ? guarded.reply
+        : aiUnavailable
+          ? AI_UNAVAILABLE_MESSAGE
+          : HELP_MESSAGE;
 
-  const requiresOwnerReview = Boolean(conversation.requires_owner_review) || handoff !== null;
+  const requiresOwnerReview =
+    Boolean(conversation.requires_owner_review) || handoff !== null || aiUnavailable;
   const completed = Boolean(bookedNow);
 
   await save({
