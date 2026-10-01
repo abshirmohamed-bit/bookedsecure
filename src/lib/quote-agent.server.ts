@@ -209,6 +209,7 @@ export async function runQuoteAgentTurn(input: {
   await addTurn(tenant.businessId, conversation.id, "customer", input.answer.slice(0, 500));
 
   let answer = "";
+  let aiUnavailable = false;
   try {
     answer = await runAgentTurn({
       apiKey,
@@ -219,6 +220,7 @@ export async function runQuoteAgentTurn(input: {
       maxSteps: 12,
     });
   } catch (error) {
+    aiUnavailable = isBillingFailure(error);
     console.error("[quote-agent] turn failed", error);
   }
 
