@@ -39,8 +39,15 @@ const AI_UNAVAILABLE_MESSAGE =
   "Thanks for that. Our assistant is taking a short break right now. Please try again in a little while, and the team has been notified in the meantime.";
 
 function isBillingFailure(error: unknown): boolean {
-  const text = String((error as { message?: string })?.message ?? error);
-  return /\b402\b|payment required|insufficient|credits/i.test(text);
+  // The gateway's 402 surfaces inside the stream, so the awaited text throws
+  // AI_NoOutputGeneratedError with the real AI_APICallError as its cause.
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current; depth += 1) {
+    const text = String((current as { message?: string })?.message ?? current);
+    if (/\b402\b|payment required|insufficient|credits/i.test(text)) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
 }
 
 async function addTurn(
