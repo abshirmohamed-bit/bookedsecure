@@ -42,6 +42,7 @@ import { Route as SettingsBusinessRouteImport } from './routes/settings.business
 import { Route as SettingsMessagingRouteImport } from './routes/settings.messaging'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team'
 import { Route as UnfinishedIndexRouteImport } from './routes/unfinished.index'
+import { Route as ApiPublicEmailUnsubscribeRouteImport } from './routes/api/public/email-unsubscribe'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicHooksProviderStatementsRouteImport } from './routes/api/public/hooks/provider-statements'
@@ -222,6 +223,12 @@ const UnfinishedIndexRoute = UnfinishedIndexRouteImport.update({
   path: '/unfinished/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicEmailUnsubscribeRoute =
+  ApiPublicEmailUnsubscribeRouteImport.update({
+    id: '/api/public/email-unsubscribe',
+    path: '/api/public/email-unsubscribe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   id: '/api/public/hooks/follow-ups',
   path: '/api/public/hooks/follow-ups',
@@ -335,6 +342,7 @@ export interface FileRoutesByFullPath {
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/unfinished/': typeof UnfinishedIndexRoute
+  '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
@@ -383,6 +391,7 @@ export interface FileRoutesByTo {
   '/quote': typeof QuoteIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/unfinished': typeof UnfinishedIndexRoute
+  '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
@@ -433,6 +442,7 @@ export interface FileRoutesById {
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/unfinished/': typeof UnfinishedIndexRoute
+  '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
@@ -484,6 +494,7 @@ export interface FileRouteTypes {
     | '/quote/'
     | '/settings/'
     | '/unfinished/'
+    | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
@@ -532,6 +543,7 @@ export interface FileRouteTypes {
     | '/quote'
     | '/settings'
     | '/unfinished'
+    | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
@@ -581,6 +593,7 @@ export interface FileRouteTypes {
     | '/quote/'
     | '/settings/'
     | '/unfinished/'
+    | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
@@ -624,6 +637,7 @@ export interface RootRouteChildren {
   LeadsIndexRoute: typeof LeadsIndexRoute
   QuoteIndexRoute: typeof QuoteIndexRoute
   UnfinishedIndexRoute: typeof UnfinishedIndexRoute
+  ApiPublicEmailUnsubscribeRoute: typeof ApiPublicEmailUnsubscribeRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
   ApiPublicHooksProviderStatementsRoute: typeof ApiPublicHooksProviderStatementsRoute
@@ -873,6 +887,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UnfinishedIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/email-unsubscribe': {
+      id: '/api/public/email-unsubscribe'
+      path: '/api/public/email-unsubscribe'
+      fullPath: '/api/public/email-unsubscribe'
+      preLoaderRoute: typeof ApiPublicEmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/follow-ups': {
       id: '/api/public/hooks/follow-ups'
       path: '/api/public/hooks/follow-ups'
@@ -1035,6 +1056,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeadsIndexRoute: LeadsIndexRoute,
   QuoteIndexRoute: QuoteIndexRoute,
   UnfinishedIndexRoute: UnfinishedIndexRoute,
+  ApiPublicEmailUnsubscribeRoute: ApiPublicEmailUnsubscribeRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
   ApiPublicHooksProviderStatementsRoute: ApiPublicHooksProviderStatementsRoute,
