@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as ImportRouteImport } from './routes/import'
@@ -76,6 +77,11 @@ const AssistantRoute = AssistantRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsRoute = CampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -313,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
+  '/campaigns': typeof CampaignsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
@@ -363,6 +370,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
+  '/campaigns': typeof CampaignsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
@@ -413,6 +421,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
+  '/campaigns': typeof CampaignsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
@@ -465,6 +474,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/assistant'
     | '/auth'
+    | '/campaigns'
     | '/dashboard'
     | '/home'
     | '/import'
@@ -515,6 +525,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/assistant'
     | '/auth'
+    | '/campaigns'
     | '/dashboard'
     | '/home'
     | '/import'
@@ -564,6 +575,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/assistant'
     | '/auth'
+    | '/campaigns'
     | '/dashboard'
     | '/home'
     | '/import'
@@ -615,6 +627,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AssistantRoute: typeof AssistantRouteWithChildren
   AuthRoute: typeof AuthRoute
+  CampaignsRoute: typeof CampaignsRoute
   DashboardRoute: typeof DashboardRoute
   HomeRoute: typeof HomeRoute
   ImportRoute: typeof ImportRoute
@@ -682,6 +695,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns': {
+      id: '/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof CampaignsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1034,6 +1054,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AssistantRoute: AssistantRouteWithChildren,
   AuthRoute: AuthRoute,
+  CampaignsRoute: CampaignsRoute,
   DashboardRoute: DashboardRoute,
   HomeRoute: HomeRoute,
   ImportRoute: ImportRoute,
