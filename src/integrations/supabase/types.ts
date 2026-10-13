@@ -1402,6 +1402,156 @@ export type Database = {
           },
         ]
       }
+      email_campaign_recipients: {
+        Row: {
+          business_id: string
+          campaign_id: string
+          created_at: string
+          email: string
+          error: string | null
+          id: string
+          lead_id: string | null
+          provider_id: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          business_id: string
+          campaign_id: string
+          created_at?: string
+          email: string
+          error?: string | null
+          id?: string
+          lead_id?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          business_id?: string
+          campaign_id?: string
+          created_at?: string
+          email?: string
+          error?: string | null
+          id?: string
+          lead_id?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_campaign_recipients_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_campaign_recipients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_campaign_recipients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_campaigns: {
+        Row: {
+          approved_at: string | null
+          body_text: string
+          business_id: string
+          cancelled_at: string | null
+          created_at: string
+          created_by: string | null
+          from_address: string
+          id: string
+          name: string
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          approved_at?: string | null
+          body_text: string
+          business_id: string
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          from_address?: string
+          id?: string
+          name: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          approved_at?: string | null
+          body_text?: string
+          business_id?: string
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          from_address?: string
+          id?: string
+          name?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_unsubscribes: {
+        Row: {
+          business_id: string
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_unsubscribes_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_submissions: {
         Row: {
           business_id: string
