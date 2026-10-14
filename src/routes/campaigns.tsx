@@ -102,7 +102,7 @@ function CampaignsPage() {
       );
       if (!result.fromDeliverable) {
         toast.warning(
-          "Emails will only reach your own inbox until your sending domain is verified with the email provider. Call +61 466 907 824 and we will set it up with you.",
+          "Emails will only reach your own inbox until your sending domain is verified with the email provider.",
         );
       }
       setName("");
@@ -180,7 +180,7 @@ function CampaignsPage() {
           />
           <p className="text-xs text-muted-foreground">
             Until your own sending domain is verified with the email provider, emails only reach
-            your own inbox. Call +61 466 907 824 and we will set it up with you.
+            your own inbox.
           </p>
 
           <div className="space-y-2">
