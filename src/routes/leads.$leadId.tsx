@@ -597,7 +597,7 @@ function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | nul
       }
       if (!result.fromDeliverable) {
         toast.warning(
-          "Emails only reach your own inbox until your sending domain is verified. Call +61 466 907 824 and we will set it up with you.",
+          "Emails only reach your own inbox until your sending domain is verified..",
         );
       }
     } catch (error) {

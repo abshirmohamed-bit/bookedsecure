@@ -58,9 +58,9 @@ export const createEmailCampaign = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
     const { createEmailCampaign: create } = await import("@/lib/email-campaigns.server");
-    const app = await requireWriteContext(context.supabase, context.userId);
+    const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
     return await create({
       businessId: app.businessId,
@@ -78,9 +78,9 @@ export const sendEmailCampaign = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ campaignId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
     const { sendEmailCampaign: send } = await import("@/lib/email-campaigns.server");
-    const app = await requireWriteContext(context.supabase, context.userId);
+    const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
     return await send({ businessId: app.businessId, campaignId: data.campaignId });
   });
@@ -89,9 +89,9 @@ export const cancelEmailCampaign = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ campaignId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
     const { cancelEmailCampaign: cancel } = await import("@/lib/email-campaigns.server");
-    const app = await requireWriteContext(context.supabase, context.userId);
+    const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
     return await cancel({ businessId: app.businessId, campaignId: data.campaignId });
   });
@@ -113,13 +113,13 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { requireWriteContext, requireOwner, assertLeadOwnership } = await import(
+    const { requireAppContext, requireOwner, assertLeadOwnership } = await import(
       "@/lib/app-context.server"
     );
     const { createEmailCampaign: create, sendEmailCampaign: send } = await import(
       "@/lib/email-campaigns.server"
     );
-    const app = await requireWriteContext(context.supabase, context.userId);
+    const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
     await assertLeadOwnership(app.businessId, data.leadId);
     const created = await create({
