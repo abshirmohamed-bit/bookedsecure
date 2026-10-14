@@ -623,6 +623,45 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       },
     }),
 
+    draft_email_campaign: tool({
+      description:
+        "Prepare an email campaign to this business's customers. Use find_customers first to pick the recipients, then pass their lead ids. The email is saved as a draft on the Email campaigns page; nothing sends until the owner reviews it there and presses Send. Customers without an email address or who unsubscribed are skipped automatically.",
+      inputSchema: z.object({
+        leadIds: z.array(z.string().uuid()).min(1).max(500),
+        name: z.string().min(2).max(120).describe("Short internal name for the campaign."),
+        subject: z.string().min(2).max(160),
+        bodyText: z.string().min(2).max(5000).describe("The email body in the owner's words."),
+      }),
+      execute: async (input) => {
+        const { createEmailCampaign } = await import("@/lib/email-campaigns.server");
+        try {
+          const result = await createEmailCampaign({
+            businessId,
+            userId,
+            name: input.name,
+            subject: input.subject,
+            bodyText: input.bodyText,
+            leadIds: input.leadIds,
+          });
+          ctx.record(
+            `Drafted email campaign "${input.name}" for ${result.emailable} customer${result.emailable === 1 ? "" : "s"}.`,
+          );
+          return {
+            ok: true,
+            awaitingConfirmation: true,
+            campaignId: result.campaignId,
+            emailable: result.emailable,
+            skippedNoEmail: result.skippedNoEmail,
+            skippedUnsubscribed: result.skippedUnsubscribed,
+            summary:
+              "Draft saved on the Email campaigns page. Review it there and press Send when you're happy — nothing has been emailed yet.",
+          };
+        } catch (error) {
+          return fail(error instanceof Error ? error.message : "Could not draft the email campaign.");
+        }
+      },
+    }),
+
     ...buildOperationsTools(ctx),
   };
 }

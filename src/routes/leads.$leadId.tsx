@@ -196,6 +196,8 @@ function LeadDetail() {
               <Detail label="Added" value={new Date(lead.created_at).toLocaleString("en-AU")} />
             </dl>
 
+            <LeadEmailPanel leadId={lead.id} email={lead.email} />
+
             <div className="mt-3 space-y-2 border-t border-border pt-3">
               <label className="block text-xs text-muted-foreground" htmlFor="lead-status">
                 Status
@@ -568,6 +570,84 @@ function ActivityPanel({
         ))}
       </div>
     </section>
+  );
+}
+
+function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | null }) {
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!email) return null;
+
+  async function onSend() {
+    if (!window.confirm(`Send this email to ${email}?`)) return;
+    setBusy(true);
+    try {
+      const { sendLeadEmail } = await import("@/lib/email-campaigns.functions");
+      const result = await sendLeadEmail({ data: { leadId, subject, bodyText: body } });
+      if (result.sent > 0) {
+        toast.success(`Email sent to ${email}.`);
+        setOpen(false);
+        setSubject("");
+        setBody("");
+      } else {
+        toast.error("The email could not be sent.");
+      }
+      if (!result.fromDeliverable) {
+        toast.warning(
+          "Emails only reach your own inbox until your sending domain is verified. Call +61 466 907 824 and we will set it up with you.",
+        );
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send the email.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Send className="h-3.5 w-3.5" /> Send an email
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <input
+            className="form-control text-xs"
+            placeholder="Subject"
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
+          />
+          <textarea
+            className="form-control min-h-24 text-xs"
+            placeholder="Write the email in your own words..."
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={onSend}
+              disabled={busy || subject.trim().length < 2 || body.trim().length < 2}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              <Send className="h-3.5 w-3.5" /> Send email
+            </button>
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
