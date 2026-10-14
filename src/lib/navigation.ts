@@ -28,7 +28,8 @@ export type AccountMenuItem = {
     | "/settings/business"
     | "/settings/messaging"
     | "/settings/automation"
-    | "/settings/team";
+    | "/settings/team"
+    | "/campaigns";
   label: string;
 };
 
@@ -37,6 +38,7 @@ export const ACCOUNT_MENU_ITEMS: readonly AccountMenuItem[] = [
   { to: "/settings/business", label: "Business settings" },
   { to: "/settings/messaging", label: "Messaging" },
   { to: "/settings/automation", label: "Automation" },
+  { to: "/campaigns", label: "Email campaigns" },
   { to: "/settings/team", label: "Team access" },
 ] as const;
 
