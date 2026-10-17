@@ -28,6 +28,10 @@ describe("name recovery", () => {
     expect(deriveName({ email: "info@example.com" })).toBe("Info");
     expect(deriveName({ email: "12345@example.com" })).toBeNull();
     expect(deriveName({})).toBeNull();
+    // A yes/no flag mapped to the name column never becomes the name.
+    expect(deriveName({ name: "true", firstName: "Jo", lastName: "Smith" })).toBe("Jo Smith");
+    expect(deriveName({ name: "FALSE", email: "jane.smith@example.com" })).toBe("Jane Smith");
+    expect(deriveName({ name: "true" })).toBeNull();
   });
 
   it("keeps split-name columns aligned to their own row", () => {

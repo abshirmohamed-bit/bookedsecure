@@ -445,6 +445,8 @@ function titleCase(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 }
 
+const BOOLEAN_LIKE = /^(true|false|yes|no)$/i;
+
 /**
  * Build a usable display name from whatever the file provided, in priority
  * order: an explicit name column, separate first/last columns, then the email
@@ -460,7 +462,10 @@ export function deriveName(input: {
 }): string | null {
   const clean = (value: string | null | undefined) => (value ?? "").trim().replace(/\s+/g, " ");
   const explicit = clean(input.name);
-  if (explicit) return explicit;
+  // A yes/no flag column (e.g. a CRM "Customer" = true column, which the
+  // "customer" alias maps to name) is never a person's name: fall through to
+  // the first/last columns instead of saving "true" as the lead's name.
+  if (explicit && !BOOLEAN_LIKE.test(explicit)) return explicit;
 
   const joined = [clean(input.firstName), clean(input.lastName)].filter(Boolean).join(" ");
   if (joined) return joined;
