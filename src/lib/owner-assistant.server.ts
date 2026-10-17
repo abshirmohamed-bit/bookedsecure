@@ -10,6 +10,7 @@ import { generateText } from "ai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { loadBookings } from "@/lib/bookings.server";
 import { upcomingBookings } from "@/lib/bookings";
+import { assistantTimeZone } from "@/lib/assistant-time";
 import {
   buildOwnerAssistantSystem,
   classifyOwnerQuestion,
@@ -37,7 +38,7 @@ export async function loadOwnerSnapshot(businessId: string): Promise<OwnerSnapsh
   const nowIso = new Date().toISOString();
   const [{ data: business }, { data: leads }, { data: jobs }, { data: campaigns }, { data: drafts }] =
     await Promise.all([
-      supabaseAdmin.from("businesses").select("name").eq("id", businessId).maybeSingle(),
+      supabaseAdmin.from("businesses").select("name, timezone").eq("id", businessId).maybeSingle(),
       supabaseAdmin
         .from("leads")
         .select("id, status, created_at, first_reply_at")
@@ -83,7 +84,7 @@ export async function loadOwnerSnapshot(businessId: string): Promise<OwnerSnapsh
   return {
     businessName: business?.name ?? null,
     generatedAt: nowIso,
-    timezone: null,
+    timezone: assistantTimeZone(business?.timezone ?? null),
     leads: {
       total: leadRows.length,
       new: leadRows.filter((lead) => lead.status === "new").length,

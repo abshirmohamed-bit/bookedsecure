@@ -12,7 +12,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normaliseAuMobile, LEAD_STATUSES } from "@/lib/domain";
 import { formatInZone, zonedWallTimeToIso } from "@/lib/assistant-time";
-import { upcomingBookings, visibleNotes } from "@/lib/bookings";
+import { resolveServiceName, upcomingBookings, visibleNotes } from "@/lib/bookings";
 import type { OwnerProposal } from "@/lib/owner-actions.server";
 import { buildOperationsTools } from "@/lib/assistant-tools-ops.server";
 
@@ -81,7 +81,9 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         if (rows.length === 0) return { matches: [], message: "No customer matches that." };
         const jobs = await supabaseAdmin
           .from("jobs")
-          .select("id, lead_id, scheduled_at, completion_status, completed_value")
+          .select(
+            "id, lead_id, scheduled_at, completion_status, completed_value, service_performed, services(name)",
+          )
           .eq("business_id", businessId)
           .in(
             "lead_id",
@@ -107,8 +109,13 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
               .map((job) => ({
                 jobId: job.id,
                 state: job.completion_status,
+                serviceName:
+                  resolveServiceName({
+                    servicePerformed: job.service_performed,
+                    jobServiceName: job.services?.name ?? null,
+                  }) ?? "Service to confirm",
+                // Local time only: the raw UTC timestamp was misread as local time.
                 when: job.scheduled_at ? formatInZone(job.scheduled_at as string, timeZone) : null,
-                scheduledAt: job.scheduled_at,
                 amount: job.completed_value,
               })),
           })),
@@ -130,10 +137,10 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
             .map((entry) => ({
               jobId: entry.jobId,
               leadId: entry.leadId,
-              customer: entry.customerName,
-              service: entry.serviceName,
+              customerName: entry.customerName,
+              serviceName: entry.serviceName ?? "Service to confirm",
+              // Local time only: the raw UTC timestamp was misread as local time.
               when: entry.scheduledAt ? formatInZone(entry.scheduledAt, timeZone) : null,
-              scheduledAt: entry.scheduledAt,
               suburb: entry.suburb,
             })),
         };
@@ -146,7 +153,8 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       inputSchema: z.object({}),
       execute: async () => {
         const { loadOwnerSnapshot } = await import("@/lib/owner-assistant.server");
-        return await loadOwnerSnapshot(businessId);
+        const { snapshotForModel } = await import("@/lib/owner-assistant");
+        return snapshotForModel(await loadOwnerSnapshot(businessId));
       },
     }),
 

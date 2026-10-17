@@ -14,6 +14,7 @@ type JobRow = {
   completion_status: string | null;
   service_performed: string | null;
   notes: string | null;
+  services: { name: string | null } | null;
 };
 
 export async function loadBookings(
@@ -23,7 +24,7 @@ export async function loadBookings(
   let query = supabaseAdmin
     .from("jobs")
     .select(
-      "id, lead_id, scheduled_at, completed_at, completed_value, completion_status, service_performed, notes",
+      "id, lead_id, scheduled_at, completed_at, completed_value, completion_status, service_performed, notes, services(name)",
     )
     .eq("business_id", businessId)
     .order("scheduled_at", { ascending: true });
@@ -69,6 +70,7 @@ export async function loadBookings(
         serviceName: resolveServiceName({
           servicePerformed: job.service_performed,
           offerServiceName: offerByJob.get(job.id)?.service_name_snapshot ?? null,
+          jobServiceName: job.services?.name ?? null,
           leadServiceIntent: (lead as { service_intent?: string | null } | undefined)?.service_intent ?? null,
         }),
         scheduledAt: job.scheduled_at,

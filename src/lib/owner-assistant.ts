@@ -8,6 +8,7 @@
  * Everything here is tenant-neutral: the snapshot carries the business name and
  * numbers, and no business is special-cased.
  */
+import { assistantTimeZone, formatInZone, nowInZone } from "@/lib/assistant-time";
 
 export type OwnerSnapshot = {
   businessName: string | null;
@@ -85,13 +86,8 @@ export function renderSnapshotAnswer(snapshot: OwnerSnapshot, intent: OwnerQuest
       const base = `${who} has ${plural(snapshot.bookings.upcoming, "upcoming booking", "upcoming bookings")} and ${plural(snapshot.bookings.completedLast30Days, "completed job", "completed jobs")} in the last 30 days.`;
       const next = snapshot.bookings.upcomingList?.[0];
       if (!next) return base;
-      const when = new Intl.DateTimeFormat("en-AU", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        hour: "numeric",
-        minute: "2-digit",
-      }).format(new Date(next.scheduledAt));
+      // Stored times are UTC; read them back in the business's own timezone.
+      const when = formatInZone(next.scheduledAt, assistantTimeZone(snapshot.timezone));
       const label = (next.customerName ?? "").trim() || "the next customer";
       return `${base} The next one is ${label} on ${when}.`;
     }
@@ -142,12 +138,48 @@ export function guardAssistantAnswer(answer: string): string {
 }
 
 /**
+ * The snapshot as the model sees it. Stored times are UTC ISO strings, which
+ * the model misreads as local time (8:00 am Thursday in Sydney is 21:00 UTC on
+ * Wednesday), so every time is given only as the business's own local time and
+ * each booking's customer and service are labelled separately.
+ */
+export function snapshotForModel(snapshot: OwnerSnapshot) {
+  const timeZone = assistantTimeZone(snapshot.timezone);
+  const now = nowInZone(timeZone, new Date(snapshot.generatedAt));
+  const local = (iso: string | null) => (iso ? formatInZone(iso, timeZone) : null);
+  return {
+    businessName: snapshot.businessName,
+    timeZone,
+    localNow: `${now.weekday} ${now.date} at ${now.time}`,
+    leads: snapshot.leads,
+    bookings: {
+      upcoming: snapshot.bookings.upcoming,
+      nextBookingLocalTime: local(snapshot.bookings.nextScheduledAt),
+      completedLast30Days: snapshot.bookings.completedLast30Days,
+      revenueLast30Days: snapshot.bookings.revenueLast30Days,
+      ...(snapshot.bookings.upcomingList
+        ? {
+            upcomingList: snapshot.bookings.upcomingList.map((entry) => ({
+              customerName: entry.customerName,
+              serviceName: entry.serviceName ?? "Service to confirm",
+              localTime: local(entry.scheduledAt),
+            })),
+          }
+        : {}),
+    },
+    campaigns: snapshot.campaigns,
+  };
+}
+
+/**
  * Fallback prompt, used only when the tool-using assistant is unavailable. It
  * answers from the snapshot and never claims an action was taken.
  */
 export function buildOwnerAssistantSystem(snapshot: OwnerSnapshot): string {
+  const view = snapshotForModel(snapshot);
   return [
     `You are the BookedSecure assistant for ${businessLabel(snapshot)}.`,
+    `Right now it is ${view.localNow} in ${view.timeZone}. Every time in the snapshot is already local to that timezone; work out today, tonight and tomorrow from this local time.`,
     "Answer the owner's question about their own business using ONLY the snapshot below.",
     "Rules:",
     "- Your tools are briefly unavailable. If the owner asked you to change, book or send something, say the assistant is momentarily unavailable and ask them to send it again in a moment. Never claim you did it.",
@@ -156,7 +188,7 @@ export function buildOwnerAssistantSystem(snapshot: OwnerSnapshot): string {
     "- Answer in at most three short sentences, plain Australian English, no bullet lists, no em dashes.",
     "",
     "Snapshot (JSON):",
-    JSON.stringify(snapshot),
+    JSON.stringify(view),
   ].join("\n");
 }
 
@@ -180,7 +212,7 @@ export function buildAssistantSystemPrompt(input: {
   const isOwner = input.role !== "staff";
   return [
     `You are the BookedSecure assistant for ${who}: the ${isOwner ? "owner's" : "team's"} co-worker with full working access to this business's own BookedSecure account. You are not a read-only helper.`,
-    `Right now it is ${input.localWeekday} ${input.localDate} at ${input.localTime} in ${input.timeZone}. All dates and times you pass to tools are local to that timezone.`,
+    `Right now it is ${input.localWeekday} ${input.localDate} at ${input.localTime} in ${input.timeZone}. All dates and times you pass to tools are local to that timezone, and every time the tools return is already local to that timezone: use it exactly as given and never convert it.`,
     isOwner
       ? "The person you are talking to is the business owner."
       : "The person you are talking to is a staff member: they can read everything and work with customers and bookings, but settings, messaging controls, team access and imports are owner-only. Say so plainly if they ask for one of those.",

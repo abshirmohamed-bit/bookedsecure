@@ -46,16 +46,23 @@ export function bookingStateText(state: BookingState): string {
 /**
  * The service name shown on a booking. A scheduled job has no
  * `service_performed` yet (that column is only written on completion), so the
- * confirmed offer's snapshot is used, then the lead's requested service.
+ * confirmed offer's snapshot is used, then the service the job is linked to
+ * (`jobs.service_id`), then the lead's requested service.
  */
 export function resolveServiceName(
   parts: {
     servicePerformed?: string | null;
     offerServiceName?: string | null;
+    jobServiceName?: string | null;
     leadServiceIntent?: string | null;
   },
 ): string | null {
-  const candidates = [parts.servicePerformed, parts.offerServiceName, parts.leadServiceIntent];
+  const candidates = [
+    parts.servicePerformed,
+    parts.offerServiceName,
+    parts.jobServiceName,
+    parts.leadServiceIntent,
+  ];
   for (const candidate of candidates) {
     const text = (candidate ?? "").trim();
     if (text.length > 0) return text;
