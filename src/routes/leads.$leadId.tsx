@@ -2,9 +2,18 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Bot, Pause, Play, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, Bot, Pause, Pencil, Play, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   DeliveryBadge,
   FailureClassBadge,
@@ -194,6 +203,12 @@ function LeadDetail() {
               <Detail label={subjectLabel} value={lead.vehicle_type} />
               <Detail label="Added" value={new Date(lead.created_at).toLocaleString("en-AU")} />
             </dl>
+            <EditContactDialog
+              leadId={leadId}
+              lead={lead}
+              vehicleLabel={subjectLabel}
+              onSaved={invalidate}
+            />
 
             <div className="mt-3 space-y-2 border-t border-border pt-3">
               <label className="block text-xs text-muted-foreground" htmlFor="lead-status">
@@ -575,6 +590,143 @@ function Detail({ label, value }: { label: string; value: string | null | undefi
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="min-w-0 break-words text-sm">{value || "—"}</dd>
     </div>
+  );
+}
+
+type EditableContact = {
+  name: string;
+  mobile_number: string;
+  email: string | null;
+  suburb: string | null;
+  service_address: string | null;
+  vehicle_type: string | null;
+};
+
+/** Edit the lead's name and contact details. Saves through updateLead. */
+function EditContactDialog({
+  leadId,
+  lead,
+  vehicleLabel,
+  onSaved,
+}: {
+  leadId: string;
+  lead: EditableContact;
+  vehicleLabel: string;
+  onSaved: () => void;
+}) {
+  const patch = useServerFn(updateLead);
+  const [open, setOpen] = useState(false);
+  const toForm = (row: EditableContact) => ({
+    name: row.name ?? "",
+    mobile_number: row.mobile_number ?? "",
+    email: row.email ?? "",
+    suburb: row.suburb ?? "",
+    service_address: row.service_address ?? "",
+    vehicle_type: row.vehicle_type ?? "",
+  });
+  const [form, setForm] = useState(() => toForm(lead));
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      patch({
+        data: {
+          leadId,
+          name: form.name.trim(),
+          mobile_number: form.mobile_number.trim(),
+          email: form.email.trim() || null,
+          suburb: form.suburb.trim() || null,
+          service_address: form.service_address.trim() || null,
+          vehicle_type: form.vehicle_type.trim() || null,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Contact details saved");
+      setOpen(false);
+      onSaved();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const fields: {
+    key: keyof ReturnType<typeof toForm>;
+    label: string;
+    type?: string;
+    max: number;
+  }[] = [
+    { key: "name", label: "Name", max: 120 },
+    { key: "mobile_number", label: "Mobile", type: "tel", max: 30 },
+    { key: "email", label: "Email", type: "email", max: 200 },
+    { key: "suburb", label: "Suburb", max: 80 },
+    { key: "service_address", label: "Address", max: 200 },
+    { key: "vehicle_type", label: vehicleLabel, max: 60 },
+  ];
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // Start from the saved values each time the form opens.
+        if (next) setForm(toForm(lead));
+        setOpen(next);
+      }}
+    >
+      <DialogTrigger asChild>
+        <button className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+          <Pencil className="h-3.5 w-3.5" /> Edit details
+        </button>
+      </DialogTrigger>
+      <DialogContent className="w-[95vw] sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit contact details</DialogTitle>
+          <DialogDescription>
+            Changes are saved to this lead. No message is sent to the customer.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            mutation.mutate();
+          }}
+        >
+          {fields.map((field) => (
+            <div key={field.key}>
+              <label
+                className="block text-xs text-muted-foreground"
+                htmlFor={`edit-lead-${field.key}`}
+              >
+                {field.label}
+              </label>
+              <input
+                id={`edit-lead-${field.key}`}
+                type={field.type ?? "text"}
+                value={form[field.key]}
+                maxLength={field.max}
+                required={field.key === "name" || field.key === "mobile_number"}
+                onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}
+                className="form-control mt-1 text-sm"
+              />
+            </div>
+          ))}
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-md border border-input px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!form.name.trim() || !form.mobile_number.trim() || mutation.isPending}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {mutation.isPending ? "Saving…" : "Save changes"}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

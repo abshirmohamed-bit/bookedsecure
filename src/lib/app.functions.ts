@@ -262,11 +262,16 @@ export const updateLead = createServerFn({ method: "POST" })
         leadId: z.string().uuid(),
         status: z.enum(LEAD_STATUSES).optional(),
         notes: z.string().max(4000).optional(),
-        suburb: z.string().max(80).optional(),
-        vehicle_type: z.string().max(60).optional(),
+        suburb: z.string().max(80).nullable().optional(),
+        vehicle_type: z.string().max(60).nullable().optional(),
         last_cleaned_at: z.string().max(60).optional(),
         main_concerns: z.string().max(500).optional(),
         service_intent: z.string().max(120).optional(),
+        // Contact details edited from the lead page.
+        name: z.string().trim().min(1, "Name is required.").max(120).optional(),
+        mobile_number: z.string().max(30).optional(),
+        email: z.string().max(200).nullable().optional(),
+        service_address: z.string().max(200).nullable().optional(),
       })
       .parse(input),
   )
@@ -278,9 +283,31 @@ export const updateLead = createServerFn({ method: "POST" })
     await assertLeadOwnership(app.businessId, data.leadId);
 
     const { leadId, ...fields } = data;
-    const update = Object.fromEntries(
+    const update: Record<string, unknown> = Object.fromEntries(
       Object.entries(fields).filter(([, value]) => value !== undefined),
     );
+    // Optional contact fields: a blank value clears the field.
+    for (const key of ["suburb", "vehicle_type", "service_address"] as const) {
+      if (key in update) {
+        const value = typeof update[key] === "string" ? (update[key] as string).trim() : "";
+        update[key] = value === "" ? null : value;
+      }
+    }
+    // Same normalisation as every other lead write (+61…).
+    if (data.mobile_number !== undefined) {
+      const { normaliseAuMobile } = await import("@/lib/domain");
+      const mobile = normaliseAuMobile(data.mobile_number);
+      if (!mobile) throw new Error("Enter a valid Australian mobile number, e.g. 0412 345 678.");
+      update["mobile_number"] = mobile;
+    }
+    // Keep email_normalised in step: duplicate checks on import read it.
+    if (data.email !== undefined) {
+      const { normaliseEmail } = await import("@/lib/csv-import");
+      const email = normaliseEmail(data.email ?? "");
+      if (!email.valid) throw new Error("Enter a valid email address.");
+      update["email"] = email.value ? (data.email ?? "").trim() : null;
+      update["email_normalised"] = email.value;
+    }
     // "completed" is only reachable through the explicit completed-job action.
     if (update["status"] === "completed") {
       throw new Error("Use Record completed job to mark a lead completed.");
