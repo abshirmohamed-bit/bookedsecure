@@ -7,6 +7,7 @@ import {
   buildAssistantSystemPrompt,
   normaliseOwnerQuestion,
   renderSnapshotAnswer,
+  snapshotForModel,
   type OwnerSnapshot,
 } from "@/lib/owner-assistant";
 
@@ -132,5 +133,62 @@ describe("normaliseOwnerQuestion", () => {
     expect(normaliseOwnerQuestion("  how   many  leads ")).toBe("how many leads");
     expect(normaliseOwnerQuestion(null)).toBe("");
     expect(normaliseOwnerQuestion("x".repeat(1200)).length).toBe(1000);
+  });
+});
+
+describe("booking times in the business's own timezone", () => {
+  // Wed 14 Oct 2026, 11:24 am in Sydney (AEDT, UTC+11).
+  const sydney: OwnerSnapshot = {
+    ...snapshot,
+    generatedAt: "2026-10-14T00:24:00.000Z",
+    timezone: "Australia/Sydney",
+    bookings: {
+      ...snapshot.bookings,
+      // Thu 15 Oct 2026, 8:00 am in Sydney is 21:00 UTC on Wed 14 Oct.
+      nextScheduledAt: "2026-10-14T21:00:00.000Z",
+      upcomingList: [
+        {
+          customerName: "Sam",
+          serviceName: "Full Detail",
+          scheduledAt: "2026-10-14T21:00:00.000Z",
+        },
+        { customerName: "Tamina", serviceName: null, scheduledAt: "2026-10-18T22:00:00.000Z" },
+      ],
+    },
+  };
+
+  it("gives the model local times only, never raw UTC timestamps", () => {
+    const view = snapshotForModel(sydney);
+    expect(view.localNow).toBe("Wednesday 2026-10-14 at 11:24");
+    expect(view.bookings.nextBookingLocalTime).toContain("Thu, 15 Oct, 8:00 am");
+    expect(view.bookings.nextBookingLocalTime).toContain("8:00");
+    expect(view.bookings.upcomingList?.[0]).toMatchObject({
+      customerName: "Sam",
+      serviceName: "Full Detail",
+    });
+    expect(view.bookings.upcomingList?.[1]?.localTime).toContain("Mon, 19 Oct, 9:00 am");
+    expect(view.bookings.upcomingList?.[1]?.localTime).toContain("9:00");
+    expect(JSON.stringify(view)).not.toContain("T21:00");
+    expect(JSON.stringify(view)).not.toContain("generatedAt");
+  });
+
+  it("labels a booking with no service instead of leaving it blank", () => {
+    const view = snapshotForModel(sydney);
+    expect(view.bookings.upcomingList?.[1]).toMatchObject({
+      customerName: "Tamina",
+      serviceName: "Service to confirm",
+    });
+  });
+
+  it("tells the fallback model the local date and time", () => {
+    const system = buildOwnerAssistantSystem(sydney);
+    expect(system).toContain("Right now it is Wednesday 2026-10-14 at 11:24 in Australia/Sydney");
+    expect(system).not.toContain("2026-10-14T21:00");
+  });
+
+  it("states the next booking in local time in the fallback answer", () => {
+    const answer = renderSnapshotAnswer(sydney, "bookings");
+    expect(answer).toContain("Sam on Thu, 15 Oct, 8:00 am");
+    expect(answer).toContain("8:00");
   });
 });

@@ -46,6 +46,13 @@ describe("service name", () => {
     );
     expect(resolveServiceName({ servicePerformed: " ", offerServiceName: "Interior" })).toBe("Interior");
     expect(resolveServiceName({ leadServiceIntent: "Wash" })).toBe("Wash");
+    // A job linked to a catalogue service shows that service, not "Service to confirm".
+    expect(
+      resolveServiceName({ jobServiceName: "Interior Detail", leadServiceIntent: "Wash" }),
+    ).toBe("Interior Detail");
+    expect(
+      resolveServiceName({ offerServiceName: "Interior", jobServiceName: "Interior Detail" }),
+    ).toBe("Interior");
     expect(resolveServiceName({})).toBeNull();
   });
 
