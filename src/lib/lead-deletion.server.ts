@@ -2,10 +2,9 @@
 //
 // SAFETY BOUNDARY: this module only ever UPDATEs the soft-delete columns on
 // `public.leads` rows that belong to the caller's business, and writes a
-// deletion-request record plus an audit event. It performs no DELETE, no
-// cascade, no messaging-provider call, and never touches conversations,
-// messages, jobs, notifications, webhook events, import batches, commit
-// records or idempotency keys.
+// deletion-request record plus an audit event. The database atomically cancels
+// scheduled jobs and withdraws live offers when deleted_at is set; historical
+// records remain. No messages are sent and no records are permanently deleted.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import {
@@ -285,8 +284,8 @@ export async function softDeleteLeads(
           failures.push({ leadId, name: null, reason: "Lead was not updated" });
         }
       }
-      // Booked leads keep the scheduled projection the booking tables prove.
-      await preserveBookingProjections(client, input.businessId, Array.from(done), bookingFacts);
+      // The deletion trigger has released live bookings. Never reapply the
+      // pre-delete facts here: that would undo its cancelled lead projection.
     }
   }
 

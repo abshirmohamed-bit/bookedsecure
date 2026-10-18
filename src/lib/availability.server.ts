@@ -662,10 +662,20 @@ export async function confirmBooking(input: {
     completion_status: "scheduled",
   };
   if (existingJob) {
-    await supabaseAdmin
+    const { data: saved, error: jobError } = await supabaseAdmin
       .from("jobs")
-      .update({ scheduled_at: confirmed.slot_start, service_id: confirmed.service_id })
-      .eq("id", existingJob.id);
+      .update(jobPayload)
+      .eq("business_id", input.businessId)
+      .eq("id", existingJob.id)
+      .select("id")
+      .single();
+    if (jobError || !saved) {
+      return {
+        ok: false,
+        reason: "The booking could not be saved. Please check the schedule before confirming again.",
+        decision: { allowed: false, reason: "slot_unavailable", needsHumanReview: true },
+      };
+    }
   } else {
     const { data: created, error: jobError } = await supabaseAdmin
       .from("jobs")

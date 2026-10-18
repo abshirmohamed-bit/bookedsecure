@@ -1,5 +1,11 @@
 # Roadmap
 
+## Deleted-lead booking conflicts
+- [x] Release scheduled slots when a lead is deleted, preserving job history.
+- [x] Repair existing deleted-lead slot blockers for every tenant.
+- [x] Reject failed scheduling with a clear error and verify deletion/rebooking regressions (80 checks plus rollback-only database flow).
+- [ ] Signed-in browser verification: blocked because the requesting user's preview account could not be matched; requires preview sign-in.
+
 - [x] Add +61 466 907 824 as the customer-facing BookedSecure contact number.
 
 - [x] Hide self-service subscription plans on the public site and inside tenant workspaces; direct access enquiries to BookedSecure.

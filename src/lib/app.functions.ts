@@ -410,23 +410,12 @@ export const scheduleJob = createServerFn({ method: "POST" })
       data.scheduled_at,
       businessRow?.timezone ?? DEFAULT_TIME_ZONE,
     );
-    const { data: existing } = await supabaseAdmin
-      .from("jobs")
-      .select("id")
-      .eq("lead_id", data.leadId)
-      .maybeSingle();
-    if (existing) {
-      await supabaseAdmin.from("jobs").update({ scheduled_at: scheduledAt }).eq("id", existing.id);
-    } else {
-      await supabaseAdmin.from("jobs").insert({
-        business_id: app.businessId,
-        lead_id: data.leadId,
-        scheduled_at: scheduledAt,
-        completion_status: "scheduled",
-      });
-    }
-    await supabaseAdmin.from("leads").update({ status: "scheduled" }).eq("id", data.leadId);
-    return { ok: true };
+    const { saveScheduledJob } = await import("@/lib/job-scheduling.server");
+    return saveScheduledJob(supabaseAdmin, {
+      businessId: app.businessId,
+      leadId: data.leadId,
+      scheduledAt,
+    });
   });
 
 export const analyseConversation = createServerFn({ method: "POST" })

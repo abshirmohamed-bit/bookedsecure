@@ -3,7 +3,7 @@
 // SAFETY BOUNDARY: pure. No IO, no SMS, no provider call, no booking write.
 // It only decides, from the AUTHORITATIVE booking tables (`booking_offers`,
 // `jobs`) rather than the lead's projection columns, whether a lead is booked,
-// what booking projection must be preserved through a soft delete or restore,
+// what booking projection must be rebuilt on restore,
 // and whether deletion is blocked by product policy.
 
 import {
@@ -91,7 +91,7 @@ export const DELETION_FORBIDDEN_COLUMNS = [
 
 /**
  * Product policy switch. `false` (default) keeps booked leads deletable while
- * preserving their booking projection; `true` refuses them with a clear reason.
+ * the database releases their slots; `true` refuses them with a clear reason.
  */
 export const BLOCK_DELETION_OF_BOOKED_LEADS = false;
 
