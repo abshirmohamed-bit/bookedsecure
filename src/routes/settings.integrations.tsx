@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { runWebMCPTool } from '@/lib/webmcp-telemetry';
 import { TenantAiPanel } from '@/components/settings/TenantAiPanel';
+import { McpConnectionTest } from '@/components/settings/McpConnectionTest';
 
 export const Route = createFileRoute('/settings/integrations')({
   head: () => ({ meta: [
@@ -44,6 +45,7 @@ function Connections() {
       <p className="text-sm text-muted-foreground">For assistants that support custom MCP connections with OAuth. Availability depends on the assistant, account plan and rollout; support in ChatGPT, Claude or Grok is not guaranteed.</p>
       <p className="text-sm">Enabled access: customers and contact details, customer history, bookings, services and add-ons, business totals, campaign reports and business settings; update lead notes; schedule or move owner-entered bookings. Sending messages, deleting records and payments remain unavailable.</p>
     </section>
+    <McpConnectionTest key={session?.user.id ?? 'signed-out'} signedIn={Boolean(session)} accountId={session?.user.id} />
     <section className="space-y-4"><h2 className="font-semibold">Connected assistants</h2>
       {grants.isPending && session ? <p className="text-sm text-muted-foreground">Loading connections…</p> : null}
       {grants.isError ? <div role="alert" className="space-y-2 text-sm"><p>Connections could not be loaded.</p><Button variant="outline" onClick={() => grants.refetch()}>Try again</Button></div> : null}

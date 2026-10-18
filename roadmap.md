@@ -1,5 +1,10 @@
 # Roadmap
 
+## Guided ChatGPT connection test
+- [x] Check current-account ChatGPT approval, run a bounded read-only customer lookup, and explain recovery steps without claiming external tool-call success.
+- [x] Pass 38 diagnostic and MCP regression checks; confirm signed-out visitors return to sign-in without runtime errors.
+- [ ] Signed-in guided-screen and real ChatGPT read verification await preview sign-in and a completed ChatGPT authorization; no requesting-user preview account is matched.
+
 ## External assistant capability coverage
 - [x] Add customer/contact pagination, customer history, services, business counts, campaign reports and business settings reads with caller-scoped access.
 - [x] Pass 28 checks for tenant scoping, paging, failed reads and existing mutation protections; regenerate the nine-tool external catalog.
