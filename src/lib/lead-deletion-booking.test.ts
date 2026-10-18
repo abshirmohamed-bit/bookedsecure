@@ -114,28 +114,31 @@ describe("booking-aware soft deletion", () => {
     expect(row.consent_status).toBe("granted");
   });
 
-  it("2. soft-deleting a lead with a confirmed offer preserves booking_status = scheduled", async () => {
+  it("2. deletion never reapplies stale confirmed-offer projections after the trigger", async () => {
     const db = freshDb();
     const client = createFakeSupabase(db as never);
     await del(client, [OFFERED], R(2));
     const row = leadRow(db, OFFERED);
     expect(row.deleted_at).toBeTruthy();
-    expect(row.booking_status).toBe("scheduled");
-    expect(row.status).toBe("scheduled");
+    expect(row.booking_status).toBe("none");
+    expect(row.status).toBe("new");
     expect(row.customer_status).toBe("prospect");
     // Offer records are untouched.
-    expect(db.booking_offers.find((o) => o.lead_id === OFFERED)!.status).toBe("confirmed");
+    // This fake does not execute database triggers; SQL integration tests
+    // separately assert that the offer is withdrawn in the real database.
+    expect(db.booking_offers.find((o) => o.lead_id === OFFERED)?.status).toBe("confirmed");
+    expect(client.writes.filter((w: { table: string; op: string }) => w.table === "leads" && w.op === "update")).toHaveLength(1);
   });
 
-  it("3. soft-deleting a lead with a scheduled job preserves status = scheduled", async () => {
+  it("3. deletion never reapplies stale scheduled-job projections after the trigger", async () => {
     const db = freshDb();
     const client = createFakeSupabase(db as never);
     await del(client, [JOBBED], R(3));
     const row = leadRow(db, JOBBED);
-    expect(row.status).toBe("scheduled");
-    expect(row.booking_status).toBe("scheduled");
+    expect(row.status).toBe("new");
+    expect(row.booking_status).toBe("none");
     expect(db.jobs).toHaveLength(1);
-    expect(db.jobs[0]!.completion_status).toBe("scheduled");
+    expect(db.jobs[0]?.completion_status).toBe("scheduled");
   });
 
   it("3b. authoritative state comes from the booking tables, not the projection", () => {
@@ -194,14 +197,14 @@ describe("booking-aware soft deletion", () => {
     expect(row.quote_status).toBe("in_progress");
   });
 
-  it("6. deletion cannot reset a booked lead to new or booking_status = none", async () => {
+  it("6. deleted leads are not promoted back to scheduled using pre-delete facts", async () => {
     const db = freshDb();
     const client = createFakeSupabase(db as never);
     await del(client, [OFFERED, JOBBED], R(6));
     for (const id of [OFFERED, JOBBED]) {
       const row = leadRow(db, id);
-      expect(row.status).not.toBe("new");
-      expect(row.booking_status).not.toBe("none");
+      expect(row.status).toBe("new");
+      expect(row.booking_status).toBe("none");
     }
   });
 
@@ -211,7 +214,7 @@ describe("booking-aware soft deletion", () => {
     const result = await del(client, [OFFERED, UNBOOKED], R(7), { blockBookedLeads: true });
     expect(result.deleted).toBe(1);
     expect(result.failures.map((f) => f.leadId)).toEqual([OFFERED]);
-    expect(result.failures[0]!.reason).toBe(BOOKED_DELETION_BLOCK_REASON);
+    expect(result.failures[0]?.reason).toBe(BOOKED_DELETION_BLOCK_REASON);
     expect(leadRow(db, OFFERED).deleted_at).toBeNull();
     expect(leadRow(db, UNBOOKED).deleted_at).toBeTruthy();
     expect(deletionBlockedByBooking({ leadId: OFFERED, hasConfirmedOffer: true, hasScheduledJob: false, booked: true })).toBe(false);
@@ -222,7 +225,7 @@ describe("booking-aware soft deletion", () => {
     const client = createFakeSupabase(db as never);
     const result = await del(client, [FOREIGN], R(8));
     expect(result.deleted).toBe(0);
-    expect(result.failures[0]!.reason).toBe("Lead not found for this business");
+    expect(result.failures[0]?.reason).toBe("Lead not found for this business");
     const foreign = leadRow(db, FOREIGN);
     expect(foreign.deleted_at).toBeNull();
     expect(foreign.status).toBe("new");
