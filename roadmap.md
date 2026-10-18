@@ -1,5 +1,10 @@
 # Roadmap
 
+## Tenant-owned AI accounts
+- [ ] Confirm initial AI providers and whether tenant-owned AI is primary or a backup.
+- [ ] Add encrypted, tenant-isolated key management and direct-provider routing across the requested AI features.
+- [ ] Preserve tool permissions, confirmations and atomic bookings; verify provider requests using a connected tenant account.
+
 ## External AI account connections
 - [x] Activate protected OAuth and add caller-scoped MCP lead/booking reads, note updates and atomic booking saves.
 - [x] Add consent, sign-in return handling, and an AI connections page with grant revocation and browser-local reading.
