@@ -1,5 +1,12 @@
 # Roadmap
 
+## External AI account connections
+- [x] Activate protected OAuth and add caller-scoped MCP lead/booking reads, note updates and atomic booking saves.
+- [x] Add consent, sign-in return handling, and an AI connections page with grant revocation and browser-local reading.
+- [x] Run 16 checks, verify anonymous/invalid-token rejection and cross-origin blocking, preserve sign-in/signup return URLs, and extract the four-tool integration catalog.
+- [ ] Real-account approval/denial and cross-tenant end-to-end checks require preview sign-in; the requesting user has no matched preview account.
+- [ ] Hosted external-client connection awaits republishing and a compatible client account; ChatGPT, Claude and Grok availability is not verified.
+
 ## Deleted-lead booking conflicts
 - [x] Release scheduled slots when a lead is deleted, preserving job history.
 - [x] Repair existing deleted-lead slot blockers for every tenant.
