@@ -8,6 +8,8 @@
  */
 import { createOpenAI } from "@ai-sdk/openai";
 import { stepCountIs, streamText, type ModelMessage, type ToolSet } from "ai";
+import { withAiBackup } from './tenant-ai.server';
+import { createLovableAiGatewayRunIdFetch } from './ai-run-id.server';
 
 /** Shared model for every agent surface. */
 export const AGENT_MODEL = "openai/gpt-6-astra";
@@ -18,10 +20,12 @@ export function agentProvider(apiKey: string) {
     // Satisfies the SDK; the gateway authenticates on the header below.
     apiKey,
     headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
+    fetch: createLovableAiGatewayRunIdFetch().fetch,
   });
 }
 
 export type AgentRunInput = {
+  businessId: string;
   apiKey: string;
   system: string;
   messages: ModelMessage[];
@@ -38,6 +42,26 @@ export type AgentRunInput = {
  * timeout, and the stream is consumed here because callers answer in one shot.
  */
 export async function runAgentTurn(input: AgentRunInput): Promise<string> {
+  let toolsStarted = false;
+  return withAiBackup({
+    businessId: input.businessId,
+    canReplay: () => !toolsStarted,
+    gateway: () => runGatewayTurn(input, () => { toolsStarted = true; }),
+    backup: async (provider) => {
+      let failure: unknown;
+      const result = streamText({
+        ...provider, system: input.system, messages: input.messages, tools: input.tools,
+        stopWhen: stepCountIs(input.maxSteps ?? 50), maxRetries: 0,
+        onError: ({ error }) => { failure = error; },
+      });
+      const text = await result.text;
+      if (failure) throw failure;
+      return text.trim();
+    },
+  });
+}
+
+async function runGatewayTurn(input: AgentRunInput, toolsStarted: () => void): Promise<string> {
   const provider = agentProvider(input.apiKey);
   let streamError: unknown = null;
   const result = streamText({
@@ -45,6 +69,7 @@ export async function runAgentTurn(input: AgentRunInput): Promise<string> {
     system: input.system,
     messages: input.messages,
     tools: input.tools,
+    onChunk: ({ chunk }) => { if (chunk.type === 'tool-call' || chunk.type === 'tool-input-start') toolsStarted(); },
     stopWhen: stepCountIs(input.maxSteps ?? 50),
     onError: ({ error }) => {
       // Provider failures (e.g. a 402 from the gateway) surface here first;
