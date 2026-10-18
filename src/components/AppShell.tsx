@@ -250,6 +250,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             icon={Users}
             onClick={() => setMobileNavOpen(false)}
           />
+          <SidebarLink to="/settings/integrations" label="AI connections" active={pathname.startsWith('/settings/integrations')} icon={Sparkles} onClick={() => setMobileNavOpen(false)} />
           {!isPlatformOwner ? (
             <a
               href="tel:+61466907824"
@@ -338,6 +339,7 @@ function SidebarLink({
     | "/settings/messaging"
     | "/settings/automation"
      | "/settings/team"
+    | "/settings/integrations"
     | "/admin/overview";
   label: string;
   active: boolean;

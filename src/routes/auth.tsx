@@ -11,11 +11,12 @@ import { getSetupState } from "@/lib/site-onboarding.functions";
 import { getPlatformAccess } from "@/lib/owner-console.functions";
 import { recordSignupSource } from "@/lib/onboarding.functions";
 import { takeSignupSource } from "@/lib/signup-source";
+import { oauthReturnPath } from '@/lib/oauth-return-path';
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>): { new?: boolean } => {
+  validateSearch: (search: Record<string, unknown>): { new?: boolean; next?: string } => {
     const value = search["new"];
-    return value === true || value === "true" || value === "1" ? { new: true } : {};
+    return { ...(value === true || value === 'true' || value === '1' ? { new: true } : {}), ...(typeof search['next'] === 'string' ? { next: oauthReturnPath(search['next']) } : {}) };
   },
   head: () => ({
     meta: [
@@ -30,6 +31,8 @@ export const Route = createFileRoute("/auth")({
         content: "Team access to lead capture, SMS follow-up and completed-job reporting.",
       },
       { name: "robots", content: "noindex" },
+      { property: 'og:type', content: 'website' },
+      { name: 'twitter:card', content: 'summary' },
     ],
   }),
   component: AuthPage,
@@ -58,6 +61,10 @@ function AuthPage() {
     // the tags are attached to their business before anything else happens.
     const tags = takeSignupSource();
     if (tags) void saveSignupSource({ data: tags }).catch(() => undefined);
+    if (search.next && search.next !== '/') {
+      window.location.assign(oauthReturnPath(search.next));
+      return;
+    }
     // Same sign-in form for everyone; only a platform admin lands in the
     // control room. Tenants never see that this destination exists.
     void fetchPlatformAccess()
@@ -70,7 +77,7 @@ function AuthPage() {
         navigate({ to: state.needsSetup ? "/setup" : "/dashboard", replace: true });
       })
       .catch(() => navigate({ to: "/dashboard", replace: true }));
-  }, [fetchPlatformAccess, fetchSetupState, saveSignupSource, loading, session, navigate]);
+  }, [fetchPlatformAccess, fetchSetupState, saveSignupSource, loading, session, navigate, search.next]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -82,7 +89,7 @@ function AuthPage() {
           password,
           options: {
             data: { name, business_name: businessName },
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: new URL(oauthReturnPath(search.next), window.location.origin).href,
           },
         });
         if (error) throw error;
@@ -160,7 +167,7 @@ function AuthPage() {
                     const { error } = await supabase.auth.resend({
                       type: "signup",
                       email,
-                      options: { emailRedirectTo: `${window.location.origin}/` },
+                      options: { emailRedirectTo: new URL(oauthReturnPath(search.next), window.location.origin).href },
                     });
                     if (error) toast.error(error.message);
                     else toast.success("Confirmation email sent again.");

@@ -15,6 +15,13 @@
       "when": 1792351406891,
       "tag": "0001_release_deleted_lead_slots_and_atomic_scheduling",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792354456709,
+      "tag": "0002_authenticated_mcp_mutations",
+      "breakpoints": true
     }
   ]
 }

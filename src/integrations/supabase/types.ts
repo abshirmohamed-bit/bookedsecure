@@ -4013,6 +4013,15 @@ export type Database = {
         }
         Returns: Json
       }
+      mcp_schedule_job: {
+        Args: { p_lead_id: string; p_scheduled_at: string }
+        Returns: string
+      }
+      mcp_update_lead_notes: {
+        Args: { p_lead_id: string; p_notes: string }
+        Returns: string
+      }
+      mcp_write_business: { Args: never; Returns: string }
       record_blocked_sms_segments: {
         Args: { p_period_id: string; p_segments: number }
         Returns: undefined

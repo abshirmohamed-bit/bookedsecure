@@ -29,6 +29,7 @@ export type AccountMenuItem = {
     | "/settings/messaging"
     | "/settings/automation"
     | "/settings/team"
+    | "/settings/integrations"
     | "/campaigns";
   label: string;
 };
@@ -40,6 +41,7 @@ export const ACCOUNT_MENU_ITEMS: readonly AccountMenuItem[] = [
   { to: "/settings/automation", label: "Automation" },
   { to: "/campaigns", label: "Email campaigns" },
   { to: "/settings/team", label: "Team access" },
+  { to: '/settings/integrations', label: 'AI connections' },
 ] as const;
 
 /** True when a primary nav item should render as active for this pathname. */
