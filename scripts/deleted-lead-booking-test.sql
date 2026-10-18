@@ -24,8 +24,8 @@ BEGIN
        EXISTS (SELECT 1 FROM public.leads WHERE id = new_lead AND status = 'scheduled') THEN
       RAISE EXCEPTION 'FAIL: failed scheduling changed job or lead state';
     END IF;
-    INSERT INTO public.booking_offers (business_id, lead_id, slot_start, slot_end, timezone, status)
-      VALUES (tenant, old_lead, slot, slot + interval '1 hour', 'Australia/Sydney', 'confirmed');
+    INSERT INTO public.booking_offers (business_id, lead_id, slot_start, slot_end, timezone, status, expires_at)
+      VALUES (tenant, old_lead, slot, slot + interval '1 hour', 'Australia/Sydney', 'confirmed', slot);
     UPDATE public.leads SET deleted_at = now() WHERE id = old_lead;
     IF NOT EXISTS (SELECT 1 FROM public.jobs WHERE id = old_job AND completion_status = 'cancelled') THEN
       RAISE EXCEPTION 'FAIL: deleted lead still occupies slot';
