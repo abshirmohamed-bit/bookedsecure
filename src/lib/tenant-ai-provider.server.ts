@@ -12,7 +12,7 @@ export function directAiProvider(account: AiAccount) {
     case 'anthropic': return { model: createAnthropic({ apiKey: account.apiKey })(account.model), providerOptions: {} };
     case 'google': return { model: createGoogle({ apiKey: account.apiKey })(account.model), providerOptions: {} };
     case 'xai': return { model: createXai({ apiKey: account.apiKey }).responses(account.model), providerOptions: { xai: { store: false } } };
-    case 'openai': return { model: createOpenAI({ apiKey: account.apiKey }).responses(account.model), providerOptions: { openai: { store: false } } };
+    case 'openai': return { model: createOpenAI({ apiKey: account.apiKey }).responses(account.model), providerOptions: { openai: { store: false, ...(/^(gpt-[56]|o[134])/.test(account.model) ? { forceReasoning: true, reasoningEffort: 'low' as const, reasoningSummary: 'auto' as const, include: ['reasoning.encrypted_content' as const] } : {}) } } };
   }
 }
 
@@ -26,6 +26,7 @@ export async function verifyAiAccount(account: AiAccount): Promise<void> {
       prompt: 'Verify this assistant connection.',
       tools: { connection_check: tool({ description: 'Read a fixed connection test value.', inputSchema: z.object({}), execute: async () => { called = true; return 'Connection verified'; } }) },
       stopWhen: stepCountIs(50),
+      onError: () => undefined,
     });
     const text = await result.text;
     if (!called || !text.trim()) throw new Error('not_verified');

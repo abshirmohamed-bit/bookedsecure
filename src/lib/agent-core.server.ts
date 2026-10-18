@@ -87,7 +87,9 @@ async function runGatewayTurn(input: AgentRunInput, toolsStarted: () => void): P
     },
   });
   try {
-    return (await result.text).trim();
+    const text = (await result.text).trim();
+    if (streamError) throw streamError;
+    return text;
   } catch (error) {
     throw streamError ?? error;
   }
