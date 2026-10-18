@@ -9,6 +9,7 @@
         "@ai-sdk/google": "^4.0.99",
         "@ai-sdk/openai": "^4.0.71",
         "@ai-sdk/openai-compatible": "^3.0.53",
+        "@ai-sdk/xai": "^5.0.24",
         "@hookform/resolvers": "^5.2.2",
         "@lovable.dev/mcp-js": "^3.1.1",
         "@radix-ui/react-accordion": "^1.2.12",
@@ -119,6 +120,8 @@
     "@ai-sdk/provider": ["@ai-sdk/provider@4.0.29", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@ai-sdk/provider/-/provider-4.0.29.tgz", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-nV7UpLADtKn9f0xfnxVZAeFEKuNkScJv5rOpHL7qeWe2EwEEBa3pd6P0QVK6D6coCJ0E8FyCgoM50AffTYrzDQ=="],
 
     "@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@5.0.62", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@ai-sdk/provider-utils/-/provider-utils-5.0.62.tgz", { "dependencies": { "@ai-sdk/provider": "4.0.29", "@standard-schema/spec": "^1.1.0", "@workflow/serde": "4.1.0", "eventsource-parser": "^3.0.8", "undici": "^7.29.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-//6sHa6QNQdM2KHOg5pxp1UMFQB4U8cqdw/kSm9BMr0DLeaFgG3TXZfxhpwRZmxgBpOrzMVZ/gwLXH309+Ortw=="],
+
+    "@ai-sdk/xai": ["@ai-sdk/xai@5.0.24", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@ai-sdk/xai/-/xai-5.0.24.tgz", { "dependencies": { "@ai-sdk/provider": "4.0.29", "@ai-sdk/provider-utils": "5.0.62" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-pLo/jWgPIp5PES6FCA7ocv9P3jrxJexslMY9X60G2lyRBvkg46Vcu5kqN3Z/BsGdnB2RrAIiEx97LZM/MWH3IQ=="],
 
     "@antfu/install-pkg": ["@antfu/install-pkg@2.0.1", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@antfu/install-pkg/-/install-pkg-2.0.1.tgz", { "dependencies": { "package-manager-detector": "^1.7.0", "tinyexec": "^1.2.4" } }, "sha512-iCKVQcIC0e3oDxEfs3SHQGW+ovhBMZmS1TE+bTk50rVyMCBmCfClv7Qi3HQKlumYwvjb/iIMeWCW2i67q6kFfQ=="],
 
