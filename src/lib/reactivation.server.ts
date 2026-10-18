@@ -204,7 +204,9 @@ export async function proposeOfferWithAi(input: {
 
   try {
     const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
-    const { generateText } = await import("ai");
+    const { generateText, streamText } = await import("ai");
+    const { withAiBackup } = await import('./tenant-ai.server');
+    const usage: import('./tenant-ai.server').BackupUsage = { source: 'lovable' };
     const { ANALYSIS_MODEL } = await import("@/lib/ai.server");
     const { checkAiCap, recordAiUsage } = await import("@/lib/usage.server");
     const cap = await checkAiCap(input.businessId);
@@ -216,21 +218,27 @@ export async function proposeOfferWithAi(input: {
       headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
     });
 
-    const result = await generateText({
-      model: gateway(ANALYSIS_MODEL),
-      system: [
+    const system = [
         "You propose one short reactivation offer line for an Australian mobile detailing business.",
         "Output the offer only: no greeting, no sign-off, no quotes, under 12 words.",
         "It must be a percentage discount on a generic next enquiry or next service.",
         "Never name a specific service: the customer's service history is unknown.",
         "Never state a dollar amount, fee, deposit, date, time or availability.",
-      ].join("\n"),
-      prompt: [`Business: ${input.businessName}`, `Example shape: ${fallback}`].join("\n"),
+      ].join("\n");
+    const prompt = [`Business: ${input.businessName}`, `Example shape: ${fallback}`].join("\n");
+    const result = await withAiBackup({
+      businessId: input.businessId, usage,
+      gateway: () => generateText({ model: gateway(ANALYSIS_MODEL), system, prompt }),
+      backup: async (provider) => {
+        const result = streamText({ ...provider, system, prompt, maxRetries: 0, onError: () => undefined });
+        return { text: await result.text, usage: await result.usage };
+      },
     });
 
     await recordAiUsage({
       businessId: input.businessId,
       purpose: "reactivation_offer",
+      billingSource: usage.source,
       model: ANALYSIS_MODEL,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,

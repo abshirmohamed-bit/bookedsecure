@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { runWebMCPTool } from '@/lib/webmcp-telemetry';
+import { TenantAiPanel } from '@/components/settings/TenantAiPanel';
 
 export const Route = createFileRoute('/settings/integrations')({
   head: () => ({ meta: [
@@ -37,6 +38,7 @@ function Connections() {
   });
   return <AppShell title="AI connections"><div className="mx-auto max-w-3xl space-y-8 p-4 sm:p-6">
     <header><h1 className="font-heading text-2xl font-semibold">AI connections</h1><p className="mt-2 text-sm text-muted-foreground">Your account, your business, your permissions.</p></header>
+    <TenantAiPanel />
     <section className="space-y-4 border-b border-border pb-8"><h2 className="flex items-center gap-2 font-semibold"><Link2 className="h-5 w-5 text-primary" />Book​edSecure connection</h2>
       <div className="flex min-w-0 items-center gap-3"><code className="min-w-0 flex-1 break-all rounded-md bg-muted p-3 text-sm">{endpoint}</code><Button variant="outline" size="icon" aria-label="Copy connection address" title="Copy connection address" onClick={async () => { try { await navigator.clipboard.writeText(endpoint); toast.success('Connection address copied.'); } catch { toast.error('Could not copy. Select the address instead.'); } }}><Copy className="h-4 w-4" /></Button></div>
       <p className="text-sm text-muted-foreground">For assistants that support custom MCP connections with OAuth. Availability depends on the assistant, account plan and rollout; support in ChatGPT, Claude or Grok is not guaranteed.</p>

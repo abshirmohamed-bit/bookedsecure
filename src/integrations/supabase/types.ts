@@ -226,6 +226,27 @@ export type Database = {
           },
         ]
       }
+      ai_gateway_state: {
+        Row: {
+          id: string
+          paused: boolean
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          paused?: boolean
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          paused?: boolean
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_outputs: {
         Row: {
           approved_at: string | null
@@ -3459,6 +3480,44 @@ export type Database = {
           stripe_event_id?: string
         }
         Relationships: []
+      }
+      tenant_ai_accounts: {
+        Row: {
+          business_id: string
+          enabled: boolean
+          key_ciphertext: string
+          model: string
+          provider: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          business_id: string
+          enabled?: boolean
+          key_ciphertext: string
+          model: string
+          provider: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          business_id?: string
+          enabled?: boolean
+          key_ciphertext?: string
+          model?: string
+          provider?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_ai_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tenant_month_statements: {
         Row: {

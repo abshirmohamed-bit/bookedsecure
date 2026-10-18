@@ -2,6 +2,8 @@
 // shown; it is never piped straight into an SMS send.
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, NoObjectGeneratedError, Output } from "ai";
+import { streamText } from 'ai';
+import { withAiBackup, type BackupUsage } from './tenant-ai.server';
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildBusinessSettingsContext } from "@/lib/ai-context";
 import {
@@ -395,18 +397,26 @@ export async function analyseLead(input: { businessId: string; leadId: string })
   if (cap.blocked) throw new Error(cap.reason ?? "Monthly AI safety cap reached.");
 
   const correlationId = crypto.randomUUID();
+  const aiSource: BackupUsage = { source: 'lovable' };
   let result: StructuredAnalysisResult;
   try {
     result = await runStructuredAnalysis({
       system,
       prompt,
-      generate: (options) =>
-        generateText({
+      generate: (options) => withAiBackup({
+        businessId: input.businessId, usage: aiSource,
+        gateway: () => generateText({
           model: gateway(apiKey)(ANALYSIS_MODEL),
           output: Output.object({ schema: AnalysisSchema }),
           system: options.system,
           prompt: options.prompt,
         }) as unknown as Promise<GenerateOutcome>,
+        backup: async (provider) => {
+          const result = streamText({ ...provider, maxRetries: 0, output: Output.object({ schema: AnalysisSchema }), system: options.system, prompt: options.prompt, onError: () => undefined });
+          const output = await result.output;
+          return { output, text: await result.text, usage: await result.usage } as GenerateOutcome;
+        },
+      }),
     });
   } catch (error) {
     const failure = error instanceof AnalysisFailure ? error : null;
@@ -439,6 +449,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     businessId: input.businessId,
     leadId: input.leadId,
     purpose: "lead_analysis",
+    billingSource: aiSource.source,
     model: ANALYSIS_MODEL,
     inputTokens: result.inputTokens,
     outputTokens: result.outputTokens,

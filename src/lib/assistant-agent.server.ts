@@ -76,6 +76,7 @@ export async function runAssistantAgent(input: {
 
   // One brain: the same agent runtime the public quote assistant uses.
   const answer = await runAgentTurn({
+    businessId: input.businessId,
     apiKey,
     system: buildAssistantSystemPrompt({
       businessName: business?.name ?? null,

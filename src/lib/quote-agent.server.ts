@@ -219,6 +219,7 @@ export async function runQuoteAgentTurn(input: {
   let aiUnavailable = false;
   try {
     answer = await runAgentTurn({
+      businessId: tenant.businessId,
       apiKey,
       system,
       messages,
