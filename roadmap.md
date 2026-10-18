@@ -1,8 +1,8 @@
 # Roadmap
 
 ## External assistant capability coverage
-- [ ] Add customer/contact pagination, customer history, services, business counts, campaign reports and business settings reads with caller-scoped access.
-- [ ] Test tenant scoping, paging and failed reads; regenerate the external tool catalog.
+- [x] Add customer/contact pagination, customer history, services, business counts, campaign reports and business settings reads with caller-scoped access.
+- [x] Pass 28 checks for tenant scoping, paging, failed reads and existing mutation protections; regenerate the nine-tool external catalog.
 - [ ] Real ChatGPT/provider tool discovery and account reads require a completed external OAuth connection and republishing.
 
 ## Tenant-owned AI accounts
