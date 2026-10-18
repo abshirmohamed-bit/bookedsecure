@@ -20,7 +20,7 @@ beforeEach(() => {
     calls.push(['from', table]);
     const chain: Record<string, unknown> = {};
     for (const name of ['select', 'eq', 'is', 'order', 'range', 'maybeSingle']) chain[name] = (...args: unknown[]) => { calls.push([name, ...args]); return chain; };
-    chain.then = (resolve: (value: unknown) => unknown) => Promise.resolve(table === 'profiles' ? profile : leads).then(resolve);
+    chain['then'] = (resolve: (value: unknown) => unknown) => Promise.resolve(table === 'profiles' ? profile : leads).then(resolve);
     return chain;
   });
 });

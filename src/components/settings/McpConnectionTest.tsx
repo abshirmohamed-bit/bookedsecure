@@ -6,8 +6,8 @@ import { checkChatGptConnection, type ConnectionCheck } from '@/lib/connection-t
 
 const prompt = 'Use the BookedSecure list_leads tool with limit 5 and offset 0. Show the returned customer names and total count. Do not change any records. If the tool is unavailable or fails, report the exact tool or authorization failure; do not invent customers.';
 
-export function McpConnectionTest({ signedIn, accountId }: { signedIn: boolean; accountId?: string }) {
-  const [result, setResult] = useState<{ accountId?: string; check: ConnectionCheck }>();
+export function McpConnectionTest({ signedIn, accountId }: { signedIn: boolean; accountId: string | undefined }) {
+  const [result, setResult] = useState<{ accountId: string | undefined; check: ConnectionCheck }>();
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const check = result?.accountId === accountId ? result?.check : undefined;
