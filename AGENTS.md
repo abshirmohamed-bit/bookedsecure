@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Enforce deleted-lead slot release and reject booking writes to deleted leads in database triggers, preserving historical job rows; this covers all entry points and concurrent requests.
+- Schedule owner-entered jobs through a tenant-scoped atomic database function and propagate failures before reporting success; the job and lead state must commit together.
