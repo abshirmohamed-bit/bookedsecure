@@ -42,7 +42,7 @@ function Connections() {
     <section className="space-y-4 border-b border-border pb-8"><h2 className="flex items-center gap-2 font-semibold"><Link2 className="h-5 w-5 text-primary" />Book​edSecure connection</h2>
       <div className="flex min-w-0 items-center gap-3"><code className="min-w-0 flex-1 break-all rounded-md bg-muted p-3 text-sm">{endpoint}</code><Button variant="outline" size="icon" aria-label="Copy connection address" title="Copy connection address" onClick={async () => { try { await navigator.clipboard.writeText(endpoint); toast.success('Connection address copied.'); } catch { toast.error('Could not copy. Select the address instead.'); } }}><Copy className="h-4 w-4" /></Button></div>
       <p className="text-sm text-muted-foreground">For assistants that support custom MCP connections with OAuth. Availability depends on the assistant, account plan and rollout; support in ChatGPT, Claude or Grok is not guaranteed.</p>
-      <p className="text-sm">Enabled access: read leads and bookings; update lead notes; schedule or move owner-entered bookings. No messages, deletions or payments.</p>
+      <p className="text-sm">Enabled access: customers and contact details, customer history, bookings, services and add-ons, business totals, campaign reports and business settings; update lead notes; schedule or move owner-entered bookings. Sending messages, deleting records and payments remain unavailable.</p>
     </section>
     <section className="space-y-4"><h2 className="font-semibold">Connected assistants</h2>
       {grants.isPending && session ? <p className="text-sm text-muted-foreground">Loading connections…</p> : null}

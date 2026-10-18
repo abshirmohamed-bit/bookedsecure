@@ -13,14 +13,14 @@
   "mcp": {
     "server": {
       "name": "bookedsecure",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "title": "BookedSecure"
     },
     "tools": [
       {
         "name": "list_leads",
-        "title": "Find your leads",
-        "description": "Find active leads in your business by name, returning IDs, contact details, notes and current status.",
+        "title": "List customers and leads",
+        "description": "List existing customers, contacts and leads in the connected business, including names, emails, phone numbers and status. Use offset to retrieve every page; never call a partial page the complete customer list. Optionally filter by name.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -38,6 +38,12 @@
               "minimum": 1,
               "maximum": 100,
               "default": 25
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
             }
           },
           "additionalProperties": false,
@@ -78,6 +84,125 @@
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "customer_history",
+        "title": "Read customer history",
+        "description": "Read one previously found customer’s contact details, recent texts, jobs and follow-up state. Returns at most 50 texts and 50 jobs; never claims a truncated history is complete.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "lead_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "lead_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_services",
+        "title": "Read services and add-ons",
+        "description": "Read the connected business’s current service and add-on catalog, price guidance, duration and active state. Paginate both catalogs; do not invent prices or appointment lengths.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "business_snapshot",
+        "title": "Read business totals",
+        "description": "Read exact counts for existing non-deleted customers/leads, upcoming bookings, completed jobs and email campaigns. These are record counts, not unique people or revenue estimates.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "campaign_reports",
+        "title": "Read campaign reports",
+        "description": "Read email and SMS reactivation campaigns, their draft/approval state and send dates. This tool does not draft, approve or send campaigns.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "business_settings",
+        "title": "Read business settings",
+        "description": "Read the connected business’s name, timezone, website, service area, opening hours and quote/automation state. No credentials, billing IDs or private provider configuration are returned.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
         },
         "outputSchema": null
       },
