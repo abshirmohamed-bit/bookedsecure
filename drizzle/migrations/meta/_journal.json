@@ -8,6 +8,13 @@
       "when": 1791865620292,
       "tag": "0000_email_campaigns",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792351406891,
+      "tag": "0001_release_deleted_lead_slots_and_atomic_scheduling",
+      "breakpoints": true
     }
   ]
 }

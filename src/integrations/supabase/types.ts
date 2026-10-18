@@ -4047,6 +4047,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      schedule_owner_job: {
+        Args: {
+          p_business_id: string
+          p_lead_id: string
+          p_scheduled_at: string
+        }
+        Returns: string
+      }
       set_cron_credential: {
         Args: { p_name: string; p_secret: string }
         Returns: undefined
