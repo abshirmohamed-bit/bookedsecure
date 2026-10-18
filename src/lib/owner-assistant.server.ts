@@ -6,7 +6,8 @@
  * sent or scheduled here.
  */
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText } from "ai";
+import { generateText, streamText } from "ai";
+import { withAiBackup } from './tenant-ai.server';
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { loadBookings } from "@/lib/bookings.server";
 import { upcomingBookings } from "@/lib/bookings";
@@ -144,10 +145,17 @@ export async function answerOwnerQuestion(input: {
   }
 
   try {
-    const result = await generateText({
+    const result = await withAiBackup({
+      businessId: input.businessId,
+      gateway: () => generateText({
       model: gateway(apiKey)(ASSISTANT_MODEL),
       system: buildOwnerAssistantSystem(snapshot),
       prompt: input.question,
+      }),
+      backup: async (provider) => {
+        const result = streamText({ ...provider, system: buildOwnerAssistantSystem(snapshot), prompt: input.question, maxRetries: 0, onError: () => undefined });
+        return { text: await result.text };
+      },
     });
     const guarded = guardAssistantAnswer(result.text ?? "");
     if (guarded.length === 0) return { answer: deterministic, source: "snapshot", snapshot };
