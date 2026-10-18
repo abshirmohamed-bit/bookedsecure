@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ paused: false, account: null as null | Record<string, unknown>, calls: [] as Array<{ table: string; tenant?: string }>, write: vi.fn(), decrypt: vi.fn(), direct: vi.fn() }));
+const mocks = vi.hoisted(() => ({ paused: false, account: null as null | Record<string, unknown>, calls: [] as Array<{ table: string; tenant: string | undefined }>, write: vi.fn(), decrypt: vi.fn(), direct: vi.fn() }));
 vi.mock('@/integrations/supabase/client.server', () => ({ supabaseAdmin: { from: (table: string) => {
   const call = { table, tenant: undefined as string | undefined }; mocks.calls.push(call);
   const chain = { select: () => chain, eq: (_field: string, tenant: string) => { call.tenant = tenant; return chain; }, maybeSingle: async () => ({ data: table === 'ai_gateway_state' ? { paused: mocks.paused } : mocks.account, error: null }), upsert: mocks.write };

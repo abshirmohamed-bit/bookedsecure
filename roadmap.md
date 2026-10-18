@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Tenant-owned AI accounts
-- [ ] Confirm initial AI providers and whether tenant-owned AI is primary or a backup.
-- [ ] Add encrypted, tenant-isolated key management and direct-provider routing across the requested AI features.
-- [ ] Preserve tool permissions, confirmations and atomic bookings; verify provider requests using a connected tenant account.
+- [x] Support OpenAI, Anthropic, Gemini and xAI through one key-entry form with provider/model selection; backup only after confirmed credit exhaustion.
+- [x] Add encrypted, tenant-isolated key management and direct routing for Cowork, quote chat, extraction, lead analysis, snapshot answers and offer drafts.
+- [x] Preserve permissions, confirmations, monthly safety caps and atomic bookings; prevent replay after agent tools start; pass 161 regression checks.
+- [ ] Live key connection, provider tool continuation and signed-in backup flow await preview owner sign-in and a tenant-provided API key; no real provider key was supplied.
 
 ## External AI account connections
 - [x] Activate protected OAuth and add caller-scoped MCP lead/booking reads, note updates and atomic booking saves.
