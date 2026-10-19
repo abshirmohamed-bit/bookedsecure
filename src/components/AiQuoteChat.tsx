@@ -21,6 +21,7 @@ import {
   startQuoteConversation,
 } from "@/lib/web-chat.functions";
 import { recordQuotePageOpened } from "@/lib/quote-funnel.functions";
+import { trackAdsConversion } from "@/lib/ad-conversions";
 
 import { asksForServiceList, isSuppressedOpeningTurn } from "@/lib/web-chat-presentation";
 import { FLEXIBLE_CHOICE, type WebChatPrompt } from "@/lib/web-chat";
@@ -295,7 +296,11 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
         window.sessionStorage.removeItem(selectionKey);
       }
       if (result.state.declined) setFinished("declined");
-      else if (result.state.completed) setFinished("completed");
+      else if (result.state.completed) {
+        setFinished("completed");
+        // Opt-in per tenant; fires once per conversation, never for duplicates.
+        if (!result.state.duplicate) trackAdsConversion(tenant.slug, conversationId);
+      }
     } catch {
       setError("We couldn't send that. Please try again.");
     } finally {

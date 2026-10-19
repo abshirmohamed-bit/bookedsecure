@@ -1,10 +1,11 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { getPublicQuoteForm, submitQuoteRequest } from "@/lib/public.functions";
 import { quoteSubjectLabel, quoteSubjectOptions, normaliseAuMobile } from "@/lib/domain";
 import { TenantMark } from "@/components/TenantMark";
 import { AiQuoteChat } from "@/components/AiQuoteChat";
+import { loadAdsTag, trackAdsConversion } from "@/lib/ad-conversions";
 import {
   DUPLICATE_LEAD_CLIENT_MESSAGE,
   classifyQuoteResult,
@@ -64,6 +65,10 @@ export const Route = createFileRoute("/quote/$slug")({
 
 function TenantQuotePage() {
   const tenant = Route.useLoaderData();
+  // Opt-in Google Ads tag for tenants listed in ADS_CONVERSIONS; no-op otherwise.
+  useEffect(() => {
+    loadAdsTag(tenant.slug);
+  }, [tenant.slug]);
   // Mode is resolved server-side; anything other than ai_chat renders the
   // unchanged manual quote form.
   if (tenant.quoteMode === "ai_chat") {
@@ -180,6 +185,7 @@ function ManualQuoteForm() {
         // A failed submission keeps the same nonce so a retry cannot create a second lead.
         return;
       }
+      trackAdsConversion(tenant.slug, nonce);
       setNonce(createSubmissionNonce());
       setDone(true);
     } catch {
