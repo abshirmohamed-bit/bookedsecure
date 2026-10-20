@@ -1,3 +1,4 @@
+import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -751,7 +752,9 @@ export function OwnerAssistant({
               </Message>
             ))}
             {mutation.isPending ? (
-              <p className="text-xs text-muted-foreground">Working on it…</p>
+              <ThinkingIndicator
+                steps={["Thinking…", "Checking your records…", "Working on it…", "Almost done…"]}
+              />
             ) : null}
             <div ref={endRef} />
             </ConversationContent>

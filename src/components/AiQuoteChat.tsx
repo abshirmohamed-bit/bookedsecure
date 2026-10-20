@@ -1,3 +1,4 @@
+import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Check, RotateCcw, ShieldCheck, X } from "lucide-react";
@@ -579,16 +580,9 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                         size={28}
                         className="rounded-full"
                       />
-                      <span className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-secondary px-3.5 py-3">
-                        <span className="sr-only">Assistant is typing</span>
-                        {[0, 1, 2].map((dot) => (
-                          <span
-                            key={dot}
-                            className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground"
-                            style={{ animationDelay: `${dot * 120}ms` }}
-                          />
-                        ))}
-                      </span>
+                      <ThinkingIndicator
+                        steps={["Typing…", "Checking prices and times…", "Writing your reply…", "Almost there…"]}
+                      />
                     </li>
                   )}
                 </ul>
