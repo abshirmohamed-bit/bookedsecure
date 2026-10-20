@@ -226,6 +226,7 @@ export async function runQuoteAgentTurn(input: {
       tools: buildQuoteAgentTools(ctx),
       effort: "low",
       maxSteps: 12,
+      role: "fast",
     });
   } catch (error) {
     aiUnavailable = isBillingFailure(error);
