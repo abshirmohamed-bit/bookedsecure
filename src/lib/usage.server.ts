@@ -191,9 +191,9 @@ export async function recordAiUsage(input: {
   outputTokens: number;
   status?: "success" | "failed";
   errorDetail?: string | null;
-  billingSource?: 'lovable' | 'tenant';
+  billingSource?: 'lovable' | 'tenant' | 'external';
 }): Promise<number> {
-  const cost = input.billingSource === 'tenant' ? 0 :
+  const cost = input.billingSource && input.billingSource !== 'lovable' ? 0 :
     (input.inputTokens / 1_000_000) * AI_PRICE_PER_MILLION.input +
     (input.outputTokens / 1_000_000) * AI_PRICE_PER_MILLION.output;
 

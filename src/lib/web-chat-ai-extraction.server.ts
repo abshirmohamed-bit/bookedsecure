@@ -47,7 +47,7 @@ export async function extractWithAi(
 
     const usage: BackupUsage = { source: 'lovable' };
     const result = await withAiBackup({
-      businessId, usage,
+      businessId, usage, role: 'fast',
       gateway: () => generateText({
       model: gateway(apiKey)(ANALYSIS_MODEL),
       output: Output.object({ schema: WebChatAiExtractionSchema }),
