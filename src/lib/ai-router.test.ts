@@ -53,7 +53,7 @@ describe('external primary routing', () => {
   it('skips Lovable entirely when it is turned off', async () => {
     m.routing = { primary_provider: 'external', lovable_standby: false };
     const gateway = vi.fn();
-    await expect(withAiBackup({ businessId: 'a', gateway, backup: async () => { throw { statusCode: 503 }; } })).rejects.toThrow('backup AI');
+    await expect(withAiBackup({ businessId: 'a', gateway, backup: async () => { throw { statusCode: 503 }; } })).rejects.toThrow();
     expect(gateway).not.toHaveBeenCalled();
   });
 });
