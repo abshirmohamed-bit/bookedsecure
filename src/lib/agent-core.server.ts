@@ -33,6 +33,8 @@ export type AgentRunInput = {
   /** Reasoning depth. Customer-facing turns stay light; owner work can go deeper. */
   effort?: "low" | "medium" | "high";
   maxSteps?: number;
+  /** Which Control-room model to use: "fast" (quote chat) or "agent" (owner chat, default). */
+  role?: "agent" | "fast";
 };
 
 /**
@@ -45,6 +47,7 @@ export async function runAgentTurn(input: AgentRunInput): Promise<string> {
   let toolsStarted = false;
   return withAiBackup({
     businessId: input.businessId,
+    role: input.role ?? "agent",
     canReplay: () => !toolsStarted,
     gateway: () => runGatewayTurn(input, () => { toolsStarted = true; }),
     backup: async (provider) => {
