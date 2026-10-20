@@ -751,7 +751,9 @@ export function OwnerAssistant({
               </Message>
             ))}
             {mutation.isPending ? (
-              <p className="text-xs text-muted-foreground">Working on it…</p>
+              <ThinkingIndicator
+                steps={["Thinking…", "Checking your records…", "Working on it…", "Almost done…"]}
+              />
             ) : null}
             <div ref={endRef} />
             </ConversationContent>
