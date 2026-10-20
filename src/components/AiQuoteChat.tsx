@@ -1,3 +1,4 @@
+import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Check, RotateCcw, ShieldCheck, X } from "lucide-react";
