@@ -242,6 +242,23 @@ export function buildQuoteAgentTools(ctx: QuoteAgentToolContext) {
           };
         }
 
+        // Same after-booking step as the classic flow: customer confirmation
+        // SMS (consent-gated) plus the owner's dashboard alert and SMS.
+        let smsSent = false;
+        try {
+          const { finalizeBookingOnlyBooking } = await import("@/lib/booking-only.server");
+          const finalized = await finalizeBookingOnlyBooking({
+            businessId: ctx.businessId,
+            leadId: ctx.leadId,
+            offerId: commit.offerId,
+            slotStart: commit.slotStart,
+            replay: commit.replay,
+          });
+          smsSent = finalized.smsSent;
+        } catch (error) {
+          console.error("[quote-agent] booking follow-up failed", error);
+        }
+
         const confirmation = await bookingConfirmationText({
           businessId: ctx.businessId,
           leadId: ctx.leadId,
@@ -250,7 +267,15 @@ export function buildQuoteAgentTools(ctx: QuoteAgentToolContext) {
         ctx.collected.booking_selected = match.offer_id;
         ctx.record(`Booked ${match.label}.`);
         ctx.onBooked(commit.slotStart, confirmation);
-        return { ok: true as const, booked: match.label, replay: commit.replay };
+        return {
+          ok: true as const,
+          booked: match.label,
+          replay: commit.replay,
+          confirmation_text_sent: smsSent,
+          note: smsSent
+            ? "A confirmation text has been sent to the customer."
+            : "No confirmation text went out. Do not tell the customer they have been texted; say the team will be in touch.",
+        };
       },
     }),
 
