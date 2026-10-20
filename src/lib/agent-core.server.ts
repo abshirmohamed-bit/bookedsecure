@@ -52,6 +52,7 @@ export async function runAgentTurn(input: AgentRunInput): Promise<string> {
       const result = streamText({
         ...provider, system: input.system, messages: input.messages, tools: input.tools,
         stopWhen: stepCountIs(input.maxSteps ?? 50), maxRetries: 0,
+        onChunk: ({ chunk }) => { if (chunk.type === 'tool-call' || chunk.type === 'tool-input-start') toolsStarted = true; },
         onError: ({ error }) => { failure = error; },
       });
       const text = await result.text;

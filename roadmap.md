@@ -115,3 +115,5 @@
 - [x] Add an expiry-aware 14-day trial access state without provisioning a number or credits.
 - [x] Create and confirm detail.dynastysydney@gmail.com as the owner of Detail Dynasty Sydney.
 - [x] Assign the BookedSecure plan trial and verify full access, zero credits, and no assigned SMS number.
+- [x] AI provider router + Control room switch (Cheaper Inference primary, Lovable standby)
+- [ ] Save Cheaper Inference key, run health check, live action tests on a test business, then cutover (waits on key)
