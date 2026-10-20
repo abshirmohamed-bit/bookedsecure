@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { AiProviderCard } from "@/components/admin/AiProviderCard";
 import { getOwnerConsole } from "@/lib/owner-console.functions";
 import type { TenantRow } from "@/lib/owner-console.server";
 
@@ -35,7 +36,10 @@ function money(cents: number): string {
 function OwnerConsolePage() {
   return (
     <AppShell title="Control room">
-      <ConsoleView />
+      <div className="space-y-6">
+        <AiProviderCard />
+        <ConsoleView />
+      </div>
     </AppShell>
   );
 }
