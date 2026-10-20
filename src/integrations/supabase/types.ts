@@ -228,20 +228,35 @@ export type Database = {
       }
       ai_gateway_state: {
         Row: {
+          agent_model: string | null
+          fast_model: string | null
           id: string
+          last_check: Json | null
+          lovable_standby: boolean
           paused: boolean
+          primary_provider: string
           reason: string | null
           updated_at: string
         }
         Insert: {
+          agent_model?: string | null
+          fast_model?: string | null
           id: string
+          last_check?: Json | null
+          lovable_standby?: boolean
           paused?: boolean
+          primary_provider?: string
           reason?: string | null
           updated_at?: string
         }
         Update: {
+          agent_model?: string | null
+          fast_model?: string | null
           id?: string
+          last_check?: Json | null
+          lovable_standby?: boolean
           paused?: boolean
+          primary_provider?: string
           reason?: string | null
           updated_at?: string
         }
