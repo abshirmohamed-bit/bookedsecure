@@ -1,8 +1,10 @@
 # Roadmap
 
 ## Reuse owner AI actions through MCP
-- [ ] Audit existing actions and expose reusable capabilities without duplicating business logic or weakening permissions.
-- [ ] Test reused actions, account isolation, confirmations and catalog generation.
+- [x] Audit 36 existing owner actions; share customer/service/add-on/settings mutations and text preparation, reuse the inbox query; generate 15 MCP tools without importing admin clients.
+- [x] Pass 100 automated checks for shared actions, account isolation, confirmations and existing regressions; regenerate the catalog and check app compilation.
+- [ ] Actual database rollback test and signed-in approval readback are blocked by diagnostic profile-write permissions and no matched requesting-user app account.
+- [ ] Remaining owner actions (campaign drafting, imports, booking completion/cancellation, automation and team) need shared caller-scoped boundaries; existing privileged helpers cannot safely be exposed wholesale.
 - [ ] External ChatGPT end-to-end verification requires republishing and an approved external connection.
 
 ## Guided ChatGPT connection test
