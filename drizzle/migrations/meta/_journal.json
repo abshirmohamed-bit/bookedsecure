@@ -43,6 +43,13 @@
       "when": 1792564414597,
       "tag": "0005_reuse_assistant_actions_for_oauth",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792564616679,
+      "tag": "0006_preserve_existing_assistant_permissions_and_defaults",
+      "breakpoints": true
     }
   ]
 }
