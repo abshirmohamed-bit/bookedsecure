@@ -5,6 +5,8 @@
  * (draft rows only, no sends) and a bulk lead-status change. Both are applied
  * only when the owner confirms. Every read and write is scoped by `business_id`.
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { proposeOffer } from "@/lib/reactivation";
 import type { LeadStatus } from "@/lib/domain";
@@ -172,6 +174,7 @@ export async function proposeCampaign(input: {
  * owner still gets a Confirm card instead of an error.
  */
 export async function handleOwnerRequest(input: {
+  client: SupabaseClient<Database>;
   businessId: string;
   userId: string;
   role: "owner" | "staff" | "platform_admin";
@@ -185,6 +188,7 @@ export async function handleOwnerRequest(input: {
   try {
     const { runAssistantAgent } = await import("@/lib/assistant-agent.server");
     const result = await runAssistantAgent({
+    client: input.client,
       businessId: input.businessId,
       userId: input.userId,
       role: input.role,

@@ -15,10 +15,14 @@ import { formatInZone, zonedWallTimeToIso } from "@/lib/assistant-time";
 import { upcomingBookings, visibleNotes } from "@/lib/bookings";
 import type { OwnerProposal } from "@/lib/owner-actions.server";
 import { buildOperationsTools } from "@/lib/assistant-tools-ops.server";
+import { executeSharedAction, prepareAssistantText, customerInput, serviceInput, addonInput, textInput } from "@/lib/assistant-shared-actions";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 export type ExecutedAction = { summary: string };
 
 export type AssistantToolContext = {
+  client: SupabaseClient<Database>;
   businessId: string;
   userId: string;
   role: "owner" | "staff" | "platform_admin";
@@ -167,37 +171,13 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
 
     create_customer: tool({
       description: "Add a new customer to this business's leads.",
-      inputSchema: z.object({
-        name: z.string(),
-        mobile: z.string().describe("Australian mobile number as the owner said it."),
-        email: z.string().nullable(),
-        suburb: z.string().nullable(),
-        address: z.string().nullable(),
-        vehicle: z.string().nullable(),
-        requestedService: z.string().nullable(),
-        notes: z.string().nullable(),
-      }),
+      inputSchema: customerInput,
       execute: async (input) => {
-        const { data, error } = await supabaseAdmin
-          .from("leads")
-          .insert({
-            business_id: businessId,
-            name: input.name,
-            mobile_number: normaliseAuMobile(input.mobile) ?? input.mobile,
-            ...(input.email ? { email: input.email } : {}),
-            ...(input.suburb ? { suburb: input.suburb } : {}),
-            ...(input.address ? { service_address: input.address } : {}),
-            ...(input.vehicle ? { vehicle_type: input.vehicle } : {}),
-            ...(input.requestedService ? { service_intent: input.requestedService } : {}),
-            ...(input.notes ? { notes: input.notes } : {}),
-            lead_context: "manually_added_contact" as never,
-            manual_entry_by: userId,
-          } as never)
-          .select("id")
-          .single();
-        if (error || !data) return fail(error?.message ?? "That customer could not be added.");
-        ctx.record(`Added ${input.name} to your customers.`);
-        return { ok: true, leadId: data.id };
+        try {
+          const result = await executeSharedAction(ctx.client, 'create_customer', input);
+          ctx.record(`Added ${result.name} to your customers.`);
+          return { ok: true, leadId: result.id };
+        } catch (error) { return fail(error instanceof Error ? error.message : 'Nothing was saved.'); }
       },
     }),
 
@@ -394,98 +374,26 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     }),
 
     upsert_service: tool({
-      description:
-        "Add a service, or rename, reprice, regroup or deactivate an existing one. Pass serviceId to change an existing service.",
-      inputSchema: z.object({
-        serviceId: z.string().uuid().nullable(),
-        name: z.string().nullable(),
-        price: z.string().nullable().describe("Price as the owner stated it, e.g. \"$250\" or \"from $180\"."),
-        durationMinutes: z.number().int().min(5).max(1440).nullable(),
-        category: z.string().nullable().describe("The heading this service sits under, e.g. Interior."),
-        description: z.string().nullable(),
-        active: z.boolean().nullable(),
-      }),
+      description: "Add or update a service using the owner's stated details. Pass serviceId to update.",
+      inputSchema: serviceInput,
       execute: async (input) => {
-        const patch: Record<string, unknown> = {};
-        if (input.name) patch["name"] = input.name;
-        if (input.price) patch["price_guidance"] = input.price;
-        if (input.durationMinutes) patch["duration_minutes"] = input.durationMinutes;
-        if (input.category) patch["category"] = input.category;
-        if (input.description) patch["description"] = input.description;
-        if (input.active !== null) patch["active"] = input.active;
-
-        if (input.serviceId) {
-          if (Object.keys(patch).length === 0) return fail("Nothing was named to change.");
-          const { data, error } = await supabaseAdmin
-            .from("services")
-            .update(patch as never)
-            .eq("business_id", businessId)
-            .eq("id", input.serviceId)
-            .select("id, name")
-            .maybeSingle();
-          if (error) return fail(error.message);
-          if (!data) return fail("That service does not belong to your business.");
-          ctx.record(`Updated the service "${data.name}".`);
-          return { ok: true, serviceId: data.id };
-        }
-
-        if (!input.name) return fail("A new service needs a name.");
-        const { data, error } = await supabaseAdmin
-          .from("services")
-          .insert({ business_id: businessId, active: true, ...patch } as never)
-          .select("id, name")
-          .single();
-        if (error || !data) return fail(error?.message ?? "That service could not be added.");
-        ctx.record(`Added the service "${data.name}".`);
-        return { ok: true, serviceId: data.id };
+        try {
+          const result = await executeSharedAction(ctx.client, 'upsert_service', input);
+          ctx.record(`Saved the service "${result.name}".`);
+          return { ok: true, serviceId: result.id };
+        } catch (error) { return fail(error instanceof Error ? error.message : 'Nothing was saved.'); }
       },
     }),
 
     upsert_addon: tool({
-      description:
-        "Add an optional extra (add-on), or rename, reprice or switch off an existing one. Pass addonId to change an existing extra (get ids from list_services). An extra is only offered on the quote page once it is linked to services with set_addon_availability.",
-      inputSchema: z.object({
-        addonId: z.string().uuid().nullable(),
-        name: z.string().nullable(),
-        price: z.string().nullable().describe("Price as the owner stated it, e.g. \"$40\"."),
-        durationMinutes: z.number().int().min(5).max(1440).nullable(),
-        category: z.string().nullable(),
-        description: z.string().nullable(),
-        active: z.boolean().nullable(),
-      }),
+      description: "Add or update an optional extra. Pass addonId to update. Linking to services is separate.",
+      inputSchema: addonInput,
       execute: async (input) => {
-        const patch: Record<string, unknown> = {};
-        if (input.name) patch["name"] = input.name;
-        if (input.price) patch["price_guidance"] = input.price;
-        if (input.durationMinutes) patch["duration_minutes"] = input.durationMinutes;
-        if (input.category) patch["category"] = input.category;
-        if (input.description) patch["description"] = input.description;
-        if (input.active !== null) patch["active"] = input.active;
-
-        if (input.addonId) {
-          if (Object.keys(patch).length === 0) return fail("Nothing was named to change.");
-          const { data, error } = await supabaseAdmin
-            .from("service_addons")
-            .update(patch as never)
-            .eq("business_id", businessId)
-            .eq("id", input.addonId)
-            .select("id, name")
-            .maybeSingle();
-          if (error) return fail(error.message);
-          if (!data) return fail("That extra does not belong to your business.");
-          ctx.record(`Updated the extra "${data.name}".`);
-          return { ok: true, addonId: data.id };
-        }
-
-        if (!input.name) return fail("A new extra needs a name.");
-        const { data, error } = await supabaseAdmin
-          .from("service_addons")
-          .insert({ business_id: businessId, active: true, ...patch } as never)
-          .select("id, name")
-          .single();
-        if (error || !data) return fail(error?.message ?? "That extra could not be added.");
-        ctx.record(`Added the extra "${data.name}".`);
-        return { ok: true, addonId: data.id };
+        try {
+          const result = await executeSharedAction(ctx.client, 'upsert_addon', input);
+          ctx.record(`Saved the extra "${result.name}".`);
+          return { ok: true, addonId: result.id };
+        } catch (error) { return fail(error instanceof Error ? error.message : 'Nothing was saved.'); }
       },
     }),
 
@@ -520,34 +428,14 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     }),
 
     send_text: tool({
-      description:
-        "Prepare one text message to a customer from this business's own number. The owner sees the exact message and must press Confirm before it sends; consent, opt-outs, quiet hours, credits and daily caps still apply at send time. Nothing sends when this tool runs.",
-      inputSchema: z.object({
-        leadId: z.string().uuid(),
-        message: z.string().min(2).max(600),
-      }),
+      description: "Prepare one text for the owner to confirm. Nothing sends until Confirm; existing SMS safeguards apply at send time.",
+      inputSchema: textInput,
       execute: async (input) => {
-        const { data: lead } = await supabaseAdmin
-          .from("leads")
-          .select("id, name, mobile_number, opted_out_at, sms_suppressed_at")
-          .eq("id", input.leadId)
-          .eq("business_id", businessId)
-          .is("deleted_at", null)
-          .maybeSingle();
-        if (!lead) return fail("That customer is not in this business's records.");
-        if (lead.opted_out_at) return fail(`${lead.name ?? "That customer"} has opted out of texts.`);
-        if (lead.sms_suppressed_at) return fail(`${lead.name ?? "That customer"}'s number is suppressed after delivery failures.`);
-        if (!lead.mobile_number) return fail("There is no mobile number on record for that customer.");
-        const leadName = lead.name ?? "Customer";
-        ctx.propose({
-          kind: "send_text",
-          leadId: lead.id,
-          leadName,
-          mobileNumber: lead.mobile_number,
-          message: input.message.trim(),
-          summary: `Text to ${leadName} ready. It sends only when you confirm.`,
-        });
-        return { ok: true, awaitingConfirmation: true, to: leadName };
+        try {
+          const proposal = await prepareAssistantText(ctx.client, businessId, input);
+          ctx.propose(proposal);
+          return { ok: true, awaitingConfirmation: true, to: proposal.leadName };
+        } catch (error) { return fail(error instanceof Error ? error.message : 'Text could not be prepared.'); }
       },
     }),
 
