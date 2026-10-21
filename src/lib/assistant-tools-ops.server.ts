@@ -15,6 +15,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { LEAD_STATUSES, SOURCE_CHANNELS } from "@/lib/domain";
 import { SMS_LEAD_FILTERS } from "@/lib/sms/delivery";
 import { formatInZone } from "@/lib/assistant-time";
+import { executeSharedAction, settingsInput } from "@/lib/assistant-shared-actions";
 import { QUOTE_MODES } from "@/lib/quote-mode";
 import { fail, type AssistantToolContext } from "@/lib/assistant-tools.server";
 
@@ -501,41 +502,14 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
     }),
 
     update_business_settings: tool({
-      description:
-        "Owner only. Change business details: name, callback phone, service area, opening hours text, SMS signature, privacy policy URL, timezone, quiet hours (24h start/end). Pass null for anything not being changed.",
-      inputSchema: z.object({
-        name: z.string().min(2).max(80).nullable(),
-        phone_number: z.string().max(20).nullable(),
-        service_area: z.string().max(300).nullable(),
-        opening_hours: z.string().max(200).nullable(),
-        sms_signature: z.string().max(80).nullable(),
-        privacy_policy_url: z.string().max(300).nullable(),
-        timezone: z.string().max(60).nullable(),
-        quiet_hours_start: z.number().int().min(0).max(23).nullable(),
-        quiet_hours_end: z.number().int().min(0).max(23).nullable(),
-      }),
+      description: "Owner only. Update the named business details; null leaves a field unchanged.",
+      inputSchema: settingsInput,
       execute: async (input) => {
-        {
-          const { planGateMessage } = await import("@/lib/subscription.server");
-          const blocked = await planGateMessage(ctx.businessId, "automation_custom");
-          if (blocked) return fail(blocked);
-        }
-        const denied = ownerOnly(ctx);
-        if (denied) return denied;
-        const patch = Object.fromEntries(
-          Object.entries(input).filter(([, v]) => v !== null),
-        ) as Database["public"]["Tables"]["businesses"]["Update"];
-        if (Object.keys(patch).length === 0) return fail("Nothing to change.");
-        if (typeof patch["timezone"] === "string") {
-          const { isValidTimezone } = await import("@/lib/availability");
-          if (!isValidTimezone(patch["timezone"])) return fail("That is not a valid timezone.");
-        }
-        const { error } = await supabaseAdmin.from("businesses").update(patch).eq("id", businessId);
-        if (error) return fail(error.message);
-        await audit(ctx, "business_settings_updated", { fields: Object.keys(patch) });
-        const changed = Object.keys(patch).map((k) => k.replace(/_/g, " ")).join(", ");
-        ctx.record(`Updated ${changed}.`);
-        return { ok: true, changed: Object.keys(patch) };
+        try {
+          const result = await executeSharedAction(ctx.client, 'update_business_settings', input);
+          ctx.record('Updated your business settings.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : 'Nothing was saved.'); }
       },
     }),
 

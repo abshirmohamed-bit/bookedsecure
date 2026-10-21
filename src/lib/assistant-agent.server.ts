@@ -7,6 +7,8 @@
  * authenticated request, so a request can never reach another tenant.
  */
 import { type ModelMessage } from "ai";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runAgentTurn } from "@/lib/agent-core.server";
 import { buildAssistantTools } from "@/lib/assistant-tools.server";
@@ -26,6 +28,7 @@ export type AssistantAgentResult = {
  * campaigns, imports) the owner must approve before they happen.
  */
 export async function runAssistantAgent(input: {
+  client: SupabaseClient<Database>;
   businessId: string;
   userId: string;
   role: "owner" | "staff" | "platform_admin";
@@ -49,6 +52,7 @@ export async function runAssistantAgent(input: {
   const executed: string[] = [];
   const proposals: OwnerProposal[] = [];
   const tools = buildAssistantTools({
+    client: input.client,
     businessId: input.businessId,
     userId: input.userId,
     role: input.role,

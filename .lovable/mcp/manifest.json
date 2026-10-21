@@ -13,7 +13,7 @@
   "mcp": {
     "server": {
       "name": "bookedsecure",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "title": "BookedSecure"
     },
     "tools": [
@@ -207,6 +207,80 @@
         "outputSchema": null
       },
       {
+        "name": "query_leads",
+        "title": "Filter the lead inbox",
+        "description": "Reuse the same paginated inbox query as Cowork and BookedSecure. Filter by status, source, text-delivery state or customer search. Returns exact counts and a bounded page; follow next_page for all matches.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "new",
+                "previous_lead",
+                "contacted",
+                "waiting_for_customer",
+                "customer_replied",
+                "ready_for_quote",
+                "quote_sent",
+                "scheduled",
+                "completed",
+                "lost",
+                "opted_out",
+                "invalid",
+                "all"
+              ],
+              "default": "all"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "meta",
+                "godaddy",
+                "website",
+                "hosted_page",
+                "manual",
+                "unknown",
+                "all"
+              ],
+              "default": "all"
+            },
+            "sms": {
+              "type": "string",
+              "enum": [
+                "all",
+                "sms_delivered",
+                "sms_pending",
+                "sms_failed",
+                "sms_undelivered",
+                "sms_suppressed",
+                "no_reply_after_delivery"
+              ],
+              "default": "all"
+            },
+            "search": {
+              "type": "string",
+              "maxLength": 120,
+              "default": ""
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 1
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
         "name": "update_lead_notes",
         "title": "Update lead notes",
         "description": "Replace notes on a previously looked-up active lead; owner access and an active trial or subscription are required.",
@@ -262,6 +336,481 @@
           "required": [
             "lead_id",
             "scheduled_at"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_customer",
+        "title": "Add a customer",
+        "description": "Reuse Cowork’s customer creation action for the connected owner. Only add a customer explicitly requested by the user; never infer text consent.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "mobile": {
+              "type": "string",
+              "minLength": 6,
+              "maxLength": 20
+            },
+            "email": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "email"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "suburb": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "address": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "vehicle": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "requestedService": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 5000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "name",
+            "mobile",
+            "email",
+            "suburb",
+            "address",
+            "vehicle",
+            "requestedService",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "upsert_service",
+        "title": "Add or update a service",
+        "description": "Reuse Cowork’s service action. Read list_services first when updating; pass only the owner’s stated prices and details, and null for unchanged fields. Requires owner and current access.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "serviceId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "price": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Price exactly as the owner stated it."
+            },
+            "durationMinutes": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 5,
+                  "maximum": 1440
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "category": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 5000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "active": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "serviceId",
+            "name",
+            "price",
+            "durationMinutes",
+            "category",
+            "description",
+            "active"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "upsert_addon",
+        "title": "Add or update an extra",
+        "description": "Reuse Cowork’s add-on action. Read list_services first when updating; use the owner’s exact prices. Linking extras to services remains a separate approval in BookedSecure.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "addonId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "price": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Price exactly as the owner stated it."
+            },
+            "durationMinutes": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 5,
+                  "maximum": 1440
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "category": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "description": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 5000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "active": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "addonId",
+            "name",
+            "price",
+            "durationMinutes",
+            "category",
+            "description",
+            "active"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_business_settings",
+        "title": "Update business details",
+        "description": "Reuse Cowork’s owner-only business settings action: service area, opening hours, contact details, signature, timezone or quiet hours. Read business_settings first; null leaves fields unchanged. Cannot change billing or credentials.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "phone_number": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "service_area": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "opening_hours": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "sms_signature": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "privacy_policy_url": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "timezone": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "quiet_hours_start": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 23
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "quiet_hours_end": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 23
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "name",
+            "phone_number",
+            "service_area",
+            "opening_hours",
+            "sms_signature",
+            "privacy_policy_url",
+            "timezone",
+            "quiet_hours_start",
+            "quiet_hours_end"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "send_text",
+        "title": "Prepare a customer reply for approval",
+        "description": "Reuse Cowork’s text proposal. Find the customer and read customer_history first, then prepare the user-approved wording. Saves the exact reply to BookedSecure’s ongoing Cowork conversation, where the owner must press Confirm. Does NOT send a text. Existing consent, quiet hours, credits and sending safeguards apply when confirmed.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "leadId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "message": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 600
+            }
+          },
+          "required": [
+            "leadId",
+            "message"
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
