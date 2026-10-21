@@ -1,5 +1,10 @@
 # Roadmap
 
+## Reuse owner AI actions through MCP
+- [ ] Audit existing actions and expose reusable capabilities without duplicating business logic or weakening permissions.
+- [ ] Test reused actions, account isolation, confirmations and catalog generation.
+- [ ] External ChatGPT end-to-end verification requires republishing and an approved external connection.
+
 ## Guided ChatGPT connection test
 - [x] Check current-account ChatGPT approval, run a bounded read-only customer lookup, and explain recovery steps without claiming external tool-call success.
 - [x] Pass 38 diagnostic and MCP regression checks; confirm signed-out visitors return to sign-in without runtime errors.
