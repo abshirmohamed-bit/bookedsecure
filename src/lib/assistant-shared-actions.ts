@@ -38,7 +38,7 @@ export async function executeSharedAction(client: Client, action: SharedActionNa
     ? { ...parsed, mobile: normaliseAuMobile(parsed.mobile) ?? parsed.mobile }
     : parsed;
   // The database derives identity, rechecks access and audits in the same transaction.
-  const { data, error } = await client.rpc('assistant_account_action' as never, { p_action: action, p_input: input } as never);
+  const { data, error } = await client.rpc('assistant_account_action', { p_action: action, p_input: input });
   if (error || !data) throw new Error(error?.message ?? 'Nothing was saved.');
   return data as unknown as { ok: true; id: string; name: string; changed?: string[] };
 }
