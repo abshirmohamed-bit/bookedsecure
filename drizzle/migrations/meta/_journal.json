@@ -57,6 +57,13 @@
       "when": 1792729089737,
       "tag": "0007_shared_assistant_operational_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792729137672,
+      "tag": "0008_assistant_links_and_pending_requests",
+      "breakpoints": true
     }
   ]
 }
