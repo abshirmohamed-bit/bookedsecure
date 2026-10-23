@@ -1,5 +1,11 @@
 # Roadmap
 
+## Full external-assistant action access
+- [ ] Extend caller-scoped shared customer, booking, catalogue and automation actions; keep messaging/import approvals.
+- [ ] Expose additional shared campaign/import and operational reads where existing permissions can be preserved safely.
+- [ ] Test saved/readback actions using the signed-in account without changing real customer records; regenerate the MCP catalog.
+- [ ] Update the connection page and capability coverage honestly; identify any remaining unsupported actions.
+
 ## Reuse owner AI actions through MCP
 - [x] Audit 36 existing owner actions; share customer/service/add-on/settings mutations and text preparation, reuse the inbox query; generate 15 MCP tools without importing admin clients.
 - [x] Pass 100 automated checks for shared actions, account isolation, confirmations and existing regressions; regenerate the catalog and check app compilation.
