@@ -71,6 +71,13 @@
       "when": 1792729430877,
       "tag": "0009_preserve_shared_operational_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792729499966,
+      "tag": "0010_validate_shared_operational_inputs",
+      "breakpoints": true
     }
   ]
 }
