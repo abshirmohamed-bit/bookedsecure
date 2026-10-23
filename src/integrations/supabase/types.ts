@@ -4088,6 +4088,10 @@ export type Database = {
             Args: { p_require_owner?: boolean; p_require_plan?: boolean }
             Returns: string
           }
+      assistant_operational_action: {
+        Args: { p_action: string; p_input: Json }
+        Returns: Json
+      }
       commit_web_chat_booking: {
         Args: {
           p_business_id: string
