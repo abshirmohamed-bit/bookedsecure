@@ -87,7 +87,7 @@ async function deliver(row: Row): Promise<"sent" | "failed"> {
       const result = await provider.sendMessage({ to: business.owner_notification_number, body, sender });
       ids.push(result.providerMessageId ?? "");
       if (credits > 0) {
-        const { recordMessageSpend } = await import("@/lib/subscription.server");
+        const { recordMessageSpend } = await import("@/lib/sms/texto-accounts.server");
         await recordMessageSpend(row.business_id, credits);
       }
     } catch (err) {
