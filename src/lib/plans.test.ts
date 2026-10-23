@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   annualMonthsFree,
+  FOUNDER_PLAN_ID,
+  isExternallyBilledPlan,
   overageCostCents,
   planAllowsAnotherTeamMember,
   planAllowsReactivation,
@@ -76,5 +78,14 @@ describe("subscription plans", () => {
     expect(planAllowsAnotherTeamMember(essentials, 1)).toBe(true);
     expect(planAllowsAnotherTeamMember(essentials, 2)).toBe(false);
     expect(planAllowsAnotherTeamMember(pro, 99)).toBe(true);
+  });
+
+  it("treats only the Founder plan as billed outside Stripe", () => {
+    // Founder access is permanent: Stripe failures must never gate it.
+    expect(isExternallyBilledPlan(FOUNDER_PLAN_ID)).toBe(true);
+    expect(isExternallyBilledPlan("founder")).toBe(true);
+    expect(isExternallyBilledPlan("platform")).toBe(false);
+    expect(isExternallyBilledPlan("essentials")).toBe(false);
+    expect(isExternallyBilledPlan("pro")).toBe(false);
   });
 });
