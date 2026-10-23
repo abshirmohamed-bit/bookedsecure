@@ -2464,6 +2464,65 @@ export type Database = {
           },
         ]
       }
+      owner_sms_reminders: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string
+          failure_reason: string | null
+          id: string
+          label: string
+          parts_sent: number
+          provider_message_ids: string[]
+          range_end: string
+          range_start: string
+          request_key: string
+          send_at: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by: string
+          failure_reason?: string | null
+          id?: string
+          label: string
+          parts_sent?: number
+          provider_message_ids?: string[]
+          range_end: string
+          range_start: string
+          request_key: string
+          send_at: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string
+          failure_reason?: string | null
+          id?: string
+          label?: string
+          parts_sent?: number
+          provider_message_ids?: string[]
+          range_end?: string
+          range_start?: string
+          request_key?: string
+          send_at?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_sms_reminders_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pilot_applications: {
         Row: {
           access_state: string
@@ -4092,6 +4151,10 @@ export type Database = {
         Args: { p_action: string; p_input: Json }
         Returns: Json
       }
+      cancel_owner_sms_reminder: {
+        Args: { p_reminder_id: string }
+        Returns: Json
+      }
       commit_web_chat_booking: {
         Args: {
           p_business_id: string
@@ -4159,6 +4222,16 @@ export type Database = {
           p_scheduled_at: string
         }
         Returns: string
+      }
+      schedule_owner_sms_reminder: {
+        Args: {
+          p_label: string
+          p_range_end: string
+          p_range_start: string
+          p_request_key: string
+          p_send_at: string
+        }
+        Returns: Json
       }
       set_cron_credential: {
         Args: { p_name: string; p_secret: string }
