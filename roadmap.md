@@ -1,10 +1,17 @@
 # Roadmap
 
+## Full external-assistant action access
+- [x] Extend caller-scoped shared customer, booking, catalogue and automation actions; keep messaging/import approvals.
+- [x] Queue broader existing Cowork work for in-app confirmation rather than registering privileged builders; file imports still need an in-app attachment.
+- [x] Pass 78 targeted checks and regenerate the 28-tool catalog; verify signed-in connection-page rendering.
+- [ ] Saved/readback and Confirm-flow verification: diagnostic SQL cannot assume authenticated role or update profile fixtures; signed-in preview account has ended access. No real customer records changed.
+- [x] Update connection-page coverage honestly; no direct sending, deletion, payments or billing.
+
 ## Reuse owner AI actions through MCP
 - [x] Audit 36 existing owner actions; share customer/service/add-on/settings mutations and text preparation, reuse the inbox query; generate 15 MCP tools without importing admin clients.
 - [x] Pass 100 automated checks for shared actions, account isolation, confirmations and existing regressions; regenerate the catalog and check app compilation.
 - [ ] Actual database rollback test and signed-in approval readback are blocked by diagnostic profile-write permissions and no matched requesting-user app account.
-- [ ] Remaining owner actions (campaign drafting, imports, booking completion/cancellation, automation and team) need shared caller-scoped boundaries; existing privileged helpers cannot safely be exposed wholesale.
+- [x] Booking completion/cancellation and automation now share caller-scoped operations; broader privileged work queues a Cowork request for confirmation.
 - [ ] External ChatGPT end-to-end verification requires republishing and an approved external connection.
 
 ## Guided ChatGPT connection test

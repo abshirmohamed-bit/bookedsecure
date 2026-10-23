@@ -13,7 +13,7 @@
   "mcp": {
     "server": {
       "name": "bookedsecure",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "title": "BookedSecure"
     },
     "tools": [
@@ -811,6 +811,743 @@
           "required": [
             "leadId",
             "message"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_customer",
+        "title": "Update customer details",
+        "description": "Change only owner-requested customer fields. Look up the customer first. Null leaves a field unchanged. clearOptOut is allowed only when the owner explicitly states renewed customer consent; never infer consent.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "leadId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "mobile": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "email": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "email"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "suburb": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "address": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "vehicle": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "requestedService": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 5000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "new",
+                    "previous_lead",
+                    "contacted",
+                    "waiting_for_customer",
+                    "customer_replied",
+                    "ready_for_quote",
+                    "quote_sent",
+                    "scheduled",
+                    "completed",
+                    "lost",
+                    "opted_out",
+                    "invalid"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "clearOptOut": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "leadId",
+            "name",
+            "mobile",
+            "email",
+            "suburb",
+            "address",
+            "vehicle",
+            "requestedService",
+            "notes",
+            "status",
+            "clearOptOut"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "book_job",
+        "title": "Book a customer job",
+        "description": "Schedule owner-entered work atomically in the business timezone. Look up the customer first. No SMS is sent.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "leadId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "time": {
+              "type": "string",
+              "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+            },
+            "serviceName": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 5000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "leadId",
+            "date",
+            "time",
+            "serviceName",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "reschedule_job",
+        "title": "Move a booking",
+        "description": "Move a looked-up job to a local date and time atomically. No SMS is sent.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "time": {
+              "type": "string",
+              "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+            }
+          },
+          "required": [
+            "jobId",
+            "date",
+            "time"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "cancel_job",
+        "title": "Cancel a booking",
+        "description": "Cancel a looked-up booking only when explicitly requested by the owner. Recorded completed revenue is removed. No SMS is sent.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 5000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "jobId",
+            "reason"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "complete_job",
+        "title": "Complete a customer job",
+        "description": "Record completed work and the exact amount the owner stated. A supplied job must belong to the supplied customer. No SMS is sent.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "leadId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "jobId": {
+              "anyOf": [
+                {
+                  "$ref": "#/properties/leadId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "paidAmount": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1000000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "serviceName": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "leadId",
+            "jobId",
+            "paidAmount",
+            "serviceName"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "set_addon_availability",
+        "title": "Link an extra to services",
+        "description": "Link or unlink a looked-up extra and services in this business. Only explicitly requested links change.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "addonId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "serviceIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/properties/addonId"
+              },
+              "minItems": 1,
+              "maxItems": 200
+            },
+            "remove": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "addonId",
+            "serviceIds",
+            "remove"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "bulk_update_lead_status",
+        "title": "Change a group of lead statuses",
+        "description": "Apply the owner-requested inbox status and filters atomically to at most 5000 matching active leads. Does not send, change consent, or clear opt-outs. Read matching leads first.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "toStatus": {
+              "type": "string",
+              "enum": [
+                "new",
+                "previous_lead",
+                "contacted",
+                "waiting_for_customer",
+                "customer_replied",
+                "ready_for_quote",
+                "quote_sent",
+                "scheduled",
+                "completed",
+                "lost",
+                "opted_out",
+                "invalid"
+              ]
+            },
+            "fromStatuses": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "previous_lead",
+                      "contacted",
+                      "waiting_for_customer",
+                      "customer_replied",
+                      "ready_for_quote",
+                      "quote_sent",
+                      "scheduled",
+                      "completed",
+                      "lost",
+                      "opted_out",
+                      "invalid"
+                    ]
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "source": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "meta",
+                    "godaddy",
+                    "website",
+                    "hosted_page",
+                    "manual",
+                    "unknown",
+                    "any"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "live",
+                    "historical",
+                    "reactivation",
+                    "crm_import",
+                    "any"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "excludeOptedOut": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "toStatus",
+            "fromStatuses",
+            "source",
+            "origin",
+            "excludeOptedOut"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "set_quote_page_mode",
+        "title": "Change quote page mode",
+        "description": "Switch this business to the existing manual form or AI conversation mode, on the owner’s explicit request.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "manual_sms",
+                "ai_chat"
+              ]
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "set_sending_paused",
+        "title": "Pause or resume automated sending",
+        "description": "Change the existing business-wide automation pause setting only on the owner’s explicit request. SMS safeguards remain active; confirmed manual texts are unaffected.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "paused": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "paused"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_follow_up_rule",
+        "title": "Edit a follow-up rule",
+        "description": "Edit a looked-up business follow-up step. Null leaves a field unchanged. No text is sent by this action.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "ruleId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "delayMinutes": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 20160
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "messageTemplate": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 10,
+                  "maxLength": 600
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "active": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "ruleId",
+            "delayMinutes",
+            "messageTemplate",
+            "active"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "set_customer_follow_ups",
+        "title": "Pause customer follow-ups",
+        "description": "Pause or resume one looked-up customer’s existing follow-ups. Resume schedules the next step about an hour later; SMS safeguards remain active.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "leadId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "paused": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "leadId",
+            "paused"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "customise_customer_follow_up",
+        "title": "Customise a customer follow-up",
+        "description": "Edit future wording or timing for one existing customer follow-up step, or reset to the business default. No text is sent.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "leadId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "step": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "messageTemplate": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 600
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "delayMinutes": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10080
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reset": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "leadId",
+            "step",
+            "messageTemplate",
+            "delayMinutes",
+            "reset"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "request_account_action",
+        "title": "Request any existing Cowork action for confirmation",
+        "description": "Prepare an exact request for any existing Cowork capability: SMS/email campaigns, imports, deleting mistaken jobs or unfinished prospects, team access, and other account work. Saves the request in the ongoing Cowork conversation. The owner must review and Confirm in BookedSecure; Cowork then uses its existing tools and permissions. Messages and imports retain their separate approval gates. Nothing is executed by this tool.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 1000,
+              "description": "The owner’s exact requested work, with customer names and previously looked-up identifiers where needed. Never invent consent or instructions."
+            }
+          },
+          "required": [
+            "request"
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"

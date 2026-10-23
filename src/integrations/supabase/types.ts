@@ -4088,6 +4088,10 @@ export type Database = {
             Args: { p_require_owner?: boolean; p_require_plan?: boolean }
             Returns: string
           }
+      assistant_operational_action: {
+        Args: { p_action: string; p_input: Json }
+        Returns: Json
+      }
       commit_web_chat_booking: {
         Args: {
           p_business_id: string
@@ -4110,6 +4114,10 @@ export type Database = {
         Returns: string
       }
       mcp_write_business: { Args: never; Returns: string }
+      prepare_connected_assistant_request: {
+        Args: { p_request: string }
+        Returns: Json
+      }
       record_blocked_sms_segments: {
         Args: { p_period_id: string; p_segments: number }
         Returns: undefined

@@ -9,6 +9,8 @@
  * the assistant proposes and the owner confirms on screen.
  */
 import { tool } from "ai";
+import { executeAssistantOperation } from "@/lib/assistant-operations";
+import { operationInputs } from "@/lib/assistant-operation-contracts";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
@@ -98,79 +100,15 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
     bulk_update_lead_status: tool({
       description:
         "Change the status of MANY leads at once for this business. Use this whenever the owner asks for a whole group to be restatused (for example 'treat every imported lead as previous lead', 'mark all new leads as previous lead'). Never refuse a bulk status change and never tell the owner to do it by hand. Filter by the statuses the leads are in now, by source channel and by how they were added (origin). Leave a filter null to mean 'any'. It only changes the status field; it never texts anyone and never changes consent or opt-out flags.",
-      inputSchema: z.object({
-        toStatus: z.enum(LEAD_STATUSES).describe("The status every matched lead should end up with."),
-        fromStatuses: z
-          .array(z.enum(LEAD_STATUSES))
-          .nullable()
-          .describe("Only change leads currently in these statuses. Null means every status."),
-        source: z
-          .enum([...SOURCE_CHANNELS, "any"])
-          .nullable()
-          .describe("Source channel filter. Null or 'any' means every source."),
-        origin: z
-          .enum([...(["live", "historical", "reactivation", "crm_import", "any"] as const)])
-          .nullable()
-          .describe("How the lead was added. Imported contact files are 'crm_import'. Null or 'any' means every origin."),
-        excludeOptedOut: z
-          .boolean()
-          .nullable()
-          .describe("Defaults to true: leads who opted out keep their opted-out status. Pass false only when the owner clearly includes them."),
-      }),
+      inputSchema: operationInputs.bulk_update_lead_status,
       execute: async (input) => {
-        let select = supabaseAdmin
-          .from("leads")
-          .select("id")
-          .eq("business_id", businessId)
-          .is("deleted_at", null)
-          .neq("status", input.toStatus)
-          .limit(5000);
-        if (input.fromStatuses && input.fromStatuses.length > 0) {
-          select = select.in("status", input.fromStatuses);
-        }
-        if (input.source && input.source !== "any") select = select.eq("source_channel", input.source);
-        if (input.origin && input.origin !== "any") select = select.eq("lead_origin", input.origin);
-        if (input.excludeOptedOut !== false) {
-          select = select.is("opted_out_at", null).neq("status", "opted_out");
-        }
-
-        const { data, error } = await select;
-        if (error) return fail(error.message);
-        const ids = (data ?? []).map((row) => row.id as string);
-        if (ids.length === 0) {
-          return { ok: true, updated: 0, message: "No leads matched, so nothing needed changing." };
-        }
-
-        let updated = 0;
-        for (let index = 0; index < ids.length; index += 200) {
-          const chunk = ids.slice(index, index + 200);
-          const { data: rows, error: updateError } = await supabaseAdmin
-            .from("leads")
-            .update({ status: input.toStatus } as never)
-            .eq("business_id", businessId)
-            .in("id", chunk)
-            .select("id");
-          if (updateError) {
-            return fail(
-              `${updated} lead${updated === 1 ? "" : "s"} were updated, then this stopped it: ${updateError.message}`,
-            );
-          }
-          updated += (rows ?? []).length;
-        }
-
-        await audit(ctx, "owner_assistant_leads_bulk_status", {
-          to_status: input.toStatus,
-          from_statuses: input.fromStatuses ?? "any",
-          source: input.source ?? "any",
-          origin: input.origin ?? "any",
-          excluded_opted_out: input.excludeOptedOut !== false,
-          updated,
-        });
-        ctx.record(`Changed ${updated} lead${updated === 1 ? "" : "s"} to "${input.toStatus}".`);
-        return { ok: true, updated };
+        try {
+          const result = await executeAssistantOperation(ctx.client, 'bulk_update_lead_status', input);
+          ctx.record(`Updated ${result.updated ?? 0} leads.`);
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
-
 
     customer_history: tool({
       description:
@@ -516,183 +454,65 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
     set_quote_page_mode: tool({
       description:
         "Owner only. Switch the public quote page between 'manual_sms' (manual quote form with SMS) and 'ai_chat' (AI quote conversation).",
-      inputSchema: z.object({ mode: z.enum(QUOTE_MODES) }),
-      execute: async ({ mode }) => {
-        const denied = ownerOnly(ctx);
-        if (denied) return denied;
-        const { error } = await supabaseAdmin.from("businesses").update({ quote_mode: mode }).eq("id", businessId);
-        if (error) return fail(error.message);
-        await audit(ctx, "quote_page_mode_changed", { mode });
-        ctx.record(mode === "ai_chat" ? "Quote page switched to the AI conversation." : "Quote page switched to the manual form.");
-        return { ok: true, mode };
+      inputSchema: operationInputs.set_quote_page_mode,
+      execute: async (input) => {
+        try {
+          const result = await executeAssistantOperation(ctx.client, 'set_quote_page_mode', input);
+          ctx.record('Updated your quote page mode.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     set_sending_paused: tool({
       description:
         "Owner only. Pause or resume all automated texting for this business (follow-up sequences and scheduled sends). Manual texts the owner confirms are unaffected.",
-      inputSchema: z.object({ paused: z.boolean() }),
-      execute: async ({ paused }) => {
-        const denied = ownerOnly(ctx);
-        if (denied) return denied;
-        const { error } = await supabaseAdmin
-          .from("businesses")
-          .update({ automation_enabled: !paused })
-          .eq("id", businessId);
-        if (error) return fail(error.message);
-        await audit(ctx, paused ? "messaging_paused_by_owner" : "messaging_resumed_by_owner", {});
-        ctx.record(paused ? "Paused automated sending." : "Resumed automated sending.");
-        return { ok: true, paused };
+      inputSchema: operationInputs.set_sending_paused,
+      execute: async (input) => {
+        try {
+          const result = await executeAssistantOperation(ctx.client, 'set_sending_paused', input);
+          ctx.record(input.paused ? 'Paused automated sending.' : 'Resumed automated sending.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     update_follow_up_rule: tool({
       description:
         "Owner only. Edit one step of the automated follow-up sequence (get ids from read_settings): its delay in minutes, its message text, or whether it is switched on.",
-      inputSchema: z.object({
-        ruleId: z.string().uuid(),
-        delayMinutes: z.number().int().min(0).max(20160).nullable(),
-        messageTemplate: z.string().min(10).max(600).nullable(),
-        active: z.boolean().nullable(),
-      }),
+      inputSchema: operationInputs.update_follow_up_rule,
       execute: async (input) => {
-        const denied = ownerOnly(ctx);
-        if (denied) return denied;
-        const patch: Database["public"]["Tables"]["automation_rules"]["Update"] = {};
-        if (input.delayMinutes !== null) patch.delay_minutes = input.delayMinutes;
-        if (input.messageTemplate !== null) patch.message_template = input.messageTemplate;
-        if (input.active !== null) patch.active = input.active;
-        if (Object.keys(patch).length === 0) return fail("Nothing to change.");
-        const { data, error } = await supabaseAdmin
-          .from("automation_rules")
-          .update(patch)
-          .eq("id", input.ruleId)
-          .eq("business_id", businessId)
-          .select("step");
-        if (error) return fail(error.message);
-        if (!data || data.length === 0) return fail("That follow-up step is not in this business's sequence.");
-        await audit(ctx, "automation_rule_updated", { ruleId: input.ruleId, fields: Object.keys(patch) });
-        ctx.record(`Updated follow-up step ${data[0]?.step ?? ""}.`.replace(/\s+\./, "."));
-        return { ok: true };
+        try {
+          const result = await executeAssistantOperation(ctx.client, 'update_follow_up_rule', input);
+          ctx.record('Updated that follow-up rule.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     set_customer_follow_ups: tool({
       description:
         "Pause or resume the automated follow-up sequence for one customer. Resuming schedules the next follow-up about an hour from now.",
-      inputSchema: z.object({ leadId: z.string().uuid(), paused: z.boolean() }),
-      execute: async ({ leadId, paused }) => {
-        const { data: lead } = await supabaseAdmin
-          .from("leads")
-          .select("id, name")
-          .eq("id", leadId)
-          .eq("business_id", businessId)
-          .is("deleted_at", null)
-          .maybeSingle();
-        if (!lead) return fail("That customer is not in this business's records.");
-        const { error } = await supabaseAdmin
-          .from("conversations")
-          .update({
-            automation_paused: paused,
-            next_follow_up_at: paused ? null : new Date(Date.now() + 3600000).toISOString(),
-          })
-          .eq("business_id", businessId)
-          .eq("lead_id", leadId);
-        if (error) return fail(error.message);
-        await supabaseAdmin.from("audit_events").insert({
-          business_id: businessId,
-          user_id: userId,
-          event_type: paused ? "lead_follow_ups_paused" : "lead_follow_ups_resumed",
-          entity_type: "lead",
-          entity_id: leadId,
-          metadata: { via: "assistant" } as never,
-        });
-        ctx.record(`${paused ? "Paused" : "Resumed"} follow-ups for ${lead.name ?? "that customer"}.`);
-        return { ok: true };
+      inputSchema: operationInputs.set_customer_follow_ups,
+      execute: async (input) => {
+        try {
+          const result = await executeAssistantOperation(ctx.client, 'set_customer_follow_ups', input);
+          ctx.record(input.paused ? 'Paused that customer’s follow-ups.' : 'Resumed that customer’s follow-ups.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     customise_customer_follow_up: tool({
       description:
         "Change the wording or timing of one follow-up step for ONE customer only, without changing the business-wide sequence (use update_follow_up_rule for everyone). step is the sequence step number from read_settings (e.g. 1 or 2). delayMinutes is measured from the previous message. Pass null to leave a field as is; pass reset=true to return the step to the business-wide default. Templates may use {{first_name}} and {{business_name}}. This only changes future follow-ups; it never sends a text.",
-      inputSchema: z.object({
-        leadId: z.string().uuid(),
-        step: z.number().int().min(1).max(20),
-        messageTemplate: z.string().max(600).nullable(),
-        delayMinutes: z.number().int().min(0).max(10080).nullable(),
-        reset: z.boolean().nullable(),
-      }),
-      execute: async ({ leadId, step, messageTemplate, delayMinutes, reset }) => {
-        {
-          const { planGateMessage } = await import("@/lib/subscription.server");
-          const blocked = await planGateMessage(ctx.businessId, "automation_custom");
-          if (blocked) return fail(blocked);
-        }
-        const { data: lead } = await supabaseAdmin
-          .from("leads")
-          .select("id, name")
-          .eq("id", leadId)
-          .eq("business_id", businessId)
-          .is("deleted_at", null)
-          .maybeSingle();
-        if (!lead) return fail("That customer is not in this business's records.");
-        const { data: rule } = await supabaseAdmin
-          .from("automation_rules")
-          .select("id, step, delay_minutes, message_template")
-          .eq("business_id", businessId)
-          .eq("rule_type", "follow_up")
-          .eq("step", step)
-          .maybeSingle();
-        if (!rule) return fail(`There is no follow-up step ${step} in this business's sequence.`);
-        const { data: conversation } = await supabaseAdmin
-          .from("conversations")
-          .select("id, follow_up_step, follow_up_overrides")
-          .eq("business_id", businessId)
-          .eq("lead_id", leadId)
-          .maybeSingle();
-        if (!conversation) return fail("That customer has no follow-up sequence yet.");
-
-        const { mergeFollowUpOverride, parseFollowUpOverrides, resolveFollowUpStep } = await import(
-          "@/lib/follow-up-overrides"
-        );
-        const current = parseFollowUpOverrides(conversation.follow_up_overrides);
-        const next = reset
-          ? mergeFollowUpOverride(current, step, { delay_minutes: null, message_template: null })
-          : mergeFollowUpOverride(current, step, {
-              ...(messageTemplate !== null ? { message_template: messageTemplate } : {}),
-              ...(delayMinutes !== null ? { delay_minutes: delayMinutes } : {}),
-            });
-        const { error } = await supabaseAdmin
-          .from("conversations")
-          .update({ follow_up_overrides: next as never })
-          .eq("id", conversation.id)
-          .eq("business_id", businessId);
-        if (error) return fail(error.message);
-        await supabaseAdmin.from("audit_events").insert({
-          business_id: businessId,
-          user_id: userId,
-          event_type: reset ? "lead_follow_up_override_reset" : "lead_follow_up_overridden",
-          entity_type: "lead",
-          entity_id: leadId,
-          metadata: { step, via: "assistant" } as never,
-        });
-        const effective = resolveFollowUpStep(rule, next);
-        const who = lead.name ?? "that customer";
-        ctx.record(
-          reset
-            ? `Step ${step} for ${who} is back to the business-wide default.`
-            : `Customised follow-up step ${step} for ${who}.`,
-        );
-        return {
-          ok: true,
-          step,
-          alreadySent: conversation.follow_up_step >= step,
-          effective: {
-            delayMinutes: effective.delay_minutes,
-            messageTemplate: effective.message_template,
-            customised: effective.overridden,
-          },
-        };
+      inputSchema: operationInputs.customise_customer_follow_up,
+      execute: async (input) => {
+        try {
+          const result = await executeAssistantOperation(ctx.client, 'customise_customer_follow_up', input);
+          ctx.record('Updated that customer’s follow-up step.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 

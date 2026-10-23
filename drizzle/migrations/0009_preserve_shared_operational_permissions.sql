@@ -1,0 +1,5 @@
+DO $$ DECLARE definition text; BEGIN
+ SELECT pg_get_functiondef('public.assistant_operational_action(text,jsonb)'::regprocedure) INTO definition;
+ definition:=replace(definition,'b:=public.assistant_action_business(true,true);','b:=public.assistant_action_business(true, COALESCE(auth.jwt()->>''client_id'','''')<>'''' OR p_action IN (''set_quote_page_mode'',''set_sending_paused'',''update_follow_up_rule'')); IF p_action=''customise_customer_follow_up'' AND NOT EXISTS(SELECT 1 FROM public.user_roles WHERE user_id=auth.uid() AND role=''platform_admin'') AND NOT EXISTS(SELECT 1 FROM public.businesses x JOIN public.plans p ON p.id=COALESCE(x.plan_id,''platform'') WHERE x.id=b AND p.automation_custom_enabled=true) THEN RAISE EXCEPTION ''Your plan does not include custom follow-ups.''; END IF;');
+ EXECUTE definition;
+END $$;

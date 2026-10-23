@@ -8,6 +8,8 @@
  * opt-outs, quiet hours, credit balance and daily caps all still apply.
  */
 import { tool } from "ai";
+import { executeAssistantOperation } from "@/lib/assistant-operations";
+import { operationInputs } from "@/lib/assistant-operation-contracts";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normaliseAuMobile, LEAD_STATUSES } from "@/lib/domain";
@@ -184,192 +186,76 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     update_customer: tool({
       description:
         "Change a customer's details or status. Only the fields you pass are changed; leave the rest null.",
-      inputSchema: z.object({
-        leadId: z.string().uuid(),
-        name: z.string().nullable(),
-        mobile: z.string().nullable(),
-        email: z.string().nullable(),
-        suburb: z.string().nullable(),
-        address: z.string().nullable(),
-        vehicle: z.string().nullable(),
-        requestedService: z.string().nullable(),
-        notes: z.string().nullable(),
-        status: z.enum(LEAD_STATUSES).nullable(),
-        clearOptOut: z
-          .boolean()
-          .nullable()
-          .describe("Only true when the owner explicitly says this customer has agreed to receive texts again. Never infer it from a status change."),
-      }),
+      inputSchema: operationInputs.update_customer,
       execute: async (input) => {
-        const patch: Record<string, unknown> = {};
-        if (input.name) patch["name"] = input.name;
-        if (input.mobile) patch["mobile_number"] = normaliseAuMobile(input.mobile) ?? input.mobile;
-        if (input.email) patch["email"] = input.email;
-        if (input.suburb) patch["suburb"] = input.suburb;
-        if (input.address) patch["service_address"] = input.address;
-        if (input.vehicle) patch["vehicle_type"] = input.vehicle;
-        if (input.requestedService) patch["service_intent"] = input.requestedService;
-        if (input.notes) patch["notes"] = input.notes;
-        if (input.status) patch["status"] = input.status;
-        // "Opted out" is a real do-not-text flag, not just a label: setting it
-        // blocks every send. Clearing it needs the owner's explicit say-so.
-        if (input.status === "opted_out") {
-          patch["opted_out_at"] = new Date().toISOString();
-          patch["consent_status"] = "opted_out";
-        }
-        if (input.clearOptOut === true) {
-          patch["opted_out_at"] = null;
-          patch["consent_status"] = "granted";
-        }
-        if (Object.keys(patch).length === 0) return fail("Nothing was named to change.");
-
-        const { data, error } = await supabaseAdmin
-          .from("leads")
-          .update(patch as never)
-          .eq("business_id", businessId)
-          .eq("id", input.leadId)
-          .is("deleted_at", null)
-          .select("id, name")
-          .maybeSingle();
-        if (error) return fail(error.message);
-        if (!data) return fail("That customer is not in your leads.");
-
-        await supabaseAdmin.from("audit_events").insert({
-          business_id: businessId,
-          user_id: userId,
-          event_type: "owner_assistant_lead_updated",
-          entity_type: "lead",
-          entity_id: input.leadId,
-          metadata: { fields: Object.keys(patch) } as never,
-        } as never);
-        ctx.record(`Updated ${data.name ?? "that customer"} (${Object.keys(patch).length} detail${Object.keys(patch).length === 1 ? "" : "s"}).`);
-        return { ok: true };
+        try {
+          const result = await executeAssistantOperation(ctx.client, 'update_customer', input);
+          ctx.record('Updated that customer.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     book_job: tool({
       description: "Book this customer in at a date and time. Use find_customers first.",
-      inputSchema: z.object({
-        leadId: z.string().uuid(),
-        date: DATE,
-        time: TIME,
-        serviceName: z.string().nullable().describe("The service booked, as the owner named it."),
-        notes: z.string().nullable(),
-      }),
+      inputSchema: operationInputs.book_job,
       execute: async (input) => {
-        const startsAt = await resolveStart(input.date, input.time);
-        if (!startsAt) return fail("That date or time was not clear enough to book.");
-        const { createBooking } = await import("@/lib/bookings-write.server");
         try {
-          const result = await createBooking({
-            businessId,
-            userId,
-            leadId: input.leadId,
-            startsAt,
-            serviceName: input.serviceName,
-            notes: input.notes,
-          });
-          const when = formatInZone(startsAt, timeZone);
-          ctx.record(
-            `Booked for ${when}${input.serviceName ? `. ${input.serviceName}` : ""}.${result.clash ? " Another job is already booked at that time." : ""}`,
-          );
-          return { ok: true, jobId: result.jobId, when, clash: result.clash };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "That booking could not be saved.");
-        }
+          const result = await executeAssistantOperation(ctx.client, 'book_job', input);
+          ctx.record('Saved that booking.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     reschedule_job: tool({
       description: "Move an existing booking to a new date and time.",
-      inputSchema: z.object({
-        jobId: z.string().uuid(),
-        date: DATE,
-        time: TIME,
-      }),
+      inputSchema: operationInputs.reschedule_job,
       execute: async (input) => {
-        const startsAt = await resolveStart(input.date, input.time);
-        if (!startsAt) return fail("That date or time was not clear enough to move the booking.");
-        const { rescheduleBooking } = await import("@/lib/bookings-write.server");
         try {
-          const result = await rescheduleBooking({ businessId, userId, jobId: input.jobId, startsAt });
-          const when = formatInZone(startsAt, timeZone);
-          ctx.record(`Moved a booking to ${when}.${result.clash ? " Another job is already booked at that time." : ""}`);
-          return { ok: true, when, clash: result.clash };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "That booking could not be moved.");
-        }
+          const result = await executeAssistantOperation(ctx.client, 'reschedule_job', input);
+          ctx.record('Moved that booking.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     cancel_job: tool({
       description:
         "Cancel a booking, including one already marked completed (a completed job cancelled this way has its recorded amount cleared from the totals). The customer is not messaged.",
-      inputSchema: z.object({
-        jobId: z.string().uuid(),
-        reason: z.string().nullable(),
-      }),
+      inputSchema: operationInputs.cancel_job,
       execute: async (input) => {
-        const { cancelBooking } = await import("@/lib/bookings-write.server");
         try {
-          await cancelBooking({ businessId, userId, jobId: input.jobId, reason: input.reason });
-          ctx.record("Cancelled that booking.");
-          return { ok: true };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "That booking could not be cancelled.");
-        }
+          const result = await executeAssistantOperation(ctx.client, 'cancel_job', input);
+          ctx.record('Cancelled that booking.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     delete_job: tool({
       description:
         "Permanently delete a job record from this business, whatever its state. use this when the owner says a booking or completed job was logged by mistake, was not requested, or should be removed from their totals. Get jobId from find_customers or list_upcoming_bookings. The customer and their messages are kept.",
-      inputSchema: z.object({
-        jobId: z.string().uuid(),
-        reason: z.string().nullable(),
-      }),
+      inputSchema: operationInputs.delete_job,
       execute: async (input) => {
-        const { deleteBooking } = await import("@/lib/bookings-write.server");
         try {
-          await deleteBooking({ businessId, userId, jobId: input.jobId, reason: input.reason });
-          ctx.record("Deleted that job record, so it no longer counts towards your totals.");
-          return { ok: true };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "That job could not be deleted.");
-        }
+          const result = await executeAssistantOperation(ctx.client, 'delete_job', input);
+          ctx.record('Deleted that job record.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
-
 
     complete_job: tool({
       description:
         "Mark a customer's work as done, optionally recording what they paid. Leave jobId null to complete their most recent job.",
-      inputSchema: z.object({
-        leadId: z.string().uuid(),
-        jobId: z.string().uuid().nullable(),
-        paidAmount: z.number().positive().max(1_000_000).nullable(),
-        serviceName: z.string().nullable(),
-      }),
+      inputSchema: operationInputs.complete_job,
       execute: async (input) => {
-        const { completeJob } = await import("@/lib/bookings-write.server");
         try {
-          const result = await completeJob({
-            businessId,
-            userId,
-            leadId: input.leadId,
-            jobId: input.jobId,
-            paidAmount: input.paidAmount,
-            serviceName: input.serviceName,
-          });
-          ctx.record(
-            `Marked the job completed${
-              result.paidAmount === null ? "" : ` and recorded $${result.paidAmount} paid`
-            }.`,
-          );
-          return { ok: true, jobId: result.jobId };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "That job could not be completed.");
-        }
+          const result = await executeAssistantOperation(ctx.client, 'complete_job', input);
+          ctx.record('Marked that job completed.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
@@ -400,30 +286,13 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     set_addon_availability: tool({
       description:
         "Make an add-on available with named services, or remove it from them. Use list_services first for the exact ids.",
-      inputSchema: z.object({
-        addonId: z.string().uuid(),
-        serviceIds: z.array(z.string().uuid()).min(1).max(200),
-        remove: z.boolean(),
-      }),
+      inputSchema: operationInputs.set_addon_availability,
       execute: async (input) => {
-        const { applyAddonLinks } = await import("@/lib/catalog-actions.server");
         try {
-          const result = await applyAddonLinks({
-            businessId,
-            userId,
-            addonId: input.addonId,
-            serviceIds: input.serviceIds,
-            remove: input.remove,
-          });
-          ctx.record(
-            input.remove
-              ? `Removed that extra from ${result.changed} service${result.changed === 1 ? "" : "s"}.`
-              : `That extra is now offered with ${result.changed} service${result.changed === 1 ? "" : "s"}.`,
-          );
-          return { ok: true, changed: result.changed };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "That change could not be applied.");
-        }
+          const result = await executeAssistantOperation(ctx.client, 'set_addon_availability', input);
+          ctx.record('Updated add-on availability.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
