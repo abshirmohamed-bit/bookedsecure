@@ -25,7 +25,9 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         // Measurement housekeeping: quiet quote conversations stop counting as
         // live. No message is ever sent by this sweep.
         const swept = await sweepAbandonedConversations();
-        return Response.json({ ...result, reminders, abandonedSwept: swept.swept });
+        const { processDueOwnerReminders } = await import("@/lib/owner-schedule-reminder.server");
+        const ownerReminders = await processDueOwnerReminders();
+        return Response.json({ ...result, reminders, ownerReminders, abandonedSwept: swept.swept });
 
 
       },

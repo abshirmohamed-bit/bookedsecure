@@ -13,7 +13,7 @@
   "mcp": {
     "server": {
       "name": "bookedsecure",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "title": "BookedSecure"
     },
     "tools": [
@@ -1548,6 +1548,101 @@
           },
           "required": [
             "request"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "schedule_owner_reminder",
+        "title": "Text the owner their bookings",
+        "description": "Schedule an SMS to the business owner's saved alert mobile listing their scheduled bookings (shifts) in a date range. BookedSecure reads the latest bookings when the text is due, so later changes are included, and delivers even if this chat is closed. Use business_settings for the timezone and give times with that offset. Omit sendAt to send as soon as possible (within about 10 minutes). Long schedules are split into several texts. Uses the business's text credits. Repeating the same request does not create a duplicate.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "rangeStart": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Start of the bookings to include, e.g. tomorrow 00:00 in the business timezone."
+            },
+            "rangeEnd": {
+              "type": "string",
+              "format": "date-time",
+              "description": "End (exclusive) of the bookings to include."
+            },
+            "sendAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When to text. Omit for now."
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "description": "Short heading for the text, e.g. \"Tomorrow's bookings\" or \"Next 7 days\"."
+            }
+          },
+          "required": [
+            "rangeStart",
+            "rangeEnd",
+            "label"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_owner_reminders",
+        "title": "Read scheduled owner reminder texts",
+        "description": "List recent and upcoming booking-summary texts scheduled for the owner, with their status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "cancel_owner_reminder",
+        "title": "Cancel a scheduled owner reminder text",
+        "description": "Cancel a pending owner reminder text found with list_owner_reminders.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "reminderId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "reminderId"
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
