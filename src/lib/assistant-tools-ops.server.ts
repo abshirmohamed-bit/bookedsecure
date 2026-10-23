@@ -104,7 +104,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'bulk_update_lead_status', input);
-          ctx.record('Updated the requested bulk update lead status.');
+          ctx.record(`Updated ${result.updated ?? 0} leads.`);
           return result;
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
@@ -458,7 +458,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'set_quote_page_mode', input);
-          ctx.record('Updated the requested set quote page mode.');
+          ctx.record('Updated your quote page mode.');
           return result;
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
@@ -471,7 +471,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'set_sending_paused', input);
-          ctx.record('Updated the requested set sending paused.');
+          ctx.record(input.paused ? 'Paused automated sending.' : 'Resumed automated sending.');
           return result;
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
@@ -484,7 +484,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'update_follow_up_rule', input);
-          ctx.record('Updated the requested update follow up rule.');
+          ctx.record('Updated that follow-up rule.');
           return result;
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
@@ -497,7 +497,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'set_customer_follow_ups', input);
-          ctx.record('Updated the requested set customer follow ups.');
+          ctx.record(input.paused ? 'Paused that customer’s follow-ups.' : 'Resumed that customer’s follow-ups.');
           return result;
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
@@ -510,7 +510,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'customise_customer_follow_up', input);
-          ctx.record('Updated the requested customise customer follow up.');
+          ctx.record('Updated that customer’s follow-up step.');
           return result;
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },

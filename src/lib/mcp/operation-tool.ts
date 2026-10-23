@@ -6,7 +6,7 @@ import { callerContext, jsonResult } from './supabase';
 export function operationTool(name: OperationName, title: string, description: string) {
   return defineTool({ name, title, description,
     inputSchema: operationInputs[name].shape,
-    annotations: { readOnlyHint: false, destructiveHint: name === 'cancel_job', idempotentHint: name !== 'book_job', openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: name === 'cancel_job' || name === 'delete_job', idempotentHint: !['book_job', 'complete_job'].includes(name), openWorldHint: false },
     handler: async (input: unknown, ctx: ToolContext) => {
       const { client } = await callerContext(ctx);
       try { return jsonResult(await executeAssistantOperation(client, name, input)); }

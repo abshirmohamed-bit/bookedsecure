@@ -23,9 +23,7 @@ export async function executeAssistantOperation(client: SupabaseClient<Database>
     if (!startsAt) throw new Error('Choose a valid local date and time.');
     payload = { ...payload, startsAt };
   }
-  // Generated types may lag new RPCs; use the existing generic Supabase RPC interface.
-  const rpcClient = client as SupabaseClient;
-  const { data, error } = await rpcClient.rpc('assistant_operational_action', { p_action: action, p_input: payload as Json });
+  const { data, error } = await client.rpc('assistant_operational_action', { p_action: action, p_input: payload as Json });
   if (error || !data) throw new Error(error?.message ?? 'Nothing was saved.');
   return data as { ok: true; id?: string; updated?: number; changed?: number; summary?: string };
 }
