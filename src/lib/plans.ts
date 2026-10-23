@@ -27,6 +27,17 @@ export type Plan = {
 
 export const DEFAULT_PLAN_ID = "platform";
 
+/**
+ * The Founder plan is billed outside Stripe on separate terms. Stripe events
+ * (failed renewals, cancellations) must never reduce a founder business's
+ * access — an old linked Stripe subscription may still report failures.
+ */
+export const FOUNDER_PLAN_ID = "founder";
+
+export function isExternallyBilledPlan(planId: string): boolean {
+  return planId === FOUNDER_PLAN_ID;
+}
+
 /** What one extra text costs on every plan, in cents. */
 export const CREDIT_PRICE_CENTS = 6;
 
