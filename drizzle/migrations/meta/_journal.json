@@ -85,6 +85,13 @@
       "when": 1792763867848,
       "tag": "0011_owner_schedule_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792763929354,
+      "tag": "0012_owner_reminder_cancel_owner_only",
+      "breakpoints": true
     }
   ]
 }
