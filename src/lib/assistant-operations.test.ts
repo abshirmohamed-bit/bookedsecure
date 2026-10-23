@@ -48,4 +48,7 @@ describe('shared operational actions', () => {
   it('does not accept a sending or confirmed flag on customer updates', () => {
     expect(operationInputs.update_customer.safeParse({ ...customer, confirmed: true, send: true }).success).toBe(false);
   });
+  it.each(['previous_lead', 'customer_replied', 'ready_for_quote'])('accepts existing customer status %s', (status) => {
+    expect(operationInputs.update_customer.safeParse({ ...customer, status }).success).toBe(true);
+  });
 });
