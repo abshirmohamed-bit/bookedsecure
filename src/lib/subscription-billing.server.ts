@@ -259,6 +259,12 @@ export async function syncSubscription(subscription: any, knownBusinessId?: stri
   const status = toStatus(subscription.status);
   const wasFull = current.status === "active";
 
+  // Externally billed plans (Founder) are settled outside Stripe: a Stripe
+  // event from an old linked subscription may grant access but never reduce it.
+  if (isExternallyBilledPlan(current.planId) && status !== "active") {
+    return { ok: true as const, detail: `Ignored ${subscription.status} event for an externally billed plan` };
+  }
+
   // A subscription this business was never linked to can only ever grant
   // access, never take it away: a cancelled or incomplete stranger must not
   // downgrade a business that is active on other terms.
@@ -312,6 +318,8 @@ export async function handleSubscriptionInvoiceFailed(invoice: any) {
   if (!businessId) return null;
   const current = await getSubscriptionForBusiness(businessId);
   if (!current.stripeSubscriptionId) return null;
+  // Externally billed plans (Founder) never lose access over a Stripe invoice.
+  if (isExternallyBilledPlan(current.planId)) return null;
   await applySubscriptionState(businessId, {
     status: "past_due",
     pastDueSince: current.pastDueSince ?? new Date().toISOString(),
