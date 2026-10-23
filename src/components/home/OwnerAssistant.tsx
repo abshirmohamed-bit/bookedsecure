@@ -13,7 +13,7 @@ import {
   confirmLeadUpdate,
   confirmAssistantText,
 } from "@/lib/owner-actions.functions";
-import type { SendTextProposal, ImportProposal } from "@/lib/assistant-proposals";
+import type { SendTextProposal, ImportProposal, AssistantRequestProposal } from "@/lib/assistant-proposals";
 import { approveReactivation, bulkEditReactivationDrafts } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { saveCrmImportBatch } from "@/lib/csv-import.functions";
@@ -73,7 +73,8 @@ type Proposal =
   | AddonLinkProposal
   | LeadUpdateProposal
   | SendTextProposal
-  | ImportProposal;
+  | ImportProposal
+  | AssistantRequestProposal;
 
 type Turn = {
   id: string;
@@ -418,7 +419,17 @@ export function OwnerAssistant({
                     <MessageContent><MessageResponse>{turn.text}</MessageResponse></MessageContent>
 
                     {turn.proposals?.map((proposal) =>
-                      proposal.kind === "campaign" ? (
+                      proposal.kind === 'assistant_request' ? (
+                        <div key={turn.id + '-request'} className="space-y-3 rounded-lg border border-border bg-card p-4 text-sm">
+                          <p className="whitespace-pre-wrap font-medium">{proposal.request}</p>
+                          <p className="text-muted-foreground">{proposal.summary}</p>
+                          <Button disabled={mutation.isPending} onClick={() => {
+                            mutation.mutate({ question: proposal.request, attachment: null }, {
+                              onSuccess: () => { markDone(turn.id, 'Request passed to Cowork. Review its result and any further approval cards.'); onConversationChanged?.(); },
+                            });
+                          }}><Check className="h-4 w-4" />Confirm</Button>
+                        </div>
+                      ) : proposal.kind === "campaign" ? (
                         <div
                           key={proposal.campaignId}
                           className="rounded-2xl border border-border bg-card p-4 text-sm"

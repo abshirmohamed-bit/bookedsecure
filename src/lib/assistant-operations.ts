@@ -13,7 +13,9 @@ export async function executeAssistantOperation(client: SupabaseClient<Database>
     payload.mobile = mobile;
   }
   if ('date' in input && 'time' in input) {
-    const { data, error } = await client.from('profiles').select('business_id').single();
+    const { data: identity, error: identityError } = await client.auth.getUser();
+    if (identityError || !identity.user) throw new Error('Sign in to use assistant actions.');
+    const { data, error } = await client.from('profiles').select('business_id').eq('id', identity.user.id).single();
     if (error || !data?.business_id) throw new Error('Your business could not be read.');
     const business = await client.from('businesses').select('timezone').eq('id', data.business_id).single();
     if (business.error || !business.data?.timezone) throw new Error('Your business timezone could not be read.');
