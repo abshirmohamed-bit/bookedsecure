@@ -20,3 +20,4 @@
 - Tenant AI keys are encrypted with tenant/provider/model-bound authenticated encryption in a server-only table; owner-verified server functions return connection metadata only.
 - AI provider fallback uses a durable workspace credit-pause state and only confirmed credit exhaustion; never replay agent turns once tools start or switch providers for policy denials.
 - All AI calls route through withAiBackup in tenant-ai.server.ts: the platform-admin-selected primary (Lovable or the OpenAI-compatible external provider) first, then Lovable standby, then tenant keys; switch only for credits/outage before tools start, so actions never run twice.
+- Owner schedule reminder texts are queued via the caller-authorized schedule_owner_sms_reminder RPC and delivered by the existing 10-minute follow-ups hook, which re-reads bookings at send time; they bypass the customer messages table and never touch booking confirmations.
