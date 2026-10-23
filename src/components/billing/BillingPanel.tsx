@@ -9,10 +9,12 @@ import { applyPromoCode, getMyBilling, openBillingPortal, startSubscriptionCheck
 import { getMessagingAccount, setAutoTopup, startCreditTopup } from "@/lib/sms/messaging-account.functions";
 import { describeSubscription, type BillingInterval } from "@/lib/subscription";
 import { CREDIT_PACKS, formatAud, type CreditPack } from "@/lib/sms/credit-packs";
+import { PROVIDER_LOGIN_URL } from "@/lib/sms/texto-signup";
 import type { Plan } from "@/lib/plans";
 import { getStripe, getStripeEnvironment, isTestModePayments } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
 import { useBillingRealtime } from "@/hooks/useBillingRealtime";
+import { TextoNumberPanel } from "@/components/messaging/TextoNumberPanel";
 
 
 export const MY_BILLING_KEY = ["my-billing"] as const;
@@ -26,15 +28,16 @@ export function useMyBilling() {
 
 function planPoints(plan: Plan): string[] {
   return [
-    `${plan.includedSegments.toLocaleString()} text credits included every month`,
-    "Dedicated Australian text number",
+    plan.includedSegments > 0
+      ? `${plan.includedSegments.toLocaleString()} text credits included every month`
+      : "Your own Australian number and credits bought separately",
     "Fully integrated cowork AI assistant",
     "AI-led quote page and instant replies",
     plan.automationCustomEnabled ? "Customisable follow-up sequences" : "Proven default follow-up sequence",
     plan.campaignsEnabled ? "Bulk text campaigns to your leads" : null,
     plan.reactivationEnabled ? "Bring past customers back" : null,
     plan.teamMemberLimit === null ? "Unlimited team members" : `Up to ${plan.teamMemberLimit} team members`,
-    `Extra texts ${plan.overageCents}c each, or buy credit packs`,
+    `Credits ${plan.overageCents}c per text, bought in packs`,
   ].filter((p): p is string => Boolean(p));
 }
 
@@ -128,7 +131,7 @@ export function BillingPanel() {
         </button>
         {isTestModePayments() ? (
           <p className="rounded-md border border-border bg-secondary/40 p-2 text-xs text-muted-foreground">
-            Payments are in test mode — no real money moves.
+            Payments are in test mode. no real money moves.
           </p>
         ) : null}
         <p className="text-sm text-muted-foreground">{active.label}</p>
@@ -141,8 +144,8 @@ export function BillingPanel() {
               onComplete: () => {
                 toast.success(
                   active.kind === "plan"
-                    ? "Payment received — your plan is switching on."
-                    : "Payment received — your credits will appear in a moment.",
+                    ? "Payment received. your plan is switching on."
+                    : "Payment received. your credits will appear in a moment.",
                 );
                 setActive(null);
                 refreshAfterPayment();
@@ -183,11 +186,17 @@ export function BillingPanel() {
         {data.access === "full" ? (
           <dl className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-md border border-border bg-background p-3">
-              <dt className="text-xs text-muted-foreground">Included texts this month</dt>
+              <dt className="text-xs text-muted-foreground">
+                {data.plan.includedSegments > 0 ? "Included texts this month" : "Texts sent this month"}
+              </dt>
               <dd className="mt-1 text-sm font-medium">
-                {data.usage ? `${data.usage.segmentsUsed.toLocaleString()} of ${data.usage.includedSegments.toLocaleString()} used` : `${data.plan.includedSegments.toLocaleString()} included`}
+                {data.plan.includedSegments > 0
+                  ? data.usage
+                    ? `${data.usage.segmentsUsed.toLocaleString()} of ${data.usage.includedSegments.toLocaleString()} used`
+                    : `${data.plan.includedSegments.toLocaleString()} included`
+                  : `${(data.usage?.segmentsUsed ?? 0).toLocaleString()} sent`}
               </dd>
-              {data.usage ? (
+              {data.usage && data.plan.includedSegments > 0 ? (
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                   <div className={cn("h-full rounded-full", usedPct >= 90 ? "bg-destructive" : "bg-primary")} style={{ width: `${usedPct}%` }} />
                 </div>
@@ -196,7 +205,11 @@ export function BillingPanel() {
             <div className="rounded-md border border-border bg-background p-3">
               <dt className="text-xs text-muted-foreground">Credit balance</dt>
               <dd className="mt-1 text-sm font-medium">{data.creditBalance.toLocaleString()} credits</dd>
-              <p className="mt-1 text-xs text-muted-foreground">Used only after included texts run out.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {data.plan.includedSegments > 0
+                  ? "Used only after included texts run out."
+                  : "One credit sends one text."}
+              </p>
             </div>
             <div className="rounded-md border border-border bg-background p-3">
               <dt className="text-xs text-muted-foreground">Team</dt>
@@ -213,7 +226,7 @@ export function BillingPanel() {
       {isOwner ? (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-base font-semibold">{data.subscription.status === "active" ? "Plans" : "Choose a plan"}</h3>
+            <h3 className="text-base font-semibold">{data.access === "full" ? "Plans" : "Choose a plan"}</h3>
             <div role="radiogroup" aria-label="Billing period" className="inline-flex rounded-md border border-input p-0.5 text-xs">
               {(["month", "year"] as const).map((option) => (
                 <button
@@ -232,7 +245,7 @@ export function BillingPanel() {
           <div className="grid gap-3 md:grid-cols-2">
             {data.plans.map((plan) => {
               const price = interval === "year" ? plan.annualPriceMinorUnits : plan.monthlyPriceMinorUnits;
-              const isCurrent = data.subscription.status === "active" && data.plan.id === plan.id;
+              const isCurrent = data.access === "full" && data.plan.id === plan.id;
               return (
                 <article key={plan.id} className={cn("flex flex-col rounded-lg border p-4", isCurrent ? "border-primary" : "border-border bg-card")}>
                   <header>
@@ -270,23 +283,26 @@ export function BillingPanel() {
               );
             })}
           </div>
-          {isTestModePayments() ? <p className="text-xs text-muted-foreground">Payments are in test mode — no real money moves.</p> : null}
+          {isTestModePayments() ? <p className="text-xs text-muted-foreground">Payments are in test mode. no real money moves.</p> : null}
         </section>
       ) : (
         <p className="text-sm text-muted-foreground">Only the business owner can change the plan.</p>
       )}
 
+      {data.access === "full" && isOwner ? <NumberStep /> : null}
+
       <section id={CREDITS_ANCHOR} className="scroll-mt-4 space-y-3">
         <div>
           <h3 className="text-base font-semibold">Text credits</h3>
           <p className="text-sm text-muted-foreground">
-            One credit sends one text once your included texts are used up —{" "}
-            {data.promo.creditPriceCents ?? data.plan.overageCents}c each. Credits never expire.
+            One credit sends one text -{" "}
+            {data.promo.creditPriceCents ?? data.plan.overageCents}c each. Credits never expire. Buy
+            them here, or top up in your own provider account if you prefer.
           </p>
         </div>
         {data.access !== "full" ? (
           <p className="rounded-md border border-border bg-secondary/40 p-3 text-sm text-muted-foreground">
-            Choose a plan first — every plan includes texts each month, and credit packs top that up.
+            Choose a plan first, then buy the credits that send your texts.
           </p>
         ) : !isOwner ? (
           <p className="text-sm text-muted-foreground">Only the business owner can buy credits.</p>
@@ -310,9 +326,128 @@ export function BillingPanel() {
             ))}
           </div>
         )}
-        {data.access === "full" && isOwner ? <AutoTopupCard packs={data.packs} /> : null}
+        {data.access === "full" && isOwner ? (
+          <>
+            <AutoTopupCard packs={data.packs} />
+            <p className="text-xs text-muted-foreground">
+              Prefer to pay the provider directly?{" "}
+              <a
+                href={PROVIDER_LOGIN_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Top up in your provider account
+              </a>{" "}
+              with the same card you use for your number, and set their automatic top-up. Your
+              balance here updates either way.
+            </p>
+          </>
+        ) : null}
       </section>
     </div>
+  );
+}
+
+/** Credits purchase + auto top-up, shown on the Messaging page (no plan UI). */
+export function CreditsPanel() {
+  const billing = useMyBilling();
+  const queryClient = useQueryClient();
+  useBillingRealtime(billing.data?.businessId ?? null);
+  const buyCredits = useServerFn(startCreditTopup);
+  const [active, setActive] = useState<{ clientSecret: string; label: string } | null>(null);
+
+  useEffect(() => {
+    if (!billing.data || active) return;
+    if (window.location.hash !== `#${CREDITS_ANCHOR}`) return;
+    document.getElementById(CREDITS_ANCHOR)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [billing.data, active]);
+
+  const topupMutation = useMutation({
+    mutationFn: async (packId: string) => {
+      const result = await buyCredits({
+        data: { packId, environment: getStripeEnvironment(), returnPath: "/settings/messaging" },
+      });
+      if ("error" in result && result.error) throw new Error(result.error);
+      const pack = (billing.data?.packs ?? CREDIT_PACKS).find((p) => p.id === packId);
+      return {
+        clientSecret: (result as { clientSecret: string }).clientSecret,
+        label: pack ? `${pack.label} · ${formatAud(pack.amountCents)}` : "Text credits",
+      };
+    },
+    onSuccess: setActive,
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  if (billing.isLoading || !billing.data) return null;
+  const data = billing.data;
+  const isOwner = data.role === "owner" || data.role === "platform_admin";
+  if (data.access !== "full" || !isOwner) return null;
+
+  return (
+    <section id={CREDITS_ANCHOR} className="scroll-mt-4 space-y-3 rounded-lg border border-border bg-card p-4">
+      <div>
+        <h3 className="text-base font-semibold">Text credits</h3>
+        <p className="text-sm text-muted-foreground">
+          One credit sends one text, {data.promo.creditPriceCents ?? data.plan.overageCents}c each.
+          Credits never expire.
+        </p>
+      </div>
+      {active ? (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => {
+              setActive(null);
+              topupMutation.reset();
+            }}
+            className="text-xs font-medium text-muted-foreground underline"
+          >
+            Choose a different amount
+          </button>
+          <p className="text-sm text-muted-foreground">{active.label}</p>
+          <div className="rounded-md bg-background p-1">
+            <EmbeddedCheckoutProvider
+              key={active.clientSecret}
+              stripe={getStripe()}
+              options={{
+                clientSecret: active.clientSecret,
+                onComplete: () => {
+                  toast.success("Payment received. Your credits will appear in a moment.");
+                  setActive(null);
+                  void queryClient.invalidateQueries({ queryKey: MY_BILLING_KEY });
+                  void queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
+                },
+              }}
+            >
+              <EmbeddedCheckout />
+            </EmbeddedCheckoutProvider>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {data.packs.map((pack) => (
+            <button
+              key={pack.id}
+              type="button"
+              onClick={() => topupMutation.mutate(pack.id)}
+              disabled={topupMutation.isPending}
+              className="flex flex-col rounded-lg border border-border bg-background p-4 text-left hover:border-primary disabled:opacity-60"
+            >
+              <span className="text-base font-semibold">{pack.label}</span>
+              <span className="mt-1 text-2xl font-semibold">{formatAud(pack.amountCents)}</span>
+              <span className="mt-3 rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground">
+                {topupMutation.isPending && topupMutation.variables === pack.id ? "Opening secure payment…" : "Buy credits"}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <AutoTopupCard packs={data.packs} />
+      {isTestModePayments() ? (
+        <p className="text-xs text-muted-foreground">Payments are in test mode. No real money moves.</p>
+      ) : null}
+    </section>
   );
 }
 
@@ -330,7 +465,7 @@ function PromoCard({ appliedCode }: { appliedCode: string | null }) {
       return result.code;
     },
     onSuccess: (applied) => {
-      toast.success(`Code ${applied} applied — your pricing is updated.`);
+      toast.success(`Code ${applied} applied. your pricing is updated.`);
       setCode("");
       setOpen(false);
       void queryClient.invalidateQueries({ queryKey: MY_BILLING_KEY });
@@ -342,7 +477,7 @@ function PromoCard({ appliedCode }: { appliedCode: string | null }) {
   if (appliedCode) {
     return (
       <p className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
-        Code <span className="font-semibold">{appliedCode}</span> is applied to your account — your pricing below
+        Code <span className="font-semibold">{appliedCode}</span> is applied to your account. your pricing below
         reflects it and it stays with your account.
       </p>
     );
@@ -386,6 +521,41 @@ function PromoCard({ appliedCode }: { appliedCode: string | null }) {
 }
 
 /** Hands-off credits: buys the chosen pack on the saved card when low. */
+/**
+ * Step 1 after subscribing: the tenant's own texting number. The plan fee is
+ * BookedSecure's service only; the number ($15/month + GST) is bought and
+ * billed by the provider on the tenant's own card. Hidden once connected.
+ */
+function NumberStep() {
+  const fetchAccount = useServerFn(getMessagingAccount);
+  const account = useQuery({ queryKey: ["messaging-account"], queryFn: () => fetchAccount(), staleTime: 30_000 });
+  const numbers = (account.data?.numbers ?? []) as Array<{ number: string; status: string }>;
+  const active = numbers.find((n) => n.status === "active" || n.status === "assigned");
+  if (account.isLoading) return null;
+  if (active) {
+    return (
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h3 className="text-base font-semibold">Your texting number</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {active.number} is connected. The provider bills it to your card each month ($15 + GST).
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section className="space-y-2">
+      <div>
+        <h3 className="text-base font-semibold">Step 1: Get your texting number</h3>
+        <p className="text-sm text-muted-foreground">
+          Your plan covers BookedSecure only. Your own Australian number is $15 a month + GST, set up once with
+          your card at the provider and billed by them each month. Then add credits below.
+        </p>
+      </div>
+      <TextoNumberPanel />
+    </section>
+  );
+}
+
 function AutoTopupCard({ packs }: { packs: CreditPack[] }) {
   const queryClient = useQueryClient();
   const fetchAccount = useServerFn(getMessagingAccount);
@@ -398,18 +568,25 @@ function AutoTopupCard({ packs }: { packs: CreditPack[] }) {
   const auto = account.data?.account?.autoTopup;
 
   const mutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      await saveAutoTopup({ data: { enabled } });
-      return enabled;
+    mutationFn: async (input: { enabled: boolean; thresholdCredits?: number; packId?: string }) => {
+      await saveAutoTopup({ data: input });
+      return input.enabled;
     },
     onSuccess: (enabled) => {
-      toast.success(enabled ? "Automatic top-ups on — we'll buy credits when you run low." : "Automatic top-ups off.");
+      toast.success(enabled ? "Automatic top-ups saved." : "Automatic top-ups off.");
       queryClient.invalidateQueries({ queryKey: ["messaging-account"] });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not save that setting."),
   });
 
-  if (!auto) return null;
+  if (account.isLoading) return null;
+  if (!auto) {
+    return (
+      <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+        Automatic top-ups can be set once your texting number is connected.
+      </p>
+    );
+  }
   const pack = packs.find((candidate) => candidate.id === auto.packId) ?? packs[1] ?? CREDIT_PACKS[1]!;
 
   return (
@@ -419,24 +596,63 @@ function AutoTopupCard({ packs }: { packs: CreditPack[] }) {
           <h4 className="text-sm font-semibold">Automatic top-ups</h4>
           <p className="mt-1 text-sm text-muted-foreground">
             {auto.enabled
-              ? `On — when you drop below ${auto.thresholdCredits.toLocaleString()} credits, we'll buy ${pack.label} (${formatAud(pack.amountCents)}) on your saved card.`
-              : "Off — when you run out, texts pause until you buy credits above."}
+              ? `On. when you drop below ${auto.thresholdCredits.toLocaleString()} credits, we'll buy ${pack.label} (${formatAud(pack.amountCents)}) on your saved card.`
+              : "Off. when you run out, texts pause until you buy credits above."}
           </p>
           {auto.failures > 0 ? (
             <p className="mt-1 text-xs text-destructive">
-              Last automatic charge failed{auto.failures >= 2 ? " twice, so we've switched this off — update your card in Manage billing and turn it back on" : ""}.
+              Last automatic charge failed{auto.failures >= 2 ? " twice, so we've switched this off. update your card in Manage billing and turn it back on" : ""}.
             </p>
           ) : null}
         </div>
         <Button
           variant={auto.enabled ? "outline" : "default"}
           size="sm"
-          onClick={() => mutation.mutate(!auto.enabled)}
+          onClick={() => mutation.mutate({ enabled: !auto.enabled })}
           disabled={mutation.isPending}
         >
           {auto.enabled ? "Turn off" : "Turn on"}
         </Button>
       </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="text-xs text-muted-foreground">
+          Top up when I drop below
+          <select
+            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground"
+            value={auto.thresholdCredits}
+            disabled={mutation.isPending}
+            onChange={(event) =>
+              mutation.mutate({ enabled: auto.enabled, thresholdCredits: Number(event.target.value) })
+            }
+          >
+            {[...new Set([25, 50, 100, 200, 500, 1000, auto.thresholdCredits])]
+              .sort((a, b) => a - b)
+              .map((value) => (
+                <option key={value} value={value}>
+                  {value.toLocaleString()} credits
+                </option>
+              ))}
+          </select>
+        </label>
+        <label className="text-xs text-muted-foreground">
+          Buy this pack
+          <select
+            className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm text-foreground"
+            value={pack.id}
+            disabled={mutation.isPending}
+            onChange={(event) => mutation.mutate({ enabled: auto.enabled, packId: event.target.value })}
+          >
+            {packs.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label} · {formatAud(option.amountCents)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Uses the card saved from your plan or your last credit purchase. No need to leave this page.
+      </p>
     </div>
   );
 }

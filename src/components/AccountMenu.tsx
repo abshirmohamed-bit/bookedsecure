@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useReducer, useRef } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSettings } from "@/lib/app.functions";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,7 +16,7 @@ import {
 /**
  * Top-right account menu: who am I, which business am I operating, and the
  * occasional configuration destinations. Reuses the existing getSettings read
- * (fetched only once the menu is opened) — no new queries are introduced.
+ * (fetched only once the menu is opened). no new queries are introduced.
  */
 export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void; rail?: boolean }) {
   const [open, dispatch] = useReducer(accountMenuReducer, false);
@@ -97,6 +97,18 @@ export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void
             </p>
           </div>
           <ul className="py-1">
+            {data?.role === "platform_admin" ? (
+              <li>
+                <Link
+                  to="/admin/overview"
+                  role="menuitem"
+                  onClick={() => dispatch({ type: "select_item" })}
+                  className="block px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary focus-visible:bg-secondary focus-visible:outline-none"
+                >
+                  Control room
+                </Link>
+              </li>
+            ) : null}
             {ACCOUNT_MENU_ITEMS.map((item) => (
               <li key={item.to}>
                 <Link
@@ -110,6 +122,18 @@ export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void
                 </Link>
               </li>
             ))}
+            {data?.role && data.role !== "platform_admin" ? (
+              <li>
+                <a
+                  href="tel:+61466907824"
+                  role="menuitem"
+                  onClick={() => dispatch({ type: "select_item" })}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground focus-visible:outline-none"
+                >
+                  <Phone className="h-3.5 w-3.5" aria-hidden="true" /> Call +61 466 907 824
+                </a>
+              </li>
+            ) : null}
             <li className="border-t border-border">
               <button
                 type="button"

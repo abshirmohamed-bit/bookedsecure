@@ -152,7 +152,7 @@ export const getLead = createServerFn({ method: "GET" })
         .then((response) => response.data),
       supabaseAdmin
         .from("businesses")
-        .select("quote_subject_label")
+        .select("quote_subject_label, timezone")
         .eq("id", app.businessId)
         .single()
         .then((response) => response.data),
@@ -171,6 +171,8 @@ export const getLead = createServerFn({ method: "GET" })
       notifications: notifications ?? [],
       automationJobs: automationJobs ?? [],
       quoteSubjectLabel: quoteSubjectLabel(business?.quote_subject_label),
+      // Booking times are shown and typed in the business's own timezone.
+      timeZone: business?.timezone ?? "Australia/Sydney",
     };
   });
 
@@ -423,24 +425,24 @@ export const scheduleJob = createServerFn({ method: "POST" })
     const app = await requireWriteContext(context.supabase, context.userId);
     await assertLeadOwnership(app.businessId, data.leadId);
 
-    const scheduledAt = new Date(data.scheduled_at).toISOString();
-    const { data: existing } = await supabaseAdmin
-      .from("jobs")
-      .select("id")
-      .eq("lead_id", data.leadId)
+    // The owner types a plain "18/09/2026 09:00" with no timezone. It must be
+    // read in the business timezone, or the booking lands hours away.
+    const { localDateTimeToIso, DEFAULT_TIME_ZONE } = await import("@/lib/business-time");
+    const { data: businessRow } = await supabaseAdmin
+      .from("businesses")
+      .select("timezone")
+      .eq("id", app.businessId)
       .maybeSingle();
-    if (existing) {
-      await supabaseAdmin.from("jobs").update({ scheduled_at: scheduledAt }).eq("id", existing.id);
-    } else {
-      await supabaseAdmin.from("jobs").insert({
-        business_id: app.businessId,
-        lead_id: data.leadId,
-        scheduled_at: scheduledAt,
-        completion_status: "scheduled",
-      });
-    }
-    await supabaseAdmin.from("leads").update({ status: "scheduled" }).eq("id", data.leadId);
-    return { ok: true };
+    const scheduledAt = localDateTimeToIso(
+      data.scheduled_at,
+      businessRow?.timezone ?? DEFAULT_TIME_ZONE,
+    );
+    const { saveScheduledJob } = await import("@/lib/job-scheduling.server");
+    return saveScheduledJob(supabaseAdmin, {
+      businessId: app.businessId,
+      leadId: data.leadId,
+      scheduledAt,
+    });
   });
 
 export const analyseConversation = createServerFn({ method: "POST" })
@@ -456,7 +458,7 @@ export const analyseConversation = createServerFn({ method: "POST" })
     } catch (error) {
       const { AI_ANALYSIS_FAILURE_MESSAGE } = await import("@/lib/ai-analysis-contract");
       const message = error instanceof Error ? error.message : String(error);
-      // Already owner-facing (concise reason + correlation ref) — pass it through.
+      // Already owner-facing (concise reason + correlation ref). pass it through.
       if (message.startsWith(AI_ANALYSIS_FAILURE_MESSAGE)) throw new Error(message);
       throw new Error(`AI analysis failed: ${message}`);
     }
@@ -672,6 +674,70 @@ export const saveQuotePageMode = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/** Owner-only choice for how services appear inside the public AI quote conversation. */
+export const saveQuoteServiceLayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        quote_service_layout: z.enum([
+          "focused_list",
+          "compact_grid",
+          "guided_conversation",
+        ]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+    const { error } = await supabaseAdmin
+      .from("businesses")
+      .update({ quote_service_layout: data.quote_service_layout })
+      .eq("id", app.businessId);
+    if (error) throw new Error(error.message);
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "quote_service_layout_changed",
+      entityType: "business",
+      entityId: app.businessId,
+      metadata: { quote_service_layout: data.quote_service_layout },
+    });
+    return { ok: true as const };
+  });
+
+/** Owner-only switch between the AI agent and the fixed step-by-step flow on the quote page. */
+export const saveQuoteAgentEnabled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ quote_agent_enabled: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+    const { error } = await supabaseAdmin
+      .from("businesses")
+      .update({ quote_agent_enabled: data.quote_agent_enabled })
+      .eq("id", app.businessId);
+    if (error) throw new Error(error.message);
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "quote_agent_enabled_changed",
+      entityType: "business",
+      entityId: app.businessId,
+      metadata: { quote_agent_enabled: data.quote_agent_enabled },
+    });
+    return { ok: true as const };
+  });
+
 export const getSmsSetup = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -812,6 +878,129 @@ export const saveService = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
     }
     return { ok: true };
+  });
+
+/** Permanently removes one of the owner's own services and its customer-facing picture. */
+export const deleteService = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { isOwnServiceImagePath } = await import("@/lib/service-images");
+    const { TENANT_LOGO_BUCKET } = await import("@/lib/tenant-logo");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+
+    const { data: service } = await supabaseAdmin
+      .from("services")
+      .select("id, name, image_storage_path")
+      .eq("id", data.id)
+      .eq("business_id", app.businessId)
+      .maybeSingle();
+    if (!service) throw new Error("That service was not found in your business.");
+
+    // This older relationship predates the other ON DELETE SET NULL links.
+    // Clear it first so historic leads stay intact while the service can be removed.
+    const { error: leadError } = await supabaseAdmin
+      .from("leads")
+      .update({ verified_service_id: null })
+      .eq("business_id", app.businessId)
+      .eq("verified_service_id", service.id);
+    if (leadError) throw new Error(leadError.message);
+
+    const { error } = await supabaseAdmin
+      .from("services")
+      .delete()
+      .eq("id", service.id)
+      .eq("business_id", app.businessId);
+    if (error) throw new Error(error.message);
+
+    const imagePath = service.image_storage_path ?? null;
+    if (imagePath && isOwnServiceImagePath(app.businessId, imagePath)) {
+      await supabaseAdmin.storage.from(TENANT_LOGO_BUCKET).remove([imagePath]);
+    }
+
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "service_removed",
+      entityType: "service",
+      entityId: service.id,
+      metadata: { name: service.name },
+    });
+    return { ok: true as const };
+  });
+
+/**
+ * Permanently removes every service in the owner's own business, plus the
+ * add-on links pointing at them, so the owner can re-read their website for a
+ * fresh catalogue. Lead history is preserved.
+ */
+export const deleteAllServices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { isOwnServiceImagePath } = await import("@/lib/service-images");
+    const { TENANT_LOGO_BUCKET } = await import("@/lib/tenant-logo");
+    const { recordAuditEvent } = await import("@/lib/lead-engine.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+
+    const { data: services, error: listError } = await supabaseAdmin
+      .from("services")
+      .select("id, name, image_storage_path")
+      .eq("business_id", app.businessId);
+    if (listError) throw new Error(listError.message);
+    const rows = services ?? [];
+    if (rows.length === 0) return { ok: true as const, removed: 0 };
+
+    const ids = rows.map((row) => row.id);
+
+    // Preserve historic leads before removing the services they pointed at.
+    const { error: leadError } = await supabaseAdmin
+      .from("leads")
+      .update({ verified_service_id: null })
+      .eq("business_id", app.businessId)
+      .in("verified_service_id", ids);
+    if (leadError) throw new Error(leadError.message);
+
+    // Remove add-on links first so orphaned links can never survive.
+    const { error: linkError } = await supabaseAdmin
+      .from("service_addon_links")
+      .delete()
+      .eq("business_id", app.businessId)
+      .in("service_id", ids);
+    if (linkError) throw new Error(linkError.message);
+
+    const { error } = await supabaseAdmin
+      .from("services")
+      .delete()
+      .eq("business_id", app.businessId)
+      .in("id", ids);
+    if (error) throw new Error(error.message);
+
+    const imagePaths = rows
+      .map((row) => row.image_storage_path)
+      .filter(
+        (path): path is string =>
+          typeof path === "string" && isOwnServiceImagePath(app.businessId, path),
+      );
+    if (imagePaths.length > 0) {
+      await supabaseAdmin.storage.from(TENANT_LOGO_BUCKET).remove(imagePaths);
+    }
+
+    await recordAuditEvent({
+      businessId: app.businessId,
+      userId: app.userId,
+      eventType: "services_cleared",
+      entityType: "service",
+      entityId: null,
+      metadata: { removed: rows.length },
+    });
+    return { ok: true as const, removed: rows.length };
   });
 
 /**

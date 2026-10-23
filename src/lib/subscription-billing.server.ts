@@ -9,6 +9,7 @@
  *   only writers of a business's subscription state.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isExternallyBilledPlan } from "@/lib/plans";
 import { getPlanById, listAllPlans } from "@/lib/plans.server";
 import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "@/lib/stripe.server";
 import type { BillingInterval, SubscriptionStatus } from "@/lib/subscription";
@@ -43,7 +44,7 @@ export async function resolveBusinessCustomer(
   const state = await getSubscriptionForBusiness(input.businessId);
   if (state.stripeCustomerId) {
     // A stored id belongs to whichever environment created it. Test-mode ids do
-    // not exist in live (and vice versa), so confirm it before reusing it —
+    // not exist in live (and vice versa), so confirm it before reusing it -
     // otherwise checkout fails with "No such customer".
     try {
       const stored = await stripe.customers.retrieve(state.stripeCustomerId);
@@ -81,7 +82,7 @@ export async function createSubscriptionCheckout(input: {
   environment: StripeEnv;
 }): Promise<SubscriptionCheckoutResult> {
   // A plan is only sellable to this business if it is publicly offered or a
-  // promo code has unlocked it for them — the browser's planId is never trusted.
+  // promo code has unlocked it for them. the browser's planId is never trusted.
   const { listPlansForBusiness } = await import("@/lib/plans.server");
   const sellable = await listPlansForBusiness(input.businessId);
   const plan = sellable.find((candidate) => candidate.id === input.planId) ?? null;
@@ -155,7 +156,7 @@ export async function createBillingPortalSession(input: {
   environment: StripeEnv;
 }): Promise<PortalResult> {
   const state = await getSubscriptionForBusiness(input.businessId);
-  if (!state.stripeCustomerId) return { error: "No billing account yet — choose a plan first." };
+  if (!state.stripeCustomerId) return { error: "No billing account yet. choose a plan first." };
   try {
     const stripe = createStripeClient(input.environment);
     const portal = await stripe.billingPortal.sessions.create({
@@ -258,6 +259,12 @@ export async function syncSubscription(subscription: any, knownBusinessId?: stri
   const status = toStatus(subscription.status);
   const wasFull = current.status === "active";
 
+  // Externally billed plans (Founder) are settled outside Stripe: a Stripe
+  // event from an old linked subscription may grant access but never reduce it.
+  if (isExternallyBilledPlan(current.planId) && status !== "active") {
+    return { ok: true as const, detail: `Ignored ${subscription.status} event for an externally billed plan` };
+  }
+
   // A subscription this business was never linked to can only ever grant
   // access, never take it away: a cancelled or incomplete stranger must not
   // downgrade a business that is active on other terms.
@@ -289,7 +296,7 @@ export async function syncSubscription(subscription: any, knownBusinessId?: stri
 
   // Cancelled while previously active: return their number to the pool so
   // another tenant can claim it, and stop their texts at the source. A recall
-  // failure must never block the billing sync — it's retried on the next
+  // failure must never block the billing sync. it's retried on the next
   // number-pool sync.
   if (status === "canceled" && wasFull) {
     try {
@@ -311,6 +318,8 @@ export async function handleSubscriptionInvoiceFailed(invoice: any) {
   if (!businessId) return null;
   const current = await getSubscriptionForBusiness(businessId);
   if (!current.stripeSubscriptionId) return null;
+  // Externally billed plans (Founder) never lose access over a Stripe invoice.
+  if (isExternallyBilledPlan(current.planId)) return null;
   await applySubscriptionState(businessId, {
     status: "past_due",
     pastDueSince: current.pastDueSince ?? new Date().toISOString(),
@@ -349,13 +358,23 @@ export async function handleSubscriptionInvoicePaid(invoice: any) {
     console.error("[subscription] provider cost bookkeeping failed:", error);
   }
 
+  // Every paid invoice re-runs provisioning. Idempotent: a tenant that already
+  // has an active number is a no-op, while one that was queued (provider had no
+  // stock, no saved card, etc.) gets its number bought automatically on the
+  // next payment instead of waiting for a human.
+  try {
+    await provisionMessagingForBusiness(businessId);
+  } catch (error) {
+    console.error("[subscription] provisioning retry on invoice.paid failed:", error);
+  }
+
   return { ok: true as const, detail: "Subscription invoice paid" };
 }
 
 /** First activation: make sure the tenant has a messaging account to send from. */
 /**
  * First activation of a paid plan: give the tenant its dedicated number.
- * Re-runs safely — an account that is already active with a number is a
+ * Re-runs safely. an account that is already active with a number is a
  * no-op, and a queued/failed one is retried. The previous sender is only
  * switched off inside provisioning once a Texto number is actually assigned,
  * so a tenant keeps sending on its old number until the new one is real.

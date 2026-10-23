@@ -10,6 +10,8 @@
 
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, Output } from "ai";
+import { streamText } from 'ai';
+import { withAiBackup, type BackupUsage } from './tenant-ai.server';
 import { ANALYSIS_MODEL } from "@/lib/ai.server";
 import {
   WebChatAiExtractionParseSchema,
@@ -43,20 +45,31 @@ export async function extractWithAi(
     const cap = await checkAiCap(businessId);
     if (cap.blocked) return null;
 
-    const result = await generateText({
+    const usage: BackupUsage = { source: 'lovable' };
+    const result = await withAiBackup({
+      businessId, usage, role: 'fast',
+      gateway: () => generateText({
       model: gateway(apiKey)(ANALYSIS_MODEL),
       output: Output.object({ schema: WebChatAiExtractionSchema }),
       system: buildAiExtractionSystem(context),
       prompt: buildAiExtractionPrompt(context),
+      }),
+      backup: async (provider) => {
+        const result = streamText({ ...provider, maxRetries: 0, output: Output.object({ schema: WebChatAiExtractionSchema }), system: buildAiExtractionSystem(context), prompt: buildAiExtractionPrompt(context), onError: () => undefined });
+        return { output: await result.output, usage: await result.usage };
+      },
     });
 
-    await recordAiUsage({
+    // Bookkeeping, not part of the answer: recorded without making the customer
+    // wait for the write. Still counted, still capped on the next turn.
+    void recordAiUsage({
       businessId,
       purpose: "web_chat_extraction",
+      billingSource: usage.source,
       model: ANALYSIS_MODEL,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
-    });
+    }).catch(() => undefined);
 
     const parsed = WebChatAiExtractionParseSchema.safeParse(
       (result as unknown as { output?: unknown }).output,

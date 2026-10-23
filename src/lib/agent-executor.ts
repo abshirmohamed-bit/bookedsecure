@@ -1,10 +1,10 @@
-// Phase 4 (step 3): the agent executor — pure decision core.
+// Phase 4 (step 3): the agent executor. pure decision core.
 //
 // The executor is a THIN DISPATCHER. It owns no domain logic: it does not
 // compose SMS, does not evaluate quiet hours, suppression, stop-keywords, message segmentation,
 // availability, slots, bookings, owner notification fan-out or follow-up timing. Those all
 // live in their existing modules and are reached only through the tool call
-// recorded on a `PlannedAction` — never re-implemented here.
+// recorded on a `PlannedAction`. never re-implemented here.
 //
 // What this module does:
 //  1. accepts a dry-run `PlannedAction` plus a fresh re-plan and fresh
@@ -20,7 +20,7 @@
 //    dispatchable outcome regardless of gates, ledger state or caller input;
 //  - no caller-supplied field can turn live execution on: the mode comes only
 //    from `resolveExecutionMode` on server-verified gate facts;
-//  - booking confirmation is not an action kind at all — booking confirmation stays
+//  - booking confirmation is not an action kind at all. booking confirmation stays
 //    owned by the idempotent web-chat booking commit path.
 
 import type { GateFailure, GateResult } from "./agent-gates";
@@ -116,8 +116,8 @@ export const DISPATCHABLE_ACTION_KINDS: readonly ActionKind[] = [
 /**
  * Decide what the executor does. Pure: no I/O, no sends, no writes.
  *
- * Evaluation order is deliberate and fixed — reference validity, tenant scope,
- * plan freshness, gates, claim, then the live-execution switch — so a blocked
+ * Evaluation order is deliberate and fixed. reference validity, tenant scope,
+ * plan freshness, gates, claim, then the live-execution switch. so a blocked
  * result always names the earliest and most specific reason.
  */
 export function decideExecution(input: ExecutorInput): ExecutorResult {
@@ -137,7 +137,7 @@ export function decideExecution(input: ExecutorInput): ExecutorResult {
   if (!DISPATCHABLE_ACTION_KINDS.includes(kind))
     return refuse(input, "not_dispatchable_action_kind", `action kind ${kind} is not dispatchable`);
 
-  // 2. Plan freshness — a stale plan is never executed, it is re-planned.
+  // 2. Plan freshness. a stale plan is never executed, it is re-planned.
   if (!input.replan) return refuse(input, "plan_missing", "lead can no longer be planned");
   if (input.replan.sequence !== row.sequence_id)
     return refuse(input, "plan_stale_sequence", "sequence changed since the plan was recorded");
@@ -153,7 +153,7 @@ export function decideExecution(input: ExecutorInput): ExecutorResult {
   if (input.plannedBookingStatus !== input.currentBookingStatus)
     return refuse(input, "plan_stale_booking_state", "booking state changed since the plan was recorded");
 
-  // 3. Gates — every gate must pass on server-verified facts.
+  // 3. Gates. every gate must pass on server-verified facts.
   if (!input.gateResult.allowed || input.gateResult.mode !== "live")
     return refuse(
       input,

@@ -65,7 +65,7 @@ const DELIVERY_TONES: Record<string, string> = {
 
 /**
  * Delivery state of one outbound SMS. Deliberately never says "Delivered"
- * unless a provider receipt confirmed it — "Accepted by provider" and
+ * unless a provider receipt confirmed it. "Accepted by provider" and
  * "Awaiting confirmation" are distinct, visible states.
  */
 export function DeliveryBadge({

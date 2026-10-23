@@ -1,3 +1,4 @@
+import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -12,7 +13,7 @@ import {
   confirmLeadUpdate,
   confirmAssistantText,
 } from "@/lib/owner-actions.functions";
-import type { SendTextProposal, ImportProposal } from "@/lib/assistant-proposals";
+import type { SendTextProposal, ImportProposal, AssistantRequestProposal } from "@/lib/assistant-proposals";
 import { approveReactivation, bulkEditReactivationDrafts } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { saveCrmImportBatch } from "@/lib/csv-import.functions";
@@ -72,7 +73,8 @@ type Proposal =
   | AddonLinkProposal
   | LeadUpdateProposal
   | SendTextProposal
-  | ImportProposal;
+  | ImportProposal
+  | AssistantRequestProposal;
 
 type Turn = {
   id: string;
@@ -406,7 +408,7 @@ export function OwnerAssistant({
         ) : null}
 
         {hasConversation ? (
-          <Conversation className="min-h-0 min-w-0 flex-1 overscroll-contain">
+          <Conversation className="min-h-0 min-w-0 flex-1 overscroll-contain [&>div]:overflow-y-auto">
             <ConversationContent className={`mx-auto w-full min-w-0 max-w-3xl gap-5 px-4 pb-6 pt-4 sm:px-8 ${homeMode ? "lg:pt-28" : "lg:pt-8"}`}>
             {turns.map((turn) => (
               <Message key={turn.id} from={turn.role === "you" ? "user" : "assistant"}>
@@ -417,13 +419,23 @@ export function OwnerAssistant({
                     <MessageContent><MessageResponse>{turn.text}</MessageResponse></MessageContent>
 
                     {turn.proposals?.map((proposal) =>
-                      proposal.kind === "campaign" ? (
+                      proposal.kind === 'assistant_request' ? (
+                        <div key={turn.id + '-request'} className="space-y-3 rounded-lg border border-border bg-card p-4 text-sm">
+                          <p className="whitespace-pre-wrap font-medium">{proposal.request}</p>
+                          <p className="text-muted-foreground">{proposal.summary}</p>
+                          <Button disabled={mutation.isPending} onClick={() => {
+                            mutation.mutate({ question: proposal.request, attachment: null }, {
+                              onSuccess: () => { markDone(turn.id, 'Request passed to Cowork. Review its result and any further approval cards.'); onConversationChanged?.(); },
+                            });
+                          }}><Check className="h-4 w-4" />Confirm</Button>
+                        </div>
+                      ) : proposal.kind === "campaign" ? (
                         <div
                           key={proposal.campaignId}
                           className="rounded-2xl border border-border bg-card p-4 text-sm"
                         >
                           <p className="font-medium">
-                            Win-back campaign — {proposal.displayText ?? proposal.offerText}
+                            Win-back campaign. {proposal.displayText ?? proposal.offerText}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {proposal.drafts.length} message
@@ -683,7 +695,7 @@ export function OwnerAssistant({
                           className="rounded-2xl border border-border bg-card p-4 text-sm"
                         >
                           <p className="font-medium">
-                            {proposal.remove ? "Remove add-on" : "Add-on availability"} —{" "}
+                            {proposal.remove ? "Remove add-on" : "Add-on availability"} -{" "}
                             {proposal.addonName}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">{proposal.summary}</p>
@@ -751,7 +763,9 @@ export function OwnerAssistant({
               </Message>
             ))}
             {mutation.isPending ? (
-              <p className="text-xs text-muted-foreground">Working on it…</p>
+              <ThinkingIndicator
+                steps={["Thinking…", "Checking your records…", "Working on it…", "Almost done…"]}
+              />
             ) : null}
             <div ref={endRef} />
             </ConversationContent>
@@ -773,7 +787,7 @@ export function OwnerAssistant({
             onChange={(event) => setQuestion(event.target.value)}
             maxLength={OWNER_ASSISTANT_MAX_QUESTION}
             placeholder="Message Assistant…"
-            className="min-h-12 max-h-[120px]"
+            className="min-h-12 max-h-[120px] text-base"
           />
            <PromptInputFooter className="min-h-11">
             <div className="flex items-center gap-2">
@@ -808,7 +822,7 @@ export function OwnerAssistant({
                 </button>
                 {remembered.data ? (
                   <span
-                    title="Kept from earlier — just ask about it, no need to upload again"
+                    title="Kept from earlier. just ask about it, no need to upload again"
                     className="inline-flex min-h-10 max-w-[11rem] items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground sm:min-h-8"
                   >
                     <Paperclip className="h-3 w-3 shrink-0" aria-hidden="true" />

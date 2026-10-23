@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -35,7 +36,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
@@ -106,7 +107,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
     ],
   }),
   shellComponent: RootShell,
@@ -131,6 +132,53 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Temporary scroll diagnostic: when a wheel event fails to move anything,
+  // log what swallowed it so the stuck-scroll report can be pinned down.
+  useEffect(() => {
+    let timer: number | undefined;
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY === 0) return;
+      const target = event.target as HTMLElement | null;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const scrolledWindow = Math.abs(window.scrollY) > 0;
+        const scrolledAncestor = (() => {
+          let node = target?.parentElement ?? null;
+          while (node) {
+            if (node.scrollTop !== 0) return true;
+            node = node.parentElement;
+          }
+          return false;
+        })();
+        const docScrollable =
+          document.documentElement.scrollHeight > window.innerHeight + 4;
+        if (!scrolledWindow && !scrolledAncestor && docScrollable) {
+          const describe = (el: Element | null) =>
+            el
+              ? `${el.tagName.toLowerCase()}.${(el.getAttribute("class") ?? "").slice(0, 120)}`
+              : "none";
+          console.warn("[scroll-diagnostic] wheel did not scroll", {
+            url: window.location.pathname,
+            bodyOverflow: getComputedStyle(document.body).overflow,
+            bodyInlineOverflow: document.body.style.overflow,
+            htmlOverflow: getComputedStyle(document.documentElement).overflow,
+            scrollHeight: document.documentElement.scrollHeight,
+            innerHeight: window.innerHeight,
+            target: describe(target),
+            underCursor: describe(
+              document.elementFromPoint(event.clientX, event.clientY),
+            ),
+          });
+        }
+      }, 350);
+    };
+    window.addEventListener("wheel", onWheel, { passive: true, capture: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel, { capture: true });
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

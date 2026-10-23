@@ -1,12 +1,12 @@
 /**
- * BookedSecure paid-pilot commercial model — shared types and pure logic.
+ * BookedSecure paid-pilot commercial model. shared types and pure logic.
  *
  * Commercial terms (price, included segments, duration, support, cancellation)
  * live in the single `commercial_config` row and are edited by platform
  * administrators only. Changes apply to new pilots: every accepted pilot
  * stores an immutable `CommercialTermsSnapshot` taken at invitation time.
  *
- * No tenant, phone number or messaging may be provisioned before payment —
+ * No tenant, phone number or messaging may be provisioned before payment -
  * `hasMessagingAccess` is the single source of truth for that decision.
  */
 
@@ -122,7 +122,7 @@ export function pilotEndFor(startIso: string, durationDays: number): string {
   return addDays(startIso, durationDays);
 }
 
-/** Admin extensions replace the scheduled end — never shorten it. */
+/** Admin extensions replace the scheduled end. never shorten it. */
 export function effectivePilotEnd(
   pilot: Pick<PilotCommercialRecord, "pilotEndsAt" | "pilotExtensionEndsAt">,
 ): string | null {
@@ -166,7 +166,7 @@ export function hasMessagingAccess(
     return { allowed: false, reason: "This pilot is currently paused." };
   }
   if (pilot.accessState === "past_due") {
-    return { allowed: false, reason: "A subscription payment is past due — messaging is on hold." };
+    return { allowed: false, reason: "A subscription payment is past due. messaging is on hold." };
   }
   if (pilot.accessState === "pilot_expired" || isPilotWindowExpired(pilot, now)) {
     return { allowed: false, reason: "The pilot period has ended." };
@@ -180,7 +180,7 @@ export function hasMessagingAccess(
   if (pilot.stripeSubscriptionId && pilot.renewalPreventionConfirmed === false) {
     return {
       allowed: false,
-      reason: "Automatic renewal is not confirmed as disabled — messaging is on hold.",
+      reason: "Automatic renewal is not confirmed as disabled. messaging is on hold.",
     };
   }
   return { allowed: true, reason: "" };
@@ -189,7 +189,7 @@ export function hasMessagingAccess(
 
 /**
  * Hard-cap boundary check: the send is allowed when it fits inside the
- * included allowance — exactly 250/250 passes, the 251st segment is blocked.
+ * included allowance. exactly 250/250 passes, the 251st segment is blocked.
  * The authoritative enforcement is the atomic `reserve_sms_segments` SQL
  * function; this mirrors it for tests and pre-flight checks.
  */

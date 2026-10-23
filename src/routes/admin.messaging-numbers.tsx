@@ -13,7 +13,7 @@ import {
 } from "@/lib/sms/texto-accounts.functions";
 import { listBusinessIdentityRecords } from "@/lib/tenant-identity.functions";
 
-const TITLE = "Dedicated numbers — BookedSecure admin";
+const TITLE = "Dedicated numbers | BookedSecure admin";
 
 export const Route = createFileRoute("/admin/messaging-numbers")({
   head: () => ({
@@ -43,7 +43,7 @@ export const Route = createFileRoute("/admin/messaging-numbers")({
     <AppShell title="Dedicated numbers">
       <div className="panel p-4">
         <h1 className="page-heading">Dedicated numbers</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{String((error as Error)?.message ?? error)}</p>
       </div>
     </AppShell>
   ),
@@ -79,7 +79,7 @@ function NumberPool() {
       toast.success(
         result.live
           ? `Synced ${result.seen} numbers from Texto (${result.added} new, ${result.updated} updated).`
-          : "Live Texto provisioning is off — showing the local pool only.",
+          : "Live Texto provisioning is off. showing the local pool only.",
       );
       await refresh();
     },
@@ -166,7 +166,7 @@ function NumberPool() {
         <h2 className="text-sm font-semibold text-foreground">Number pool</h2>
         {data.numbers.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No numbers yet. Buy dedicated numbers in the Texto dashboard, then sync — or add one manually below.
+            No numbers yet. Buy dedicated numbers in the Texto dashboard, then sync. or add one manually below.
           </p>
         ) : (
           <ul className="grid gap-1 text-sm">
@@ -248,7 +248,7 @@ function IdentityRecords() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                ABN {row.abn || "—"} · {row.suburb} {row.state} · {row.contactName} ·{" "}
+                ABN {row.abn || "Not available"} · {row.suburb} {row.state} · {row.contactName} ·{" "}
                 {row.contactEmail} · {row.contactPhone}
                 {row.submittedAt
                   ? ` · declared ${new Date(row.submittedAt).toLocaleString("en-AU")}`

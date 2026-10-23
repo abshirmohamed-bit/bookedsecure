@@ -16,13 +16,13 @@ import {
 export const Route = createFileRoute("/admin/feedback")({
   head: () => ({
     meta: [
-      { title: "Tenant feedback — BookedSecure admin" },
+      { title: "Tenant feedback | BookedSecure admin" },
       {
         name: "description",
         content:
           "Platform review queue for tenant feature requests and issue reports, with the sending business and page recorded.",
       },
-      { property: "og:title", content: "Tenant feedback — BookedSecure admin" },
+      { property: "og:title", content: "Tenant feedback | BookedSecure admin" },
       {
         property: "og:description",
         content: "Review feature requests and issue reports sent by BookedSecure tenants.",
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/admin/feedback")({
     <AppShell title="Tenant feedback">
       <div className="panel p-4">
         <h1 className="page-heading">Tenant feedback</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{String((error as Error)?.message ?? error)}</p>
       </div>
     </AppShell>
   ),

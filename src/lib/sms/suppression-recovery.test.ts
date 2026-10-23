@@ -146,6 +146,8 @@ describe("owner-confirmed resume", () => {
     userId: "u-1",
     businessId: BUSINESS,
     role,
+    isPlatformAdmin: role === "platform_admin",
+
     name: null,
     email: null,
   });

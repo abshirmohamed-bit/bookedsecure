@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { getMessagingAccount, setMessagingPaused } from "@/lib/sms/messaging-account.functions";
-import { formatAud, LOW_CREDIT_THRESHOLD } from "@/lib/sms/credit-packs";
-import { CREDITS_ANCHOR } from "@/components/billing/BillingPanel";
+import { Phone } from "lucide-react";
+import {
+  getMessagingAccount,
+  getProviderMessagingStatus,
+  setMessagingPaused,
+} from "@/lib/sms/messaging-account.functions";
+import { LOW_CREDIT_THRESHOLD } from "@/lib/sms/credit-packs";
 import { useBillingRealtime } from "@/hooks/useBillingRealtime";
 
 
@@ -24,6 +27,7 @@ const NUMBER_STATE_LABELS: Record<string, string> = {
  */
 export function MessagingOverviewCard() {
   const fetchAccount = useServerFn(getMessagingAccount);
+  const fetchProvider = useServerFn(getProviderMessagingStatus);
   const pauseSending = useServerFn(setMessagingPaused);
   const queryClient = useQueryClient();
 
@@ -32,8 +36,18 @@ export function MessagingOverviewCard() {
     queryFn: () => fetchAccount(),
   });
 
+  // What the provider itself reports right now, refreshed in the background.
+  const { data: provider } = useQuery({
+    queryKey: ["messaging-provider-status"],
+    queryFn: () => fetchProvider(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
   // Credits and plan changes land from payments and sends, so keep this live.
   useBillingRealtime(data?.business?.id ?? null);
+
+
 
 
   const pauseMutation = useMutation({
@@ -65,11 +79,20 @@ export function MessagingOverviewCard() {
   };
 
   const isOwner = data.role === "owner";
-  const balance = data.account?.creditBalance ?? 0;
+  // The credits panel only renders for full access; when access has ended the
+  // owner must call instead, so never show the in-page button in that state.
+  const canBuyCredits = data.access !== "preview";
+  const storedBalance = data.account?.creditBalance ?? 0;
+  // Prefer what the provider reports; fall back to our own figure and say so.
+  const liveBalance = provider?.ok ? provider.credits : null;
+  const balance = liveBalance ?? storedBalance;
   const lowBalance = balance <= LOW_CREDIT_THRESHOLD;
+  const balanceMismatch = liveBalance !== null && liveBalance !== storedBalance;
   const activeNumber =
     data.numbers.find((number) => number.status === "assigned") ?? data.numbers[0];
+  const numberLabel = (provider?.ok ? provider.number : null) ?? activeNumber?.number ?? null;
   const state = data.account?.provisioningState ?? "not_started";
+  const providerStatus = provider?.ok ? provider.status : null;
   const paused = data.business ? !data.business.automation_enabled : false;
   const usedPct =
     plan.includedSegments > 0
@@ -83,18 +106,18 @@ export function MessagingOverviewCard() {
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-md border border-border p-3">
             <p className="text-xs text-muted-foreground">Your number</p>
-            <p className="mt-1 text-lg font-semibold">
-              {activeNumber?.number ?? "Not assigned yet"}
-            </p>
+            <p className="mt-1 text-lg font-semibold">{numberLabel ?? "Not connected yet"}</p>
             <p className="text-xs text-muted-foreground">
-              {NUMBER_STATE_LABELS[state] ?? state} · included in your plan
+              {providerStatus === "active" && numberLabel
+                ? "Live with your messaging provider"
+                : (NUMBER_STATE_LABELS[state] ?? state)}
             </p>
           </div>
           <div className="rounded-md border border-border p-3">
             <p className="text-xs text-muted-foreground">Texts going out</p>
             <p className="mt-1 text-lg font-semibold">{paused ? "Paused" : "Active"}</p>
             <p className="text-xs text-muted-foreground">
-              {plan.name} plan · {formatAud(plan.priceMinorUnits)} / {plan.billingInterval}
+              {paused ? "Contact BookedSecure if you need help" : "Ready to send from this workspace"}
             </p>
           </div>
           <div
@@ -103,50 +126,84 @@ export function MessagingOverviewCard() {
             <p className="text-xs text-muted-foreground">Credits left</p>
             <p className="mt-1 text-lg font-semibold">{balance.toLocaleString()}</p>
             <p className={`text-xs ${lowBalance ? "text-destructive" : "text-muted-foreground"}`}>
-              Extra texts {plan.overageCents}c each
+              {liveBalance !== null
+                ? `Live from your provider · extra texts ${plan.overageCents}c each`
+                : `Our records · extra texts ${plan.overageCents}c each`}
             </p>
           </div>
         </div>
+
+        {balanceMismatch ? (
+          <p className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+            Your provider shows {liveBalance.toLocaleString()} credits while our records show{" "}
+            {storedBalance.toLocaleString()}. Top up with your provider to keep texts going out.
+          </p>
+        ) : null}
+
 
         <div className="rounded-md border border-border p-3">
           <div className="flex items-baseline justify-between">
             <p className="text-xs text-muted-foreground">Texts this month</p>
             <p className="text-sm font-semibold">
               {plan.usedSegments.toLocaleString()}
-              <span className="text-xs font-normal text-muted-foreground">
-                {" "}
-                / {plan.includedSegments.toLocaleString()} included
-              </span>
+              {plan.includedSegments > 0 ? (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {" "}
+                  / {plan.includedSegments.toLocaleString()} included
+                </span>
+              ) : null}
             </p>
           </div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
-            <div
-              className={`h-full rounded-full ${usedPct >= 100 ? "bg-destructive" : "bg-primary"}`}
-              style={{ width: `${usedPct}%` }}
-            />
-          </div>
+          {plan.includedSegments > 0 ? (
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className={`h-full rounded-full ${usedPct >= 100 ? "bg-destructive" : "bg-primary"}`}
+                style={{ width: `${usedPct}%` }}
+              />
+            </div>
+          ) : null}
           <p className="mt-2 text-xs text-muted-foreground">
-            After your included texts, each text uses one credit ({plan.overageCents}c). Top up any
-            time in Plan &amp; billing to keep sending.
+            Each text uses one credit ({plan.overageCents}c). Top up in your own provider account,
+            or contact BookedSecure for help.
           </p>
         </div>
 
         {state === "queued_no_number" ? (
           <p className="rounded-md border border-border bg-secondary/40 p-3 text-xs">
-            We&apos;re assigning your dedicated number. Sending stays off until it&apos;s ready — you
-            don&apos;t need to do anything.
+            Your texting number isn&apos;t connected yet. Get it from the messaging provider below,
+            then press “I&apos;ve got my number”.
           </p>
         ) : null}
 
         {isOwner ? (
           <div className="flex flex-wrap gap-2">
-            <Link
-              to="/settings/billing"
-              hash={CREDITS_ANCHOR}
-              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-            >
-              Top up credits
-            </Link>
+            {canBuyCredits ? (
+              <a
+                href="#credits"
+                onClick={(event) => {
+                  event.preventDefault();
+                  const target = document.getElementById("credits");
+                  if (target) {
+                    target.scrollIntoView({ behavior: "smooth", block: "start" });
+                  } else {
+                    // The credits section is not on this page (stale cached
+                    // response); fall back to the phone number, never a dead click.
+                    window.location.href = "tel:+61466907824";
+                  }
+                }}
+                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              >
+                Top up credits
+              </a>
+            ) : (
+              <a
+                href="tel:+61466907824"
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              >
+                <Phone className="h-4 w-4" aria-hidden="true" />
+                Call to top up credits
+              </a>
+            )}
             <button
               type="button"
               onClick={() => pauseMutation.mutate(!paused)}

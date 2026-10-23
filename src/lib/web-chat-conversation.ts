@@ -5,7 +5,7 @@
  *
  * Governing principle unchanged: the model may INTERPRET language, the server
  * decides everything. Nothing here can invent a service, a price, an
- * availability claim, consent or a booking — every answer is composed from
+ * availability claim, consent or a booking. every answer is composed from
  * facts the tenant already configured, and anything not on file becomes an
  * honest deflection rather than a guess.
  */
@@ -21,7 +21,7 @@ import type { IntakeField } from "@/lib/web-chat-intake";
  * Conversational intake is now the behaviour of the public chat for EVERY
  * tenant: questions are answered from that tenant's own configured facts, and
  * uncertainty is never stored as a value. There is no per-tenant flag, because
- * nothing here is tenant-specific — every sentence is composed from the facts
+ * nothing here is tenant-specific. every sentence is composed from the facts
  * passed in for the tenant being served.
  */
 export function isConversationalIntakeTenant(_businessId: string): boolean {
@@ -219,7 +219,7 @@ export function assembleReply(parts: ReplyParts): string[] {
   return kept;
 }
 
-/** "Got it, Toyota HiAce in Auburn." — only ever echoes validated values. */
+/** "Got it, Toyota HiAce in Auburn.". only ever echoes validated values. */
 export function acknowledgeFields(values: { label: IntakeField; value: string }[]): string | null {
   const parts = values
     .filter((entry) => entry.label !== "service" && (entry.value ?? "").trim().length > 0)

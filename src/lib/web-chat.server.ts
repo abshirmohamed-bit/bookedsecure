@@ -58,6 +58,13 @@ import {
 } from "@/lib/web-chat-intake";
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import {
+  advancePastRepeats,
+  askCount,
+  escalatedAsk,
+  letGoMessage,
+  recordAsk,
+} from "@/lib/web-chat-repeat";
+import {
   aiCorrectionMessage,
   resolveIntake,
 } from "@/lib/web-chat-ai-extraction";
@@ -72,6 +79,7 @@ import {
   type AnswerFacts,
 } from "@/lib/web-chat-conversation";
 import { extractWithAi, type AiExtractor } from "@/lib/web-chat-ai-extraction.server";
+import { QUOTE_AGENT_ENABLED } from "@/lib/quote-agent";
 
 
 
@@ -181,7 +189,7 @@ async function loadTurns(conversationId: string): Promise<WebChatTurn[]> {
 
 /**
  * Puts a quiet (swept) conversation back to active so a returning customer can
- * carry on where they left off. Status only — no answer is changed here.
+ * carry on where they left off. Status only. no answer is changed here.
  */
 async function reopenConversation(businessId: string, conversationId: string): Promise<void> {
   await supabaseAdmin
@@ -377,12 +385,31 @@ export async function replyToWebChat(input: {
   /**
    * Idempotency guard: the step the client believed it was answering. When the
    * conversation has already moved past it (a retried or double-submitted turn),
-   * the answer is not applied again — the current state is returned instead.
+   * the answer is not applied again. the current state is returned instead.
    */
   expectedStep?: string | null;
 }): Promise<WebChatState | null> {
   const tenant = await resolvePublicTenant(input.slug);
   if (!tenant || tenant.quoteMode !== "ai_chat") return null;
+
+  // One AI, agent-led: the same brain as the owner assistant runs the customer
+  // conversation and decides the flow itself. Prices, times and bookings still
+  // come only from this tenant's own records through its tools. If the agent
+  // cannot run at all, the deterministic flow below carries the conversation.
+  if (QUOTE_AGENT_ENABLED && tenant.quoteAgentEnabled) {
+    try {
+      const { runQuoteAgentTurn } = await import("@/lib/quote-agent.server");
+      const agentState = await runQuoteAgentTurn({
+        slug: input.slug,
+        conversationId: input.conversationId,
+        answer: input.answer,
+        formUrl: input.formUrl,
+      });
+      if (agentState) return agentState;
+    } catch (error) {
+      console.error("[web-chat] agent turn failed, falling back", error);
+    }
+  }
 
   const { data: conversation } = await supabaseAdmin
     .from("web_conversations")
@@ -408,7 +435,7 @@ export async function replyToWebChat(input: {
 
   if (conversation.status !== "active" || turns.length > MAX_MESSAGES) {
     // A confirmed booking is historical. A later message can still update the
-    // customer's own details, but it never moves, rebooks or cancels the slot —
+    // customer's own details, but it never moves, rebooks or cancels the slot -
     // anything that would affect the visit goes to the owner for review.
     const change =
       conversation.status === "completed" && conversation.lead_id && turns.length <= MAX_MESSAGES
@@ -490,7 +517,7 @@ export async function replyToWebChat(input: {
   // value is matched only against this tenant's approved services and
   // locations, or parsed from the customer's own words, and stored through the
   // same validation the individual questions use. Whatever is still missing is
-  // then asked for TOGETHER — never one rigid question at a time — and any
+  // then asked for TOGETHER. never one rigid question at a time. and any
   // genuine ambiguity is put back to the customer instead of guessed.
   // Multi-field change directive ("change the vehicle to a Mazda CX-5 and the
   // suburb to Bankstown"). Each clause updates exactly one field with its own
@@ -499,7 +526,7 @@ export async function replyToWebChat(input: {
   // when the customer expressed EXPLICIT change intent ("change my suburb to
   // Parramatta"). A first-turn narrative that merely mentions a name or number
   // is information, so it must reach intake/AI extraction and never be claimed
-  // — and partially discarded — by the directive parser.
+  //. and partially discarded. by the directive parser.
   const explicitChange = hasExplicitChangeIntent(input.answer);
 
   const runDirectives = () =>
@@ -604,8 +631,24 @@ export async function replyToWebChat(input: {
 
   const applied = applyAnswer(collected, step, input.answer, chatTenant);
   if (!applied.ok) {
-    const prompt = promptFor(step, chatTenant, collected);
-    const errorText = hasCorrectionCue(input.answer) ? AMBIGUOUS_CORRECTION_MESSAGE : applied.error;
+    // The same detail is coming round again. It is counted, so it can be asked
+    // once more with an example and then let go, instead of being reworded
+    // indefinitely.
+    const attempts = askCount(collected, step);
+    const advanced = advancePastRepeats(recordAsk(collected, step), nextStep);
+    const resumeStep = advanced.step;
+    await supabaseAdmin
+      .from("web_conversations")
+      .update({ collected: advanced.collected as never })
+      .eq("id", conversation.id)
+      .eq("business_id", tenant.businessId);
+
+    const movedOn = resumeStep !== step;
+    const prompt = resumeStep ? promptFor(resumeStep, chatTenant, advanced.collected) : null;
+    const baseError = hasCorrectionCue(input.answer) ? AMBIGUOUS_CORRECTION_MESSAGE : applied.error;
+    const errorText = movedOn
+      ? [letGoMessage(step), prompt?.text ?? ""].filter(Boolean).join(" ")
+      : escalatedAsk(step, baseError, attempts);
     await addMessage(tenant.businessId, conversation.id, "customer", input.answer.slice(0, 500));
     await addMessage(tenant.businessId, conversation.id, "assistant", errorText);
     return {
@@ -621,7 +664,7 @@ export async function replyToWebChat(input: {
       completed: false,
       declined: false,
       duplicate: false,
-      error: errorText,
+      ...(movedOn ? {} : { error: errorText }),
     };
   }
 
@@ -654,13 +697,16 @@ export async function replyToWebChat(input: {
     };
   }
 
-  const followUp = nextStep(next);
+  const advancedNext = advancePastRepeats(next, nextStep);
+  const followUp = advancedNext.step;
 
   if (followUp) {
+    const asks = askCount(advancedNext.collected, followUp);
+    const stored = recordAsk(advancedNext.collected, followUp);
     await supabaseAdmin
       .from("web_conversations")
       .update({
-        collected: next as never,
+        collected: stored as never,
         selected_service_id: next.service_id ?? null,
         service_name_snapshot: next.service_name ?? null,
         requires_owner_review: outcome.requiresOwnerReview,
@@ -669,7 +715,8 @@ export async function replyToWebChat(input: {
       .eq("id", conversation.id)
       .eq("business_id", tenant.businessId);
 
-    const prompt = promptFor(followUp, chatTenant, next);
+    const basePrompt = promptFor(followUp, chatTenant, stored);
+    const prompt = { ...basePrompt, text: escalatedAsk(followUp, basePrompt.text, asks) };
     // Extras just chosen: show the service and add-on prices together, with the
     // combined figure, before the final check.
     const extrasPriced =
@@ -683,7 +730,11 @@ export async function replyToWebChat(input: {
         : null);
     // One message per turn: the acknowledgement and the next question read as a
     // single reply so the customer never gets two bubbles for one turn.
-    const [reply] = asSingleReply([detail ?? "", prompt.text]);
+    const [reply] = asSingleReply([
+      detail ?? "",
+      advancedNext.letGoSteps[0] ? letGoMessage(advancedNext.letGoSteps[0]) : "",
+      prompt.text,
+    ]);
     const body = reply ?? prompt.text;
     await addMessage(tenant.businessId, conversation.id, "assistant", body);
     return {
@@ -746,7 +797,7 @@ export async function replyToWebChat(input: {
     duplicate = result.duplicate;
   } else {
     // Returning contact (arrived via their personal campaign link): the new
-    // enquiry's details are merged onto their OWN record — fill-only for
+    // enquiry's details are merged onto their OWN record. fill-only for
     // profile fields, refreshed for the current request. No duplicate lead.
     const { data: existing } = await supabaseAdmin
       .from("leads")
@@ -979,7 +1030,7 @@ export async function replyToWebChat(input: {
  * The customer's answer is one of the offer ids the server generated for THIS
  * conversation. Everything is re-checked server-side: tenant, lead, offer and
  * live availability. On a conflict the customer's message stays in the
- * transcript and fresh options are returned — the conversation never restarts.
+ * transcript and fresh options are returned. the conversation never restarts.
  *
  * No SMS, no `messages` row, no provider call, no AI usage event and no
  * automation job is created anywhere on this path.
@@ -1190,7 +1241,7 @@ async function handleBookingSelection(input: {
  * Natural-language intake branch.
  *
  * Returns a state only when the customer's message genuinely carried more than
- * the single open question — otherwise it returns null and the existing
+ * the single open question. otherwise it returns null and the existing
  * step-by-step handling proceeds unchanged.
  */
 export async function maybeHandleIntake(args: {
@@ -1252,7 +1303,7 @@ export async function maybeHandleIntake(args: {
   // uncertainty. Everyone else keeps the previous step-machine behaviour.
   const conversational = isConversationalIntakeTenant(tenant.businessId);
   const answeringTurn = conversational && (question !== null || uncertain);
-  // A single validated field is now enough — the old "fewer than two fields"
+  // A single validated field is now enough. the old "fewer than two fields"
   // rule discarded understanding the model had already produced.
   if (!ambiguity && !unsupported && !answeringTurn && applied.length === 0 && !beyondOpenStep) {
     return null;
@@ -1279,11 +1330,17 @@ export async function maybeHandleIntake(args: {
     };
   }
 
-  const outcome = resolveOutcome(next);
+  // An optional detail already asked its limit is let go here, so this path
+  // moves on instead of circling the same question in different words.
+  const advancedNext = advancePastRepeats(next, nextStep);
+  const resumeStep = advancedNext.step;
+  const repeatAsks = resumeStep ? askCount(advancedNext.collected, resumeStep) : 0;
+  const stored = resumeStep ? recordAsk(advancedNext.collected, resumeStep) : advancedNext.collected;
+  const outcome = resolveOutcome(stored);
   await supabaseAdmin
     .from("web_conversations")
     .update({
-      collected: next as never,
+      collected: stored as never,
       selected_service_id: next.service_id ?? null,
       service_name_snapshot: next.service_name ?? null,
       requires_owner_review: outcome.requiresOwnerReview,
@@ -1292,7 +1349,7 @@ export async function maybeHandleIntake(args: {
     .eq("id", args.conversationId)
     .eq("business_id", tenant.businessId);
 
-  const outstanding = outstandingFields(next);
+  const outstanding = outstandingFields(stored);
 
   // Every answer is composed from facts this tenant already configured.
   const facts: AnswerFacts = {
@@ -1339,8 +1396,8 @@ export async function maybeHandleIntake(args: {
         )
       : null;
 
-  const resumeStep = nextStep(next);
-  const prompt = resumeStep ? promptFor(resumeStep, chatTenant, next) : null;
+  const basePrompt = resumeStep ? promptFor(resumeStep, chatTenant, stored) : null;
+  const prompt = basePrompt;
 
   // Name and mobile are one question. When both are still missing the server's
   // own combined ask is used, so the customer is never asked for the name in one
@@ -1357,6 +1414,12 @@ export async function maybeHandleIntake(args: {
     if (grouped) ask = acknowledgement || answer ? grouped.replace(/^Got it\.\s*/, "") : grouped;
     else if (prompt) ask = prompt.text;
   }
+  // Second time round for the same detail: add the example, and say plainly when
+  // an optional detail has been left for the team.
+  if (ask && resumeStep && !ambiguity && repeatAsks > 0) ask = escalatedAsk(resumeStep, ask, repeatAsks);
+  if (ask && advancedNext.letGoSteps[0])
+    ask = `${letGoMessage(advancedNext.letGoSteps[0])} ${ask}`;
+
 
   // The model's wording replaces the fixed acknowledgement/answer sentences when
   // it survived guarding; when it already asks something, the server's own ask
@@ -1364,7 +1427,10 @@ export async function maybeHandleIntake(args: {
   // never dropped: that one is a control decision, not phrasing. On a contact
   // turn the model's own question is dropped instead, so the single combined
   // name-and-mobile question is what the customer reads.
-  const modelWording = contactTurn ? dropQuestions(modelReply) : modelReply;
+  // When the same detail is being asked again, the server's escalated wording is
+  // used instead of the model's, so the customer gets a new angle rather than the
+  // same question reworded.
+  const modelWording = repeatAsks > 0 ? null : contactTurn ? dropQuestions(modelReply) : modelReply;
   // One message per turn: acknowledgement, answer and ask read as a single
   // reply so the customer never gets two bubbles for one turn.
   const replies = asSingleReply(
@@ -1469,7 +1535,7 @@ async function maybeHandleFieldDirectives(args: {
  *
  * Detail updates are written to the conversation and to the canonical lead
  * fields; the confirmed offer and job rows are never touched. Anything that
- * affects what the crew turns up to — or any reschedule/cancel wording — flags
+ * affects what the crew turns up to. or any reschedule/cancel wording. flags
  * the lead for owner review and raises one de-duplicated owner alert.
  */
 async function handleBookingChangeRequest(args: {
@@ -1506,7 +1572,7 @@ async function handleBookingChangeRequest(args: {
       .eq("id", args.conversationId)
       .eq("business_id", args.tenant.businessId);
 
-    // Canonical lead detail fields only — booking rows stay authoritative.
+    // Canonical lead detail fields only. booking rows stay authoritative.
     await supabaseAdmin
       .from("leads")
       .update({

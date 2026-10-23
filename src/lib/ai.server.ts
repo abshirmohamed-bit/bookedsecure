@@ -2,6 +2,8 @@
 // shown; it is never piped straight into an SMS send.
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, NoObjectGeneratedError, Output } from "ai";
+import { streamText } from 'ai';
+import { withAiBackup, type BackupUsage } from './tenant-ai.server';
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildBusinessSettingsContext } from "@/lib/ai-context";
 import {
@@ -124,7 +126,7 @@ export function guardReply(
 
 export const ANALYSIS_MODEL = "google/gemini-3.7-flash";
 
-/** Shape the runner needs from a generate call — SDK output plus token usage. */
+/** Shape the runner needs from a generate call. SDK output plus token usage. */
 export type GenerateOutcome = {
   output?: unknown;
   text?: string;
@@ -303,7 +305,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
   // Business Settings are the single source of truth for operational facts.
   const settingsContext = business
     ? buildBusinessSettingsContext(business, services ?? [])
-    : "Business Settings unavailable — do not state any operational facts.";
+    : "Business Settings unavailable. do not state any operational facts.";
 
   // The allow-list: built from this tenant's active services plus the lead's
   // own snapshot, and passed separately from the general settings context.
@@ -395,18 +397,26 @@ export async function analyseLead(input: { businessId: string; leadId: string })
   if (cap.blocked) throw new Error(cap.reason ?? "Monthly AI safety cap reached.");
 
   const correlationId = crypto.randomUUID();
+  const aiSource: BackupUsage = { source: 'lovable' };
   let result: StructuredAnalysisResult;
   try {
     result = await runStructuredAnalysis({
       system,
       prompt,
-      generate: (options) =>
-        generateText({
+      generate: (options) => withAiBackup({
+        businessId: input.businessId, usage: aiSource,
+        gateway: () => generateText({
           model: gateway(apiKey)(ANALYSIS_MODEL),
           output: Output.object({ schema: AnalysisSchema }),
           system: options.system,
           prompt: options.prompt,
         }) as unknown as Promise<GenerateOutcome>,
+        backup: async (provider) => {
+          const result = streamText({ ...provider, maxRetries: 0, output: Output.object({ schema: AnalysisSchema }), system: options.system, prompt: options.prompt, onError: () => undefined });
+          const output = await result.output;
+          return { output, text: await result.text, usage: await result.usage } as GenerateOutcome;
+        },
+      }),
     });
   } catch (error) {
     const failure = error instanceof AnalysisFailure ? error : null;
@@ -439,6 +449,7 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     businessId: input.businessId,
     leadId: input.leadId,
     purpose: "lead_analysis",
+    billingSource: aiSource.source,
     model: ANALYSIS_MODEL,
     inputTokens: result.inputTokens,
     outputTokens: result.outputTokens,

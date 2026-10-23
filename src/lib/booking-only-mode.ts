@@ -1,4 +1,4 @@
-// Booking-only production mode (pure policy — no I/O).
+// Booking-only production mode (pure policy. no I/O).
 //
 // This module encodes ONE narrow production capability: a customer can walk the
 // deterministic quote → service → server availability → slot selection →

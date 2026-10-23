@@ -53,7 +53,7 @@ export async function loadAutomationState(
   if (data) return readImportAutomationState(data);
 
   // First use: persist the default `preview_only` row. A concurrent insert is
-  // harmless — we simply fall back to the default in memory.
+  // harmless. we simply fall back to the default in memory.
   await client.from(TABLE as never).insert({
     business_id: businessId,
     mode: DEFAULT_IMPORT_AUTOMATION_STATE.mode,
@@ -346,12 +346,12 @@ export async function verifyCanaryImport(
     {
       check: "preview_row_records_live_lead",
       passed: staged?.resulting_lead_id === leadId,
-      detail: `Preview row links lead ${staged?.resulting_lead_id ?? "—"}.`,
+      detail: `Preview row links lead ${staged?.resulting_lead_id ?? "Not available"}.`,
     },
     {
       check: "preview_row_records_committed_status",
       passed: commit["status"] === "committed" && typeof commit["committed_at"] === "string",
-      detail: `Recorded commit status ${String(commit["status"] ?? "—")} at ${String(commit["committed_at"] ?? "—")}.`,
+      detail: `Recorded commit status ${String(commit["status"] ?? "Not available")} at ${String(commit["committed_at"] ?? "Not available")}.`,
     },
     {
       check: "rerun_returns_already_committed",

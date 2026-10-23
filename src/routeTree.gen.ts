@@ -13,17 +13,22 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LandingRouteImport } from './routes/landing'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as StartRouteImport } from './routes/start'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
 import { Route as AdminMessagingNumbersRouteImport } from './routes/admin.messaging-numbers'
+import { Route as AdminOverviewRouteImport } from './routes/admin.overview'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as AssistantThreadIdRouteImport } from './routes/assistant.$threadId'
 import { Route as BTokenRouteImport } from './routes/b.$token'
@@ -37,9 +42,12 @@ import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsAutomationRouteImport } from './routes/settings.automation'
 import { Route as SettingsBillingRouteImport } from './routes/settings.billing'
 import { Route as SettingsBusinessRouteImport } from './routes/settings.business'
+import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations'
 import { Route as SettingsMessagingRouteImport } from './routes/settings.messaging'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team'
 import { Route as UnfinishedIndexRouteImport } from './routes/unfinished.index'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiPublicEmailUnsubscribeRouteImport } from './routes/api/public/email-unsubscribe'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicHooksProviderStatementsRouteImport } from './routes/api/public/hooks/provider-statements'
@@ -75,6 +83,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsRoute = CampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -93,6 +106,11 @@ const ImportRoute = ImportRouteImport.update({
 const LandingRoute = LandingRouteImport.update({
   id: '/landing',
   path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -120,6 +138,17 @@ const SetupRoute = SetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StartRoute = StartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
   id: '/admin/feedback',
   path: '/admin/feedback',
@@ -128,6 +157,11 @@ const AdminFeedbackRoute = AdminFeedbackRouteImport.update({
 const AdminMessagingNumbersRoute = AdminMessagingNumbersRouteImport.update({
   id: '/admin/messaging-numbers',
   path: '/admin/messaging-numbers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminOverviewRoute = AdminOverviewRouteImport.update({
+  id: '/admin/overview',
+  path: '/admin/overview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminPilotApplicationsRoute = AdminPilotApplicationsRouteImport.update({
@@ -195,6 +229,11 @@ const SettingsBusinessRoute = SettingsBusinessRouteImport.update({
   path: '/business',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsIntegrationsRoute = SettingsIntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsMessagingRoute = SettingsMessagingRouteImport.update({
   id: '/messaging',
   path: '/messaging',
@@ -210,6 +249,17 @@ const UnfinishedIndexRoute = UnfinishedIndexRouteImport.update({
   path: '/unfinished/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicEmailUnsubscribeRoute =
+  ApiPublicEmailUnsubscribeRouteImport.update({
+    id: '/api/public/email-unsubscribe',
+    path: '/api/public/email-unsubscribe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   id: '/api/public/hooks/follow-ups',
   path: '/api/public/hooks/follow-ups',
@@ -294,17 +344,22 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
+  '/campaigns': typeof CampaignsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/mcp': typeof McpRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/start': typeof StartRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
+  '/admin/overview': typeof AdminOverviewRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -314,6 +369,7 @@ export interface FileRoutesByFullPath {
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/settings/business': typeof SettingsBusinessRoute
+  '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
   '/bookings/': typeof BookingsIndexRoute
@@ -321,6 +377,8 @@ export interface FileRoutesByFullPath {
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/unfinished/': typeof UnfinishedIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
@@ -341,16 +399,21 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
+  '/campaigns': typeof CampaignsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/mcp': typeof McpRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
+  '/start': typeof StartRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
+  '/admin/overview': typeof AdminOverviewRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -360,6 +423,7 @@ export interface FileRoutesByTo {
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/settings/business': typeof SettingsBusinessRoute
+  '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
   '/bookings': typeof BookingsIndexRoute
@@ -367,6 +431,8 @@ export interface FileRoutesByTo {
   '/quote': typeof QuoteIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/unfinished': typeof UnfinishedIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
@@ -388,17 +454,22 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
+  '/campaigns': typeof CampaignsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/mcp': typeof McpRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/start': typeof StartRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
+  '/admin/overview': typeof AdminOverviewRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
@@ -408,6 +479,7 @@ export interface FileRoutesById {
   '/settings/automation': typeof SettingsAutomationRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/settings/business': typeof SettingsBusinessRoute
+  '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
   '/bookings/': typeof BookingsIndexRoute
@@ -415,6 +487,8 @@ export interface FileRoutesById {
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/unfinished/': typeof UnfinishedIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
@@ -437,17 +511,22 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/assistant'
     | '/auth'
+    | '/campaigns'
     | '/dashboard'
     | '/home'
     | '/import'
     | '/landing'
+    | '/mcp'
     | '/pricing'
     | '/privacy'
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/start'
+    | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
     | '/admin/messaging-numbers'
+    | '/admin/overview'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -457,6 +536,7 @@ export interface FileRouteTypes {
     | '/settings/automation'
     | '/settings/billing'
     | '/settings/business'
+    | '/settings/integrations'
     | '/settings/messaging'
     | '/settings/team'
     | '/bookings/'
@@ -464,6 +544,8 @@ export interface FileRouteTypes {
     | '/quote/'
     | '/settings/'
     | '/unfinished/'
+    | '/.lovable/oauth/consent'
+    | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
@@ -484,16 +566,21 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/assistant'
     | '/auth'
+    | '/campaigns'
     | '/dashboard'
     | '/home'
     | '/import'
     | '/landing'
+    | '/mcp'
     | '/pricing'
     | '/privacy'
     | '/profile'
     | '/setup'
+    | '/start'
+    | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
     | '/admin/messaging-numbers'
+    | '/admin/overview'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -503,6 +590,7 @@ export interface FileRouteTypes {
     | '/settings/automation'
     | '/settings/billing'
     | '/settings/business'
+    | '/settings/integrations'
     | '/settings/messaging'
     | '/settings/team'
     | '/bookings'
@@ -510,6 +598,8 @@ export interface FileRouteTypes {
     | '/quote'
     | '/settings'
     | '/unfinished'
+    | '/.lovable/oauth/consent'
+    | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
@@ -530,17 +620,22 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/assistant'
     | '/auth'
+    | '/campaigns'
     | '/dashboard'
     | '/home'
     | '/import'
     | '/landing'
+    | '/mcp'
     | '/pricing'
     | '/privacy'
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/start'
+    | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
     | '/admin/messaging-numbers'
+    | '/admin/overview'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
@@ -550,6 +645,7 @@ export interface FileRouteTypes {
     | '/settings/automation'
     | '/settings/billing'
     | '/settings/business'
+    | '/settings/integrations'
     | '/settings/messaging'
     | '/settings/team'
     | '/bookings/'
@@ -557,6 +653,8 @@ export interface FileRouteTypes {
     | '/quote/'
     | '/settings/'
     | '/unfinished/'
+    | '/.lovable/oauth/consent'
+    | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
@@ -578,17 +676,22 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AssistantRoute: typeof AssistantRouteWithChildren
   AuthRoute: typeof AuthRoute
+  CampaignsRoute: typeof CampaignsRoute
   DashboardRoute: typeof DashboardRoute
   HomeRoute: typeof HomeRoute
   ImportRoute: typeof ImportRoute
   LandingRoute: typeof LandingRoute
+  McpRoute: typeof McpRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SetupRoute: typeof SetupRoute
+  StartRoute: typeof StartRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminMessagingNumbersRoute: typeof AdminMessagingNumbersRoute
+  AdminOverviewRoute: typeof AdminOverviewRoute
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   BTokenRoute: typeof BTokenRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
@@ -598,6 +701,8 @@ export interface RootRouteChildren {
   LeadsIndexRoute: typeof LeadsIndexRoute
   QuoteIndexRoute: typeof QuoteIndexRoute
   UnfinishedIndexRoute: typeof UnfinishedIndexRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiPublicEmailUnsubscribeRoute: typeof ApiPublicEmailUnsubscribeRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
   ApiPublicHooksProviderStatementsRoute: typeof ApiPublicHooksProviderStatementsRoute
@@ -644,6 +749,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns': {
+      id: '/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof CampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -670,6 +782,13 @@ declare module '@tanstack/react-router' {
       path: '/landing'
       fullPath: '/landing'
       preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -707,6 +826,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/start': {
+      id: '/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof StartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/feedback': {
       id: '/admin/feedback'
       path: '/admin/feedback'
@@ -719,6 +852,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/messaging-numbers'
       fullPath: '/admin/messaging-numbers'
       preLoaderRoute: typeof AdminMessagingNumbersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/overview': {
+      id: '/admin/overview'
+      path: '/admin/overview'
+      fullPath: '/admin/overview'
+      preLoaderRoute: typeof AdminOverviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/pilot-applications': {
@@ -812,6 +952,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsBusinessRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/integrations': {
+      id: '/settings/integrations'
+      path: '/integrations'
+      fullPath: '/settings/integrations'
+      preLoaderRoute: typeof SettingsIntegrationsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/messaging': {
       id: '/settings/messaging'
       path: '/messaging'
@@ -831,6 +978,20 @@ declare module '@tanstack/react-router' {
       path: '/unfinished'
       fullPath: '/unfinished/'
       preLoaderRoute: typeof UnfinishedIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/email-unsubscribe': {
+      id: '/api/public/email-unsubscribe'
+      path: '/api/public/email-unsubscribe'
+      fullPath: '/api/public/email-unsubscribe'
+      preLoaderRoute: typeof ApiPublicEmailUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/follow-ups': {
@@ -950,6 +1111,7 @@ interface SettingsRouteChildren {
   SettingsAutomationRoute: typeof SettingsAutomationRoute
   SettingsBillingRoute: typeof SettingsBillingRoute
   SettingsBusinessRoute: typeof SettingsBusinessRoute
+  SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
   SettingsMessagingRoute: typeof SettingsMessagingRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -959,6 +1121,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAutomationRoute: SettingsAutomationRoute,
   SettingsBillingRoute: SettingsBillingRoute,
   SettingsBusinessRoute: SettingsBusinessRoute,
+  SettingsIntegrationsRoute: SettingsIntegrationsRoute,
   SettingsMessagingRoute: SettingsMessagingRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   SettingsIndexRoute: SettingsIndexRoute,
@@ -973,17 +1136,23 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AssistantRoute: AssistantRouteWithChildren,
   AuthRoute: AuthRoute,
+  CampaignsRoute: CampaignsRoute,
   DashboardRoute: DashboardRoute,
   HomeRoute: HomeRoute,
   ImportRoute: ImportRoute,
   LandingRoute: LandingRoute,
+  McpRoute: McpRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SetupRoute: SetupRoute,
+  StartRoute: StartRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
   AdminMessagingNumbersRoute: AdminMessagingNumbersRoute,
+  AdminOverviewRoute: AdminOverviewRoute,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   BTokenRoute: BTokenRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
@@ -993,6 +1162,8 @@ const rootRouteChildren: RootRouteChildren = {
   LeadsIndexRoute: LeadsIndexRoute,
   QuoteIndexRoute: QuoteIndexRoute,
   UnfinishedIndexRoute: UnfinishedIndexRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiPublicEmailUnsubscribeRoute: ApiPublicEmailUnsubscribeRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
   ApiPublicHooksProviderStatementsRoute: ApiPublicHooksProviderStatementsRoute,

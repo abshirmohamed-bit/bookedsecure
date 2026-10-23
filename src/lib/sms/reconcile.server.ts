@@ -3,7 +3,7 @@
 // Telnyx exposes GET /v2/messages/{id}, so a message whose receipt never arrived
 // can be re-checked against the provider. This path:
 //   * is tenant-scoped (the message must belong to the caller's business)
-//   * only ever performs a GET — it never resends, never creates a message,
+//   * only ever performs a GET. it never resends, never creates a message,
 //     never touches the body or recipient, and never triggers automation
 //   * routes the result through the same transition gate, so it is idempotent
 //     and cannot downgrade a terminal state

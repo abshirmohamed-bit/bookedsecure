@@ -2,7 +2,7 @@
  * Structured AI extraction for the public quote conversation.
  *
  * PURE module: schema, prompt construction, candidate normalisation and
- * correction application. No network, no database, no model call — the call
+ * correction application. No network, no database, no model call. the call
  * itself lives in `web-chat-ai-extraction.server.ts`.
  *
  * Governing principle: the model only READS the customer's message and proposes
@@ -19,6 +19,7 @@ import { z } from "zod";
 import { normaliseAuMobile } from "@/lib/domain";
 import { CUSTOMER_PUNCTUATION_INSTRUCTION } from "@/lib/customer-text";
 import { applyAnswer, type WebChatCollected, type WebChatStep, type WebChatTenant } from "@/lib/web-chat";
+import { askHistoryForPrompt } from "@/lib/web-chat-repeat";
 import {
   QUESTION_TOPICS,
   classifyQuestionTopic,
@@ -80,7 +81,7 @@ export const WebChatAiExtractionSchema = z.object({
   /**
    * The model's natural wording for this turn: acknowledge what landed, answer
    * what was asked, and ask for at most the one thing still needed. It is
-   * PHRASING ONLY — every claim in it is filtered by the server before the
+   * PHRASING ONLY. every claim in it is filtered by the server before the
    * customer reads it, and it can never change state.
    */
   reply: z.string().nullable(),
@@ -152,6 +153,21 @@ export type AiExtractionContext = {
 
 export const AI_EXTRACTION_TURNS = 6;
 
+/**
+ * How much of an earlier turn is worth re-reading. Service menus and long
+ * descriptions are already known to the server; resending them every turn only
+ * makes the customer wait longer for the same understanding.
+ */
+export const AI_EXTRACTION_TURN_CHARS = 400;
+/** The customer's own words always matter more, so they keep more room. */
+export const AI_EXTRACTION_CUSTOMER_TURN_CHARS = 700;
+
+export function condenseTurn(role: string, body: string): string {
+  const limit = role === "customer" ? AI_EXTRACTION_CUSTOMER_TURN_CHARS : AI_EXTRACTION_TURN_CHARS;
+  const text = body.trim().replace(/\s+/g, " ");
+  return text.length <= limit ? text : `${text.slice(0, limit)}…`;
+}
+
 export function buildAiExtractionSystem(context: AiExtractionContext): string {
   return [
     `You read customer messages for ${context.businessName}, an Australian mobile car detailing business.`,
@@ -204,7 +220,10 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
   };
   const recent = context.turns
     .slice(-AI_EXTRACTION_TURNS)
-    .map((turn) => `${turn.role === "customer" ? "Customer" : "Assistant"}: ${turn.body}`)
+    .map(
+      (turn) =>
+        `${turn.role === "customer" ? "Customer" : "Assistant"}: ${condenseTurn(turn.role, turn.body)}`,
+    )
     .join("\n");
   return [
     "Current confirmed state (already collected and validated):",
@@ -212,6 +231,8 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
     "",
     `Question currently open: ${context.openStep}`,
     `Fields still missing: ${context.outstanding.length > 0 ? context.outstanding.join(", ") : "(none)"}`,
+    `Questions already put to this customer: ${askHistoryForPrompt(context.collected)}`,
+    "Never ask again for something already asked twice, and never reword a question the customer has already been asked. If they have not given it after two asks, say it can be sorted with them directly and move to the next missing detail, or stay silent on it if nothing else is missing.",
     "",
     "Recent conversation:",
     recent || "(no earlier turns)",
@@ -233,7 +254,7 @@ export function buildAiExtractionPrompt(context: AiExtractionContext): string {
  *
  * The AI result is the STRONGER signal: where both produced a value, the AI
  * value wins; where the AI produced nothing, the regex value survives. Nothing
- * here writes to state — that is still `applyIntake`, which validates every
+ * here writes to state. that is still `applyIntake`, which validates every
  * value and preserves fields already collected.
  */
 export function mergeAiExtraction(

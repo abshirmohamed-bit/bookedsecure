@@ -1,4 +1,4 @@
-// Sinch Engage adapter — PLACEHOLDER ONLY.
+// Sinch Engage adapter. PLACEHOLDER ONLY.
 //
 // Nothing here talks to Sinch. No endpoint URL, credential name, auth scheme or
 // signature algorithm has been invented. Every operation fails closed until the

@@ -1,5 +1,5 @@
 /**
- * Phase 4 step 2 — attribution only.
+ * Phase 4 step 2. attribution only.
  *
  * Pure helpers that turn optional agent attribution into the persisted
  * columns on `messages` and `automation_jobs`. Attribution is metadata: this

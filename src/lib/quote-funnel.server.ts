@@ -3,7 +3,7 @@
  *
  * Read-only with one exception: recording that a quote page was opened.
  * Nothing here messages, books, or creates leads, and the unfinished list is
- * deliberately a read path only — see `src/lib/quote-funnel.ts`.
+ * deliberately a read path only. see `src/lib/quote-funnel.ts`.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {

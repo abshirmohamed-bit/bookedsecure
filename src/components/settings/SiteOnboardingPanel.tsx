@@ -134,6 +134,9 @@ export function SiteOnboardingPanel({
                             src={service.image_url}
                             alt=""
                             loading="lazy"
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                            }}
                             className="mb-1.5 h-14 w-full rounded-md bg-secondary object-cover"
                           />
                         )}
@@ -193,7 +196,7 @@ export function SiteOnboardingPanel({
               onClick={() => apply.mutate()}
               disabled={readOnly || apply.isPending}
             >
-              {apply.isPending ? "Saving…" : "Looks good — save it"}
+              {apply.isPending ? "Saving…" : "Looks good. save it"}
             </Button>
             <Button
               type="button"

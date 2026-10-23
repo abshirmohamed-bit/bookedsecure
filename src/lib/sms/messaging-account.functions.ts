@@ -5,7 +5,7 @@
  * Every function is tenant-scoped to the caller's own business. Buying credits
  * and pausing are owner-only; staff can see the balance but not spend money or
  * change sending state. Nothing here can assign a number or enable live
- * sending — that stays with the platform.
+ * sending. that stays with the platform.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -63,6 +63,11 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
     // texts, and which tools are switched on for this business.
     const subscriptionPlan = await getPlanForBusiness(app.businessId);
 
+    // Whether this business can buy credits in the app right now (the credits
+    // panel is only rendered for full access).
+    const { getAccessLevel } = await import("@/lib/subscription.server");
+    const access = await getAccessLevel(app.businessId);
+
     // The credit packs this business may buy (promo pricing included).
     const { resolvePromoEntitlement } = await import("@/lib/promo.server");
     const { packsFor } = await import("@/lib/sms/credit-packs");
@@ -89,6 +94,7 @@ export const getMessagingAccount = createServerFn({ method: "GET" })
 
     return {
       role: app.role,
+      access,
       business: businessResult.data ?? null,
       plan: {
         id: subscriptionPlan.id,
@@ -164,6 +170,20 @@ export const startCreditTopup = createServerFn({ method: "POST" })
     return { clientSecret: result.clientSecret };
   });
 
+/**
+ * Read-only live figures from the messaging provider for this business, so the
+ * Messaging screen can show the provider's own credit balance and number
+ * instead of only our stored copy. Never writes anything.
+ */
+export const getProviderMessagingStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    const { getProviderSnapshot } = await import("@/lib/sms/texto-accounts.server");
+    return await getProviderSnapshot(app.businessId);
+  });
+
 /** Owner-only: pause or resume all automated sending for this business. */
 export const setMessagingPaused = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -193,7 +213,7 @@ export const setMessagingPaused = createServerFn({ method: "POST" })
 
 /**
  * Owner-only: raise a cancellation request. Nothing is cancelled, deleted or
- * refunded automatically — the platform releases the number and closes the
+ * refunded automatically. the platform releases the number and closes the
  * account after reviewing the request.
  */
 export const requestCancellation = createServerFn({ method: "POST" })

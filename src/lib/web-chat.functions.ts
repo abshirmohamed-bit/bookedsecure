@@ -30,7 +30,7 @@ export const startQuoteConversation = createServerFn({ method: "POST" })
 
     const { allowPublicFormAttempt } = await import("@/lib/rate-limit.server");
     // Opening a chat happens on every page open/refresh, so it gets its own
-    // namespace and a realistic budget — the strict lead-submission budget stays
+    // namespace and a realistic budget. the strict lead-submission budget stays
     // untouched on the manual quote form path.
     if (!(await allowPublicFormAttempt(`chatstart:${clientIp()}`, { perMinute: 8, perHour: 40 }))) {
       return { ok: false as const, error: "Too many requests from this device. Please try again shortly." };

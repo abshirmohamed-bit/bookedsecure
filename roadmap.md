@@ -1,5 +1,57 @@
 # Roadmap
 
+## Full external-assistant action access
+- [x] Extend caller-scoped shared customer, booking, catalogue and automation actions; keep messaging/import approvals.
+- [x] Queue broader existing Cowork work for in-app confirmation rather than registering privileged builders; file imports still need an in-app attachment.
+- [x] Pass 78 targeted checks and regenerate the 28-tool catalog; verify signed-in connection-page rendering.
+- [ ] Saved/readback and Confirm-flow verification: diagnostic SQL cannot assume authenticated role or update profile fixtures; signed-in preview account has ended access. No real customer records changed.
+- [x] Update connection-page coverage honestly; no direct sending, deletion, payments or billing.
+
+## Reuse owner AI actions through MCP
+- [x] Audit 36 existing owner actions; share customer/service/add-on/settings mutations and text preparation, reuse the inbox query; generate 15 MCP tools without importing admin clients.
+- [x] Pass 100 automated checks for shared actions, account isolation, confirmations and existing regressions; regenerate the catalog and check app compilation.
+- [ ] Actual database rollback test and signed-in approval readback are blocked by diagnostic profile-write permissions and no matched requesting-user app account.
+- [x] Booking completion/cancellation and automation now share caller-scoped operations; broader privileged work queues a Cowork request for confirmation.
+- [ ] External ChatGPT end-to-end verification requires republishing and an approved external connection.
+
+## Guided ChatGPT connection test
+- [x] Check current-account ChatGPT approval, run a bounded read-only customer lookup, and explain recovery steps without claiming external tool-call success.
+- [x] Pass 38 diagnostic and MCP regression checks; confirm signed-out visitors return to sign-in without runtime errors.
+- [ ] Signed-in guided-screen and real ChatGPT read verification await preview sign-in and a completed ChatGPT authorization; no requesting-user preview account is matched.
+
+## External assistant capability coverage
+- [x] Add customer/contact pagination, customer history, services, business counts, campaign reports and business settings reads with caller-scoped access.
+- [x] Pass 28 checks for tenant scoping, paging, failed reads and existing mutation protections; regenerate the nine-tool external catalog.
+- [ ] Real ChatGPT/provider tool discovery and account reads require a completed external OAuth connection and republishing.
+
+## Tenant-owned AI accounts
+- [x] Support OpenAI, Anthropic, Gemini and xAI through one key-entry form with provider/model selection; backup only after confirmed credit exhaustion.
+- [x] Add encrypted, tenant-isolated key management and direct routing for Cowork, quote chat, extraction, lead analysis, snapshot answers and offer drafts.
+- [x] Preserve permissions, confirmations, monthly safety caps and atomic bookings; prevent replay after agent tools start; pass 161 regression checks.
+- [ ] Live key connection, provider tool continuation and signed-in backup flow await preview owner sign-in and a tenant-provided API key; no real provider key was supplied.
+
+## External AI account connections
+- [x] Activate protected OAuth and add caller-scoped MCP lead/booking reads, note updates and atomic booking saves.
+- [x] Add consent, sign-in return handling, and an AI connections page with grant revocation and browser-local reading.
+- [x] Run 16 checks, verify anonymous/invalid-token rejection and cross-origin blocking, preserve sign-in/signup return URLs, and extract the four-tool integration catalog.
+- [ ] Real-account approval/denial and cross-tenant end-to-end checks require preview sign-in; the requesting user has no matched preview account.
+- [ ] Hosted external-client connection awaits republishing and a compatible client account; ChatGPT, Claude and Grok availability is not verified.
+
+## Deleted-lead booking conflicts
+- [x] Release scheduled slots when a lead is deleted, preserving job history.
+- [x] Repair existing deleted-lead slot blockers for every tenant.
+- [x] Reject failed scheduling with a clear error and verify deletion/rebooking regressions (80 checks plus rollback-only database flow).
+- [ ] Signed-in browser verification: blocked because the requesting user's preview account could not be matched; requires preview sign-in.
+
+- [x] Add +61 466 907 824 as the customer-facing BookedSecure contact number.
+
+- [x] Hide self-service subscription plans on the public site and inside tenant workspaces; direct access enquiries to BookedSecure.
+
+- [x] Fix mobile chat keyboard layout by tracking the iPhone visible viewport and hiding footer copy while typing.
+- [x] Clip service and selected-service card content inside stable mobile card rows.
+- [x] Keep short quote conversations anchored above the composer without a focus-triggered page jump.
+- [x] Remove the app-controlled bottom gap while the mobile quote input is focused.
+
 - [x] Build the approved tenant home with compact product discovery, full Cowork, and unchanged Operational Details.
 - [x] Collapse dashboard performance into one Operational Details button and simplify the opened view.
 
@@ -56,3 +108,26 @@
 - [x] Hard gate: no complete identity record, no number bought or connected.
 - [x] Admin list of identity records with the numbers they stand behind.
 - [ ] Blocked on the provider: first card registration must be done once in their own dashboard.
+
+- [x] Stop the quote chat re-asking the same detail: count asks, add an example, then let optional details go.
+- [x] Replace the landing page with the approved copy only (no pilot application form).
+- [x] Rebuild the mobile Quote Page with tenant-selectable Focused list, Compact grid, and Guided conversation service displays.
+- [x] Align landing-page calls to action on mobile and remove the floating duplicate button.
+- [x] Verify the uploaded mobile landing-page screenshots against the corrected button layout.
+
+## Five trades, one guided journey, owner control room
+- [x] Trade presets for the five headline trades plus office cleaning and test-and-tag.
+- [x] Trade picker on the setup page and in Business settings (owner only, audited).
+- [x] Six-step guided journey derived from real saved state, shown on Home.
+- [x] Paywall: saving imported contacts into the inbox now needs an active subscription.
+- [x] Owner control room at /admin/overview: money, subscriptions, provider balance, work queue, businesses.
+- [x] PRD for the control room saved to Files.
+- [x] Collapse the Home setup journey into an expandable vertical checklist and verify every destination.
+- [ ] Blocked on the provider: buying numbers and topping up credits stay manual until their API supports both.
+
+## Detail Dynasty Sydney onboarding
+- [x] Add an expiry-aware 14-day trial access state without provisioning a number or credits.
+- [x] Create and confirm detail.dynastysydney@gmail.com as the owner of Detail Dynasty Sydney.
+- [x] Assign the BookedSecure plan trial and verify full access, zero credits, and no assigned SMS number.
+- [x] AI provider router + Control room switch (Cheaper Inference primary, Lovable standby)
+- [ ] Save Cheaper Inference key, run health check, live action tests on a test business, then cutover (waits on key)

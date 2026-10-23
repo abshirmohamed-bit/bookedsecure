@@ -2,7 +2,7 @@
 //
 // Runs only after a booking has been committed (confirmed offer + job). It
 // never creates, moves or cancels a booking, never starts a sequence, never
-// sends anything promotional, and never composes its own copy — the body comes
+// sends anything promotional, and never composes its own copy. the body comes
 // from the versioned template in `booking-confirmation.ts`.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
@@ -114,7 +114,7 @@ export async function deliverBookingConfirmation(input: {
 
   // The booking confirmation is transactional: the customer has just booked and
   // is told immediately, at any hour. Quiet hours never hold it back and it is
-  // never queued — the outbound path carries a template-scoped exemption for
+  // never queued. the outbound path carries a template-scoped exemption for
   // this one message. Promotional copy and sequence steps remain blocked.
 
 

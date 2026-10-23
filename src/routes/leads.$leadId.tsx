@@ -34,6 +34,7 @@ import {
   updateLead,
 } from "@/lib/app.functions";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS, formatCurrency, quoteSubjectLabel } from "@/lib/domain";
+import { isoToLocalDateTimeInput, todayInZone } from "@/lib/business-time";
 import { importMethodLabel, leadSourceLabel, originalSourceDetails } from "@/lib/lead-source";
 import { countSegments } from "@/lib/sms/segments";
 import { SuppressionRecoveryPanel } from "@/components/SuppressionRecoveryPanel";
@@ -42,13 +43,13 @@ import { BookingPanel } from "@/components/BookingPanel";
 export const Route = createFileRoute("/leads/$leadId")({
   head: () => ({
     meta: [
-      { title: "Lead conversation — BookedSecure" },
+      { title: "Lead conversation | BookedSecure" },
       {
         name: "description",
         content:
           "Review the SMS conversation, AI summary and suggested reply for a customer enquiry, and record the completed job.",
       },
-      { property: "og:title", content: "Lead conversation — BookedSecure" },
+      { property: "og:title", content: "Lead conversation | BookedSecure" },
       {
         property: "og:description",
         content: "Approve replies, pause automation and record completed-job revenue.",
@@ -210,6 +211,8 @@ function LeadDetail() {
               onSaved={invalidate}
             />
 
+            <LeadEmailPanel leadId={lead.id} email={lead.email} />
+
             <div className="mt-3 space-y-2 border-t border-border pt-3">
               <label className="block text-xs text-muted-foreground" htmlFor="lead-status">
                 Status
@@ -271,7 +274,7 @@ function LeadDetail() {
 
             {lead.opted_out_at && (
               <p className="mt-2 text-xs text-destructive">
-                Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")} — automated SMS
+                Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")}. Automated SMS
                 blocked.
               </p>
             )}
@@ -284,7 +287,7 @@ function LeadDetail() {
             {lead.sms_suppressed_at && (
               <p className="mt-2 text-xs text-warning">
                 Automated SMS suppressed{" "}
-                {new Date(lead.sms_suppressed_at).toLocaleString("en-AU")} —{" "}
+                {new Date(lead.sms_suppressed_at).toLocaleString("en-AU")} -{" "}
                 {lead.sms_suppression_reason ??
                   "permanent delivery failure reported by the provider"}
                 . A later delivery or reply records new evidence but never resumes automation on
@@ -293,7 +296,7 @@ function LeadDetail() {
             )}
             {lead.lead_origin === "crm_import" && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Imported historical lead — the import sent no acknowledgement SMS, owner alert or
+                Imported historical lead. The import sent no acknowledgement SMS, owner alert or
                 follow-up sequence.
               </p>
             )}
@@ -379,7 +382,7 @@ function LeadDetail() {
                       {message.failure_class === "permanent"
                         ? " Future automated SMS is suppressed for this lead."
                         : message.failure_class === "temporary"
-                          ? " Temporary problem — no automatic retry was sent."
+                          ? " Temporary problem, no automatic retry was sent."
                           : ""}
                     </p>
                   )}
@@ -450,7 +453,7 @@ function LeadDetail() {
                 {ai.suggested_reply && (
                   <div className="rounded-md border border-border bg-secondary/50 p-3">
                     <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <Bot className="h-3.5 w-3.5" /> Suggested reply — needs your approval
+                      <Bot className="h-3.5 w-3.5" /> Suggested reply, needs your approval
                     </p>
                     <p className="mt-1.5 whitespace-pre-wrap text-sm">{ai.suggested_reply}</p>
                     <button
@@ -487,6 +490,7 @@ function LeadDetail() {
             services={services}
             onDone={invalidate}
             scheduleFn={scheduleJob}
+            timeZone={data.timeZone}
           />
 
           <ActivityPanel notifications={notifications} automationJobs={automationJobs} />
@@ -533,7 +537,7 @@ function when(value: string | null) {
         hour: "2-digit",
         minute: "2-digit",
       })
-    : "—";
+    : "Not recorded";
 }
 
 function ActivityPanel({
@@ -584,11 +588,89 @@ function ActivityPanel({
   );
 }
 
+function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | null }) {
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!email) return null;
+
+  async function onSend() {
+    if (!window.confirm(`Send this email to ${email}?`)) return;
+    setBusy(true);
+    try {
+      const { sendLeadEmail } = await import("@/lib/email-campaigns.functions");
+      const result = await sendLeadEmail({ data: { leadId, subject, bodyText: body } });
+      if (result.sent > 0) {
+        toast.success(`Email sent to ${email}.`);
+        setOpen(false);
+        setSubject("");
+        setBody("");
+      } else {
+        toast.error("The email could not be sent.");
+      }
+      if (!result.fromDeliverable) {
+        toast.warning(
+          "Emails only reach your own inbox until your sending domain is verified..",
+        );
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send the email.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Send className="h-3.5 w-3.5" /> Send an email
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <input
+            className="form-control text-xs"
+            placeholder="Subject"
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
+          />
+          <textarea
+            className="form-control min-h-24 text-xs"
+            placeholder="Write the email in your own words..."
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={onSend}
+              disabled={busy || subject.trim().length < 2 || body.trim().length < 2}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              <Send className="h-3.5 w-3.5" /> Send email
+            </button>
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Detail({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-2">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words text-sm">{value || "—"}</dd>
+      <dd className="min-w-0 break-words text-sm">{value || "Not recorded"}</dd>
     </div>
   );
 }
@@ -822,23 +904,28 @@ function JobPanel({
   services,
   onDone,
   scheduleFn,
+  timeZone,
 }: {
   leadId: string;
   job: JobRow;
   services: { id: string; name: string; price_guidance: string | null }[];
   onDone: () => void;
   scheduleFn: typeof scheduleJob;
+  timeZone: string;
 }) {
   const complete = useServerFn(recordCompletedJob);
   const schedule = useServerFn(scheduleFn);
   const [form, setForm] = useState({
     service_id: "",
     service_performed: job?.service_performed ?? "",
-    completed_at: new Date().toISOString().slice(0, 10),
+    completed_at: todayInZone(timeZone),
     completed_value: job?.completed_value ? String(job.completed_value) : "",
     notes: "",
   });
-  const [scheduledAt, setScheduledAt] = useState(job?.scheduled_at?.slice(0, 16) ?? "");
+  // Shown in the business's own timezone, so what is typed is what is saved.
+  const [scheduledAt, setScheduledAt] = useState(
+    isoToLocalDateTimeInput(job?.scheduled_at, timeZone),
+  );
 
   const completeMutation = useMutation({
     mutationFn: () =>
@@ -979,17 +1066,17 @@ function ImportedSourcePanel({
   const importInfo = (meta["import"] ?? {}) as Record<string, unknown>;
   const original = originalSourceDetails(meta);
   const entries: [string, string][] = [
-    ["Suburb", suburb ?? "—"],
-    ["Vehicle", vehicleType ?? "—"],
-    ["Service interest", serviceIntent ?? "—"],
+    ["Suburb", suburb ?? "Not recorded"],
+    ["Vehicle", vehicleType ?? "Not recorded"],
+    ["Service interest", serviceIntent ?? "Not recorded"],
     ["Import method", "CRM CSV"],
-    ["Original channel", original.channel ?? "—"],
-    ["Original platform", original.platform ?? "—"],
-    ["Form name", original.form ?? "—"],
-    ["Campaign", original.campaign ?? "—"],
-    ["Original created date", original.createdAt ?? "—"],
-    ["Import batch", String(importInfo["batch_id"] ?? "—")],
-    ["Import row", String(importInfo["row_number"] ?? "—")],
+    ["Original channel", original.channel ?? "Not recorded"],
+    ["Original platform", original.platform ?? "Not recorded"],
+    ["Form name", original.form ?? "Not recorded"],
+    ["Campaign", original.campaign ?? "Not recorded"],
+    ["Original created date", original.createdAt ?? "Not recorded"],
+    ["Import batch", String(importInfo["batch_id"] ?? "Not recorded")],
+    ["Import row", String(importInfo["row_number"] ?? "Not recorded")],
   ];
 
   return (

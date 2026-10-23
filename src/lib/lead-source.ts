@@ -1,8 +1,8 @@
 // Pure, read-only source attribution helpers.
 //
 // Two different facts are kept apart on purpose:
-//   * original source  — where the enquiry actually came from (e.g. GoDaddy)
-//   * import method    — how the record reached BookedSecure (e.g. CRM CSV)
+//   * original source . where the enquiry actually came from (e.g. GoDaddy)
+//   * import method   . how the record reached BookedSecure (e.g. CRM CSV)
 //
 // Nothing here writes data; it only derives display values from a lead row and
 // its preserved import metadata.
@@ -29,7 +29,7 @@ export function importMethodLabel(lead: AttributableLead): string | null {
 
 /**
  * True only for enquiries that actually arrived through the native
- * Facebook/Meta integration — never for CRM-imported historical records.
+ * Facebook/Meta integration. never for CRM-imported historical records.
  */
 export function isNativeFacebookLead(lead: AttributableLead): boolean {
   return lead.source_channel === "meta" && lead.lead_origin !== CRM_IMPORT_ORIGIN;

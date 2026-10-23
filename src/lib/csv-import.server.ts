@@ -86,7 +86,7 @@ export function assertCsvLimits(content: string, rowCount: number): void {
  *
  * Uses the project's existing lead identity rule: normalized AU mobile in
  * E.164 form, or normalized (lower-cased, trimmed) email, scoped to one
- * business_id. It only SELECTs from leads — never insert, update or delete.
+ * business_id. It only SELECTs from leads. never insert, update or delete.
  */
 export async function loadExistingIndex(
   client: Client,

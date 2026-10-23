@@ -3,7 +3,7 @@
 
 import type { InternalDeliveryStatus } from "./events";
 
-/** Status written before the carrier call — a reservation, not a send. */
+/** Status written before the carrier call. a reservation, not a send. */
 export const RESERVED_STATUS: InternalDeliveryStatus = "queued";
 /** Carrier accepted or rejected is unknown: needs reconciliation, never a resend. */
 export const UNKNOWN_STATUS: InternalDeliveryStatus = "unknown";

@@ -42,7 +42,7 @@ export function toggleSelection(selection: Iterable<string>, leadId: string): st
 /**
  * Select-all is scoped to the rows currently visible after filtering, and
  * leaves any previously selected id that is no longer visible untouched only
- * when it is still part of the visible set — hidden rows are never added.
+ * when it is still part of the visible set. hidden rows are never added.
  */
 export function selectAllVisible(visible: { id: string }[]): string[] {
   return normaliseSelection(visible.map((row) => row.id));
@@ -253,7 +253,7 @@ export function summariseResult(result: DeletionResult): string {
     `${result.failed} failed`,
   ];
   if (result.alreadyDeleted > 0) parts.push(`${result.alreadyDeleted} already removed`);
-  if (result.idempotentReplay) parts.push("repeat request — no new deletions");
+  if (result.idempotentReplay) parts.push("repeat request. no new deletions");
   return parts.join(" · ");
 }
 

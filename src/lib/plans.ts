@@ -1,10 +1,10 @@
 /**
- * Subscription plans — client-safe types and pure helpers.
+ * Subscription plans. client-safe types and pure helpers.
  *
  * Plans live in the `plans` table so pricing is never hardcoded in a screen.
- * Two are offered: Essentials and Pro. A business's plan decides how many
- * texts are included each month, what an extra text costs, whether
- * reactivation campaigns are available, and how many team members it may have.
+ * One plan is offered: the BookedSecure platform subscription. The phone number
+ * and text credits are bought separately, so a plan's `includedSegments` may be
+ * zero. A business's plan still decides feature access and team size.
  */
 export type Plan = {
   id: string;
@@ -25,7 +25,18 @@ export type Plan = {
   sortOrder: number;
 };
 
-export const DEFAULT_PLAN_ID = "essentials";
+export const DEFAULT_PLAN_ID = "platform";
+
+/**
+ * The Founder plan is billed outside Stripe on separate terms. Stripe events
+ * (failed renewals, cancellations) must never reduce a founder business's
+ * access — an old linked Stripe subscription may still report failures.
+ */
+export const FOUNDER_PLAN_ID = "founder";
+
+export function isExternallyBilledPlan(planId: string): boolean {
+  return planId === FOUNDER_PLAN_ID;
+}
 
 /** What one extra text costs on every plan, in cents. */
 export const CREDIT_PRICE_CENTS = 6;

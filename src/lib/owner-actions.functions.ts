@@ -67,6 +67,7 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
     });
 
     const result = await handleOwnerRequest({
+      client: context.supabase,
       businessId: app.businessId,
       userId: app.userId,
       role: app.role,

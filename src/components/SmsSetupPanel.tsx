@@ -76,12 +76,12 @@ export function SmsSetupPanel() {
           <div>
             <dt className="text-xs text-muted-foreground">Provider</dt>
             <dd className="mt-1 text-sm font-medium">
-              {primary ? (PROVIDER_LABELS[primary.provider] ?? primary.provider) : "—"}
+              {primary ? (PROVIDER_LABELS[primary.provider] ?? primary.provider) : "Not available"}
             </dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Assigned business</dt>
-            <dd className="mt-1 text-sm font-medium">{data.business?.name ?? "—"}</dd>
+            <dd className="mt-1 text-sm font-medium">{data.business?.name ?? "Not available"}</dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Active</dt>
@@ -105,9 +105,9 @@ export function SmsSetupPanel() {
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Display label</dt>
-            <dd className="mt-1 text-sm font-medium">{primary?.label ?? "—"}</dd>
+            <dd className="mt-1 text-sm font-medium">{primary?.label ?? "Not available"}</dd>
             <dd className="text-xs text-muted-foreground">
-              Display only — does not affect routing.
+              Display only. does not affect routing.
             </dd>
           </div>
         </dl>
@@ -115,7 +115,7 @@ export function SmsSetupPanel() {
           <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
             {retired.map((sender) => (
               <li key={sender.id}>
-                {sender.phone_number} — {sender.label ?? "no label"} (
+                {sender.phone_number}. {sender.label ?? "no label"} (
                 {sender.active ? "active, not primary" : "inactive / retired"})
               </li>
             ))}

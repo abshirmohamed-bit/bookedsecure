@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -225,6 +225,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_gateway_state: {
+        Row: {
+          agent_model: string | null
+          fast_model: string | null
+          id: string
+          last_check: Json | null
+          lovable_standby: boolean
+          paused: boolean
+          primary_provider: string
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_model?: string | null
+          fast_model?: string | null
+          id: string
+          last_check?: Json | null
+          lovable_standby?: boolean
+          paused?: boolean
+          primary_provider?: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_model?: string | null
+          fast_model?: string | null
+          id?: string
+          last_check?: Json | null
+          lovable_standby?: boolean
+          paused?: boolean
+          primary_provider?: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       ai_outputs: {
         Row: {
@@ -996,11 +1032,15 @@ export type Database = {
           privacy_policy_url: string | null
           quiet_hours_end: number
           quiet_hours_start: number
+          quote_agent_enabled: boolean
           quote_form_active: boolean
           quote_mode: string
+          quote_service_layout: string
           quote_subject_label: string | null
           quote_subject_options: string[] | null
           service_area: string | null
+          signup_ref: string | null
+          signup_source: string | null
           slug: string | null
           sms_credential_mode: string
           sms_signature: string | null
@@ -1010,6 +1050,7 @@ export type Database = {
           subscription_status: string
           subscription_updated_at: string | null
           timezone: string
+          trade: string | null
           updated_at: string
           website_url: string | null
         }
@@ -1045,11 +1086,15 @@ export type Database = {
           privacy_policy_url?: string | null
           quiet_hours_end?: number
           quiet_hours_start?: number
+          quote_agent_enabled?: boolean
           quote_form_active?: boolean
           quote_mode?: string
+          quote_service_layout?: string
           quote_subject_label?: string | null
           quote_subject_options?: string[] | null
           service_area?: string | null
+          signup_ref?: string | null
+          signup_source?: string | null
           slug?: string | null
           sms_credential_mode?: string
           sms_signature?: string | null
@@ -1059,6 +1104,7 @@ export type Database = {
           subscription_status?: string
           subscription_updated_at?: string | null
           timezone?: string
+          trade?: string | null
           updated_at?: string
           website_url?: string | null
         }
@@ -1094,11 +1140,15 @@ export type Database = {
           privacy_policy_url?: string | null
           quiet_hours_end?: number
           quiet_hours_start?: number
+          quote_agent_enabled?: boolean
           quote_form_active?: boolean
           quote_mode?: string
+          quote_service_layout?: string
           quote_subject_label?: string | null
           quote_subject_options?: string[] | null
           service_area?: string | null
+          signup_ref?: string | null
+          signup_source?: string | null
           slug?: string | null
           sms_credential_mode?: string
           sms_signature?: string | null
@@ -1108,6 +1158,7 @@ export type Database = {
           subscription_status?: string
           subscription_updated_at?: string | null
           timezone?: string
+          trade?: string | null
           updated_at?: string
           website_url?: string | null
         }
@@ -1380,6 +1431,156 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "credit_topups_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_campaign_recipients: {
+        Row: {
+          business_id: string
+          campaign_id: string
+          created_at: string
+          email: string
+          error: string | null
+          id: string
+          lead_id: string | null
+          provider_id: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          business_id: string
+          campaign_id: string
+          created_at?: string
+          email: string
+          error?: string | null
+          id?: string
+          lead_id?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          business_id?: string
+          campaign_id?: string
+          created_at?: string
+          email?: string
+          error?: string | null
+          id?: string
+          lead_id?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_campaign_recipients_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_campaign_recipients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_campaign_recipients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_campaigns: {
+        Row: {
+          approved_at: string | null
+          body_text: string
+          business_id: string
+          cancelled_at: string | null
+          created_at: string
+          created_by: string | null
+          from_address: string
+          id: string
+          name: string
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          approved_at?: string | null
+          body_text: string
+          business_id: string
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          from_address?: string
+          id?: string
+          name: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          approved_at?: string | null
+          body_text?: string
+          business_id?: string
+          cancelled_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          from_address?: string
+          id?: string
+          name?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_unsubscribes: {
+        Row: {
+          business_id: string
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_unsubscribes_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
@@ -3295,6 +3496,44 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_ai_accounts: {
+        Row: {
+          business_id: string
+          enabled: boolean
+          key_ciphertext: string
+          model: string
+          provider: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          business_id: string
+          enabled?: boolean
+          key_ciphertext: string
+          model: string
+          provider: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          business_id?: string
+          enabled?: boolean
+          key_ciphertext?: string
+          model?: string
+          provider?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_ai_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_month_statements: {
         Row: {
           business_id: string
@@ -3839,6 +4078,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      assistant_account_action: {
+        Args: { p_action: string; p_input: Json }
+        Returns: Json
+      }
+      assistant_action_business:
+        | { Args: { p_require_plan?: boolean }; Returns: string }
+        | {
+            Args: { p_require_owner?: boolean; p_require_plan?: boolean }
+            Returns: string
+          }
+      assistant_operational_action: {
+        Args: { p_action: string; p_input: Json }
+        Returns: Json
+      }
       commit_web_chat_booking: {
         Args: {
           p_business_id: string
@@ -3846,6 +4099,23 @@ export type Database = {
           p_lead_id: string
           p_offer_id: string
         }
+        Returns: Json
+      }
+      mcp_prepare_assistant_text: {
+        Args: { p_lead_id: string; p_message: string }
+        Returns: Json
+      }
+      mcp_schedule_job: {
+        Args: { p_lead_id: string; p_scheduled_at: string }
+        Returns: string
+      }
+      mcp_update_lead_notes: {
+        Args: { p_lead_id: string; p_notes: string }
+        Returns: string
+      }
+      mcp_write_business: { Args: never; Returns: string }
+      prepare_connected_assistant_request: {
+        Args: { p_request: string }
         Returns: Json
       }
       record_blocked_sms_segments: {
@@ -3881,6 +4151,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      schedule_owner_job: {
+        Args: {
+          p_business_id: string
+          p_lead_id: string
+          p_scheduled_at: string
+        }
+        Returns: string
       }
       set_cron_credential: {
         Args: { p_name: string; p_secret: string }

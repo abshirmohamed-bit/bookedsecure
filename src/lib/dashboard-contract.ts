@@ -3,7 +3,7 @@
 // The Leads page renders both headline metrics and the lead inbox from one
 // request. This module keeps the two concerns separable: a malformed or missing
 // metrics block must never hide the lead list, and safe zero defaults are only
-// ever used for genuinely empty metrics — never to conceal a failed request.
+// ever used for genuinely empty metrics. never to conceal a failed request.
 
 import { buildPageMeta, DEFAULT_PAGE_SIZE, type PageMeta } from "@/lib/lead-pagination";
 
@@ -220,7 +220,7 @@ export type DashboardDiagnostic = {
 
 /**
  * Builds a safe diagnostic: never includes the tenant id itself, lead data, or
- * customer details — only whether business context was present.
+ * customer details. only whether business context was present.
  */
 export function buildDashboardDiagnostic(input: {
   outcome: DashboardDiagnostic["outcome"];

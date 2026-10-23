@@ -239,7 +239,7 @@ export type NormalizedEdit = {
 /**
  * Re-run every field normalization for one edited row: the shared Australian
  * phone classifier, email validation, name validation and stage mapping.
- * Pure — identical input always yields identical output.
+ * Pure. identical input always yields identical output.
  */
 export function normalizeEditableValues(values: EditableValues): NormalizedEdit {
   const errors: ValidationError[] = [];
@@ -472,7 +472,7 @@ export function canEditStagedRow(row: { commit_status?: string }): boolean {
 /** Mask a contact value so duplicate matches can be shown safely. */
 export function maskContact(value: string | null | undefined): string {
   const raw = text(value);
-  if (!raw) return "—";
+  if (!raw) return "Not available";
   if (raw.includes("@")) {
     const [local = "", domain = ""] = raw.split("@");
     const head = local.slice(0, 1);
@@ -484,5 +484,5 @@ export function maskContact(value: string | null | undefined): string {
 
 export function maskLeadId(value: string | null | undefined): string {
   const raw = text(value);
-  return raw ? `${raw.slice(0, 8)}…` : "—";
+  return raw ? `${raw.slice(0, 8)}…` : "Not available";
 }

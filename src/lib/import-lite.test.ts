@@ -257,7 +257,7 @@ describe("advanced view highlight", () => {
 
   it("labels the button for screen readers with the held count", () => {
     expect(advancedHighlight({ held: 2 }).ariaLabel).toBe(
-      "Advanced View — 2 contacts need review",
+      "Advanced View. 2 contacts need review",
     );
   });
 

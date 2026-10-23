@@ -138,11 +138,10 @@ export function ReactivationPanel() {
             <h2 className="text-sm font-semibold">Win back dormant leads</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               You have {data?.candidates ?? 0} past contacts who could be invited back. Bringing
-              them back is part of the Pro plan — your {data?.planName} plan doesn&apos;t include
-              it yet.
+               them back isn&apos;t enabled for your workspace yet.
             </p>
-            <a href="/pricing" className="mt-2 inline-block text-xs font-medium underline">
-              See what Pro adds
+             <a href="tel:+61466907824" className="mt-2 inline-block text-xs font-medium underline">
+               Call +61 466 907 824
             </a>
           </div>
         </div>

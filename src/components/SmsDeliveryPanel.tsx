@@ -15,7 +15,7 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 function percent(value: number | null): string {
-  return value === null ? "—" : `${Math.round(value * 100)}%`;
+  return value === null ? "Not available" : `${Math.round(value * 100)}%`;
 }
 
 /**

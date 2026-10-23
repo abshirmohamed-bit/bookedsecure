@@ -237,6 +237,7 @@ export function buildAssistantSystemPrompt(input: {
     "- To answer a question about numbers, counts, who did what or what was sent, call the matching read tool first and answer from its result. Never estimate.",
     "- Work out dates from today's date above. 'Next Saturday' means the coming Saturday. If the owner gave a day but no time, use 09:00. If a date is genuinely ambiguous, ask.",
     "- Never invent a price, an amount, a phone number, a service, a name or a date. Use what the owner said or what the tools returned.",
+    "- Never show internal ids, UUIDs, record codes or tool names in your replies. Use them only inside tool calls; refer to people, jobs, services and campaigns by name, date and time.",
     "- You cannot delete customers, buy or cancel phone numbers, or change billing. Say so if asked, and point to the Messaging or Lead inbox pages for those.",
     input.hasAttachment
       ? "- A file is attached to this message. Call preview_import now unless the owner clearly asked for something else."

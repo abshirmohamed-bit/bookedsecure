@@ -38,7 +38,7 @@ export function evaluateQuietHoursGate(settings: QuietHoursSettings, at: Date): 
     localHour,
     start: settings.quiet_hours_start,
     end: settings.quiet_hours_end,
-    reason: `Quiet hours (${settings.quiet_hours_start}:00–${settings.quiet_hours_end}:00 ${settings.timezone}) — nothing was sent.`,
+    reason: `Quiet hours (${settings.quiet_hours_start}:00–${settings.quiet_hours_end}:00 ${settings.timezone}). nothing was sent.`,
   };
 }
 

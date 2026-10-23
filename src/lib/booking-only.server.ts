@@ -94,7 +94,7 @@ export async function finalizeBookingOnlyBooking(input: {
     slotLabel: label,
   });
   // Resting state for a booked customer: a confirmed booking means this lead is
-  // a booked lead, never a cold contact-only record. Projection only — booking
+  // a booked lead, never a cold contact-only record. Projection only. booking
   // rows stay authoritative and no sequence is planned.
   await supabaseAdmin
     .from("leads")

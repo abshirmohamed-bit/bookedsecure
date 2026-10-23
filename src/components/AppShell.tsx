@@ -1,7 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { SubscriptionBanner } from "@/components/billing/SubscriptionBanner";
 import {
   BarChart3,
   CalendarDays,
@@ -9,13 +8,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
-  CreditCard,
   FileUp,
   Inbox,
   Menu,
+  Phone,
   MessageCircle,
   PanelLeft,
   Settings,
+  ShieldCheck,
   Sparkles,
   SquareArrowOutUpRight,
   Users,
@@ -30,6 +30,7 @@ import { AccountMenu } from "@/components/AccountMenu";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { TenantMark } from "@/components/TenantMark";
 import { Button } from "@/components/ui/button";
+import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
 
 import { useAuth } from "@/hooks/useAuth";
 import { getSession } from "@/lib/app.functions";
@@ -92,6 +93,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
   const breadcrumb = navBreadcrumb(pathname);
   const business = appSession.data?.business ?? null;
+  const isPlatformOwner = Boolean(appSession.data?.isPlatformAdmin);
   const tenantName = business?.name ?? null;
   const quotePath = tenantQuotePath(business?.slug ?? null);
 
@@ -100,19 +102,26 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   return (
     <div
       className={cn(
-        "min-h-screen bg-background transition-[padding] duration-200 lg:pl-[19.5rem]",
+        isAssistantHome
+          ? "flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-background transition-[padding] duration-200 lg:pl-[19.5rem]"
+          : "min-h-screen bg-background transition-[padding] duration-200 lg:pl-[19.5rem]",
         tenantRailCollapsed && "lg:pl-16",
       )}
     >
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-16 flex-col items-center border-r border-sidebar-border bg-sidebar py-3 lg:flex">
         <Link
-          to="/dashboard"
+          to="/"
           title="BookedSecure home"
           aria-label="BookedSecure home"
-          className="grid size-10 place-items-center rounded-md bg-primary font-heading text-lg font-bold text-primary-foreground shadow-sm"
+          className="grid size-10 place-items-center rounded-md"
         >
-          B
+          <img
+            src={brandMark.url}
+            alt="BookedSecure"
+            className="h-8 w-8 shrink-0 object-contain object-center"
+          />
         </Link>
+
         <div className="mt-6 flex flex-col gap-2">
           <FeedbackButton rail />
 
@@ -133,12 +142,22 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         )}
       >
         <div className="grid h-20 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-sidebar-border px-4">
-          <TenantMark name={tenantName} logoUrl={business?.logo_url ?? null} size={38} />
+          {isPlatformOwner ? (
+            <img
+              src={brandMark.url}
+              alt="BookedSecure"
+              className="h-[38px] w-[38px] shrink-0 object-contain object-center"
+            />
+          ) : (
+            <TenantMark name={tenantName} logoUrl={business?.logo_url ?? null} size={38} />
+          )}
           <div className="min-w-0">
             <p className="truncate font-heading text-base font-semibold text-sidebar-foreground">
-              {tenantHeaderTitle(tenantName)}
+              {isPlatformOwner ? "BookedSecure" : tenantHeaderTitle(tenantName)}
             </p>
-            <p className="text-[11px] font-medium text-muted-foreground">Tenant workspace</p>
+            <p className="text-[11px] font-medium text-muted-foreground">
+              {isPlatformOwner ? "Platform owner" : "Tenant workspace"}
+            </p>
           </div>
           <Button
             type="button"
@@ -152,7 +171,21 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </Button>
         </div>
         <nav aria-label="Tenant navigation" className={cn("shrink-0 overflow-y-auto px-3 py-4", isAssistantHome && "max-h-[48dvh]")}>
-          <SidebarLabel>Workspace</SidebarLabel>
+          {isPlatformOwner ? (
+            <>
+              <SidebarLabel>Platform</SidebarLabel>
+              <SidebarLink
+                to="/admin/overview"
+                label="Control room"
+                active={pathname.startsWith("/admin")}
+                icon={ShieldCheck}
+                onClick={() => setMobileNavOpen(false)}
+              />
+            </>
+          ) : null}
+          <SidebarLabel {...(isPlatformOwner ? { className: "mt-5" } : {})}>
+            {isPlatformOwner ? "Sandbox (what tenants see)" : "Workspace"}
+          </SidebarLabel>
           {PRIMARY_NAV.map((item) => (
             <SidebarLink
               key={item.to}
@@ -217,13 +250,15 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             icon={Users}
             onClick={() => setMobileNavOpen(false)}
           />
-          <SidebarLink
-            to="/settings/billing"
-            label="Plan & billing"
-            active={pathname.startsWith("/settings/billing")}
-            icon={CreditCard}
-            onClick={() => setMobileNavOpen(false)}
-          />
+          <SidebarLink to="/settings/integrations" label="AI connections" active={pathname.startsWith('/settings/integrations')} icon={Sparkles} onClick={() => setMobileNavOpen(false)} />
+          {!isPlatformOwner ? (
+            <a
+              href="tel:+61466907824"
+              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <Phone className="h-4 w-4" aria-hidden="true" /> Call +61 466 907 824
+            </a>
+          ) : null}
         </nav>
         {isAssistantHome ? <div id="assistant-context-slot" className="min-h-0 flex-1 border-t border-sidebar-border" /> : <div className="flex-1" />}
         <div className="shrink-0 border-t border-sidebar-border p-3">
@@ -268,8 +303,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
            <div className="lg:hidden"><AccountMenu onSignOut={() => navigate({ to: "/auth", replace: true })} /></div>
         </div>
       </header>
-       <SubscriptionBanner />
-       <main className={cn("min-w-0", isAssistantHome ? "overflow-hidden" : "mx-auto max-w-[1500px] px-4 py-5 sm:px-6")}>{children}</main>
+       <main className={cn("min-w-0", isAssistantHome ? "min-h-0 flex-1 overflow-hidden" : "mx-auto max-w-[1500px] px-4 py-5 sm:px-6")}>{children}</main>
     </div>
   );
 }
@@ -304,8 +338,9 @@ function SidebarLink({
     | "/settings/business"
     | "/settings/messaging"
     | "/settings/automation"
-    | "/settings/team"
-    | "/settings/billing";
+     | "/settings/team"
+    | "/settings/integrations"
+    | "/admin/overview";
   label: string;
   active: boolean;
   icon: typeof BarChart3;

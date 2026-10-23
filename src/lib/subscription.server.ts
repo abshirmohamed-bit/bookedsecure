@@ -7,7 +7,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
-import type { Plan } from "@/lib/plans";
+import { DEFAULT_PLAN_ID, type Plan } from "@/lib/plans";
 import { getPlanForBusiness } from "@/lib/plans.server";
 import {
   accessLevel,
@@ -44,7 +44,7 @@ type SubscriptionRow = Pick<
 export function toSubscriptionState(row: SubscriptionRow): SubscriptionState {
   return {
     status: (row.subscription_status as SubscriptionStatus) ?? "preview",
-    planId: row.plan_id ?? "essentials",
+    planId: row.plan_id ?? DEFAULT_PLAN_ID,
     interval: (row.billing_interval as BillingInterval) ?? "month",
     currentPeriodStart: row.current_period_start,
     currentPeriodEnd: row.current_period_end,

@@ -14,7 +14,9 @@ export function NotificationBell({ rail = false }: { rail?: boolean }) {
   const { session } = useAuth();
 
   const { data } = useQuery({
-    enabled: Boolean(session),
+    // A stale/expired session has no usable token: calling the server then
+    // fails with "no authorization header" and blanks the screen.
+    enabled: Boolean(session?.access_token),
     queryKey: ["notifications"],
     queryFn: () => fetchNotifications(),
     refetchInterval: 60_000,
@@ -25,6 +27,9 @@ export function NotificationBell({ rail = false }: { rail?: boolean }) {
     // New bookings should surface as soon as the owner comes back to the tab.
     refetchOnWindowFocus: true,
     refetchOnMount: false,
+    retry: false,
+    // Never escalate a signed-out read to the route error boundary.
+    throwOnError: false,
   });
 
   const mutation = useMutation({

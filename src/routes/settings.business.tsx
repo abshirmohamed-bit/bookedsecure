@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { AvailabilityEditor } from "@/components/settings/availability";
 import { TenantAccountPanel } from "@/components/settings/TenantAccountPanel";
+import { TradePicker } from "@/components/settings/TradePicker";
 
 import {
   AddonsEditor,
@@ -24,13 +25,13 @@ import {
 export const Route = createFileRoute("/settings/business")({
   head: () => ({
     meta: [
-      { title: "Business settings — BookedSecure" },
+      { title: "Business settings | BookedSecure" },
       {
         name: "description",
         content:
           "Business name, service area, opening hours and the approved service catalogue used in quotes.",
       },
-      { property: "og:title", content: "Business settings — BookedSecure" },
+      { property: "og:title", content: "Business settings | BookedSecure" },
       {
         property: "og:description",
         content: "Manage business details and the approved service catalogue.",
@@ -113,9 +114,15 @@ function BusinessSettingsPage() {
                 "timezone",
               ]}
             />
+            <TradePicker readOnly={data.role !== "owner"} />
             <TenantAccountPanel />
             <QuotePageModeCard
               quoteMode={data.business.quote_mode}
+              quoteServiceLayout={data.business.quote_service_layout}
+              quoteAgentEnabled={
+                (data.business as { quote_agent_enabled?: boolean | null }).quote_agent_enabled !==
+                false
+              }
               slug={data.business.slug}
               readOnly={data.role !== "owner"}
             />

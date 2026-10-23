@@ -1,0 +1,83 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791865620292,
+      "tag": "0000_email_campaigns",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792351406891,
+      "tag": "0001_release_deleted_lead_slots_and_atomic_scheduling",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792354456709,
+      "tag": "0002_authenticated_mcp_mutations",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792356068238,
+      "tag": "0003_tenant_ai_backup_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792532639472,
+      "tag": "0004_ai_provider_routing",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792564414597,
+      "tag": "0005_reuse_assistant_actions_for_oauth",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792564616679,
+      "tag": "0006_preserve_existing_assistant_permissions_and_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792729089737,
+      "tag": "0007_shared_assistant_operational_actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792729137672,
+      "tag": "0008_assistant_links_and_pending_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792729430877,
+      "tag": "0009_preserve_shared_operational_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792729499966,
+      "tag": "0010_validate_shared_operational_inputs",
+      "breakpoints": true
+    }
+  ]
+}

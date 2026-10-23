@@ -5,13 +5,13 @@ import { BusinessSettingsForm, RulesEditor, SettingsPageBody } from "@/component
 export const Route = createFileRoute("/settings/automation")({
   head: () => ({
     meta: [
-      { title: "Automation — BookedSecure" },
+      { title: "Automation | BookedSecure" },
       {
         name: "description",
         content:
           "Turn automated acknowledgements on or off and edit the timing and wording of each SMS follow-up step.",
       },
-      { property: "og:title", content: "Automation — BookedSecure" },
+      { property: "og:title", content: "Automation | BookedSecure" },
       {
         property: "og:description",
         content: "Control the acknowledgement and follow-up SMS sequence.",

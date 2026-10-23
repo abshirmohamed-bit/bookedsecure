@@ -23,7 +23,7 @@ export type BookingBlockReason =
 
 export const BOOKING_BLOCK_LABELS: Record<BookingBlockReason, string> = {
   cross_tenant: "This record belongs to another business.",
-  opted_out: "The lead has opted out — nothing can be sent or booked.",
+  opted_out: "The lead has opted out. nothing can be sent or booked.",
   lead_status_blocked: "The lead status does not allow booking.",
   automation_paused: "Automation is paused for this conversation (owner takeover).",
   availability_inactive: "Bookable availability is switched off in Business settings.",
@@ -32,7 +32,7 @@ export const BOOKING_BLOCK_LABELS: Record<BookingBlockReason, string> = {
   no_slots_available: "No valid appointment options are available.",
   offer_not_found: "That appointment option does not exist for this lead.",
   no_customer_selection: "The customer has not explicitly chosen one of the offered times.",
-  offer_expired: "That appointment option has expired — offer fresh times.",
+  offer_expired: "That appointment option has expired. offer fresh times.",
   slot_unavailable: "That time is no longer available.",
   sms_suppressed: "Automated SMS is suppressed for this lead.",
 };
@@ -204,7 +204,7 @@ export function buildBookingConfirmationMessage(input: {
   });
 }
 
-/** Deterministic idempotency keys — a replay never sends or books twice. */
+/** Deterministic idempotency keys. a replay never sends or books twice. */
 export function slotOfferIdempotencyKey(offerIds: string[]): string {
   return `slot_offer:${[...offerIds].sort().join(",")}`;
 }

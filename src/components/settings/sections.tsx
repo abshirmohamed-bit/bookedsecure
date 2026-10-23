@@ -2,6 +2,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+
 import { groupItems } from "@/lib/service-groups";
 import { formatDuration } from "@/components/settings/availability";
 import {
@@ -9,11 +18,22 @@ import {
   saveAutomationRule,
   saveBusinessSettings,
   saveQuotePageMode,
+  saveQuoteServiceLayout,
+  saveQuoteAgentEnabled,
   saveService,
+  deleteAllServices,
+  deleteService,
   saveServiceAddon,
   deleteServiceAddon,
 } from "@/lib/app.functions";
 import { QUOTE_MODES, QUOTE_MODE_LABELS, resolveQuoteMode, type QuoteMode } from "@/lib/quote-mode";
+import {
+  QUOTE_SERVICE_LAYOUTS,
+  QUOTE_SERVICE_LAYOUT_DESCRIPTIONS,
+  QUOTE_SERVICE_LAYOUT_LABELS,
+  resolveQuoteServiceLayout,
+  type QuoteServiceLayout,
+} from "@/lib/quote-service-layout";
 import { removeTeamMember, setTeamAccess } from "@/lib/team.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { removeServiceImage, uploadServiceImage } from "@/lib/tenant-account.functions";
@@ -21,7 +41,7 @@ import { validateServiceImageUpload, type ServiceImageKind } from "@/lib/service
 
 /**
  * Shared settings building blocks. The underlying server functions and
- * permission rules are unchanged — these components only group the existing
+ * permission rules are unchanged. these components only group the existing
  * controls into user-intent sections (business, messaging, automation, team).
  */
 
@@ -42,6 +62,7 @@ export type Business = {
   quote_subject_label: string | null;
   /** Dropdown options for the quote subject, one per line. */
   quote_subject_options: string[] | null;
+  quote_service_layout: string;
 };
 
 export function useSettings() {
@@ -97,7 +118,7 @@ const TEXT_FIELDS = {
   phone_number: "Sending number",
   service_area: "Service area / suburbs",
   opening_hours: "Opening hours",
-  sms_signature: "SMS signature",
+  sms_signature: "Your sign-off",
   privacy_policy_url: "Privacy policy URL",
   logo_url: "Logo URL (shown on your quote form)",
   timezone: "Timezone",
@@ -117,6 +138,7 @@ export function BusinessSettingsForm({
   showProvider = false,
   showQuietHours = false,
   showAutomationSwitch = false,
+  showSignaturePreview = false,
   note,
 }: {
   business: Business;
@@ -126,6 +148,7 @@ export function BusinessSettingsForm({
   showProvider?: boolean;
   showQuietHours?: boolean;
   showAutomationSwitch?: boolean;
+  showSignaturePreview?: boolean;
   note?: string;
 }) {
   const save = useServerFn(saveBusinessSettings);
@@ -194,7 +217,7 @@ export function BusinessSettingsForm({
             </label>
           ))}
           <label className="block text-xs">
-            <span className="mb-1 block text-muted-foreground">Quote subject label</span>
+            <span className="mb-1 block text-muted-foreground">What you ask customers about</span>
             <input
               disabled={readOnly}
               value={form.quote_subject_label}
@@ -203,21 +226,7 @@ export function BusinessSettingsForm({
               className="form-control disabled:opacity-60"
             />
             <span className="mt-1 block text-[10px] text-muted-foreground">
-              What the customer is asked about (defaults to Vehicle).
-            </span>
-          </label>
-          <label className="block text-xs sm:col-span-2">
-            <span className="mb-1 block text-muted-foreground">Quote subject options</span>
-            <textarea
-              disabled={readOnly}
-              value={form.quote_subject_options}
-              onChange={(event) => setForm({ ...form, quote_subject_options: event.target.value })}
-              rows={4}
-              placeholder="Small&#10;Medium&#10;Large&#10;Other"
-              className="form-control min-h-20 py-2 disabled:opacity-60"
-            />
-            <span className="mt-1 block text-[10px] text-muted-foreground">
-              One option per line. Shown in the manual quote form and used as suggestions.
+              Used on your quote form when asking what the job is for.
             </span>
           </label>
           {showProvider && (
@@ -239,6 +248,18 @@ export function BusinessSettingsForm({
                 <option value="telnyx">Telnyx (live SMS)</option>
               </select>
             </label>
+          )}
+          {showSignaturePreview && (
+            <div className="col-span-full rounded-md border border-border bg-secondary/40 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                How a text ends
+              </p>
+              <p className="mt-1 text-xs">
+                …thanks, we&apos;ll see you then.
+                <br />
+                {form.sms_signature.trim() || business.name}
+              </p>
+            </div>
           )}
           {showQuietHours && (
             <label className="col-span-full flex items-center gap-2 text-sm">
@@ -360,7 +381,7 @@ export type Service = {
 
 /**
  * Picture attached to a service or extra. Shown on the customer's quote card;
- * owners can replace or remove it here. Purely visual — never used in texts.
+ * owners can replace or remove it here. Purely visual. never used in texts.
  */
 export function ServiceImageControl({
   kind,
@@ -526,7 +547,7 @@ function DurationField({
       )}
       {!isValidDuration(value) && (
         <p className="mt-1 text-destructive">
-          Set an appointment duration — a service cannot be active or bookable without one.
+          Set an appointment duration. a service cannot be active or bookable without one.
         </p>
       )}
     </div>
@@ -535,8 +556,11 @@ function DurationField({
 
 export function ServicesEditor({ services, readOnly }: { services: Service[]; readOnly: boolean }) {
   const save = useServerFn(saveService);
+  const remove = useServerFn(deleteService);
+  const removeAll = useServerFn(deleteAllServices);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Service | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const groups = groupItems(services, (service) => service.category);
 
   const mutation = useMutation({
@@ -563,32 +587,89 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const removeMutation = useMutation({
+    mutationFn: (service: Service) => remove({ data: { id: service.id } }),
+    onSuccess: () => {
+      toast.success("Service removed");
+      setEditing(null);
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const removeAllMutation = useMutation({
+    mutationFn: () => removeAll({}),
+    onSuccess: (result) => {
+      toast.success(`Removed ${result.removed} service${result.removed === 1 ? "" : "s"}.`);
+      setConfirmingClear(false);
+      setEditing(null);
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   return (
     <section className="panel p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Approved services (AI may only use these)</h2>
         {!readOnly && (
-          <button
-            onClick={() =>
-              setEditing({
-                id: "",
-                name: "",
-                category: "",
-                duration_minutes: 120,
-                description: "",
-                price_guidance: "",
-                campaign_eligible: true,
-                included_items: "",
-                excluded_items: "",
-                active: true,
-              })
-            }
-            className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            Add service
-          </button>
+          <div className="flex items-center gap-2">
+            {services.length > 0 &&
+              (confirmingClear ? (
+                <>
+                  <button
+                    onClick={() => removeAllMutation.mutate()}
+                    disabled={removeAllMutation.isPending}
+                    className="rounded-md border border-destructive px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                  >
+                    {removeAllMutation.isPending
+                      ? "Deleting…"
+                      : `Yes, delete all ${services.length}`}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingClear(false)}
+                    disabled={removeAllMutation.isPending}
+                    className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Keep them
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirmingClear(true)}
+                  className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Delete all
+                </button>
+              ))}
+            <button
+              onClick={() =>
+                setEditing({
+                  id: "",
+                  name: "",
+                  category: "",
+                  duration_minutes: 120,
+                  description: "",
+                  price_guidance: "",
+                  campaign_eligible: true,
+                  included_items: "",
+                  excluded_items: "",
+                  active: true,
+                })
+              }
+              className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Add service
+            </button>
+          </div>
         )}
       </div>
+      {confirmingClear && (
+        <p className="mt-2 text-xs text-destructive">
+          This removes every service and its add-on links so you can re-read your website for a
+          fresh list. Past leads and bookings are kept.
+        </p>
+      )}
 
       <p className="mt-1 text-xs text-muted-foreground">
         Grouped exactly as your customers see them on your quote page.
@@ -629,12 +710,31 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                       )}
                     </p>
                     {!readOnly && (
-                      <button
-                        onClick={() => setEditing(service)}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex shrink-0 items-center gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setEditing(service)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          disabled={removeMutation.isPending}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Remove “${service.name}”? It will disappear from your quote page and cannot be restored.`,
+                              )
+                            ) {
+                              removeMutation.mutate(service);
+                            }
+                          }}
+                          className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </div>
                   <p className="mt-1 text-sm font-semibold text-primary">
@@ -649,7 +749,7 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                     {isValidDuration(service.duration_minutes) ? (
                       formatDuration(Number(service.duration_minutes))
                     ) : (
-                      <span className="text-destructive">Duration not set — cannot be booked</span>
+                      <span className="text-destructive">Duration not set. cannot be booked</span>
                     )}
                     {" · "}
                     {service.campaign_eligible !== false
@@ -663,72 +763,87 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
         ))}
       </div>
 
-      {editing && (
-        <div className="mt-4 space-y-2 rounded-md border border-primary/30 bg-secondary/40 p-3">
-          {(
-            [
-              ["name", "Name"],
-              ["category", "Group (e.g. Interior, Paint, Premium)"],
-              ["price_guidance", "Price guidance"],
-              ["description", "Description"],
-              ["included_items", "What's included"],
-              ["excluded_items", "What's not included"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="block text-xs">
-              <span className="mb-1 block text-muted-foreground">{label}</span>
-              <input
-                value={editing[key] ?? ""}
-                onChange={(event) => setEditing({ ...editing, [key]: event.target.value })}
-                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
-              />
-            </label>
-          ))}
-          <DurationField
-            value={editing.duration_minutes}
-            onChange={(minutes) => setEditing({ ...editing, duration_minutes: minutes })}
-          />
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={editing.active}
-              onChange={(event) => setEditing({ ...editing, active: event.target.checked })}
-              className="h-4 w-4 accent-[var(--color-primary)]"
-            />
-            Active
-          </label>
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={editing.campaign_eligible !== false}
-              onChange={(event) =>
-                setEditing({ ...editing, campaign_eligible: event.target.checked })
-              }
-              className="h-4 w-4 accent-[var(--color-primary)]"
-            />
-            Include in campaign offers
-          </label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setEditing(null)}
-              className="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground"
-            >
-              Cancel
-            </button>
-            <button
-              disabled={
-                editing.name.length < 2 ||
-                !isValidDuration(editing.duration_minutes) ||
-                mutation.isPending
-              }
-              onClick={() => mutation.mutate(editing)}
-              className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-            >
-              Save service
-            </button>
-          </div>
-        </div>
-      )}
+      <Sheet open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <SheetContent side="bottom" className="h-auto max-h-[90dvh] rounded-t-xl border-t p-0">
+          {editing && (
+            <>
+              <SheetHeader className="px-5 pt-5 pb-2 text-left">
+                <SheetTitle>{editing.id ? "Edit service" : "Add service"}</SheetTitle>
+                <SheetDescription>
+                  Changes apply to your quote page and campaign offers.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="space-y-3 overflow-y-auto px-5 py-2">
+                {(
+                  [
+                    ["name", "Name"],
+                    ["category", "Group (e.g. Interior, Paint, Premium)"],
+                    ["price_guidance", "Price guidance"],
+                    ["description", "Description"],
+                    ["included_items", "What's included"],
+                    ["excluded_items", "What's not included"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="block text-xs">
+                    <span className="mb-1 block text-muted-foreground">{label}</span>
+                    <input
+                      value={editing[key] ?? ""}
+                      onChange={(event) =>
+                        setEditing({ ...editing, [key]: event.target.value })
+                      }
+                      className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm"
+                    />
+                  </label>
+                ))}
+                <DurationField
+                  value={editing.duration_minutes}
+                  onChange={(minutes) => setEditing({ ...editing, duration_minutes: minutes })}
+                />
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={editing.active}
+                    onChange={(event) => setEditing({ ...editing, active: event.target.checked })}
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                  />
+                  Active
+                </label>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={editing.campaign_eligible !== false}
+                    onChange={(event) =>
+                      setEditing({ ...editing, campaign_eligible: event.target.checked })
+                    }
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                  />
+                  Include in campaign offers
+                </label>
+              </div>
+              <SheetFooter className="px-5 pb-5 pt-2">
+                <button
+                  onClick={() => setEditing(null)}
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm text-muted-foreground hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={
+                    editing.name.length < 2 ||
+                    !isValidDuration(editing.duration_minutes) ||
+                    mutation.isPending
+                  }
+                  onClick={() => mutation.mutate(editing)}
+                  className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  Save changes
+                </button>
+              </SheetFooter>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
     </section>
   );
 }
@@ -812,7 +927,7 @@ export function RulesEditor({ rules, readOnly }: { rules: Rule[]; readOnly: bool
                   Step {rule.step} · {rule.rule_type.replace(/_/g, " ")}
                   {!rule.active && (
                     <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      disabled — skipped by scheduler
+                      disabled. skipped by scheduler
                     </span>
                   )}
                 </p>
@@ -826,7 +941,7 @@ export function RulesEditor({ rules, readOnly }: { rules: Rule[]; readOnly: bool
                     onClick={() => {
                       const next = { ...draft, active: !draft.active };
                       setDrafts({ ...drafts, [rule.id]: next });
-                      // Toggling persists immediately — no separate save needed.
+                      // Toggling persists immediately. no separate save needed.
                       mutation.mutate(next);
                     }}
                     className={`relative h-5 w-9 rounded-full transition-colors disabled:opacity-50 ${
@@ -1006,22 +1121,49 @@ export function TeamList({
  */
 export function QuotePageModeCard({
   quoteMode,
+  quoteServiceLayout,
+  quoteAgentEnabled,
   slug,
   readOnly,
 }: {
   quoteMode: string | null;
+  quoteServiceLayout: string | null;
+  quoteAgentEnabled: boolean;
   slug: string | null;
   readOnly: boolean;
 }) {
   const save = useServerFn(saveQuotePageMode);
+  const saveLayout = useServerFn(saveQuoteServiceLayout);
+  const saveAgent = useServerFn(saveQuoteAgentEnabled);
   const queryClient = useQueryClient();
   const current = resolveQuoteMode(quoteMode);
   const [selected, setSelected] = useState<QuoteMode>(current);
+  const currentLayout = resolveQuoteServiceLayout(quoteServiceLayout);
+  const [selectedLayout, setSelectedLayout] = useState<QuoteServiceLayout>(currentLayout);
 
   const mutation = useMutation({
     mutationFn: (mode: QuoteMode) => save({ data: { quote_mode: mode } }),
     onSuccess: async () => {
       toast.success("Quote page mode updated");
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const layoutMutation = useMutation({
+    mutationFn: (layout: QuoteServiceLayout) =>
+      saveLayout({ data: { quote_service_layout: layout } }),
+    onSuccess: async () => {
+      toast.success("Service display updated");
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const agentMutation = useMutation({
+    mutationFn: (enabled: boolean) => saveAgent({ data: { quote_agent_enabled: enabled } }),
+    onSuccess: async (_result, enabled) => {
+      toast.success(enabled ? "AI agent turned on" : "AI agent turned off");
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -1062,6 +1204,81 @@ export function QuotePageModeCard({
           </label>
         ))}
       </div>
+
+      {current === "ai_chat" && (
+        <div className="mt-5 border-t border-border pt-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold">AI agent</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                When on, one AI answers questions, collects details and books real times on your
+                Quote Page. When off, customers get the fixed step-by-step conversation instead.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={quoteAgentEnabled}
+              disabled={readOnly || agentMutation.isPending}
+              onClick={() => agentMutation.mutate(!quoteAgentEnabled)}
+              className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                quoteAgentEnabled ? "bg-primary" : "bg-muted"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-card shadow transition-transform ${
+                  quoteAgentEnabled ? "translate-x-[1.375rem]" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          <h3 className="mt-5 text-sm font-semibold">Service display</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Choose how customers browse your services on the Quote Page.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {QUOTE_SERVICE_LAYOUTS.map((layout) => (
+              <label
+                key={layout}
+                className={`cursor-pointer rounded-md border p-3 ${
+                  selectedLayout === layout ? "border-primary bg-primary/5" : "border-input"
+                }`}
+              >
+                <span className="flex items-start gap-2">
+                  <input
+                    type="radio"
+                    name="quote-service-layout"
+                    value={layout}
+                    checked={selectedLayout === layout}
+                    disabled={readOnly}
+                    onChange={() => setSelectedLayout(layout)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">
+                      {QUOTE_SERVICE_LAYOUT_LABELS[layout]}
+                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                      {QUOTE_SERVICE_LAYOUT_DESCRIPTIONS[layout]}
+                    </span>
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {!readOnly && (
+            <button
+              type="button"
+              disabled={selectedLayout === currentLayout || layoutMutation.isPending}
+              onClick={() => layoutMutation.mutate(selectedLayout)}
+              className="mt-3 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {layoutMutation.isPending ? "Saving…" : "Save service display"}
+            </button>
+          )}
+        </div>
+      )}
 
       {!readOnly && (
         <button
@@ -1144,7 +1361,7 @@ export function AddonsEditor({
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const serviceName = (id: string) => services.find((service) => service.id === id)?.name ?? "—";
+  const serviceName = (id: string) => services.find((service) => service.id === id)?.name ?? "Not available";
 
   return (
     <section className="panel p-4">

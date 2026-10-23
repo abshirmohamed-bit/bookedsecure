@@ -15,7 +15,7 @@ export async function hashClientId(value: string): Promise<string> {
 /**
  * Records an attempt from `clientId` (hashed) and returns false when the caller
  * has exceeded the short-window or hourly budget. Never throws on storage
- * errors — abuse protection must not take the public form offline.
+ * errors. abuse protection must not take the public form offline.
  */
 export async function allowPublicFormAttempt(
   clientId: string,

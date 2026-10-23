@@ -24,3 +24,10 @@ export type ImportProposal = {
   duplicateRows: number;
   summary: string;
 };
+
+/** Connected assistants request existing work; the owner starts it in Cowork. */
+export type AssistantRequestProposal = {
+  kind: 'assistant_request';
+  request: string;
+  summary: string;
+};

@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 /**
- * Sinch Engage webhook — PLACEHOLDER, fails closed.
+ * Sinch Engage webhook. PLACEHOLDER, fails closed.
  *
  * The route exists so the webhook URL can be reserved and reviewed, but it
  * rejects every request until the official Sinch webhook payload and signature
  * documentation is implemented in src/lib/sms/sinch.server.ts.
  *
- * TODO(sinch): once documented —
+ * TODO(sinch): once documented -
  *   1. verify the signature (fail closed on missing key/header),
  *   2. normalize the payload via the Sinch adapter,
  *   3. resolve the tenant from the receiving/sending number,

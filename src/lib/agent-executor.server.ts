@@ -1,4 +1,4 @@
-// Phase 4 (step 3): the agent executor — server wiring.
+// Phase 4 (step 3): the agent executor. server wiring.
 //
 // Thin dispatcher only. This module loads state through EXISTING loaders,
 // re-plans through the existing dry-run planner, re-evaluates the existing

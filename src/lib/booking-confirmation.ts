@@ -1,4 +1,4 @@
-// Shared operational booking-confirmation SMS policy — pure, tenant-agnostic.
+// Shared operational booking-confirmation SMS policy. pure, tenant-agnostic.
 //
 // This is an OPERATIONAL confirmation only. It is never a campaign, a
 // follow-up, a reactivation, a promotion or general outbound AI. Nothing here
@@ -128,7 +128,7 @@ export function evaluateConfirmationEligibility(facts: ConfirmationFacts): Confi
       outcome: "blocked_missing_callback_number",
       sendable: false,
       reason:
-        "This business has no valid customer-facing callback number configured — the confirmation SMS was not sent and no other number was substituted.",
+        "This business has no valid customer-facing callback number configured. the confirmation SMS was not sent and no other number was substituted.",
     };
   }
   return { outcome: "eligible", sendable: true, reason: "Eligible to send." };
@@ -242,7 +242,7 @@ export type QuietWindow = { timezone: string; quiet_hours_start: number; quiet_h
 
 /**
  * Null when the confirmation may go out now; otherwise the exact instant at
- * which it is released — the tenant's own quiet-window end hour (08:00 for a
+ * which it is released. the tenant's own quiet-window end hour (08:00 for a
  * tenant configured that way), in the tenant's own timezone. Never earlier.
  */
 export function confirmationReleaseAt(window: QuietWindow, now: Date): Date | null {
@@ -258,7 +258,7 @@ export function confirmationReleaseAt(window: QuietWindow, now: Date): Date | nu
   return release;
 }
 
-/** Idempotency key for the queued release job — one per booking offer. */
+/** Idempotency key for the queued release job. one per booking offer. */
 export function confirmationJobIdempotencyKey(offerId: string): string {
   return `booking_confirmation_release:${offerId}`;
 }

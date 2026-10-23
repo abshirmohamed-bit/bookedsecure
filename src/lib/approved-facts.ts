@@ -36,7 +36,7 @@ export type ApprovedFactsReason =
   | "owner_review_required";
 
 export type ApprovedFacts = {
-  /** Tenant the facts belong to — traceability and isolation. */
+  /** Tenant the facts belong to. traceability and isolation. */
   businessId: string;
   /** Source service, for traceability. Null when nothing is approved. */
   serviceId: string | null;
@@ -153,13 +153,13 @@ export function hasApprovedPrice(facts: ApprovedFacts | null | undefined): boole
 export function buildApprovedFactsContext(facts: ApprovedFacts | null | undefined): string {
   if (!facts || !facts.serviceName) {
     return [
-      "Approved facts (allow-list) — NONE.",
+      "Approved facts (allow-list). NONE.",
       "- No approved service or price guidance is available for this lead.",
       "- You must not state, imply, estimate or derive any price. Ask a neutral clarifying question and say the owner will confirm.",
     ].join("\n");
   }
   const lines = [
-    "Approved facts (allow-list) — the ONLY source you may use for pricing language:",
+    "Approved facts (allow-list). the ONLY source you may use for pricing language:",
     `- Approved service name (exact): ${facts.serviceName}`,
   ];
   if (facts.description) lines.push(`- Description: ${facts.description}`);

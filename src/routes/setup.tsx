@@ -4,18 +4,25 @@ import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
+import { TradePicker } from "@/components/settings/TradePicker";
 import { getSetupState } from "@/lib/site-onboarding.functions";
 
 export const Route = createFileRoute("/setup")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    step:
+      search["step"] === "trade" || search["step"] === "website"
+        ? search["step"]
+        : undefined,
+  }),
   head: () => ({
     meta: [
-      { title: "Set up your business — BookedSecure" },
+      { title: "Set up your business | BookedSecure" },
       {
         name: "description",
         content:
           "Paste your website address and BookedSecure fills in your business details, services, prices and hours for you.",
       },
-      { property: "og:title", content: "Set up your business — BookedSecure" },
+      { property: "og:title", content: "Set up your business | BookedSecure" },
       {
         property: "og:description",
         content: "One step: paste your website and we do the rest of your setup.",
@@ -30,6 +37,7 @@ export const Route = createFileRoute("/setup")({
 
 function SetupPage() {
   const navigate = useNavigate();
+  const { step } = Route.useSearch();
   const fetchSetup = useServerFn(getSetupState);
   const setup = useQuery({ queryKey: ["setup-state"], queryFn: () => fetchSetup(), retry: false });
   const readOnly = (setup.data?.role ?? "owner") !== "owner";
@@ -37,10 +45,15 @@ function SetupPage() {
   // Nobody who is already set up should land here: staff never need it, and an
   // owner with services saved goes straight to Home.
   useEffect(() => {
-    if (setup.data && !setup.data.needsSetup) navigate({ to: "/dashboard", replace: true });
-  }, [setup.data, navigate]);
+    if (setup.data && !setup.data.needsSetup && !step) navigate({ to: "/dashboard", replace: true });
+  }, [setup.data, navigate, step]);
 
-  if (setup.isLoading || (setup.data && !setup.data.needsSetup)) {
+  useEffect(() => {
+    if (!step || setup.isLoading) return;
+    document.getElementById(step)?.scrollIntoView({ block: "start" });
+  }, [setup.isLoading, step]);
+
+  if (setup.isLoading || (setup.data && !setup.data.needsSetup && !step)) {
     return <main className="min-h-screen bg-background" aria-busy="true" />;
   }
 
@@ -60,7 +73,11 @@ function SetupPage() {
           </p>
         </div>
 
-        <div className="mt-8">
+        <div id="trade" className="mt-8 scroll-mt-6">
+          <TradePicker readOnly={readOnly} />
+        </div>
+
+        <div id="website" className="mt-4 scroll-mt-6">
           <SiteOnboardingPanel
             readOnly={readOnly}
             onApplied={() => navigate({ to: "/dashboard", replace: true })}

@@ -3,13 +3,13 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy & SMS consent — BookedSecure" },
+      { title: "Privacy & SMS consent | BookedSecure" },
       {
         name: "description",
         content:
           "How this business handles your mobile number, enquiry details and SMS follow-up, and how to opt out.",
       },
-      { property: "og:title", content: "Privacy & SMS consent — BookedSecure" },
+      { property: "og:title", content: "Privacy & SMS consent | BookedSecure" },
       {
         property: "og:description",
         content: "Privacy and SMS opt-out information for service enquiries.",

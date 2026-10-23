@@ -3,7 +3,7 @@
  *
  * Reads the singleton commercial_config row, freezes per-pilot terms
  * snapshots, and decides whether a business may send live SMS
- * (`authorizeLiveSend`). All access uses the service-role client — the
+ * (`authorizeLiveSend`). All access uses the service-role client. the
  * underlying tables have no client-facing grants, and platform admins reach
  * them only through server functions that pass requirePlatformAdmin first.
  */
@@ -309,8 +309,8 @@ async function authorizeSubscribedSend(
   return {
     allowed: false,
     reason: period.included_segments > 0
-      ? `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Top up credits in Plan & billing to keep sending.`
-      : "You have no text credits left. Top up credits in Plan & billing to keep sending.",
+      ? `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Contact BookedSecure or top up with your provider to keep sending.`
+      : "You have no text credits left. Contact BookedSecure or top up with your provider to keep sending.",
   };
 }
 
@@ -335,7 +335,7 @@ export async function authorizeLiveSend(
   if (!pilot) {
     return {
       allowed: false,
-      reason: "This business does not have an active subscription — choose a plan to start texting.",
+      reason: "This business does not have an active subscription. choose a plan to start texting.",
     };
   }
 
@@ -417,8 +417,8 @@ export async function authorizeLiveSend(
     return {
       allowed: false,
       reason: period.included_segments > 0
-      ? `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Top up credits in Plan & billing to keep sending.`
-      : "You have no text credits left. Top up credits in Plan & billing to keep sending.",
+      ? `Your plan's ${period.included_segments} included texts for this month are used up and there are no credits left. Contact BookedSecure or top up with your provider to keep sending.`
+      : "You have no text credits left. Contact BookedSecure or top up with your provider to keep sending.",
     };
   }
 

@@ -5,13 +5,13 @@ import { BookingsCalendar } from "@/components/BookingsCalendar";
 export const Route = createFileRoute("/bookings/")({
   head: () => ({
     meta: [
-      { title: "Bookings calendar — BookedSecure" },
+      { title: "Bookings calendar | BookedSecure" },
       {
         name: "description",
         content:
           "See every upcoming detailing job on a calendar, and open any booking for the customer, service and time.",
       },
-      { property: "og:title", content: "Bookings calendar — BookedSecure" },
+      { property: "og:title", content: "Bookings calendar | BookedSecure" },
       {
         property: "og:description",
         content: "Upcoming jobs, confirmed times and job details in one calendar.",

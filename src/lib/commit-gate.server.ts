@@ -115,7 +115,7 @@ export type Revalidation =
  *
  * Fails closed: any uncertainty (missing batch/row, changed state, duplicate
  * lookup error, already-used idempotency key) blocks the commit. Read-only and
- * tenant-scoped — the browser-supplied ids are only ever used inside filters
+ * tenant-scoped. the browser-supplied ids are only ever used inside filters
  * that are pinned to the authenticated business.
  */
 export async function revalidateCandidate(
@@ -223,7 +223,7 @@ export async function revalidateCandidate(
  * Canary commit entry point.
  *
  * The project's inbound path (`captureLead` in lead-engine.server.ts) has
- * downstream side effects that cannot be disabled — it opens a conversation,
+ * downstream side effects that cannot be disabled. it opens a conversation,
  * queues and runs an owner alert, and sends an acknowledgement SMS. It is
  * therefore NOT used here. Instead this delegates to the dedicated import-only
  * path in `import-lead.server.ts`, which creates exactly one live lead row plus

@@ -9,7 +9,7 @@ import { WEEKDAY_LABELS, type AvailabilityWindow } from "@/lib/availability";
 
 /**
  * Owner-controlled bookable availability. This is the only source the server
- * uses to compute appointment options — free-text opening hours stay purely
+ * uses to compute appointment options. free-text opening hours stay purely
  * descriptive, and nothing here sends a message on its own.
  */
 export type AvailabilityRow = {

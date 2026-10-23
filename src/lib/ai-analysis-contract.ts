@@ -113,7 +113,7 @@ export function buildRepairInstruction(reason: string): string {
     '- summary: string',
     `- readiness: string, one of ${READINESS_VALUES.join(" | ")}`,
     "- missing_fields: array of strings (use [] when nothing is missing)",
-    "- extracted: object with vehicle_type, suburb, last_cleaned_at, main_concerns, service_intent, requested_day_or_time — each a string or null (never omitted, never a number, object or array)",
+    "- extracted: object with vehicle_type, suburb, last_cleaned_at, main_concerns, service_intent, requested_day_or_time. each a string or null (never omitted, never a number, object or array)",
     "- suggested_reply: string",
     "- needs_human_review: boolean",
     "Keep every safety rule from the system instructions: no prices beyond the approved facts, no discounts, fees, dates, times, availability, booking claims or photo requests.",

@@ -2,10 +2,10 @@
 //
 // There is no review queue and no held bucket. Every staged row lands in
 // exactly one of four honest buckets:
-//   save          — a new contact we can save
-//   update        — we already have this contact; fill only its empty fields
-//   already_there — this upload row was already saved before (idempotent replay)
-//   skip          — unusable for texting (no valid mobile, or a repeat in the file)
+//   save         . a new contact we can save
+//   update       . we already have this contact; fill only its empty fields
+//   already_there. this upload row was already saved before (idempotent replay)
+//   skip         . unusable for texting (no valid mobile, or a repeat in the file)
 //
 // Nothing here reads or writes data; the server re-derives the same plan from
 // freshly loaded rows immediately before any write.
@@ -122,7 +122,7 @@ export function planSummaryLines(plan: ImportPlan): string[] {
   const lines = [`We read ${contacts(plan.total)} in your file.`];
   if (plan.save > 0) lines.push(`${contacts(plan.save)} are new and ready to save.`);
   if (plan.update > 0) {
-    lines.push(`${contacts(plan.update)} are already in your inbox — we'll fill in any gaps.`);
+    lines.push(`${contacts(plan.update)} are already in your inbox; we'll fill in any gaps.`);
   }
   if (plan.already_there > 0) {
     lines.push(`${contacts(plan.already_there)} from this file were saved earlier.`);
@@ -141,7 +141,7 @@ export function planSummaryLines(plan: ImportPlan): string[] {
 
 export const SAVE_ACTION_LABEL = "Save contacts to my inbox";
 export const NO_MESSAGES_COPY = "No texts are ever sent to imported contacts.";
-export const PREPARE_COPY = "Getting your contacts ready — fixing phone formats and matching names…";
+export const PREPARE_COPY = "Getting your contacts ready, fixing phone formats and matching names…";
 export const PREPARE_STEPS = [
   "Reading your columns, however they are named",
   "Repairing Australian mobile numbers",
@@ -155,7 +155,7 @@ export type SaveOutcome = "saved" | "updated" | "already_there" | "skipped" | "f
 
 export const SAVE_OUTCOME_LABELS: Record<SaveOutcome, string> = {
   saved: "saved to your inbox",
-  updated: "already there — missing details filled in",
+  updated: "already there, missing details filled in",
   already_there: "already saved earlier",
   skipped: "left out",
   failed: "could not be saved",

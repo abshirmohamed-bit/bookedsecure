@@ -31,8 +31,11 @@ const EXTRACTION_PROMPT = [
   "Return the trading name, the suburb/city, the areas or suburbs served, the public contact phone number,",
   "the opening hours exactly as written, and the list of services offered.",
   "For each service include its name, its price exactly as written on the page (including any 'from'),",
-  "a one-line description, the appointment length in minutes if stated, and the heading or",
-  "category the page groups it under (for example an on-page filter or section heading), copied exactly.",
+  "a one-line description, the appointment length in minutes only if the page states a time (never estimate one), and the heading or",
+  "category the page groups it under (for example the selected tab, an on-page filter or section heading), copied exactly.",
+  "When a price table lists sizes or variants with their own prices (for example Small / Medium / Large, or 2 seater / 5 seater),",
+  "return every priced row as its own service named '<card heading> - <row label>', with that row's price.",
+  "Include every priced card and table visible on the page; do not stop after the first few.",
   "Separately, list any optional add-on extras or upgrades sold on top of a service",
   "(for example an extra treatment added to a detail), with the extra's name, its price exactly as written,",
   "a one-line description, the extra time in minutes if stated, the heading it is grouped under if any,",
@@ -162,24 +165,131 @@ function mergeScrapedItems<T extends { name?: string | null; imageUrl?: string |
   return merged.size > 0 ? [...merged.values()] : null;
 }
 
+/** Most sites keep a handful of service tabs; more than this is almost certainly not a tab strip. */
+const MAX_SERVICE_TABS = 6;
+
+/**
+ * Marks on-page tab or filter buttons (e.g. "Detail Packages | Ceramic Coatings | Tint & PPF")
+ * so each tab's hidden prices can be opened and read. Skips navigation, footer, forms, the top
+ * bar and anything that would leave the page. Returns how many tabs were found.
+ */
+const TAG_TABS_SCRIPT = `(()=>{const short=(e)=>{const t=(e.innerText||'').trim();return t.length>0&&t.length<=40&&!t.includes('\\n');};
+const els=[...document.querySelectorAll('[role="tab"],button,[tabindex="0"],[data-highlight="true"]')].filter((e)=>{
+if(!short(e))return false;if(e.closest('nav,footer,form'))return false;
+if(e.getBoundingClientRect().top+window.scrollY<150)return false;
+const a=e.closest('a[href]');if(a){const u=new URL(a.href,location.href);if(u.origin!==location.origin||u.pathname!==location.pathname)return false;}
+const p=e.parentElement;if(!p)return false;const sib=[...p.children].filter(short);return sib.length>=2&&sib.length<=${MAX_SERVICE_TABS + 2};});
+const uniq=[];for(const e of els){if(!uniq.some((u)=>u.contains(e)||e.contains(u)))uniq.push(e);}
+const groups=new Map();for(const e of uniq){const k=e.parentElement;groups.set(k,[...(groups.get(k)||[]),e]);}
+const strip=[...groups.values()].filter((g)=>g.length>=2).sort((a,b)=>b.length-a.length)[0]||[];
+strip.slice(0,${MAX_SERVICE_TABS}).forEach((e,i)=>e.setAttribute('data-bs-tab',String(i)));return strip.length;})()`;
+
+function clickTabScript(index: number): string {
+  return `(()=>{const e=document.querySelector('[data-bs-tab="${index}"]');if(!e)return false;for(const t of ["pointerdown","mousedown","pointerup","mouseup","click"])e.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true,view:window}));return true;})()`;
+}
+
+type ScrapeResult = {
+  url: string;
+  payload: FirecrawlScrape;
+  extracted: Record<string, unknown>;
+  tabCount: number;
+};
+
+const MAX_SCRAPE_ATTEMPTS = 4;
+const MAX_CONCURRENT_SCRAPES = 3;
+const MAX_RETRY_WAIT_MS = 20_000;
+
+/** Pages that still failed after retries during the current read (per request). */
+let skippedPages = { count: 0 };
+
+let activeScrapes = 0;
+const scrapeQueue: Array<() => void> = [];
+
+/** Keeps only a few website reads running at once so the reader is not rate limited. */
+async function withScrapeSlot<T>(run: () => Promise<T>): Promise<T> {
+  if (activeScrapes >= MAX_CONCURRENT_SCRAPES) {
+    await new Promise<void>((resolve) => scrapeQueue.push(resolve));
+  }
+  activeScrapes++;
+  try {
+    return await run();
+  } finally {
+    activeScrapes--;
+    scrapeQueue.shift()?.();
+  }
+}
+
+/** Honours the provider's "retry after" hint, falling back to exponential backoff. */
+function retryDelayMs(response: Response, body: string, attempt: number): number {
+  const header = Number(response.headers.get("retry-after"));
+  const fromBody = /retry after (\d+(?:\.\d+)?)\s*s/i.exec(body)?.[1];
+  const seconds = Number.isFinite(header) && header > 0 ? header : fromBody ? Number(fromBody) : 2 ** (attempt + 1);
+  return Math.min(Math.max(seconds * 1000, 1000), MAX_RETRY_WAIT_MS) + Math.floor(Math.random() * 500);
+}
+
 async function scrapePage(
   url: string,
   lovableKey: string,
   connectionKey: string,
-): Promise<{ url: string; payload: FirecrawlScrape; extracted: Record<string, unknown> } | null> {
-  const response = await fetch(GATEWAY_SCRAPE_URL, {
-    method: "POST",
-    headers: connectorHeaders(lovableKey, connectionKey),
-    body: JSON.stringify({
-      url,
-      onlyMainContent: false,
-      waitFor: 3000,
-      formats: ["branding", { type: "json", schema: EXTRACTION_SCHEMA, prompt: EXTRACTION_PROMPT }],
-    }),
+  options: { tabIndex?: number; withBranding?: boolean } = {},
+): Promise<ScrapeResult | null> {
+  const actions: Array<Record<string, unknown>> = [
+    { type: "wait", milliseconds: 2000 },
+    { type: "executeJavascript", script: TAG_TABS_SCRIPT },
+  ];
+  if (options.tabIndex !== undefined) {
+    actions.push(
+      { type: "executeJavascript", script: clickTabScript(options.tabIndex) },
+      { type: "wait", milliseconds: 1000 },
+    );
+  }
+  const json = { type: "json", schema: EXTRACTION_SCHEMA, prompt: EXTRACTION_PROMPT };
+  const body = JSON.stringify({
+    url,
+    onlyMainContent: false,
+    actions,
+    formats: options.withBranding === false ? [json] : ["branding", json],
   });
-  if (!response.ok) return null;
-  const payload = unwrap((await response.json()) as FirecrawlScrape);
-  return { url, payload, extracted: (payload.json ?? {}) as Record<string, unknown> };
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < MAX_SCRAPE_ATTEMPTS; attempt++) {
+    response = await withScrapeSlot(() =>
+      fetch(GATEWAY_SCRAPE_URL, { method: "POST", headers: connectorHeaders(lovableKey, connectionKey), body }),
+    );
+    if (response.status !== 429 || attempt === MAX_SCRAPE_ATTEMPTS - 1) break;
+    const text = await response.text();
+    const waitMs = retryDelayMs(response, text, attempt);
+    console.warn(`[site-onboarding] rate limited, retrying in ${waitMs}ms ${url}`);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  if (!response || !response.ok) {
+    console.error(`[site-onboarding] scrape failed [${response?.status}] ${url}`, await response?.text());
+    skippedPages.count++;
+    return null;
+  }
+  const raw = (await response.json()) as FirecrawlScrape & {
+    actions?: { javascriptReturns?: Array<{ value?: unknown }> };
+    data?: { actions?: { javascriptReturns?: Array<{ value?: unknown }> } };
+  };
+  const returns = raw.data?.actions?.javascriptReturns ?? raw.actions?.javascriptReturns ?? [];
+  const tabCount = typeof returns[0]?.value === "number" ? (returns[0].value as number) : 0;
+  const payload = unwrap(raw);
+  return { url, payload, extracted: (payload.json ?? {}) as Record<string, unknown>, tabCount };
+}
+
+/** Opens every other service tab on a page and reads it, so hidden prices are not missed. */
+async function scrapeOtherTabs(
+  page: ScrapeResult,
+  lovableKey: string,
+  connectionKey: string,
+): Promise<ScrapeResult[]> {
+  const count = Math.min(page.tabCount, MAX_SERVICE_TABS);
+  if (count < 2) return [];
+  const results = await Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      scrapePage(page.url, lovableKey, connectionKey, { tabIndex: index, withBranding: false }),
+    ),
+  );
+  return results.filter((result): result is ScrapeResult => result !== null);
 }
 
 /** Reads the tenant's own public website through the Firecrawl connector. */
@@ -192,6 +302,8 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
   const connectionKey = process.env["FIRECRAWL_API_KEY"];
   if (!lovableKey || !connectionKey) throw new Error("Website reading is not configured yet.");
 
+  skippedPages = { count: 0 };
+  const skipped = skippedPages;
   const root = await scrapePage(url, lovableKey, connectionKey);
   if (!root) {
     throw new Error(
@@ -205,21 +317,23 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
     body: JSON.stringify({ url, limit: 100, includeSubdomains: false }),
   });
   const pageUrls = mapResponse.ok ? mappedUrls((await mapResponse.json()) as FirecrawlMap, url) : [];
-  const pageResults = await Promise.all(
-    pageUrls.map((pageUrl) => scrapePage(pageUrl, lovableKey, connectionKey)),
-  );
+  const pageResults = (
+    await Promise.all(pageUrls.map((pageUrl) => scrapePage(pageUrl, lovableKey, connectionKey, { withBranding: false })))
+  ).filter((result): result is ScrapeResult => result !== null);
+  const tabResults = (
+    await Promise.all(
+      [root, ...pageResults].map((page) => scrapeOtherTabs(page, lovableKey, connectionKey)),
+    )
+  ).flat();
+  const allPages = [root, ...pageResults, ...tabResults];
 
   const payload = root.payload;
   const extracted = root.extracted;
   const services = mergeScrapedItems(
-    [root, ...pageResults.filter((result) => result !== null)].map((result) =>
-      withAbsoluteImages(result.extracted["services"], result.url),
-    ),
+    allPages.map((result) => withAbsoluteImages(result.extracted["services"], result.url)),
   );
   const addons = mergeScrapedItems(
-    [root, ...pageResults.filter((result) => result !== null)].map((result) =>
-      withAbsoluteImages(result.extracted["addons"], result.url),
-    ),
+    allPages.map((result) => withAbsoluteImages(result.extracted["addons"], result.url)),
   );
 
   if (!payload) {
@@ -244,6 +358,11 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
   };
 
   const proposal = buildOnboardingProposal(site, url);
+  if (skipped.count > 0) {
+    proposal.warnings.push(
+      `${skipped.count} page${skipped.count === 1 ? "" : "s"} of your site could not be read right now, so some services or prices may be missing. Try "Read my site" again in a minute.`,
+    );
+  }
 
   // Show the owner up front which of their services already exist, so the
   // preview matches exactly what saving will do.
@@ -360,7 +479,7 @@ export async function applySiteOnboarding(
   if (skipped > 0)
     notes.push(`${skipped} service(s) you already offer were left exactly as they are.`);
 
-  // Add-on extras are attached to the tenant's OWN services — the ones just
+  // Add-on extras are attached to the tenant's OWN services. the ones just
   // added and the ones they already had. An extra they already have is never
   // touched, and an extra that matches no service of theirs is not saved.
   const { data: allServices } = await supabaseAdmin

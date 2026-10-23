@@ -5,6 +5,8 @@
  * (draft rows only, no sends) and a bulk lead-status change. Both are applied
  * only when the owner confirms. Every read and write is scoped by `business_id`.
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { proposeOffer } from "@/lib/reactivation";
 import type { LeadStatus } from "@/lib/domain";
@@ -37,7 +39,7 @@ export type StatusProposal = {
 
 import type { AddonLinkProposal } from "@/lib/catalog-actions.server";
 import type { LeadUpdateProposal } from "@/lib/owner-lead-actions.server";
-import type { SendTextProposal, ImportProposal } from "@/lib/assistant-proposals";
+import type { SendTextProposal, ImportProposal, AssistantRequestProposal } from "@/lib/assistant-proposals";
 
 export type OwnerProposal =
   | CampaignProposal
@@ -45,7 +47,8 @@ export type OwnerProposal =
   | AddonLinkProposal
   | LeadUpdateProposal
   | SendTextProposal
-  | ImportProposal;
+  | ImportProposal
+  | AssistantRequestProposal;
 
 
 /** How many leads a status change would touch right now. */
@@ -172,6 +175,7 @@ export async function proposeCampaign(input: {
  * owner still gets a Confirm card instead of an error.
  */
 export async function handleOwnerRequest(input: {
+  client: SupabaseClient<Database>;
   businessId: string;
   userId: string;
   role: "owner" | "staff" | "platform_admin";
@@ -185,6 +189,7 @@ export async function handleOwnerRequest(input: {
   try {
     const { runAssistantAgent } = await import("@/lib/assistant-agent.server");
     const result = await runAssistantAgent({
+    client: input.client,
       businessId: input.businessId,
       userId: input.userId,
       role: input.role,

@@ -3,7 +3,7 @@
 // SAFETY BOUNDARY: pure. No IO, no SMS, no provider call, no booking write.
 // It only decides, from the AUTHORITATIVE booking tables (`booking_offers`,
 // `jobs`) rather than the lead's projection columns, whether a lead is booked,
-// what booking projection must be preserved through a soft delete or restore,
+// what booking projection must be rebuilt on restore,
 // and whether deletion is blocked by product policy.
 
 import {
@@ -29,7 +29,7 @@ export type AuthoritativeBookingState = {
   booked: boolean;
 };
 
-/** Reads the authoritative booking tables only — never the lead projection. */
+/** Reads the authoritative booking tables only. never the lead projection. */
 export function authoritativeBookingState(input: {
   leadId: string;
   offers?: readonly AuthoritativeOffer[];
@@ -91,12 +91,12 @@ export const DELETION_FORBIDDEN_COLUMNS = [
 
 /**
  * Product policy switch. `false` (default) keeps booked leads deletable while
- * preserving their booking projection; `true` refuses them with a clear reason.
+ * the database releases their slots; `true` refuses them with a clear reason.
  */
 export const BLOCK_DELETION_OF_BOOKED_LEADS = false;
 
 export const BOOKED_DELETION_BLOCK_REASON =
-  "Has a confirmed booking or scheduled job — cancel the booking before removing the lead";
+  "Has a confirmed booking or scheduled job. cancel the booking before removing the lead";
 
 export function deletionBlockedByBooking(
   authoritative: AuthoritativeBookingState,

@@ -7,7 +7,7 @@
  *
  * There are two pack *sets*: the standard set every business gets, and
  * discounted sets unlocked by a promo code. A business is only ever shown, and
- * only ever charged, the set it is entitled to — the entitlement is resolved on
+ * only ever charged, the set it is entitled to. the entitlement is resolved on
  * the server (see `promo.server.ts`), never sent up from the browser.
  *
  * `priceId` is the Stripe lookup key; the amount here is re-checked against
@@ -91,7 +91,7 @@ export function packsFor(setId: string | null | undefined): readonly CreditPack[
   return isCreditPackSetId(setId) ? CREDIT_PACK_SETS[setId] : CREDIT_PACK_SETS[DEFAULT_CREDIT_PACK_SET];
 }
 
-/** The standard packs — what every business without a promo code pays. */
+/** The standard packs. what every business without a promo code pays. */
 export const CREDIT_PACKS: readonly CreditPack[] = CREDIT_PACK_SETS.standard;
 
 export function findCreditPack(

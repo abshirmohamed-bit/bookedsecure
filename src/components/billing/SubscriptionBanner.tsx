@@ -12,6 +12,8 @@ export function SubscriptionBanner() {
   const billing = useMyBilling();
   const { pathname } = useLocation();
   if (!billing.data || pathname.startsWith("/settings/billing")) return null;
+  // BookedSecure's own operators never need a subscription, so never nudge them.
+  if (billing.data.role === "platform_admin") return null;
   const { subscription, plan, access } = billing.data;
   const status = describeSubscription(subscription, plan.name);
   if (access === "full" && status.tone === "neutral") return null;

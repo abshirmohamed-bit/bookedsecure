@@ -1,7 +1,7 @@
 /**
  * Mid-conversation correction handling for the public AI quote conversation.
  *
- * Pure functions only — no database, no network, no model call. A correction is
+ * Pure functions only. no database, no network, no model call. A correction is
  * detected from the customer's own words, validated through the SAME
  * `applyAnswer` rules as a normal answer, and applied to the collected fields.
  * Nothing here invents data, and the original customer message is never
@@ -186,7 +186,7 @@ function clearField(collected: WebChatCollected, field: CorrectableStep): WebCha
 
 /**
  * Explicit, unambiguous "change this field" directive sent by the review-step
- * buttons (`change:name`). Deterministic — it can never start a clarify loop.
+ * buttons (`change:name`). Deterministic. it can never start a clarify loop.
  */
 export const CHANGE_DIRECTIVE_PREFIX = "change:";
 
@@ -200,7 +200,7 @@ export type CorrectionResult =
   | { kind: "none" }
   /** A field was corrected in place; `collected` holds the latest values. */
   | { kind: "applied"; field: CorrectableStep; collected: WebChatCollected; message: string }
-  /** The customer wants to redo a field but gave no new value — ask it again. */
+  /** The customer wants to redo a field but gave no new value. ask it again. */
   | { kind: "reask"; field: CorrectableStep; collected: WebChatCollected; message: string }
   /** Correction intent is clear but the target field isn't. */
   | { kind: "clarify"; message: string }
@@ -208,11 +208,11 @@ export type CorrectionResult =
   | { kind: "invalid"; field: CorrectableStep; message: string };
 
 export const AMBIGUOUS_CORRECTION_MESSAGE =
-  "Sorry — I want to get this right. Which detail should I update: your name, vehicle, suburb, condition, mobile number or email? For example “change my suburb to Parramatta”.";
+  "Sorry, I want to get this right. Which detail should I update: your name, vehicle, suburb, condition, mobile number or email? For example “change my suburb to Parramatta”.";
 
 export function clarifyMessage(fields: CorrectableStep[]): string {
   const labels = (fields.length >= 2 ? fields : filledFallback()).map((field) => FIELD_LABELS[field]);
-  return `Sorry — I want to get this right. Do you want me to update your ${labels
+  return `Sorry, I want to get this right. Do you want me to update your ${labels
     .slice(0, -1)
     .join(", ")} or your ${labels[labels.length - 1]}?`;
 }
@@ -226,7 +226,7 @@ function filledFallback(): CorrectableStep[] {
  *
  * `activeStep` is the question the assistant just asked. When a correction names
  * a different field, the answer is applied there and the active question is NOT
- * validated against it — that is the bug this fixes (a name correction was being
+ * validated against it. that is the bug this fixes (a name correction was being
  * validated as an Australian mobile number).
  */
 export function detectCorrection(
@@ -245,13 +245,13 @@ export function detectCorrection(
       kind: "reask",
       field: directive,
       collected: clearField(collected, directive),
-      message: `No problem — let's update your ${FIELD_LABELS[directive]}.`,
+      message: `No problem, let's update your ${FIELD_LABELS[directive]}.`,
     };
   }
 
   // No explicit cue word. A plain restatement ("my mobile is 0470 111 222") is
   // still a correction, but only when it is NOT a valid answer to the question
-  // that is currently open — a genuine answer always wins, so a phrase like
+  // that is currently open. a genuine answer always wins, so a phrase like
   // "the car is dirty" while the condition question is open is never hijacked.
   if (!hasCorrectionCue(text)) {
     const activeAnswer = applyAnswer(collected, activeStep, text, tenant);
@@ -273,7 +273,7 @@ export function detectCorrection(
         kind: "reask",
         field,
         collected: clearField(collected, field),
-        message: `No problem — let's redo your ${FIELD_LABELS[field]}.`,
+        message: `No problem, let's redo your ${FIELD_LABELS[field]}.`,
       };
     }
     return { kind: "none" };
@@ -290,7 +290,7 @@ export function detectCorrection(
       kind: "reask",
       field,
       collected: clearField(collected, field),
-      message: `No problem — let's fix your ${FIELD_LABELS[field]}.`,
+      message: `No problem, let's fix your ${FIELD_LABELS[field]}.`,
     };
   }
 
@@ -301,6 +301,6 @@ export function detectCorrection(
     kind: "applied",
     field,
     collected: applied.collected,
-    message: `Got it — I've updated your ${FIELD_LABELS[field]} to ${applied.echo}.`,
+    message: `Got it. I've updated your ${FIELD_LABELS[field]} to ${applied.echo}.`,
   };
 }

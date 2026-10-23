@@ -1,7 +1,7 @@
 /**
  * Plan reads for the UI.
  *
- * `getPublicPlans` is deliberately unauthenticated — the pricing page is a
+ * `getPublicPlans` is deliberately unauthenticated. the pricing page is a
  * public marketing page and plan rows carry no tenant data.
  */
 import { createServerFn } from "@tanstack/react-start";

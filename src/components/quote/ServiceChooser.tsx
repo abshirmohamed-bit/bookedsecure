@@ -12,8 +12,9 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, Check, Minus, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Minus, Plus, X } from "lucide-react";
 import { groupItems, hasMeaningfulGroups } from "@/lib/service-groups";
+import type { QuoteServiceLayout } from "@/lib/quote-service-layout";
 import {
   encodeServiceSelection,
   MAX_SERVICE_QUANTITY,
@@ -44,12 +45,14 @@ export function ServiceChooser({
   busy,
   flexibleValue,
   quantityLabel = "Vehicle",
+  layout = "focused_list",
   onSubmit,
 }: {
   options: ServiceOption[];
   busy: boolean;
   flexibleValue: string;
   quantityLabel?: string;
+  layout?: QuoteServiceLayout;
   onSubmit: (value: string, label: string) => void;
 }) {
   const services = options.filter((option) => option.value !== flexibleValue);
@@ -76,6 +79,7 @@ export function ServiceChooser({
   /** Which selected services currently show their extras inside the selection list. */
   const [extrasOpen, setExtrasOpen] = useState<Record<string, boolean>>({});
   const [detail, setDetail] = useState<ServiceOption | null>(null);
+  const [guidedIndex, setGuidedIndex] = useState(0);
 
   const chosenOptions = chosen
     .map((value) => services.find((option) => option.value === value))
@@ -246,7 +250,10 @@ export function ServiceChooser({
           </span>
           <select
             value={activeGroup?.label ?? ""}
-            onChange={(event) => setGroupLabel(event.target.value)}
+            onChange={(event) => {
+              setGroupLabel(event.target.value);
+              setGuidedIndex(0);
+            }}
             className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {groups.map((group) => (
@@ -258,16 +265,35 @@ export function ServiceChooser({
         </label>
       )}
 
-      <div className="px-1">
-        <h3 className="min-w-0 truncate text-[0.7rem] font-bold uppercase tracking-widest text-muted-foreground">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-0.5">
+        <h3 className="min-w-0 truncate text-xs font-semibold text-foreground">
           {activeGroup?.label}
-          <span className="ml-2 font-medium opacity-70">{items.length}</span>
+          <span className="ml-2 font-normal text-muted-foreground">{items.length} services</span>
         </h3>
+        {layout === "guided_conversation" && items.length > 1 && (
+          <span className="text-xs tabular text-muted-foreground">
+            {Math.min(guidedIndex + 1, items.length)} of {items.length}
+          </span>
+        )}
       </div>
 
-      <div className="no-scrollbar max-h-[19.75rem] snap-y snap-proximity scroll-py-1 overflow-y-auto overscroll-y-contain pr-0.5 sm:max-h-[23.5rem]">
-        <div className="grid grid-cols-3 items-stretch gap-1.5 sm:gap-2">
-          {items.map((option) => {
+      <div
+        className={
+          layout === "guided_conversation"
+            ? "overflow-hidden"
+            : "no-scrollbar max-h-[21rem] overflow-y-auto overscroll-y-contain pr-0.5 sm:max-h-[26rem]"
+        }
+      >
+        <div
+          className={
+            layout === "focused_list"
+              ? "grid grid-cols-1 gap-2"
+              : layout === "compact_grid"
+                ? "grid grid-cols-2 items-stretch gap-2 sm:grid-cols-3"
+                : "grid grid-cols-1"
+          }
+        >
+          {(layout === "guided_conversation" ? items.slice(guidedIndex, guidedIndex + 1) : items).map((option) => {
             const card = option.card ?? null;
             const picked = chosen.includes(option.value);
             return (
@@ -285,7 +311,13 @@ export function ServiceChooser({
                       toggleService(option);
                     }
                   }}
-                  className={`relative flex w-full snap-start ${tallCards ? "h-[10.2rem] sm:h-[12rem]" : "h-[7.6rem] sm:h-[9rem]"} cursor-pointer flex-col overflow-hidden rounded-lg border bg-card p-1.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-2 ${
+                  className={`relative w-full cursor-pointer overflow-hidden rounded-lg border bg-card text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    layout === "focused_list"
+                      ? "grid min-h-[5.75rem] grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto_auto] gap-x-3 px-3 py-2.5"
+                      : layout === "guided_conversation"
+                        ? "grid min-h-[12rem] grid-rows-[auto_minmax(0,1fr)_auto_auto] p-4"
+                        : `${tallCards ? "min-h-[11rem] grid grid-rows-[auto_minmax(0,1fr)_auto_auto]" : "min-h-[9.5rem] grid grid-rows-[minmax(0,1fr)_auto_auto]"} p-2.5`
+                  } ${
                     busy ? "opacity-50" : ""
                   } ${
                     picked
@@ -293,21 +325,21 @@ export function ServiceChooser({
                       : "border-border hover:border-primary/60"
                   }`}
                 >
-                  {tallCards &&
+                  {layout !== "focused_list" && tallCards &&
                     (card?.image ? (
                       <img
                         src={card.image}
                         alt={option.label}
                         loading="lazy"
                         decoding="async"
-                        className="mb-1 h-9 w-full shrink-0 rounded-md object-cover sm:h-12"
+                        className={`mb-2 w-full shrink-0 rounded-md object-cover ${layout === "guided_conversation" ? "h-20" : "h-12"}`}
                       />
                     ) : (
-                      <span aria-hidden="true" className="mb-1 h-9 w-full shrink-0 rounded-md bg-secondary sm:h-12" />
+                      <span aria-hidden="true" className={`mb-2 w-full shrink-0 rounded-md bg-secondary ${layout === "guided_conversation" ? "h-20" : "h-12"}`} />
                     ))}
                   <span
                     aria-hidden="true"
-                    className={`absolute right-1.5 top-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                    className={`absolute right-2 top-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                       picked
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border text-transparent"
@@ -318,20 +350,22 @@ export function ServiceChooser({
 
                   <p
                     title={option.label}
-                    className={`min-w-0 flex-1 break-words pr-4 font-semibold leading-[1.15] ${
-                      option.label.length > 24
-                        ? "line-clamp-3 text-[0.6rem] sm:text-[0.7rem]"
-                        : "line-clamp-2 text-[0.66rem] sm:text-[0.78rem]"
+                    className={`min-h-0 min-w-0 overflow-hidden break-words pr-6 font-semibold leading-snug ${
+                      layout === "focused_list"
+                        ? "col-start-1 row-start-1 text-sm"
+                        : layout === "guided_conversation"
+                          ? "line-clamp-3 text-base"
+                          : "line-clamp-3 text-xs"
                     }`}
                   >
                     {option.label}
                   </p>
-                  <div className="min-w-0 shrink-0">
-                    <p className="truncate text-[0.62rem] font-bold leading-tight text-primary sm:text-[0.72rem]">
+                  <div className={`min-w-0 shrink-0 ${layout === "focused_list" ? "col-start-1 row-start-2 self-end" : ""}`}>
+                    <p className={`${layout === "focused_list" ? "text-sm" : "text-xs"} break-words font-bold leading-tight text-primary`}>
                       {card?.price ?? "On enquiry"}
                     </p>
                     {card?.duration && (
-                      <p className="truncate text-[0.56rem] leading-tight text-muted-foreground sm:text-[0.64rem]">
+                      <p className="mt-0.5 text-xs leading-tight text-muted-foreground">
                         {card.duration}
                       </p>
                     )}
@@ -342,7 +376,11 @@ export function ServiceChooser({
                       event.stopPropagation();
                       setDetail(option);
                     }}
-                    className="mt-1 flex h-7 w-full shrink-0 items-center justify-center rounded-md border border-border bg-secondary px-1 text-center text-[0.62rem] font-semibold text-foreground hover:bg-secondary/70 sm:h-8 sm:text-[0.68rem]"
+                    className={`flex shrink-0 items-center justify-center rounded-md border border-border bg-secondary px-3 text-center text-xs font-semibold text-foreground hover:bg-secondary/70 ${
+                      layout === "focused_list"
+                        ? "col-start-2 row-span-3 row-start-1 min-h-11 self-center"
+                        : "mt-2 min-h-10 w-full"
+                    }`}
                   >
                     Details
                   </button>
@@ -354,6 +392,35 @@ export function ServiceChooser({
           })}
         </div>
       </div>
+
+      {layout === "guided_conversation" && items.length > 1 && (
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+          <button
+            type="button"
+            disabled={guidedIndex === 0}
+            onClick={() => setGuidedIndex((current) => Math.max(0, current - 1))}
+            className="grid h-11 w-11 place-items-center rounded-md border border-border bg-card text-foreground disabled:opacity-35"
+            aria-label="Previous service"
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <div className="h-1.5 overflow-hidden rounded-full bg-secondary" aria-hidden="true">
+            <div
+              className="h-full rounded-full bg-primary transition-[width]"
+              style={{ width: `${((guidedIndex + 1) / items.length) * 100}%` }}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={guidedIndex >= items.length - 1}
+            onClick={() => setGuidedIndex((current) => Math.min(items.length - 1, current + 1))}
+            className="grid h-11 w-11 place-items-center rounded-md border border-border bg-card text-foreground disabled:opacity-35"
+            aria-label="Next service"
+          >
+            <ChevronRight className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {chosen.length > 0 && (
         <div className="rounded-xl border border-primary/40 bg-card p-2.5">
@@ -372,11 +439,20 @@ export function ServiceChooser({
                   key={option.value}
                   className="rounded-lg border border-primary/40 bg-primary/10"
                 >
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-1.5 py-1 pl-2.5 pr-1">
-                    <span className="min-w-0 truncate text-xs font-semibold text-foreground">
+                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2.5 py-2">
+                     <span className="min-w-0 break-words text-xs font-semibold text-foreground">
                       {option.label}
                     </span>
-                    {hasExtras && (
+                     <button
+                       type="button"
+                       onClick={() => toggleService(option)}
+                       className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+                       aria-label={`Remove ${option.label}`}
+                     >
+                       <X className="h-3.5 w-3.5" aria-hidden="true" />
+                     </button>
+                     <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2">
+                      {hasExtras && (
                       <button
                         type="button"
                         disabled={busy}
@@ -397,7 +473,7 @@ export function ServiceChooser({
                         <Plus className="h-3 w-3" aria-hidden="true" />
                         <span>Add-ons{chosenCount > 0 ? ` ${chosenCount}` : ""}</span>
                       </button>
-                    )}
+                      )}
                     <span
                       className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card"
                       role="group"
@@ -425,14 +501,7 @@ export function ServiceChooser({
                         <Plus className="h-3 w-3" aria-hidden="true" />
                       </button>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => toggleService(option)}
-                      className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:text-foreground"
-                      aria-label={`Remove ${option.label}`}
-                    >
-                      <X className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
+                     </div>
                   </div>
                   {hasExtras && open && (
                     <div className="grid gap-1 border-t border-primary/20 p-1.5 sm:grid-cols-2">

@@ -83,7 +83,9 @@ export const getMyBilling = createServerFn({ method: "GET" })
       packs: [...packsFor(promo.creditPackSet)],
       promo,
       subscription,
-      access: accessLevel(subscription),
+      // BookedSecure's own operators never need a subscription.
+      access: app.isPlatformAdmin ? "full" : accessLevel(subscription),
+
       role: app.role,
       usage: usage
         ? { includedSegments: usage.includedSegments, segmentsUsed: usage.segmentsUsed, periodEnd: usage.periodEnd }

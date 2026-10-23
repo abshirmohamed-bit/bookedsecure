@@ -147,7 +147,7 @@ export type TransitionResult =
 
 /**
  * Deliberate, one-step-at-a-time transitions. Anything can be turned off, and
- * `disabled` can only resume at `preview_only` — no shortcut to automation.
+ * `disabled` can only resume at `preview_only`. no shortcut to automation.
  */
 export function evaluateModeTransition(
   state: ImportAutomationState,
@@ -287,7 +287,7 @@ export type RowOutcome = (typeof ROW_OUTCOMES)[number];
 export const ROW_OUTCOME_LABELS: Record<RowOutcome, string> = {
   auto_imported: "Auto-imported (live lead created)",
   manually_imported: "Manually imported (live lead created)",
-  already_committed: "Already committed — nothing created",
+  already_committed: "Already committed. nothing created",
   pending: "Pending review",
   excluded: "Excluded",
   blocked: "Blocked",

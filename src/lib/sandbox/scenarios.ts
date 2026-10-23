@@ -34,7 +34,7 @@ export type SandboxFixture = {
     bookingStatus: BookingStatus;
     optedOut: boolean;
     suppressed: boolean;
-    /** false models "unknown or unreachable" — an outbound blocker. */
+    /** false models "unknown or unreachable". an outbound blocker. */
     reachable: boolean;
     requiresOwnerReview: boolean;
     stopKeywordSeen: boolean;
@@ -194,14 +194,14 @@ export const SANDBOX_SCENARIOS: readonly SandboxFixture[] = [
   }),
   base({
     scenarioId: "S16_booking_declined",
-    description: "Booking declined — customer took no offered slot.",
+    description: "Booking declined. customer took no offered slot.",
     leadFixtureId: "fixture-16-booking-declined",
     lead: lead({ leadContext: "active_conversation", phone: "+61400000016", hasInboundReply: true }),
     bookingBehaviour: "declined",
   }),
   base({
     scenarioId: "S17_booking_commit_failure",
-    description: "Booking commit failure — slot taken before commit.",
+    description: "Booking commit failure. slot taken before commit.",
     leadFixtureId: "fixture-17-commit-failure",
     lead: lead({ leadContext: "active_conversation", phone: "+61400000017", hasInboundReply: true }),
     bookingBehaviour: "commit_failure",

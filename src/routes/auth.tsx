@@ -8,21 +8,31 @@ import { ArrowRight, CheckCircle2, MessageSquareText, ShieldCheck } from "lucide
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSetupState } from "@/lib/site-onboarding.functions";
+import { getPlatformAccess } from "@/lib/owner-console.functions";
+import { recordSignupSource } from "@/lib/onboarding.functions";
+import { takeSignupSource } from "@/lib/signup-source";
+import { oauthReturnPath } from '@/lib/oauth-return-path';
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { new?: boolean; next?: string } => {
+    const value = search["new"];
+    return { ...(value === true || value === 'true' || value === '1' ? { new: true } : {}), ...(typeof search['next'] === 'string' ? { next: oauthReturnPath(search['next']) } : {}) };
+  },
   head: () => ({
     meta: [
-      { title: "Sign in — BookedSecure" },
+      { title: "Sign in | BookedSecure" },
       {
         name: "description",
         content: "Sign in to your SMS lead response dashboard to manage customer enquiries.",
       },
-      { property: "og:title", content: "Sign in — BookedSecure" },
+      { property: "og:title", content: "Sign in | BookedSecure" },
       {
         property: "og:description",
         content: "Team access to lead capture, SMS follow-up and completed-job reporting.",
       },
       { name: "robots", content: "noindex" },
+      { property: 'og:type', content: 'website' },
+      { name: 'twitter:card', content: 'summary' },
     ],
   }),
   component: AuthPage,
@@ -30,10 +40,13 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const { session, loading } = useAuth();
   const fetchSetupState = useServerFn(getSetupState);
+  const fetchPlatformAccess = useServerFn(getPlatformAccess);
+  const saveSignupSource = useServerFn(recordSignupSource);
   const routingSession = useRef<string | null>(null);
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(search.new ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -44,12 +57,27 @@ function AuthPage() {
   useEffect(() => {
     if (loading || !session || routingSession.current === session.user.id) return;
     routingSession.current = session.user.id;
-    void fetchSetupState()
-      .then((state) =>
-        navigate({ to: state.needsSetup ? "/setup" : "/dashboard", replace: true }),
-      )
+    // Attribution first: if this visitor arrived from an ad or partner link,
+    // the tags are attached to their business before anything else happens.
+    const tags = takeSignupSource();
+    if (tags) void saveSignupSource({ data: tags }).catch(() => undefined);
+    if (search.next && search.next !== '/') {
+      window.location.assign(oauthReturnPath(search.next));
+      return;
+    }
+    // Same sign-in form for everyone; only a platform admin lands in the
+    // control room. Tenants never see that this destination exists.
+    void fetchPlatformAccess()
+      .then(async (access) => {
+        if (access.isPlatformAdmin) {
+          navigate({ to: "/admin/overview", replace: true });
+          return;
+        }
+        const state = await fetchSetupState();
+        navigate({ to: state.needsSetup ? "/setup" : "/dashboard", replace: true });
+      })
       .catch(() => navigate({ to: "/dashboard", replace: true }));
-  }, [fetchSetupState, loading, session, navigate]);
+  }, [fetchPlatformAccess, fetchSetupState, saveSignupSource, loading, session, navigate, search.next]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -61,7 +89,7 @@ function AuthPage() {
           password,
           options: {
             data: { name, business_name: businessName },
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: new URL(oauthReturnPath(search.next), window.location.origin).href,
           },
         });
         if (error) throw error;
@@ -139,7 +167,7 @@ function AuthPage() {
                     const { error } = await supabase.auth.resend({
                       type: "signup",
                       email,
-                      options: { emailRedirectTo: `${window.location.origin}/` },
+                      options: { emailRedirectTo: new URL(oauthReturnPath(search.next), window.location.origin).href },
                     });
                     if (error) toast.error(error.message);
                     else toast.success("Confirmation email sent again.");

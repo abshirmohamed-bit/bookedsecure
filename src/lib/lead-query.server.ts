@@ -168,6 +168,33 @@ export function shapeLeadRow(row: Record<string, unknown>): LeadInboxRow {
   };
 }
 
+/** Splits what was typed into separate words, dropping unsafe characters. */
+export function searchWords(raw: string): string[] {
+  return raw
+    .replace(/[%_,()."\\]/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 0)
+    .slice(0, 4);
+}
+
+/**
+ * Forms of one word worth searching for: the word itself, Australian mobiles in
+ * both 04… and 61… form, and. for longer words. the word without its first or
+ * last character, so a single mistyped or missed letter still finds the lead
+ * ("lesha" finds "Iesha").
+ */
+export function searchVariants(word: string): string[] {
+  const variants = new Set<string>([word]);
+  if (/^0\d+$/.test(word)) variants.add(`61${word.slice(1)}`);
+  if (/^61\d+$/.test(word)) variants.add(`0${word.slice(2)}`);
+  if (/^[a-z]+$/i.test(word) && word.length >= 4) {
+    variants.add(word.slice(1));
+    variants.add(word.slice(0, -1));
+  }
+  return [...variants];
+}
+
 /** Applies the tenant + filter predicates to a query builder, before pagination. */
 export function applyPredicates<T>(query: T, predicates: LeadPredicate[]): T {
   let builder = query as unknown as Record<string, (...args: unknown[]) => unknown>;
@@ -186,21 +213,16 @@ export function applyPredicates<T>(query: T, predicates: LeadPredicate[]): T {
         builder = builder["not"]!(predicate.column, "is", null) as typeof builder;
         break;
       case "search": {
-        // Match name, mobile or email. PostgREST `.or` uses commas as syntax,
-        // so strip the characters that could break or alter the pattern.
-        const term = predicate.value.replace(/[%_,()."\\]/g, "").trim();
-        if (term.length > 0) {
-          // Mobiles are stored in +61 form; a tenant typing the local 04…
-          // form must still find them.
-          const terms = [term];
-          if (/^0\d+$/.test(term)) terms.push(`61${term.slice(1)}`);
-          if (/^61\d+$/.test(term)) terms.push(`0${term.slice(2)}`);
-          const clauses = terms.flatMap((value) => [
+        // Every word typed must match the name, mobile or email. Chained `.or`
+        // calls are ANDed, so "yatim iesha" finds "Iesha Yatim" either way
+        // round. PostgREST reads commas as syntax, so unsafe characters go.
+        for (const word of searchWords(predicate.value)) {
+          const clauses = searchVariants(word).flatMap((value) => [
             `name.ilike.%${value}%`,
             `mobile_number.ilike.%${value}%`,
             `email.ilike.%${value}%`,
           ]);
-          builder = builder["or"]!(clauses.join(",")) as typeof builder;
+          if (clauses.length > 0) builder = builder["or"]!(clauses.join(",")) as typeof builder;
         }
         break;
       }
@@ -212,7 +234,7 @@ export function applyPredicates<T>(query: T, predicates: LeadPredicate[]): T {
 /**
  * Fetches one page of the caller's leads.
  *
- * `businessId` must come from the authenticated app context — never from the
+ * `businessId` must come from the authenticated app context. never from the
  * browser. Ordering is a deterministic total order (activity desc, id desc), so
  * rows are never duplicated or skipped across pages when timestamps match.
  */

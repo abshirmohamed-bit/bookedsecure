@@ -3,8 +3,8 @@
 // SAFETY BOUNDARY: this module only ever deletes `public.leads` rows that
 // belong to the caller's business AND already have `deleted_at` set, plus the
 // dependent records the database cascades (conversations, ai_outputs,
-// notifications, automation_jobs). Retention-protected records — messages,
-// consent_events, jobs/revenue — block the deletion instead. AI usage events
+// notifications, automation_jobs). Retention-protected records. messages,
+// consent_events, jobs/revenue. block the deletion instead. AI usage events
 // and CRM import rows are retained and detached. No provider, SMS, AI,
 // automation-rule or usage-total write happens anywhere in this path.
 import type { SupabaseClient } from "@supabase/supabase-js";

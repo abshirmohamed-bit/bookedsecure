@@ -14,7 +14,7 @@ import {
   type RowReview,
 } from "@/lib/row-review";
 
-export const COMMIT_SIMULATION_LABEL = "SIMULATE COMMIT — NO LIVE DATA WILL CHANGE";
+export const COMMIT_SIMULATION_LABEL = "SIMULATE COMMIT. NO LIVE DATA WILL CHANGE";
 export const CANARY_LABEL = "IMPORT ONE CANARY LEAD";
 export const SIMULATION_WARNING =
   "Simulation only. No leads are created, no messages are sent and no live data changes.";

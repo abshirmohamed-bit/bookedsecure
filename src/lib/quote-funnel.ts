@@ -5,7 +5,7 @@
  * state into: how far each conversation got, where conversations stop, and
  * which partial prospects gave a mobile number without finishing.
  *
- * Bookings are never read from conversation state — the caller passes the
+ * Bookings are never read from conversation state. the caller passes the
  * authoritative confirmed-booking count from jobs/booking offers.
  */
 import type { WebChatCollected } from "@/lib/web-chat";
@@ -173,7 +173,7 @@ export function buildFunnel(input: {
 
 /**
  * A partial prospect: gave a mobile number, never finished, never declined.
- * Declined consent is excluded outright — they asked not to be contacted.
+ * Declined consent is excluded outright. they asked not to be contacted.
  */
 export function isUnfinishedProspect(row: ConversationRow): boolean {
   if (row.leadId) return false;
@@ -291,7 +291,7 @@ export function opensBySource(
 ): { label: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const event of events) {
-    const label = [event.source ?? "direct", event.campaign].filter(Boolean).join(" — ");
+    const label = [event.source ?? "direct", event.campaign].filter(Boolean).join(": ");
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   return [...counts.entries()]

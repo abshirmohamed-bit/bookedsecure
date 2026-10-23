@@ -183,28 +183,6 @@ export async function resolveSender(input: {
     if (data) return toResolvedSender(data);
   }
 
-  if (input.leadId) {
-    const { data: last } = await supabaseAdmin
-      .from("messages")
-      .select("sender_id")
-      .eq("business_id", input.businessId)
-      .eq("lead_id", input.leadId)
-      .not("sender_id", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (last?.sender_id) {
-      const { data } = await supabaseAdmin
-        .from("sms_senders")
-        .select(SENDER_COLUMNS)
-        .eq("id", last.sender_id)
-        .eq("business_id", input.businessId)
-        .eq("active", true)
-        .maybeSingle();
-      if (data) return toResolvedSender(data);
-    }
-  }
-
   const { data: primary } = await supabaseAdmin
     .from("sms_senders")
     .select(SENDER_COLUMNS)
@@ -215,8 +193,35 @@ export async function resolveSender(input: {
     .limit(1)
     .maybeSingle();
 
+  if (input.leadId) {
+    // Stay on an older number only while the customer is actually replying to
+    // it (previous campaigns keep their thread). Everything else moves to the
+    // current primary number.
+    const { data: lastInbound } = await supabaseAdmin
+      .from("messages")
+      .select("sender_id")
+      .eq("business_id", input.businessId)
+      .eq("lead_id", input.leadId)
+      .eq("direction", "inbound")
+      .not("sender_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (lastInbound?.sender_id && lastInbound.sender_id !== primary?.id) {
+      const { data } = await supabaseAdmin
+        .from("sms_senders")
+        .select(SENDER_COLUMNS)
+        .eq("id", lastInbound.sender_id)
+        .eq("business_id", input.businessId)
+        .eq("active", true)
+        .maybeSingle();
+      if (data) return toResolvedSender(data);
+    }
+  }
+
   return primary ? toResolvedSender(primary) : null;
 }
+
 
 /**
  * Tenant lookup for inbound/callback webhooks: the receiving number is the key.
@@ -225,7 +230,7 @@ export async function resolveSender(input: {
  */
 export async function findSenderByNumber(number: string): Promise<ResolvedSender | null> {
   const normalised = normaliseAuMobile(number) ?? number;
-  // Parameterised list — webhook-supplied text can never alter the filter.
+  // Parameterised list. webhook-supplied text can never alter the filter.
   const candidates = Array.from(new Set([normalised, number]));
   const { data } = await supabaseAdmin
     .from("sms_senders")
@@ -521,7 +526,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Mobile number was not a valid Australian mobile — lead marked invalid, no SMS sent.",
+      note: "Mobile number was not a valid Australian mobile, so the lead was marked invalid and no SMS was sent.",
     };
   }
 
@@ -531,7 +536,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Flagged for owner review — no automated SMS was queued for this enquiry.",
+      note: "Flagged for owner review, so no automated SMS was queued for this enquiry.",
     };
   }
 
@@ -542,7 +547,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Captured from the web conversation — no SMS was queued.",
+      note: "Captured from the web conversation, so no SMS was queued.",
     };
   }
 
@@ -552,7 +557,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "No SMS consent recorded — no automated SMS was queued.",
+      note: "No SMS consent recorded, so no automated SMS was queued.",
     };
   }
 
@@ -574,7 +579,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Acknowledgement is switched off for this business — no SMS was queued.",
+      note: "Acknowledgement is switched off for this business, so no SMS was queued.",
     };
   }
 
@@ -667,7 +672,7 @@ export async function sendSms(input: {
   senderId?: string | undefined;
   /** Trigger for observability: manual, quote_page, inbound_follow_up, automation. */
   source?: MessageSource | undefined;
-  /** Optional agent-sequence attribution (metadata only — never authorises a send). */
+  /** Optional agent-sequence attribution (metadata only. never authorises a send). */
   sequenceId?: string | null | undefined;
   actionKind?: string | null | undefined;
   agentActionId?: string | null | undefined;
@@ -692,7 +697,7 @@ export async function sendSms(input: {
 
   if (!lead) return { sent: false, retriable: false, reason: "Lead not found for this business." };
   if (lead.opted_out_at)
-    return { sent: false, retriable: false, reason: "Lead has opted out — no SMS sent." };
+    return { sent: false, retriable: false, reason: "Lead has opted out, so no SMS was sent." };
   if (lead.status === "invalid")
     return { sent: false, retriable: false, reason: "Lead number is invalid." };
 
@@ -710,13 +715,13 @@ export async function sendSms(input: {
       return {
         sent: false,
         retriable: false,
-        reason: "Unknown agent action reference for this business — nothing was sent.",
+        reason: "Unknown agent action reference for this business, so nothing was sent.",
       };
     if (action.lead_id && action.lead_id !== input.leadId)
       return {
         sent: false,
         retriable: false,
-        reason: "Agent action reference belongs to a different lead — nothing was sent.",
+        reason: "Agent action reference belongs to a different lead, so nothing was sent.",
       };
   }
 
@@ -749,7 +754,7 @@ export async function sendSms(input: {
 
   // Fast path: a reserved, in-flight or successful send with this key blocks a
   // repeat. Only confirmed failures stay retriable. The unique index on
-  // (business_id, idempotency_key) is the real guarantee — see the reservation
+  // (business_id, idempotency_key) is the real guarantee. see the reservation
   // insert below.
   if (input.idempotencyKey) {
     const { data: dupe } = await supabaseAdmin
@@ -772,7 +777,7 @@ export async function sendSms(input: {
   // reserved, before any usage accounting, before a conversation is created and
   // before the carrier is contacted, so a blocked send leaves no trace other
   // than an internal audit event. Scheduling of a later attempt stays with the
-  // existing callers (job retry / follow-up deferral) — nothing is queued here.
+  // existing callers (job retry / follow-up deferral). nothing is queued here.
   const quietHours = evaluateQuietHoursGate(business, new Date());
   // One narrow exemption: the operational booking-confirmation template. A
   // customer who has just booked must be told immediately, at any hour. The
@@ -985,7 +990,7 @@ export async function sendSms(input: {
       return {
         sent: false,
         retriable: true,
-        reason: "Could not reserve the outbound message — nothing was sent.",
+        reason: "Could not reserve the outbound message, so nothing was sent.",
       };
     }
     messageId = reservation.data.id;
@@ -1017,7 +1022,7 @@ export async function sendSms(input: {
         sent: false,
         retriable: false,
         messageId,
-        reason: `Carrier outcome unknown — held for reconciliation, not resent: ${detail}`,
+        reason: `Carrier outcome unknown, held for reconciliation and not resent: ${detail}`,
       };
     }
 
@@ -1071,7 +1076,7 @@ export async function sendSms(input: {
   } else {
     // Sent out of the plan's included allowance: the provider still charges the
     // platform for it, so book that cost against this tenant. Credit-funded
-    // texts are not booked here — their cost was booked when the pack was paid.
+    // texts are not booked here. their cost was booked when the pack was paid.
     try {
       const { recordIncludedMessageCost } = await import("@/lib/provider-costs.server");
       await recordIncludedMessageCost({
@@ -1200,7 +1205,7 @@ export function findActiveLeadByMobile(
 
 /**
  * Inbound SMS: stores the reply, handles opt-out and stops automation.
- * The tenant is identified by the receiving sender number — never by a global
+ * The tenant is identified by the receiving sender number. never by a global
  * mobile-number scan.
  */
 
@@ -1276,7 +1281,7 @@ export async function handleInboundMessage(input: {
     .eq("lead_id", lead.id);
 
   // A reply proves the number is contactable, but it never rewrites the
-  // delivery status of earlier outbound messages — it is recorded separately.
+  // delivery status of earlier outbound messages. it is recorded separately.
   // An inbound reply is direct evidence the number was in use at that time, so
   // it restores reachable_recently while the failure history stays intact.
   const update: Record<string, unknown> = {
@@ -1342,7 +1347,7 @@ export async function handleInboundMessage(input: {
  * Delivery receipt, constrained to the business that owns the sender number.
  *
  * This path never sends an SMS, never creates a message or conversation, and
- * never triggers automation — it only records the verified delivery outcome.
+ * never triggers automation. it only records the verified delivery outcome.
  */
 export async function handleDeliveryStatus(input: {
   providerName: string;
@@ -1430,7 +1435,7 @@ export async function processDueFollowUps(): Promise<{
         .from("conversations")
         .update({ next_follow_up_at: new Date(now.getTime() + 60 * 60 * 1000).toISOString() })
         .eq("id", conversation.id);
-      skipped.push({ leadId: conversation.lead_id, reason: "Quiet hours — deferred." });
+      skipped.push({ leadId: conversation.lead_id, reason: "Quiet hours, deferred." });
       continue;
     }
 
@@ -1472,7 +1477,7 @@ export async function processDueFollowUps(): Promise<{
         .from("conversations")
         .update({ next_follow_up_at: null })
         .eq("id", conversation.id);
-      skipped.push({ leadId: lead.id, reason: "Booking confirmed — follow-ups stopped." });
+      skipped.push({ leadId: lead.id, reason: "Booking confirmed, follow-ups stopped." });
       continue;
     }
 
