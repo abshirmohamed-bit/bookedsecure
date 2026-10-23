@@ -1,5 +1,6 @@
 # Roadmap
 
+
 ## Full external-assistant action access
 - [x] Extend caller-scoped shared customer, booking, catalogue and automation actions; keep messaging/import approvals.
 - [x] Queue broader existing Cowork work for in-app confirmation rather than registering privileged builders; file imports still need an in-app attachment.
