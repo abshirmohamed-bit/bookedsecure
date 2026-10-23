@@ -10,7 +10,7 @@ export async function executeAssistantOperation(client: SupabaseClient<Database>
   if ('mobile' in input && input.mobile) {
     const mobile = normaliseAuMobile(input.mobile);
     if (!mobile) throw new Error('Provide a valid Australian mobile number.');
-    payload.mobile = mobile;
+    payload['mobile'] = mobile;
   }
   if ('date' in input && 'time' in input) {
     const { data: identity, error: identityError } = await client.auth.getUser();
