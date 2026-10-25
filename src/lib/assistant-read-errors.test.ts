@@ -10,10 +10,10 @@ const ctx: AssistantToolContext = {
 function query(result: unknown) {
   const chain: Record<string, unknown> = {};
   for (const method of ['select', 'eq', 'is', 'or', 'order', 'limit', 'in', 'maybeSingle']) chain[method] = () => chain;
-  chain.then = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve);
+  chain['then'] = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve);
   return chain;
 }
-const options = { toolCallId: 'test', messages: [] };
+const options = { toolCallId: 'test', messages: [], context: {} };
 describe('Cowork failed customer reads', () => {
   it('does not report a failed customer search as no matching customers', async () => {
     mocks.from.mockReturnValue(query({ data: null, error: { message: 'Read failed' } }));
