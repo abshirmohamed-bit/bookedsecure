@@ -62,7 +62,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
   async function findLeads(query: string, limit = 6) {
     const term = query.trim();
     const like = `%${term}%`;
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("leads")
       .select(
         "id, name, mobile_number, email, suburb, service_address, vehicle_type, service_intent, status, booking_status, notes, opted_out_at, created_at",
@@ -72,6 +72,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       .or(`name.ilike.${like},mobile_number.ilike.${like},email.ilike.${like}`)
       .order("created_at", { ascending: false })
       .limit(limit);
+    if (error) throw new Error('Could not search customers. Please try again.');
     return data ?? [];
   }
 
@@ -96,6 +97,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
             rows.map((row) => row.id as string),
           )
           .order("scheduled_at", { ascending: true });
+        if (jobs.error) throw new Error('Could not read customer bookings. Please try again.');
         return {
           matches: rows.map((row) => ({
             leadId: row.id,

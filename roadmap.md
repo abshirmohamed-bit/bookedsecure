@@ -1,5 +1,10 @@
 # Roadmap
 
+## Cowork history and task reliability
+- [x] Review all stored history through privacy-preserving aggregate categories and verify tenant-scoped storage.
+- [x] Preserve full conversation context and approval outcomes; stop application-level replay after interrupted tool work; propagate customer lookup/history failures.
+- [ ] Run focused regression tests and verify a signed-in Cowork request with history readback.
+
 
 ## Full external-assistant action access
 - [x] Extend caller-scoped shared customer, booking, catalogue and automation actions; keep messaging/import approvals.
