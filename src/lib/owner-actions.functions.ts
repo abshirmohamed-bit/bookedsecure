@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { LEAD_STATUSES } from "@/lib/domain";
 import { OWNER_ASSISTANT_MAX_QUESTION, normaliseOwnerQuestion } from "@/lib/owner-assistant";
+import { conversationContext } from '@/lib/assistant-context';
 
 /**
  * One owner request from the assistant. The tool-using assistant reads and
@@ -72,9 +73,7 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
       userId: app.userId,
       role: app.role,
       question,
-      history: prior.messages
-        .filter((message) => message.text.trim().length > 0)
-        .map((message) => ({ role: message.role, text: message.text })),
+      history: conversationContext(prior.messages),
       attachment,
       attachmentRemembered: !fresh && Boolean(remembered),
     });

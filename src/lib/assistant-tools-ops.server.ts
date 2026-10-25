@@ -115,7 +115,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
         "Everything on file for one customer: their details, every text sent and received (with delivery status), bookings and jobs, campaigns they were included in, and their follow-up sequence state. Use find_customers first to get the leadId.",
       inputSchema: z.object({ leadId: z.string().uuid() }),
       execute: async ({ leadId }) => {
-        const [{ data: lead }, { data: messages }, { data: jobs }, { data: drafts }, { data: conversation }] =
+        const results =
           await Promise.all([
             supabaseAdmin
               .from("leads")
@@ -152,6 +152,10 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
               .eq("lead_id", leadId)
               .maybeSingle(),
           ]);
+        if (results.some((result) => result.error)) {
+          return fail('Could not load the complete customer history. Please try again; missing results are not evidence of no activity.');
+        }
+        const [{ data: lead }, { data: messages }, { data: jobs }, { data: drafts }, { data: conversation }] = results;
         if (!lead) return fail("That customer is not in this business's records.");
         return {
           customer: {

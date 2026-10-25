@@ -35,6 +35,8 @@ export type AgentRunInput = {
   maxSteps?: number;
   /** Which Control-room model to use: "fast" (quote chat) or "agent" (owner chat, default). */
   role?: "agent" | "fast";
+  /** Lets callers suppress application-level fallback after any tool starts. */
+  onToolsStarted?: () => void;
 };
 
 /**
@@ -45,17 +47,21 @@ export type AgentRunInput = {
  */
 export async function runAgentTurn(input: AgentRunInput): Promise<string> {
   let toolsStarted = false;
+  const markToolsStarted = () => {
+    toolsStarted = true;
+    input.onToolsStarted?.();
+  };
   return withAiBackup({
     businessId: input.businessId,
     role: input.role ?? "agent",
     canReplay: () => !toolsStarted,
-    gateway: () => runGatewayTurn(input, () => { toolsStarted = true; }),
+    gateway: () => runGatewayTurn(input, markToolsStarted),
     backup: async (provider) => {
       let failure: unknown;
       const result = streamText({
         ...provider, system: input.system, messages: input.messages, tools: input.tools,
         stopWhen: stepCountIs(input.maxSteps ?? 50), maxRetries: 0,
-        onChunk: ({ chunk }) => { if (chunk.type === 'tool-call' || chunk.type === 'tool-input-start') toolsStarted = true; },
+        onChunk: ({ chunk }) => { if (chunk.type === 'tool-call' || chunk.type === 'tool-input-start') markToolsStarted(); },
         onError: ({ error }) => { failure = error; },
       });
       const text = await result.text;
