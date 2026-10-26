@@ -1,3 +1,4 @@
+import { leadSourceFromFormUrl } from "@/lib/quote-funnel";
 /**
  * The customer agent's tools.
  *
@@ -110,7 +111,7 @@ export function buildQuoteAgentTools(ctx: QuoteAgentToolContext) {
             service_address: input.address,
             main_concerns: input.details,
             service_intent: service?.name ?? input.described_request ?? "AI quote conversation",
-            source_channel: "website",
+            ...leadSourceFromFormUrl(ctx.formUrl),
             source_form: `ai_agent:${ctx.slug}`,
             source_metadata: {
               ai_chat: {
