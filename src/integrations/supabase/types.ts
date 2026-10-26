@@ -2400,6 +2400,32 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          business_id: string
+          muted_kinds: string[]
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          muted_kinds?: string[]
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          muted_kinds?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string
@@ -4180,6 +4206,18 @@ export type Database = {
       prepare_connected_assistant_request: {
         Args: { p_request: string }
         Returns: Json
+      }
+      push_owner_notification: {
+        Args: {
+          _body: string
+          _business_id: string
+          _key: string
+          _kind: string
+          _lead_id: string
+          _metadata?: Json
+          _title: string
+        }
+        Returns: undefined
       }
       record_blocked_sms_segments: {
         Args: { p_period_id: string; p_segments: number }

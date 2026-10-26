@@ -137,3 +137,8 @@
 - [x] Assign the BookedSecure plan trial and verify full access, zero credits, and no assigned SMS number.
 - [x] AI provider router + Control room switch (Cheaper Inference primary, Lovable standby)
 - [ ] Save Cheaper Inference key, run health check, live action tests on a test business, then cutover (waits on key)
+
+## Notification centre
+- [x] Fixes (read on open, outside tap/Escape, phone width, "5 min ago", true unread count, icons, Today/Earlier).
+- [x] Instant alerts, new alert types, filters, full page with older history, quick actions, alert on/off settings.
+- [ ] Urgent alerts by text/email: not built, awaiting owner decision on cost.

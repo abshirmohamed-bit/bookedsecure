@@ -19,6 +19,7 @@ import { Route as HomeRouteImport } from './routes/home'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -111,6 +112,11 @@ const LandingRoute = LandingRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -350,6 +356,7 @@ export interface FileRoutesByFullPath {
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/mcp': typeof McpRoute
+  '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -405,6 +412,7 @@ export interface FileRoutesByTo {
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/mcp': typeof McpRoute
+  '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -460,6 +468,7 @@ export interface FileRoutesById {
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/mcp': typeof McpRoute
+  '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -517,6 +526,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/landing'
     | '/mcp'
+    | '/notifications'
     | '/pricing'
     | '/privacy'
     | '/profile'
@@ -572,6 +582,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/landing'
     | '/mcp'
+    | '/notifications'
     | '/pricing'
     | '/privacy'
     | '/profile'
@@ -626,6 +637,7 @@ export interface FileRouteTypes {
     | '/import'
     | '/landing'
     | '/mcp'
+    | '/notifications'
     | '/pricing'
     | '/privacy'
     | '/profile'
@@ -682,6 +694,7 @@ export interface RootRouteChildren {
   ImportRoute: typeof ImportRoute
   LandingRoute: typeof LandingRoute
   McpRoute: typeof McpRoute
+  NotificationsRoute: typeof NotificationsRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
@@ -789,6 +802,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -1142,6 +1162,7 @@ const rootRouteChildren: RootRouteChildren = {
   ImportRoute: ImportRoute,
   LandingRoute: LandingRoute,
   McpRoute: McpRoute,
+  NotificationsRoute: NotificationsRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,

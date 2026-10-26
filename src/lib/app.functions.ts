@@ -178,21 +178,107 @@ export const getLead = createServerFn({ method: "GET" })
 
 export const getNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        filter: z.enum(["all", "unread", "bookings", "messages"]).default("all"),
+        before: z.string().datetime().optional(),
+        limit: z.number().int().min(1).max(100).default(30),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { kindsForFilter, trialEndingSoon } = await import("@/lib/notifications");
     const app = await requireAppContext(context.supabase, context.userId);
-    const { data } = await supabaseAdmin
+
+    const { data: prefs } = await supabaseAdmin
+      .from("notification_preferences")
+      .select("muted_kinds")
+      .eq("business_id", app.businessId)
+      .maybeSingle();
+    const muted = prefs?.muted_kinds ?? [];
+
+    // Trial reminder is time-based, so it is raised when the owner checks alerts.
+    const { data: biz } = await supabaseAdmin
+      .from("businesses")
+      .select("subscription_status, current_period_end")
+      .eq("id", app.businessId)
+      .maybeSingle();
+    if (!muted.includes("trial_ending") && trialEndingSoon(biz?.subscription_status, biz?.current_period_end)) {
+      await supabaseAdmin.from("notifications").upsert(
+        {
+          business_id: app.businessId,
+          kind: "trial_ending",
+          title: "Your trial ends soon",
+          body: `Your free trial ends on ${new Date(biz!.current_period_end!).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}. Contact us to keep texting your customers.`,
+          idempotency_key: `trial_ending:${app.businessId}:${biz!.current_period_end}`,
+        },
+        { onConflict: "idempotency_key", ignoreDuplicates: true },
+      );
+    }
+
+    let query = supabaseAdmin
       .from("notifications")
       .select("id, lead_id, kind, title, body, metadata, created_at, read_at")
       .eq("business_id", app.businessId)
       .order("created_at", { ascending: false })
-      .limit(30);
-    const notifications = data ?? [];
+      .limit(data.limit + 1);
+    if (muted.length) query = query.not("kind", "in", `(${muted.join(",")})`);
+    const kinds = kindsForFilter(data.filter);
+    if (kinds) query = query.in("kind", kinds);
+    if (data.filter === "unread") query = query.is("read_at", null);
+    if (data.before) query = query.lt("created_at", data.before);
+
+    let unreadQuery = supabaseAdmin
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", app.businessId)
+      .is("read_at", null);
+    if (muted.length) unreadQuery = unreadQuery.not("kind", "in", `(${muted.join(",")})`);
+
+    const [list, unread] = await Promise.all([query, unreadQuery]);
+    if (list.error) throw new Error(list.error.message);
+    if (unread.error) throw new Error(unread.error.message);
+    const rows = list.data ?? [];
     return {
-      notifications,
-      unread: notifications.filter((row) => !row.read_at).length,
+      notifications: rows.slice(0, data.limit),
+      hasMore: rows.length > data.limit,
+      unread: unread.count ?? 0,
+      businessId: app.businessId,
     };
+  });
+
+export const getNotificationPreferences = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    const { data, error } = await context.supabase
+      .from("notification_preferences")
+      .select("muted_kinds")
+      .eq("business_id", app.businessId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return { mutedKinds: data?.muted_kinds ?? [] };
+  });
+
+export const saveNotificationPreferences = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ mutedKinds: z.array(z.string().max(40)).max(20) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    const { error } = await context.supabase.from("notification_preferences").upsert({
+      business_id: app.businessId,
+      muted_kinds: data.mutedKinds,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const markNotificationsRead = createServerFn({ method: "POST" })
