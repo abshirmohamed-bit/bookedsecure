@@ -201,7 +201,7 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
     .from("email_campaign_recipients")
     .select("id, email")
     .eq("campaign_id", input.campaignId)
-    .eq("status", "pending");
+    .in("status", ["pending", "failed"]);
 
   let sent = 0;
   let failed = 0;
@@ -241,6 +241,10 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
         .eq("id", recipient.id);
     }
   }
+
+  // Nothing delivered: keep it a draft so the owner can fix the cause and retry
+  // the failed customers without rebuilding the campaign.
+  if (sent === 0 && failed > 0) return { sent, failed, skipped };
 
   await supabaseAdmin
     .from("email_campaigns")
