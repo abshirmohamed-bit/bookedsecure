@@ -48,7 +48,7 @@ export function NotificationBell({ rail = false }: { rail?: boolean }) {
   useEffect(() => {
     if (!businessId) return;
     const channel = supabase
-      .channel(`notifications:${businessId}`)
+      .channel(`notifications:${businessId}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `business_id=eq.${businessId}` },
