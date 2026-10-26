@@ -1,3 +1,4 @@
+import { leadSourceFromFormUrl } from "@/lib/quote-funnel";
 // Server-only persistence for the public AI quote conversation.
 //
 // Hard boundaries held here:
@@ -771,7 +772,7 @@ export async function replyToWebChat(input: {
       vehicle_type: next.vehicle_type ?? null,
       main_concerns: next.concerns ?? null,
       service_intent: chosenServicesText(next) ?? next.typed_request ?? "AI quote conversation",
-      source_channel: "website",
+      ...leadSourceFromFormUrl(input.formUrl),
       source_form: `ai_chat:${tenant.slug}`,
       source_metadata: {
         ai_chat: {
@@ -822,7 +823,7 @@ export async function replyToWebChat(input: {
         approved_service_id: next.service_id ?? null,
         service_name_snapshot: next.service_name ?? null,
         flexible_request_text: next.typed_request ?? null,
-        source_channel: "website",
+        ...leadSourceFromFormUrl(input.formUrl),
         source_form: `ai_chat:${tenant.slug}`,
         lead_origin: "ai_web_chat",
         requires_owner_review: outcome.requiresOwnerReview,

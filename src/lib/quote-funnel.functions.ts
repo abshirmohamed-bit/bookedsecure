@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { getRequestHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /** Public: records that a tenant's quote page was opened, with ad attribution. */
@@ -21,7 +22,11 @@ export const recordQuotePageOpened = createServerFn({ method: "POST" })
       return await recordQuotePageOpen({
         slug: data.slug,
         sessionKey: data.session_key ?? null,
-        attribution: readAttribution({ url: data.url, referrer: data.referrer ?? null }),
+        attribution: readAttribution({
+          url: data.url,
+          referrer: data.referrer ?? null,
+          userAgent: getRequestHeader("user-agent") ?? null,
+        }),
       });
     } catch {
       // Measurement is never allowed to break the conversation.

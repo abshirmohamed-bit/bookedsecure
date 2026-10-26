@@ -22,6 +22,7 @@ import {
   startQuoteConversation,
 } from "@/lib/web-chat.functions";
 import { recordQuotePageOpened } from "@/lib/quote-funnel.functions";
+import { adTaggedFormUrl, detectAdSource } from "@/lib/quote-funnel";
 import { trackAdsConversion } from "@/lib/ad-conversions";
 
 import { asksForServiceList, isSuppressedOpeningTurn } from "@/lib/web-chat-presentation";
@@ -225,6 +226,12 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
     if (typeof window === "undefined") return;
     const key = `bookedsecure:open:${tenant.slug}`;
     if (window.sessionStorage.getItem(key)) return;
+    const adSource = detectAdSource({
+      url: window.location.href,
+      referrer: document.referrer || null,
+      userAgent: navigator.userAgent,
+    });
+    if (adSource) window.sessionStorage.setItem(`bookedsecure:adsrc:${tenant.slug}`, adSource);
     const sessionKey = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
     window.sessionStorage.setItem(key, sessionKey);
     void recordOpen({
@@ -290,7 +297,10 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
           slug: tenant.slug,
           conversation_id: conversationId,
           answer: value,
-          form_url: `${window.location.origin}${window.location.pathname}`,
+          form_url: adTaggedFormUrl(
+            `${window.location.origin}${window.location.pathname}`,
+            window.sessionStorage.getItem(`bookedsecure:adsrc:${tenant.slug}`),
+          ),
           expected_step: turn.step,
         },
       });

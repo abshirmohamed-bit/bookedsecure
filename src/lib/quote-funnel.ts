@@ -244,10 +244,55 @@ const UTM_KEYS = [
   "ttclid",
 ] as const;
 
+export type AdSource = "facebook" | "instagram";
+
+/**
+ * Works out whether a visit came from Facebook or Instagram, using every signal
+ * a visit carries: the ad click id or utm tag in the link, a Facebook/Instagram
+ * referrer, or the Facebook/Instagram in-app browser (which often strips both).
+ */
+export function detectAdSource(input: {
+  url?: string | null;
+  referrer?: string | null;
+  userAgent?: string | null;
+}): AdSource | null {
+  let params = new URLSearchParams();
+  try {
+    if (input.url) params = new URL(input.url).searchParams;
+  } catch {
+    // ignore malformed links
+  }
+  const tag = `${params.get("utm_source") ?? ""} ${params.get("src") ?? ""}`.toLowerCase();
+  if (/\b(ig|instagram)\b/.test(tag)) return "instagram";
+  if (/\b(fb|facebook|meta)\b/.test(tag) || params.get("fbclid")) return "facebook";
+  const referrer = (input.referrer ?? "").toLowerCase();
+  if (/(^|\.|\/)instagram\.com/.test(referrer)) return "instagram";
+  if (/(^|\.|\/)(facebook\.com|fb\.com|fb\.me)/.test(referrer)) return "facebook";
+  const ua = input.userAgent ?? "";
+  if (/Instagram/.test(ua)) return "instagram";
+  if (/FBAN|FBAV|FB_IAB|FBIOS|FB4A/.test(ua)) return "facebook";
+  return null;
+}
+
+/** Quote link sent with chat replies, tagged with the visit's ad source. */
+export function adTaggedFormUrl(base: string, adSource: string | null | undefined): string {
+  return adSource === "facebook" || adSource === "instagram" ? `${base}?src=${adSource}` : base;
+}
+
+/** Lead source for a customer created from the quote chat. */
+export function leadSourceFromFormUrl(formUrl: string | null | undefined): {
+  source_channel: "meta" | "website";
+  utm_source: string | null;
+} {
+  const ad = detectAdSource({ url: formUrl ?? null });
+  return ad ? { source_channel: "meta", utm_source: ad } : { source_channel: "website", utm_source: null };
+}
+
 /** Reads ad attribution out of the landing URL's query string. */
 export function readAttribution(input: {
   url: string;
   referrer?: string | null;
+  userAgent?: string | null;
 }): QuoteAttribution {
   let params = new URLSearchParams();
   let landing = input.url;
@@ -267,9 +312,10 @@ export function readAttribution(input: {
   const inferredSource = utm["utm_source"]
     ?? (utm["fbclid"] ? "facebook" : utm["gclid"] ? "google" : null)
     ?? (referrer ? hostOf(referrer) : null);
+  const inApp = inferredSource ? null : detectAdSource({ userAgent: input.userAgent ?? null });
   return {
-    source: inferredSource ?? "direct",
-    medium: utm["utm_medium"] ?? (utm["fbclid"] || utm["gclid"] ? "paid" : null),
+    source: inferredSource ?? inApp ?? "direct",
+    medium: utm["utm_medium"] ?? (utm["fbclid"] || utm["gclid"] ? "paid" : inApp ? "in_app" : null),
     campaign: utm["utm_campaign"] ?? null,
     referrer,
     landingUrl: landing.slice(0, 300),
