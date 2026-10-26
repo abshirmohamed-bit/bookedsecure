@@ -651,6 +651,9 @@ export async function confirmBooking(input: {
     .select("id, completion_status")
     .eq("business_id", input.businessId)
     .eq("lead_id", input.leadId)
+    .eq("completion_status", "scheduled")
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   let jobId = existingJob?.id ?? null;
