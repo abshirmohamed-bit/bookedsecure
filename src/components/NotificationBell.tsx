@@ -17,7 +17,7 @@ const FILTERS: { id: NotificationFilter; label: string }[] = [
   { id: "messages", label: "Messages" },
 ];
 
-export function NotificationBell({ rail = false }: { rail?: boolean }) {
+export function NotificationBell({ rail = false, enableRealtime = true }: { rail?: boolean; enableRealtime?: boolean }) {
   const fetchNotifications = useServerFn(getNotifications);
   const markRead = useServerFn(markNotificationsRead);
   const queryClient = useQueryClient();
@@ -45,8 +45,10 @@ export function NotificationBell({ rail = false }: { rail?: boolean }) {
   const businessId = data?.businessId;
 
   // Instant alerts: subscribe to this business's new notifications.
+  // AppShell mounts two bells (rail + header); only one may subscribe or every
+  // alert toasts twice. Toasts are global, so a single subscriber covers both.
   useEffect(() => {
-    if (!businessId) return;
+    if (!businessId || !enableRealtime) return;
     const channel = supabase
       .channel(`notifications:${businessId}:${Math.random().toString(36).slice(2)}`)
       .on(
@@ -62,7 +64,7 @@ export function NotificationBell({ rail = false }: { rail?: boolean }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [businessId, queryClient]);
+  }, [businessId, enableRealtime, queryClient]);
 
   // Close on outside tap or Escape.
   useEffect(() => {
