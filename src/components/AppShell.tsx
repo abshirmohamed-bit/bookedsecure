@@ -130,7 +130,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </Button>
         </div>
         <div className="mt-auto flex flex-col items-center gap-2">
-          <NotificationBell rail />
+          <NotificationBell rail enableRealtime={false} />
           <AccountMenu rail onSignOut={() => navigate({ to: "/auth", replace: true })} />
         </div>
       </aside>
