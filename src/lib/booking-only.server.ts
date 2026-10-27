@@ -4,8 +4,9 @@
 // the deterministic `commit_web_chat_booking` routine. It never writes to
 // `booking_offers.status`, `jobs`, `leads.status`, consent, owner review, caps,
 // campaigns or kill switches; it never plans a follow-up sequence; and the only
-// message it can produce is the server-composed operational confirmation,
-// idempotent on the confirmed offer.
+// messages it can produce are the server-composed operational SMS confirmation
+// and (when enabled) the companion confirmation email — both idempotent on the
+// confirmed offer. Email failures never affect the booking or SMS.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isBookingOnlyTenant, ownerBookingAlert } from "@/lib/booking-only-mode";
 import { slotLabel } from "@/lib/web-chat-booking";
@@ -13,6 +14,9 @@ import { slotLabel } from "@/lib/web-chat-booking";
 export type BookingOnlyFinalizeResult = {
   smsSent: boolean;
   smsSkippedReason: string | null;
+  /** Email confirmation — independent of SMS; default OFF / skipped. */
+  emailSent: boolean;
+  emailSkippedReason: string | null;
   ownerAlerted: boolean;
   ownerSmsSent: boolean;
   ownerSmsOutcome: string | null;
@@ -33,6 +37,8 @@ export async function finalizeBookingOnlyBooking(input: {
   const base: BookingOnlyFinalizeResult = {
     smsSent: false,
     smsSkippedReason: null,
+    emailSent: false,
+    emailSkippedReason: null,
     ownerAlerted: false,
     ownerSmsSent: false,
     ownerSmsOutcome: null,
@@ -84,6 +90,24 @@ export async function finalizeBookingOnlyBooking(input: {
   const smsSent = confirmation.sent;
   const smsSkippedReason = confirmation.sent ? null : confirmation.outcome;
 
+  // Operational confirmation EMAIL: same post-commit hook as SMS. Gated OFF by
+  // default. Failures never roll back the booking or the SMS confirmation.
+  let emailSent = false;
+  let emailSkippedReason: string | null = null;
+  try {
+    const { deliverBookingConfirmationEmail } = await import(
+      "@/lib/booking-confirmation-email.server"
+    );
+    const email = await deliverBookingConfirmationEmail({
+      businessId: input.businessId,
+      leadId: input.leadId,
+      offerId: offer.id,
+    });
+    emailSent = email.sent;
+    emailSkippedReason = email.sent ? null : email.outcome;
+  } catch {
+    emailSkippedReason = "failed";
+  }
 
   const alert = ownerBookingAlert({
     businessId: input.businessId,
@@ -135,6 +159,8 @@ export async function finalizeBookingOnlyBooking(input: {
   return {
     smsSent,
     smsSkippedReason,
+    emailSent,
+    emailSkippedReason,
     ownerAlerted: notified.created,
     ownerSmsSent,
     ownerSmsOutcome,
