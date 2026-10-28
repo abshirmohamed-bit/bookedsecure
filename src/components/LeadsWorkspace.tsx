@@ -8,6 +8,7 @@ import {
   Clock3,
   MessageSquareReply,
   Plus,
+  Pencil,
   RefreshCw,
   Target,
   Trash2,
@@ -22,11 +23,20 @@ import {
   SmsSuppressedBadge,
   StatusBadge,
 } from "@/components/StatusBadge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { InboxPagination } from "@/components/InboxPagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
 import { SMS_FILTER_LABELS, SMS_LEAD_FILTERS, type SmsLeadFilter } from "@/lib/sms/delivery";
 
-import { createManualLead, getDashboard, runFollowUpsNow } from "@/lib/app.functions";
+import { createManualLead, getDashboard, runFollowUpsNow, updateLead } from "@/lib/app.functions";
 import { useDashboard } from "@/lib/useDashboard";
 import {
   LEAD_STATUSES,
@@ -479,13 +489,16 @@ export function LeadsWorkspace() {
                     )}
                   </td>
                   <td className="px-3 py-2.5">
-                    <Link
-                      to="/leads/$leadId"
-                      params={{ leadId: lead.id }}
-                      className="hover:underline"
-                    >
-                      <span className="font-medium">{lead.name}</span>
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        to="/leads/$leadId"
+                        params={{ leadId: lead.id }}
+                        className="hover:underline"
+                      >
+                        <span className="font-medium">{lead.name}</span>
+                      </Link>
+                      <EditLeadName lead={lead} />
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {lead.suburb ?? "Suburb unknown"} · {lead.vehicle_type ?? "Vehicle unknown"}
                     </p>
@@ -815,5 +828,88 @@ function AddLeadForm({ onDone }: { onDone: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Change just the name without leaving the inbox or touching other details. */
+function EditLeadName({ lead }: { lead: InboxLeadRow }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(lead.name ?? "");
+  const patch = useServerFn(updateLead);
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () => patch({ data: { leadId: lead.id, name: name.trim() } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["lead", lead.id] });
+      toast.success("Lead name updated");
+      setOpen(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (mutation.isPending) return;
+        if (next) setName(lead.name ?? "");
+        setOpen(next);
+      }}
+    >
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Edit name for ${lead.name || "unnamed lead"}`}
+          title="Edit name"
+          className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      </DialogTrigger>
+      <DialogContent className="w-[95vw] sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit lead name</DialogTitle>
+          <DialogDescription>Update this lead’s name. No message will be sent.</DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (name.trim() && !mutation.isPending) mutation.mutate();
+          }}
+        >
+          <label className="block text-sm">
+            Name
+            <input
+              autoFocus
+              required
+              maxLength={120}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              disabled={mutation.isPending}
+              className="form-control mt-1"
+            />
+          </label>
+          <DialogFooter>
+            <button
+              type="button"
+              disabled={mutation.isPending}
+              onClick={() => setOpen(false)}
+              className="rounded-md border border-input px-3 py-1.5 text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!name.trim() || mutation.isPending}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
+            >
+              {mutation.isPending ? "Saving…" : "Save name"}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
