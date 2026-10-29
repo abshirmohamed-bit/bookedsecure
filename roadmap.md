@@ -1,5 +1,10 @@
 # Roadmap
 
+## Uploaded Cowork campaign audit
+- [x] Cross-reference uploaded conversation with tenant-scoped customer, opt-out, campaign, message and import records.
+- [ ] Honour all-existing-lead campaign requests without narrowing to uncontacted customers; retain approval and opt-out safeguards.
+- [ ] Correct import counts and stale attachment/completion claims; verify focused regression tests and signed-in draft readback without sends.
+
 ## Cowork history and task reliability
 - [x] Review all stored history through privacy-preserving aggregate categories and verify tenant-scoped storage.
 - [x] Preserve full conversation context and approval outcomes; stop application-level replay after interrupted tool work; propagate customer lookup/history failures.
