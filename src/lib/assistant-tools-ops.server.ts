@@ -20,6 +20,7 @@ import { formatInZone } from "@/lib/assistant-time";
 import { executeSharedAction, settingsInput } from "@/lib/assistant-shared-actions";
 import { QUOTE_MODES } from "@/lib/quote-mode";
 import { fail, type AssistantToolContext } from "@/lib/assistant-tools.server";
+import { assistantImportCounts } from '@/lib/assistant-import-summary';
 
 function ownerOnly(ctx: AssistantToolContext) {
   return ctx.role === "owner" || ctx.role === "platform_admin"
@@ -560,7 +561,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
 
     preview_import: tool({
       description:
-        "Owner only. Check the contact file the owner attached to this message (CSV/TSV): reads names, mobiles, emails and source, repairs Australian numbers, drops rows without a usable mobile and flags duplicates. Nothing is imported until the owner confirms on screen. Call this whenever a file is attached.",
+        "Owner only. Preview the attached contact CSV/TSV when the latest request asks about importing or checking that file. Do not re-preview a remembered file during unrelated campaigns or other tasks. Nothing imports until on-screen confirmation.",
       inputSchema: z.object({}),
       execute: async () => {
         const denied = ownerOnly(ctx);
@@ -575,22 +576,21 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
             content: ctx.attachment.content,
           });
           const b = preview.batch;
-          const summary = `${b.valid_rows} of ${b.total_rows} row${b.total_rows === 1 ? "" : "s"} can be imported${b.duplicate_rows ? `, ${b.duplicate_rows} already in your inbox (gaps will be filled)` : ""}${b.invalid_rows ? `, ${b.invalid_rows} skipped for no usable mobile` : ""}.`;
-          if (b.valid_rows > 0 || b.duplicate_rows > 0) {
+          const counts = assistantImportCounts(preview.rows);
+          const summary = `${counts.totalRows} contacts: ${counts.validRows} new with usable mobiles, ${counts.duplicateRows} existing matches to check for missing details, ${counts.invalidRows} skipped for unusable details or repeats within the file. Nothing has been imported by this preview.`;
+          if (counts.validRows > 0 || counts.duplicateRows > 0) {
             ctx.propose({
               kind: "import",
               batchId: b.id,
               filename: b.filename ?? ctx.attachment.filename,
-              totalRows: b.total_rows,
-              validRows: b.valid_rows,
-              invalidRows: b.invalid_rows,
-              duplicateRows: b.duplicate_rows,
+              ...counts,
               summary,
             });
           }
           return {
             ok: true,
-            awaitingConfirmation: b.valid_rows > 0 || b.duplicate_rows > 0,
+            awaitingConfirmation: counts.validRows > 0 || counts.duplicateRows > 0,
+            ...counts,
             summary,
             columnsFound: preview.headers,
             unmappedColumns: preview.unmapped_columns,

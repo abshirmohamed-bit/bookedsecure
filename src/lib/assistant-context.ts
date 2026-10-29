@@ -11,7 +11,7 @@ export function conversationContext(turns: readonly ConversationTurn[]) {
     role: turn.role,
     text: [
       turn.text,
-      turn.role === 'assistant' && turn.done ? `Recorded completion: ${turn.done}` : '',
+      turn.role === 'assistant' && turn.done ? `Recorded completion: ${turn.done}\nThis recorded outcome supersedes any earlier pending/not-imported/not-sent wording above; do not repeat the completed action.` : '',
       turn.role === 'assistant' && !turn.done && turn.proposals?.length
         ? 'Approval state: a proposal was prepared; this is not evidence that it was confirmed or sent.'
         : '',

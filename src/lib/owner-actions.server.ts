@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { proposeOffer } from "@/lib/reactivation";
+import { requestsAllCampaignLeads } from '@/lib/campaign-audience';
 import type { LeadStatus } from "@/lib/domain";
 import {
   describeStatusChange,
@@ -276,6 +277,7 @@ export async function handleOwnerRequestFallback(input: {
         campaignCopy: null,
         maxLeads: request.maxLeads,
         olderThanDays: request.olderThanDays,
+        ...(requestsAllCampaignLeads(input.question) ? { audience: { kind: 'all' } as const, maxLeads: 5000, olderThanDays: null } : {}),
       });
       if (proposal) {
         proposals.push(proposal);
