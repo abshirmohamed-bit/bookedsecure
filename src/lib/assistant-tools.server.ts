@@ -20,6 +20,7 @@ import { buildOperationsTools } from "@/lib/assistant-tools-ops.server";
 import { executeSharedAction, prepareAssistantText, customerInput, serviceInput, addonInput, textInput } from "@/lib/assistant-shared-actions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { requestsAllCampaignLeads } from '@/lib/campaign-audience';
 
 export type ExecutedAction = { summary: string };
 
@@ -320,9 +321,9 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
 
     draft_campaign: tool({
       description:
-        "Prepare or replace an SMS campaign for a group of this business's consented leads and show the actual saved messages to the owner for approval. If the owner supplies campaign wording, pass its editable middle section in campaignCopy so the saved drafts use it exactly; never merely repeat requested wording in your reply. Audiences: 'dormant' (past customers with no history on file), 'uncontacted' (leads never texted, e.g. a fresh import), 'status' (one inbox status such as new or contacted), or 'leads' (specific lead ids from find_customers or query_leads). Opt-outs, suppressed numbers and deleted leads are always excluded. Nothing sends until the owner approves on screen.",
+        "Prepare or replace an SMS campaign and show the actual saved messages to the owner for approval. Audiences: 'all' (all existing leads, whether contacted or not), 'dormant' (contacts with no history on file), 'uncontacted' (never texted), 'status' (one inbox status), or 'leads' (specific ids). Use 'all' whenever the owner asks for all existing customers; never substitute uncontacted or a single search result. If wording is supplied pass it in campaignCopy. Opt-outs, suppressed/deleted records and unusable mobiles are excluded. Eligibility does not prove consent: the owner must attest permission and confirm before anything sends.",
       inputSchema: z.object({
-        audience: z.enum(["dormant", "uncontacted", "status", "leads"]),
+        audience: z.enum(["all", "dormant", "uncontacted", "status", "leads"]),
         status: z.enum(LEAD_STATUSES).nullable().describe("Required when audience is 'status'."),
         leadIds: z.array(z.string().uuid()).nullable().describe("Required when audience is 'leads'."),
         percent: z.number().int().min(1).max(90).nullable().describe("Discount percentage for the offer, if the owner named one."),
@@ -344,7 +345,8 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
           if (blocked) return fail(blocked);
         }
         const { proposeCampaign } = await import("@/lib/owner-actions.server");
-        const audience =
+        const allRequested = requestsAllCampaignLeads(ctx.request ?? '');
+        const audience = allRequested ? ({ kind: 'all' } as const) :
           input.audience === "status"
             ? input.status
               ? ({ kind: "status", status: input.status } as const)
@@ -370,8 +372,8 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
           percent,
           offerText,
           campaignCopy: input.campaignCopy,
-          maxLeads: asked.maxLeads ?? input.maxLeads,
-          olderThanDays: asked.olderThanDays ?? input.olderThanDays,
+          maxLeads: allRequested ? 5000 : asked.maxLeads ?? input.maxLeads,
+          olderThanDays: allRequested ? null : asked.olderThanDays ?? input.olderThanDays,
           audience,
           fresh: true,
         });
@@ -385,6 +387,8 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
           offer: proposal.offerText,
           drafted: proposal.drafts.length,
           summary: proposal.summary,
+          audience: audience.kind,
+          permission: 'Not verified by audience selection. Owner attestation and confirmation required.',
           recipients: proposal.drafts.slice(0, 20).map((d) => d.leadName ?? d.mobileNumber),
         };
       },

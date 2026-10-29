@@ -22,6 +22,7 @@ import {
   type ReactivationFacts,
 } from "@/lib/reactivation";
 import { tenantQuoteUrl } from "@/lib/tenant-nav";
+import { campaignContactBlock } from '@/lib/campaign-audience';
 
 /**
  * The tenant's own public quote-page link, built from that tenant's slug.
@@ -47,7 +48,7 @@ export function campaignSmsLink(
 }
 
 const LEAD_COLUMNS =
-  "id, name, mobile_number, email, booking_status, verified_service_id, verified_vehicle, verified_suburb, verified_concern, vehicle_type, suburb, main_concerns, approved_service_id, opted_out_at, sms_suppressed_at, deleted_at, lead_origin, created_at, public_token";
+  "id, name, mobile_number, email, booking_status, verified_service_id, verified_vehicle, verified_suburb, verified_concern, vehicle_type, suburb, main_concerns, approved_service_id, opted_out_at, sms_suppressed_at, deleted_at, lead_origin, created_at, public_token, consent_status, consent_record";
 
 export type ReactivationCandidate = {
   leadId: string;
@@ -111,6 +112,7 @@ export function factsFromLead(
  * named. Consent gates (opt-out, suppression, deleted, no mobile) apply to all.
  */
 export type CampaignAudience =
+  | { kind: "all" }
   | { kind: "dormant" }
   | { kind: "uncontacted" }
   | { kind: "status"; status: string }
@@ -123,25 +125,36 @@ export async function loadReactivationCandidates(
 ): Promise<{ candidates: ReactivationCandidate[]; excluded: number }> {
   // Every lead of the tenant is considered. A hard cap sorted oldest-first used
   // to hide newly imported contacts behind older ones, so nothing ever drafted.
+  const readPage = (offset: number) => {
   let query = supabaseAdmin
     .from("leads")
     .select(LEAD_COLUMNS + ", status")
     .eq("business_id", businessId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
-    .limit(5000);
+    .order('id')
+    .range(offset, offset + 499);
   if (audience.kind === "status") query = query.eq("status", audience.status);
   if (audience.kind === "leads") {
-    if (audience.leadIds.length === 0) return { candidates: [], excluded: 0 };
     query = query.in("id", audience.leadIds.slice(0, 500));
   }
-  const { data: leads } = await query;
-
-  const rows = (leads ?? []) as unknown as (LeadRow & { status?: string | null })[];
+  return query;
+  };
+  if (audience.kind === 'leads' && audience.leadIds.length === 0) return { candidates: [], excluded: 0 };
+  const rows: (LeadRow & { status?: string | null; consent_status?: string | null; consent_record?: unknown })[] = [];
+  for (let offset = 0; offset <= 5000; offset += 500) {
+    const { data, error } = await readPage(offset);
+    if (error) throw new Error('Could not read campaign customers. No campaign was prepared.');
+    rows.push(...(data ?? []) as unknown as typeof rows);
+    if (rows.length > 5000) throw new Error('This audience exceeds 5,000 customers. Please select a smaller group.');
+    if ((data ?? []).length < 500) break;
+  }
   if (rows.length === 0) return { candidates: [], excluded: 0 };
   const ids = rows.map((row) => row.id);
 
-  const [{ data: messages }, { data: chats }, { data: jobs }] = await Promise.all([
+  const [{ data: messages, error: messagesError }, { data: chats, error: chatsError }, { data: jobs, error: jobsError }] = audience.kind === 'all' || audience.kind === 'status' || audience.kind === 'leads'
+    ? [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }]
+    : await Promise.all([
     supabaseAdmin.from("messages").select("lead_id").eq("business_id", businessId).in("lead_id", ids),
     supabaseAdmin
       .from("web_conversations")
@@ -150,6 +163,7 @@ export async function loadReactivationCandidates(
       .in("lead_id", ids),
     supabaseAdmin.from("jobs").select("lead_id").eq("business_id", businessId).in("lead_id", ids),
   ]);
+  if (messagesError || chatsError || jobsError) throw new Error('Could not read campaign customer history. No campaign was prepared.');
 
   const sets = {
     messageLeadIds: new Set((messages ?? []).map((m) => m.lead_id as string)),
@@ -162,14 +176,16 @@ export async function loadReactivationCandidates(
   for (const row of rows) {
     const facts = factsFromLead(row, sets);
     let eligible: boolean;
-    if (audience.kind === "dormant") {
+    if (campaignContactBlock(row)) {
+      eligible = false;
+    } else if (audience.kind === "dormant") {
       eligible = classifyReactivationCandidate(facts).eligible;
     } else {
       // Consent and reachability gates never relax, whatever the audience.
-      const consented =
+      const reachable =
         !facts.deleted && facts.hasMobileNumber && !facts.optedOut && !facts.suppressed;
       eligible =
-        consented && (audience.kind === "uncontacted" ? !facts.hasMessages : true);
+        reachable && (audience.kind === "uncontacted" ? !facts.hasMessages : true);
     }
     if (eligible) {
       candidates.push({
@@ -459,12 +475,13 @@ export async function draftReactivationCampaign(input: {
       }
       continue;
     }
-    await supabaseAdmin.from("reactivation_drafts").insert({
+    const { error: draftError } = await supabaseAdmin.from("reactivation_drafts").insert({
       campaign_id: campaignId,
       business_id: input.businessId,
       lead_id: candidate.leadId,
       body,
     });
+    if (draftError) throw new Error('Could not save every campaign message. Nothing was sent; please review before retrying.');
   }
 
   const view = await viewOf(input.businessId, campaignId, excluded);
@@ -646,6 +663,18 @@ export async function approveReactivationCampaign(input: {
   let failed = 0;
 
   for (const draft of pending) {
+    const { data: currentLead, error: leadError } = await supabaseAdmin.from('leads')
+      .select('mobile_number, opted_out_at, sms_suppressed_at, deleted_at, status, consent_status, consent_record')
+      .eq('business_id', input.businessId).eq('id', draft.lead_id).maybeSingle();
+    if (leadError) throw new Error(`Could not recheck campaign permissions; stopped after ${sent} sends.`);
+    const block = currentLead ? campaignContactBlock(currentLead) : 'Lead no longer exists.';
+    if (block) {
+      failed += 1;
+      await supabaseAdmin.from('reactivation_drafts').update({ status: 'skipped', send_reason: block })
+        .eq('business_id', input.businessId).eq('id', draft.id);
+      results.push({ draftId: draft.id, sent: false, reason: block });
+      continue;
+    }
     const guarded = guardReactivationMessage(draft.body as string, campaign.offer_text);
     if (guarded.text.trim().length < 2) {
       failed += 1;
