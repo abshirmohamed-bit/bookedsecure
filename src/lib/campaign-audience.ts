@@ -1,7 +1,8 @@
 /** Owner corrections take precedence over a model-selected campaign audience. */
 export function requestsAllCampaignLeads(request: string): boolean {
   return /\b(?:all|every)\s+(?:(?:\d+|my|our|the|existing|current|eligible|consented)\s+)*(?:leads?|customers?|contacts?|clients?)\b/i.test(request) ||
-    /\b(?:whether|wether)\s+contacted\s+or\s+not\b/i.test(request);
+    /\b(?:whether|wether)\s+contacted\s+or\s+not\b/i.test(request) ||
+    /\b(?:all\s+of\s+them|everyone|everybody|the\s+whole\s+list)\b/i.test(request);
 }
 
 export function campaignContactBlock(lead: {

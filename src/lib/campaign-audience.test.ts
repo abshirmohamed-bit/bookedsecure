@@ -60,3 +60,8 @@ describe('campaign opt-out safeguards', () => {
     expect(campaignContactBlock({ ...lead, mobile_number: '+61298765432' })).toBe('No usable Australian mobile.');
   });
 });
+describe("short all-leads confirmations", () => {
+  it.each(["All 382 leads please", "yes all of them", "everyone please", "send to the whole list"])("%s targets all leads", (s) => {
+    expect(requestsAllCampaignLeads(s)).toBe(true);
+  });
+});
