@@ -29,7 +29,7 @@ describe('all-existing-lead campaign requests', () => {
     const execute = buildAssistantTools(ctx).draft_campaign.execute;
     if (!execute) throw new Error('Campaign tool missing');
     const result = await execute({ audience: 'uncontacted', status: null, leadIds: null, percent: 20,
-      offerText: null, campaignCopy: null, maxLeads: 9, olderThanDays: 30 }, { toolCallId: 'test', messages: [] });
+      offerText: null, campaignCopy: null, maxLeads: 9, olderThanDays: 30 }, { toolCallId: 'test', messages: [], context: {} });
     expect(mocks.propose).toHaveBeenCalledWith(expect.objectContaining({
       businessId: 'tenant', audience: { kind: 'all' }, percent: 15, maxLeads: 5000, olderThanDays: null,
     }));
