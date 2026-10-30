@@ -13,7 +13,7 @@ describe('Campaign tool request boundaries', () => {
   it('rejects model-invented email recipients before saving a draft', async () => {
     const execute = buildAssistantTools(context).draft_email_campaign.execute;
     if (!execute) throw new Error('Missing email tool');
-    const result = await execute({ leadIds: ['00000000-0000-4000-8000-000000000001'], name: 'Invented', subject: 'Offer', bodyText: '15% off' }, { toolCallId: 'test', messages: [] });
+    const result = await execute({ leadIds: ['00000000-0000-4000-8000-000000000001'], name: 'Invented', subject: 'Offer', bodyText: '15% off' }, { toolCallId: 'test', messages: [], context: {} });
     expect(result).toMatchObject({ ok: false });
     expect(mocks.create).not.toHaveBeenCalled();
     expect(context.record).not.toHaveBeenCalled();
@@ -21,7 +21,7 @@ describe('Campaign tool request boundaries', () => {
   it('rejects a guessed SMS audience before reading or mutating records', async () => {
     const execute = buildAssistantTools({ ...context, request: 'Draft a campaign' }).draft_campaign.execute;
     if (!execute) throw new Error('Missing SMS tool');
-    const result = await execute({ audience: 'uncontacted', status: null, leadIds: null, percent: 15, offerText: null, campaignCopy: null, maxLeads: 9, olderThanDays: null }, { toolCallId: 'test', messages: [] });
+    const result = await execute({ audience: 'uncontacted', status: null, leadIds: null, percent: 15, offerText: null, campaignCopy: null, maxLeads: 9, olderThanDays: null }, { toolCallId: 'test', messages: [], context: {} });
     expect(result).toMatchObject({ ok: false });
     expect(mocks.from).not.toHaveBeenCalled();
     expect(context.propose).not.toHaveBeenCalled();
