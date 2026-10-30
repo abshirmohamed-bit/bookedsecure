@@ -222,6 +222,10 @@ export async function handleOwnerRequestFallback(input: {
   userId: string;
   question: string;
 }): Promise<{ answer: string; proposals: OwnerProposal[]; executed: string[] }> {
+  const { campaignNeedsClarification, CAMPAIGN_CLARIFICATION } = await import('@/lib/assistant-request-guard');
+  if (campaignNeedsClarification(input.question)) {
+    return { answer: CAMPAIGN_CLARIFICATION, proposals: [], executed: [] };
+  }
   // Catalogue questions and add-on linking are handled deterministically first.
   const { parseCatalogRequest } = await import("@/lib/catalog-actions");
   const catalogRequest = parseCatalogRequest(input.question);

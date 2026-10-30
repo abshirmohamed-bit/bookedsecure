@@ -47,4 +47,12 @@ describe('Cowork interrupted tool work', () => {
     expect(mocks.run.mock.calls[0]?.[0].messages).toHaveLength(31);
     expect(mocks.run.mock.calls[0]?.[0].messages[0].content).toBe('Request 0');
   });
+  it('asks for missing campaign decisions without running any tools or model', async () => {
+    const result = await runAssistantAgent({ ...input, question: 'Create an email campaign' });
+    expect(result.executed).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(mocks.tools).not.toHaveBeenCalled();
+    expect(mocks.run).not.toHaveBeenCalled();
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
 });

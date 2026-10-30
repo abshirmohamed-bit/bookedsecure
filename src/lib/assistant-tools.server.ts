@@ -47,7 +47,7 @@ const DATE = z
   .describe("Local calendar date in the owner's own timezone, formatted YYYY-MM-DD.");
 const TIME = z
   .string()
-  .describe("Local 24-hour time in the owner's own timezone, formatted HH:MM. Use 09:00 when the owner gave a day but no time.");
+  .describe("Local 24-hour time in the owner's own timezone, formatted HH:MM. Ask the owner when no time was specified; never choose a time for them.");
 
 export function fail(message: string) {
   return { ok: false as const, message };
