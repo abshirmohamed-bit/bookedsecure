@@ -16,6 +16,7 @@ import { assistantTimeZone, nowInZone } from "@/lib/assistant-time";
 import { buildAssistantSystemPrompt } from "@/lib/owner-assistant";
 import type { OwnerProposal } from "@/lib/owner-actions.server";
 import { interruptedAssistantResult } from '@/lib/assistant-context';
+import { campaignNeedsClarification, CAMPAIGN_CLARIFICATION } from '@/lib/assistant-request-guard';
 
 export type AssistantAgentResult = {
   answer: string;
@@ -39,6 +40,9 @@ export async function runAssistantAgent(input: {
   /** The attached file was uploaded in an earlier message and is being reused. */
   attachmentRemembered?: boolean;
 }): Promise<AssistantAgentResult> {
+  if (campaignNeedsClarification(input.question)) {
+    return { answer: CAMPAIGN_CLARIFICATION, executed: [], proposals: [] };
+  }
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("assistant_unavailable");
 

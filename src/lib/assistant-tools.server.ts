@@ -21,6 +21,7 @@ import { executeSharedAction, prepareAssistantText, customerInput, serviceInput,
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requestsAllCampaignLeads } from '@/lib/campaign-audience';
+import { campaignNeedsClarification, CAMPAIGN_CLARIFICATION } from '@/lib/assistant-request-guard';
 
 export type ExecutedAction = { summary: string };
 
@@ -46,7 +47,7 @@ const DATE = z
   .describe("Local calendar date in the owner's own timezone, formatted YYYY-MM-DD.");
 const TIME = z
   .string()
-  .describe("Local 24-hour time in the owner's own timezone, formatted HH:MM. Use 09:00 when the owner gave a day but no time.");
+  .describe("Local 24-hour time in the owner's own timezone, formatted HH:MM. Ask the owner when no time was specified; never choose a time for them.");
 
 export function fail(message: string) {
   return { ok: false as const, message };
@@ -339,6 +340,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         olderThanDays: z.number().int().min(1).max(3650).nullable(),
       }),
       execute: async (input) => {
+        if (campaignNeedsClarification(ctx.request ?? '')) return fail(CAMPAIGN_CLARIFICATION);
         {
           const { planGateMessage } = await import("@/lib/subscription.server");
           const blocked = await planGateMessage(businessId, "campaigns");
@@ -396,7 +398,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
 
     draft_email_campaign: tool({
       description:
-        "Prepare an email campaign to this business's customers. Use find_customers first to pick the recipients, then pass their lead ids. The email is saved as a draft on the Email campaigns page; nothing sends until the owner reviews it there and presses Send. Customers without an email address or who unsubscribed are skipped automatically.",
+        "Prepare an email campaign only after the owner specifies the audience and message or asks you to propose wording. Ask for missing details first; never choose recipients from a limited search result or invent an offer. Use find_customers to resolve owner-named recipients, not to choose an audience. If the requested audience cannot be fully resolved, explain the limitation and do not substitute a subset. Nothing sends until the owner reviews the draft and presses Send. Customers without an email address or who unsubscribed are skipped automatically; report these exclusions.",
       inputSchema: z.object({
         leadIds: z.array(z.string().uuid()).min(1).max(500),
         name: z.string().min(2).max(120).describe("Short internal name for the campaign."),
@@ -404,6 +406,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         bodyText: z.string().min(2).max(5000).describe("The email body in the owner's words."),
       }),
       execute: async (input) => {
+        if (campaignNeedsClarification(ctx.request ?? '')) return fail(CAMPAIGN_CLARIFICATION);
         const { createEmailCampaign } = await import("@/lib/email-campaigns.server");
         try {
           const result = await createEmailCampaign({
