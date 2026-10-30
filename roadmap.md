@@ -1,5 +1,9 @@
 # Roadmap
 
+## Unsupported Cowork assumptions
+- [ ] Require clarification for vague campaign requests before any tool work; reinforce exact task scope and missing-decision guidance.
+- [ ] Verify regression checks and the signed-in clarification flow without creating or sending a campaign.
+
 ## Uploaded Cowork campaign audit
 - [x] Cross-reference uploaded conversation with tenant-scoped customer, opt-out, campaign, message and import records.
 - [x] Honour all-existing-lead campaign requests without narrowing to uncontacted customers; retain approval and opt-out safeguards; verify paginated candidate reads and request overrides.
