@@ -1,4 +1,4 @@
-const NARROWING = /\b(?:that|who|which|whose|with(?:out)?|except|excluding|but\s+not|haven(?:'|’)?t|hasn(?:'|’)?t|have\s+not|has\s+not|never|not\s+(?:yet\s+)?(?:been\s+)?(?:contacted|booked|texted)|uncontacted|dormant|inactive|status|older\s+than|since|in\s+the\s+(?:last|past)|from\s+\w+|in\s+[A-Z][a-z]+)\b/;
+const NARROWING = /\b(?:that|who|which|whose|with(?:out)?|except|excluding|but\s+not|haven(?:'|’)?t|hasn(?:'|’)?t|have\s+not|has\s+not|never|not\s+(?:yet\s+)?(?:been\s+)?(?:contacted|booked|texted)|uncontacted|dormant|inactive|status|older\s+than|since|in\s+the\s+(?:last|past))\b/i;
 
 /** Owner corrections take precedence over a model-selected campaign audience. */
 export function requestsAllCampaignLeads(request: string): boolean {
