@@ -8,7 +8,7 @@ const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 export const operationInputs = {
   update_customer: z.object({ leadId: uuid, name: z.string().min(1).max(200).nullable(), mobile: z.string().max(20).nullable(), email: z.string().email().nullable(), suburb: z.string().max(200).nullable(), address: z.string().max(500).nullable(), vehicle: z.string().max(200).nullable(), requestedService: z.string().max(500).nullable(), notes: z.string().max(5000).nullable(), status: z.enum(LEAD_STATUSES).nullable(), clearOptOut: z.boolean().nullable() }).strict(),
   book_job: z.object({ leadId: uuid, date, time, serviceName: z.string().max(500).nullable(), notes: z.string().max(5000).nullable() }).strict(),
-  reschedule_job: z.object({ jobId: uuid, date, time }).strict(),
+  reschedule_job: z.object({ jobId: uuid, date, time, serviceName: z.string().max(500).nullable().optional() }).strict(),
   cancel_job: z.object({ jobId: uuid, reason: z.string().max(5000).nullable() }).strict(),
   delete_job: z.object({ jobId: uuid, reason: z.string().max(5000).nullable() }).strict(),
   complete_job: z.object({ leadId: uuid, jobId: uuid.nullable(), paidAmount: z.number().positive().max(1000000).nullable(), serviceName: z.string().max(500).nullable() }).strict(),

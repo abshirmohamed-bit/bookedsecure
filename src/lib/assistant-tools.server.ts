@@ -1,3 +1,4 @@
+import { bookingOutcomeSummary, customerSearchPatterns } from '@/lib/assistant-booking-result';
 /**
  * The owner assistant's tools.
  *
@@ -62,8 +63,10 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
   }
 
   async function findLeads(query: string, limit = 6) {
-    const term = query.trim();
-    const like = `%${term}%`;
+    const { text, mobile } = customerSearchPatterns(query);
+    const like = `%${text}%`;
+    const filters = [`name.ilike.${like}`, `email.ilike.${like}`, `mobile_number.ilike.${like}`];
+    if (mobile) filters.push(`mobile_number.ilike.%${mobile}%`);
     const { data, error } = await supabaseAdmin
       .from("leads")
       .select(
@@ -71,7 +74,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       )
       .eq("business_id", businessId)
       .is("deleted_at", null)
-      .or(`name.ilike.${like},mobile_number.ilike.${like},email.ilike.${like}`)
+      .or(filters.join(','))
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) throw new Error('Could not search customers. Please try again.');
@@ -189,6 +192,10 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeSharedAction(ctx.client, 'create_customer', input);
+          if (result.existing) {
+            ctx.record(`${result.name} is already one of your customers, so I used that record.`);
+            return { ok: true, leadId: result.id, existingCustomer: true, message: 'This customer already exists; use this leadId. No duplicate was created.' };
+          }
           ctx.record(`Added ${result.name} to your customers.`);
           return { ok: true, leadId: result.id };
         } catch (error) { return fail(error instanceof Error ? error.message : 'Nothing was saved.'); }
@@ -209,25 +216,27 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     }),
 
     book_job: tool({
-      description: "Book this customer in at a date and time. Use find_customers first.",
+      description: "Book this customer in at a date and time. Use find_customers first. If this customer already has a booking at that exact time, it is updated (for example to add the service) instead of refused. A time held by another customer is refused and nothing is saved.",
       inputSchema: operationInputs.book_job,
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'book_job', input);
-          ctx.record('Saved that booking.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     reschedule_job: tool({
-      description: "Move an existing booking to a new date and time.",
+      description: "Move an existing booking to a new date and time, optionally changing its service in the same step. If the new time belongs to another customer, the booking is not moved.",
       inputSchema: operationInputs.reschedule_job,
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'reschedule_job', input);
-          ctx.record('Moved that booking.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
@@ -239,8 +248,9 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'cancel_job', input);
-          ctx.record('Cancelled that booking.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
@@ -252,8 +262,9 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'delete_job', input);
-          ctx.record('Deleted that job record.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
@@ -265,8 +276,9 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'complete_job', input);
-          ctx.record('Marked that job completed.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),

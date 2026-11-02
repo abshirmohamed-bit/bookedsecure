@@ -26,3 +26,4 @@
 - Cowork checks vague campaign requests before its agent loop and again at campaign tool boundaries; return clarification without mutations so model-selected recipients cannot authorise an unspecified campaign.
 - Cowork import summaries use mutually exclusive row-level categories for its mobile-only action, not overlapping CSV validation/duplicate counters, so displayed totals match the records.
 - Owner alerts from database events go through push_owner_notification triggers that honour notification_preferences mutes and idempotency keys; time-based alerts are raised on read.
+- Assistant booking actions return what the database saved (saved, outcome, time, service, status) and Cowork reports that summary; same-customer same-time bookings update in place, other customers' slots are refused, and create_customer reuses an active customer with the same number.
