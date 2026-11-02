@@ -40,6 +40,8 @@ export type AssistantToolContext = {
   attachment: { filename: string; content: string } | null;
   /** The owner's own latest words, used to honour numbers they stated exactly. */
   request?: string;
+  /** Earlier turns or a file can supply campaign details the latest message refers to. */
+  requestHasContext?: boolean;
 };
 
 
@@ -352,7 +354,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         olderThanDays: z.number().int().min(1).max(3650).nullable(),
       }),
       execute: async (input) => {
-        if (campaignNeedsClarification(ctx.request ?? '')) return fail(CAMPAIGN_CLARIFICATION);
+        if (campaignNeedsClarification(ctx.request ?? '', ctx.requestHasContext)) return fail(CAMPAIGN_CLARIFICATION);
         {
           const { planGateMessage } = await import("@/lib/subscription.server");
           const blocked = await planGateMessage(businessId, "campaigns");
@@ -418,7 +420,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         bodyText: z.string().min(2).max(5000).describe("The email body in the owner's words."),
       }),
       execute: async (input) => {
-        if (campaignNeedsClarification(ctx.request ?? '')) return fail(CAMPAIGN_CLARIFICATION);
+        if (campaignNeedsClarification(ctx.request ?? '', ctx.requestHasContext)) return fail(CAMPAIGN_CLARIFICATION);
         const { createEmailCampaign } = await import("@/lib/email-campaigns.server");
         try {
           const result = await createEmailCampaign({

@@ -1,5 +1,10 @@
+const NARROWING = /\b(?:that|who|which|whose|without|with\s+(?:status|no|tags?|bookings?|an?\s+(?:status|tag|booking))|except|excluding|but\s+not|haven(?:'|’)?t|hasn(?:'|’)?t|have\s+not|has\s+not|never|not\s+(?:yet\s+)?(?:been\s+)?(?:contacted|booked|texted)|uncontacted|dormant|inactive|status|older\s+than|since|in\s+the\s+(?:last|past))\b/i;
+
 /** Owner corrections take precedence over a model-selected campaign audience. */
 export function requestsAllCampaignLeads(request: string): boolean {
+  if (/\b(?:whether|wether)\s+(?:they(?:'|’)?ve\s+been\s+|been\s+)?contacted\s+or\s+not\b/i.test(request)) return true;
+  // "all leads that haven't been contacted", "all customers with status new": the owner narrowed it.
+  if (NARROWING.test(request)) return false;
   return /\b(?:all|every)\s+(?:(?:\d+|my|our|the|existing|current|eligible|consented)\s+)*(?:leads?|customers?|contacts?|clients?)\b/i.test(request) ||
     /\b(?:whether|wether)\s+contacted\s+or\s+not\b/i.test(request) ||
     /\b(?:all\s+of\s+them|everyone|everybody|the\s+whole\s+list)\b/i.test(request);
