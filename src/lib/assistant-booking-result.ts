@@ -1,5 +1,5 @@
 import { normaliseAuMobile } from '@/lib/domain';
-import { formatInZone } from '@/lib/timezone';
+import { formatInZone } from '@/lib/assistant-time';
 
 // Shared by Cowork tools: turns what the database actually saved into plain words,
 // so a saved booking is never read as "no change".
