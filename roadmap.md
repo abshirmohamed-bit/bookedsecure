@@ -151,3 +151,7 @@
 - [x] Fixes (read on open, outside tap/Escape, phone width, "5 min ago", true unread count, icons, Today/Earlier).
 - [x] Instant alerts, new alert types, filters, full page with older history, quick actions, alert on/off settings.
 - [ ] Urgent alerts by text/email: not built, awaiting owner decision on cost.
+
+## Cowork booking reliability
+- [x] Saved bookings report saved, same-customer slot updates, move + change service, phone search, existing-customer reuse, truthful replies.
+- [x] Data: Rhys 1 Nov moved to 12:30; Carla 2 Nov given Full Detail $280.
