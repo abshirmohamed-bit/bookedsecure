@@ -37,8 +37,8 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
   const connected = Boolean(c?.has_trigger) && c?.status !== 'disconnected';
   const active = q.data?.runs.some((r) => r.status === 'requested' || r.status === 'running');
 
-  return <section className="space-y-4 border-b border-border pb-8">
-    <h2 className="flex items-center gap-2 font-semibold"><Download className="h-5 w-5 text-primary" />Facebook lead import</h2>
+  return <section className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
+    <h2 className="flex items-center gap-2 font-heading text-lg font-semibold"><Download className="h-5 w-5 text-primary" />Facebook lead import</h2>
     <p className="text-sm text-muted-foreground">Bring quote requests from your Facebook lead forms into your leads. Your Make scenario fetches them; BookedSecure saves each one once and never texts them unless they agreed to be contacted.</p>
     {q.isError ? <p role="alert" className="text-sm">This could not be loaded.</p> : null}
 
