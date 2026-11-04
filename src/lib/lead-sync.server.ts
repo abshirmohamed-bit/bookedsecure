@@ -79,7 +79,25 @@ export async function sweepScheduledSyncs() {
   return { checked: data?.length ?? 0, started };
 }
 
-type ItemOutcome = { meta_lead_id: string; outcome: 'created' | 'duplicate' | 'skipped' | 'failed'; reason?: string | undefined };
+type ItemOutcome = { meta_lead_id: string; outcome: 'created' | 'duplicate' | 'enriched' | 'skipped' | 'failed'; reason?: string | undefined };
+
+const ENRICH_SELECT = 'id, email, suburb, service_address, vehicle_type, main_concerns, service_intent, request_type, service_name_snapshot, flexible_request_text, source_metadata';
+
+/**
+ * A lead that already exists (same Meta submission, or one sent earlier through
+ * the plain /leads endpoint) is enriched in place: missing enquiry details are
+ * filled, raw form answers merged, and nothing the owner recorded is touched.
+ */
+async function enrichExisting(businessId: string, leadId: string, input: SyncLeadInput): Promise<'enriched' | 'duplicate'> {
+  const { data: existing, error } = await supabaseAdmin.from('leads').select(ENRICH_SELECT).eq('business_id', businessId).eq('id', leadId).maybeSingle();
+  if (error) throw error;
+  if (!existing) return 'duplicate';
+  const { patch, changed } = enrichmentPatch(existing as EnrichableLead, mapEnquiryFields(input), { email: checkLead(input as SyncLeadInput) });
+  if (!changed.length) return 'duplicate';
+  const { error: upErr } = await supabaseAdmin.from('leads').update(patch as never).eq('business_id', businessId).eq('id', leadId);
+  if (upErr) throw upErr;
+  return 'enriched';
+}
 
 async function ingestOne(businessId: string, runId: string, input: SyncLeadInput): Promise<ItemOutcome> {
   const submittedAt = parseSubmittedAt(input.created_time);
@@ -92,19 +110,28 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
   if (!check.ok) return record({ meta_lead_id: input.meta_lead_id, outcome: 'skipped', reason: check.reason });
   const externalId = metaExternalId(input.meta_lead_id);
   const shortName = check.lead.name.split(/\s+/)[0] ?? null;
+  const mapped = mapEnquiryFields(input);
   try {
-    // Leads sent earlier through the plain /leads endpoint are stored with a key-specific prefix.
-    const { data: legacy, error: legacyErr } = await supabaseAdmin.from('leads').select('id').eq('business_id', businessId)
-      .like('external_id', `api:%:${externalId}`).limit(1).maybeSingle();
-    if (legacyErr) throw legacyErr;
-    if (legacy?.id) return record({ meta_lead_id: input.meta_lead_id, outcome: 'duplicate', lead_id: legacy.id, display_name: shortName });
+    // The exact same Meta submission, or one sent earlier through the plain
+    // /leads endpoint (stored with a key-specific prefix): enrich, never duplicate.
+    const { data: existing, error: existErr } = await supabaseAdmin.from('leads').select('id').eq('business_id', businessId)
+      .or(`external_id.eq.${externalId},external_id.like.api:%:${externalId}`).limit(1).maybeSingle();
+    if (existErr) throw existErr;
+    if (existing?.id) {
+      const outcome = await enrichExisting(businessId, existing.id, input);
+      return record({ meta_lead_id: input.meta_lead_id, outcome, lead_id: existing.id, display_name: shortName });
+    }
     const { captureLead } = await import('./lead-engine.server');
     const result = await captureLead({
       businessId, name: check.lead.name, mobile_number: check.lead.mobile, email: check.lead.email,
+      suburb: mapped.suburb, service_address: mapped.address, vehicle_type: mapped.vehicle,
+      main_concerns: mapped.notes, service_intent: mapped.service,
+      request_type: mapped.requestType, service_name_snapshot: mapped.service,
+      flexible_request_text: mapped.flexibleText,
       source_channel: 'meta', source_form: input.form_name ?? null, utm_source: SOURCE,
       consent: false, consent_text: 'No explicit SMS consent supplied with this Facebook lead.',
       lead_origin: 'inbound_form',
-      source_metadata: { source: SOURCE, meta_lead_id: input.meta_lead_id, page_id: input.page_id ?? null, form_id: input.form_id ?? null, form_name: input.form_name ?? null, submitted_at: submittedAt, sync_run_id: runId },
+      source_metadata: { source: SOURCE, meta_lead_id: input.meta_lead_id, page_id: input.page_id ?? null, form_id: input.form_id ?? null, form_name: input.form_name ?? null, submitted_at: submittedAt, sync_run_id: runId, form_answers: mapped.rawAnswers },
       external_id: externalId,
     });
     return record({ meta_lead_id: input.meta_lead_id, outcome: result.duplicate ? 'duplicate' : 'created', lead_id: result.leadId, display_name: shortName });
