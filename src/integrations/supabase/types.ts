@@ -3646,6 +3646,116 @@ export type Database = {
           },
         ]
       }
+      social_comments: {
+        Row: {
+          api_key_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_response: string | null
+          author_name: string | null
+          business_id: string
+          comment_id: string
+          comment_text: string
+          comment_url: string | null
+          commented_at: string | null
+          created_at: string
+          draft_response: string | null
+          id: string
+          lead_id: string | null
+          needs_response: boolean
+          platform: string
+          post_error: string | null
+          post_id: string | null
+          post_text: string | null
+          posted_at: string | null
+          response_reason: string | null
+          sentiment: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_response?: string | null
+          author_name?: string | null
+          business_id: string
+          comment_id: string
+          comment_text: string
+          comment_url?: string | null
+          commented_at?: string | null
+          created_at?: string
+          draft_response?: string | null
+          id?: string
+          lead_id?: string | null
+          needs_response?: boolean
+          platform?: string
+          post_error?: string | null
+          post_id?: string | null
+          post_text?: string | null
+          posted_at?: string | null
+          response_reason?: string | null
+          sentiment?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_response?: string | null
+          author_name?: string | null
+          business_id?: string
+          comment_id?: string
+          comment_text?: string
+          comment_url?: string | null
+          commented_at?: string | null
+          created_at?: string
+          draft_response?: string | null
+          id?: string
+          lead_id?: string | null
+          needs_response?: boolean
+          platform?: string
+          post_error?: string | null
+          post_id?: string | null
+          post_text?: string | null
+          posted_at?: string | null
+          response_reason?: string | null
+          sentiment?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_comments_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_comments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_comments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_comments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stripe_events: {
         Row: {
           event_type: string

@@ -2,18 +2,20 @@ import { z } from 'zod';
 
 /** Public API key helpers shared by the settings page, server routes and tests. */
 export const API_KEY_PREFIX = 'bs_live_';
-export const API_SCOPES = ['leads:write', 'records:read'] as const;
+export const API_SCOPES = ['leads:write', 'records:read', 'social:write'] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 export const API_ACCESS_LEVELS = {
   leads_only: ['leads:write'],
   read_write: ['leads:write', 'records:read'],
+  social_comments: ['social:write'],
+  full: ['leads:write', 'records:read', 'social:write'],
 } as const satisfies Record<string, readonly ApiScope[]>;
 export type ApiAccessLevel = keyof typeof API_ACCESS_LEVELS;
 export const API_RATE_LIMIT_PER_MINUTE = 60;
 
 export const createApiKeySchema = z.object({
   name: z.string().trim().min(2).max(60),
-  access: z.enum(['leads_only', 'read_write']),
+  access: z.enum(['leads_only', 'read_write', 'social_comments', 'full']),
 });
 
 export function generateApiKey(): string {
@@ -77,3 +79,25 @@ export function clampLimit(raw: string | null, fallback = 25, max = 100): number
   if (!Number.isFinite(n) || n < 1) return fallback;
   return Math.min(Math.floor(n), max);
 }
+
+/** Body accepted by POST /api/public/v1/social-comments (Make.com comment review). */
+export const apiSocialCommentSchema = z.object({
+  platform: z.string().trim().toLowerCase().max(20).optional().default('facebook'),
+  comment_id: z.string().trim().min(1).max(120),
+  comment_text: z.string().trim().min(1).max(4000),
+  comment_author: optionalText(120),
+  comment_url: z.string().trim().url().max(500).optional().nullable().or(z.literal('')),
+  original_post_id: optionalText(120),
+  original_post_text: optionalText(4000),
+  sentiment: optionalText(30),
+  needs_response: z.boolean().optional().default(true),
+  response_reason: optionalText(500),
+  draft_response: optionalText(2000),
+  created_at: z.string().trim().max(40).optional().nullable(),
+});
+export type ApiSocialCommentInput = z.infer<typeof apiSocialCommentSchema>;
+
+export const apiPostedResultSchema = z.object({
+  success: z.boolean(),
+  error: optionalText(500),
+});

@@ -32,3 +32,15 @@ describe('API keys', () => {
     expect(apiSourceChannel('Zapier')).toBe('unknown');
   });
 });
+
+import { apiSocialCommentSchema, API_ACCESS_LEVELS as LEVELS } from './api-keys';
+describe('social comment inbox', () => {
+  it('requires comment_id and comment_text', () => {
+    expect(apiSocialCommentSchema.safeParse({ comment_text: 'hi' }).success).toBe(false);
+    expect(apiSocialCommentSchema.safeParse({ comment_id: '1', comment_text: 'hi' }).data?.platform).toBe('facebook');
+  });
+  it('lead-only keys cannot use the comment inbox', () => {
+    expect(LEVELS.leads_only).not.toContain('social:write');
+    expect(LEVELS.social_comments).toEqual(['social:write']);
+  });
+});

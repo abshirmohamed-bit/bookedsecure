@@ -25,6 +25,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as SocialRouteImport } from './routes/social'
 import { Route as StartRouteImport } from './routes/start'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
@@ -66,9 +67,11 @@ import { Route as ApiPublicV1LeadsRouteImport } from './routes/api/public/v1/lea
 import { Route as ApiPublicV1MeRouteImport } from './routes/api/public/v1/me'
 import { Route as ApiPublicV1OpenapiDotjsonRouteImport } from './routes/api/public/v1/openapi[.]json'
 import { Route as ApiPublicV1ServicesRouteImport } from './routes/api/public/v1/services'
+import { Route as ApiPublicV1SocialCommentsRouteImport } from './routes/api/public/v1/social-comments'
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
 import { Route as ApiPublicSmsTextoDeliveryRouteImport } from './routes/api/public/sms/texto.delivery'
 import { Route as ApiPublicSmsTextoInboundRouteImport } from './routes/api/public/sms/texto.inbound'
+import { Route as ApiPublicV1SocialCommentsIdPostedRouteImport } from './routes/api/public/v1/social-comments.$id.posted'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -148,6 +151,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
   path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SocialRoute = SocialRouteImport.update({
+  id: '/social',
+  path: '/social',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StartRoute = StartRouteImport.update({
@@ -363,6 +371,12 @@ const ApiPublicV1ServicesRoute = ApiPublicV1ServicesRouteImport.update({
   path: '/api/public/v1/services',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicV1SocialCommentsRoute =
+  ApiPublicV1SocialCommentsRouteImport.update({
+    id: '/api/public/v1/social-comments',
+    path: '/api/public/v1/social-comments',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicServiceImageKindIdRoute =
   ApiPublicServiceImageKindIdRouteImport.update({
     id: '/api/public/service-image/$kind/$id',
@@ -380,6 +394,12 @@ const ApiPublicSmsTextoInboundRoute =
     id: '/api/public/sms/texto/inbound',
     path: '/api/public/sms/texto/inbound',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1SocialCommentsIdPostedRoute =
+  ApiPublicV1SocialCommentsIdPostedRouteImport.update({
+    id: '/$id/posted',
+    path: '/$id/posted',
+    getParentRoute: () => ApiPublicV1SocialCommentsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -399,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/social': typeof SocialRoute
   '/start': typeof StartRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
@@ -440,9 +461,11 @@ export interface FileRoutesByFullPath {
   '/api/public/v1/me': typeof ApiPublicV1MeRoute
   '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
   '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
+  '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -460,6 +483,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
+  '/social': typeof SocialRoute
   '/start': typeof StartRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
@@ -501,9 +525,11 @@ export interface FileRoutesByTo {
   '/api/public/v1/me': typeof ApiPublicV1MeRoute
   '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
   '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
+  '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -523,6 +549,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/social': typeof SocialRoute
   '/start': typeof StartRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
@@ -564,9 +591,11 @@ export interface FileRoutesById {
   '/api/public/v1/me': typeof ApiPublicV1MeRoute
   '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
   '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
+  '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -587,6 +616,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/social'
     | '/start'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
@@ -628,9 +658,11 @@ export interface FileRouteTypes {
     | '/api/public/v1/me'
     | '/api/public/v1/openapi.json'
     | '/api/public/v1/services'
+    | '/api/public/v1/social-comments'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/social-comments/$id/posted'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -648,6 +680,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/setup'
+    | '/social'
     | '/start'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
@@ -689,9 +722,11 @@ export interface FileRouteTypes {
     | '/api/public/v1/me'
     | '/api/public/v1/openapi.json'
     | '/api/public/v1/services'
+    | '/api/public/v1/social-comments'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/social-comments/$id/posted'
   id:
     | '__root__'
     | '/'
@@ -710,6 +745,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/social'
     | '/start'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
@@ -751,9 +787,11 @@ export interface FileRouteTypes {
     | '/api/public/v1/me'
     | '/api/public/v1/openapi.json'
     | '/api/public/v1/services'
+    | '/api/public/v1/social-comments'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/social-comments/$id/posted'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -773,6 +811,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SetupRoute: typeof SetupRoute
+  SocialRoute: typeof SocialRoute
   StartRoute: typeof StartRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
@@ -806,6 +845,7 @@ export interface RootRouteChildren {
   ApiPublicV1MeRoute: typeof ApiPublicV1MeRoute
   ApiPublicV1OpenapiDotjsonRoute: typeof ApiPublicV1OpenapiDotjsonRoute
   ApiPublicV1ServicesRoute: typeof ApiPublicV1ServicesRoute
+  ApiPublicV1SocialCommentsRoute: typeof ApiPublicV1SocialCommentsRouteWithChildren
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
   ApiPublicSmsTextoDeliveryRoute: typeof ApiPublicSmsTextoDeliveryRoute
   ApiPublicSmsTextoInboundRoute: typeof ApiPublicSmsTextoInboundRoute
@@ -923,6 +963,13 @@ declare module '@tanstack/react-router' {
       path: '/setup'
       fullPath: '/setup'
       preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/social': {
+      id: '/social'
+      path: '/social'
+      fullPath: '/social'
+      preLoaderRoute: typeof SocialRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/start': {
@@ -1212,6 +1259,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicV1ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/v1/social-comments': {
+      id: '/api/public/v1/social-comments'
+      path: '/api/public/v1/social-comments'
+      fullPath: '/api/public/v1/social-comments'
+      preLoaderRoute: typeof ApiPublicV1SocialCommentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/service-image/$kind/$id': {
       id: '/api/public/service-image/$kind/$id'
       path: '/api/public/service-image/$kind/$id'
@@ -1232,6 +1286,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/sms/texto/inbound'
       preLoaderRoute: typeof ApiPublicSmsTextoInboundRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/social-comments/$id/posted': {
+      id: '/api/public/v1/social-comments/$id/posted'
+      path: '/$id/posted'
+      fullPath: '/api/public/v1/social-comments/$id/posted'
+      preLoaderRoute: typeof ApiPublicV1SocialCommentsIdPostedRouteImport
+      parentRoute: typeof ApiPublicV1SocialCommentsRoute
     }
   }
 }
@@ -1272,6 +1333,21 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
   SettingsRouteChildren,
 )
 
+interface ApiPublicV1SocialCommentsRouteChildren {
+  ApiPublicV1SocialCommentsIdPostedRoute: typeof ApiPublicV1SocialCommentsIdPostedRoute
+}
+
+const ApiPublicV1SocialCommentsRouteChildren: ApiPublicV1SocialCommentsRouteChildren =
+  {
+    ApiPublicV1SocialCommentsIdPostedRoute:
+      ApiPublicV1SocialCommentsIdPostedRoute,
+  }
+
+const ApiPublicV1SocialCommentsRouteWithChildren =
+  ApiPublicV1SocialCommentsRoute._addFileChildren(
+    ApiPublicV1SocialCommentsRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
@@ -1289,6 +1365,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SetupRoute: SetupRoute,
+  SocialRoute: SocialRoute,
   StartRoute: StartRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
@@ -1323,6 +1400,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicV1MeRoute: ApiPublicV1MeRoute,
   ApiPublicV1OpenapiDotjsonRoute: ApiPublicV1OpenapiDotjsonRoute,
   ApiPublicV1ServicesRoute: ApiPublicV1ServicesRoute,
+  ApiPublicV1SocialCommentsRoute: ApiPublicV1SocialCommentsRouteWithChildren,
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,
   ApiPublicSmsTextoDeliveryRoute: ApiPublicSmsTextoDeliveryRoute,
   ApiPublicSmsTextoInboundRoute: ApiPublicSmsTextoInboundRoute,

@@ -205,6 +205,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             onClick={() => setMobileNavOpen(false)}
           />
           <SidebarLink
+            to="/social"
+            label="Facebook comments"
+            active={pathname.startsWith("/social")}
+            icon={MessageCircle}
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <SidebarLink
             to="/import"
             label="Import data"
             active={pathname.startsWith("/import")}
@@ -335,6 +342,7 @@ function SidebarLink({
     | "/analytics"
     | "/import"
      | "/unfinished"
+    | "/social"
     | "/settings/business"
     | "/settings/messaging"
     | "/settings/automation"
