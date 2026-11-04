@@ -27,3 +27,4 @@
 - Cowork import summaries use mutually exclusive row-level categories for its mobile-only action, not overlapping CSV validation/duplicate counters, so displayed totals match the records.
 - Owner alerts from database events go through push_owner_notification triggers that honour notification_preferences mutes and idempotency keys; time-based alerts are raised on read.
 - Assistant booking actions return what the database saved (saved, outcome, time, service, status) and Cowork reports that summary; same-customer same-time bookings update in place, other customers' slots are refused, and create_customer reuses an active customer with the same number.
+- The universal REST API lives under src/routes/api/public/v1 and authenticates owner-created API keys stored only as SHA-256 hashes, enforcing scope, rate limit and active subscription per request before any tenant-filtered work; MCP stays the OAuth path for AI assistants.

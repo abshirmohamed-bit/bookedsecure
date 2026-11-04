@@ -41,7 +41,7 @@ export const Route = createFileRoute('/api/public/v1/leads')({
             utm_campaign: lead.ad_name ?? lead.campaign ?? null,
             consent: lead.consent,
             consent_text: lead.consent ? `Consent supplied by ${source} via the BookedSecure API.` : 'No explicit SMS consent supplied with this API lead.',
-            lead_origin: 'api',
+            lead_origin: 'inbound_form',
             source_metadata: { api_key_id: caller.keyId, source, ad_name: lead.ad_name ?? null },
             external_id: idem ? `api:${caller.keyId}:${idem}` : null,
           });
