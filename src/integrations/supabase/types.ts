@@ -2275,6 +2275,7 @@ export type Database = {
           connection_id: string
           created_count: number
           duplicate_count: number
+          enriched_count: number
           error: string | null
           failed_count: number
           id: string
@@ -2292,6 +2293,7 @@ export type Database = {
           connection_id: string
           created_count?: number
           duplicate_count?: number
+          enriched_count?: number
           error?: string | null
           failed_count?: number
           id?: string
@@ -2309,6 +2311,7 @@ export type Database = {
           connection_id?: string
           created_count?: number
           duplicate_count?: number
+          enriched_count?: number
           error?: string | null
           failed_count?: number
           id?: string

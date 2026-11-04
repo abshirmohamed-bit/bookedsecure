@@ -134,6 +134,13 @@
       "when": 1793803793878,
       "tag": "0018_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793828547552,
+      "tag": "0019_lead_sync_enriched_outcome",
+      "breakpoints": true
     }
   ]
 }
