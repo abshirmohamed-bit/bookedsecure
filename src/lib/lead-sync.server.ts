@@ -88,11 +88,11 @@ const ENRICH_SELECT = 'id, email, suburb, service_address, vehicle_type, main_co
  * the plain /leads endpoint) is enriched in place: missing enquiry details are
  * filled, raw form answers merged, and nothing the owner recorded is touched.
  */
-async function enrichExisting(businessId: string, leadId: string, input: SyncLeadInput): Promise<'enriched' | 'duplicate'> {
+async function enrichExisting(businessId: string, leadId: string, input: SyncLeadInput, email: string | null): Promise<'enriched' | 'duplicate'> {
   const { data: existing, error } = await supabaseAdmin.from('leads').select(ENRICH_SELECT).eq('business_id', businessId).eq('id', leadId).maybeSingle();
   if (error) throw error;
   if (!existing) return 'duplicate';
-  const { patch, changed } = enrichmentPatch(existing as EnrichableLead, mapEnquiryFields(input), { email: checkLead(input as SyncLeadInput) });
+  const { patch, changed } = enrichmentPatch(existing as EnrichableLead, mapEnquiryFields(input), { email });
   if (!changed.length) return 'duplicate';
   const { error: upErr } = await supabaseAdmin.from('leads').update(patch as never).eq('business_id', businessId).eq('id', leadId);
   if (upErr) throw upErr;
@@ -118,7 +118,7 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
       .or(`external_id.eq.${externalId},external_id.like.api:%:${externalId}`).limit(1).maybeSingle();
     if (existErr) throw existErr;
     if (existing?.id) {
-      const outcome = await enrichExisting(businessId, existing.id, input);
+      const outcome = await enrichExisting(businessId, existing.id, input, check.lead.email);
       return record({ meta_lead_id: input.meta_lead_id, outcome, lead_id: existing.id, display_name: shortName });
     }
     const { captureLead } = await import('./lead-engine.server');
