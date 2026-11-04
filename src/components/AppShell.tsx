@@ -15,7 +15,6 @@ import {
   MessageCircle,
   PanelLeft,
   Settings,
-  MessageCircle,
   ShieldCheck,
   Sparkles,
   SquareArrowOutUpRight,
