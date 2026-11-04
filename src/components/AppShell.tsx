@@ -342,6 +342,7 @@ function SidebarLink({
     | "/analytics"
     | "/import"
      | "/unfinished"
+    | "/social"
     | "/settings/business"
     | "/settings/messaging"
     | "/settings/automation"
