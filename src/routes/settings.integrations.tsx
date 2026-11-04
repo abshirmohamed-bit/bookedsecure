@@ -11,6 +11,7 @@ import { runWebMCPTool } from '@/lib/webmcp-telemetry';
 import { TenantAiPanel } from '@/components/settings/TenantAiPanel';
 import { McpConnectionTest } from '@/components/settings/McpConnectionTest';
 import { ApiKeysPanel } from '@/components/settings/ApiKeysPanel';
+import { FacebookLeadSyncPanel } from '@/components/settings/FacebookLeadSyncPanel';
 
 export const Route = createFileRoute('/settings/integrations')({
   head: () => ({ meta: [
@@ -48,6 +49,7 @@ function Connections() {
     </section>
     <McpConnectionTest key={session?.user.id ?? 'signed-out'} signedIn={Boolean(session)} accountId={session?.user.id} />
     <ApiKeysPanel enabled={Boolean(session)} />
+    <FacebookLeadSyncPanel enabled={Boolean(session)} />
     <section className="space-y-4"><h2 className="font-semibold">Connected assistants</h2>
       {grants.isPending && session ? <p className="text-sm text-muted-foreground">Loading connections…</p> : null}
       {grants.isError ? <div role="alert" className="space-y-2 text-sm"><p>Connections could not be loaded.</p><Button variant="outline" onClick={() => grants.refetch()}>Try again</Button></div> : null}

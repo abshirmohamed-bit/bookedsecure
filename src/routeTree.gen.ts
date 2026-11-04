@@ -51,6 +51,7 @@ import { Route as UnfinishedIndexRouteImport } from './routes/unfinished.index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicEmailUnsubscribeRouteImport } from './routes/api/public/email-unsubscribe'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
+import { Route as ApiPublicHooksLeadSyncRouteImport } from './routes/api/public/hooks/lead-sync'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicHooksProviderStatementsRouteImport } from './routes/api/public/hooks/provider-statements'
 import { Route as ApiPublicHooksTopupExpiryRouteImport } from './routes/api/public/hooks/topup-expiry'
@@ -71,6 +72,7 @@ import { Route as ApiPublicV1SocialCommentsRouteImport } from './routes/api/publ
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
 import { Route as ApiPublicSmsTextoDeliveryRouteImport } from './routes/api/public/sms/texto.delivery'
 import { Route as ApiPublicSmsTextoInboundRouteImport } from './routes/api/public/sms/texto.inbound'
+import { Route as ApiPublicV1LeadSyncRunsRunIdRouteImport } from './routes/api/public/v1/lead-sync.runs.$runId'
 import { Route as ApiPublicV1SocialCommentsIdPostedRouteImport } from './routes/api/public/v1/social-comments.$id.posted'
 
 const IndexRoute = IndexRouteImport.update({
@@ -285,6 +287,11 @@ const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   path: '/api/public/hooks/follow-ups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksLeadSyncRoute = ApiPublicHooksLeadSyncRouteImport.update({
+  id: '/api/public/hooks/lead-sync',
+  path: '/api/public/hooks/lead-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksPilotExpiryRoute =
   ApiPublicHooksPilotExpiryRouteImport.update({
     id: '/api/public/hooks/pilot-expiry',
@@ -395,6 +402,12 @@ const ApiPublicSmsTextoInboundRoute =
     path: '/api/public/sms/texto/inbound',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicV1LeadSyncRunsRunIdRoute =
+  ApiPublicV1LeadSyncRunsRunIdRouteImport.update({
+    id: '/api/public/v1/lead-sync/runs/$runId',
+    path: '/api/public/v1/lead-sync/runs/$runId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicV1SocialCommentsIdPostedRoute =
   ApiPublicV1SocialCommentsIdPostedRouteImport.update({
     id: '/$id/posted',
@@ -445,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
@@ -465,6 +479,7 @@ export interface FileRoutesByFullPath {
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/lead-sync/runs/$runId': typeof ApiPublicV1LeadSyncRunsRunIdRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesByTo {
@@ -509,6 +524,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
@@ -529,6 +545,7 @@ export interface FileRoutesByTo {
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/lead-sync/runs/$runId': typeof ApiPublicV1LeadSyncRunsRunIdRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesById {
@@ -575,6 +592,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
@@ -595,6 +613,7 @@ export interface FileRoutesById {
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/lead-sync/runs/$runId': typeof ApiPublicV1LeadSyncRunsRunIdRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRouteTypes {
@@ -642,6 +661,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
+    | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
@@ -662,6 +682,7 @@ export interface FileRouteTypes {
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/lead-sync/runs/$runId'
     | '/api/public/v1/social-comments/$id/posted'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -706,6 +727,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
+    | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
@@ -726,6 +748,7 @@ export interface FileRouteTypes {
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/lead-sync/runs/$runId'
     | '/api/public/v1/social-comments/$id/posted'
   id:
     | '__root__'
@@ -771,6 +794,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
+    | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
@@ -791,6 +815,7 @@ export interface FileRouteTypes {
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/lead-sync/runs/$runId'
     | '/api/public/v1/social-comments/$id/posted'
   fileRoutesById: FileRoutesById
 }
@@ -829,6 +854,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicEmailUnsubscribeRoute: typeof ApiPublicEmailUnsubscribeRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
+  ApiPublicHooksLeadSyncRoute: typeof ApiPublicHooksLeadSyncRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
   ApiPublicHooksProviderStatementsRoute: typeof ApiPublicHooksProviderStatementsRoute
   ApiPublicHooksTopupExpiryRoute: typeof ApiPublicHooksTopupExpiryRoute
@@ -849,6 +875,7 @@ export interface RootRouteChildren {
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
   ApiPublicSmsTextoDeliveryRoute: typeof ApiPublicSmsTextoDeliveryRoute
   ApiPublicSmsTextoInboundRoute: typeof ApiPublicSmsTextoInboundRoute
+  ApiPublicV1LeadSyncRunsRunIdRoute: typeof ApiPublicV1LeadSyncRunsRunIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1147,6 +1174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksFollowUpsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/lead-sync': {
+      id: '/api/public/hooks/lead-sync'
+      path: '/api/public/hooks/lead-sync'
+      fullPath: '/api/public/hooks/lead-sync'
+      preLoaderRoute: typeof ApiPublicHooksLeadSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/pilot-expiry': {
       id: '/api/public/hooks/pilot-expiry'
       path: '/api/public/hooks/pilot-expiry'
@@ -1287,6 +1321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSmsTextoInboundRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/v1/lead-sync/runs/$runId': {
+      id: '/api/public/v1/lead-sync/runs/$runId'
+      path: '/api/public/v1/lead-sync/runs/$runId'
+      fullPath: '/api/public/v1/lead-sync/runs/$runId'
+      preLoaderRoute: typeof ApiPublicV1LeadSyncRunsRunIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/v1/social-comments/$id/posted': {
       id: '/api/public/v1/social-comments/$id/posted'
       path: '/$id/posted'
@@ -1384,6 +1425,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicEmailUnsubscribeRoute: ApiPublicEmailUnsubscribeRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
+  ApiPublicHooksLeadSyncRoute: ApiPublicHooksLeadSyncRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
   ApiPublicHooksProviderStatementsRoute: ApiPublicHooksProviderStatementsRoute,
   ApiPublicHooksTopupExpiryRoute: ApiPublicHooksTopupExpiryRoute,
@@ -1404,6 +1446,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,
   ApiPublicSmsTextoDeliveryRoute: ApiPublicSmsTextoDeliveryRoute,
   ApiPublicSmsTextoInboundRoute: ApiPublicSmsTextoInboundRoute,
+  ApiPublicV1LeadSyncRunsRunIdRoute: ApiPublicV1LeadSyncRunsRunIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
