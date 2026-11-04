@@ -1,6 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
+import type { Database } from '@/integrations/supabase/types';
+
+type SocialUpdate = Database['public']['Tables']['social_comments']['Update'];
 
 const COLUMNS = 'id, platform, comment_id, comment_url, post_text, author_name, comment_text, sentiment, response_reason, draft_response, approved_response, status, post_error, posted_at, lead_id, commented_at, created_at';
 const STATUSES = ['pending_review', 'approved', 'posted', 'dismissed', 'failed'] as const;
@@ -27,7 +30,7 @@ export const reviewSocialComment = createServerFn({ method: 'POST' }).middleware
     const { requireWriteContext } = await import('./app-context.server');
     const ctx = await requireWriteContext(context.supabase, context.userId);
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
-    let update: Record<string, unknown>;
+    let update: SocialUpdate;
     let allowedFrom: string[];
     if (data.action === 'approve') {
       if (!data.reply) throw new Error('Write the reply before approving.');

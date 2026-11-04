@@ -39,7 +39,7 @@ function SocialPage() {
   const list = useServerFn(listSocialComments);
   const q = useQuery({ queryKey: ["social-comments", status], queryFn: () => list({ data: { status } }) });
   return (
-    <AppShell>
+    <AppShell title="Facebook comments">
       <div className="mx-auto max-w-3xl space-y-5 p-4 md:p-6">
         <div>
           <h1 className="text-2xl font-semibold">Facebook comments</h1>
