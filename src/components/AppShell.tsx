@@ -15,6 +15,7 @@ import {
   MessageCircle,
   PanelLeft,
   Settings,
+  MessageCircle,
   ShieldCheck,
   Sparkles,
   SquareArrowOutUpRight,
@@ -202,6 +203,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             label="Unfinished prospects"
             active={pathname.startsWith("/unfinished")}
             icon={PanelLeft}
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <SidebarLink
+            to="/social"
+            label="Facebook comments"
+            active={pathname.startsWith("/social")}
+            icon={MessageCircle}
             onClick={() => setMobileNavOpen(false)}
           />
           <SidebarLink
