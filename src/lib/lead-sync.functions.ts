@@ -17,7 +17,7 @@ export const getLeadSync = createServerFn({ method: 'GET' }).middleware([require
   const { data: conn, error } = await supabaseAdmin.from('lead_sync_connections').select(SAFE).eq('business_id', ctx.businessId).eq('provider', 'make').maybeSingle();
   if (error) throw new Error('Could not load the Facebook lead import.');
   const [runs, forms] = await Promise.all([
-    context.supabase.from('lead_sync_runs').select('id, trigger_kind, status, since, created_count, duplicate_count, skipped_count, failed_count, error, requested_at, completed_at').eq('business_id', ctx.businessId).order('requested_at', { ascending: false }).limit(20),
+    context.supabase.from('lead_sync_runs').select('id, trigger_kind, status, since, created_count, duplicate_count, enriched_count, skipped_count, failed_count, error, requested_at, completed_at').eq('business_id', ctx.businessId).order('requested_at', { ascending: false }).limit(20),
     context.supabase.from('lead_sync_form_checkpoints').select('form_id, form_name, last_submitted_at').eq('business_id', ctx.businessId).order('form_name'),
   ]);
   if (runs.error || forms.error) throw new Error('Could not load import history.');

@@ -99,6 +99,133 @@ export function checkLead(lead: SyncLeadInput): LeadCheck {
 
 export const metaExternalId = (metaLeadId: string) => `facebook-lead:${metaLeadId}`;
 
+// ----- Whole-enquiry preservation -----
+// Facebook forms carry more than name/phone/email: the service asked for, how
+// soon, price comfort, vehicle, address and free-text notes. These key groups
+// map the common question names (including Glocast's real form) onto the lead
+// record's existing structured fields. Every question — mapped or not — is
+// also kept verbatim in rawAnswers so nothing the customer wrote is lost.
+
+const SERVICE_KEYS = ["the_type_of_detail_i'm_looking_for_is", 'type_of_detail', 'service', 'service_type', 'type_of_service', 'what_service', 'which_service', 'service_needed', 'detail_type', 'what_are_you_looking_for'];
+const TIMING_KEYS = ['how_soon_are_you_wanting_this_done', 'how_soon', 'when', 'preferred_date', 'preferred_time', 'preferred_day', 'urgency', 'timeframe', 'when_do_you_need_this'];
+const PRICING_KEYS = ['are_you_comfortable_with_our_starting_prices', 'comfortable_with_starting_prices', 'budget', 'price_range', 'starting_prices'];
+const VEHICLE_KEYS = ['vehicle_type', 'vehicle', 'car', 'car_type', 'vehicle_make_and_model', 'make_and_model', 'what_car'];
+const ADDRESS_KEYS = ['service_address', 'address', 'street_address', 'location', 'your_address', 'full_address'];
+const SUBURB_KEYS = ['suburb', 'postcode', 'post_code', 'zip', 'city', 'town'];
+const NOTES_KEYS = ['notes', 'message', 'comments', 'anything_else', 'additional_info', 'extra_details', 'tell_us_more'];
+
+export type RawAnswer = { name: string; values: string[] };
+
+export type EnquiryMapping = {
+  service: string | null;
+  timing: string | null;
+  pricing: string | null;
+  vehicle: string | null;
+  address: string | null;
+  suburb: string | null;
+  notes: string | null;
+  /** 'service' when the form names a service, otherwise a general quote enquiry. Never a booking. */
+  requestType: 'quote' | 'service';
+  /** Original-wording summary lines for the owner and the AI. */
+  flexibleText: string | null;
+  /** Every question and answer exactly as Meta delivered them. */
+  rawAnswers: RawAnswer[];
+};
+
+/** Maps a Facebook form's answers onto the lead's structured enquiry fields. */
+export function mapEnquiryFields(lead: SyncLeadInput): EnquiryMapping {
+  const fields = new Map<string, string[]>();
+  const rawAnswers: RawAnswer[] = [];
+  for (const f of lead.field_data ?? []) {
+    const values = (f.values ?? []).map((v) => v.trim()).filter((v) => v && !isMetaPlaceholder(v));
+    if (!values.length) continue;
+    fields.set(norm(f.name), values);
+    rawAnswers.push({ name: f.name, values });
+  }
+  const service = first(fields, SERVICE_KEYS);
+  const timing = first(fields, TIMING_KEYS);
+  const pricing = first(fields, PRICING_KEYS);
+  const vehicle = first(fields, VEHICLE_KEYS);
+  const address = first(fields, ADDRESS_KEYS);
+  const suburb = first(fields, SUBURB_KEYS);
+  const notes = first(fields, NOTES_KEYS);
+  const lines = [
+    service ? `Service: ${service}` : null,
+    timing ? `Timing: ${timing}` : null,
+    pricing ? `Starting prices: ${pricing}` : null,
+    notes ? `Notes: ${notes}` : null,
+  ].filter(Boolean);
+  return {
+    service, timing, pricing, vehicle, address, suburb, notes,
+    requestType: service ? 'service' : 'quote',
+    flexibleText: lines.length ? lines.join('\n') : null,
+    rawAnswers,
+  };
+}
+
+// ----- Safe re-import enrichment -----
+// Reimporting a lead that already exists must fill gaps only: never overwrite
+// what the owner or an earlier enquiry recorded, never touch lifecycle state
+// (status, quote_status, booking_status) and never create a second lead.
+
+export type EnrichableLead = {
+  email?: string | null;
+  suburb?: string | null;
+  service_address?: string | null;
+  vehicle_type?: string | null;
+  main_concerns?: string | null;
+  service_intent?: string | null;
+  request_type?: string | null;
+  service_name_snapshot?: string | null;
+  flexible_request_text?: string | null;
+  source_metadata?: Record<string, unknown> | null;
+};
+
+const empty = (v: unknown) => v === null || v === undefined || (typeof v === 'string' && !v.trim());
+
+/**
+ * The patch a reimported Facebook lead may write onto its existing record.
+ * Returns the changed field names so the import can report "enriched" only
+ * when something actually changed.
+ */
+export function enrichmentPatch(
+  existing: EnrichableLead,
+  mapped: EnquiryMapping,
+  contact: { email: string | null },
+): { patch: Record<string, unknown>; changed: string[] } {
+  const patch: Record<string, unknown> = {};
+  const changed: string[] = [];
+  const fill = (field: keyof EnrichableLead, value: string | null) => {
+    if (empty(value) || !empty(existing[field])) return;
+    patch[field] = value;
+    changed.push(field);
+  };
+  fill('email', contact.email);
+  fill('suburb', mapped.suburb);
+  fill('service_address', mapped.address);
+  fill('vehicle_type', mapped.vehicle);
+  fill('main_concerns', mapped.notes);
+  fill('service_intent', mapped.service);
+  fill('request_type', mapped.requestType);
+  fill('service_name_snapshot', mapped.service);
+  fill('flexible_request_text', mapped.flexibleText);
+
+  // Merge raw form answers by question name so reimports never drop answers
+  // recorded earlier and never duplicate a question already stored.
+  if (mapped.rawAnswers.length) {
+    const meta = { ...(existing.source_metadata ?? {}) };
+    const prior = Array.isArray(meta['form_answers']) ? (meta['form_answers'] as RawAnswer[]) : [];
+    const known = new Set(prior.map((a) => norm(a.name)));
+    const added = mapped.rawAnswers.filter((a) => !known.has(norm(a.name)));
+    if (!prior.length || added.length) {
+      meta['form_answers'] = [...prior, ...added];
+      patch['source_metadata'] = meta;
+      changed.push('source_metadata');
+    }
+  }
+  return { patch, changed };
+}
+
 /** Where each form's next import starts: its checkpoint minus overlap, else the first-import lookback. */
 export function computeSince(checkpoint: string | null, lookbackDays: number, now = new Date()): Date {
   if (checkpoint) return new Date(new Date(checkpoint).getTime() - LEAD_SYNC_OVERLAP_MINUTES * 60_000);
