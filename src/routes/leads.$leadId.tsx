@@ -151,6 +151,16 @@ function LeadDetail() {
   if (!data?.lead) return <p className="text-sm text-muted-foreground">Lead not found.</p>;
 
   const { lead, messages, conversation, ai, job, services, notifications, automationJobs, quoteSubjectLabel: subjectLabel } = data;
+  const metaDetails = (lead.source_metadata as Record<string, unknown> | null)?.meta;
+  const metaAnswers = lead.source_channel === "meta" && metaDetails && typeof metaDetails === "object"
+    ? (metaDetails as Record<string, unknown>).answers
+    : null;
+  const formAnswers = metaAnswers && typeof metaAnswers === "object"
+    ? Object.entries(metaAnswers as Record<string, unknown>).filter(
+        ([key, value]) => !["full_name", "first_name", "last_name", "phone_number", "phone", "email"].includes(key)
+          && typeof value === "string",
+      ) as [string, string][]
+    : [];
 
   const initials = (lead.name ?? "")
     .split(/\s+/)
@@ -312,6 +322,9 @@ function LeadDetail() {
               <Detail label="Last cleaned" value={lead.last_cleaned_at} />
               <Detail label="Campaign" value={lead.source_campaign} />
               <Detail label="Form" value={lead.source_form} />
+              {formAnswers.map(([question, answer]) => (
+                <Detail key={question} label={question.replaceAll("_", " ")} value={answer} />
+              ))}
             </dl>
             <NotesEditor leadId={leadId} initial={lead.notes ?? ""} onSaved={invalidate} />
           </section>

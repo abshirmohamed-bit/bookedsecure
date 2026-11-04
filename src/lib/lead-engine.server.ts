@@ -383,9 +383,13 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
       .maybeSingle();
     if (returning?.id) {
       const patch = mergeReturningLead(returning, enquiryFields);
+      // A new enquiry with no affirmative consent must not erase evidence
+      // from an earlier enquiry on the same contact. The SMS path still checks
+      // this submission's input.consent before sending an acknowledgement.
+      const returningConsentPatch = input.consent ? consentPatch : {};
       await supabaseAdmin
         .from("leads")
-        .update({ ...patch, ...consentPatch } as never)
+        .update({ ...patch, ...returningConsentPatch } as never)
         .eq("id", returning.id)
         .eq("business_id", businessId);
       leadId = returning.id;
