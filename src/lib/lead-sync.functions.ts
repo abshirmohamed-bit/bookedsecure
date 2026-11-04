@@ -40,7 +40,7 @@ export const saveLeadSync = createServerFn({ method: 'POST' }).middleware([requi
     const patch: Record<string, unknown> = {};
     if (data.trigger_url !== undefined) Object.assign(patch, { trigger_url: data.trigger_url, status: 'connected', last_error: null, consecutive_failures: 0 });
     if (data.auto_sync_enabled !== undefined) Object.assign(patch, { auto_sync_enabled: data.auto_sync_enabled, ...(data.auto_sync_enabled ? { next_check_at: new Date().toISOString(), consecutive_failures: 0 } : {}) });
-    if (data.initial_lookback_days !== undefined) patch.initial_lookback_days = data.initial_lookback_days;
+    if (data.initial_lookback_days !== undefined) patch['initial_lookback_days'] = data.initial_lookback_days;
     const { error } = await supabaseAdmin.from('lead_sync_connections').upsert({ business_id: ctx.businessId, provider: 'make', created_by: ctx.userId, ...patch }, { onConflict: 'business_id,provider' });
     if (error) throw new Error('Could not save the settings.');
     return { ok: true };
