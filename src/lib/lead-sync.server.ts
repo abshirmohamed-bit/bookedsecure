@@ -156,7 +156,7 @@ export async function applyRunBatch(businessId: string, runId: string, batch: Ru
   const { data: items, error: itemsErr } = await supabaseAdmin.from('lead_sync_items').select('outcome, form_id, form_name, page_id, submitted_at').eq('run_id', runId).limit(5000);
   if (itemsErr) throw new Error('count_failed');
   const count = (o: string) => (items ?? []).filter((i) => i.outcome === o).length;
-  const totals = { created_count: count('created'), duplicate_count: count('duplicate'), skipped_count: count('skipped'), failed_count: count('failed') };
+  const totals = { created_count: count('created'), duplicate_count: count('duplicate'), enriched_count: count('enriched'), skipped_count: count('skipped'), failed_count: count('failed') };
   const now = new Date().toISOString();
 
   if (!batch.final) {
