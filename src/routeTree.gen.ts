@@ -60,6 +60,12 @@ import { Route as ApiPublicSmsSinchRouteImport } from './routes/api/public/sms/s
 import { Route as ApiPublicSmsStatusRouteImport } from './routes/api/public/sms/status'
 import { Route as ApiPublicSmsTelnyxRouteImport } from './routes/api/public/sms/telnyx'
 import { Route as ApiPublicTenantLogoBusinessIdRouteImport } from './routes/api/public/tenant-logo.$businessId'
+import { Route as ApiPublicV1BookingsRouteImport } from './routes/api/public/v1/bookings'
+import { Route as ApiPublicV1CustomersRouteImport } from './routes/api/public/v1/customers'
+import { Route as ApiPublicV1LeadsRouteImport } from './routes/api/public/v1/leads'
+import { Route as ApiPublicV1MeRouteImport } from './routes/api/public/v1/me'
+import { Route as ApiPublicV1OpenapiDotjsonRouteImport } from './routes/api/public/v1/openapi[.]json'
+import { Route as ApiPublicV1ServicesRouteImport } from './routes/api/public/v1/services'
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
 import { Route as ApiPublicSmsTextoDeliveryRouteImport } from './routes/api/public/sms/texto.delivery'
 import { Route as ApiPublicSmsTextoInboundRouteImport } from './routes/api/public/sms/texto.inbound'
@@ -326,6 +332,37 @@ const ApiPublicTenantLogoBusinessIdRoute =
     path: '/api/public/tenant-logo/$businessId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicV1BookingsRoute = ApiPublicV1BookingsRouteImport.update({
+  id: '/api/public/v1/bookings',
+  path: '/api/public/v1/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1CustomersRoute = ApiPublicV1CustomersRouteImport.update({
+  id: '/api/public/v1/customers',
+  path: '/api/public/v1/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1LeadsRoute = ApiPublicV1LeadsRouteImport.update({
+  id: '/api/public/v1/leads',
+  path: '/api/public/v1/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1MeRoute = ApiPublicV1MeRouteImport.update({
+  id: '/api/public/v1/me',
+  path: '/api/public/v1/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1OpenapiDotjsonRoute =
+  ApiPublicV1OpenapiDotjsonRouteImport.update({
+    id: '/api/public/v1/openapi.json',
+    path: '/api/public/v1/openapi.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1ServicesRoute = ApiPublicV1ServicesRouteImport.update({
+  id: '/api/public/v1/services',
+  path: '/api/public/v1/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicServiceImageKindIdRoute =
   ApiPublicServiceImageKindIdRouteImport.update({
     id: '/api/public/service-image/$kind/$id',
@@ -397,6 +434,12 @@ export interface FileRoutesByFullPath {
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
+  '/api/public/v1/bookings': typeof ApiPublicV1BookingsRoute
+  '/api/public/v1/customers': typeof ApiPublicV1CustomersRoute
+  '/api/public/v1/leads': typeof ApiPublicV1LeadsRoute
+  '/api/public/v1/me': typeof ApiPublicV1MeRoute
+  '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
+  '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
@@ -452,6 +495,12 @@ export interface FileRoutesByTo {
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
+  '/api/public/v1/bookings': typeof ApiPublicV1BookingsRoute
+  '/api/public/v1/customers': typeof ApiPublicV1CustomersRoute
+  '/api/public/v1/leads': typeof ApiPublicV1LeadsRoute
+  '/api/public/v1/me': typeof ApiPublicV1MeRoute
+  '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
+  '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
@@ -509,6 +558,12 @@ export interface FileRoutesById {
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
+  '/api/public/v1/bookings': typeof ApiPublicV1BookingsRoute
+  '/api/public/v1/customers': typeof ApiPublicV1CustomersRoute
+  '/api/public/v1/leads': typeof ApiPublicV1LeadsRoute
+  '/api/public/v1/me': typeof ApiPublicV1MeRoute
+  '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
+  '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
@@ -567,6 +622,12 @@ export interface FileRouteTypes {
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
     | '/api/public/tenant-logo/$businessId'
+    | '/api/public/v1/bookings'
+    | '/api/public/v1/customers'
+    | '/api/public/v1/leads'
+    | '/api/public/v1/me'
+    | '/api/public/v1/openapi.json'
+    | '/api/public/v1/services'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
@@ -622,6 +683,12 @@ export interface FileRouteTypes {
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
     | '/api/public/tenant-logo/$businessId'
+    | '/api/public/v1/bookings'
+    | '/api/public/v1/customers'
+    | '/api/public/v1/leads'
+    | '/api/public/v1/me'
+    | '/api/public/v1/openapi.json'
+    | '/api/public/v1/services'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
@@ -678,6 +745,12 @@ export interface FileRouteTypes {
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
     | '/api/public/tenant-logo/$businessId'
+    | '/api/public/v1/bookings'
+    | '/api/public/v1/customers'
+    | '/api/public/v1/leads'
+    | '/api/public/v1/me'
+    | '/api/public/v1/openapi.json'
+    | '/api/public/v1/services'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
@@ -727,6 +800,12 @@ export interface RootRouteChildren {
   ApiPublicSmsStatusRoute: typeof ApiPublicSmsStatusRoute
   ApiPublicSmsTelnyxRoute: typeof ApiPublicSmsTelnyxRoute
   ApiPublicTenantLogoBusinessIdRoute: typeof ApiPublicTenantLogoBusinessIdRoute
+  ApiPublicV1BookingsRoute: typeof ApiPublicV1BookingsRoute
+  ApiPublicV1CustomersRoute: typeof ApiPublicV1CustomersRoute
+  ApiPublicV1LeadsRoute: typeof ApiPublicV1LeadsRoute
+  ApiPublicV1MeRoute: typeof ApiPublicV1MeRoute
+  ApiPublicV1OpenapiDotjsonRoute: typeof ApiPublicV1OpenapiDotjsonRoute
+  ApiPublicV1ServicesRoute: typeof ApiPublicV1ServicesRoute
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
   ApiPublicSmsTextoDeliveryRoute: typeof ApiPublicSmsTextoDeliveryRoute
   ApiPublicSmsTextoInboundRoute: typeof ApiPublicSmsTextoInboundRoute
@@ -1091,6 +1170,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTenantLogoBusinessIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/v1/bookings': {
+      id: '/api/public/v1/bookings'
+      path: '/api/public/v1/bookings'
+      fullPath: '/api/public/v1/bookings'
+      preLoaderRoute: typeof ApiPublicV1BookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/customers': {
+      id: '/api/public/v1/customers'
+      path: '/api/public/v1/customers'
+      fullPath: '/api/public/v1/customers'
+      preLoaderRoute: typeof ApiPublicV1CustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/leads': {
+      id: '/api/public/v1/leads'
+      path: '/api/public/v1/leads'
+      fullPath: '/api/public/v1/leads'
+      preLoaderRoute: typeof ApiPublicV1LeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/me': {
+      id: '/api/public/v1/me'
+      path: '/api/public/v1/me'
+      fullPath: '/api/public/v1/me'
+      preLoaderRoute: typeof ApiPublicV1MeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/openapi.json': {
+      id: '/api/public/v1/openapi.json'
+      path: '/api/public/v1/openapi.json'
+      fullPath: '/api/public/v1/openapi.json'
+      preLoaderRoute: typeof ApiPublicV1OpenapiDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/services': {
+      id: '/api/public/v1/services'
+      path: '/api/public/v1/services'
+      fullPath: '/api/public/v1/services'
+      preLoaderRoute: typeof ApiPublicV1ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/service-image/$kind/$id': {
       id: '/api/public/service-image/$kind/$id'
       path: '/api/public/service-image/$kind/$id'
@@ -1196,6 +1317,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSmsStatusRoute: ApiPublicSmsStatusRoute,
   ApiPublicSmsTelnyxRoute: ApiPublicSmsTelnyxRoute,
   ApiPublicTenantLogoBusinessIdRoute: ApiPublicTenantLogoBusinessIdRoute,
+  ApiPublicV1BookingsRoute: ApiPublicV1BookingsRoute,
+  ApiPublicV1CustomersRoute: ApiPublicV1CustomersRoute,
+  ApiPublicV1LeadsRoute: ApiPublicV1LeadsRoute,
+  ApiPublicV1MeRoute: ApiPublicV1MeRoute,
+  ApiPublicV1OpenapiDotjsonRoute: ApiPublicV1OpenapiDotjsonRoute,
+  ApiPublicV1ServicesRoute: ApiPublicV1ServicesRoute,
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,
   ApiPublicSmsTextoDeliveryRoute: ApiPublicSmsTextoDeliveryRoute,
   ApiPublicSmsTextoInboundRoute: ApiPublicSmsTextoInboundRoute,
