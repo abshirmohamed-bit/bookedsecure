@@ -6,6 +6,7 @@ export const NOTIFICATION_KINDS = [
   { kind: "booking_confirmed", label: "New bookings", group: "bookings" },
   { kind: "booking_change_request", label: "Booking change requests", group: "bookings" },
   { kind: "new_lead", label: "New enquiries", group: "messages" },
+  { kind: "social_comment", label: "Facebook comments to review", group: "messages" },
   { kind: "customer_reply", label: "Customer text replies", group: "messages" },
   { kind: "sms_failed", label: "Texts that didn't arrive", group: "messages" },
   { kind: "low_credits", label: "Low text credits", group: "account" },

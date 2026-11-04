@@ -33,6 +33,8 @@ export function ApiKeysPanel({ enabled }: { enabled: boolean }) {
       <select aria-label="Access" className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={access} onChange={(e) => setAccess(e.target.value as ApiAccessLevel)}>
         <option value="leads_only">Add leads only</option>
         <option value="read_write">Add leads + read customers & bookings</option>
+        <option value="social_comments">Facebook comment inbox only</option>
+        <option value="full">Leads, records + comment inbox</option>
       </select>
       <Button type="submit" disabled={createM.isPending || name.trim().length < 2}>Create key</Button>
     </form>
