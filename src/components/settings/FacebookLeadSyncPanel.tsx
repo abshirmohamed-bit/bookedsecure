@@ -77,7 +77,7 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
         {q.data.runs.map((r) => <li key={r.id} className="py-2">
           <button type="button" className="flex w-full flex-wrap items-center justify-between gap-2 text-left" onClick={() => setOpen(open === r.id ? null : r.id)}>
             <span>{when(r.requested_at)} · {r.trigger_kind === 'manual' ? 'Manual' : 'Automatic'} · {STATUS[r.status] ?? r.status}</span>
-            <span className="text-xs text-muted-foreground">{r.created_count} new · {r.duplicate_count} already in · {r.skipped_count} skipped · {r.failed_count} failed</span>
+            <span className="text-xs text-muted-foreground">{r.created_count} new · {r.duplicate_count} already in{r.enriched_count ? ` · ${r.enriched_count} updated` : ''} · {r.skipped_count} skipped · {r.failed_count} failed</span>
           </button>
           {r.error ? <p className="text-xs text-muted-foreground">{r.error}</p> : null}
           {open === r.id ? <div className="mt-2"><RunItems runId={r.id} /></div> : null}
