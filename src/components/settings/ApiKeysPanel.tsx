@@ -24,8 +24,8 @@ export function ApiKeysPanel({ enabled }: { enabled: boolean }) {
   const createM = useMutation({ mutationFn: () => create({ data: { name, access } }), onSuccess: async (r) => { setNewKey(r.key); await qc.invalidateQueries({ queryKey: ['api-keys'] }); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not create the key.') });
   const revokeM = useMutation({ mutationFn: (id: string) => revoke({ data: { id } }), onSuccess: async () => { toast.success('Key revoked.'); await qc.invalidateQueries({ queryKey: ['api-keys'] }); }, onError: () => toast.error('Could not revoke the key.') });
 
-  return <section className="space-y-4 border-b border-border pb-8">
-    <h2 className="flex items-center gap-2 font-semibold"><KeyRound className="h-5 w-5 text-primary" />API keys</h2>
+  return <section className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
+    <h2 className="flex items-center gap-2 font-heading text-lg font-semibold"><KeyRound className="h-5 w-5 text-primary" />API keys</h2>
     <p className="text-sm text-muted-foreground">Connect Make.com, Zapier, n8n or any tool that supports API keys. Use these for sending leads in (for example Meta Lead Ads through Make.com). AI assistants use the connection above instead.</p>
 
     <form className="grid gap-3 sm:grid-cols-[1fr_auto_auto]" onSubmit={(e) => { e.preventDefault(); createM.mutate(); }}>

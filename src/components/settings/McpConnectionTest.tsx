@@ -21,7 +21,7 @@ export function McpConnectionTest({ signedIn, accountId }: { signedIn: boolean; 
     try { setResult({ accountId, check: await checkChatGptConnection(supabase) }); }
     finally { setBusy(false); }
   }
-  return <section className="space-y-4 border-b border-border pb-8" aria-labelledby="connection-test-title">
+  return <section className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7" aria-labelledby="connection-test-title">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 id="connection-test-title" className="font-semibold">ChatGPT connection test</h2>
       <Button onClick={run} disabled={!signedIn || busy}>
