@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { runWebMCPTool } from '@/lib/webmcp-telemetry';
 import { TenantAiPanel } from '@/components/settings/TenantAiPanel';
 import { McpConnectionTest } from '@/components/settings/McpConnectionTest';
+import { ApiKeysPanel } from '@/components/settings/ApiKeysPanel';
 
 export const Route = createFileRoute('/settings/integrations')({
   head: () => ({ meta: [
@@ -46,6 +47,7 @@ function Connections() {
       <p className="text-sm">Connected assistants can read your business records, add and update customers, manage bookings and completed work, edit services and extras, and change business and follow-up settings. Replies require Confirm in BookedSecure. Campaigns, imports, deletion and team requests can be passed to Cowork for review and confirmation. Payments are not available through this connection.</p>
     </section>
     <McpConnectionTest key={session?.user.id ?? 'signed-out'} signedIn={Boolean(session)} accountId={session?.user.id} />
+    <ApiKeysPanel enabled={Boolean(session)} />
     <section className="space-y-4"><h2 className="font-semibold">Connected assistants</h2>
       {grants.isPending && session ? <p className="text-sm text-muted-foreground">Loading connections…</p> : null}
       {grants.isError ? <div role="alert" className="space-y-2 text-sm"><p>Connections could not be loaded.</p><Button variant="outline" onClick={() => grants.refetch()}>Try again</Button></div> : null}
