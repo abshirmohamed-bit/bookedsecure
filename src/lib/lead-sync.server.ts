@@ -1,7 +1,8 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server';
 import {
   LEAD_SYNC_INTERVAL_MINUTES, LEAD_SYNC_MAX_FAILURES, LEAD_SYNC_STALE_MINUTES,
-  checkLead, computeSince, finalRunStatus, metaExternalId, parseSubmittedAt, type SyncLeadInput,
+  checkLead, computeSince, enrichmentPatch, finalRunStatus, mapEnquiryFields, metaExternalId, parseSubmittedAt,
+  type EnrichableLead, type SyncLeadInput,
 } from './lead-sync';
 
 const SOURCE = 'Facebook Lead Ads via Make';
