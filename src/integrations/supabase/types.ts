@@ -393,6 +393,104 @@ export type Database = {
           },
         ]
       }
+      api_key_requests: {
+        Row: {
+          action: string
+          api_key_id: string
+          business_id: string
+          created_at: string
+          id: string
+          outcome: string | null
+          status_code: number
+        }
+        Insert: {
+          action: string
+          api_key_id: string
+          business_id: string
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          status_code: number
+        }
+        Update: {
+          action?: string
+          api_key_id?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          status_code?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_key_requests_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_key_requests_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_keys: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          key_last4: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          request_count: number
+          revoked_at: string | null
+          scopes: string[]
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          key_last4: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          request_count?: number
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          key_last4?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          request_count?: number
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistant_files: {
         Row: {
           business_id: string
