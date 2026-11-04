@@ -21,9 +21,13 @@ export const getLeadSync = createServerFn({ method: 'GET' }).middleware([require
     context.supabase.from('lead_sync_form_checkpoints').select('form_id, form_name, last_submitted_at').eq('business_id', ctx.businessId).order('form_name'),
   ]);
   if (runs.error || forms.error) throw new Error('Could not load import history.');
-  const { trigger_url, ...rest } = conn ?? ({} as Record<string, unknown>);
+  let connection = null;
+  if (conn) {
+    const { trigger_url, ...rest } = conn;
+    connection = { ...rest, has_trigger: Boolean(trigger_url), trigger_hint: trigger_url ? `…${trigger_url.slice(-4)}` : null };
+  }
   return {
-    connection: conn ? { ...rest, has_trigger: Boolean(trigger_url), trigger_hint: typeof trigger_url === 'string' ? `…${trigger_url.slice(-4)}` : null } : null,
+    connection,
     runs: runs.data ?? [], forms: forms.data ?? [],
   };
 });

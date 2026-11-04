@@ -29,7 +29,7 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
   const [url, setUrl] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: ['lead-sync'] });
-  const saveM = useMutation({ mutationFn: (d: Parameters<typeof save>[0]['data']) => save({ data: d }), onSuccess: async () => { setUrl(''); toast.success('Saved.'); await refresh(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save.') });
+  const saveM = useMutation({ mutationFn: (d: { trigger_url?: string; auto_sync_enabled?: boolean; initial_lookback_days?: number }) => save({ data: d }), onSuccess: async () => { setUrl(''); toast.success('Saved.'); await refresh(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save.') });
   const runM = useMutation({ mutationFn: () => run(), onSuccess: async (r) => { if (r.started) toast.success('Import started. New leads will appear shortly.'); else toast.error(r.reason); await refresh(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not start the import.') });
   const discM = useMutation({ mutationFn: () => disconnect(), onSuccess: async () => { toast.success('Disconnected.'); await refresh(); } });
 

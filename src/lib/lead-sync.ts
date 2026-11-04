@@ -83,7 +83,7 @@ export function mapLeadFields(lead: SyncLeadInput): MappedLead {
   };
 }
 
-export type LeadCheck = { ok: true; lead: MappedLead } | { ok: false; reason: string };
+export type LeadCheck = { ok: true; lead: { name: string; mobile: string; email: string | null } } | { ok: false; reason: string };
 
 /** Validation that never needs a retry: these leads are recorded as skipped with a reason. */
 export function checkLead(lead: SyncLeadInput): LeadCheck {
@@ -94,7 +94,7 @@ export function checkLead(lead: SyncLeadInput): LeadCheck {
   const digits = m.mobile.replace(/\D/g, '');
   if (digits.length < 8 || m.mobile.length > 20) return { ok: false, reason: 'Phone number is not valid.' };
   const email = m.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email) ? m.email : null;
-  return { ok: true, lead: { name: m.name.slice(0, 80), mobile: m.mobile, email } };
+  return { ok: true, lead: { name: m.name.slice(0, 80), mobile: m.mobile as string, email } };
 }
 
 export const metaExternalId = (metaLeadId: string) => `facebook-lead:${metaLeadId}`;

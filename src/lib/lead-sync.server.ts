@@ -78,7 +78,7 @@ export async function sweepScheduledSyncs() {
   return { checked: data?.length ?? 0, started };
 }
 
-type ItemOutcome = { meta_lead_id: string; outcome: 'created' | 'duplicate' | 'skipped' | 'failed'; reason?: string };
+type ItemOutcome = { meta_lead_id: string; outcome: 'created' | 'duplicate' | 'skipped' | 'failed'; reason?: string | undefined };
 
 async function ingestOne(businessId: string, runId: string, input: SyncLeadInput): Promise<ItemOutcome> {
   const submittedAt = parseSubmittedAt(input.created_time);
@@ -113,7 +113,7 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
   }
 }
 
-export type RunBatch = { leads: SyncLeadInput[]; final: boolean; error?: string | null };
+export type RunBatch = { leads: SyncLeadInput[]; final: boolean; error?: string | null | undefined };
 
 /** Applies a batch from Make to a run owned by the calling key's business. */
 export async function applyRunBatch(businessId: string, runId: string, batch: RunBatch) {
