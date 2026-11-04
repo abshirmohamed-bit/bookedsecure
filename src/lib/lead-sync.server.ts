@@ -146,7 +146,7 @@ export async function applyRunBatch(businessId: string, runId: string, batch: Ru
     byForm.set(i.form_id, f);
   }
   for (const [form_id, f] of byForm) {
-    if (f.failed || !f.latest) continue;
+    if (f.failed || !f.latest || batch.error) continue;
     const { data: cp } = await supabaseAdmin.from('lead_sync_form_checkpoints').select('last_submitted_at').eq('connection_id', run.connection_id).eq('form_id', form_id).maybeSingle();
     if (cp && cp.last_submitted_at >= f.latest) continue;
     await supabaseAdmin.from('lead_sync_form_checkpoints').upsert({ business_id: businessId, connection_id: run.connection_id, form_id, form_name: f.form_name, page_id: f.page_id, last_submitted_at: f.latest, updated_at: now }, { onConflict: 'connection_id,form_id' });
