@@ -315,6 +315,8 @@ function LeadDetail() {
             </dl>
             <NotesEditor leadId={leadId} initial={lead.notes ?? ""} onSaved={invalidate} />
           </section>
+
+          <FacebookAnswersPanel sourceMetadata={lead.source_metadata as Record<string, unknown> | null} />
         </div>
 
         {/* Everything that was said: the quote chat, then the SMS thread. */}
@@ -1087,6 +1089,34 @@ function ImportedSourcePanel({
           <div key={label}>
             <dt className="text-xs text-muted-foreground">{label}</dt>
             <dd className="mt-0.5 break-words text-xs">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/** Every question and answer from the Facebook form, exactly as submitted. */
+function FacebookAnswersPanel({ sourceMetadata }: { sourceMetadata: Record<string, unknown> | null }) {
+  const raw = sourceMetadata?.["form_answers"];
+  if (!Array.isArray(raw) || !raw.length) return null;
+  const answers = raw.filter(
+    (a): a is { name: string; values: string[] } =>
+      Boolean(a) && typeof (a as { name?: unknown }).name === "string" && Array.isArray((a as { values?: unknown }).values),
+  );
+  if (!answers.length) return null;
+  const label = (name: string) => {
+    const words = name.replace(/[_-]+/g, " ").trim();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  };
+  return (
+    <section className="panel p-4" aria-label="Facebook form answers">
+      <h2 className="text-sm font-semibold">Facebook form answers</h2>
+      <dl className="mt-3 space-y-2 text-sm">
+        {answers.map((a) => (
+          <div key={a.name}>
+            <dt className="text-xs text-muted-foreground">{label(a.name)}</dt>
+            <dd className="mt-0.5 break-words">{a.values.join(", ")}</dd>
           </div>
         ))}
       </dl>
