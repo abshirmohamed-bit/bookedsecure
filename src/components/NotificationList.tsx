@@ -30,6 +30,7 @@ const ICONS: Record<string, { icon: typeof Bell; tone: string }> = {
   ai_analysis_failed: { icon: AlertTriangle, tone: "text-destructive" },
   low_credits: { icon: CreditCard, tone: "text-destructive" },
   trial_ending: { icon: CreditCard, tone: "text-muted-foreground" },
+  social_comment: { icon: MessageSquare, tone: "text-primary" },
   assistant_change: { icon: Bot, tone: "text-muted-foreground" },
 };
 
@@ -95,7 +96,12 @@ export function NotificationList({
                       Top up or contact us
                     </Link>
                   )}
-                  {unread && !item.lead_id && !isBooking(item.kind) && item.kind !== "low_credits" && item.kind !== "trial_ending" && (
+                  {item.kind === "social_comment" && (
+                    <Link to="/social" onClick={() => onOpen(item)} className="text-[11px] font-medium text-primary hover:underline">
+                      Review comment
+                    </Link>
+                  )}
+                  {unread && !item.lead_id && !isBooking(item.kind) && item.kind !== "low_credits" && item.kind !== "trial_ending" && item.kind !== "social_comment" && (
                     <button onClick={() => onOpen(item)} className="text-[11px] text-muted-foreground hover:text-foreground">
                       Mark read
                     </button>

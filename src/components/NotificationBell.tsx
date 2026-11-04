@@ -93,7 +93,7 @@ export function NotificationBell({ rail = false, enableRealtime = true }: { rail
 
   const openItem = (item: NotificationItem) => {
     if (!item.read_at) mutation.mutate([item.id]);
-    if (item.lead_id || item.kind.startsWith("booking") || item.kind === "low_credits" || item.kind === "trial_ending") setOpen(false);
+    if (item.lead_id || item.kind.startsWith("booking") || item.kind === "low_credits" || item.kind === "trial_ending" || item.kind === "social_comment") setOpen(false);
   };
 
   return (
