@@ -6,7 +6,7 @@ import {
 } from './lead-sync';
 
 const SOURCE = 'Facebook Lead Ads via Make';
-type Connection = { id: string; business_id: string; trigger_url: string | null; initial_lookback_days: number; consecutive_failures: number };
+type Connection = { id: string; business_id: string; provider?: string; trigger_url: string | null; initial_lookback_days: number; consecutive_failures: number };
 
 /** Marks runs that never reported back as expired so a new one can start. */
 export async function expireStaleRuns(connectionId?: string) {
@@ -18,7 +18,40 @@ export async function expireStaleRuns(connectionId?: string) {
 }
 
 /** Starts one import for a business. The database allows only one active run per connection. */
-export async function startSyncRun(conn: Connection, trigger: 'manual' | 'schedule', requestedBy: string | null) {
+export async function startSyncRun(conn: Connection, trigger: 'manual' | 'schedule', requestedBy: string | null, hostname = '') {
+  if (conn.provider === 'meta_direct') {
+    const { assertDirectMetaScope, readDirectMetaConfig, createDirectMetaTransport } = await import('./meta-direct.server');
+    const config = readDirectMetaConfig(hostname);
+    // Guard before ANY database mutation, even expiring existing runs.
+    assertDirectMetaScope(conn.business_id, config, true, trigger === 'schedule');
+    const transport = createDirectMetaTransport(config);
+    await transport.testAccess(conn.business_id);
+    await expireStaleRuns(conn.id);
+    const { data: checkpoints, error: cpError } = await supabaseAdmin.from('lead_sync_form_checkpoints')
+      .select('form_id, last_submitted_at').eq('connection_id', conn.id).eq('business_id', conn.business_id);
+    if (cpError) throw new Error('Could not read direct import progress.');
+    const { data: run, error } = await supabaseAdmin.from('lead_sync_runs').insert({
+      business_id: conn.business_id, connection_id: conn.id, trigger_kind: trigger, requested_by: requestedBy,
+      since: computeSince(null, conn.initial_lookback_days).toISOString(),
+    }).select('id').single();
+    if (error?.code === '23505') return { started: false as const, reason: 'An import is already running.' };
+    if (error || !run) throw new Error('Could not start the direct import.');
+    try {
+      await transport.importLeads({ businessId: conn.business_id, lookbackDays: conn.initial_lookback_days, checkpoints: checkpoints ?? [], scheduled: trigger === 'schedule',
+        apply: async (batch) => {
+          const result = await applyRunBatch(conn.business_id, run.id, batch, 'meta_direct');
+          if ('notFound' in result || 'closed' in result) throw new Error('The direct import run is unavailable.');
+          return result;
+        },
+      });
+      return { started: true as const, runId: run.id };
+    } catch (e) {
+      // Do not log credentials or provider payloads.
+      const reason = e instanceof Error ? e.message : 'Direct Facebook import failed.';
+      await supabaseAdmin.from('lead_sync_runs').update({ status: 'failed', error: reason, completed_at: new Date().toISOString() }).eq('id', run.id).in('status', ['requested', 'running']);
+      return { started: false as const, reason, runId: run.id };
+    }
+  }
   if (!conn.trigger_url) throw new Error('Add your Make webhook address first.');
   await expireStaleRuns(conn.id);
   const { data: checkpoints, error: cpErr } = await supabaseAdmin.from('lead_sync_form_checkpoints')
@@ -64,10 +97,10 @@ export async function startSyncRun(conn: Connection, trigger: 'manual' | 'schedu
 }
 
 /** Five-minute sweep: triggers every business that switched automatic import on. */
-export async function sweepScheduledSyncs() {
+export async function sweepScheduledSyncs(hostname = '') {
   await expireStaleRuns();
   const { data, error } = await supabaseAdmin.from('lead_sync_connections')
-    .select('id, business_id, trigger_url, initial_lookback_days, consecutive_failures, next_check_at')
+    .select('id, business_id, provider, trigger_url, initial_lookback_days, consecutive_failures, next_check_at')
     .eq('auto_sync_enabled', true).neq('status', 'disconnected').not('trigger_url', 'is', null)
     .lt('consecutive_failures', LEAD_SYNC_MAX_FAILURES)
     .or(`next_check_at.is.null,next_check_at.lte.${new Date(Date.now() + 30_000).toISOString()}`).limit(50);
@@ -75,6 +108,20 @@ export async function sweepScheduledSyncs() {
   let started = 0;
   for (const conn of data ?? []) {
     try { if ((await startSyncRun(conn, 'schedule', null)).started) started++; } catch (e) { console.error('lead sync trigger failed', e instanceof Error ? e.message : e); }
+  }
+  // Existing Make selection and behavior stay unchanged. Direct rows are
+  // considered separately only in preview and only after explicit enablement.
+  const { DIRECT_META_ALLOWLIST, readDirectMetaConfig } = await import('./meta-direct.server');
+  const directConfig = readDirectMetaConfig(hostname);
+  if (directConfig.preview && directConfig.enabled && directConfig.scheduleEnabled) {
+    const { data: direct, error: directError } = await supabaseAdmin.from('lead_sync_connections')
+      .select('id, business_id, provider, trigger_url, initial_lookback_days, consecutive_failures')
+      .eq('provider', 'meta_direct').eq('business_id', DIRECT_META_ALLOWLIST.businessId)
+      .eq('auto_sync_enabled', true).neq('status', 'disconnected')
+      .lt('consecutive_failures', LEAD_SYNC_MAX_FAILURES)
+      .or(`next_check_at.is.null,next_check_at.lte.${new Date().toISOString()}`).limit(1);
+    if (directError) throw new Error('Could not load direct scheduled imports.');
+    for (const conn of direct ?? []) if ((await startSyncRun(conn, 'schedule', null, hostname)).started) started++;
   }
   return { checked: data?.length ?? 0, started };
 }
@@ -99,7 +146,7 @@ async function enrichExisting(businessId: string, leadId: string, input: SyncLea
   return 'enriched';
 }
 
-async function ingestOne(businessId: string, runId: string, input: SyncLeadInput): Promise<ItemOutcome> {
+async function ingestOne(businessId: string, runId: string, input: SyncLeadInput, provider: 'make' | 'meta_direct' = 'make'): Promise<ItemOutcome> {
   const submittedAt = parseSubmittedAt(input.created_time);
   const base = { run_id: runId, business_id: businessId, meta_lead_id: input.meta_lead_id, form_id: input.form_id ?? null, form_name: input.form_name ?? null, page_id: input.page_id ?? null, submitted_at: submittedAt };
   const record = async (o: ItemOutcome & { lead_id?: string | null; display_name?: string | null }) => {
@@ -128,10 +175,10 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
       main_concerns: mapped.notes, service_intent: mapped.service,
       request_type: mapped.requestType, service_name_snapshot: mapped.service,
       flexible_request_text: mapped.flexibleText,
-      source_channel: 'meta', source_form: input.form_name ?? null, utm_source: SOURCE,
+      source_channel: 'meta', source_form: input.form_name ?? null, utm_source: provider === 'meta_direct' ? 'Facebook Lead Ads direct' : SOURCE,
       consent: false, consent_text: 'No explicit SMS consent supplied with this Facebook lead.',
-      lead_origin: 'inbound_form',
-      source_metadata: { source: SOURCE, meta_lead_id: input.meta_lead_id, page_id: input.page_id ?? null, form_id: input.form_id ?? null, form_name: input.form_name ?? null, submitted_at: submittedAt, sync_run_id: runId, form_answers: mapped.rawAnswers },
+      lead_origin: 'inbound_form', ...(provider === 'meta_direct' ? { channel: 'web' as const } : {}),
+      source_metadata: { source: provider === 'meta_direct' ? 'Facebook Lead Ads direct' : SOURCE, meta_lead_id: input.meta_lead_id, page_id: input.page_id ?? null, form_id: input.form_id ?? null, form_name: input.form_name ?? null, submitted_at: submittedAt, sync_run_id: runId, form_answers: mapped.rawAnswers },
       external_id: externalId,
     });
     return record({ meta_lead_id: input.meta_lead_id, outcome: result.duplicate ? 'duplicate' : 'created', lead_id: result.leadId, display_name: shortName });
@@ -144,14 +191,21 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
 export type RunBatch = { leads: SyncLeadInput[]; final: boolean; error?: string | null | undefined };
 
 /** Applies a batch from Make to a run owned by the calling key's business. */
-export async function applyRunBatch(businessId: string, runId: string, batch: RunBatch) {
+export async function applyRunBatch(businessId: string, runId: string, batch: RunBatch, provider: 'make' | 'meta_direct' = 'make') {
   const { data: run, error } = await supabaseAdmin.from('lead_sync_runs').select('id, business_id, connection_id, status').eq('id', runId).maybeSingle();
   if (error) throw new Error('lookup_failed');
   if (!run || run.business_id !== businessId) return { notFound: true as const };
+  const { data: connection, error: connectionError } = await supabaseAdmin.from('lead_sync_connections').select('provider, business_id').eq('id', run.connection_id).maybeSingle();
+  if (connectionError) throw new Error('lookup_failed');
+  if (!connection || connection.business_id !== businessId || connection.provider !== provider) return { notFound: true as const };
+  if (provider === 'meta_direct') {
+    const { DIRECT_META_ALLOWLIST } = await import('./meta-direct.server');
+    if (businessId !== DIRECT_META_ALLOWLIST.businessId || batch.leads.some((l) => l.page_id !== DIRECT_META_ALLOWLIST.pageId || !DIRECT_META_ALLOWLIST.formIds.includes(l.form_id ?? ''))) return { notFound: true as const };
+  }
   if (!['requested', 'running'].includes(run.status)) return { closed: true as const, status: run.status };
 
   const outcomes: ItemOutcome[] = [];
-  for (const lead of batch.leads) outcomes.push(await ingestOne(businessId, runId, lead));
+  for (const lead of batch.leads) outcomes.push(await ingestOne(businessId, runId, lead, provider));
 
   const { data: items, error: itemsErr } = await supabaseAdmin.from('lead_sync_items').select('outcome, form_id, form_name, page_id, submitted_at').eq('run_id', runId).limit(5000);
   if (itemsErr) throw new Error('count_failed');
@@ -183,7 +237,7 @@ export async function applyRunBatch(businessId: string, runId: string, batch: Ru
   await supabaseAdmin.from('lead_sync_runs').update({ ...totals, status, error: batch.error ?? null, last_activity_at: now, completed_at: now }).eq('id', runId);
   const connUpdate = status === 'completed'
     ? { last_success_at: now, last_error: null, status: 'connected', consecutive_failures: 0 }
-    : { last_error: batch.error ? `Make reported: ${batch.error}` : `${totals.failed_count} lead(s) could not be saved and will be retried.` };
+    : { last_error: batch.error ? `${provider === 'make' ? 'Make' : 'Direct Facebook import'} reported: ${batch.error}` : `${totals.failed_count} lead(s) could not be saved and will be retried.` };
   await supabaseAdmin.from('lead_sync_connections').update(connUpdate).eq('id', run.connection_id);
   return { outcomes, totals, status };
 }
