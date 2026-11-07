@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Share, X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import { getPushSettings, savePushDevice } from '@/lib/browser-push.functions';
@@ -17,6 +18,13 @@ export function AutoPushPrompt() {
   const settings = useQuery({ queryKey: ['push-settings'], queryFn: () => fetchSettings(), staleTime: 300_000 });
   const isOwner = Boolean(settings.data?.owner);
 
+  const [iosHint, setIosHint] = useState(false);
+  useEffect(() => {
+    if (!isOwner) return;
+    const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
+    if (ios && !standalone && !localStorage.getItem('bookedsecure:ios-push-hint-dismissed')) setIosHint(true);
+  }, [isOwner]);
   useEffect(() => {
     if (!isOwner || typeof window === 'undefined' || !('Notification' in window)) return;
     if (window.top !== window.self) return; // preview iframe cannot show the prompt
@@ -42,5 +50,11 @@ export function AutoPushPrompt() {
     const t = window.setTimeout(() => { void run(); }, 1500); // Chrome/Edge show the prompt without a gesture
     return () => { window.clearTimeout(t); detach(); };
   }, [isOwner, saveDevice, client]);
-  return null;
+  if (!iosHint) return null;
+  // Apple only allows website notifications for sites added to the Home Screen.
+  return <div role="status" className="fixed inset-x-3 bottom-3 z-[60] rounded-lg border border-border bg-card p-3 text-sm text-card-foreground shadow-lg">
+    <button aria-label="Dismiss" className="absolute right-2 top-2 text-muted-foreground" onClick={() => { localStorage.setItem('bookedsecure:ios-push-hint-dismissed', '1'); setIosHint(false); }}><X className="size-4" /></button>
+    <p className="pr-6 font-semibold">Get new-lead alerts on this iPhone</p>
+    <p className="mt-1 text-xs text-muted-foreground">Tap <Share className="inline size-3.5" /> Share, then <b>Add to Home Screen</b>. Open BookedSecure from that icon and tap Allow.</p>
+  </div>;
 }
