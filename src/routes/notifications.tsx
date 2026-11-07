@@ -120,7 +120,7 @@ function NotificationsPage() {
 
         <aside className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Which alerts you get</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Switched-off alerts stop appearing here and on the bell.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Switched-off alerts stop appearing here and on the bell. Turning off New enquiries also stops its owner SMS.</p>
           <div className="mt-4 space-y-3">
             {NOTIFICATION_KINDS.map((k) => (
               <label key={k.kind} className="flex items-center justify-between gap-3 text-xs">
