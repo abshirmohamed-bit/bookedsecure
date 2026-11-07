@@ -25,7 +25,7 @@ export default defineConfig({
       cleanupOutdatedCaches: true,
       skipWaiting: true,
       clientsClaim: true,
-      navigateFallback: undefined,
+      navigateFallback: null,
       runtimeCaching: [
         {
           urlPattern: ({ request, url }) => request.mode === 'navigate' && url.origin === self.location.origin && !/^\/(?:~oauth|api)(?:\/|$)/.test(url.pathname),
