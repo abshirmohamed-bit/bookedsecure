@@ -6,7 +6,7 @@ function worker() {
   let background: ((p:unknown)=>unknown) | undefined;
   let click: ((p:unknown)=>unknown) | undefined;
   const showNotification=vi.fn();const openWindow=vi.fn();
-  const self={location:'https://bookedsecure.com/firebase-messaging-sw.js?apiKey=public&projectId=project&appId=1:123:web:abc&messagingSenderId=123', registration:{showNotification},clients:{matchAll:async()=>[],openWindow},addEventListener:(_name:string,fn:typeof click)=>{click=fn;}};
+  const self={location:new URL('https://bookedsecure.com/firebase-messaging-sw.js?apiKey=public&projectId=project&appId=1:123:web:abc&messagingSenderId=123'), registration:{showNotification},clients:{matchAll:async()=>[],openWindow},addEventListener:(_name:string,fn:typeof click)=>{click=fn;}};
   const initializeApp=vi.fn();
   runInNewContext(readFileSync('public/firebase-messaging-sw.js','utf8'),{self,URL,importScripts:vi.fn(),firebase:{initializeApp,messaging:()=>({onBackgroundMessage:(fn:typeof background)=>{background=fn;}})}});
   return {background,click,showNotification,openWindow,initializeApp};
