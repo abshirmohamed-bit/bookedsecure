@@ -22,7 +22,7 @@ export function PushForegroundListener({ enabled = true }: { enabled?: boolean }
         if (payload.data?.['alert_key']?.startsWith('test:')) {
           // Show the real system notification too, so the test looks exactly like a live alert.
           void navigator.serviceWorker?.getRegistration('/').then(reg => reg?.showNotification(payload.data?.['title'] || 'BookedSecure test alert', {
-            body: payload.data?.['body'] || 'Push notifications are working on this device.', icon: '/icon-192.png', tag: payload.data?.['alert_key'],
+            body: payload.data?.['body'] || 'Push notifications are working on this device.', icon: '/icon-192.png', tag: payload.data?.['alert_key'] ?? 'bookedsecure-test',
           })).catch(() => {});
           void import('sonner').then(({ toast }) => toast.success('Test push received on this device'));
         }
