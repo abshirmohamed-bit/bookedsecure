@@ -1,5 +1,10 @@
 # Roadmap: Facebook → Make lead import completion
 
+## Browser push notifications
+- [x] Verify existing Firebase credentials without recreating or replacing them.
+- [x] Add owner-scoped device registration, messaging worker, immediate push and optional SMS fallback.
+- [ ] Verify tests, permissions, signed-in settings and background notification handling; report device-delivery limits.
+
 ## New-lead owner SMS
 - [x] Send one immediate, tenant-scoped owner SMS for every genuinely new inbox lead; suppress duplicates and re-imports.
 - [x] Cover quote, Facebook/Make, web-chat and manual lead paths, preference/credit/sender safeguards and focused tests without live SMS; historical bulk imports stay excluded.

@@ -15,6 +15,7 @@ import {
 } from "@/lib/app.functions";
 import { NOTIFICATION_KINDS, type NotificationFilter } from "@/lib/notifications";
 import { useAuth } from "@/hooks/useAuth";
+import { PushNotificationSettings } from '@/components/PushNotificationSettings';
 
 export const Route = createFileRoute("/notifications")({
   head: () => ({
@@ -119,8 +120,9 @@ function NotificationsPage() {
         </section>
 
         <aside className="rounded-lg border border-border bg-card p-4">
+          {enabled && <PushNotificationSettings />}
           <h2 className="text-sm font-semibold">Which alerts you get</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Switched-off alerts stop appearing here and on the bell. Turning off New enquiries also stops its owner SMS.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Switched-off alerts stop appearing here and on the bell. Turning off New enquiries also stops push and optional SMS alerts.</p>
           <div className="mt-4 space-y-3">
             {NOTIFICATION_KINDS.map((k) => (
               <label key={k.kind} className="flex items-center justify-between gap-3 text-xs">

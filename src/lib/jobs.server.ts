@@ -198,6 +198,20 @@ async function performJob(job: JobRow): Promise<Outcome> {
     if (!job.lead_id) {
       return { ok: true, note: result.created ? "Inbox alert saved without an owner SMS." : "Notification already existed." };
     }
+    const [preferences, settings] = await Promise.all([
+      supabaseAdmin.from('notification_preferences').select('muted_kinds').eq('business_id', job.business_id).maybeSingle(),
+      supabaseAdmin.from('owner_push_settings').select('sms_fallback').eq('business_id', job.business_id).maybeSingle(),
+    ]);
+    if (preferences.error || settings.error) throw new Error('Could not verify owner notification preferences.');
+    const muted = (preferences.data?.muted_kinds ?? []).includes('new_lead');
+    if (muted) return { ok: true, note: 'New enquiry alerts are muted.' };
+    const { deliverOwnerPush } = await import('@/lib/browser-push.server');
+    const push = await deliverOwnerPush({ businessId: job.business_id, alertKey: job.idempotency_key,
+      title: String(payload['title'] ?? 'New enquiry'), body: String(payload['body'] ?? 'A new lead has arrived in your inbox.'), path: '/inbox' });
+    const { shouldUseSmsFallback } = await import('@/lib/browser-push');
+    if (!shouldUseSmsFallback({ enabled: settings.data?.sms_fallback ?? false, accepted: push.accepted, uncertain: push.uncertain, muted })) {
+      return { ok: true, note: push.reason };
+    }
     const { deliverOwnerNewLeadSms } = await import("@/lib/owner-new-lead-notification.server");
     const sms = await deliverOwnerNewLeadSms({
       businessId: job.business_id,
