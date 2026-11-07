@@ -168,8 +168,38 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
       const outcome = await enrichExisting(businessId, existing.id, input, check.lead.email);
       return record({ meta_lead_id: input.meta_lead_id, outcome, lead_id: existing.id, display_name: shortName });
     }
+    const { alertTitle, classifyForBusiness, respondToFacebookLead } = await import('./facebook-lead-response.server');
+    const { data: bizTz } = await supabaseAdmin.from('businesses').select('timezone').eq('id', businessId).maybeSingle();
+    const { intent } = classifyForBusiness(mapped.rawAnswers, bizTz?.timezone ?? null);
+    const respond = (leadId: string, returning: boolean) => respondToFacebookLead({
+      businessId, leadId, metaLeadId: input.meta_lead_id, name: check.lead.name, submittedAt,
+      answers: mapped.rawAnswers, service: mapped.service, returning,
+    });
+
+    // Returning customer: same mobile, name AND email as an active lead. Update
+    // their record (fill-only), alert the owner and send a welcome-back reply.
+    const { normaliseAuMobile } = await import('./domain');
+    const mobile = normaliseAuMobile(check.lead.mobile);
+    if (mobile && check.lead.email) {
+      const { data: prior, error: priorErr } = await supabaseAdmin.from('leads').select('id, name, email, mobile_number')
+        .eq('business_id', businessId).eq('mobile_number', mobile).is('deleted_at', null).order('created_at', { ascending: false }).limit(5);
+      if (priorErr) throw priorErr;
+      const { isSameCustomer } = await import('./facebook-lead-response');
+      const match = (prior ?? []).find((p) => isSameCustomer({ mobile, name: check.lead.name, email: check.lead.email }, { mobile: p.mobile_number, name: p.name, email: p.email }));
+      if (match) {
+        await enrichExisting(businessId, match.id, input, check.lead.email);
+        const { enqueueJob, runJobById } = await import('./jobs.server');
+        const alert = await enqueueJob({ businessId, leadId: match.id, jobType: 'owner_alert', idempotencyKey: `facebook-lead:${input.meta_lead_id}:owner_alert`,
+          payload: { title: alertTitle(intent, check.lead.name, true), body: [mapped.flexibleText, `Facebook form: ${input.form_name ?? input.form_id ?? 'unknown'}`].filter(Boolean).join('\n'), metadata: { lead_id: match.id, returning: true, intent } } });
+        if (alert.job) await runJobById(alert.job.id);
+        await respond(match.id, true);
+        return record({ meta_lead_id: input.meta_lead_id, outcome: 'enriched', lead_id: match.id, display_name: shortName });
+      }
+    }
+
     const { captureLead } = await import('./lead-engine.server');
     const result = await captureLead({
+      owner_alert_title: alertTitle(intent, check.lead.name, false),
       businessId, name: check.lead.name, mobile_number: check.lead.mobile, email: check.lead.email,
       suburb: mapped.suburb, service_address: mapped.address, vehicle_type: mapped.vehicle,
       main_concerns: mapped.notes, service_intent: mapped.service,
@@ -181,6 +211,7 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
       source_metadata: { source: provider === 'meta_direct' ? 'Facebook Lead Ads direct' : SOURCE, meta_lead_id: input.meta_lead_id, page_id: input.page_id ?? null, form_id: input.form_id ?? null, form_name: input.form_name ?? null, submitted_at: submittedAt, sync_run_id: runId, form_answers: mapped.rawAnswers },
       external_id: externalId,
     });
+    if (!result.duplicate) await respond(result.leadId, false);
     return record({ meta_lead_id: input.meta_lead_id, outcome: result.duplicate ? 'duplicate' : 'created', lead_id: result.leadId, display_name: shortName });
   } catch (e) {
     console.error('lead sync ingest failed', e instanceof Error ? e.message : e);
