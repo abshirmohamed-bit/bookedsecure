@@ -280,6 +280,8 @@ export type CaptureInput = {
   channel?: "sms" | "web" | undefined;
   /** Deterministic submission key; retries reuse the existing lead instead of rewriting it. */
   external_id?: string | null | undefined;
+  /** Optional owner alert headline (e.g. "Quote request: Sam"); defaults to "New lead: <name>". */
+  owner_alert_title?: string | null | undefined;
 };
 
 
@@ -497,7 +499,7 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
     jobType: "owner_alert",
     idempotencyKey: `lead:${lead.id}:owner_alert`,
     payload: {
-      title: `New lead: ${input.name}`,
+      title: input.owner_alert_title ?? `New lead: ${input.name}`,
       body: [
         `${input.name} · ${mobile ?? input.mobile_number}`,
         input.service_intent ? `Service: ${input.service_intent}` : null,
