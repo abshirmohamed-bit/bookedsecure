@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { registerAppCache } from '@/lib/pwa-registration';
 
 function NotFoundComponent() {
   return (
@@ -134,6 +135,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    void registerAppCache().catch(error => console.warn('App file caching unavailable', error));
+  }, []);
 
   // Temporary scroll diagnostic: when a wheel event fails to move anything,
   // log what swallowed it so the stuck-scroll report can be pinned down.
