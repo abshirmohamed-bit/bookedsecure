@@ -69,4 +69,22 @@ describe("texto signature verification", () => {
     const none = await verifyTextoSignature({ headers: new Headers(), rawBody: raw, secret });
     expect(none.verified).toBe(false);
   });
+
+  it("uses the configured delivery-specific webhook secret", async () => {
+    vi.stubEnv("TEXTO_DELIVERY_WEBHOOK_SECRET", secret);
+    vi.stubEnv("TEXTO_WEBHOOK_SECRET", undefined);
+    const provider = createTextoProvider({
+      verifySharedSecret: async () => ({ verified: false, reason: "Unexpected fallback" }),
+    });
+    const sig = createHmac("sha256", secret).update(raw, "utf8").digest("hex");
+
+    const result = await provider.verifyWebhook({
+      url: "https://bookedsecure.com/api/public/sms/texto/delivery",
+      params: {},
+      headers: new Headers({ "x-texto-signature": `sha256=${sig}` }),
+      rawBody: raw,
+    });
+
+    expect(result).toEqual({ verified: true });
+  });
 });
