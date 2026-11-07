@@ -60,7 +60,7 @@ describe('restricted direct Meta import', () => {
     expect(apply).toHaveBeenCalledExactlyOnceWith({ leads: [], final: true });
   });
   it('does not accept a missing leads_retrieval grant', async () => {
-    const fetcher = vi.fn(async (_input: { leads: Array<Record<string, unknown>>; final?: boolean; error?: string }) => Response.json({ data: [{ permission: 'leads_retrieval', status: 'declined' }] }));
+    const fetcher = vi.fn(async () => Response.json({ data: [{ permission: 'leads_retrieval', status: 'declined' }] }));
     await expect(createDirectMetaTransport(config, fetcher as typeof fetch).testAccess(scope.businessId, now)).rejects.toThrow('granted leads_retrieval');
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
