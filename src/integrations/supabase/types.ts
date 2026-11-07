@@ -2844,6 +2844,106 @@ export type Database = {
           },
         ]
       }
+      owner_push_deliveries: {
+        Row: {
+          alert_key: string
+          business_id: string
+          device_id: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          alert_key: string
+          business_id: string
+          device_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_key?: string
+          business_id?: string
+          device_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_push_deliveries_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_push_deliveries_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "owner_push_devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_push_devices: {
+        Row: {
+          business_id: string
+          id: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_id: string
+          id?: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_id?: string
+          id?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_push_devices_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_push_settings: {
+        Row: {
+          business_id: string
+          sms_fallback: boolean
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          sms_fallback?: boolean
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          sms_fallback?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_push_settings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_sms_reminders: {
         Row: {
           business_id: string
