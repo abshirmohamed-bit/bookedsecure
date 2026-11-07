@@ -4,6 +4,8 @@ import { useServerFn } from '@tanstack/react-start';
 import { getPushSettings, savePushDevice } from '@/lib/browser-push.functions';
 import { registerBrowserPush } from '@/lib/browser-push';
 
+// iPhone Safari only grants permission from click/touchend, not pointerdown.
+const GESTURES = ['click', 'touchend', 'keydown'] as const;
 const TOKEN_KEY = 'bookedsecure:push-token';
 
 // Owners get the browser's own Allow/Block prompt automatically, without visiting Notifications.
@@ -35,9 +37,8 @@ export function AutoPushPrompt() {
       finally { running = false; if (done) detach(); }
     };
     const onGesture = () => { void run(); };
-    const detach = () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture); };
-    window.addEventListener('pointerdown', onGesture, { once: false });
-    window.addEventListener('keydown', onGesture, { once: false });
+    const detach = () => { for (const e of GESTURES) window.removeEventListener(e, onGesture); };
+    for (const e of GESTURES) window.addEventListener(e, onGesture);
     const t = window.setTimeout(() => { void run(); }, 1500); // Chrome/Edge show the prompt without a gesture
     return () => { window.clearTimeout(t); detach(); };
   }, [isOwner, saveDevice, client]);
