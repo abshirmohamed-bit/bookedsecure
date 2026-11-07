@@ -20,6 +20,10 @@ export function PushForegroundListener({ enabled = true }: { enabled?: boolean }
         void client.invalidateQueries({ queryKey: ['notifications'] });
         // Tests have no inbox record to show; acknowledge explicitly without copying lead details.
         if (payload.data?.['alert_key']?.startsWith('test:')) {
+          // Show the real system notification too, so the test looks exactly like a live alert.
+          void navigator.serviceWorker?.getRegistration('/').then(reg => reg?.showNotification(payload.data?.['title'] || 'BookedSecure test alert', {
+            body: payload.data?.['body'] || 'Push notifications are working on this device.', icon: '/icon-192.png', tag: payload.data?.['alert_key'],
+          })).catch(() => {});
           void import('sonner').then(({ toast }) => toast.success('Test push received on this device'));
         }
       });
