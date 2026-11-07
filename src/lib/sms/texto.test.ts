@@ -1,11 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import {
   buildTextoSendPayload,
+  createTextoProvider,
   flattenTextoPayload,
   mapTextoStatus,
   verifyTextoSignature,
 } from "./texto.server";
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("texto payload normalisation", () => {
   it("flattens an inbound reply", () => {

@@ -204,7 +204,7 @@ export function createTextoProvider(deps: {
       const inbound = headers.get("x-texto-event") === "message.inbound";
       const secret = inbound
         ? (process.env["TEXTO_INBOUND_WEBHOOK_SECRET"] ?? process.env["TEXTO_WEBHOOK_SECRET"])
-        : process.env["TEXTO_WEBHOOK_SECRET"];
+        : (process.env["TEXTO_DELIVERY_WEBHOOK_SECRET"] ?? process.env["TEXTO_WEBHOOK_SECRET"]);
       if (!secret) {
         if (isProductionRuntime()) {
           console.error("[sms:texto] rejected: Texto webhook secret missing in production");
