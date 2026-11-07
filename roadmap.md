@@ -27,3 +27,8 @@
 - [x] 5. Make payload contract unchanged (field_data passthrough); needs publish before live test
 - [x] 6. Assistant tools: import status, runs, run items, full enquiry, owner-gated import trigger
 - [~] 7. Unit tests pass (1,991); live import tests pending publish + Make run
+
+## Automatic Make imports and onboarding audit
+- [ ] Verify and enable Glocast's backend Make check every five minutes, without frontend work when no lead changes.
+- [ ] Test the automatic path end to end and confirm owner alerts only for genuinely new leads.
+- [ ] Document the implemented signup, website extraction, owner setup, ChatGPT connection, Cowork and automation journey, including remaining gaps.
