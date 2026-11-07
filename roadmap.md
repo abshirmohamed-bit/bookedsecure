@@ -1,5 +1,9 @@
 # Roadmap: Facebook → Make lead import completion
 
+## New-lead owner SMS
+- [x] Send one immediate, tenant-scoped owner SMS for every genuinely new inbox lead; suppress duplicates and re-imports.
+- [x] Cover quote, Facebook/Make, web-chat and manual lead paths, preference/credit/sender safeguards and focused tests without live SMS; historical bulk imports stay excluded.
+
 ## Direct Meta preview
 - [x] Add isolated server transport and reuse run/checkpoint/enrichment importer without changing Make.
 - [x] Keep direct access and scheduling blocked pending authorized configuration, genuine access test and owner election.

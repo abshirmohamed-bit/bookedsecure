@@ -195,7 +195,19 @@ async function performJob(job: JobRow): Promise<Outcome> {
       metadata: (payload["metadata"] ?? null) as Record<string, unknown>,
       idempotencyKey: job.idempotency_key,
     });
-    return { ok: true, ...(result.created ? {} : { note: "Notification already existed." }) };
+    if (!job.lead_id) {
+      return { ok: true, note: result.created ? "Inbox alert saved without an owner SMS." : "Notification already existed." };
+    }
+    const { deliverOwnerNewLeadSms } = await import("@/lib/owner-new-lead-notification.server");
+    const sms = await deliverOwnerNewLeadSms({
+      businessId: job.business_id,
+      leadId: job.lead_id,
+      alertKey: job.idempotency_key,
+    });
+    if (sms.sent || sms.duplicate || !sms.retriable) {
+      return { ok: true, note: `${result.created ? "Inbox alert saved." : "Notification already existed."} ${sms.reason}` };
+    }
+    return { ok: false, retriable: true, reason: sms.reason };
   }
 
   // Released operational booking confirmation. Eligibility, consent, callback
