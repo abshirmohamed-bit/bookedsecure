@@ -6,6 +6,8 @@ import { LogOut, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSettings } from "@/lib/app.functions";
 import { useAuth } from "@/hooks/useAuth";
+import { removePushDevice } from '@/lib/browser-push.functions';
+import { toast } from 'sonner';
 import {
   ACCOUNT_MENU_ITEMS,
   ROLE_LABELS,
@@ -24,6 +26,7 @@ export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void
   const buttonRef = useRef<HTMLButtonElement>(null);
   const { session } = useAuth();
   const fetchSettings = useServerFn(getSettings);
+  const removeDevice = useServerFn(removePushDevice);
 
   const { data } = useQuery({
     queryKey: ["settings"],
@@ -138,9 +141,19 @@ export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => {
+                onClick={async () => {
                   dispatch({ type: "select_item" });
-                  void supabase.auth.signOut().then(onSignOut);
+                  const token = localStorage.getItem('bookedsecure:push-token');
+                  if (token) {
+                    try {
+                      await removeDevice({ data: { token } });
+                      localStorage.removeItem('bookedsecure:push-token');
+                    } catch {
+                      toast.error('Could not disconnect device alerts. Try signing out again.');
+                      return;
+                    }
+                  }
+                  await supabase.auth.signOut(); onSignOut();
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground focus-visible:outline-none"
               >

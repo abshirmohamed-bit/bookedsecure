@@ -7,7 +7,7 @@ firebase.initializeApp(Object.fromEntries(['apiKey', 'projectId', 'appId', 'mess
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const path = event.notification.data?.path;
-  const target = new URL(typeof path === 'string' && path.startsWith('/') && !path.startsWith('//') ? path : '/inbox', self.location.origin).href;
+  const target = new URL(typeof path === 'string' && path.startsWith('/') && !path.startsWith('//') ? path : '/leads', self.location.origin).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const existing = windows.find(client => new URL(client.url).origin === self.location.origin);
@@ -19,6 +19,6 @@ firebase.messaging().onBackgroundMessage(payload => {
   const data = payload.data || {};
   return self.registration.showNotification(data.title || 'BookedSecure', {
     body: data.body || 'A new enquiry has arrived.', icon: '/favicon.png',
-    tag: data.alert_key, data: { path: data.path || '/inbox' },
+    tag: data.alert_key, data: { path: data.path || '/leads' },
   });
 });

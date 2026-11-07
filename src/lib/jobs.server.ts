@@ -207,7 +207,7 @@ async function performJob(job: JobRow): Promise<Outcome> {
     if (muted) return { ok: true, note: 'New enquiry alerts are muted.' };
     const { deliverOwnerPush } = await import('@/lib/browser-push.server');
     const push = await deliverOwnerPush({ businessId: job.business_id, alertKey: job.idempotency_key,
-      title: String(payload['title'] ?? 'New enquiry'), body: String(payload['body'] ?? 'A new lead has arrived in your inbox.'), path: '/inbox' });
+      title: String(payload['title'] ?? 'New enquiry'), body: 'A new enquiry has arrived. Open your BookedSecure inbox.', path: '/leads' });
     const { shouldUseSmsFallback } = await import('@/lib/browser-push');
     if (!shouldUseSmsFallback({ enabled: settings.data?.sms_fallback ?? false, accepted: push.accepted, uncertain: push.uncertain, muted })) {
       return { ok: true, note: push.reason };
