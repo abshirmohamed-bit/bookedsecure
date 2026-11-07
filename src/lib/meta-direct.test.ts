@@ -41,7 +41,7 @@ describe('restricted direct Meta import', () => {
       { data: [row('1')], paging: { next: 'https://untrusted.example/never-follow', cursors: { after: 'cursor-2' } } },
       { data: [row('1'), row('2')] },
     ]);
-    const apply = vi.fn(async () => ({ status: 'completed' }));
+    const apply = vi.fn(async (_input: { leads: Array<Record<string, unknown>>; final?: boolean; error?: string }) => ({ status: 'completed' }));
     const result = await transport.importLeads({ businessId: scope.businessId, lookbackDays: 7, checkpoints: [], apply, now });
     expect(result.received).toBe(2);
     expect(apply.mock.calls[0]?.[0].leads[0]).toMatchObject({ meta_lead_id: '1', page_id: scope.pageId, form_id: scope.formIds[0], field_data: row('1').field_data });
@@ -55,7 +55,7 @@ describe('restricted direct Meta import', () => {
     expect(filters[0].value).toBe(Math.floor(new Date('2026-10-30T01:00:00Z').getTime() / 1000) - 1);
   });
   it('completes a zero-lead run successfully', async () => {
-    const { transport } = mockTransport([{ data: [] }]); const apply = vi.fn(async () => ({ status: 'completed' }));
+    const { transport } = mockTransport([{ data: [] }]); const apply = vi.fn(async (_input: { leads: Array<Record<string, unknown>>; final?: boolean; error?: string }) => ({ status: 'completed' }));
     expect((await transport.importLeads({ businessId: scope.businessId, lookbackDays: 7, checkpoints: [], apply, now })).received).toBe(0);
     expect(apply).toHaveBeenCalledExactlyOnceWith({ leads: [], final: true });
   });
@@ -74,19 +74,19 @@ describe('restricted direct Meta import', () => {
     fetcher.mockImplementationOnce(async () => Response.json({ data: [{ id: scope.formIds[0] }] }));
     fetcher.mockImplementationOnce(async () => Response.json({ data: [row('1')], paging: { next: 'unused', cursors: { after: '2' } } }));
     fetcher.mockImplementationOnce(async () => new Response('private provider detail', { status: 403 }));
-    const apply = vi.fn(async () => ({}));
+    const apply = vi.fn(async (_input: { leads: Array<Record<string, unknown>>; final?: boolean; error?: string }) => ({}));
     await expect(createDirectMetaTransport(config, fetcher as typeof fetch).importLeads({ businessId: scope.businessId, lookbackDays: 7, checkpoints: [], apply, now })).rejects.toThrow('Meta access was refused (403)');
     expect(apply.mock.calls.at(-1)?.[0]).toEqual({ leads: [], final: true, error: expect.stringContaining('Meta access was refused') });
     expect(JSON.stringify(apply.mock.calls)).not.toContain('private provider detail');
   });
   it('rejects repeated pagination cursors without advancing checkpoints', async () => {
     const paging = { next: 'unused', cursors: { after: 'same' } };
-    const { transport } = mockTransport([{ data: [row('1')], paging }, { data: [], paging }]); const apply = vi.fn(async () => ({}));
+    const { transport } = mockTransport([{ data: [row('1')], paging }, { data: [], paging }]); const apply = vi.fn(async (_input: { leads: Array<Record<string, unknown>>; final?: boolean; error?: string }) => ({}));
     await expect(transport.importLeads({ businessId: scope.businessId, lookbackDays: 7, checkpoints: [], apply, now })).rejects.toThrow('pagination could not be completed');
     expect(apply.mock.calls.at(-1)?.[0].error).toContain('pagination');
   });
   it('enforces local date bounds even when Meta returns outside-range submissions', async () => {
-    const { transport } = mockTransport([{ data: [{ ...row('1'), created_time: '2025-01-01T00:00:00Z' }] }]); const apply = vi.fn(async () => ({}));
+    const { transport } = mockTransport([{ data: [{ ...row('1'), created_time: '2025-01-01T00:00:00Z' }] }]); const apply = vi.fn(async (_input: { leads: Array<Record<string, unknown>>; final?: boolean; error?: string }) => ({}));
     expect((await transport.importLeads({ businessId: scope.businessId, lookbackDays: 7, checkpoints: [], apply, now })).received).toBe(0);
   });
 });
