@@ -32,3 +32,4 @@
 - [x] Verify and enable Glocast's backend Make check every five minutes, without frontend work when no lead changes; scheduler fired run 9e1d4844-63c0-4fdf-9104-79c9dacd1c92 at 11:30:02 UTC.
 - [~] Test the automatic path end to end and confirm owner alerts only for genuinely new leads: 34 lead/alert checks passed, but Make had not called back after nine minutes; live completion waits on the external scenario.
 - [x] Document the implemented signup, website extraction, owner setup, ChatGPT connection, Cowork and automation journey, including remaining gaps.
+- [~] Sent Glocast on-demand import f3519c10-5dac-4091-b447-69aa8a0b6db8 at 11:42:28 UTC: Make accepted the trigger and automatic checks stayed on, but no callback or processed leads after three minutes; completion remains blocked on the external Make scenario.
