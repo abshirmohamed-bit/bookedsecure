@@ -140,7 +140,7 @@ export async function deliverOwnerNewLeadSms(input: {
 
   let messageId = existing?.id ?? null;
   if (messageId) {
-    await supabaseAdmin
+    const reclaimed = await supabaseAdmin
       .from("messages")
       .update({
         delivery_status: RESERVED_STATUS,
@@ -155,6 +155,10 @@ export async function deliverOwnerNewLeadSms(input: {
         failure_reason: null,
       })
       .eq("id", messageId);
+    if (reclaimed.error) {
+      await releaseSegments();
+      return blocked("Could not reserve the owner SMS retry, so nothing was sent.", true);
+    }
   } else {
     const reservation = await supabaseAdmin
       .from("messages")
