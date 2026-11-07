@@ -29,6 +29,6 @@
 - [~] 7. Unit tests pass (1,991); live import tests pending publish + Make run
 
 ## Automatic Make imports and onboarding audit
-- [ ] Verify and enable Glocast's backend Make check every five minutes, without frontend work when no lead changes.
-- [ ] Test the automatic path end to end and confirm owner alerts only for genuinely new leads.
-- [ ] Document the implemented signup, website extraction, owner setup, ChatGPT connection, Cowork and automation journey, including remaining gaps.
+- [x] Verify and enable Glocast's backend Make check every five minutes, without frontend work when no lead changes; scheduler fired run 9e1d4844-63c0-4fdf-9104-79c9dacd1c92 at 11:30:02 UTC.
+- [~] Test the automatic path end to end and confirm owner alerts only for genuinely new leads: 34 lead/alert checks passed, but Make had not called back after nine minutes; live completion waits on the external scenario.
+- [x] Document the implemented signup, website extraction, owner setup, ChatGPT connection, Cowork and automation journey, including remaining gaps.
