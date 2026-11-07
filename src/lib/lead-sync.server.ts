@@ -219,16 +219,19 @@ export async function applyRunBatch(businessId: string, runId: string, batch: Ru
   }
 
   // Advance each form's checkpoint only when none of its leads still need a retry.
-  const byForm = new Map<string, { latest: string | null; failed: boolean; form_name: string | null; page_id: string | null }>();
+  // A form whose leads were ALL skipped usually means the sender dropped the answers
+  // (a mapping fault), so hold the checkpoint and let a fixed run pick them up again.
+  const byForm = new Map<string, { latest: string | null; failed: boolean; usable: boolean; form_name: string | null; page_id: string | null }>();
   for (const i of items ?? []) {
     if (!i.form_id) continue;
-    const f = byForm.get(i.form_id) ?? { latest: null, failed: false, form_name: i.form_name, page_id: i.page_id };
+    const f = byForm.get(i.form_id) ?? { latest: null, failed: false, usable: false, form_name: i.form_name, page_id: i.page_id };
     if (i.outcome === 'failed') f.failed = true;
+    if (i.outcome !== 'skipped') f.usable = true;
     if (i.submitted_at && (!f.latest || i.submitted_at > f.latest)) f.latest = i.submitted_at;
     byForm.set(i.form_id, f);
   }
   for (const [form_id, f] of byForm) {
-    if (f.failed || !f.latest || batch.error) continue;
+    if (f.failed || !f.usable || !f.latest || batch.error) continue;
     const { data: cp } = await supabaseAdmin.from('lead_sync_form_checkpoints').select('last_submitted_at').eq('connection_id', run.connection_id).eq('form_id', form_id).maybeSingle();
     if (cp && cp.last_submitted_at >= f.latest) continue;
     await supabaseAdmin.from('lead_sync_form_checkpoints').upsert({ business_id: businessId, connection_id: run.connection_id, form_id, form_name: f.form_name, page_id: f.page_id, last_submitted_at: f.latest, updated_at: now }, { onConflict: 'connection_id,form_id' });
