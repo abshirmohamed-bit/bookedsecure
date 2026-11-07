@@ -35,3 +35,4 @@
 - [~] Sent Glocast on-demand import f3519c10-5dac-4091-b447-69aa8a0b6db8 at 11:42:28 UTC: Make accepted the trigger and automatic checks stayed on, but no callback or processed leads after three minutes; completion remains blocked on the external Make scenario.
 - [x] Compared both uploaded Make blueprints (byte-identical) with the live contract; identified polling trigger, invented run ID, empty-run stop and field-mapping mismatches, and supplied a corrective Make prompt.
 - [x] Replaced Glocast’s saved Make trigger with the new Custom webhook and verified the exact match without starting an import; automatic checks are deliberately paused until the rebuilt scenario is reviewed and activated.
+- [~] Sent one manual test to the rebuilt webhook as run 274fcfed-b3a8-4904-9f40-194ab31b9ffb at 12:15:33 UTC: Make returned HTTP success, but no authenticated callback, run items or processed leads had arrived by 12:18:20 UTC; inspect Make's execution state before retrying.
