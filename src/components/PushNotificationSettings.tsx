@@ -29,7 +29,13 @@ export function PushNotificationSettings() {
       await saveDevice({ data: { token: result.token } });
       localStorage.setItem('bookedsecure:push-token', result.token); setDeviceEnabled(true); setMessage('Notifications enabled on this device.');
       await client.invalidateQueries({ queryKey: ['push-settings'] });
-    } catch { setMessage('Could not enable notifications. Check your connection and try again.'); }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setMessage('Your browser could not register push notifications. Try the published app in a normal browser tab with notifications allowed.');
+      } else {
+        setMessage('Could not enable notifications. Check your connection and try again.');
+      }
+    }
     finally { setBusy(false); }
   };
   return <section className="mb-6 border-b border-border pb-6">

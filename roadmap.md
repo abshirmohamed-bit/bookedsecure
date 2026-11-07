@@ -3,7 +3,8 @@
 ## Browser push notifications
 - [x] Verify existing Firebase credentials without recreating or replacing them.
 - [x] Add owner-scoped device registration, messaging worker, immediate push and optional SMS fallback.
-- [ ] Verify tests, permissions, signed-in settings and background notification handling; report device-delivery limits.
+- [x] Verify 54 focused tests, signed-in owner settings, blocked-permission handling, worker activation and mobile layout.
+- [ ] Confirm a real device receives foreground/background new-enquiry push after publishing and enabling on that device; sandbox browser push subscription is refused (permission denied).
 
 ## New-lead owner SMS
 - [x] Send one immediate, tenant-scoped owner SMS for every genuinely new inbox lead; suppress duplicates and re-imports.
