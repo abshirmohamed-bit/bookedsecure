@@ -2,11 +2,11 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 // Existing inbox bell handles foreground banners; refreshing its data avoids a second popup.
-export function PushForegroundListener() {
+export function PushForegroundListener({ enabled = true }: { enabled?: boolean }) {
   const client = useQueryClient();
   useEffect(() => {
     let unsubscribe: (() => void) | undefined; let cancelled = false;
-    if (!localStorage.getItem('bookedsecure:push-token')) return;
+    if (!enabled || !localStorage.getItem('bookedsecure:push-token')) return;
     void (async () => {
       const { getApps, initializeApp } = await import('firebase/app');
       const { isSupported, getMessaging, onMessage } = await import('firebase/messaging');
@@ -26,6 +26,6 @@ export function PushForegroundListener() {
       if (cancelled) unsubscribe();
     })().catch(() => { /* Notification settings exposes registration failures. */ });
     return () => { cancelled = true; unsubscribe?.(); };
-  }, [client]);
+  }, [client, enabled]);
   return null;
 }

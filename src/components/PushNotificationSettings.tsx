@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { getPushSettings, savePushDevice, removePushDevice, savePushFallback, testBrowserPush } from '@/lib/browser-push.functions';
 import { registerBrowserPush } from '@/lib/browser-push';
+import { PushForegroundListener } from './PushForegroundListener';
 
 const STATUS_COPY: Record<string,string> = {
   'not-configured': 'Update the Firebase connection and select Include web push.',
@@ -32,6 +33,7 @@ export function PushNotificationSettings() {
     finally { setBusy(false); }
   };
   return <section className="mb-6 border-b border-border pb-6">
+    <PushForegroundListener enabled={deviceEnabled} />
     <h2 className="flex items-center gap-2 text-sm font-semibold"><BellRing className="size-4" /> Device notifications</h2>
     <p className="mt-2 text-xs text-muted-foreground">Immediate new-lead and booking-enquiry alerts. No SMS credits used for push.</p>
     {settings.isError && <p className="mt-2 text-xs text-destructive">Could not load notification settings.</p>}
