@@ -119,7 +119,7 @@ function NotificationsPage() {
           )}
         </section>
 
-        <aside className="rounded-lg border border-border bg-card p-4">
+        <aside className="order-first rounded-lg border border-border bg-card p-4 lg:order-none">
           {enabled && <PushNotificationSettings />}
           <h2 className="text-sm font-semibold">Which alerts you get</h2>
           <p className="mt-1 text-xs text-muted-foreground">Switched-off alerts stop appearing here and on the bell. Turning off New enquiries also stops push and optional SMS alerts.</p>
