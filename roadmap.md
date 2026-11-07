@@ -34,3 +34,4 @@
 - [x] Document the implemented signup, website extraction, owner setup, ChatGPT connection, Cowork and automation journey, including remaining gaps.
 - [~] Sent Glocast on-demand import f3519c10-5dac-4091-b447-69aa8a0b6db8 at 11:42:28 UTC: Make accepted the trigger and automatic checks stayed on, but no callback or processed leads after three minutes; completion remains blocked on the external Make scenario.
 - [x] Compared both uploaded Make blueprints (byte-identical) with the live contract; identified polling trigger, invented run ID, empty-run stop and field-mapping mismatches, and supplied a corrective Make prompt.
+- [x] Replaced Glocast’s saved Make trigger with the new Custom webhook and verified the exact match without starting an import; automatic checks are deliberately paused until the rebuilt scenario is reviewed and activated.
