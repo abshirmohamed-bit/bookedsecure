@@ -1,5 +1,9 @@
 # Roadmap: Facebook → Make lead import completion
 
+## Faster installed app
+- [x] Preserve existing installation and Firebase push; cache static app files only, excluding customer data, API responses and OAuth.
+- [ ] Verify preview safeguards and regression tests; published iPhone speed/offline test requires deployment and a real device.
+
 ## Browser push notifications
 - [x] Verify existing Firebase credentials without recreating or replacing them.
 - [x] Add owner-scoped device registration, messaging worker, immediate push and optional SMS fallback.
