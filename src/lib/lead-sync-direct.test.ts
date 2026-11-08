@@ -7,6 +7,7 @@ const calls: Call[] = [];
 const BUSINESS = '11111111-1111-1111-1111-111111111111';
 let metaRow: Record<string, unknown> | null = null;
 let rejectWebhookKind = false;
+let priorItemLeadId: string | null = null;
 const directConn = { id: 'direct-conn', business_id: BUSINESS, provider: 'meta_direct', initial_lookback_days: 7, consecutive_failures: 2, next_check_at: null };
 
 function respond(c: Call): { data: unknown; error: unknown } {
@@ -16,6 +17,7 @@ function respond(c: Call): { data: unknown; error: unknown } {
     return { data: { provider: 'meta_direct', business_id: BUSINESS }, error: null };
   }
   if (c.table === 'meta_lead_accounts' && c.op === 'select') return { data: metaRow, error: null };
+  if (c.table === 'lead_sync_items' && c.op === 'select' && c.single) return { data: priorItemLeadId ? { lead_id: priorItemLeadId } : null, error: null };
   if (c.table === 'lead_sync_runs' && c.op === 'insert') {
     if (rejectWebhookKind && (c.payload as { trigger_kind?: string }).trigger_kind === 'webhook') return { data: null, error: { code: '23514' } };
     return { data: { id: 'run-1' }, error: null };
@@ -50,7 +52,7 @@ vi.mock('@/integrations/supabase/client.server', () => ({ supabaseAdmin: { from:
 
 const connUpdates = () => calls.filter((c) => c.table === 'lead_sync_connections' && c.op === 'update').map((c) => c.payload as Record<string, unknown>);
 
-beforeEach(() => { calls.length = 0; metaRow = null; rejectWebhookKind = false; vi.stubEnv('TENANT_AI_ENCRYPTION_SECRET', 'test-only-secret'); });
+beforeEach(() => { calls.length = 0; metaRow = null; rejectWebhookKind = false; priorItemLeadId = null; vi.stubEnv('TENANT_AI_ENCRYPTION_SECRET', 'test-only-secret'); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('five-minute sweep with a direct Facebook connection', () => {
@@ -101,13 +103,13 @@ describe('five-minute sweep with a direct Facebook connection', () => {
 });
 
 describe('instant (webhook) import of one lead', () => {
-  async function connect(formIds: string[] = []) {
+  async function connect(formIds: string[] = [], fields: Array<{ name: string; values: string[] }> = [{ name: 'full_name', values: ['Mock Person'] }]) {
     const { encryptMetaToken, tokenContext } = await import('./meta-oauth.server');
     metaRow = { business_id: BUSINESS, page_id: '111', page_name: 'Mock Page', form_ids: formIds, token_ciphertext: encryptMetaToken('mock-only', tokenContext(BUSINESS, '111')) };
     // A lead without a phone number is skipped by the importer, so no SMS path runs here.
     const fetcher = vi.fn(async (url: URL | RequestInfo) => Response.json(String(url).includes('/leadgen_forms')
       ? { data: [{ id: '501', name: 'Quote form', status: 'ACTIVE' }] }
-      : { id: '900', created_time: '2026-11-09T01:00:00+0000', form_id: '501', field_data: [{ name: 'full_name', values: ['Mock Person'] }] }));
+      : { id: '900', created_time: '2026-11-09T01:00:00+0000', form_id: '501', field_data: fields }));
     vi.stubGlobal('fetch', fetcher);
     return fetcher;
   }
@@ -141,4 +143,15 @@ describe('instant (webhook) import of one lead', () => {
     const { importWebhookLead } = await import('./lead-sync.server');
     await expect(importWebhookLead(BUSINESS, '900')).rejects.toThrow('Facebook is not connected');
   });
+  it('treats a lead already matched to a returning customer as imported, without re-matching', async () => {
+    await connect([], [{ name: 'full_name', values: ['Mock Person'] }, { name: 'phone_number', values: ['+61400000000'] }, { name: 'email', values: ['mock@example.com'] }]);
+    priorItemLeadId = '22222222-2222-2222-2222-222222222222';
+    const { importWebhookLead } = await import('./lead-sync.server');
+    expect(await importWebhookLead(BUSINESS, '900')).toEqual({ outcome: 'duplicate' });
+    const logLookup = calls.find((c) => c.table === 'lead_sync_items' && c.op === 'select' && c.single);
+    expect(logLookup?.filters).toEqual(expect.arrayContaining([['meta_lead_id', '900']]));
+    // The returning-customer path (business timezone, prior-lead match) never ran.
+    expect(calls.some((c) => c.table === 'businesses')).toBe(false);
+  });
 });
+
