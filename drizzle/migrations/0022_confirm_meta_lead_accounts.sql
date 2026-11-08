@@ -1,0 +1,1 @@
+COMMENT ON TABLE public.meta_lead_accounts IS 'Server-only per-business Facebook Page connection for direct lead import.';
