@@ -56,6 +56,25 @@ export const reviewSocialComment = createServerFn({ method: 'POST' }).middleware
     return row;
   });
 
+/** Writes a suggested reply on request. Only fills the box: nothing is posted until the owner approves. */
+export const suggestSocialReply = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext } = await import('./app-context.server');
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+    const { data: row, error } = await supabaseAdmin.from('social_comments').select('id, platform, comment_text, status')
+      .eq('id', data.id).eq('business_id', ctx.businessId).maybeSingle();
+    if (error || !row) throw new Error('This comment could not be found.');
+    if (row.status !== 'pending_review' && row.status !== 'failed') throw new Error('This comment has already been handled.');
+    const { draftReply } = await import('./meta-social.server');
+    const result = await draftReply(ctx.businessId, 'comment', row.platform === 'instagram' ? 'instagram' : 'facebook', row.comment_text);
+    if (!result.ok) throw new Error(`A reply could not be suggested: ${result.reason}`);
+    const text = result.text ?? '';
+    await supabaseAdmin.from('social_comments').update({ draft_response: text }).eq('id', row.id).eq('business_id', ctx.businessId);
+    return { text, noReplyNeeded: result.text === null };
+  });
+
 /** Turns a commenter into a customer once the owner has their mobile. No text is sent. */
 export const convertSocialComment = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({

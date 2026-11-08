@@ -2,13 +2,13 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink, MessageCircle, RefreshCw, Send } from "lucide-react";
+import { ExternalLink, MessageCircle, RefreshCw, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { convertSocialComment, getSocialThread, listSocialComments, listSocialThreads, refreshSocialNow, reviewSocialComment, sendSocialReply } from "@/lib/social-comments.functions";
+import { convertSocialComment, getSocialThread, listSocialComments, listSocialThreads, refreshSocialNow, reviewSocialComment, sendSocialReply, suggestSocialReply } from "@/lib/social-comments.functions";
 
 export const Route = createFileRoute("/social")({
   head: () => ({
@@ -162,8 +162,17 @@ function CommentCard({ row }: { row: Row }) {
   const qc = useQueryClient();
   const review = useServerFn(reviewSocialComment);
   const convert = useServerFn(convertSocialComment);
+  const suggestFn = useServerFn(suggestSocialReply);
   const [reply, setReply] = useState(row.approved_response ?? row.draft_response ?? "");
   const [converting, setConverting] = useState(false);
+  const suggest = useMutation({
+    mutationFn: () => suggestFn({ data: { id: row.id } }),
+    onSuccess: (r) => {
+      if (r.noReplyNeeded) toast.message("This one doesn't look like it needs a reply. You can still write one or dismiss it.");
+      else setReply(r.text);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "A reply could not be suggested."),
+  });
   const [name, setName] = useState(row.author_name ?? "");
   const [mobile, setMobile] = useState("");
   const done = () => qc.invalidateQueries({ queryKey: ["social-comments"] });
@@ -205,6 +214,7 @@ function CommentCard({ row }: { row: Row }) {
         <p className="rounded-md bg-secondary p-2 text-sm">Reply: {row.approved_response}</p>
       ) : null}
       <div className="flex flex-wrap gap-2">
+        {editable && !reply.trim() && <Button size="sm" variant="outline" disabled={suggest.isPending} onClick={() => suggest.mutate()}><Sparkles className="mr-2 h-4 w-4" />{suggest.isPending ? "Writing…" : "Suggest a reply"}</Button>}
         {editable && <Button size="sm" disabled={act.isPending || !reply.trim()} onClick={() => act.mutate("approve")}>{act.isPending ? "Posting…" : "Approve & post reply"}</Button>}
         {row.status !== "posted" && row.status !== "dismissed" && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate("dismiss")}>Dismiss</Button>}
         {(row.status === "approved" || row.status === "dismissed") && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate("reopen")}>Back to review</Button>}

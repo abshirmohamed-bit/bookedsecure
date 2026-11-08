@@ -131,6 +131,9 @@ describe('fetching comments and messages', () => {
     expect(of('social_comments', 'insert')).toEqual([expect.objectContaining({ platform: 'facebook', comment_id: 'c1', author_name: 'Sam', status: 'pending_review' })]);
     expect(of('social_messages', 'upsert')[0]).toMatchObject({ platform: 'facebook', participant_id: 'psid9', direction: 'in', body: 'Hi there' });
     expect(of('meta_social_state', 'upsert')[0]).toMatchObject({ business_id: BIZ, ig_user_id: '178', last_error: expect.stringContaining('ad access') });
+    // AI unavailable: the comment is kept without a suggestion (retried on a later run) and the reason is shown.
+    expect(of('social_comments', 'insert')[0]).toMatchObject({ draft_response: null });
+    expect(String(of('meta_social_state', 'upsert')[0]!['last_error'])).toContain('Suggested replies paused: the AI service is not configured');
     for (const [url] of fetcher.mock.calls as unknown as Array<[URL]>) expect(String(url)).not.toContain('page-token');
   });
   it('reads comments on lead ads through the ad account', async () => {

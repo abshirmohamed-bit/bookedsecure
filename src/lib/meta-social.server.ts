@@ -81,13 +81,16 @@ function transport(account: DirectMetaAccount, fetcher: typeof fetch) {
   };
 }
 
+/** text null = the AI judged that no reply is needed (spam, unrelated). */
+export type DraftResult = { ok: true; text: string | null } | { ok: false; reason: string };
+
 /** A short, friendly suggested reply. The owner always edits/approves before anything is sent. */
-async function draftReply(businessId: string, kind: 'comment' | 'message', platform: SocialPlatform, customerText: string): Promise<string | null> {
+export async function draftReply(businessId: string, kind: 'comment' | 'message', platform: SocialPlatform, customerText: string): Promise<DraftResult> {
   try {
     const apiKey = process.env['LOVABLE_API_KEY'];
-    if (!apiKey) return null;
+    if (!apiKey) return { ok: false, reason: 'the AI service is not configured' };
     const { checkAiCap, recordAiUsage } = await import('./usage.server');
-    if ((await checkAiCap(businessId)).blocked) return null;
+    if ((await checkAiCap(businessId)).blocked) return { ok: false, reason: "this month's AI limit is reached" };
     const { data: biz } = await supabaseAdmin.from('businesses').select('name, slug').eq('id', businessId).maybeSingle();
     const base = process.env['PUBLIC_APP_URL'] ?? 'https://bookedsecure.com';
     const quote = biz?.slug ? `${base}/quote/${biz.slug}` : null;
@@ -111,9 +114,10 @@ async function draftReply(businessId: string, kind: 'comment' | 'message', platf
     });
     await recordAiUsage({ businessId, purpose: `social_${kind}_draft`, model: ANALYSIS_MODEL, inputTokens: result.input, outputTokens: result.output }).catch(() => undefined);
     const text = result.text.trim().replace(/^"|"$/g, '');
-    return !text || text === 'NO_REPLY' ? null : text.slice(0, 500);
-  } catch {
-    return null;
+    if (!text) return { ok: false, reason: 'the AI returned nothing' };
+    return { ok: true, text: text === 'NO_REPLY' ? null : text.slice(0, 500) };
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message.slice(0, 160) : 'the AI could not be reached' };
   }
 }
 
@@ -145,6 +149,13 @@ export async function syncSocial(businessId: string, options: { force?: boolean;
   }
 
   let drafts = 0;
+  let draftFailure: string | null = null;
+  const suggest = async (kind: 'comment' | 'message', platform: SocialPlatform, text: string) => {
+    drafts++;
+    const d = await draftReply(businessId, kind, platform, text);
+    if (!d.ok) draftFailure ??= d.reason;
+    return d;
+  };
   let newComments = 0;
   // One lookup for all candidate comments: the 30-day window re-reads known ones.
   const known = new Set<string>();
@@ -154,7 +165,9 @@ export async function syncSocial(businessId: string, options: { force?: boolean;
   }
   for (const c of comments) {
     if (known.has(`${c.platform}:${c.commentId}`)) continue;
-    const draft = drafts < MAX_DRAFTS_PER_RUN ? (drafts++, await draftReply(businessId, 'comment', c.platform, c.text)) : null;
+    // '' = looked at, no reply suggested; null = not drafted yet (picked up by a later run).
+    const d = drafts < MAX_DRAFTS_PER_RUN && !draftFailure ? await suggest('comment', c.platform, c.text) : null;
+    const draft = d?.ok ? (d.text ?? '') : null;
     const { error } = await supabaseAdmin.from('social_comments').insert({
       business_id: businessId, platform: c.platform, comment_id: c.commentId, comment_url: c.url, post_id: c.postId, post_text: c.postText,
       author_name: c.authorName, comment_text: c.text, needs_response: true, draft_response: draft, status: 'pending_review', commented_at: c.commentedAt,
@@ -174,11 +187,23 @@ export async function syncSocial(businessId: string, options: { force?: boolean;
   const latestByThread = new Map<string, IncomingMessage>();
   for (const m of messages) { const k = `${m.platform}:${m.participantId}`; const prev = latestByThread.get(k); if (!prev || prev.sentAt < m.sentAt) latestByThread.set(k, m); }
   for (const m of latestByThread.values()) {
-    if (m.direction !== 'in' || drafts >= MAX_DRAFTS_PER_RUN) continue;
-    drafts++;
-    const draft = await draftReply(businessId, 'message', m.platform, m.body);
+    if (m.direction !== 'in' || drafts >= MAX_DRAFTS_PER_RUN || draftFailure) continue;
+    const d = await suggest('message', m.platform, m.body);
+    const draft = d.ok ? d.text : null;
     if (draft) await supabaseAdmin.from('social_messages').update({ draft_reply: draft }).eq('business_id', businessId).eq('platform', m.platform).eq('message_id', m.messageId);
   }
+  // Comments that arrived without a suggestion (busy run or AI unavailable) get one now.
+  if (drafts < MAX_DRAFTS_PER_RUN && !draftFailure) {
+    const { data: waiting } = await supabaseAdmin.from('social_comments').select('id, platform, comment_text')
+      .eq('business_id', businessId).eq('status', 'pending_review').eq('needs_response', true).is('draft_response', null)
+      .order('created_at', { ascending: false }).limit(MAX_DRAFTS_PER_RUN - drafts);
+    for (const row of waiting ?? []) {
+      if (draftFailure) break;
+      const d = await suggest('comment', row.platform === 'instagram' ? 'instagram' : 'facebook', row.comment_text);
+      if (d.ok) await supabaseAdmin.from('social_comments').update({ draft_response: d.text ?? '' }).eq('id', row.id).eq('business_id', businessId).is('draft_response', null);
+    }
+  }
+  if (draftFailure) errors.push(`Suggested replies paused: ${draftFailure}`);
   await supabaseAdmin.from('meta_social_state').upsert({
     business_id: businessId, ig_user_id: ig?.id ?? null, ig_username: ig?.username ?? null,
     comments_synced_at: now.toISOString(), messages_synced_at: now.toISOString(),

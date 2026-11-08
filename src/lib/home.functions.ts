@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { humanizeAnswer } from "@/lib/lead-sync";
 
 /**
  * What is waiting for the owner: leads whose conversation needs a person, and
@@ -96,7 +97,8 @@ export const getHomeSummary = createServerFn({ method: "GET" })
       latestLeads: (latest.data ?? []).map((lead) => ({
         id: lead.id!,
         name: lead.name,
-        service: lead.service_intent ?? lead.vehicle_type ?? null,
+        // Older Facebook imports stored option keys like "full_detail_(starting_$280)".
+        service: lead.service_intent ? humanizeAnswer(lead.service_intent) : (lead.vehicle_type ?? null),
         suburb: lead.suburb,
         status: lead.status,
         needsReply: lead.conversation_status === "needs_attention",

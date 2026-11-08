@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { humanizeAnswer } from "@/lib/lead-sync";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
@@ -510,7 +511,7 @@ export function LeadsWorkspace() {
                     {lead.mobile_number}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                    {lead.service_intent ?? "Not available"}
+                    {lead.service_intent ? humanizeAnswer(lead.service_intent) : "Not available"}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex flex-wrap items-center gap-1.5">

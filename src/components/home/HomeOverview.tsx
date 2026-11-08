@@ -276,6 +276,7 @@ function Bookings({ data }: { data: Summary }) {
                   {when.toLocaleDateString("en-AU", { weekday: "short" })}
                 </span>
                 <span className="text-sm font-semibold leading-none">{when.getDate()}</span>
+                <span className="mt-0.5 text-[10px] text-muted-foreground">{when.toLocaleDateString("en-AU", { month: "short" })}</span>
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{job.name ?? "Customer"}</span>
