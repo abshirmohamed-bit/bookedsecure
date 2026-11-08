@@ -32,19 +32,24 @@ App: **bookedsecure** (`2973065043060989`) at developers.facebook.com.
    `leads_retrieval`, `pages_show_list`, `pages_read_engagement`,
    `pages_manage_metadata`, `pages_manage_ads` (and `business_management`).
    These are already added.
-2. **Redirect address.** In *Facebook Login for Business → Settings*, add this
+2. **Redirect address** (done). In *Facebook Login for Business → Settings*, add this
    to **Valid OAuth Redirect URIs**:
    `https://bookedsecure.com/api/public/meta/oauth/callback`
-3. **Login configuration (recommended).** In *Facebook Login for Business →
-   Configurations*, create one with token type **User access token** and the
-   permissions above. Copy its **Configuration ID**.
+3. **Login configuration.** *Facebook Login for Business → Configurations* has
+   **BookedSecure lead import** (Configuration ID `1107768802024784`): General
+   login, **User access token**, and every permission the app offers
+   (`leads_retrieval`, `pages_show_list`, `pages_read_engagement`,
+   `pages_manage_metadata`, `pages_manage_ads`, `pages_messaging`,
+   `business_management`, `ads_read`, `ads_management`). The extra ones are
+   there for future features. Each connecting business approves all of them, and
+   App Review will ask what each one is used for.
 4. **Lovable Cloud → Secrets:**
 
    | Name | Value |
    | --- | --- |
    | `META_APP_ID` | `2973065043060989` |
    | `META_APP_SECRET` | App settings → Basic → App secret (keep private) |
-   | `META_LOGIN_CONFIG_ID` | the Configuration ID from step 3 |
+   | `META_LOGIN_CONFIG_ID` | `1107768802024784` |
    | `META_GRAPH_VERSION` | optional; defaults to `v27.0` |
 
    Tokens are encrypted with the existing `TENANT_AI_ENCRYPTION_SECRET`.
