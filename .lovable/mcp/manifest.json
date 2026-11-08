@@ -1663,7 +1663,7 @@
       {
         "name": "lead_import_status",
         "title": "Facebook lead import status",
-        "description": "Read the Facebook lead import connection status for the connected business: whether it is set up, whether automatic five-minute imports are on, the next scheduled check, and the last success or error. Never returns secrets or webhook addresses.",
+        "description": "Read the Facebook lead import connection status for the connected business (direct Facebook connection if set up, otherwise Make): whether it is set up, whether automatic five-minute imports are on, the next scheduled check, and the last success or error. Never returns secrets or webhook addresses.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -1754,7 +1754,7 @@
       {
         "name": "request_lead_import",
         "title": "Run a Facebook lead import now",
-        "description": "Start an immediate Facebook lead import for the connected business, using the saved Make connection. Owner only. The import runs in the background; check the result with lead_import_status and lead_import_runs. Never claim leads were imported until a run shows them.",
+        "description": "Start an immediate Facebook lead import for the connected business, using the direct Facebook connection if it is set up, otherwise the saved Make connection. Owner only. The import runs in the background; check the result with lead_import_status and lead_import_runs. Never claim leads were imported until a run shows them.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,

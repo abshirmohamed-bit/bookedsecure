@@ -14,10 +14,18 @@ const SAFE = 'id, provider, trigger_url, auto_sync_enabled, initial_lookback_day
 export const getLeadSync = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const ctx = await ownerCtx(context);
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
-  const { data: conn, error } = await supabaseAdmin.from('lead_sync_connections').select(SAFE).eq('business_id', ctx.businessId).eq('provider', 'make').maybeSingle();
+  const { data: conns, error } = await supabaseAdmin.from('lead_sync_connections').select(SAFE).eq('business_id', ctx.businessId).in('provider', ['make', 'meta_direct']);
   if (error) throw new Error('Could not load the Facebook lead import.');
+  const conn = (conns ?? []).find((c) => c.provider === 'make') ?? null;
+  const directConn = (conns ?? []).find((c) => c.provider === 'meta_direct') ?? null;
+  const { isDirectMetaBusiness, readDirectMetaConfig } = await import('./meta-direct.server');
+  // Only whether the secret exists is reported, never its value.
+  const direct = isDirectMetaBusiness(ctx.businessId) ? {
+    credentialConfigured: Boolean(readDirectMetaConfig().token),
+    connection: directConn ? (({ trigger_url: _t, ...rest }) => rest)(directConn) : null,
+  } : null;
   const [runs, forms] = await Promise.all([
-    context.supabase.from('lead_sync_runs').select('id, trigger_kind, status, since, created_count, duplicate_count, enriched_count, skipped_count, failed_count, error, requested_at, completed_at').eq('business_id', ctx.businessId).order('requested_at', { ascending: false }).limit(20),
+    context.supabase.from('lead_sync_runs').select('id, connection_id, trigger_kind, status, since, created_count, duplicate_count, enriched_count, skipped_count, failed_count, error, requested_at, completed_at').eq('business_id', ctx.businessId).order('requested_at', { ascending: false }).limit(20),
     context.supabase.from('lead_sync_form_checkpoints').select('form_id, form_name, last_submitted_at').eq('business_id', ctx.businessId).order('form_name'),
   ]);
   if (runs.error || forms.error) throw new Error('Could not load import history.');
@@ -27,8 +35,9 @@ export const getLeadSync = createServerFn({ method: 'GET' }).middleware([require
     connection = { ...rest, has_trigger: Boolean(trigger_url), trigger_hint: trigger_url ? `…${trigger_url.slice(-4)}` : null };
   }
   return {
-    connection,
-    runs: runs.data ?? [], forms: forms.data ?? [],
+    connection, direct,
+    runs: (runs.data ?? []).map((r) => ({ ...r, source: directConn && r.connection_id === directConn.id ? 'direct' as const : 'make' as const })),
+    forms: forms.data ?? [],
   };
 });
 
