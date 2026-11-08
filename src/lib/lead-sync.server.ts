@@ -140,7 +140,10 @@ export async function sweepScheduledSyncs() {
   for (const conn of direct ?? []) {
     try { if ((await startSyncRun(conn, 'schedule', null)).started) started++; } catch (e) { console.error('direct lead sync failed', e instanceof Error ? e.message : e); }
   }
-  return { checked: direct?.length ?? 0, started };
+  // Ad spend refresh (about hourly per business); never affects lead imports.
+  let adSpend = 0;
+  try { adSpend = (await (await import('./meta-ads.server')).sweepAdSpend()).synced; } catch { /* table not ready yet */ }
+  return { checked: direct?.length ?? 0, started, adSpend };
 }
 
 type ItemOutcome = { meta_lead_id: string; outcome: 'created' | 'duplicate' | 'enriched' | 'skipped' | 'failed'; reason?: string | undefined };

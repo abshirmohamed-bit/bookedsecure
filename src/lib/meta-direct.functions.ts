@@ -122,6 +122,8 @@ export const disconnectDirectMeta = createServerFn({ method: 'POST' }).middlewar
   } catch { /* already disconnected or token revoked */ }
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
   const { error: delErr } = await supabaseAdmin.from('meta_lead_accounts').delete().eq('business_id', ctx.businessId);
+  // Also forget the ad-spend token; spend history stays for reporting.
+  await supabaseAdmin.from('meta_ad_accounts').delete().eq('business_id', ctx.businessId);
   if (delErr) throw new Error('Could not disconnect Facebook.');
   const { error } = await supabaseAdmin.from('lead_sync_connections').update({ auto_sync_enabled: false, status: 'disconnected', next_check_at: null })
     .eq('business_id', ctx.businessId).eq('provider', 'meta_direct');
@@ -129,3 +131,28 @@ export const disconnectDirectMeta = createServerFn({ method: 'POST' }).middlewar
   await supabaseAdmin.from('audit_events').insert({ business_id: ctx.businessId, user_id: ctx.userId, event_type: 'meta_leads_disconnected', entity_type: 'business', entity_id: ctx.businessId, metadata: {} });
   return { ok: true };
 });
+
+/** Cost per lead / booking / completed job by Facebook campaign. */
+export const getAdPerformance = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ days: z.union([z.literal(7), z.literal(30), z.literal(90)]) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const ctx = await directOwner(context);
+    const { adPerformance } = await import('./meta-ads.server');
+    return adPerformance(ctx.businessId, data.days);
+  });
+
+export const syncAdSpendNow = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+  const ctx = await directOwner(context);
+  const { syncAdSpend } = await import('./meta-ads.server');
+  try { return { ok: true as const, ...(await syncAdSpend(ctx.businessId)) }; }
+  catch (e) { return { ok: false as const, reason: e instanceof Error ? e.message : 'Ad spend could not be loaded.' }; }
+});
+
+export const chooseAdAccountFn = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ accountId: z.string().regex(/^\d{3,40}$/) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const ctx = await directOwner(context);
+    const { chooseAdAccount } = await import('./meta-ads.server');
+    await chooseAdAccount(ctx.businessId, data.accountId);
+    return { ok: true };
+  });

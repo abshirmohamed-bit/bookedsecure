@@ -92,6 +92,20 @@ describe('exchanging the Facebook login for Page tokens', () => {
     });
     expect(await exchangeCodeForPages(readMetaAppConfig(), 'CODE', base as typeof fetch)).toEqual([{ id: '333', name: 'Granted Page', token: 'page-c-token' }]);
   });
+  it('keeps the long-lived user token and its expiry for ad spend', async () => {
+    const { exchangeCodeForAccess } = await import('./meta-oauth.server');
+    const fetcher = vi.fn(async (input: URL | RequestInfo) => {
+      const path = new URL(String(input)).pathname.replace('/v27.0/', '');
+      if (path === 'oauth/access_token') return Response.json({ access_token: new URL(String(input)).searchParams.get('grant_type') ? 'long-user-token' : 'short-user-token' });
+      if (path === 'me/accounts') return Response.json({ data: [{ id: '111', name: 'Page A', access_token: 'page-a-token' }] });
+      if (path === 'debug_token') return Response.json({ data: { expires_at: 1799000000, granular_scopes: [] } });
+      return Response.json({ error: { code: 100 } }, { status: 400 });
+    });
+    const access = await exchangeCodeForAccess(readMetaAppConfig(), 'CODE', fetcher as typeof fetch);
+    expect(access.userToken).toBe('long-user-token');
+    expect(access.userTokenExpiresAt).toBe(new Date(1799000000 * 1000).toISOString());
+    expect(access.pages).toHaveLength(1);
+  });
   it('returns nothing when no Page was shared', async () => {
     expect(await exchangeCodeForPages(readMetaAppConfig(), 'CODE', fakeGraph({}) as typeof fetch)).toEqual([]);
   });

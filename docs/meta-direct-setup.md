@@ -94,6 +94,21 @@ Facebook lead import**.
 If the Page uses **Leads Access** (Meta Business Suite → Business settings →
 Integrations → Leads Access), make sure BookedSecure is allowed for that Page.
 
+## Ad attribution and cost per job
+
+- Every imported lead records the campaign, ad set and ad it came from
+  (`source_campaign` plus `source_metadata.ad`).
+- Connect Facebook also keeps the person's long-lived user token (about 60 days),
+  encrypted in server-only `meta_ad_accounts`, because a Page token can't read ad
+  spend. The ad account running the lead campaigns is picked automatically (the
+  owner can change it).
+- The five-minute sweep refreshes campaign spend about hourly into
+  `meta_ad_spend_daily` (90 days the first time, then the last 3 days).
+- Home → Operational details shows spend, leads, bookings, completed jobs,
+  revenue, cost per lead/booking/job and return per campaign (7/30/90 days).
+- Businesses connected before this need to click **Reconnect / change Page**
+  once. When the token nears expiry the report asks for a reconnect.
+
 ## When something goes wrong
 
 - *The Facebook connection has expired or was revoked*: this happens after a

@@ -4,6 +4,7 @@ import { CalendarCheck2, CircleDollarSign, MessageCircleReply, Send } from "luci
 import { getAnalytics } from "@/lib/app.functions";
 import { getSmsDeliverySummary } from "@/lib/sms-delivery.functions";
 import { formatCurrency } from "@/lib/domain";
+import { FacebookAdsPerformance } from "./FacebookAdsPerformance";
 
 export function AnalyticsOverview() {
   const fetchAnalytics = useServerFn(getAnalytics);
@@ -70,6 +71,8 @@ export function AnalyticsOverview() {
           <SimpleDatum label="Needs attention" value={String(delivery.data.failed + delivery.data.undelivered)} />
         </dl>
       </section>
+
+      <FacebookAdsPerformance />
     </div>
   );
 }

@@ -138,6 +138,11 @@ const pageWithToken = z.object({ id: z.string().regex(/^\d+$/), name: z.string()
  * login's granular grants are used as a second source.
  */
 export async function exchangeCodeForPages(config: MetaAppConfig, code: string, fetcher: typeof fetch = fetch): Promise<MetaPageCandidate[]> {
+  return (await exchangeCodeForAccess(config, code, fetcher)).pages;
+}
+
+/** The granted Pages plus the long-lived user token (kept only for reading ad spend) and its expiry. */
+export async function exchangeCodeForAccess(config: MetaAppConfig, code: string, fetcher: typeof fetch = fetch): Promise<{ pages: MetaPageCandidate[]; userToken: string; userTokenExpiresAt: string | null }> {
   assertMetaAppReady(config);
   const redirect = `${config.appUrl}${META_CALLBACK_PATH}`;
   const short = tokenResponse.safeParse(await graphGet(config, 'oauth/access_token', { client_id: config.appId!, client_secret: config.appSecret!, redirect_uri: redirect, code }, fetcher, 'token'));
@@ -151,7 +156,7 @@ export async function exchangeCodeForPages(config: MetaAppConfig, code: string, 
   const accounts = z.object({ data: z.array(pageWithToken) }).safeParse(await graphGet(config, 'me/accounts', { fields: 'id,name,access_token', limit: '100', access_token: userToken }, fetcher, 'pages').catch(() => null));
   if (accounts.success) for (const p of accounts.data.data) if (p.access_token) pages.set(p.id, { id: p.id, name: p.name, token: p.access_token });
 
-  const debug = z.object({ data: z.object({ granular_scopes: z.array(z.object({ scope: z.string(), target_ids: z.array(z.string()).optional() })).optional() }) })
+  const debug = z.object({ data: z.object({ expires_at: z.number().optional(), granular_scopes: z.array(z.object({ scope: z.string(), target_ids: z.array(z.string()).optional() })).optional() }) })
     .safeParse(await graphGet(config, 'debug_token', { input_token: userToken, access_token: `${config.appId}|${config.appSecret}` }, fetcher).catch(() => null));
   const granted = new Set<string>();
   if (debug.success) for (const g of debug.data.data.granular_scopes ?? []) if (['leads_retrieval', 'pages_show_list', 'pages_read_engagement'].includes(g.scope)) for (const id of g.target_ids ?? []) granted.add(id);
@@ -160,5 +165,6 @@ export async function exchangeCodeForPages(config: MetaAppConfig, code: string, 
     const page = pageWithToken.safeParse(await graphGet(config, id, { fields: 'id,name,access_token', access_token: userToken }, fetcher).catch(() => null));
     if (page.success && page.data.access_token) pages.set(page.data.id, { id: page.data.id, name: page.data.name, token: page.data.access_token });
   }
-  return [...pages.values()].slice(0, 25);
+  const exp = debug.success ? debug.data.data.expires_at : undefined;
+  return { pages: [...pages.values()].slice(0, 25), userToken, userTokenExpiresAt: exp && exp > 0 ? new Date(exp * 1000).toISOString() : null };
 }

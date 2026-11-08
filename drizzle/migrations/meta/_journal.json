@@ -169,6 +169,13 @@
       "when": 1794145812346,
       "tag": "0023_allow_instant_facebook_import_history",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794150432829,
+      "tag": "0024_meta_ad_spend",
+      "breakpoints": true
     }
   ]
 }

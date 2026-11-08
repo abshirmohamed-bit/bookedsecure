@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server';
-import { MetaConnectError, encryptMetaToken, exchangeCodeForPages, readMetaAppConfig, tokenContext, verifyState } from './meta-oauth.server';
+import { MetaConnectError, encryptMetaToken, exchangeCodeForAccess, readMetaAppConfig, tokenContext, verifyState } from './meta-oauth.server';
 
 const CONN_COLUMNS = 'id, business_id, provider, initial_lookback_days, consecutive_failures, status, auto_sync_enabled';
 const PENDING_TTL_MS = 15 * 60_000;
@@ -55,7 +55,14 @@ export async function completeMetaConnect(code: string, state: string, fetcher: 
   try { requireOwner(ctx); } catch { throw new MetaConnectError('Only the business owner can connect Facebook.', 'owner'); }
   if (ctx.businessId !== who.businessId) throw new MetaConnectError('This Facebook sign-in belongs to a different business.', 'owner_business');
 
-  const pages = await exchangeCodeForPages(readMetaAppConfig(), code, fetcher);
+  const { pages, userToken, userTokenExpiresAt } = await exchangeCodeForAccess(readMetaAppConfig(), code, fetcher);
+  try {
+    // Ad spend reporting: keep the user token and find the ad account. Never blocks connecting.
+    const { saveAdAccess } = await import('./meta-ads.server');
+    await saveAdAccess(who.businessId, userToken, userTokenExpiresAt, fetcher);
+  } catch (e) {
+    console.error('facebook ad access not saved', e instanceof Error ? e.message : 'unknown');
+  }
   if (!pages.length) throw new Error('No Facebook Page was shared. Connect again and tick your business Page.');
   let sealed: Array<{ id: string; name: string; token_ciphertext: string }>;
   try { sealed = pages.map((p) => ({ id: p.id, name: p.name, token_ciphertext: encryptMetaToken(p.token, tokenContext(who.businessId, p.id)) })); }
