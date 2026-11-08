@@ -153,7 +153,10 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
 
   const c = q.data?.connection;
   const connected = Boolean(c?.has_trigger) && c?.status !== 'disconnected';
-  const active = q.data?.runs.some((r) => r.status === 'requested' || r.status === 'running');
+  const running = (r: { status: string }) => r.status === 'requested' || r.status === 'running';
+  // Make and direct runs are separate (one active run per connection), so each button only waits for its own.
+  const activeMake = q.data?.runs.some((r) => r.source === 'make' && running(r));
+  const activeDirect = q.data?.runs.some((r) => r.source === 'direct' && running(r));
   // Make is the older route: shown only to businesses that already have a Make connection,
   // or when direct import is unavailable on this platform.
   const makeInUse = Boolean(c && c.status !== 'disconnected' && (c.has_trigger || c.auto_sync_enabled));
@@ -167,7 +170,7 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
     <p className="text-sm text-muted-foreground">Bring quote requests from your Facebook lead forms into your leads. BookedSecure saves each one once and never texts them unless they agreed to be contacted.</p>
     {q.isError ? <p role="alert" className="text-sm">This could not be loaded: {q.error instanceof Error ? q.error.message : 'unknown error'}</p> : null}
 
-    {q.data?.direct ? <DirectImportCard direct={q.data.direct} makeAuto={Boolean(c?.auto_sync_enabled && connected)} active={Boolean(active)} onChange={refresh} /> : null}
+    {q.data?.direct ? <DirectImportCard direct={q.data.direct} makeAuto={Boolean(c?.auto_sync_enabled && connected)} active={Boolean(activeDirect)} onChange={refresh} /> : null}
     {showMake ? <details open={makeInUse && !directOn} className="space-y-4 rounded-xl border border-border p-4 [&_summary~*]:mt-4">
     <summary className="cursor-pointer font-medium">Through Make (older setup){makeInUse ? '' : ' · optional'}</summary>
     <p className="text-xs text-muted-foreground">Only needed if you import through a Make scenario. Direct from Facebook replaces it and doesn’t use Make credits.</p>
@@ -195,7 +198,7 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
     {c?.last_error ? <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">{c.last_error}</p> : null}
 
     <div className="flex flex-wrap gap-2">
-      <Button disabled={!connected || runM.isPending || active} onClick={() => runM.mutate()}><RefreshCw className="mr-2 h-4 w-4" />{active ? 'Importing…' : 'Import new leads now'}</Button>
+      <Button disabled={!connected || runM.isPending || activeMake} onClick={() => runM.mutate()}><RefreshCw className="mr-2 h-4 w-4" />{activeMake ? 'Waiting for Make…' : 'Import new leads now'}</Button>
       {connected ? <Button variant="outline" disabled={discM.isPending} onClick={() => { if (window.confirm('Disconnect the Make import? Make’s automatic checks will stop.')) discM.mutate(); }}>Disconnect Make</Button> : null}
     </div>
     <details className="rounded-md border border-border p-3 text-sm">
