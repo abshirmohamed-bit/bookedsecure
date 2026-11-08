@@ -2084,6 +2084,53 @@ export type Database = {
           },
         ]
       }
+      meta_lead_accounts: {
+        Row: {
+          business_id: string
+          connected_at: string | null
+          connected_by: string | null
+          form_ids: string[]
+          page_id: string | null
+          page_name: string | null
+          pending_expires_at: string | null
+          pending_pages: Json | null
+          token_ciphertext: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          connected_at?: string | null
+          connected_by?: string | null
+          form_ids?: string[]
+          page_id?: string | null
+          page_name?: string | null
+          pending_expires_at?: string | null
+          pending_pages?: Json | null
+          token_ciphertext?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          connected_at?: string | null
+          connected_by?: string | null
+          form_ids?: string[]
+          page_id?: string | null
+          page_name?: string | null
+          pending_expires_at?: string | null
+          pending_pages?: Json | null
+          token_ciphertext?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_lead_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_sync_connections: {
         Row: {
           auto_sync_enabled: boolean

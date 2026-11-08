@@ -39,10 +39,10 @@ async function recordAttempt(conn: Connection, startedAt: Date, failure: string 
  */
 async function startDirectRun(conn: Connection, trigger: 'manual' | 'schedule', requestedBy: string | null) {
   const startedAt = new Date();
-  const { assertDirectMetaScope, readDirectMetaConfig, createDirectMetaTransport } = await import('./meta-direct.server');
-  const config = readDirectMetaConfig();
+  const { loadMetaAccount, createDirectMetaTransport } = await import('./meta-direct.server');
+  let account: Awaited<ReturnType<typeof loadMetaAccount>>;
   try {
-    assertDirectMetaScope(conn.business_id, config);
+    account = await loadMetaAccount(conn.business_id);
   } catch (e) {
     const reason = e instanceof Error ? e.message : 'Direct Facebook import is not available.';
     await recordAttempt(conn, startedAt, reason);
@@ -62,10 +62,10 @@ async function startDirectRun(conn: Connection, trigger: 'manual' | 'schedule', 
   if (error?.code === '23505') return { started: false as const, reason: 'An import is already running.' };
   if (error || !run) throw new Error('Could not start the direct import.');
   try {
-    const { received } = await createDirectMetaTransport(config).importLeads({
-      businessId: conn.business_id, lookbackDays: conn.initial_lookback_days, checkpoints: checkpoints ?? [], now: startedAt,
+    const { received } = await createDirectMetaTransport(account).importLeads({
+      lookbackDays: conn.initial_lookback_days, checkpoints: checkpoints ?? [], now: startedAt,
       apply: async (batch) => {
-        const result = await applyRunBatch(conn.business_id, run.id, batch, 'meta_direct');
+        const result = await applyRunBatch(conn.business_id, run.id, batch, 'meta_direct', account.pageId);
         if ('notFound' in result || 'closed' in result) throw new Error('The direct import run is unavailable.');
         return result;
       },
@@ -251,7 +251,7 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
 export type RunBatch = { leads: SyncLeadInput[]; final: boolean; error?: string | null | undefined };
 
 /** Applies a batch from Make to a run owned by the calling key's business. */
-export async function applyRunBatch(businessId: string, runId: string, batch: RunBatch, provider: 'make' | 'meta_direct' = 'make') {
+export async function applyRunBatch(businessId: string, runId: string, batch: RunBatch, provider: 'make' | 'meta_direct' = 'make', directPageId?: string) {
   const { data: run, error } = await supabaseAdmin.from('lead_sync_runs').select('id, business_id, connection_id, status').eq('id', runId).maybeSingle();
   if (error) throw new Error('lookup_failed');
   if (!run || run.business_id !== businessId) return { notFound: true as const };
@@ -259,8 +259,8 @@ export async function applyRunBatch(businessId: string, runId: string, batch: Ru
   if (connectionError) throw new Error('lookup_failed');
   if (!connection || connection.business_id !== businessId || connection.provider !== provider) return { notFound: true as const };
   if (provider === 'meta_direct') {
-    const { DIRECT_META_ALLOWLIST } = await import('./meta-direct.server');
-    if (businessId !== DIRECT_META_ALLOWLIST.businessId || batch.leads.some((l) => l.page_id !== DIRECT_META_ALLOWLIST.pageId || !DIRECT_META_ALLOWLIST.formIds.includes(l.form_id ?? ''))) return { notFound: true as const };
+    // Direct batches are produced in-process from the business's own connected Page only.
+    if (!directPageId || batch.leads.some((l) => l.page_id !== directPageId || !l.form_id)) return { notFound: true as const };
   }
   if (!['requested', 'running'].includes(run.status)) return { closed: true as const, status: run.status };
 

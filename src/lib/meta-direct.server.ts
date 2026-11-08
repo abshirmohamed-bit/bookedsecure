@@ -1,77 +1,74 @@
 import { z } from 'zod';
 import { computeSince, syncLeadSchema, type SyncLeadInput } from './lead-sync';
+import { decryptMetaToken, readMetaAppConfig, tokenContext } from './meta-oauth.server';
 
 /**
- * Direct Facebook Lead Ads import: BookedSecure reads the Page's lead forms from
- * the Meta Graph API itself, replacing the Make scenario (which costs Make
- * credits on every five-minute run). It feeds the exact same runs/items/
- * checkpoints pipeline as Make, so dedupe, enrichment, auto-replies and owner
- * alerts are unchanged.
+ * Direct Facebook Lead Ads import: BookedSecure reads a business's lead forms
+ * from the Graph API itself, replacing a Make scenario (which costs Make credits
+ * on every five-minute run). It feeds the same runs/items/checkpoints pipeline as
+ * Make, so dedupe, enrichment, auto-replies and owner alerts are unchanged.
  *
- * The server credential belongs to one Page, so it is bound to one business and
- * to the same Page/form the Make blueprint was approved for. Another tenant can
- * never use it, whatever it stores in its own connection row.
+ * Each business connects its own Page in Settings; the Page token is stored
+ * encrypted per business (meta_lead_accounts) and only ever read server-side.
  */
-export const DIRECT_META_ALLOWLIST = Object.freeze({
-  businessId: '11111111-1111-1111-1111-111111111111',
-  pageId: '383114254879346',
-  forms: Object.freeze({ '38813647781617096': 'Glocast-copy-copy-copy' }) as Readonly<Record<string, string>>,
-  formIds: ['38813647781617096'] as readonly string[],
-});
+export type DirectMetaAccount = {
+  businessId: string;
+  pageId: string;
+  pageName: string | null;
+  token: string;
+  /** Forms the owner chose. Empty means every active form on the Page. */
+  formIds: string[];
+};
 
-/** Used when META_DIRECT_GRAPH_VERSION is not set. Override it without a code change. */
-export const DEFAULT_GRAPH_VERSION = 'v23.0';
-
-export type DirectMetaConfig = { token?: string | undefined; version: string };
-
-export function readDirectMetaConfig(): DirectMetaConfig {
-  // Dedicated server secret only. Never borrow Make, API-key, MCP, connector or
-  // browser credentials. Values are read only inside server calls.
-  const token = process.env['META_DIRECT_GLOCAST_ACCESS_TOKEN']?.trim() || undefined;
-  const version = process.env['META_DIRECT_GRAPH_VERSION']?.trim() || DEFAULT_GRAPH_VERSION;
-  return { token, version };
-}
-
-export function isDirectMetaBusiness(businessId: string): boolean {
-  return businessId === DIRECT_META_ALLOWLIST.businessId;
-}
-
-export function assertDirectMetaScope(businessId: string, config: DirectMetaConfig) {
-  if (!isDirectMetaBusiness(businessId)) throw new Error('Direct Facebook import is not available for this account.');
-  if (!config.token) throw new Error('The Facebook access token has not been added yet (META_DIRECT_GLOCAST_ACCESS_TOKEN). A BookedSecure API key cannot read Facebook leads.');
-  if (!/^v\d+\.\d+$/.test(config.version)) throw new Error('META_DIRECT_GRAPH_VERSION must look like v23.0.');
+/** Loads and decrypts the business's own Facebook connection. */
+export async function loadMetaAccount(businessId: string): Promise<DirectMetaAccount> {
+  const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+  const { data, error } = await supabaseAdmin.from('meta_lead_accounts')
+    .select('business_id, page_id, page_name, token_ciphertext, form_ids').eq('business_id', businessId).maybeSingle();
+  if (error) throw new Error('Could not load the Facebook connection.');
+  if (!data?.page_id || !data.token_ciphertext) throw new Error('Facebook is not connected. Connect your Facebook Page in Settings first.');
+  return {
+    businessId, pageId: data.page_id, pageName: data.page_name,
+    token: decryptMetaToken(data.token_ciphertext, tokenContext(businessId, data.page_id)),
+    formIds: data.form_ids ?? [],
+  };
 }
 
 const leadPage = z.object({
   data: z.array(z.object({ id: z.string().regex(/^\d+$/), created_time: z.string(), field_data: z.array(z.object({ name: z.string(), values: z.array(z.string()) })) })),
   paging: z.object({ cursors: z.object({ after: z.string().optional() }).optional(), next: z.string().optional() }).optional(),
 });
-
+const formPage = z.object({
+  data: z.array(z.object({ id: z.string().regex(/^\d+$/), name: z.string().optional(), status: z.string().optional() })),
+  paging: z.object({ cursors: z.object({ after: z.string().optional() }).optional(), next: z.string().optional() }).optional(),
+});
 const graphError = z.object({ error: z.object({ code: z.number().optional(), error_subcode: z.number().optional() }) });
+
+export type MetaForm = { id: string; name: string; status: string };
 
 /** Turns a Graph API failure into a controlled, owner-readable message. Never echoes the body. */
 export function describeGraphFailure(status: number, body: unknown): string {
   const parsed = graphError.safeParse(body);
   const code = parsed.success ? parsed.data.error.code : undefined;
-  if (code === 190) return 'The Facebook access token has expired or was revoked. Create a new one and update META_DIRECT_GLOCAST_ACCESS_TOKEN.';
+  if (code === 190) return 'The Facebook connection has expired or was revoked. Reconnect Facebook in Settings.';
   if (code === 4 || code === 17 || code === 32 || code === 613 || status === 429) return 'Facebook is rate-limiting requests. The next check will try again.';
   if (code === 10 || code === 200 || (code !== undefined && code >= 200 && code < 300) || status === 401 || status === 403) {
-    return `Facebook refused access (${status}). The token needs leads_retrieval for the Glocast Page, and the Page's Leads Access must allow the app.`;
+    return `Facebook refused access (${status}). Reconnect Facebook with lead access for this Page, and check the Page's Leads Access allows BookedSecure.`;
   }
-  if (code === 100) return `Facebook rejected the request (${status}). Check the form still exists and META_DIRECT_GRAPH_VERSION is supported.`;
+  if (code === 100) return `Facebook rejected the request (${status}). Check the lead form still exists on the connected Page.`;
   return `Facebook read failed (${status}). No import checkpoint was advanced.`;
 }
 
 /** Never log provider bodies, thrown fetch errors, next URLs or headers: any
  * of them may echo a token. Only controlled status/code diagnostics escape.
  */
-export function createDirectMetaTransport(config: DirectMetaConfig, fetcher: typeof fetch = fetch) {
+export function createDirectMetaTransport(account: DirectMetaAccount, version = readMetaAppConfig().version, fetcher: typeof fetch = fetch) {
   async function get(path: string, params: Record<string, string>) {
-    const url = new URL(`https://graph.facebook.com/${config.version}/${path}`);
+    const url = new URL(`https://graph.facebook.com/${version}/${path}`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     let response: Response;
     try {
-      response = await fetcher(url, { headers: { Authorization: `Bearer ${config.token}` }, redirect: 'error', signal: AbortSignal.timeout(15_000) });
+      response = await fetcher(url, { headers: { Authorization: `Bearer ${account.token}` }, redirect: 'error', signal: AbortSignal.timeout(15_000) });
     } catch { throw new Error('Facebook could not be reached. No import checkpoint was advanced.'); }
     let body: unknown = null;
     try { body = await response.json(); } catch { body = null; }
@@ -80,8 +77,34 @@ export function createDirectMetaTransport(config: DirectMetaConfig, fetcher: typ
     return body;
   }
 
+  /** Every lead form on the connected Page (any status). */
+  async function listForms(): Promise<MetaForm[]> {
+    const forms: MetaForm[] = [];
+    const seen = new Set<string>();
+    let after: string | undefined;
+    for (let page = 0; page < 20; page++) {
+      const parsed = formPage.safeParse(await get(`${account.pageId}/leadgen_forms`, { fields: 'id,name,status', limit: '100', ...(after ? { after } : {}) }));
+      if (!parsed.success) throw new Error('Facebook returned invalid lead form information.');
+      for (const f of parsed.data.data) forms.push({ id: f.id, name: f.name ?? f.id, status: f.status ?? 'UNKNOWN' });
+      if (!parsed.data.paging?.next) return forms;
+      after = parsed.data.paging.cursors?.after;
+      if (!after || seen.has(after)) throw new Error('Facebook form pagination could not be completed.');
+      seen.add(after);
+    }
+    throw new Error('Facebook form pagination exceeded the safe limit.');
+  }
+
+  /** The forms to import: the owner's selection, or every active form when none is selected. */
+  async function resolveForms(): Promise<MetaForm[]> {
+    const all = await listForms();
+    if (!account.formIds.length) return all.filter((f) => f.status === 'ACTIVE');
+    const byId = new Map(all.map((f) => [f.id, f]));
+    const missing = account.formIds.filter((id) => !byId.has(id));
+    if (missing.length) throw new Error('A selected lead form is no longer on the connected Facebook Page. Update the form selection in Settings.');
+    return account.formIds.map((id) => byId.get(id)!);
+  }
+
   async function readPage(formId: string, since: Date, until: Date, after?: string, limit = 100) {
-    if (!DIRECT_META_ALLOWLIST.formIds.includes(formId)) throw new Error('This Facebook form is not allowlisted.');
     if (!Number.isFinite(since.getTime()) || !Number.isFinite(until.getTime()) || since >= until || until.getTime() - since.getTime() > 90 * 86400_000) {
       throw new Error('A valid date range of at most 90 days is required.');
     }
@@ -97,26 +120,26 @@ export function createDirectMetaTransport(config: DirectMetaConfig, fetcher: typ
     return parsed.data;
   }
 
-  /** Read-only probe: one bounded leads read per allowlisted form. Nothing is saved. */
-  async function testAccess(businessId: string, now = new Date()) {
-    assertDirectMetaScope(businessId, config);
-    for (const formId of DIRECT_META_ALLOWLIST.formIds) await readPage(formId, new Date(now.getTime() - 86400_000), now, undefined, 1);
-    return { healthy: true as const, checkedAt: now.toISOString(), formCount: DIRECT_META_ALLOWLIST.formIds.length };
+  /** Read-only probe: the Page's forms plus one bounded leads read per form. Nothing is saved. */
+  async function testAccess(now = new Date()) {
+    const forms = await resolveForms();
+    if (!forms.length) throw new Error('The connected Facebook Page has no active lead forms.');
+    for (const f of forms) await readPage(f.id, new Date(now.getTime() - 86400_000), now, undefined, 1);
+    return { healthy: true as const, checkedAt: now.toISOString(), formCount: forms.length, pageName: account.pageName };
   }
 
   async function importLeads(options: {
-    businessId: string; lookbackDays: number; checkpoints: { form_id: string; last_submitted_at: string }[];
+    lookbackDays: number; checkpoints: { form_id: string; last_submitted_at: string }[];
     now?: Date;
     apply: (batch: { leads: SyncLeadInput[]; final: boolean; error?: string }) => Promise<unknown>;
   }) {
-    assertDirectMetaScope(options.businessId, config);
     const now = options.now ?? new Date();
     let received = 0;
     const seen = new Set<string>();
     try {
-      for (const formId of DIRECT_META_ALLOWLIST.formIds) {
-        const formName = DIRECT_META_ALLOWLIST.forms[formId] ?? formId;
-        const cp = options.checkpoints.find((c) => c.form_id === formId);
+      const forms = await resolveForms();
+      for (const form of forms) {
+        const cp = options.checkpoints.find((c) => c.form_id === form.id);
         const lower = computeSince(cp?.last_submitted_at ?? null, options.lookbackDays, now);
         // Meta keeps leads for 90 days, so nothing older can be read anyway.
         const since = new Date(Math.max(lower.getTime(), now.getTime() - 90 * 86400_000 + 60_000));
@@ -124,13 +147,13 @@ export function createDirectMetaTransport(config: DirectMetaConfig, fetcher: typ
         let after: string | undefined;
         let finished = false;
         for (let page = 0; page < 50; page++) {
-          const result = await readPage(formId, since, now, after);
+          const result = await readPage(form.id, since, now, after);
           const leads: SyncLeadInput[] = [];
           for (const row of result.data) {
             const timestamp = Date.parse(row.created_time);
             if (!Number.isFinite(timestamp)) throw new Error('Facebook returned an invalid submission timestamp.');
             if (timestamp < since.getTime() || timestamp > now.getTime() || seen.has(row.id)) continue;
-            const parsed = syncLeadSchema.safeParse({ meta_lead_id: row.id, created_time: row.created_time, field_data: row.field_data, form_id: formId, form_name: formName, page_id: DIRECT_META_ALLOWLIST.pageId });
+            const parsed = syncLeadSchema.safeParse({ meta_lead_id: row.id, created_time: row.created_time, field_data: row.field_data, form_id: form.id, form_name: form.name, page_id: account.pageId });
             if (!parsed.success) throw new Error('A Facebook submission exceeds the importer’s safe field limits; no answers were truncated.');
             seen.add(row.id); leads.push(parsed.data);
           }
@@ -151,5 +174,5 @@ export function createDirectMetaTransport(config: DirectMetaConfig, fetcher: typ
       throw new Error(message);
     }
   }
-  return { testAccess, importLeads };
+  return { listForms, testAccess, importLeads };
 }

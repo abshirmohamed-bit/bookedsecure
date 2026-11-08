@@ -18,12 +18,18 @@ export const getLeadSync = createServerFn({ method: 'GET' }).middleware([require
   if (error) throw new Error('Could not load the Facebook lead import.');
   const conn = (conns ?? []).find((c) => c.provider === 'make') ?? null;
   const directConn = (conns ?? []).find((c) => c.provider === 'meta_direct') ?? null;
-  const { isDirectMetaBusiness, readDirectMetaConfig } = await import('./meta-direct.server');
-  // Only whether the secret exists is reported, never its value.
-  const direct = isDirectMetaBusiness(ctx.businessId) ? {
-    credentialConfigured: Boolean(readDirectMetaConfig().token),
+  const { metaAppReady, readMetaAppConfig } = await import('./meta-oauth.server');
+  const { data: meta, error: metaErr } = await supabaseAdmin.from('meta_lead_accounts')
+    .select('page_id, page_name, form_ids, connected_at, pending_pages, pending_expires_at').eq('business_id', ctx.businessId).maybeSingle();
+  if (metaErr) throw new Error('Could not load the Facebook connection.');
+  const pendingLive = meta?.pending_expires_at && Date.parse(meta.pending_expires_at) > Date.now() && Array.isArray(meta.pending_pages);
+  // Never returns tokens: only Page identity, form selection and connection health.
+  const direct = {
+    available: metaAppReady(readMetaAppConfig()),
+    page: meta?.page_id ? { id: meta.page_id, name: meta.page_name, formCount: (meta.form_ids ?? []).length, connectedAt: meta.connected_at } : null,
+    pendingPages: pendingLive ? (meta!.pending_pages as Array<{ id: string; name: string }>).map((p) => ({ id: String(p.id), name: String(p.name) })) : [],
     connection: directConn ? (({ trigger_url: _t, ...rest }) => rest)(directConn) : null,
-  } : null;
+  };
   const [runs, forms] = await Promise.all([
     context.supabase.from('lead_sync_runs').select('id, connection_id, trigger_kind, status, since, created_count, duplicate_count, enriched_count, skipped_count, failed_count, error, requested_at, completed_at').eq('business_id', ctx.businessId).order('requested_at', { ascending: false }).limit(20),
     context.supabase.from('lead_sync_form_checkpoints').select('form_id, form_name, last_submitted_at').eq('business_id', ctx.businessId).order('form_name'),
