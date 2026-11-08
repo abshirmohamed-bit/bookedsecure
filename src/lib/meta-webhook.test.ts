@@ -62,7 +62,7 @@ describe('single-lead read and Page subscription', () => {
     const [url, init] = fetcher.mock.calls[0] as unknown as [URL, RequestInit];
     expect(init.method).toBe('POST');
     expect(new URL(String(url)).pathname).toBe('/v27.0/111/subscribed_apps');
-    expect(new URL(String(url)).searchParams.get('subscribed_fields')).toBe('leadgen');
+    expect(new URL(String(url)).searchParams.get('subscribed_fields')).toBe('leadgen,feed,messages');
     expect(await t.instantLeadsOn('app-1')).toBe(true);
     expect(await t.instantLeadsOn('app-2')).toBe(false);
   });

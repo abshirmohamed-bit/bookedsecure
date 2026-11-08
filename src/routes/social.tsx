@@ -2,20 +2,20 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, MessageCircle, RefreshCw, Send } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { convertSocialComment, listSocialComments, reviewSocialComment } from "@/lib/social-comments.functions";
+import { convertSocialComment, getSocialThread, listSocialComments, listSocialThreads, refreshSocialNow, reviewSocialComment, sendSocialReply } from "@/lib/social-comments.functions";
 
 export const Route = createFileRoute("/social")({
   head: () => ({
     meta: [
-      { title: "Facebook comments | BookedSecure" },
-      { name: "description", content: "Review AI-drafted replies to Facebook comments, approve them for posting, or turn commenters into customers." },
-      { property: "og:title", content: "Facebook comments | BookedSecure" },
+      { title: "Facebook & Instagram | BookedSecure" },
+      { name: "description", content: "Reply to Facebook and Instagram comments and messages from one inbox. Nothing is sent until you approve." },
+      { property: "og:title", content: "Facebook & Instagram | BookedSecure" },
       { property: "og:description", content: "Review and approve replies to your Facebook comments in one place." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/social")({
 type Status = "pending_review" | "approved" | "posted" | "failed" | "dismissed";
 const TABS: { status: Status; label: string }[] = [
   { status: "pending_review", label: "To review" },
-  { status: "approved", label: "Waiting to post" },
+  { status: "approved", label: "Posting" },
   { status: "posted", label: "Posted" },
   { status: "failed", label: "Couldn't post" },
   { status: "dismissed", label: "Dismissed" },
@@ -35,35 +35,126 @@ const TABS: { status: Status; label: string }[] = [
 type Row = Awaited<ReturnType<typeof listSocialComments>>[number];
 
 function SocialPage() {
+  const [view, setView] = useState<"comments" | "messages">("comments");
   const [status, setStatus] = useState<Status>("pending_review");
+  const qc = useQueryClient();
   const list = useServerFn(listSocialComments);
-  const q = useQuery({ queryKey: ["social-comments", status], queryFn: () => list({ data: { status } }) });
+  const refresh = useServerFn(refreshSocialNow);
+  const q = useQuery({ queryKey: ["social-comments", status], queryFn: () => list({ data: { status } }), enabled: view === "comments" });
+  const refreshM = useMutation({
+    mutationFn: () => refresh(),
+    onSuccess: async (r) => {
+      if (!r.ok) toast.error(r.reason);
+      else toast.success(`Checked Facebook and Instagram: ${r.newComments} new comment${r.newComments === 1 ? "" : "s"}, ${r.newMessages} new message${r.newMessages === 1 ? "" : "s"}.${r.errors.length ? ` Some parts failed: ${r.errors.join(" ")}` : ""}`);
+      await qc.invalidateQueries({ queryKey: ["social-comments"] });
+      await qc.invalidateQueries({ queryKey: ["social-threads"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not refresh."),
+  });
   return (
-    <AppShell title="Facebook comments">
+    <AppShell title="Facebook & Instagram">
       <div className="mx-auto max-w-3xl space-y-5 p-4 md:p-6">
-        <div>
-          <h1 className="text-2xl font-semibold">Facebook comments</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Comments sent in by Make land here with a suggested reply. Approve to have Make post it, or dismiss. Nothing is posted until you approve.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">Facebook &amp; Instagram</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Comments and messages from your connected Facebook Page and Instagram account arrive here, usually with a suggested reply. Nothing is posted or sent until you approve it.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" disabled={refreshM.isPending} onClick={() => refreshM.mutate()}><RefreshCw className="mr-2 h-4 w-4" />{refreshM.isPending ? "Checking…" : "Check now"}</Button>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {TABS.map((t) => (
-            <Button key={t.status} size="sm" variant={t.status === status ? "default" : "outline"} onClick={() => setStatus(t.status)}>
-              {t.label}
-            </Button>
-          ))}
+        <div className="flex gap-2 border-b border-border pb-2">
+          <Button size="sm" variant={view === "comments" ? "default" : "ghost"} onClick={() => setView("comments")}>Comments</Button>
+          <Button size="sm" variant={view === "messages" ? "default" : "ghost"} onClick={() => setView("messages")}><MessageCircle className="mr-1 h-4 w-4" />Messages</Button>
         </div>
-        {q.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p>
-          : q.isError ? <p className="text-sm text-destructive">Could not load comments.</p>
-          : (q.data ?? []).length === 0 ? (
-            <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-              Nothing here yet. Connect Make with an API key that has comment inbox access in{" "}
-              <Link to="/settings/integrations" className="text-primary underline">AI connections</Link>.
-            </div>
-          ) : (q.data ?? []).map((r) => <CommentCard key={r.id} row={r} />)}
+        {view === "messages" ? <MessagesView /> : <>
+          <div className="flex flex-wrap gap-2">
+            {TABS.map((t) => (
+              <Button key={t.status} size="sm" variant={t.status === status ? "default" : "outline"} onClick={() => setStatus(t.status)}>
+                {t.label}
+              </Button>
+            ))}
+          </div>
+          {q.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p>
+            : q.isError ? <p className="text-sm text-destructive">Could not load comments.</p>
+            : (q.data ?? []).length === 0 ? (
+              <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                Nothing here yet. New comments are checked every few minutes once Facebook is connected in{" "}
+                <Link to="/settings/integrations" className="text-primary underline">AI connections → Apps &amp; leads</Link>.
+              </div>
+            ) : (q.data ?? []).map((r) => <CommentCard key={r.id} row={r} />)}
+        </>}
       </div>
     </AppShell>
+  );
+}
+
+type Thread = Awaited<ReturnType<typeof listSocialThreads>>["threads"][number];
+
+function MessagesView() {
+  const list = useServerFn(listSocialThreads);
+  const q = useQuery({ queryKey: ["social-threads"], queryFn: () => list(), refetchInterval: 60_000 });
+  const [open, setOpen] = useState<Thread | null>(null);
+  if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (q.isError) return <p className="text-sm text-destructive">Could not load messages.</p>;
+  if (q.data?.setupMissing) return <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">Messages are waiting for a database update (migration 0026_social_messages).</p>;
+  if (open) return <ThreadView thread={open} onBack={() => setOpen(null)} />;
+  const threads = q.data?.threads ?? [];
+  if (!threads.length) return <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">No Facebook or Instagram messages yet. New messages are checked every few minutes.</p>;
+  return (
+    <ul className="divide-y divide-border rounded-lg border bg-card">
+      {threads.map((t) => (
+        <li key={`${t.platform}:${t.participantId}`}>
+          <button type="button" className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-secondary/40" onClick={() => setOpen(t)}>
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{t.name ?? "Customer"} <span className="font-normal text-muted-foreground">· {t.platform === "instagram" ? "Instagram" : "Messenger"}</span></p>
+              <p className="truncate text-sm text-muted-foreground">{t.lastFromCustomer ? "" : "You: "}{t.last}</p>
+            </div>
+            <div className="shrink-0 text-right text-xs text-muted-foreground">
+              <p>{new Date(t.lastAt).toLocaleString("en-AU")}</p>
+              {t.lastFromCustomer ? <p className="mt-1 font-medium text-primary">Needs reply</p> : null}
+            </div>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ThreadView({ thread, onBack }: { thread: Thread; onBack: () => void }) {
+  const qc = useQueryClient();
+  const load = useServerFn(getSocialThread);
+  const send = useServerFn(sendSocialReply);
+  const key = ["social-thread", thread.platform, thread.participantId];
+  const q = useQuery({ queryKey: key, queryFn: () => load({ data: { platform: thread.platform as "facebook" | "instagram", participantId: thread.participantId } }), refetchInterval: 30_000 });
+  const [text, setText] = useState<string | null>(null);
+  const value = text ?? q.data?.draft ?? "";
+  const sendM = useMutation({
+    mutationFn: () => send({ data: { platform: thread.platform as "facebook" | "instagram", participantId: thread.participantId, text: value } }),
+    onSuccess: async () => { toast.success("Sent."); setText(""); await qc.invalidateQueries({ queryKey: key }); await qc.invalidateQueries({ queryKey: ["social-threads"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not send."),
+  });
+  const window = q.data?.window;
+  return (
+    <div className="space-y-3">
+      <Button size="sm" variant="ghost" onClick={onBack}>← All messages</Button>
+      <p className="text-sm font-medium">{thread.name ?? "Customer"} · {thread.platform === "instagram" ? "Instagram" : "Messenger"}</p>
+      {q.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : (
+        <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border bg-card p-3">
+          {(q.data?.messages ?? []).map((m) => (
+            <div key={m.id} className={m.direction === "in" ? "mr-12" : "ml-12 text-right"}>
+              <p className={`inline-block whitespace-pre-wrap rounded-lg px-3 py-2 text-sm ${m.direction === "in" ? "bg-secondary" : "bg-primary text-primary-foreground"}`}>{m.body}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{new Date(m.sent_at).toLocaleString("en-AU")}{m.status === "failed" ? ` · not sent: ${m.error ?? "error"}` : ""}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {window && !window.allowed ? <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">{window.reason}</p> : <>
+        {window && window.allowed && window.messagingType === "MESSAGE_TAG" ? <p className="text-xs text-muted-foreground">More than 24 hours since their last message: Meta allows a personal reply from you (not automated) for up to 7 days.</p> : null}
+        <Textarea aria-label="Reply" rows={3} value={value} onChange={(e) => setText(e.target.value)} placeholder="Write your reply" />
+        <Button size="sm" disabled={sendM.isPending || !value.trim()} onClick={() => sendM.mutate()}><Send className="mr-2 h-4 w-4" />{sendM.isPending ? "Sending…" : "Send reply"}</Button>
+      </>}
+    </div>
   );
 }
 
@@ -78,7 +169,14 @@ function CommentCard({ row }: { row: Row }) {
   const done = () => qc.invalidateQueries({ queryKey: ["social-comments"] });
   const act = useMutation({
     mutationFn: (action: "approve" | "dismiss" | "reopen") => review({ data: { id: row.id, action, reply } }),
-    onSuccess: (_r, a) => { toast.success(a === "approve" ? "Approved — Make will post it on its next run." : a === "dismiss" ? "Dismissed." : "Moved back to review."); void done(); },
+    onSuccess: (r, a) => {
+      if (a === "approve") {
+        const res = r as { status?: string; postError?: string | null };
+        if (res.status === "posted") toast.success("Reply posted.");
+        else toast.error(`Approved, but posting failed: ${res.postError ?? "unknown error"}. It is under "Couldn't post"; you can edit and approve again.`);
+      } else toast.success(a === "dismiss" ? "Dismissed." : "Moved back to review.");
+      void done();
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not update."),
   });
   const conv = useMutation({
@@ -92,7 +190,7 @@ function CommentCard({ row }: { row: Row }) {
       <div className="flex items-start justify-between gap-3">
         <div className="text-sm">
           <span className="font-medium">{row.author_name ?? "Someone"}</span>
-          <span className="text-muted-foreground"> · {row.platform} · {new Date(row.commented_at ?? row.created_at).toLocaleString("en-AU")}</span>
+          <span className="text-muted-foreground"> · {row.platform === "instagram" ? "Instagram" : "Facebook"} · {new Date(row.commented_at ?? row.created_at).toLocaleString("en-AU")}</span>
           {row.sentiment ? <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-xs">{row.sentiment}</span> : null}
         </div>
         {row.comment_url ? <a href={row.comment_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary"><ExternalLink className="h-3 w-3" />Open</a> : null}
@@ -107,7 +205,7 @@ function CommentCard({ row }: { row: Row }) {
         <p className="rounded-md bg-secondary p-2 text-sm">Reply: {row.approved_response}</p>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        {editable && <Button size="sm" disabled={act.isPending || !reply.trim()} onClick={() => act.mutate("approve")}>Approve reply</Button>}
+        {editable && <Button size="sm" disabled={act.isPending || !reply.trim()} onClick={() => act.mutate("approve")}>{act.isPending ? "Posting…" : "Approve & post reply"}</Button>}
         {row.status !== "posted" && row.status !== "dismissed" && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate("dismiss")}>Dismiss</Button>}
         {(row.status === "approved" || row.status === "dismissed") && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate("reopen")}>Back to review</Button>}
         {row.lead_id ? (

@@ -109,6 +109,23 @@ Integrations → Leads Access), make sure BookedSecure is allowed for that Page.
 - Businesses connected before this need to click **Reconnect / change Page**
   once. When the token nears expiry the report asks for a reconnect.
 
+## Facebook & Instagram comments and DMs
+
+- Permissions (in the login configuration): `pages_read_user_content`,
+  `pages_manage_engagement` (Facebook comments), `pages_messaging` + Human Agent
+  (Messenger), `instagram_basic`, `instagram_manage_comments`,
+  `instagram_manage_messages` (Instagram). Businesses connected before these were
+  added must **Reconnect / change Page** once.
+- Webhooks: Page fields `leadgen`, `feed`, `messages`; Instagram fields
+  `comments`, `messages`. While the app is unpublished Meta delivers no live
+  webhooks, so the five-minute sweep fetches new comments and DMs (and **Check
+  now** on the page fetches immediately).
+- Nothing is posted or sent without the owner approving it on the Facebook &
+  Instagram page. DM replies follow Meta's rules: free within 24 hours of the
+  customer's last message, a personal (Human Agent) reply up to 7 days, then closed.
+- Migration `0026_social_messages` creates `social_messages` and
+  `meta_social_state` (server-only).
+
 ## When something goes wrong
 
 - *The Facebook connection has expired or was revoked*: this happens after a

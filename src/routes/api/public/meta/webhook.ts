@@ -26,6 +26,21 @@ export const Route = createFileRoute('/api/public/meta/webhook')({
         let body: unknown = null;
         try { body = JSON.parse(raw); } catch { return new Response('ok', { status: 200 }); }
         const events = parseLeadgenEvents(body);
+        const { socialWebhookTargets } = await import('@/lib/meta-social');
+        const socialTargets = socialWebhookTargets(body);
+        if (socialTargets.length) {
+          const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+          const { syncSocial } = await import('@/lib/meta-social.server');
+          const pageIds = socialTargets.filter((t) => t.object === 'page').map((t) => t.id);
+          const igIds = socialTargets.filter((t) => t.object === 'instagram').map((t) => t.id);
+          const [pages, igs] = await Promise.all([
+            pageIds.length ? supabaseAdmin.from('meta_lead_accounts').select('business_id').in('page_id', pageIds) : Promise.resolve({ data: [] as { business_id: string }[] }),
+            igIds.length ? supabaseAdmin.from('meta_social_state').select('business_id').in('ig_user_id', igIds) : Promise.resolve({ data: [] as { business_id: string }[] }),
+          ]);
+          for (const businessId of new Set([...(pages.data ?? []), ...(igs.data ?? [])].map((r) => r.business_id))) {
+            try { await syncSocial(businessId, { force: true }); } catch (e) { console.error('facebook webhook social sync failed', e instanceof Error ? e.message : 'unknown'); }
+          }
+        }
         if (!events.length) return new Response('ok', { status: 200 });
 
         const { supabaseAdmin } = await import('@/integrations/supabase/client.server');

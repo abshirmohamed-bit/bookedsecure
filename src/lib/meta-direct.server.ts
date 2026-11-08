@@ -177,7 +177,8 @@ export function createDirectMetaTransport(account: DirectMetaAccount, version = 
 
   /** Asks Facebook to notify BookedSecure the moment a lead is submitted on this Page. */
   async function subscribeInstantLeads() {
-    await get(`${account.pageId}/subscribed_apps`, { subscribed_fields: 'leadgen' }, 'POST');
+    // leadgen = new leads; feed = comments; messages = Messenger DMs.
+    await get(`${account.pageId}/subscribed_apps`, { subscribed_fields: 'leadgen,feed,messages' }, 'POST');
   }
 
   async function unsubscribeInstantLeads() {

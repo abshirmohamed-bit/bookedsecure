@@ -143,7 +143,10 @@ export async function sweepScheduledSyncs() {
   // Ad spend refresh (about hourly per business); never affects lead imports.
   let adSpend = 0;
   try { adSpend = (await (await import('./meta-ads.server')).sweepAdSpend()).synced; } catch { /* table not ready yet */ }
-  return { checked: direct?.length ?? 0, started, adSpend };
+  // Facebook & Instagram comments and DMs (until Meta delivers live webhooks).
+  let social = 0;
+  try { social = (await (await import('./meta-social.server')).sweepSocial()).synced; } catch { /* table not ready yet */ }
+  return { checked: direct?.length ?? 0, started, adSpend, social };
 }
 
 type ItemOutcome = { meta_lead_id: string; outcome: 'created' | 'duplicate' | 'enriched' | 'skipped' | 'failed'; reason?: string | undefined };

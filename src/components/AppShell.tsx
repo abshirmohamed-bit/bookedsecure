@@ -210,7 +210,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           />
           <SidebarLink
             to="/social"
-            label="Facebook comments"
+            label="Facebook & Instagram"
             active={pathname.startsWith("/social")}
             icon={MessageCircle}
             onClick={() => setMobileNavOpen(false)}
