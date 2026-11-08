@@ -118,7 +118,7 @@ async function graphGet(config: MetaAppConfig, path: string, params: Record<stri
   const url = new URL(`https://graph.facebook.com/${config.version}/${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   let res: Response;
-  try { res = await fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(15_000) }); } catch { throw new MetaConnectError('Facebook could not be reached. Please try again.', `${step}_unreachable`); }
+  try { res = await fetcher(url, { redirect: 'manual', signal: AbortSignal.timeout(15_000) }); } catch { throw new MetaConnectError('Facebook could not be reached. Please try again.', `${step}_unreachable`); }
   let body: unknown = null;
   try { body = await res.json(); } catch { body = null; }
   if (!res.ok || !body || (typeof body === 'object' && 'error' in body)) {

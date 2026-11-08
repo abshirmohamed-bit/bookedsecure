@@ -68,7 +68,7 @@ export function createDirectMetaTransport(account: DirectMetaAccount, version = 
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     let response: Response;
     try {
-      response = await fetcher(url, { headers: { Authorization: `Bearer ${account.token}` }, redirect: 'error', signal: AbortSignal.timeout(15_000) });
+      response = await fetcher(url, { headers: { Authorization: `Bearer ${account.token}` }, redirect: 'manual', signal: AbortSignal.timeout(15_000) });
     } catch { throw new Error('Facebook could not be reached. No import checkpoint was advanced.'); }
     let body: unknown = null;
     try { body = await response.json(); } catch { body = null; }
