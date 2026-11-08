@@ -21,11 +21,18 @@ export const getLeadSync = createServerFn({ method: 'GET' }).middleware([require
   const { metaAppReady, readMetaAppConfig } = await import('./meta-oauth.server');
   const { data: meta, error: metaErr } = await supabaseAdmin.from('meta_lead_accounts')
     .select('page_id, page_name, form_ids, connected_at, pending_pages, pending_expires_at').eq('business_id', ctx.businessId).maybeSingle();
-  if (metaErr) throw new Error('Could not load the Facebook connection.');
+  // A missing table (migration not yet applied) must not break the Make card or history.
+  const setupError = metaErr
+    ? (metaErr.code === 'PGRST205' || metaErr.code === '42P01' || /meta_lead_accounts/.test(metaErr.message ?? '')
+      ? 'Direct Facebook import is waiting for a database update (migration 0021_meta_lead_accounts) to be applied.'
+      : 'The Facebook connection could not be loaded. Please try again.')
+    : null;
+  if (metaErr) console.error('meta_lead_accounts read failed', metaErr.code, metaErr.message);
   const pendingLive = meta?.pending_expires_at && Date.parse(meta.pending_expires_at) > Date.now() && Array.isArray(meta.pending_pages);
   // Never returns tokens: only Page identity, form selection and connection health.
   const direct = {
-    available: metaAppReady(readMetaAppConfig()),
+    available: metaAppReady(readMetaAppConfig()) && !setupError,
+    setupError,
     page: meta?.page_id ? { id: meta.page_id, name: meta.page_name, formCount: (meta.form_ids ?? []).length, connectedAt: meta.connected_at } : null,
     pendingPages: pendingLive ? (meta!.pending_pages as Array<{ id: string; name: string }>).map((p) => ({ id: String(p.id), name: String(p.name) })) : [],
     connection: directConn ? (({ trigger_url: _t, ...rest }) => rest)(directConn) : null,

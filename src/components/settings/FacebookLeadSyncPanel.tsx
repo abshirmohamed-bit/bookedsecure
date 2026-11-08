@@ -26,6 +26,7 @@ function RunItems({ runId }: { runId: string }) {
 
 type DirectInfo = {
   available: boolean;
+  setupError: string | null;
   page: { id: string; name: string | null; formCount: number; connectedAt: string | null } | null;
   pendingPages: { id: string; name: string }[];
   connection: { auto_sync_enabled: boolean; status: string; last_success_at: string | null; next_check_at: string | null; last_error: string | null } | null;
@@ -101,7 +102,7 @@ function DirectImportCard({ direct, makeAuto, active, onChange }: { direct: Dire
     <h3 className="flex items-center gap-2 font-medium"><Zap className="h-4 w-4 text-primary" />Direct from Facebook (no Make)</h3>
     <p className="text-sm text-muted-foreground">Connect your Facebook Page and BookedSecure reads your lead forms itself, so imports no longer use Make credits. Leads Make already brought in are recognised, never duplicated and never texted twice.</p>
 
-    {!direct.available ? <p role="status" className="rounded-md border border-border bg-background p-3 text-sm">Direct Facebook connections aren’t switched on for BookedSecure yet. Please contact BookedSecure support.</p> : null}
+    {!direct.available ? <p role="status" className="rounded-md border border-border bg-background p-3 text-sm">{direct.setupError ?? 'Direct Facebook connections aren’t switched on for BookedSecure yet (META_APP_ID / META_APP_SECRET). Please contact BookedSecure support.'}</p> : null}
 
     {direct.available && direct.pendingPages.length ? <div className="space-y-2 rounded-md border border-border bg-background p-3 text-sm">
       <p className="font-medium">Which Page are your lead forms on?</p>
@@ -151,16 +152,23 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
   const c = q.data?.connection;
   const connected = Boolean(c?.has_trigger) && c?.status !== 'disconnected';
   const active = q.data?.runs.some((r) => r.status === 'requested' || r.status === 'running');
+  // Make is the older route: shown only to businesses that already have a Make connection,
+  // or when direct import is unavailable on this platform.
+  const makeInUse = Boolean(c && c.status !== 'disconnected' && (c.has_trigger || c.auto_sync_enabled));
+  const directOn = Boolean(q.data?.direct?.page);
+  const showMake = q.isSuccess && (makeInUse || !q.data?.direct?.available);
   // Make and direct keep their own progress per form; show each form once, at its furthest point.
   const forms = [...new Map((q.data?.forms ?? []).slice().sort((a, b) => a.last_submitted_at.localeCompare(b.last_submitted_at)).map((f) => [f.form_id, f])).values()];
 
   return <section className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
     <h2 className="flex items-center gap-2 font-heading text-lg font-semibold"><Download className="h-5 w-5 text-primary" />Facebook lead import</h2>
-    <p className="text-sm text-muted-foreground">Bring quote requests from your Facebook lead forms into your leads. Your Make scenario fetches them; BookedSecure saves each one once and never texts them unless they agreed to be contacted.</p>
-    {q.isError ? <p role="alert" className="text-sm">This could not be loaded.</p> : null}
+    <p className="text-sm text-muted-foreground">Bring quote requests from your Facebook lead forms into your leads. BookedSecure saves each one once and never texts them unless they agreed to be contacted.</p>
+    {q.isError ? <p role="alert" className="text-sm">This could not be loaded: {q.error instanceof Error ? q.error.message : 'unknown error'}</p> : null}
 
     {q.data?.direct ? <DirectImportCard direct={q.data.direct} makeAuto={Boolean(c?.auto_sync_enabled && connected)} active={Boolean(active)} onChange={refresh} /> : null}
-    {q.data?.direct ? <h3 className="font-medium">Through Make</h3> : null}
+    {showMake ? <details open={makeInUse && !directOn} className="space-y-4 rounded-xl border border-border p-4 [&_summary~*]:mt-4">
+    <summary className="cursor-pointer font-medium">Through Make (older setup){makeInUse ? '' : ' · optional'}</summary>
+    <p className="text-xs text-muted-foreground">Only needed if you import through a Make scenario. Direct from Facebook replaces it and doesn’t use Make credits.</p>
 
     <form className="grid gap-2 sm:grid-cols-[1fr_auto]" onSubmit={(e) => { e.preventDefault(); saveM.mutate({ trigger_url: url.trim() }); }}>
       <Input aria-label="Make webhook address" placeholder={connected ? `Connected (${c?.trigger_hint}) — paste a new address to replace` : 'Make webhook address (https://hook.…make.com/…)'} value={url} onChange={(e) => setUrl(e.target.value)} />
@@ -186,8 +194,18 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
 
     <div className="flex flex-wrap gap-2">
       <Button disabled={!connected || runM.isPending || active} onClick={() => runM.mutate()}><RefreshCw className="mr-2 h-4 w-4" />{active ? 'Importing…' : 'Import new leads now'}</Button>
-      {connected ? <Button variant="outline" disabled={discM.isPending} onClick={() => { if (window.confirm('Disconnect Facebook lead import? Automatic checks will stop.')) discM.mutate(); }}>Disconnect</Button> : null}
+      {connected ? <Button variant="outline" disabled={discM.isPending} onClick={() => { if (window.confirm('Disconnect the Make import? Make’s automatic checks will stop.')) discM.mutate(); }}>Disconnect Make</Button> : null}
     </div>
+    <details className="rounded-md border border-border p-3 text-sm">
+      <summary className="cursor-pointer font-medium">How to set up the Make scenario</summary>
+      <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
+        <li>Create a scenario that starts with a <b>Custom webhook</b>. Paste its address above.</li>
+        <li>Add Facebook Lead Ads <b>list leads</b> for your form, filtered to leads after <code>since</code> (sent by BookedSecure).</li>
+        <li>Send them with an HTTP POST to <code>callback_url</code> using a BookedSecure “Add leads only” key in the <code>X-API-Key</code> header. Body: <code>{'{"leads":[{"meta_lead_id","form_id","form_name","page_id","created_time","field_data"}],"final":true}'}</code>. Send up to 100 leads per request; set <code>final</code> true on the last one.</li>
+        <li>Turn the scenario ON.</li>
+      </ol>
+    </details>
+    </details> : null}
 
     {forms.length ? <p className="text-xs text-muted-foreground">Forms seen: {forms.map((f) => `${f.form_name ?? f.form_id} (up to ${when(f.last_submitted_at)})`).join(' · ')}</p> : null}
 
@@ -205,14 +223,5 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
       </ul>
     </div> : null}
 
-    <details className="rounded-md border border-border p-3 text-sm">
-      <summary className="cursor-pointer font-medium">How to set up the Make scenario</summary>
-      <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
-        <li>Create a scenario that starts with a <b>Custom webhook</b>. Paste its address above.</li>
-        <li>Add Facebook Lead Ads <b>list leads</b> for your form, filtered to leads after <code>since</code> (sent by BookedSecure).</li>
-        <li>Send them with an HTTP POST to <code>callback_url</code> using a BookedSecure “Add leads only” key in the <code>X-API-Key</code> header. Body: <code>{'{"leads":[{"meta_lead_id","form_id","form_name","page_id","created_time","field_data"}],"final":true}'}</code>. Send up to 100 leads per request; set <code>final</code> true on the last one.</li>
-        <li>Turn the scenario ON.</li>
-      </ol>
-    </details>
   </section>;
 }
