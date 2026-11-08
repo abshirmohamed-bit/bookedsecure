@@ -20,7 +20,19 @@ import {
  * occasional configuration destinations. Reuses the existing getSettings read
  * (fetched only once the menu is opened). no new queries are introduced.
  */
-export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void; rail?: boolean }) {
+export function AccountMenu({
+  onSignOut,
+  rail = false,
+  sidebar = false,
+  compact = false,
+}: {
+  onSignOut: () => void;
+  rail?: boolean;
+  /** Full-width row at the bottom of the sidebar; the menu opens upwards. */
+  sidebar?: boolean;
+  /** Icon-only sidebar: just the initials, menu opens to the right. */
+  compact?: boolean;
+}) {
   const [open, dispatch] = useReducer(accountMenuReducer, false);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -31,7 +43,7 @@ export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void
   const { data } = useQuery({
     queryKey: ["settings"],
     queryFn: () => fetchSettings(),
-    enabled: open,
+    enabled: open || sidebar,
     staleTime: 60_000,
   });
 
@@ -72,7 +84,9 @@ export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => dispatch({ type: "toggle" })}
-        className="flex items-center gap-2 rounded-md px-1.5 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className={sidebar
+          ? `flex w-full min-w-0 items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left text-xs text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${compact ? "lg:w-auto lg:justify-center" : ""}`
+          : "flex items-center gap-2 rounded-md px-1.5 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"}
       >
         <span
           aria-hidden="true"
@@ -80,14 +94,19 @@ export function AccountMenu({ onSignOut, rail = false }: { onSignOut: () => void
         >
           {accountInitials(name, email)}
         </span>
-        {!rail ? <span className="hidden sm:inline">Account</span> : null}
+        {sidebar ? (
+          <span className={`min-w-0 flex-1 ${compact ? "lg:hidden" : ""}`}>
+            <span className="block truncate text-sm font-medium text-sidebar-foreground">{name ?? "Your account"}</span>
+            {email ? <span className="block truncate text-[11px]">{email}</span> : null}
+          </span>
+        ) : !rail ? <span className="hidden sm:inline">Account</span> : null}
       </button>
 
       {open && (
         <div
           role="menu"
           aria-label="Account"
-          className={rail ? "fixed bottom-3 left-14 z-[70] w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg" : "absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg"}
+          className={sidebar ? (compact ? "absolute bottom-0 left-full z-[70] ml-2 w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg" : "absolute bottom-full left-0 z-[70] mb-2 w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg") : rail ? "fixed bottom-3 left-14 z-[70] w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg" : "absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg"}
         >
           <div className="border-b border-border px-3 py-3">
             <p className="truncate text-sm font-medium text-foreground">

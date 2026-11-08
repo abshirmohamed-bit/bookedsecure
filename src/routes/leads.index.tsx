@@ -25,7 +25,7 @@ export const Route = createFileRoute("/leads/")({
 
 function LeadsPage() {
   return (
-    <AppShell title="Lead inbox">
+    <AppShell title="Leads">
       <LeadsWorkspace />
     </AppShell>
   );

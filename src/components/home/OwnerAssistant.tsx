@@ -1,4 +1,5 @@
 import { ThinkingIndicator } from "@/components/ThinkingIndicator";
+import { takeAssistantDraft } from "@/lib/assistant-draft";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -132,7 +133,15 @@ export function OwnerAssistant({
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
-    if (textareaRef.current) autoSize(textareaRef.current);
+    const draft = takeAssistantDraft();
+    if (draft) {
+      setQuestion(draft);
+      requestAnimationFrame(() => {
+        if (!textareaRef.current) return;
+        autoSize(textareaRef.current);
+        textareaRef.current.focus();
+      });
+    } else if (textareaRef.current) autoSize(textareaRef.current);
   }, []);
   const endRef = useRef<HTMLDivElement>(null);
   const [question, setQuestion] = useState("");

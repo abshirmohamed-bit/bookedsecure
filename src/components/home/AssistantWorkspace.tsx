@@ -2,12 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Eraser, Globe2, History, MessageSquarePlus, PanelLeft, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { toast } from "sonner";
 import { OwnerAssistant, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
-import { OnboardingJourney } from "@/components/home/OnboardingJourney";
-import { PerformanceIsland } from "@/components/home/PerformanceIsland";
 import { ProductDiscoveryRow } from "@/components/home/ProductDiscoveryRow";
 import { clearAssistantConversation, createAssistantConversation, deleteAssistantConversation, getAssistantConversation, getAssistantHome } from "@/lib/assistant-history.functions";
 import { Button } from "@/components/ui/button";
@@ -31,10 +28,6 @@ export function AssistantWorkspace({
   const fetchSession = useServerFn(getSession);
   const [mobileHistory, setMobileHistory] = useState(false);
   const [websiteSetup, setWebsiteSetup] = useState(false);
-  const [contextSlot, setContextSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setContextSlot(document.getElementById("assistant-context-slot"));
-  }, []);
   const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
   const home = useQuery({ queryKey: ["assistant-home"], queryFn: () => getHome() });
   const activeId = requestedThreadId ?? home.data?.ongoing.id;
@@ -193,16 +186,14 @@ export function AssistantWorkspace({
   );
 
   return <div
-    className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background"
+    className="relative flex h-full min-h-0 overflow-hidden bg-background"
   >
-    {contextSlot ? createPortal(<div className="hidden h-full min-h-0 lg:block">{history}</div>, contextSlot) : null}
+    <aside aria-label="Assistant conversations" className="hidden h-full min-h-0 w-64 shrink-0 border-r border-border bg-card/40 lg:block">{history}</aside>
     {mobileHistory && <><button className="fixed inset-0 z-40 bg-foreground/25 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] border-r border-border bg-background lg:hidden">{history}</aside></>}
     <main className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-2 px-3 pt-3 lg:pointer-events-none lg:absolute lg:inset-x-3 lg:top-3 lg:z-20 lg:flex lg:px-0 lg:pt-0">
-        <Button type="button" size="icon" variant="outline" onClick={() => setMobileHistory(true)} className="size-11 shrink-0 rounded-full bg-card shadow lg:pointer-events-auto lg:hidden" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /></Button>
-        <div className="min-w-0 flex-1 lg:pointer-events-auto lg:ml-auto lg:w-44 lg:flex-none"><PerformanceIsland /></div>
+      <div className="shrink-0 px-3 pt-3 lg:hidden">
+        <Button type="button" variant="outline" size="sm" onClick={() => setMobileHistory(true)} className="gap-2 bg-card" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /> Conversations</Button>
       </div>
-       <OnboardingJourney />
        {showDiscovery ? <ProductDiscoveryRow /> : null}
        <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} homeMode={showDiscovery} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
     </main>

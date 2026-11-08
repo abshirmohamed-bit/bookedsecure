@@ -29,7 +29,7 @@ export const Route = createFileRoute('/.lovable/oauth/consent')({
     return data;
   },
   pendingComponent: () => <main className="mx-auto max-w-lg p-8">Loading connection request…</main>,
-  errorComponent: ({ error }) => <main className="mx-auto max-w-lg space-y-4 p-8"><h1 className="text-xl font-semibold">Could not connect to BookedSecure</h1><p role="alert">{error instanceof Error ? error.message : 'Could not load this connection. Please start again.'}</p><Button asChild variant="outline"><a href="/settings/integrations">Back to AI connections</a></Button></main>,
+  errorComponent: ({ error }) => <main className="mx-auto max-w-lg space-y-4 p-8"><h1 className="text-xl font-semibold">Could not connect to BookedSecure</h1><p role="alert">{error instanceof Error ? error.message : 'Could not load this connection. Please start again.'}</p><Button asChild variant="outline"><a href="/settings/integrations">Back to Connections</a></Button></main>,
   component: Consent,
 });
 
@@ -54,7 +54,7 @@ function Consent() {
     <dl className="space-y-3 text-sm"><div><dt className="text-muted-foreground">Signed in as</dt><dd>{details.user.email}</dd></div><div><dt className="text-muted-foreground">Client destination</dt><dd className="break-all">{details.redirect_uri}</dd></div></dl>
     <ul className="list-inside list-disc space-y-2 text-sm">{details.scope.split(/\s+/).filter(Boolean).map(scope => <li key={scope}>{({ openid: 'Identify your account', email: 'Share your email address', profile: 'Share your basic profile' } as Record<string, string>)[scope] ?? `Additional permission requested: ${scope}`}</li>)}</ul>
     <p className="text-sm">Read your leads and bookings. Owners with current access can update lead notes and schedule or move bookings. Sending messages, deleting records and payments are not enabled.</p>
-    <p className="text-xs text-muted-foreground">Your business permissions still apply. You can disconnect this client in AI connections. Previously shared data remains with the client.</p>
+    <p className="text-xs text-muted-foreground">Your business permissions still apply. You can disconnect this client in Setup → Connections. Previously shared data remains with the client.</p>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     <div className="flex flex-wrap gap-3"><Button disabled={busy} onClick={() => decide(true)}>Approve connection</Button><Button variant="outline" disabled={busy} onClick={() => decide(false)}>Cancel connection</Button></div>
     <Button variant="link" disabled={busy} onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }}>Use another account</Button>

@@ -92,7 +92,7 @@ export async function withAiBackup<T>(input: {
 
 async function tenantBackup<T>(input: { businessId: string; backup: (p: DirectProvider) => Promise<T>; usage?: BackupUsage }): Promise<T> {
   const account = await loadAiAccount(input.businessId);
-  if (!account) throw new Error('Lovable AI credits are exhausted. Connect a backup AI account in AI connections or wait for credits to be restored.');
+  if (!account) throw new Error('Lovable AI credits are exhausted. Connect a backup AI account in Setup → Connections or wait for credits to be restored.');
   if (input.usage) { input.usage.source = 'tenant'; input.usage.model = account.model; }
   try { return await input.backup(directAiProvider(account)); }
   catch { throw new Error('Your backup AI could not finish this request. Check your provider’s billing, model access or reconnect your key.'); }

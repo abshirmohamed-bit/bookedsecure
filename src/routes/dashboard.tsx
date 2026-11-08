@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { AssistantWorkspace } from "@/components/home/AssistantWorkspace";
+import { HomeOverview } from "@/components/home/HomeOverview";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -8,14 +8,10 @@ export const Route = createFileRoute("/dashboard")({
       { title: "Home | BookedSecure" },
       {
         name: "description",
-        content:
-          "Ask about your business, set up from your website, and see how your enquiries turn into completed work.",
+        content: "What needs you today, this week's numbers, your latest leads and what's coming up.",
       },
       { property: "og:title", content: "Home | BookedSecure" },
-      {
-        property: "og:description",
-        content: "Assistant, website setup and performance in one place. nothing sends without approval.",
-      },
+      { property: "og:description", content: "Today's to-dos, latest leads and bookings in one place." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -25,7 +21,8 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   return (
-    // Product discovery hidden until affiliate partnerships are in place.
-    <AppShell title="Home"><AssistantWorkspace showDiscovery={false} /></AppShell>
+    <AppShell title="Home">
+      <HomeOverview />
+    </AppShell>
   );
 }

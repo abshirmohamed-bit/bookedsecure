@@ -80,7 +80,7 @@ function SocialPage() {
             : (q.data ?? []).length === 0 ? (
               <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
                 Nothing here yet. New comments are checked every few minutes once Facebook is connected in{" "}
-                <Link to="/settings/integrations" className="text-primary underline">AI connections → Apps &amp; leads</Link>.
+                <Link to="/settings/integrations" className="text-primary underline">Setup → Connections</Link>.
               </div>
             ) : (q.data ?? []).map((r) => <CommentCard key={r.id} row={r} />)}
         </>}

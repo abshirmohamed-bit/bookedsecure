@@ -3,18 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   BarChart3,
+  Building2,
   CalendarDays,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Copy,
-  FileUp,
+  Hourglass,
+  Home,
   Inbox,
+  Megaphone,
   Menu,
-  Phone,
   MessageCircle,
-  PanelLeft,
-  Settings,
+  MessagesSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Phone,
+  Plug,
   ShieldCheck,
   Sparkles,
   SquareArrowOutUpRight,
@@ -26,8 +29,8 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { NotificationBell } from "@/components/NotificationBell";
-import { PushForegroundListener } from '@/components/PushForegroundListener';
-import { AutoPushPrompt } from '@/components/AutoPushPrompt';
+import { PushForegroundListener } from "@/components/PushForegroundListener";
+import { AutoPushPrompt } from "@/components/AutoPushPrompt";
 import { AccountMenu } from "@/components/AccountMenu";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { TenantMark } from "@/components/TenantMark";
@@ -36,23 +39,36 @@ import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
 
 import { useAuth } from "@/hooks/useAuth";
 import { getSession } from "@/lib/app.functions";
+import { getNavCounts } from "@/lib/home.functions";
 import { cn } from "@/lib/utils";
-import { PRIMARY_NAV, isPrimaryNavActive, navBreadcrumb } from "@/lib/navigation";
+import { NAV_SECTIONS, isNavItemActive, navBreadcrumb, type NavIcon, type NavItem } from "@/lib/navigation";
 import { tenantHeaderTitle, tenantQuotePath, tenantQuoteUrl } from "@/lib/tenant-nav";
 
-/** Icon per primary nav item, keeping the navigation data module DOM-free. */
-const NAV_ICONS = {
+/** Icon per nav item, keeping the navigation data module DOM-free. */
+const NAV_ICONS: Record<NavIcon, typeof Home> = {
+  home: Home,
   assistant: Sparkles,
-  inbox: Inbox,
-  analytics: BarChart3,
+  leads: Inbox,
+  social: MessagesSquare,
+  unfinished: Hourglass,
   bookings: CalendarDays,
-} as const;
+  campaigns: Megaphone,
+  results: BarChart3,
+  business: Building2,
+  texting: MessageCircle,
+  automations: Zap,
+  connections: Plug,
+  team: Users,
+};
+
+const COLLAPSE_KEY = "bookedsecure:sidebar-collapsed";
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const fetchSession = useServerFn(getSession);
+  const fetchCounts = useServerFn(getNavCounts);
   const appSession = useQuery({
     queryKey: ["session"],
     queryFn: () => fetchSession(),
@@ -64,23 +80,41 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });
+  const counts = useQuery({
+    queryKey: ["nav-counts"],
+    queryFn: () => fetchCounts(),
+    enabled: Boolean(session),
+    staleTime: 60_000,
+    refetchInterval: 2 * 60_000,
+    retry: false,
+  });
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [tenantRailCollapsed, setTenantRailCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/auth", replace: true });
   }, [loading, session, navigate]);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("bookedsecure:tenant-rail-collapsed");
-    setTenantRailCollapsed(saved === "true");
+    try {
+      setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "true");
+    } catch {
+      /* storage unavailable: keep the sidebar open */
+    }
   }, []);
 
-  const toggleTenantRail = () => {
-    setTenantRailCollapsed((current) => {
+  // Close the mobile menu whenever the page changes.
+  useEffect(() => setMobileNavOpen(false), [pathname]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
       const next = !current;
-      window.localStorage.setItem("bookedsecure:tenant-rail-collapsed", String(next));
+      try {
+        window.localStorage.setItem(COLLAPSE_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
       return next;
     });
   };
@@ -98,187 +132,138 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const isPlatformOwner = Boolean(appSession.data?.isPlatformAdmin);
   const tenantName = business?.name ?? null;
   const quotePath = tenantQuotePath(business?.slug ?? null);
-
-  const isAssistantHome = pathname === "/dashboard" || pathname.startsWith("/assistant");
+  const fullHeight = pathname.startsWith("/assistant");
+  // The icon-only state applies on desktop; the mobile drawer is always full width.
+  const compact = collapsed && !mobileNavOpen;
+  const signOut = () => navigate({ to: "/auth", replace: true });
 
   return (
     <div
       className={cn(
-        isAssistantHome
-          ? "flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-background transition-[padding] duration-200 lg:pl-[19.5rem]"
-          : "min-h-screen bg-background transition-[padding] duration-200 lg:pl-[19.5rem]",
-        tenantRailCollapsed && "lg:pl-16",
+        "bg-background transition-[padding] duration-200",
+        fullHeight ? "flex h-[100dvh] min-h-0 flex-col overflow-hidden" : "min-h-screen",
+        collapsed ? "lg:pl-16" : "lg:pl-64",
       )}
     >
-      {pathname !== '/notifications' && <PushForegroundListener />}
+      {pathname !== "/notifications" && <PushForegroundListener />}
       <AutoPushPrompt />
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-16 flex-col items-center border-r border-sidebar-border bg-sidebar py-3 lg:flex">
-        <Link
-          to="/"
-          title="BookedSecure home"
-          aria-label="BookedSecure home"
-          className="grid size-10 place-items-center rounded-md"
-        >
-          <img
-            src={brandMark.url}
-            alt="BookedSecure"
-            className="h-8 w-8 shrink-0 object-contain object-center"
-          />
-        </Link>
 
-        <div className="mt-6 flex flex-col gap-2">
-          <FeedbackButton rail />
-
-          <Button size="icon" variant="ghost" onClick={toggleTenantRail} title={tenantRailCollapsed ? "Open tenant navigation" : "Collapse tenant navigation"} aria-label={tenantRailCollapsed ? "Open tenant navigation" : "Collapse tenant navigation"}>
-            {tenantRailCollapsed ? <ChevronRight /> : <ChevronLeft />}
-          </Button>
-        </div>
-        <div className="mt-auto flex flex-col items-center gap-2">
-          <NotificationBell rail enableRealtime={false} />
-          <AccountMenu rail onSignOut={() => navigate({ to: "/auth", replace: true })} />
-        </div>
-      </aside>
       <aside
+        aria-label="Main navigation"
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-[min(86vw,19rem)] flex-col border-r border-sidebar-border bg-sidebar transition-[transform,width] duration-200 lg:left-16 lg:w-[15.5rem] lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-[min(86vw,18rem)] flex-col border-r border-sidebar-border bg-sidebar transition-[transform,width] duration-200 lg:translate-x-0",
           mobileNavOpen ? "translate-x-0" : "-translate-x-full",
-          tenantRailCollapsed && "lg:w-0 lg:overflow-hidden lg:border-r-0",
+          collapsed ? "lg:w-16" : "lg:w-64",
         )}
       >
-        <div className="grid h-20 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-sidebar-border px-4">
-          {isPlatformOwner ? (
-            <img
-              src={brandMark.url}
-              alt="BookedSecure"
-              className="h-[38px] w-[38px] shrink-0 object-contain object-center"
-            />
-          ) : (
-            <TenantMark name={tenantName} logoUrl={business?.logo_url ?? null} size={38} />
-          )}
-          <div className="min-w-0">
-            <p className="truncate font-heading text-base font-semibold text-sidebar-foreground">
-              {isPlatformOwner ? "BookedSecure" : tenantHeaderTitle(tenantName)}
-            </p>
-            <p className="text-[11px] font-medium text-muted-foreground">
-              {isPlatformOwner ? "Platform owner" : "Tenant workspace"}
-            </p>
-          </div>
+        <div className={cn("flex h-14 shrink-0 items-center gap-2.5 px-3", compact && "lg:justify-center lg:px-0")}>
+          <Link
+            to="/dashboard"
+            className={cn("flex min-w-0 flex-1 items-center gap-2.5 rounded-md", compact && "lg:hidden")}
+            title={isPlatformOwner ? "BookedSecure" : (tenantName ?? "Home")}
+          >
+            {isPlatformOwner ? (
+              <img src={brandMark.url} alt="" className="size-8 shrink-0 object-contain" />
+            ) : (
+              <TenantMark name={tenantName} logoUrl={business?.logo_url ?? null} size={32} />
+            )}
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-sidebar-foreground">
+                {isPlatformOwner ? "BookedSecure" : tenantHeaderTitle(tenantName)}
+              </span>
+              <span className="block truncate text-[11px] text-muted-foreground">
+                {isPlatformOwner ? "Platform owner" : "Your workspace"}
+              </span>
+            </span>
+          </Link>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="hidden size-8 shrink-0 text-muted-foreground lg:inline-flex"
+            onClick={toggleCollapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </Button>
           <Button
             type="button"
             size="icon"
             variant="ghost"
             aria-label="Close navigation"
             onClick={() => setMobileNavOpen(false)}
-            className="lg:hidden"
+            className="size-8 lg:hidden"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <nav aria-label="Tenant navigation" className={cn("shrink-0 overflow-y-auto px-3 py-4", isAssistantHome && "max-h-[48dvh]")}>
+
+        <nav aria-label="Workspace" className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
           {isPlatformOwner ? (
-            <>
-              <SidebarLabel>Platform</SidebarLabel>
+            <NavGroup label="Platform" compact={compact}>
               <SidebarLink
                 to="/admin/overview"
                 label="Control room"
-                active={pathname.startsWith("/admin")}
                 icon={ShieldCheck}
-                onClick={() => setMobileNavOpen(false)}
+                active={pathname.startsWith("/admin")}
+                compact={compact}
               />
-            </>
+            </NavGroup>
           ) : null}
-          <SidebarLabel {...(isPlatformOwner ? { className: "mt-5" } : {})}>
-            {isPlatformOwner ? "Sandbox (what tenants see)" : "Workspace"}
-          </SidebarLabel>
-          {PRIMARY_NAV.map((item) => (
-            <SidebarLink
-              key={item.to}
-              to={item.to}
-              label={item.label}
-              active={isPrimaryNavActive(item, pathname)}
-              icon={NAV_ICONS[item.icon]}
-              onClick={() => setMobileNavOpen(false)}
-            />
+          {NAV_SECTIONS.map((section, index) => (
+            <NavGroup
+              key={section.label ?? `section-${index}`}
+              label={section.label}
+              compact={compact}
+            >
+              {section.items.map((item) => (
+                <SidebarLink
+                  key={item.to}
+                  to={item.to}
+                  label={item.label}
+                  icon={NAV_ICONS[item.icon]}
+                  active={isNavItemActive(item, pathname)}
+                  compact={compact}
+                  badge={badgeFor(item, counts.data)}
+                />
+              ))}
+            </NavGroup>
           ))}
-          <SidebarLabel className="mt-5">Leads & growth</SidebarLabel>
-          <SidebarLink
-            to="/unfinished"
-            label="Unfinished prospects"
-            active={pathname.startsWith("/unfinished")}
-            icon={PanelLeft}
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <SidebarLink
-            to="/social"
-            label="Facebook & Instagram"
-            active={pathname.startsWith("/social")}
-            icon={MessageCircle}
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <SidebarLink
-            to="/import"
-            label="Import data"
-            active={pathname.startsWith("/import")}
-            icon={FileUp}
-            onClick={() => setMobileNavOpen(false)}
-          />
+        </nav>
+
+        <div className={cn("shrink-0 space-y-0.5 border-t border-sidebar-border p-2", compact && "lg:flex lg:flex-col lg:items-center")}>
           {quotePath ? (
             <a
               href={quotePath}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              title="Your quote page"
+              className={cn(itemClass(false), compact && "lg:size-10 lg:justify-center lg:px-0")}
             >
-              <SquareArrowOutUpRight className="h-4 w-4" /> Quote page
+              <SquareArrowOutUpRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className={cn("truncate", compact && "lg:sr-only")}>Your quote page</span>
             </a>
           ) : null}
-          <SidebarLabel className="mt-5">Manage</SidebarLabel>
-          <SidebarLink
-            to="/settings/business"
-            label="Business settings"
-            active={pathname.startsWith("/settings/business")}
-            icon={Settings}
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <SidebarLink
-            to="/settings/messaging"
-            label="Messaging"
-            active={pathname.startsWith("/settings/messaging")}
-            icon={MessageCircle}
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <SidebarLink
-            to="/settings/automation"
-            label="Automation"
-            active={pathname.startsWith("/settings/automation")}
-            icon={Zap}
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <SidebarLink
-            to="/settings/team"
-            label="Team access"
-            active={pathname.startsWith("/settings/team")}
-            icon={Users}
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <SidebarLink to="/settings/integrations" label="AI connections" active={pathname.startsWith('/settings/integrations')} icon={Sparkles} onClick={() => setMobileNavOpen(false)} />
           {!isPlatformOwner ? (
             <a
               href="tel:+61466907824"
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              title="Call BookedSecure support"
+              className={cn(itemClass(false), compact && "lg:size-10 lg:justify-center lg:px-0")}
             >
-              <Phone className="h-4 w-4" aria-hidden="true" /> Call +61 466 907 824
+              <Phone className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className={cn("truncate", compact && "lg:sr-only")}>Call support</span>
             </a>
           ) : null}
-        </nav>
-        {isAssistantHome ? <div id="assistant-context-slot" className="min-h-0 flex-1 border-t border-sidebar-border" /> : <div className="flex-1" />}
-        <div className="shrink-0 border-t border-sidebar-border p-3">
-          <div className="flex items-center gap-2 rounded-md bg-sidebar-accent/55 px-3 py-2 text-xs text-muted-foreground">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span>Lead operations</span>
+          <div className={cn("flex items-center gap-1 pt-1", compact && "lg:flex-col")}>
+            <div className="min-w-0 flex-1">
+              <AccountMenu sidebar compact={compact} onSignOut={signOut} />
+            </div>
+            <FeedbackButton rail />
           </div>
         </div>
       </aside>
+
       {mobileNavOpen ? (
         <button
           type="button"
@@ -287,48 +272,65 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           onClick={() => setMobileNavOpen(false)}
         />
       ) : null}
-       <header className="sticky top-0 z-20 grid h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-card/95 px-3 backdrop-blur sm:px-5">
-         <Button
+
+      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 backdrop-blur sm:px-5">
+        <Button
           type="button"
-           size="icon"
-           variant="outline"
+          size="icon"
+          variant="ghost"
           aria-label="Open navigation"
           onClick={() => setMobileNavOpen(true)}
-           className="mr-3 lg:hidden"
+          className="lg:hidden"
         >
-          <Menu className="h-4 w-4" />
-         </Button>
-        <p className="min-w-0 truncate text-sm text-muted-foreground">
-          <span className="hidden sm:inline">Workspace&nbsp; / &nbsp;</span>
-          <span className="font-medium text-foreground">
-            {breadcrumb.at(-1) ?? title ?? "Workspace"}
-          </span>
+          <Menu className="h-5 w-5" />
+        </Button>
+        <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+          {breadcrumb.length > 1 ? <span className="hidden sm:inline">{breadcrumb.slice(0, -1).join(" / ")}&nbsp; / &nbsp;</span> : null}
+          <span className="font-semibold text-foreground">{breadcrumb.at(-1) ?? title ?? "Home"}</span>
         </p>
-         <div className="ml-auto flex items-center gap-1">
-           <div className="lg:hidden"><FeedbackButton rail /></div>
-           <div className="lg:hidden"><NotificationBell /></div>
-
-          {quotePath ? (
-            <QuotePageControl quotePath={quotePath} slug={business?.slug ?? null} />
-          ) : null}
-           <div className="lg:hidden"><AccountMenu onSignOut={() => navigate({ to: "/auth", replace: true })} /></div>
+        <div className="flex items-center gap-1">
+          {quotePath ? <QuotePageControl quotePath={quotePath} slug={business?.slug ?? null} /> : null}
+          <NotificationBell />
         </div>
       </header>
-       <main className={cn("min-w-0", isAssistantHome ? "min-h-0 flex-1 overflow-hidden" : "mx-auto max-w-[1500px] px-4 py-5 sm:px-6")}>{children}</main>
+
+      <main
+        className={cn(
+          "min-w-0",
+          fullHeight ? "min-h-0 flex-1 overflow-hidden" : "mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8",
+        )}
+      >
+        {children}
+      </main>
     </div>
   );
 }
 
-function SidebarLabel({ children, className }: { children: ReactNode; className?: string }) {
+function badgeFor(item: NavItem, counts: { leads: number; social: number } | undefined): number {
+  if (!item.badge || !counts) return 0;
+  return counts[item.badge];
+}
+
+function itemClass(active: boolean) {
+  return cn(
+    "flex h-9 items-center gap-3 rounded-md px-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+    active
+      ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+      : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+  );
+}
+
+function NavGroup({ label, compact, children }: { label: string | null; compact: boolean; children: ReactNode }) {
   return (
-    <p
-      className={cn(
-        "mb-1 px-3 text-[10px] font-semibold uppercase text-muted-foreground",
-        className,
-      )}
-    >
-      {children}
-    </p>
+    <div className="mt-3 first:mt-1">
+      {label ? (
+        <p className={cn("mb-1 px-2.5 text-[11px] font-medium text-muted-foreground/80", compact && "lg:sr-only")}>
+          {label}
+        </p>
+      ) : null}
+      {label && compact ? <div className="mx-3 mb-2 hidden border-t border-sidebar-border lg:block" aria-hidden="true" /> : null}
+      <div className={cn("space-y-0.5", compact && "lg:flex lg:flex-col lg:items-center")}>{children}</div>
+    </div>
   );
 }
 
@@ -337,41 +339,37 @@ function SidebarLink({
   label,
   active,
   icon: Icon,
-  onClick,
+  compact,
+  badge = 0,
 }: {
-  to:
-    | "/dashboard"
-    | "/leads"
-    | "/bookings"
-    | "/analytics"
-    | "/import"
-     | "/unfinished"
-    | "/social"
-    | "/settings/business"
-    | "/settings/messaging"
-    | "/settings/automation"
-     | "/settings/team"
-    | "/settings/integrations"
-    | "/admin/overview";
+  to: NavItem["to"] | "/admin/overview";
   label: string;
   active: boolean;
-  icon: typeof BarChart3;
-  onClick: () => void;
+  icon: typeof Home;
+  compact: boolean;
+  badge?: number;
 }) {
+  const badgeText = badge > 99 ? "99+" : String(badge);
   return (
     <Link
       to={to}
-      onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-        active
-          ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-          : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
-      )}
+      title={compact ? label : undefined}
+      className={cn(itemClass(active), "relative", compact && "lg:size-10 lg:justify-center lg:px-0")}
     >
-      <Icon className={cn("h-4 w-4", active && "text-primary")} aria-hidden="true" />
-      {label}
+      <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} aria-hidden="true" />
+      <span className={cn("min-w-0 flex-1 truncate", compact && "lg:sr-only")}>{label}</span>
+      {badge > 0 ? (
+        <span
+          aria-label={`${badge} waiting`}
+          className={cn(
+            "grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground",
+            compact && "lg:absolute lg:-right-0.5 lg:-top-0.5 lg:h-4 lg:min-w-4 lg:px-1 lg:text-[10px]",
+          )}
+        >
+          {badgeText}
+        </span>
+      ) : null}
     </Link>
   );
 }
@@ -413,11 +411,7 @@ function QuotePageControl({ quotePath, slug }: { quotePath: string; slug: string
         aria-label="Copy public quote link"
         className="inline-flex items-center rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
       >
-        {copied ? (
-          <Check className="h-3.5 w-3.5" aria-hidden="true" />
-        ) : (
-          <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-        )}
+        {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
       </button>
     </span>
   );

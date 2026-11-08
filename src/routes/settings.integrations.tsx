@@ -18,8 +18,8 @@ import { FacebookLeadSyncPanel } from '@/components/settings/FacebookLeadSyncPan
 
 export const Route = createFileRoute('/settings/integrations')({
   head: () => ({ meta: [
-    { title: 'AI connections | BookedSecure' }, { name: 'description', content: 'Manage secure assistant connections to your BookedSecure business.' },
-    { property: 'og:title', content: 'AI connections | BookedSecure' }, { property: 'og:description', content: 'Review connected assistants and revoke their account access.' },
+    { title: 'Connections | BookedSecure' }, { name: 'description', content: 'Connect Facebook, AI assistants and other apps to your BookedSecure business.' },
+    { property: 'og:title', content: 'Connections | BookedSecure' }, { property: 'og:description', content: 'Review connected assistants and revoke their account access.' },
     { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary' },
   ] }),
   component: Connections,
@@ -27,7 +27,9 @@ export const Route = createFileRoute('/settings/integrations')({
 const endpoint = 'https://bookedsecure.com/mcp';
 function Connections() {
   const { session } = useAuth();
-  const [tab, setTab] = useState('assistants');
+  // Facebook first: it is what most businesses connect, and where the Facebook
+  // sign-in returns to.
+  const [tab, setTab] = useState('apps');
   const queryClient = useQueryClient();
   const queryKey = ['oauth-grants', session?.user.id];
   const grants = useQuery({ queryKey, enabled: Boolean(session), queryFn: async () => {
@@ -46,17 +48,17 @@ function Connections() {
   const connectedCount = grants.data?.length ?? 0;
   const copyEndpoint = async () => { try { await navigator.clipboard.writeText(endpoint); toast.success('Connection address copied.'); } catch { toast.error('Could not copy. Select the address instead.'); } };
   const tiles = [
+    { value: 'apps', icon: Plug, title: 'Facebook and apps', text: 'Lead ads, comments, API keys' },
     { value: 'assistants', icon: Bot, title: 'AI assistants', text: grants.isSuccess ? `${connectedCount} connected` : 'ChatGPT, Claude, Grok' },
-    { value: 'backup', icon: ShieldCheck, title: 'Backup AI', text: 'Keeps Cowork running' },
-    { value: 'apps', icon: Plug, title: 'Apps & leads', text: 'Facebook, API keys' },
+    { value: 'backup', icon: ShieldCheck, title: 'Backup AI', text: 'Keeps the assistant running' },
   ];
-  return <AppShell title="AI connections"><div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-8">
+  return <AppShell title="Connections"><div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-8">
     <header className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-6 sm:p-10">
       <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/10 blur-3xl" aria-hidden />
       <div className="relative space-y-3">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary"><Sparkles className="h-3.5 w-3.5" />Connections</span>
-        <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">AI connections</h1>
-        <p className="max-w-xl text-muted-foreground">Connect your AI assistants and apps to BookedSecure. You stay in control: every reply and campaign still needs your Confirm.</p>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">Connections</h1>
+        <p className="max-w-xl text-muted-foreground">Connect Facebook, your AI assistants and other apps to BookedSecure. You stay in control: every reply and campaign still needs your Confirm.</p>
       </div>
     </header>
     <Tabs value={tab} onValueChange={setTab} className="space-y-6">

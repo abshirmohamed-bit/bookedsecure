@@ -2,73 +2,129 @@
  * Information architecture for the app shell.
  *
  * Pure data + pure functions so navigation behaviour can be tested without a DOM.
- * Primary navigation covers the daily jobs (Home, Lead inbox).
- * Occasional tasks (importing CRM data, configuring the account)
- * live inside the Leads workspace and the account menu respectively.
+ * One sidebar, grouped by the job the owner is doing: today's overview, the
+ * inboxes that need replies, the day-to-day work, and setup. Each setting has
+ * its own page so nothing hides behind tabs or the account menu.
  */
 
-export type PrimaryNavItem = {
-  to: "/dashboard" | "/leads" | "/bookings";
+export type NavPath =
+  | "/dashboard"
+  | "/assistant"
+  | "/leads"
+  | "/social"
+  | "/unfinished"
+  | "/bookings"
+  | "/campaigns"
+  | "/analytics"
+  | "/settings/business"
+  | "/settings/messaging"
+  | "/settings/automation"
+  | "/settings/integrations"
+  | "/settings/team";
+
+export type NavIcon =
+  | "home"
+  | "assistant"
+  | "leads"
+  | "social"
+  | "unfinished"
+  | "bookings"
+  | "campaigns"
+  | "results"
+  | "business"
+  | "texting"
+  | "automations"
+  | "connections"
+  | "team";
+
+/** Live counts shown next to inbox items (what is waiting for the owner). */
+export type NavBadge = "leads" | "social";
+
+export type NavItem = {
+  to: NavPath;
   label: string;
   /** Icon key resolved to a component by the shell, keeping this module pure. */
-  icon: "assistant" | "inbox" | "bookings";
+  icon: NavIcon;
+  badge?: NavBadge;
   /** Extra paths that should keep this item in its active state. */
   contextPaths?: readonly string[];
 };
 
-export const PRIMARY_NAV: readonly PrimaryNavItem[] = [
-  { to: "/dashboard", label: "Home", icon: "assistant", contextPaths: ["/analytics", "/assistant"] },
-  { to: "/bookings", label: "Bookings", icon: "bookings" },
-  { to: "/leads", label: "Lead inbox", icon: "inbox", contextPaths: ["/import", "/unfinished"] },
+export type NavSection = { label: string | null; items: readonly NavItem[] };
+
+export const NAV_SECTIONS: readonly NavSection[] = [
+  {
+    label: null,
+    items: [
+      { to: "/dashboard", label: "Home", icon: "home" },
+      { to: "/assistant", label: "Assistant", icon: "assistant" },
+    ],
+  },
+  {
+    label: "Inbox",
+    items: [
+      { to: "/leads", label: "Leads", icon: "leads", badge: "leads", contextPaths: ["/import"] },
+      { to: "/social", label: "Facebook and Instagram", icon: "social", badge: "social" },
+      { to: "/unfinished", label: "Unfinished quotes", icon: "unfinished" },
+    ],
+  },
+  {
+    label: "Work",
+    items: [
+      { to: "/bookings", label: "Bookings", icon: "bookings" },
+      { to: "/campaigns", label: "Campaigns", icon: "campaigns" },
+      { to: "/analytics", label: "Results", icon: "results" },
+    ],
+  },
+  {
+    label: "Setup",
+    items: [
+      { to: "/settings/business", label: "Business and services", icon: "business" },
+      { to: "/settings/messaging", label: "Texting", icon: "texting" },
+      { to: "/settings/automation", label: "Automations", icon: "automations" },
+      { to: "/settings/integrations", label: "Connections", icon: "connections" },
+      { to: "/settings/team", label: "Team", icon: "team" },
+    ],
+  },
 ] as const;
 
+/** Every sidebar item, in order. */
+export const NAV_ITEMS: readonly NavItem[] = NAV_SECTIONS.flatMap((section) => section.items);
+
 export type AccountMenuItem = {
-  to:
-    | "/profile"
-    | "/settings/business"
-    | "/settings/messaging"
-    | "/settings/automation"
-    | "/settings/team"
-    | "/settings/integrations"
-    | "/campaigns";
+  to: "/profile" | "/settings/billing" | "/notifications";
   label: string;
 };
 
+/** Personal destinations only; business settings live in the sidebar. */
 export const ACCOUNT_MENU_ITEMS: readonly AccountMenuItem[] = [
-  { to: "/profile", label: "Profile" },
-  { to: "/settings/business", label: "Business settings" },
-  { to: "/settings/messaging", label: "Messaging" },
-  { to: "/settings/automation", label: "Automation" },
-  { to: "/campaigns", label: "Email campaigns" },
-  { to: "/settings/team", label: "Team access" },
-  { to: '/settings/integrations', label: 'AI connections' },
+  { to: "/profile", label: "Your profile" },
+  { to: "/notifications", label: "Alerts and notifications" },
+  { to: "/settings/billing", label: "Account access" },
 ] as const;
 
-/** True when a primary nav item should render as active for this pathname. */
-export function isPrimaryNavActive(item: PrimaryNavItem, pathname: string): boolean {
-  if (pathname === item.to || pathname.startsWith(`${item.to}/`)) return true;
-  return (item.contextPaths ?? []).some(
-    (path) => pathname === path || (path !== "/" && pathname.startsWith(`${path}/`)),
-  );
+function matches(pathname: string, path: string): boolean {
+  return pathname === path || pathname.startsWith(`${path}/`);
 }
 
-/** Contextual trail shown under the header, e.g. "Leads / Import". */
-export function navBreadcrumb(pathname: string): string[] {
-  if (pathname === "/import" || pathname.startsWith("/import/")) return ["Lead inbox", "Import"];
-  if (pathname === "/unfinished" || pathname.startsWith("/unfinished/"))
-    return ["Lead inbox", "Unfinished"];
+/** True when a sidebar item should render as active for this pathname. */
+export function isNavItemActive(item: NavItem, pathname: string): boolean {
+  if (matches(pathname, item.to)) return true;
+  return (item.contextPaths ?? []).some((path) => matches(pathname, path));
+}
 
-  if (pathname.startsWith("/leads/")) return ["Lead inbox", "Conversation"];
-  if (pathname === "/leads") return ["Lead inbox"];
-  if (pathname === "/dashboard") return ["Home"];
-  if (pathname === "/bookings" || pathname.startsWith("/bookings/")) return ["Bookings"];
-  if (pathname === "/assistant" || pathname.startsWith("/assistant/")) return ["Home", "Assistant"];
-  if (pathname === "/profile") return ["Account", "Profile"];
-  if (pathname.startsWith("/settings")) {
-    const section = ACCOUNT_MENU_ITEMS.find((item) => item.to === pathname);
-    return ["Account", section?.label ?? "Settings"];
-  }
-  return [];
+/** Page title trail shown in the header, e.g. "Leads / Import". */
+export function navBreadcrumb(pathname: string): string[] {
+  if (matches(pathname, "/import")) return ["Leads", "Import"];
+  if (matches(pathname, "/leads/deleted")) return ["Leads", "Deleted"];
+  if (pathname.startsWith("/leads/")) return ["Leads", "Conversation"];
+  if (matches(pathname, "/profile")) return ["Account", "Your profile"];
+  if (matches(pathname, "/notifications")) return ["Account", "Alerts and notifications"];
+  if (matches(pathname, "/settings/billing")) return ["Account", "Account access"];
+  const item = NAV_ITEMS.find((candidate) => isNavItemActive(candidate, pathname));
+  if (!item) return [];
+  const section = NAV_SECTIONS.find((candidate) => candidate.items.includes(item));
+  return section?.label === "Setup" ? ["Setup", item.label] : [item.label];
 }
 
 export const ROLE_LABELS: Record<string, string> = {

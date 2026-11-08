@@ -40,7 +40,7 @@ export function FacebookAdsPerformance() {
 
     {d ? <>
       {d.setupMissing ? <p className="mt-3 text-sm text-muted-foreground">Ad spend is waiting for a database update (migration 0024_meta_ad_spend).</p> : null}
-      {!d.setupMissing && !d.account ? <p className="mt-3 text-sm text-muted-foreground">To see ad spend, reconnect Facebook in AI connections → Apps & leads (Reconnect / change Page). Leads below are still grouped by campaign.</p> : null}
+      {!d.setupMissing && !d.account ? <p className="mt-3 text-sm text-muted-foreground">To see ad spend, reconnect Facebook in Setup → Connections (Reconnect / change Page). Leads below are still grouped by campaign.</p> : null}
       {d.account ? <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
         <span>Ad account: {d.account.choices.length > 1
           ? <select aria-label="Ad account" className="h-7 rounded border border-input bg-background px-1 text-foreground" value={d.account.id ?? ''} disabled={chooseM.isPending} onChange={(e) => chooseM.mutate(e.target.value)}>
