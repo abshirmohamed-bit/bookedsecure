@@ -165,3 +165,22 @@ export async function adPerformance(businessId: string, days: number, now = new 
     ...buildAdPerformance(spend, leads, jobs),
   };
 }
+
+/**
+ * The Facebook posts behind the business's recent ads (where ad comments live).
+ * Ads don't appear on the Page timeline, so their comments can only be found this
+ * way. Returns [] when ad access isn't stored or can't be read.
+ */
+export async function adStoryIds(businessId: string, fetcher: typeof fetch = fetch): Promise<string[]> {
+  const { data: acct } = await supabaseAdmin.from('meta_ad_accounts').select('ad_account_id, user_token_ciphertext').eq('business_id', businessId).maybeSingle();
+  if (!acct?.ad_account_id || !acct.user_token_ciphertext) return [];
+  const token = decryptMetaToken(acct.user_token_ciphertext, userTokenContext(businessId));
+  const parsed = z.object({ data: z.array(z.object({ effective_object_story_id: z.string().optional(), effective_status: z.string().optional() })) })
+    .safeParse(await graph(`act_${acct.ad_account_id}/ads`, { fields: 'effective_object_story_id,effective_status', limit: '50' }, token, fetcher));
+  if (!parsed.success) return [];
+  const ids = parsed.data.data
+    .filter((a) => a.effective_object_story_id && /^\d+_\d+$/.test(a.effective_object_story_id) && a.effective_status !== 'DELETED' && a.effective_status !== 'ARCHIVED')
+    .map((a) => a.effective_object_story_id!);
+  return [...new Set(ids)].slice(0, 20);
+}
+

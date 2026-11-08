@@ -14,6 +14,8 @@ import { mapConversations, mapFacebookComments, mapInstagramComments, replyWindo
  * fetch immediately.
  */
 const FIRST_SYNC_MS = 3 * 86400_000;
+/** Comments are re-read over this window every time; existing ones are skipped. */
+const COMMENT_WINDOW_MS = 30 * 86400_000;
 const OVERLAP_MS = 10 * 60_000;
 const MIN_GAP_MS = 4 * 60_000;
 const MAX_DRAFTS_PER_RUN = 6;
@@ -38,15 +40,23 @@ function transport(account: DirectMetaAccount, fetcher: typeof fetch) {
       const ig = (r['instagram_business_account'] ?? null) as { id?: string; username?: string } | null;
       return ig?.id ? { id: ig.id, username: ig.username ?? null } : null;
     },
-    async facebookComments(since: Date): Promise<IncomingComment[]> {
+    async facebookComments(since: Date, adStoryIds: string[], errors: string[]): Promise<IncomingComment[]> {
       const fields = 'id,message,permalink_url,comments.order(reverse_chronological).limit(50){id,message,created_time,from,permalink_url}';
       const posts: unknown[] = [];
-      for (const edge of ['feed', 'ads_posts']) {
-        // Ad comments matter most for lead ads; that edge may need ad access, so it is optional.
-        try { posts.push(...(((await call('GET', `${account.pageId}/${edge}`, { fields, limit: '15' }))['data'] as unknown[]) ?? [])); }
-        catch (e) { if (edge === 'feed') throw e; }
+      // Page timeline posts.
+      posts.push(...(((await call('GET', `${account.pageId}/feed`, { fields, limit: '15' }))['data'] as unknown[]) ?? []));
+      // Ad posts (lead ads): found through the ad account, read with the Page token.
+      for (const id of adStoryIds) {
+        try { posts.push(await call('GET', id, { fields })); }
+        catch (e) { errors.push(`Ad comments: ${e instanceof Error ? e.message : 'failed'}`); break; }
       }
-      return mapFacebookComments(posts as Parameters<typeof mapFacebookComments>[0], account.pageId, since);
+      // Fallback when ad access isn't connected: the Page's ad posts edge.
+      if (!adStoryIds.length) {
+        try { posts.push(...(((await call('GET', `${account.pageId}/ads_posts`, { fields, limit: '15' }))['data'] as unknown[]) ?? [])); }
+        catch { errors.push('Ad comments need ad access: reconnect Facebook with the ad account.'); }
+      }
+      const seen = new Set<string>();
+      return mapFacebookComments(posts as Parameters<typeof mapFacebookComments>[0], account.pageId, since).filter((c) => !seen.has(c.commentId) && (seen.add(c.commentId), true));
     },
     async instagramComments(igId: string, igUsername: string | null, since: Date): Promise<IncomingComment[]> {
       const r = await call('GET', `${igId}/media`, { fields: 'id,caption,permalink,comments_count,comments.limit(50){id,text,username,timestamp}', limit: '15' });
@@ -122,8 +132,11 @@ export async function syncSocial(businessId: string, options: { force?: boolean;
   if (!ig) { try { ig = await t.instagramAccount(); } catch (e) { errors.push(e instanceof Error ? e.message : 'Instagram account lookup failed.'); } }
 
   const comments: IncomingComment[] = [];
-  try { comments.push(...await t.facebookComments(since)); } catch (e) { errors.push(`Facebook comments: ${e instanceof Error ? e.message : 'failed'}`); }
-  if (ig) { try { comments.push(...await t.instagramComments(ig.id, ig.username, since)); } catch (e) { errors.push(`Instagram comments: ${e instanceof Error ? e.message : 'failed'}`); } }
+  const commentsSince = new Date(now.getTime() - COMMENT_WINDOW_MS);
+  let storyIds: string[] = [];
+  try { storyIds = await (await import('./meta-ads.server')).adStoryIds(businessId, fetcher); } catch (e) { errors.push(`Ads: ${e instanceof Error ? e.message : 'could not list ads'}`); }
+  try { comments.push(...await t.facebookComments(commentsSince, storyIds, errors)); } catch (e) { errors.push(`Facebook comments: ${e instanceof Error ? e.message : 'failed'}`); }
+  if (ig) { try { comments.push(...await t.instagramComments(ig.id, ig.username, commentsSince)); } catch (e) { errors.push(`Instagram comments: ${e instanceof Error ? e.message : 'failed'}`); } }
   const messages: IncomingMessage[] = [];
   const ownIds = [account.pageId, ...(ig ? [ig.id] : [])];
   for (const platform of ['facebook', 'instagram'] as const) {
@@ -133,9 +146,14 @@ export async function syncSocial(businessId: string, options: { force?: boolean;
 
   let drafts = 0;
   let newComments = 0;
+  // One lookup for all candidate comments: the 30-day window re-reads known ones.
+  const known = new Set<string>();
+  for (let i = 0; i < comments.length; i += 200) {
+    const { data: rows } = await supabaseAdmin.from('social_comments').select('platform, comment_id').eq('business_id', businessId).in('comment_id', comments.slice(i, i + 200).map((c) => c.commentId));
+    for (const r of rows ?? []) known.add(`${r.platform}:${r.comment_id}`);
+  }
   for (const c of comments) {
-    const { data: exists } = await supabaseAdmin.from('social_comments').select('id').eq('business_id', businessId).eq('platform', c.platform).eq('comment_id', c.commentId).maybeSingle();
-    if (exists) continue;
+    if (known.has(`${c.platform}:${c.commentId}`)) continue;
     const draft = drafts < MAX_DRAFTS_PER_RUN ? (drafts++, await draftReply(businessId, 'comment', c.platform, c.text)) : null;
     const { error } = await supabaseAdmin.from('social_comments').insert({
       business_id: businessId, platform: c.platform, comment_id: c.commentId, comment_url: c.url, post_id: c.postId, post_text: c.postText,
