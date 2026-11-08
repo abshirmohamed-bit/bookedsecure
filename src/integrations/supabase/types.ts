@@ -2889,6 +2889,44 @@ export type Database = {
           },
         ]
       }
+      meta_social_state: {
+        Row: {
+          business_id: string
+          comments_synced_at: string | null
+          ig_user_id: string | null
+          ig_username: string | null
+          last_error: string | null
+          messages_synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          comments_synced_at?: string | null
+          ig_user_id?: string | null
+          ig_username?: string | null
+          last_error?: string | null
+          messages_synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          comments_synced_at?: string | null
+          ig_user_id?: string | null
+          ig_username?: string | null
+          last_error?: string | null
+          messages_synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_social_state_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           business_id: string
@@ -4243,6 +4281,68 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_messages: {
+        Row: {
+          body: string
+          business_id: string
+          created_at: string
+          direction: string
+          draft_reply: string | null
+          error: string | null
+          id: string
+          message_id: string | null
+          participant_id: string
+          participant_name: string | null
+          platform: string
+          sent_at: string
+          sent_by: string | null
+          status: string
+          thread_id: string
+        }
+        Insert: {
+          body: string
+          business_id: string
+          created_at?: string
+          direction: string
+          draft_reply?: string | null
+          error?: string | null
+          id?: string
+          message_id?: string | null
+          participant_id: string
+          participant_name?: string | null
+          platform: string
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          thread_id: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          created_at?: string
+          direction?: string
+          draft_reply?: string | null
+          error?: string | null
+          id?: string
+          message_id?: string | null
+          participant_id?: string
+          participant_name?: string | null
+          platform?: string
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
