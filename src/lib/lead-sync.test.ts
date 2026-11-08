@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkLead, computeSince, enrichmentPatch, finalRunStatus, mapEnquiryFields, mapLeadFields, metaExternalId } from './lead-sync';
+import { checkLead, computeSince, enrichmentPatch, finalRunStatus, humanizeAnswer, mapEnquiryFields, mapLeadFields, metaExternalId } from './lead-sync';
 
 describe('facebook lead sync rules', () => {
   it('takes the first value of each Meta field', () => {
@@ -119,5 +119,16 @@ describe('safe re-import enrichment', () => {
     };
     const { changed } = enrichmentPatch(existing, mapped, { email: 'c@example.com' });
     expect(changed).toEqual([]);
+  });
+  it('shows Facebook option keys as words, leaving typed answers alone', () => {
+    expect(humanizeAnswer('full_detail_(starting_$280)')).toBe('Full detail (starting $280)');
+    expect(humanizeAnswer("yes,_i'd_like_a_quote")).toBe("Yes, i'd like a quote");
+    expect(humanizeAnswer('within_the_next_2_weeks_')).toBe('Within the next 2 weeks');
+    expect(humanizeAnswer('john_smith@gmail.com')).toBe('john_smith@gmail.com');
+    expect(humanizeAnswer('Interior and exterior_please')).toBe('Interior and exterior_please');
+    expect(humanizeAnswer('https://x.com/a_b')).toBe('https://x.com/a_b');
+    const m = mapEnquiryFields({ meta_lead_id: '9', field_data: [{ name: "the_type_of_detail_i'm_looking_for_is", values: ['full_detail_(starting_$280)'] }] });
+    expect(m.service).toBe('Full detail (starting $280)');
+    expect(m.rawAnswers[0]?.values).toEqual(['Full detail (starting $280)']);
   });
 });

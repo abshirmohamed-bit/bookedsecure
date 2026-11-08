@@ -3,7 +3,8 @@ importScripts('https://www.gstatic.com/firebasejs/13.2.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/13.2.0/firebase-messaging-compat.js');
 const params = new URL(self.location).searchParams;
 firebase.initializeApp(Object.fromEntries(['apiKey', 'projectId', 'appId', 'messagingSenderId'].map(key => [key, params.get(key)])));
-// Data-only messages avoid Firebase auto-display plus a second custom notification.
+// Alerts carry a display notification that Firebase shows itself (fast, even when the
+// worker is asleep). Only data-only messages are built here, so nothing shows twice.
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const path = event.notification.data?.path;
@@ -16,6 +17,7 @@ self.addEventListener('notificationclick', event => {
   })());
 });
 firebase.messaging().onBackgroundMessage(payload => {
+  if (payload.notification) return;
   const data = payload.data || {};
   return self.registration.showNotification(data.title || 'BookedSecure', {
     body: data.body || 'A new enquiry has arrived.', icon: '/favicon.png',

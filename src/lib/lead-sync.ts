@@ -110,12 +110,23 @@ export type EnquiryMapping = {
   rawAnswers: RawAnswer[];
 };
 
+/**
+ * Facebook returns multiple-choice answers as option keys, e.g.
+ * "full_detail_(starting_$280)". Show those as words ("Full detail (starting $280)").
+ * Free text, emails and links (anything with spaces, "@" or "://") are left exactly as typed.
+ */
+export function humanizeAnswer(value: string): string {
+  if (!value.includes('_') || /\s/.test(value) || /@|:\/\//.test(value)) return value;
+  const words = value.replace(/_+/g, ' ').replace(/\s+([,.)!?])/g, '$1').replace(/\(\s+/g, '(').replace(/\s+/g, ' ').trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : value;
+}
+
 /** Maps a Facebook form's answers onto the lead's structured enquiry fields. */
 export function mapEnquiryFields(lead: SyncLeadInput): EnquiryMapping {
   const fields = new Map<string, string[]>();
   const rawAnswers: RawAnswer[] = [];
   for (const f of lead.field_data ?? []) {
-    const values = (f.values ?? []).map((v) => v.trim()).filter((v) => v && !isMetaPlaceholder(v));
+    const values = (f.values ?? []).map((v) => humanizeAnswer(v.trim())).filter((v) => v && !isMetaPlaceholder(v));
     if (!values.length) continue;
     fields.set(norm(f.name), values);
     rawAnswers.push({ name: f.name, values });

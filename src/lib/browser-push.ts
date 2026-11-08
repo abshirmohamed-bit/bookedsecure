@@ -6,6 +6,27 @@ export function pushGate(input: { configured: boolean; supported: boolean; topLe
   if (input.permission === 'denied') return 'denied';
   return 'ready';
 }
+/**
+ * The FCM message for one owner alert. It carries a display notification so the
+ * phone shows it straight away, without first waking the service worker (data-only
+ * pushes can be held back by iOS/Android power saving for minutes). The tag is the
+ * alert key, so each lead is its own notification and a retry never duplicates one.
+ */
+export function buildOwnerPushMessage(input: { token: string; title: string; body: string; path: string; alertKey: string; appUrl: string }) {
+  const base = input.appUrl.replace(/\/+$/, '');
+  const path = input.path.startsWith('/') && !input.path.startsWith('//') ? input.path : '/leads';
+  const title = input.title.slice(0, 160); const body = input.body.slice(0, 500);
+  return {
+    token: input.token,
+    data: { title, body, path, alert_key: input.alertKey },
+    webpush: {
+      headers: { Urgency: 'high', TTL: '3600' },
+      notification: { title, body, icon: `${base}/icon-192.png`, badge: `${base}/icon-192.png`, tag: input.alertKey, renotify: true },
+      fcm_options: { link: `${base}${path}` },
+    },
+  };
+}
+
 export function shouldUseSmsFallback(input: { enabled: boolean; accepted: boolean; uncertain: boolean; muted: boolean }) {
   return input.enabled && !input.accepted && !input.uncertain && !input.muted;
 }

@@ -1,5 +1,6 @@
 import { createServerOnlyFn } from '@tanstack/react-start';
 import { supabaseAdmin } from '@/integrations/supabase/client.server';
+import { buildOwnerPushMessage } from './browser-push';
 
 export const deliverOwnerPush = createServerOnlyFn(async (input: { businessId: string; alertKey: string; title: string; body: string; path: string; userId?: string }) => {
   const key = process.env['FIREBASE_MESSAGING_API_KEY'];
@@ -30,7 +31,7 @@ export const deliverOwnerPush = createServerOnlyFn(async (input: { businessId: s
     try {
       const response = await fetch('https://connector-gateway.lovable.dev/firebase_messaging/v1/projects/_/messages:send', {
         method: 'POST', headers: { Authorization: `Bearer ${platformKey}`, 'X-Connection-Api-Key': key, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: { token: device.token, data: { title: input.title.slice(0,160), body: input.body.slice(0,500), path: input.path, alert_key: input.alertKey }, webpush: { headers: { Urgency: 'high', TTL: '3600' } } } }),
+        body: JSON.stringify({ message: buildOwnerPushMessage({ token: device.token, title: input.title, body: input.body, path: input.path, alertKey: input.alertKey, appUrl: process.env['PUBLIC_APP_URL'] ?? 'https://bookedsecure.com' }) }),
         signal: AbortSignal.timeout(15000),
       });
       if (response.ok) { status = 'accepted'; accepted = true; }
