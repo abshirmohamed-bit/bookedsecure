@@ -66,6 +66,17 @@ person connecting is an app admin. To let any customer connect, Meta requires:
 Until then, a new customer can be added under *App roles → Testers* so they can
 connect.
 
+5. **Instant leads webhook.** In the app's *Webhooks* product, choose the
+   **Page** object, set the callback URL to
+   `https://bookedsecure.com/api/public/meta/webhook` and the verify token to
+   `bookedsecure-leadgen-v1` (not a secret; override with
+   `META_WEBHOOK_VERIFY_TOKEN`), then subscribe to the **leadgen** field. Every
+   delivery is checked against the app secret's signature. Each connected Page
+   is subscribed automatically (or with **Turn on instant leads**), so Facebook
+   tells BookedSecure about a lead the moment it's submitted. Instant imports
+   never move the five-minute check's starting point, so that check still catches
+   anything a webhook misses.
+
 ## 2. Per business: connect Facebook
 
 In BookedSecure: **Settings → Integrations → Facebook lead import →

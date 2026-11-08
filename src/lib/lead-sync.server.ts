@@ -85,6 +85,47 @@ export async function startSyncRun(conn: Connection, trigger: 'manual' | 'schedu
   return startDirectRun(conn, trigger, requestedBy);
 }
 
+/**
+ * Instant import of one lead that Facebook announced by webhook. Uses the same
+ * dedupe/enrichment/alert pipeline as the five-minute check, but never moves its
+ * checkpoints. If an import is already running for this business, the lead is left
+ * for the five-minute check (which re-reads its window), so nothing is lost.
+ */
+export async function importWebhookLead(businessId: string, leadgenId: string): Promise<{ outcome: string }> {
+  const { data: conn, error: connErr } = await supabaseAdmin.from('lead_sync_connections')
+    .select('id, business_id, provider, initial_lookback_days, consecutive_failures, status')
+    .eq('business_id', businessId).eq('provider', 'meta_direct').maybeSingle();
+  if (connErr) throw new Error('Could not load the Facebook connection.');
+  if (!conn || conn.status === 'disconnected') return { outcome: 'not_connected' };
+  const { loadMetaAccount, createDirectMetaTransport } = await import('./meta-direct.server');
+  const account = await loadMetaAccount(businessId);
+  const transport = createDirectMetaTransport(account);
+  const lead = await transport.readLead(leadgenId);
+  if (account.formIds.length && !account.formIds.includes(lead.form_id)) return { outcome: 'form_not_selected' };
+  const form = (await transport.listForms()).find((f) => f.id === lead.form_id);
+  if (!form) return { outcome: 'form_not_on_page' };
+  if (!account.formIds.length && form.status !== 'ACTIVE') return { outcome: 'form_inactive' };
+
+  const insertRun = (trigger_kind: string) => supabaseAdmin.from('lead_sync_runs').insert({
+    business_id: businessId, connection_id: conn.id, trigger_kind: trigger_kind as 'manual', requested_by: null,
+    status: 'running', since: lead.created_time ? new Date(lead.created_time).toISOString() : new Date().toISOString(),
+  }).select('id').single();
+  let { data: run, error } = await insertRun('webhook');
+  // Until the 'webhook' trigger kind is allowed in the database, record it as a scheduled run.
+  if (error?.code === '23514') ({ data: run, error } = await insertRun('schedule'));
+  if (error?.code === '23505') return { outcome: 'import_running' };
+  if (error || !run) throw new Error('Could not start the instant import.');
+  try {
+    const result = await applyRunBatch(businessId, run.id, { leads: [{ ...lead, form_name: form.name }], final: true }, account.pageId, { advanceCheckpoints: false });
+    if ('notFound' in result || 'closed' in result) throw new Error('The instant import run is unavailable.');
+    return { outcome: result.outcomes[0]?.outcome ?? 'done' };
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : 'Instant Facebook import failed.';
+    await supabaseAdmin.from('lead_sync_runs').update({ status: 'failed', error: reason, completed_at: new Date().toISOString() }).eq('id', run.id).in('status', ['requested', 'running']);
+    throw e;
+  }
+}
+
 /** Five-minute sweep: imports for every business whose direct Facebook switch is on. */
 export async function sweepScheduledSyncs() {
   await expireStaleRuns();
@@ -198,7 +239,7 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
 export type RunBatch = { leads: SyncLeadInput[]; final: boolean; error?: string | null | undefined };
 
 /** Applies one batch of the business's own Page leads to its direct import run. */
-export async function applyRunBatch(businessId: string, runId: string, batch: RunBatch, directPageId: string) {
+export async function applyRunBatch(businessId: string, runId: string, batch: RunBatch, directPageId: string, options: { advanceCheckpoints?: boolean } = {}) {
   const { data: run, error } = await supabaseAdmin.from('lead_sync_runs').select('id, business_id, connection_id, status').eq('id', runId).maybeSingle();
   if (error) throw new Error('lookup_failed');
   if (!run || run.business_id !== businessId) return { notFound: true as const };
@@ -236,7 +277,9 @@ export async function applyRunBatch(businessId: string, runId: string, batch: Ru
     byForm.set(i.form_id, f);
   }
   for (const [form_id, f] of byForm) {
-    if (f.failed || !f.usable || !f.latest || batch.error) continue;
+    // Instant (webhook) runs never move checkpoints: the five-minute check must still
+    // re-read everything since its own last run, so a missed webhook is always caught.
+    if (options.advanceCheckpoints === false || f.failed || !f.usable || !f.latest || batch.error) continue;
     const { data: cp } = await supabaseAdmin.from('lead_sync_form_checkpoints').select('last_submitted_at').eq('connection_id', run.connection_id).eq('form_id', form_id).maybeSingle();
     if (cp && cp.last_submitted_at >= f.latest) continue;
     await supabaseAdmin.from('lead_sync_form_checkpoints').upsert({ business_id: businessId, connection_id: run.connection_id, form_id, form_name: f.form_name, page_id: f.page_id, last_submitted_at: f.latest, updated_at: now }, { onConflict: 'connection_id,form_id' });

@@ -64,7 +64,8 @@ export const testDirectMetaAccess = createServerFn({ method: 'POST' }).middlewar
   const ctx = await directOwner(context);
   try {
     const { loadMetaAccount, createDirectMetaTransport } = await import('./meta-direct.server');
-    return await createDirectMetaTransport(await loadMetaAccount(ctx.businessId)).testAccess();
+    const { readMetaAppConfig } = await import('./meta-oauth.server');
+    return await createDirectMetaTransport(await loadMetaAccount(ctx.businessId)).testAccess(new Date(), readMetaAppConfig().appId);
   } catch (e) {
     return { healthy: false as const, reason: e instanceof Error ? e.message : 'Facebook access could not be checked.' };
   }
@@ -100,9 +101,25 @@ export const importDirectMetaNow = createServerFn({ method: 'POST' }).middleware
   return startSyncRun(conn, 'manual', ctx.userId);
 });
 
+/** Subscribes the connected Page to Facebook's new-lead webhook, then confirms it. */
+export const enableInstantLeads = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+  const ctx = await directOwner(context);
+  const { loadMetaAccount, createDirectMetaTransport } = await import('./meta-direct.server');
+  const { readMetaAppConfig } = await import('./meta-oauth.server');
+  const transport = createDirectMetaTransport(await loadMetaAccount(ctx.businessId));
+  await transport.subscribeInstantLeads();
+  const appId = readMetaAppConfig().appId;
+  return { on: appId ? await transport.instantLeadsOn(appId) : false };
+});
+
 /** Removes the stored Page token and stops direct imports. Import history is kept. */
 export const disconnectDirectMeta = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const ctx = await directOwner(context);
+  try {
+    // Best effort: stop Facebook sending instant lead webhooks for this Page.
+    const { loadMetaAccount, createDirectMetaTransport } = await import('./meta-direct.server');
+    await createDirectMetaTransport(await loadMetaAccount(ctx.businessId)).unsubscribeInstantLeads();
+  } catch { /* already disconnected or token revoked */ }
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
   const { error: delErr } = await supabaseAdmin.from('meta_lead_accounts').delete().eq('business_id', ctx.businessId);
   if (delErr) throw new Error('Could not disconnect Facebook.');

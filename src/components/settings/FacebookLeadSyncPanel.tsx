@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { getLeadSync, getRunItems } from '@/lib/lead-sync.functions';
 import { LEAD_SYNC_LOOKBACK_OPTIONS } from '@/lib/lead-sync';
-import { chooseMetaPage, disconnectDirectMeta, importDirectMetaNow, listMetaForms, saveDirectMeta, saveMetaForms, startMetaConnect, testDirectMetaAccess } from '@/lib/meta-direct.functions';
+import { chooseMetaPage, disconnectDirectMeta, enableInstantLeads, importDirectMetaNow, listMetaForms, saveDirectMeta, saveMetaForms, startMetaConnect, testDirectMetaAccess } from '@/lib/meta-direct.functions';
 
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString() : '—');
+const TRIGGER: Record<string, string> = { manual: 'Manual', schedule: 'Automatic', webhook: 'Instant' };
 const STATUS: Record<string, string> = { requested: 'Starting', running: 'Importing', completed: 'Done', partial: 'Done with problems', failed: 'Failed', expired: 'Stopped before finishing' };
 
 function RunItems({ runId }: { runId: string }) {
@@ -78,13 +79,15 @@ function FormPicker({ onDone }: { onDone: () => Promise<unknown> }) {
 /** BookedSecure reads the business's own Facebook lead forms directly. */
 function DirectImportCard({ direct, active, onChange }: { direct: DirectInfo; active: boolean; onChange: () => Promise<unknown> }) {
   const connect = useServerFn(startMetaConnect); const choose = useServerFn(chooseMetaPage);
+  const instant = useServerFn(enableInstantLeads);
   const test = useServerFn(testDirectMetaAccess); const save = useServerFn(saveDirectMeta); const run = useServerFn(importDirectMetaNow); const off = useServerFn(disconnectDirectMeta);
   const [check, setCheck] = useState<{ ok: boolean; text: string } | null>(null);
   const [showForms, setShowForms] = useState(false);
   useFacebookOutcome(onChange);
   const connectM = useMutation({ mutationFn: () => connect(), onSuccess: (r) => { window.location.href = r.url; }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not start the Facebook connection.') });
   const chooseM = useMutation({ mutationFn: (pageId: string) => choose({ data: { pageId } }), onSuccess: async () => { toast.success('Page connected.'); await onChange(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not use that Page.') });
-  const testM = useMutation({ mutationFn: () => test(), onSuccess: (r) => setCheck(r.healthy ? { ok: true, text: `Facebook access works: ${r.formCount} form${r.formCount === 1 ? '' : 's'} readable (checked ${when(r.checkedAt)}).` } : { ok: false, text: r.reason }), onError: (e) => setCheck({ ok: false, text: e instanceof Error ? e.message : 'Could not check access.' }) });
+  const testM = useMutation({ mutationFn: () => test(), onSuccess: (r) => setCheck(r.healthy ? { ok: true, text: `Facebook access works: ${r.formCount} form${r.formCount === 1 ? '' : 's'} readable (checked ${when(r.checkedAt)}). Instant leads: ${r.instant === true ? 'on' : r.instant === false ? 'off. Click Turn on instant leads.' : 'could not be checked'}.` } : { ok: false, text: r.reason }), onError: (e) => setCheck({ ok: false, text: e instanceof Error ? e.message : 'Could not check access.' }) });
+  const instantM = useMutation({ mutationFn: () => instant(), onSuccess: (r) => setCheck(r.on ? { ok: true, text: 'Instant leads are on: Facebook now tells BookedSecure about each new lead the moment it is submitted. The five-minute check stays on as a backup.' } : { ok: false, text: 'Facebook did not confirm instant leads. The five-minute check still imports every lead.' }), onError: (e) => setCheck({ ok: false, text: e instanceof Error ? e.message : 'Could not turn on instant leads.' }) });
   const saveM = useMutation({ mutationFn: (d: { auto_sync_enabled?: boolean; initial_lookback_days?: number }) => save({ data: d }), onSuccess: async () => { toast.success('Saved.'); await onChange(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save.') });
   const runM = useMutation({ mutationFn: () => run(), onSuccess: async (r) => { if (r.started) toast.success('Import finished.'); else toast.error(r.reason); await onChange(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not run the import.') });
   const offM = useMutation({ mutationFn: () => off(), onSuccess: async () => { toast.success('Facebook disconnected.'); await onChange(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not disconnect.') });
@@ -107,6 +110,7 @@ function DirectImportCard({ direct, active, onChange }: { direct: DirectInfo; ac
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" disabled={testM.isPending} onClick={() => testM.mutate()}><ShieldCheck className="mr-2 h-4 w-4" />{testM.isPending ? 'Checking…' : 'Test Facebook access'}</Button>
         <Button disabled={runM.isPending || active} onClick={() => runM.mutate()}><RefreshCw className="mr-2 h-4 w-4" />{runM.isPending || active ? 'Importing…' : 'Import new leads now'}</Button>
+        <Button variant="outline" disabled={instantM.isPending} onClick={() => instantM.mutate()}><Zap className="mr-2 h-4 w-4" />{instantM.isPending ? 'Turning on…' : 'Turn on instant leads'}</Button>
         <Button variant="ghost" onClick={() => setShowForms((v) => !v)}>{showForms ? 'Hide forms' : 'Choose forms'}</Button>
         <Button variant="ghost" disabled={connectM.isPending} onClick={() => connectM.mutate()}>Reconnect / change Page</Button>
         <Button variant="ghost" disabled={offM.isPending} onClick={() => { if (window.confirm('Disconnect Facebook? The saved access is deleted and automatic checks stop. Import history is kept.')) offM.mutate(); }}>Disconnect</Button>
@@ -157,7 +161,7 @@ export function FacebookLeadSyncPanel({ enabled }: { enabled: boolean }) {
       <ul className="divide-y divide-border text-sm">
         {runs.map((r) => <li key={r.id} className="py-2">
           <button type="button" className="flex w-full flex-wrap items-center justify-between gap-2 text-left" onClick={() => setOpen(open === r.id ? null : r.id)}>
-            <span>{when(r.requested_at)} · {r.trigger_kind === 'manual' ? 'Manual' : 'Automatic'} · {STATUS[r.status] ?? r.status}</span>
+            <span>{when(r.requested_at)} · {TRIGGER[r.trigger_kind] ?? 'Automatic'} · {STATUS[r.status] ?? r.status}</span>
             <span className="text-xs text-muted-foreground">{r.created_count} new · {r.duplicate_count} already in{r.enriched_count ? ` · ${r.enriched_count} updated` : ''} · {r.skipped_count} skipped · {r.failed_count} failed</span>
           </button>
           {r.error ? <p className="text-xs text-muted-foreground">{r.error}</p> : null}

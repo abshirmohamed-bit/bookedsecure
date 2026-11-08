@@ -61,13 +61,16 @@ export function describeGraphFailure(status: number, body: unknown): string {
 /** Never log provider bodies, thrown fetch errors, next URLs or headers: any
  * of them may echo a token. Only controlled status/code diagnostics escape.
  */
+const singleLead = z.object({ id: z.string().regex(/^\d+$/), created_time: z.string(), form_id: z.string().regex(/^\d+$/).optional(), field_data: z.array(z.object({ name: z.string(), values: z.array(z.string()) })) });
+const subscribedApps = z.object({ data: z.array(z.object({ id: z.string().optional(), subscribed_fields: z.array(z.string()).optional() })) });
+
 export function createDirectMetaTransport(account: DirectMetaAccount, version = readMetaAppConfig().version, fetcher: typeof fetch = fetch) {
-  async function get(path: string, params: Record<string, string>) {
+  async function get(path: string, params: Record<string, string>, method: 'GET' | 'POST' | 'DELETE' = 'GET') {
     const url = new URL(`https://graph.facebook.com/${version}/${path}`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     let response: Response;
     try {
-      response = await fetcher(url, { headers: { Authorization: `Bearer ${account.token}` }, redirect: 'manual', signal: AbortSignal.timeout(15_000) });
+      response = await fetcher(url, { method, headers: { Authorization: `Bearer ${account.token}` }, redirect: 'manual', signal: AbortSignal.timeout(15_000) });
     } catch { throw new Error('Facebook could not be reached. No import checkpoint was advanced.'); }
     let body: unknown = null;
     try { body = await response.json(); } catch { body = null; }
@@ -120,11 +123,38 @@ export function createDirectMetaTransport(account: DirectMetaAccount, version = 
   }
 
   /** Read-only probe: the Page's forms plus one bounded leads read per form. Nothing is saved. */
-  async function testAccess(now = new Date()) {
+  async function testAccess(now = new Date(), appId?: string) {
     const forms = await resolveForms();
     if (!forms.length) throw new Error('The connected Facebook Page has no active lead forms.');
     for (const f of forms) await readPage(f.id, new Date(now.getTime() - 86400_000), now, undefined, 1);
-    return { healthy: true as const, checkedAt: now.toISOString(), formCount: forms.length, pageName: account.pageName };
+    const instant = appId ? await instantLeadsOn(appId).catch(() => null) : null;
+    return { healthy: true as const, checkedAt: now.toISOString(), formCount: forms.length, pageName: account.pageName, instant };
+  }
+
+  /** One lead by id (what a Facebook webhook announces). */
+  async function readLead(leadId: string): Promise<SyncLeadInput & { form_id: string }> {
+    if (!/^\d{3,40}$/.test(leadId)) throw new Error('Facebook sent an invalid lead id.');
+    const parsed = singleLead.safeParse(await get(leadId, { fields: 'id,created_time,form_id,field_data' }));
+    if (!parsed.success || !parsed.data.form_id) throw new Error('Facebook returned an incomplete lead.');
+    const lead = syncLeadSchema.safeParse({ meta_lead_id: parsed.data.id, created_time: parsed.data.created_time, field_data: parsed.data.field_data, form_id: parsed.data.form_id, page_id: account.pageId });
+    if (!lead.success) throw new Error('A Facebook submission exceeds the importer’s safe field limits; no answers were truncated.');
+    return { ...lead.data, form_id: parsed.data.form_id };
+  }
+
+  /** Whether this Page sends BookedSecure's app a webhook for every new lead. */
+  async function instantLeadsOn(appId: string): Promise<boolean> {
+    const parsed = subscribedApps.safeParse(await get(`${account.pageId}/subscribed_apps`, { fields: 'id,subscribed_fields' }));
+    if (!parsed.success) throw new Error('Facebook returned invalid subscription information.');
+    return parsed.data.data.some((a) => a.id === appId && (a.subscribed_fields ?? []).includes('leadgen'));
+  }
+
+  /** Asks Facebook to notify BookedSecure the moment a lead is submitted on this Page. */
+  async function subscribeInstantLeads() {
+    await get(`${account.pageId}/subscribed_apps`, { subscribed_fields: 'leadgen' }, 'POST');
+  }
+
+  async function unsubscribeInstantLeads() {
+    await get(`${account.pageId}/subscribed_apps`, {}, 'DELETE');
   }
 
   async function importLeads(options: {
@@ -173,5 +203,5 @@ export function createDirectMetaTransport(account: DirectMetaAccount, version = 
       throw new Error(message);
     }
   }
-  return { listForms, testAccess, importLeads };
+  return { listForms, testAccess, importLeads, readLead, instantLeadsOn, subscribeInstantLeads, unsubscribeInstantLeads };
 }

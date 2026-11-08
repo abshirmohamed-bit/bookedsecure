@@ -56,6 +56,7 @@ import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/publ
 import { Route as ApiPublicHooksProviderStatementsRouteImport } from './routes/api/public/hooks/provider-statements'
 import { Route as ApiPublicHooksTopupExpiryRouteImport } from './routes/api/public/hooks/topup-expiry'
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
+import { Route as ApiPublicMetaWebhookRouteImport } from './routes/api/public/meta/webhook'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicSmsInboundRouteImport } from './routes/api/public/sms/inbound'
 import { Route as ApiPublicSmsSinchRouteImport } from './routes/api/public/sms/sinch'
@@ -315,6 +316,11 @@ const ApiPublicLeadsIntakeRoute = ApiPublicLeadsIntakeRouteImport.update({
   path: '/api/public/leads/intake',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMetaWebhookRoute = ApiPublicMetaWebhookRouteImport.update({
+  id: '/api/public/meta/webhook',
+  path: '/api/public/meta/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -463,6 +469,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
+  '/api/public/meta/webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
@@ -529,6 +536,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
+  '/api/public/meta/webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
@@ -597,6 +605,7 @@ export interface FileRoutesById {
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
+  '/api/public/meta/webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
@@ -666,6 +675,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
     | '/api/public/leads/intake'
+    | '/api/public/meta/webhook'
     | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
     | '/api/public/sms/sinch'
@@ -732,6 +742,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
     | '/api/public/leads/intake'
+    | '/api/public/meta/webhook'
     | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
     | '/api/public/sms/sinch'
@@ -799,6 +810,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
     | '/api/public/leads/intake'
+    | '/api/public/meta/webhook'
     | '/api/public/payments/webhook'
     | '/api/public/sms/inbound'
     | '/api/public/sms/sinch'
@@ -859,6 +871,7 @@ export interface RootRouteChildren {
   ApiPublicHooksProviderStatementsRoute: typeof ApiPublicHooksProviderStatementsRoute
   ApiPublicHooksTopupExpiryRoute: typeof ApiPublicHooksTopupExpiryRoute
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
+  ApiPublicMetaWebhookRoute: typeof ApiPublicMetaWebhookRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicSmsInboundRoute: typeof ApiPublicSmsInboundRoute
   ApiPublicSmsSinchRoute: typeof ApiPublicSmsSinchRoute
@@ -1209,6 +1222,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLeadsIntakeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/meta/webhook': {
+      id: '/api/public/meta/webhook'
+      path: '/api/public/meta/webhook'
+      fullPath: '/api/public/meta/webhook'
+      preLoaderRoute: typeof ApiPublicMetaWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -1430,6 +1450,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksProviderStatementsRoute: ApiPublicHooksProviderStatementsRoute,
   ApiPublicHooksTopupExpiryRoute: ApiPublicHooksTopupExpiryRoute,
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
+  ApiPublicMetaWebhookRoute: ApiPublicMetaWebhookRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicSmsInboundRoute: ApiPublicSmsInboundRoute,
   ApiPublicSmsSinchRoute: ApiPublicSmsSinchRoute,

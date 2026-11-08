@@ -32,6 +32,13 @@ export async function saveConnectedPage(businessId: string, userId: string, page
   const { error: connErr } = await supabaseAdmin.from('lead_sync_connections')
     .update({ status: 'connected', last_error: null, consecutive_failures: 0 }).eq('id', conn.id);
   if (connErr) throw new Error('Could not update the direct Facebook connection.');
+  try {
+    const { loadMetaAccount, createDirectMetaTransport } = await import('./meta-direct.server');
+    await createDirectMetaTransport(await loadMetaAccount(businessId)).subscribeInstantLeads();
+  } catch (e) {
+    // Not fatal: the five-minute check still imports; the owner can retry "Turn on instant leads".
+    console.error('instant leads subscribe failed', e instanceof Error ? e.message : 'unknown');
+  }
   await supabaseAdmin.from('audit_events').insert({ business_id: businessId, user_id: userId, event_type: 'meta_leads_connected', entity_type: 'business', entity_id: businessId, metadata: { page_id: page.id } });
 }
 
