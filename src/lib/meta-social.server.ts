@@ -55,10 +55,10 @@ function transport(account: DirectMetaAccount, fetcher: typeof fetch) {
     async conversations(platform: SocialPlatform, ownIds: string[], since: Date): Promise<IncomingMessage[]> {
       const r = await call('GET', `${account.pageId}/conversations`, {
         platform: platform === 'instagram' ? 'instagram' : 'messenger', limit: '20',
-        fields: 'id,updated_time,participants,messages.limit(15){id,message,created_time,from}',
+        fields: 'id,updated_time,participants,messages.limit(25){id,message,created_time,from,sticker,attachments{mime_type}}',
       });
       const convs = (((r['data'] as Array<{ updated_time?: string }>) ?? [])).filter((c) => !c.updated_time || Date.parse(c.updated_time) >= since.getTime());
-      return mapConversations(platform, convs as Parameters<typeof mapConversations>[1], ownIds, since);
+      return mapConversations(platform, convs as Parameters<typeof mapConversations>[1], ownIds);
     },
     async replyToComment(platform: SocialPlatform, commentId: string, text: string): Promise<string | null> {
       const r = await call('POST', platform === 'instagram' ? `${commentId}/replies` : `${commentId}/comments`, { message: text });

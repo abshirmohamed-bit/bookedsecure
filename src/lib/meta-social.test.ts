@@ -28,9 +28,24 @@ describe('message mapping', () => {
       { id: 'm2', message: 'We can do Tuesday', created_time: '2026-11-08T12:05:00+0000', from: { id: 'PAGE' } },
       { id: 'm1', message: 'Hi, quote for a sedan?', created_time: '2026-11-08T12:00:00+0000', from: { id: 'psid9', name: 'Alex' } },
     ] } }];
-    expect(mapConversations('facebook', conv, ['PAGE'], since).map((m) => [m.messageId, m.direction, m.participantId, m.participantName])).toEqual([
+    expect(mapConversations('facebook', conv, ['PAGE']).map((m) => [m.messageId, m.direction, m.participantId, m.participantName])).toEqual([
       ['m2', 'out', 'psid9', 'Alex'], ['m1', 'in', 'psid9', 'Alex'],
     ]);
+  });
+  it('keeps the customer’s older messages in an active conversation', () => {
+    // Regression: the Page's recent replies were imported but the customer's older message was not.
+    const conv = [{ id: 't2', participants: { data: [{ id: 'PAGE' }, { id: 'psid7', name: 'Bernard' }] }, messages: { data: [
+      { id: 'r1', message: 'Hi Bernard! How can we help?', created_time: '2026-11-06T06:31:38+0000', from: { id: 'PAGE' } },
+      { id: 'q1', message: 'Can I get a quote?', created_time: '2026-10-20T01:00:00+0000', from: { id: 'psid7', name: 'Bernard' } },
+    ] } }];
+    expect(mapConversations('facebook', conv, ['PAGE']).map((m) => [m.messageId, m.direction])).toEqual([['r1', 'out'], ['q1', 'in']]);
+  });
+  it('keeps photo and sticker messages', () => {
+    const conv = [{ id: 't3', participants: { data: [{ id: 'PAGE' }, { id: 'psid8' }] }, messages: { data: [
+      { id: 'a1', created_time: '2026-11-08T01:00:00+0000', from: { id: 'psid8' }, attachments: { data: [{}] } },
+      { id: 'a2', created_time: '2026-11-08T01:01:00+0000', from: { id: 'psid8' }, sticker: 'https://s' },
+    ] } }];
+    expect(mapConversations('facebook', conv, ['PAGE']).map((m) => m.body)).toEqual(['(photo or file)', '(sticker)']);
   });
 });
 

@@ -67,24 +67,30 @@ export function mapInstagramComments(media: IgMedia[], igUsername: string | null
   return out;
 }
 
-type ConvMessage = { id?: string; message?: string; created_time?: string; from?: { id?: string; name?: string; username?: string } };
+type ConvMessage = { id?: string; message?: string; created_time?: string; from?: { id?: string; name?: string; username?: string }; sticker?: string; attachments?: { data?: unknown[] } };
 type Conversation = { id?: string; participants?: { data?: Array<{ id?: string; name?: string; username?: string }> }; messages?: { data?: ConvMessage[] } };
 
-/** Messages from the conversations API. `ownIds` are the Page id and the Instagram account id. */
-export function mapConversations(platform: SocialPlatform, conversations: Conversation[], ownIds: string[], since: Date): IncomingMessage[] {
+/**
+ * Messages from the conversations API. `ownIds` are the Page id and the Instagram
+ * account id. Every message returned for a recently active conversation is kept,
+ * whatever its age, so a thread always shows the customer's side too (duplicates
+ * are dropped when saving).
+ */
+export function mapConversations(platform: SocialPlatform, conversations: Conversation[], ownIds: string[]): IncomingMessage[] {
   const out: IncomingMessage[] = [];
   for (const conv of conversations) {
     if (!conv.id) continue;
     const other = (conv.participants?.data ?? []).find((p) => p.id && !ownIds.includes(p.id));
     if (!other?.id) continue;
     for (const m of conv.messages?.data ?? []) {
-      if (!m.id || !m.created_time || !m.message?.trim()) continue;
-      if (Date.parse(m.created_time) < since.getTime()) continue;
+      // Photos, files and stickers have no text but are still part of the conversation.
+      const text = m.message?.trim() || (m.sticker ? '(sticker)' : m.attachments?.data?.length ? '(photo or file)' : '');
+      if (!m.id || !m.created_time || !text) continue;
       const fromUs = Boolean(m.from?.id && ownIds.includes(m.from.id));
       out.push({
         platform, messageId: m.id, threadId: conv.id, participantId: other.id,
         participantName: other.name ?? other.username ?? null, direction: fromUs ? 'out' : 'in',
-        body: m.message.trim().slice(0, 2000), sentAt: m.created_time,
+        body: text.slice(0, 2000), sentAt: m.created_time,
       });
     }
   }
