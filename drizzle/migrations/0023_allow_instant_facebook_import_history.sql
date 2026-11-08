@@ -1,0 +1,2 @@
+ALTER TABLE public.lead_sync_runs DROP CONSTRAINT lead_sync_runs_trigger_kind_check;
+ALTER TABLE public.lead_sync_runs ADD CONSTRAINT lead_sync_runs_trigger_kind_check CHECK (trigger_kind IN ('manual','schedule','webhook'));

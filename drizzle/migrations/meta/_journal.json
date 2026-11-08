@@ -162,6 +162,13 @@
       "when": 1794142242257,
       "tag": "0022_confirm_meta_lead_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794145812346,
+      "tag": "0023_allow_instant_facebook_import_history",
+      "breakpoints": true
     }
   ]
 }
