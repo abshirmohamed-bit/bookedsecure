@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkLead, computeSince, enrichmentPatch, finalRunStatus, humanizeAnswer, mapEnquiryFields, mapLeadFields, metaExternalId } from './lead-sync';
+import { checkLead, computeSince, enrichmentPatch, cleanAttribution, finalRunStatus, humanizeAnswer, mapEnquiryFields, mapLeadFields, metaExternalId } from './lead-sync';
 
 describe('facebook lead sync rules', () => {
   it('takes the first value of each Meta field', () => {
@@ -131,4 +131,15 @@ describe('safe re-import enrichment', () => {
     expect(m.service).toBe('Full detail (starting $280)');
     expect(m.rawAnswers[0]?.values).toEqual(['Full detail (starting $280)']);
   });
+  it('records ad attribution once and fills an empty campaign', () => {
+    const ad = cleanAttribution({ campaign_id: 77, campaign_name: ' High-income ', ad_name: '', extra: 'x' });
+    expect(ad).toEqual({ campaign_id: '77', campaign_name: 'High-income' });
+    expect(cleanAttribution({})).toBeNull();
+    const mapped = mapEnquiryFields({ meta_lead_id: '1', field_data: [] });
+    const first = enrichmentPatch({ source_campaign: null, source_metadata: {} }, mapped, { email: null }, ad);
+    expect(first.patch).toMatchObject({ source_campaign: 'High-income', source_metadata: { ad } });
+    const again = enrichmentPatch({ source_campaign: 'High-income', request_type: 'quote', source_metadata: { ad } }, mapped, { email: null }, ad);
+    expect(again.changed).toEqual([]);
+  });
 });
+

@@ -145,7 +145,7 @@ export async function sweepScheduledSyncs() {
 
 type ItemOutcome = { meta_lead_id: string; outcome: 'created' | 'duplicate' | 'enriched' | 'skipped' | 'failed'; reason?: string | undefined };
 
-const ENRICH_SELECT = 'id, email, suburb, service_address, vehicle_type, main_concerns, service_intent, request_type, service_name_snapshot, flexible_request_text, source_metadata';
+const ENRICH_SELECT = 'id, email, suburb, service_address, vehicle_type, main_concerns, service_intent, request_type, service_name_snapshot, flexible_request_text, source_campaign, source_metadata';
 
 /**
  * A lead that already exists (same Meta submission, or one sent earlier through
@@ -156,7 +156,7 @@ async function enrichExisting(businessId: string, leadId: string, input: SyncLea
   const { data: existing, error } = await supabaseAdmin.from('leads').select(ENRICH_SELECT).eq('business_id', businessId).eq('id', leadId).maybeSingle();
   if (error) throw error;
   if (!existing) return 'duplicate';
-  const { patch, changed } = enrichmentPatch(existing as EnrichableLead, mapEnquiryFields(input), { email });
+  const { patch, changed } = enrichmentPatch(existing as EnrichableLead, mapEnquiryFields(input), { email }, input.ad ?? null);
   if (!changed.length) return 'duplicate';
   const { error: upErr } = await supabaseAdmin.from('leads').update(patch as never).eq('business_id', businessId).eq('id', leadId);
   if (upErr) throw upErr;
@@ -234,9 +234,10 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
       request_type: mapped.requestType, service_name_snapshot: mapped.service,
       flexible_request_text: mapped.flexibleText,
       source_channel: 'meta', source_form: input.form_name ?? null, utm_source: SOURCE,
+      source_campaign: input.ad?.campaign_name ?? null, utm_campaign: input.ad?.campaign_name ?? null,
       consent: false, consent_text: 'No explicit SMS consent supplied with this Facebook lead.',
       lead_origin: 'inbound_form', channel: 'web' as const,
-      source_metadata: { source: SOURCE, meta_lead_id: input.meta_lead_id, page_id: input.page_id ?? null, form_id: input.form_id ?? null, form_name: input.form_name ?? null, submitted_at: submittedAt, sync_run_id: runId, form_answers: mapped.rawAnswers },
+      source_metadata: { source: SOURCE, meta_lead_id: input.meta_lead_id, page_id: input.page_id ?? null, form_id: input.form_id ?? null, form_name: input.form_name ?? null, submitted_at: submittedAt, sync_run_id: runId, form_answers: mapped.rawAnswers, ...(input.ad ? { ad: input.ad } : {}) },
       external_id: externalId,
     });
     if (!result.duplicate) await respond(result.leadId, false);

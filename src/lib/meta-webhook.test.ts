@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_WEBHOOK_VERIFY_TOKEN, parseLeadgenEvents, validSignature, verifySubscription } from './meta-webhook.server';
-import { createDirectMetaTransport, type DirectMetaAccount } from './meta-direct.server';
+import { LEAD_AD_FIELDS, createDirectMetaTransport, type DirectMetaAccount } from './meta-direct.server';
 
 const sign = (body: string, secret: string) => `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
 const event = (leadgenId: string, pageId = '111') => ({ field: 'leadgen', value: { leadgen_id: leadgenId, page_id: pageId, form_id: '501', created_time: 1794140000 } });
@@ -48,7 +48,7 @@ describe('single-lead read and Page subscription', () => {
     expect(lead).toMatchObject({ meta_lead_id: '900', form_id: '501', page_id: '111' });
     const url = new URL(String((fetcher.mock.calls[0] as unknown as [URL])[0]));
     expect(url.pathname).toBe('/v27.0/900');
-    expect(url.searchParams.get('fields')).toBe('id,created_time,form_id,field_data');
+    expect(url.searchParams.get('fields')).toBe(`id,created_time,form_id,field_data,${LEAD_AD_FIELDS}`);
   });
   it('refuses an invalid lead id without calling Facebook', async () => {
     const fetcher = vi.fn();

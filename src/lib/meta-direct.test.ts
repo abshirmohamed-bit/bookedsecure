@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createDirectMetaTransport, describeGraphFailure, type DirectMetaAccount } from './meta-direct.server';
+import { LEAD_AD_FIELDS, createDirectMetaTransport, describeGraphFailure, type DirectMetaAccount } from './meta-direct.server';
 
 // Synthetic credentials and ids only; no environment or real Meta/lead calls.
 const account: DirectMetaAccount = { businessId: 'biz-a', pageId: '111', pageName: 'Mock Page', token: 'mock-only', formIds: [] };
@@ -55,7 +55,7 @@ describe('direct Facebook import (per business)', () => {
     expect(urls.every((u) => u.hostname === 'graph.facebook.com')).toBe(true);
     const last = leadUrls(fetcher).at(-1)!;
     expect(last.searchParams.get('after')).toBe('cursor-2');
-    expect(last.searchParams.get('fields')).toBe('id,created_time,field_data');
+    expect(last.searchParams.get('fields')).toBe(`id,created_time,field_data,${LEAD_AD_FIELDS}`);
     const filters = JSON.parse(last.searchParams.get('filtering') ?? '[]');
     expect(filters[0].value).toBe(Math.floor(new Date('2026-10-30T01:00:00Z').getTime() / 1000) - 1);
   });
@@ -120,4 +120,23 @@ describe('direct Facebook import (per business)', () => {
     const { transport } = mockTransport([{ data: [{ ...row('1'), created_time: '2025-01-01T00:00:00Z' }] }]); const apply = vi.fn(async (_input: Batch) => ({}));
     expect((await transport.importLeads({ lookbackDays: 7, checkpoints: [], apply, now })).received).toBe(0);
   });
+  it('attaches the campaign, ad set and ad each lead came from', async () => {
+    const { transport } = mockTransport([{ data: [{ ...row('1'), campaign_id: '77', campaign_name: 'High-income Bentley', adset_name: 'Sydney 25-55', ad_id: '88', ad_name: 'Bentley Interior $279', is_organic: false }] }]);
+    const apply = applyMock();
+    await transport.importLeads({ lookbackDays: 7, checkpoints: [], apply, now });
+    expect(apply.mock.calls[0]?.[0].leads[0]?.['ad']).toEqual({ campaign_id: '77', campaign_name: 'High-income Bentley', adset_name: 'Sydney 25-55', ad_id: '88', ad_name: 'Bentley Interior $279', is_organic: false });
+  });
+  it('keeps importing without attribution when Facebook refuses the ad fields', async () => {
+    const fetcher = vi.fn(async (url: URL | RequestInfo) => {
+      const u = new URL(String(url));
+      if (u.pathname.endsWith('/leadgen_forms')) return Response.json(FORMS);
+      if ((u.searchParams.get('fields') ?? '').includes('campaign_name')) return Response.json({ error: { code: 200 } }, { status: 403 });
+      return Response.json({ data: [row('1')] });
+    });
+    const apply = applyMock();
+    const result = await createDirectMetaTransport(account, 'v27.0', fetcher as typeof fetch).importLeads({ lookbackDays: 7, checkpoints: [], apply, now });
+    expect(result.received).toBe(1);
+    expect(apply.mock.calls[0]?.[0].leads[0]?.['ad']).toBeNull();
+  });
 });
+

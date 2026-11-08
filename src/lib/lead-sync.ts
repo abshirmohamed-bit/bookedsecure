@@ -16,8 +16,35 @@ export const LEAD_SYNC_LOOKBACK_OPTIONS = [1, 7, 14, 30, 90] as const;
 
 const fieldDataSchema = z.array(z.object({ name: z.string().max(120), values: z.array(z.string().max(500)).max(10).optional().default([]) })).max(60);
 
+/** Which campaign, ad set and ad a Facebook lead came from (absent for organic leads). */
+export const adAttributionSchema = z.object({
+  campaign_id: z.string().max(64).nullish(),
+  campaign_name: z.string().max(200).nullish(),
+  adset_id: z.string().max(64).nullish(),
+  adset_name: z.string().max(200).nullish(),
+  ad_id: z.string().max(64).nullish(),
+  ad_name: z.string().max(200).nullish(),
+  platform: z.string().max(40).nullish(),
+  is_organic: z.boolean().nullish(),
+});
+export type AdAttribution = z.infer<typeof adAttributionSchema>;
+
+/** Keeps only the attribution values Facebook actually supplied; null when there are none. */
+export function cleanAttribution(raw: Record<string, unknown> | null | undefined): AdAttribution | null {
+  if (!raw) return null;
+  const out: Record<string, string | boolean> = {};
+  for (const k of ['campaign_id', 'campaign_name', 'adset_id', 'adset_name', 'ad_id', 'ad_name', 'platform'] as const) {
+    const v = raw[k];
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim().slice(0, k.endsWith('_id') ? 64 : 200);
+    else if (typeof v === 'number') out[k] = String(v);
+  }
+  if (typeof raw['is_organic'] === 'boolean') out['is_organic'] = raw['is_organic'];
+  return Object.keys(out).length ? (out as AdAttribution) : null;
+}
+
 export const syncLeadSchema = z.object({
   meta_lead_id: z.string().trim().min(1).max(64),
+  ad: adAttributionSchema.nullish(),
   form_id: z.string().trim().max(64).optional().nullable(),
   form_name: z.string().trim().max(120).optional().nullable(),
   page_id: z.string().trim().max(64).optional().nullable(),
@@ -167,6 +194,7 @@ export type EnrichableLead = {
   request_type?: string | null;
   service_name_snapshot?: string | null;
   flexible_request_text?: string | null;
+  source_campaign?: string | null;
   source_metadata?: Record<string, unknown> | null;
 };
 
@@ -181,6 +209,7 @@ export function enrichmentPatch(
   existing: EnrichableLead,
   mapped: EnquiryMapping,
   contact: { email: string | null },
+  ad: AdAttribution | null = null,
 ): { patch: Record<string, unknown>; changed: string[] } {
   const patch: Record<string, unknown> = {};
   const changed: string[] = [];
@@ -198,20 +227,21 @@ export function enrichmentPatch(
   fill('request_type', mapped.requestType);
   fill('service_name_snapshot', mapped.service);
   fill('flexible_request_text', mapped.flexibleText);
+  fill('source_campaign', ad?.campaign_name ?? null);
 
   // Merge raw form answers by question name so reimports never drop answers
   // recorded earlier and never duplicate a question already stored.
+  const meta = { ...(existing.source_metadata ?? {}) };
+  let metaChanged = false;
   if (mapped.rawAnswers.length) {
-    const meta = { ...(existing.source_metadata ?? {}) };
     const prior = Array.isArray(meta['form_answers']) ? (meta['form_answers'] as RawAnswer[]) : [];
     const known = new Set(prior.map((a) => norm(a.name)));
     const added = mapped.rawAnswers.filter((a) => !known.has(norm(a.name)));
-    if (!prior.length || added.length) {
-      meta['form_answers'] = [...prior, ...added];
-      patch['source_metadata'] = meta;
-      changed.push('source_metadata');
-    }
+    if (!prior.length || added.length) { meta['form_answers'] = [...prior, ...added]; metaChanged = true; }
   }
+  // Ad attribution is recorded once; a later read never rewrites it.
+  if (ad && !meta['ad']) { meta['ad'] = ad; metaChanged = true; }
+  if (metaChanged) { patch['source_metadata'] = meta; changed.push('source_metadata'); }
   return { patch, changed };
 }
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { computeSince, syncLeadSchema, type SyncLeadInput } from './lead-sync';
+import { cleanAttribution, computeSince, syncLeadSchema, type SyncLeadInput } from './lead-sync';
 import { decryptMetaToken, readMetaAppConfig, tokenContext } from './meta-oauth.server';
 
 /**
@@ -33,8 +33,11 @@ export async function loadMetaAccount(businessId: string): Promise<DirectMetaAcc
   };
 }
 
+/** Attribution fields requested with every lead. Dropped automatically if the token may not read them. */
+export const LEAD_AD_FIELDS = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,platform,is_organic';
+const adFields = { ad_id: z.string().optional(), ad_name: z.string().optional(), adset_id: z.string().optional(), adset_name: z.string().optional(), campaign_id: z.string().optional(), campaign_name: z.string().optional(), platform: z.string().optional(), is_organic: z.boolean().optional() };
 const leadPage = z.object({
-  data: z.array(z.object({ id: z.string().regex(/^\d+$/), created_time: z.string(), field_data: z.array(z.object({ name: z.string(), values: z.array(z.string()) })) })),
+  data: z.array(z.object({ id: z.string().regex(/^\d+$/), created_time: z.string(), field_data: z.array(z.object({ name: z.string(), values: z.array(z.string()) })), ...adFields })),
   paging: z.object({ cursors: z.object({ after: z.string().optional() }).optional(), next: z.string().optional() }).optional(),
 });
 const formPage = z.object({
@@ -61,7 +64,10 @@ export function describeGraphFailure(status: number, body: unknown): string {
 /** Never log provider bodies, thrown fetch errors, next URLs or headers: any
  * of them may echo a token. Only controlled status/code diagnostics escape.
  */
-const singleLead = z.object({ id: z.string().regex(/^\d+$/), created_time: z.string(), form_id: z.string().regex(/^\d+$/).optional(), field_data: z.array(z.object({ name: z.string(), values: z.array(z.string()) })) });
+const singleLead = z.object({ id: z.string().regex(/^\d+$/), created_time: z.string(), form_id: z.string().regex(/^\d+$/).optional(), field_data: z.array(z.object({ name: z.string(), values: z.array(z.string()) })), ...adFields });
+
+/** A Graph failure that keeps Facebook's numeric code for callers that can recover. */
+class GraphReadError extends Error { constructor(message: string, readonly status: number, readonly code?: number) { super(message); } }
 const subscribedApps = z.object({ data: z.array(z.object({ id: z.string().optional(), subscribed_fields: z.array(z.string()).optional() })) });
 
 export function createDirectMetaTransport(account: DirectMetaAccount, version = readMetaAppConfig().version, fetcher: typeof fetch = fetch) {
@@ -74,7 +80,10 @@ export function createDirectMetaTransport(account: DirectMetaAccount, version = 
     } catch { throw new Error('Facebook could not be reached. No import checkpoint was advanced.'); }
     let body: unknown = null;
     try { body = await response.json(); } catch { body = null; }
-    if (!response.ok || (body && typeof body === 'object' && 'error' in body)) throw new Error(describeGraphFailure(response.status, body));
+    if (!response.ok || (body && typeof body === 'object' && 'error' in body)) {
+      const parsed = graphError.safeParse(body);
+      throw new GraphReadError(describeGraphFailure(response.status, body), response.status, parsed.success ? parsed.data.error.code : undefined);
+    }
     if (body === null) throw new Error('Facebook returned an invalid response.');
     return body;
   }
@@ -106,18 +115,36 @@ export function createDirectMetaTransport(account: DirectMetaAccount, version = 
     return account.formIds.map((id) => byId.get(id)!);
   }
 
+  // Attribution needs ad permissions; if Facebook refuses those fields, keep importing without them.
+  // Once a read with attribution has worked, later failures are real and are not retried.
+  let withAdFields = true; let adFieldsConfirmed = false;
+  async function getLeadData(path: string, params: Record<string, string>, base: string) {
+    if (withAdFields) {
+      try {
+        const body = await get(path, { ...params, fields: `${base},${LEAD_AD_FIELDS}` });
+        adFieldsConfirmed = true;
+        return body;
+      } catch (e) {
+        const permission = e instanceof GraphReadError && ([10, 100, 200].includes(e.code ?? -1) || e.status === 403);
+        if (adFieldsConfirmed || !permission) throw e;
+        withAdFields = false;
+      }
+    }
+    return get(path, { ...params, fields: base });
+  }
+
   async function readPage(formId: string, since: Date, until: Date, after?: string, limit = 100) {
     if (!Number.isFinite(since.getTime()) || !Number.isFinite(until.getTime()) || since >= until || until.getTime() - since.getTime() > 90 * 86400_000) {
       throw new Error('A valid date range of at most 90 days is required.');
     }
     // Server-side time filter keeps each read small; local bounds are enforced too.
-    const parsed = leadPage.safeParse(await get(`${formId}/leads`, {
-      fields: 'id,created_time,field_data', limit: String(limit),
+    const parsed = leadPage.safeParse(await getLeadData(`${formId}/leads`, {
+      limit: String(limit),
       filtering: JSON.stringify([
         { field: 'time_created', operator: 'GREATER_THAN', value: Math.floor(since.getTime() / 1000) - 1 },
         { field: 'time_created', operator: 'LESS_THAN', value: Math.ceil(until.getTime() / 1000) + 1 },
       ]), ...(after ? { after } : {}),
-    }));
+    }, 'id,created_time,field_data'));
     if (!parsed.success) throw new Error('Facebook returned incomplete lead IDs, timestamps or form answers.');
     return parsed.data;
   }
@@ -134,9 +161,9 @@ export function createDirectMetaTransport(account: DirectMetaAccount, version = 
   /** One lead by id (what a Facebook webhook announces). */
   async function readLead(leadId: string): Promise<SyncLeadInput & { form_id: string }> {
     if (!/^\d{3,40}$/.test(leadId)) throw new Error('Facebook sent an invalid lead id.');
-    const parsed = singleLead.safeParse(await get(leadId, { fields: 'id,created_time,form_id,field_data' }));
+    const parsed = singleLead.safeParse(await getLeadData(leadId, {}, 'id,created_time,form_id,field_data'));
     if (!parsed.success || !parsed.data.form_id) throw new Error('Facebook returned an incomplete lead.');
-    const lead = syncLeadSchema.safeParse({ meta_lead_id: parsed.data.id, created_time: parsed.data.created_time, field_data: parsed.data.field_data, form_id: parsed.data.form_id, page_id: account.pageId });
+    const lead = syncLeadSchema.safeParse({ meta_lead_id: parsed.data.id, created_time: parsed.data.created_time, field_data: parsed.data.field_data, form_id: parsed.data.form_id, page_id: account.pageId, ad: cleanAttribution(parsed.data) });
     if (!lead.success) throw new Error('A Facebook submission exceeds the importer’s safe field limits; no answers were truncated.');
     return { ...lead.data, form_id: parsed.data.form_id };
   }
@@ -182,7 +209,7 @@ export function createDirectMetaTransport(account: DirectMetaAccount, version = 
             const timestamp = Date.parse(row.created_time);
             if (!Number.isFinite(timestamp)) throw new Error('Facebook returned an invalid submission timestamp.');
             if (timestamp < since.getTime() || timestamp > now.getTime() || seen.has(row.id)) continue;
-            const parsed = syncLeadSchema.safeParse({ meta_lead_id: row.id, created_time: row.created_time, field_data: row.field_data, form_id: form.id, form_name: form.name, page_id: account.pageId });
+            const parsed = syncLeadSchema.safeParse({ meta_lead_id: row.id, created_time: row.created_time, field_data: row.field_data, form_id: form.id, form_name: form.name, page_id: account.pageId, ad: cleanAttribution(row) });
             if (!parsed.success) throw new Error('A Facebook submission exceeds the importer’s safe field limits; no answers were truncated.');
             seen.add(row.id); leads.push(parsed.data);
           }
