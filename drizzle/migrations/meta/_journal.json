@@ -176,6 +176,13 @@
       "when": 1794150432829,
       "tag": "0024_meta_ad_spend",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794151509269,
+      "tag": "0025_meta_ad_spend",
+      "breakpoints": true
     }
   ]
 }
