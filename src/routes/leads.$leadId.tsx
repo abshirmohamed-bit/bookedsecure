@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/leads/$leadId")({
   head: () => ({
     meta: [
-      { title: "Lead conversation | BookedSecure" },
+      { title: "Lead | BookedSecure" },
       {
         name: "description",
         content:

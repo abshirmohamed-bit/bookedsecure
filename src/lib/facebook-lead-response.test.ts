@@ -37,3 +37,11 @@ describe('Facebook lead auto-response', () => {
     expect(formatAuPhone('+61447852565')).toBe('0447 852 565');
   });
 });
+
+describe('service wording in the reply', () => {
+  it('never texts a raw Facebook option key', () => {
+    const text = buildFacebookReply({ ...base, intent: 'quote', service: 'full_detail_(starting_$280)' } as Parameters<typeof buildFacebookReply>[0]);
+    expect(text).toContain('about Full detail (starting $280)');
+    expect(text).not.toContain('full_detail_');
+  });
+});

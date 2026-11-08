@@ -2,7 +2,7 @@
 // Facebook leads carry no SMS consent, so exactly ONE reply about the
 // customer's own enquiry is allowed (with an opt-out line) — never follow-ups.
 import { localDateTimeToIso } from './business-time';
-import type { RawAnswer } from './lead-sync';
+import { humanizeAnswer, type RawAnswer } from './lead-sync';
 
 /** Only submissions made after this moment get an automatic reply; older imports are never texted. */
 export const FACEBOOK_AUTO_REPLY_FROM = '2026-11-07T14:35:00.000Z';
@@ -92,10 +92,12 @@ export function buildFacebookReply(r: ReplyInput): string | null {
   const hi = r.returning
     ? `Hi ${r.firstName}, welcome back to ${r.businessName}! Great to hear from you again.`
     : `Hi ${r.firstName}, thanks for contacting ${r.businessName}.`;
-  const about = r.service ? ` about ${r.service}` : '';
+  // Never text a raw form option key ("full_detail_(starting_$280)") to a customer.
+  const service = r.service ? humanizeAnswer(r.service) : null;
+  const about = service ? ` about ${service}` : '';
   let middle: string;
   if (r.intent === 'booking' && r.bookedLabel) {
-    middle = `We've pencilled you in for ${r.bookedLabel}${about ? ` for ${r.service}` : ''}. We'll be in touch to confirm.`;
+    middle = `We've pencilled you in for ${r.bookedLabel}${about ? ` for ${service}` : ''}. We'll be in touch to confirm.`;
   } else if (r.intent === 'booking') {
     middle = `We got your booking request${about}. To lock in a time`;
   } else {
