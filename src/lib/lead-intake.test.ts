@@ -29,7 +29,7 @@ describe("lead intake normaliser", () => {
     });
   });
 
-  it("accepts Meta field names forwarded straight from Make", () => {
+  it("accepts Meta field names forwarded straight from an automation tool", () => {
     const lead = ok({
       full_name: "Ghina H",
       phone_number: "+61403000000",

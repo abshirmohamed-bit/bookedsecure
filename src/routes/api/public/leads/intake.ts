@@ -17,7 +17,7 @@ async function readBody(request: Request): Promise<unknown> {
 
 /**
  * Public intake endpoint for external website forms, embeds and Meta lead
- * forwarding (Make, Zapier or raw Meta Lead Ads payloads).
+ * forwarding (Zapier, n8n or raw Meta Lead Ads payloads).
  *
  * - Payloads are normalised leniently (see lead-intake.ts); only a lead with no
  *   usable phone number is refused, and refusals are recorded for diagnosis.

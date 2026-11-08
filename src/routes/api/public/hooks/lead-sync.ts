@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { authenticateCronRequest } from '@/integrations/supabase/cron-auth';
 
-/** Every five minutes: asks each opted-in business's Make scenario for new Facebook leads. */
+/** Every five minutes: imports new Facebook leads for each business with direct import switched on. */
 export const Route = createFileRoute('/api/public/hooks/lead-sync')({
   server: {
     handlers: {

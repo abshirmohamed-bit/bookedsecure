@@ -1,4 +1,4 @@
-// Pure normaliser for the public lead intake webhook (Make, Zapier, website
+// Pure normaliser for the public lead intake webhook (Zapier, n8n, website
 // embeds, raw Meta Lead Ads payloads). Accepts BookedSecure field names, Meta's
 // own field names and Meta's `field_data` array, and only rejects a lead when
 // there is no usable phone number: over-long answers are trimmed and a bad

@@ -73,7 +73,6 @@ import { Route as ApiPublicMetaOauthCallbackRouteImport } from './routes/api/pub
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
 import { Route as ApiPublicSmsTextoDeliveryRouteImport } from './routes/api/public/sms/texto.delivery'
 import { Route as ApiPublicSmsTextoInboundRouteImport } from './routes/api/public/sms/texto.inbound'
-import { Route as ApiPublicV1LeadSyncRunsRunIdRouteImport } from './routes/api/public/v1/lead-sync.runs.$runId'
 import { Route as ApiPublicV1SocialCommentsIdPostedRouteImport } from './routes/api/public/v1/social-comments.$id.posted'
 
 const IndexRoute = IndexRouteImport.update({
@@ -409,12 +408,6 @@ const ApiPublicSmsTextoInboundRoute =
     path: '/api/public/sms/texto/inbound',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicV1LeadSyncRunsRunIdRoute =
-  ApiPublicV1LeadSyncRunsRunIdRouteImport.update({
-    id: '/api/public/v1/lead-sync/runs/$runId',
-    path: '/api/public/v1/lead-sync/runs/$runId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicV1SocialCommentsIdPostedRoute =
   ApiPublicV1SocialCommentsIdPostedRouteImport.update({
     id: '/$id/posted',
@@ -487,7 +480,6 @@ export interface FileRoutesByFullPath {
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
-  '/api/public/v1/lead-sync/runs/$runId': typeof ApiPublicV1LeadSyncRunsRunIdRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesByTo {
@@ -554,7 +546,6 @@ export interface FileRoutesByTo {
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
-  '/api/public/v1/lead-sync/runs/$runId': typeof ApiPublicV1LeadSyncRunsRunIdRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesById {
@@ -623,7 +614,6 @@ export interface FileRoutesById {
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
-  '/api/public/v1/lead-sync/runs/$runId': typeof ApiPublicV1LeadSyncRunsRunIdRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRouteTypes {
@@ -693,7 +683,6 @@ export interface FileRouteTypes {
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
-    | '/api/public/v1/lead-sync/runs/$runId'
     | '/api/public/v1/social-comments/$id/posted'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -760,7 +749,6 @@ export interface FileRouteTypes {
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
-    | '/api/public/v1/lead-sync/runs/$runId'
     | '/api/public/v1/social-comments/$id/posted'
   id:
     | '__root__'
@@ -828,7 +816,6 @@ export interface FileRouteTypes {
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
-    | '/api/public/v1/lead-sync/runs/$runId'
     | '/api/public/v1/social-comments/$id/posted'
   fileRoutesById: FileRoutesById
 }
@@ -889,7 +876,6 @@ export interface RootRouteChildren {
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
   ApiPublicSmsTextoDeliveryRoute: typeof ApiPublicSmsTextoDeliveryRoute
   ApiPublicSmsTextoInboundRoute: typeof ApiPublicSmsTextoInboundRoute
-  ApiPublicV1LeadSyncRunsRunIdRoute: typeof ApiPublicV1LeadSyncRunsRunIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1342,13 +1328,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSmsTextoInboundRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/v1/lead-sync/runs/$runId': {
-      id: '/api/public/v1/lead-sync/runs/$runId'
-      path: '/api/public/v1/lead-sync/runs/$runId'
-      fullPath: '/api/public/v1/lead-sync/runs/$runId'
-      preLoaderRoute: typeof ApiPublicV1LeadSyncRunsRunIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/v1/social-comments/$id/posted': {
       id: '/api/public/v1/social-comments/$id/posted'
       path: '/$id/posted'
@@ -1468,7 +1447,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,
   ApiPublicSmsTextoDeliveryRoute: ApiPublicSmsTextoDeliveryRoute,
   ApiPublicSmsTextoInboundRoute: ApiPublicSmsTextoInboundRoute,
-  ApiPublicV1LeadSyncRunsRunIdRoute: ApiPublicV1LeadSyncRunsRunIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

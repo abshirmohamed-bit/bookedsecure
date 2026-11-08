@@ -1,38 +1,20 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server';
 import { MetaConnectError, encryptMetaToken, exchangeCodeForPages, readMetaAppConfig, tokenContext, verifyState } from './meta-oauth.server';
 
-const CONN_COLUMNS = 'id, business_id, provider, trigger_url, initial_lookback_days, consecutive_failures, status, auto_sync_enabled';
+const CONN_COLUMNS = 'id, business_id, provider, initial_lookback_days, consecutive_failures, status, auto_sync_enabled';
 const PENDING_TTL_MS = 15 * 60_000;
 
-/**
- * Creates the direct connection on first use. Its form checkpoints start from
- * the Make connection's, so switching over continues where Make stopped rather
- * than re-reading the whole lookback window.
- */
+/** Creates the business's direct Facebook connection on first use. */
 export async function ensureDirectConnection(businessId: string, userId: string) {
   const { data: existing, error: loadErr } = await supabaseAdmin.from('lead_sync_connections').select(CONN_COLUMNS)
     .eq('business_id', businessId).eq('provider', 'meta_direct').maybeSingle();
   if (loadErr) throw new Error('Could not load the direct Facebook connection.');
   if (existing) return existing;
-  const { data: make } = await supabaseAdmin.from('lead_sync_connections').select('id, initial_lookback_days')
-    .eq('business_id', businessId).eq('provider', 'make').maybeSingle();
   const { data: created, error } = await supabaseAdmin.from('lead_sync_connections').upsert({
     business_id: businessId, provider: 'meta_direct', created_by: userId, status: 'connected',
-    auto_sync_enabled: false, initial_lookback_days: make?.initial_lookback_days ?? 7,
+    auto_sync_enabled: false, initial_lookback_days: 7,
   }, { onConflict: 'business_id,provider' }).select(CONN_COLUMNS).single();
   if (error || !created) throw new Error('Could not set up the direct Facebook connection.');
-  if (make) {
-    const { data: cps, error: cpErr } = await supabaseAdmin.from('lead_sync_form_checkpoints')
-      .select('form_id, form_name, page_id, last_submitted_at').eq('connection_id', make.id).eq('business_id', businessId);
-    if (cpErr) throw new Error('Could not copy import progress from Make.');
-    if (cps?.length) {
-      const { error: seedErr } = await supabaseAdmin.from('lead_sync_form_checkpoints').upsert(
-        cps.map((c) => ({ ...c, business_id: businessId, connection_id: created.id })),
-        { onConflict: 'connection_id,form_id', ignoreDuplicates: true },
-      );
-      if (seedErr) throw new Error('Could not copy import progress from Make.');
-    }
-  }
   return created;
 }
 

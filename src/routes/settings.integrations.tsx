@@ -48,7 +48,7 @@ function Connections() {
   const tiles = [
     { value: 'assistants', icon: Bot, title: 'AI assistants', text: grants.isSuccess ? `${connectedCount} connected` : 'ChatGPT, Claude, Grok' },
     { value: 'backup', icon: ShieldCheck, title: 'Backup AI', text: 'Keeps Cowork running' },
-    { value: 'apps', icon: Plug, title: 'Apps & leads', text: 'Make.com, Facebook, API keys' },
+    { value: 'apps', icon: Plug, title: 'Apps & leads', text: 'Facebook, API keys' },
   ];
   return <AppShell title="AI connections"><div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-8">
     <header className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-6 sm:p-10">

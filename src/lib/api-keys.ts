@@ -47,7 +47,7 @@ export function hasScope(scopes: readonly string[], needed: ApiScope): boolean {
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().nullable();
 
-/** Body accepted by POST /api/public/v1/leads (Make.com, Zapier, custom code). */
+/** Body accepted by POST /api/public/v1/leads (Zapier, n8n, website forms, custom code). */
 export const apiLeadSchema = z.object({
   name: z.string().trim().min(1).max(80),
   mobile: z.string().trim().min(8).max(20),

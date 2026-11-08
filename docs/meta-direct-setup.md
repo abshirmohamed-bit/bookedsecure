@@ -1,11 +1,9 @@
-# Direct Facebook lead import (replacing Make)
+# Facebook lead import
 
 Each business connects its own Facebook Page in BookedSecure, and BookedSecure
-reads that Page's lead forms itself every five minutes, instead of a Make
-scenario doing it (Make charges credits for every run). Leads go through the
-same pipeline as Make imports, so dedupe, enrichment, auto-replies and owner
-alerts are unchanged, and a lead Make already imported is never created or
-texted twice.
+reads that Page's lead forms itself every five minutes. Every lead is saved
+once (deduplicated by its Facebook lead id), enriched, and gets the normal
+auto-reply and owner alert.
 
 There are two parts: a one-time platform setup (BookedSecure's own Meta app),
 and a per-business **Connect Facebook** step that each customer does in Settings.
@@ -71,18 +69,16 @@ connect.
 ## 2. Per business: connect Facebook
 
 In BookedSecure: **Settings → Integrations → Facebook lead import →
-Direct from Facebook (no Make)**.
+Facebook lead import**.
 
 1. Click **Connect Facebook**, sign in, and tick the business Page (and allow
    lead access). If several Pages were shared, pick the one with the lead forms.
 2. Optional: **Choose forms**. Leave it on *All active forms* unless only some
    forms should be imported.
-3. Click **Test Facebook access**, then **Import now (direct)**. The first direct
-   run continues from where Make left off. Its result appears in the import
-   history labelled *Direct*.
-4. Turn on **Check for new leads every 5 minutes (direct)**, and choose **OK** to
-   also switch off Make's automatic checks.
-5. After a few good direct imports, turn the scenario **OFF in Make**.
+3. Click **Test Facebook access**, then **Import new leads now**. The first run
+   looks back over the chosen window (7 days by default). Its result appears in
+   the import history.
+4. Turn on **Check for new leads every 5 minutes**.
 
 If the Page uses **Leads Access** (Meta Business Suite → Business settings →
 Integrations → Leads Access), make sure BookedSecure is allowed for that Page.

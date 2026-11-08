@@ -18,7 +18,7 @@ export function ApiKeysPanel({ enabled }: { enabled: boolean }) {
   const qc = useQueryClient();
   const list = useServerFn(listApiKeys); const create = useServerFn(createApiKey); const revoke = useServerFn(revokeApiKey);
   const keys = useQuery({ queryKey: ['api-keys'], enabled, queryFn: () => list() });
-  const [name, setName] = useState('Make.com – Meta leads');
+  const [name, setName] = useState('Website form');
   const [access, setAccess] = useState<ApiAccessLevel>('leads_only');
   const [newKey, setNewKey] = useState<string | null>(null);
   const createM = useMutation({ mutationFn: () => create({ data: { name, access } }), onSuccess: async (r) => { setNewKey(r.key); await qc.invalidateQueries({ queryKey: ['api-keys'] }); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not create the key.') });
@@ -26,7 +26,7 @@ export function ApiKeysPanel({ enabled }: { enabled: boolean }) {
 
   return <section className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
     <h2 className="flex items-center gap-2 font-heading text-lg font-semibold"><KeyRound className="h-5 w-5 text-primary" />API keys</h2>
-    <p className="text-sm text-muted-foreground">Connect Make.com, Zapier, n8n or any tool that supports API keys. Use these for sending leads in (for example Meta Lead Ads through Make.com). AI assistants use the connection above instead.</p>
+    <p className="text-sm text-muted-foreground">Send leads in from your website, Zapier, n8n or any tool that supports API keys. Facebook lead forms connect directly in Facebook lead import above. AI assistants use the connection above instead.</p>
 
     <form className="grid gap-3 sm:grid-cols-[1fr_auto_auto]" onSubmit={(e) => { e.preventDefault(); createM.mutate(); }}>
       <Input aria-label="Key name" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
@@ -58,22 +58,19 @@ export function ApiKeysPanel({ enabled }: { enabled: boolean }) {
     </ul>
 
     <details className="rounded-md border border-border p-3 text-sm">
-      <summary className="cursor-pointer font-medium">Set up Make.com with Meta Lead Ads</summary>
+      <summary className="cursor-pointer font-medium">Send leads with an API key</summary>
       <ol className="mt-3 list-decimal space-y-2 pl-5 text-muted-foreground">
-        <li>In Make.com, start a scenario with <b>Facebook Lead Ads → Watch Leads</b> and pick your page and form.</li>
-        <li>Add <b>HTTP → Make a request</b>. Method <b>POST</b>, URL <code className="break-all">{BASE}/leads</code>.</li>
+        <li>In your tool (Zapier, n8n, your website code), send an HTTP <b>POST</b> to <code className="break-all">{BASE}/leads</code>.</li>
         <li>Add a header <b>Authorization</b> with value <code>Bearer</code> followed by a space and your key.</li>
-        <li>Body type <b>Raw</b>, content type <b>JSON</b>, and map the lead fields, for example:
+        <li>Send a JSON body with the lead's details, for example:
           <pre className="mt-2 overflow-x-auto rounded bg-muted p-2 text-xs">{`{
   "name": "{{full_name}}",
   "mobile": "{{phone_number}}",
   "email": "{{email}}",
   "service": "{{your service question}}",
-  "source": "Meta (via Make.com)",
-  "campaign": "{{campaign_name}}",
-  "ad_name": "{{ad_name}}",
-  "form_name": "{{form_name}}",
-  "external_id": "{{leadgen_id}}"
+  "source": "Website",
+  "form_name": "Contact form",
+  "external_id": "{{your unique id}}"
 }`}</pre></li>
         <li>Run once. A new lead appears in BookedSecure and gets your normal instant reply.</li>
       </ol>

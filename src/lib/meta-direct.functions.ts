@@ -74,8 +74,6 @@ export const saveDirectMeta = createServerFn({ method: 'POST' }).middleware([req
   .inputValidator((input: unknown) => z.object({
     auto_sync_enabled: z.boolean().optional(),
     initial_lookback_days: z.number().int().refine((n) => (LEAD_SYNC_LOOKBACK_OPTIONS as readonly number[]).includes(n)).optional(),
-    /** Also switch off Make's automatic checks so they stop using Make credits. */
-    pause_make: z.boolean().optional(),
   }).parse(input))
   .handler(async ({ data, context }) => {
     const ctx = await directOwner(context);
@@ -89,11 +87,6 @@ export const saveDirectMeta = createServerFn({ method: 'POST' }).middleware([req
     if (Object.keys(patch).length) {
       const { error } = await supabaseAdmin.from('lead_sync_connections').update(patch).eq('id', conn.id).eq('business_id', ctx.businessId);
       if (error) throw new Error('Could not save the settings.');
-    }
-    if (data.pause_make) {
-      const { error } = await supabaseAdmin.from('lead_sync_connections').update({ auto_sync_enabled: false, next_check_at: null })
-        .eq('business_id', ctx.businessId).eq('provider', 'make');
-      if (error) throw new Error('Saved, but Make’s automatic checks could not be switched off.');
     }
     return { ok: true };
   });

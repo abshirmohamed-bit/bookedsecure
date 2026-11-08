@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 /**
  * Facebook lead sync helpers shared by the settings screen, server routes and tests.
- * The bridge today is a per-business Make scenario; the same runs/items/checkpoints
- * are designed to serve a direct Meta connection later.
+ * Each business's direct Facebook connection imports through these runs, items
+ * and per-form checkpoints.
  */
 export const LEAD_SYNC_INTERVAL_MINUTES = 5;
 /** Re-read this much before each form's checkpoint so late-delivered leads are not missed. */
@@ -13,22 +13,6 @@ export const LEAD_SYNC_STALE_MINUTES = 20;
 /** Automatic checks pause after this many consecutive failed triggers. */
 export const LEAD_SYNC_MAX_FAILURES = 5;
 export const LEAD_SYNC_LOOKBACK_OPTIONS = [1, 7, 14, 30, 90] as const;
-
-/** Only Make's own webhook hosts may be called, so the URL cannot target anything else. */
-export function isAllowedTriggerUrl(raw: string): boolean {
-  try {
-    const u = new URL(raw.trim());
-    return u.protocol === 'https:' && /^hook\.[a-z0-9-]+\.make\.com$/i.test(u.hostname) && /^\/[A-Za-z0-9_-]{8,}$/.test(u.pathname) && !u.username && !u.password;
-  } catch {
-    return false;
-  }
-}
-
-export const saveConnectionSchema = z.object({
-  trigger_url: z.string().trim().max(300).refine(isAllowedTriggerUrl, 'Paste the Make webhook address (https://hook.…make.com/…).').optional(),
-  auto_sync_enabled: z.boolean().optional(),
-  initial_lookback_days: z.number().int().refine((n) => (LEAD_SYNC_LOOKBACK_OPTIONS as readonly number[]).includes(n)).optional(),
-});
 
 const fieldDataSchema = z.array(z.object({ name: z.string().max(120), values: z.array(z.string().max(500)).max(10).optional().default([]) })).max(60);
 
@@ -44,12 +28,6 @@ export const syncLeadSchema = z.object({
   email: z.string().max(200).optional().nullable(),
 });
 export type SyncLeadInput = z.infer<typeof syncLeadSchema>;
-
-export const syncBatchSchema = z.object({
-  leads: z.array(syncLeadSchema).max(100).optional().default([]),
-  final: z.boolean().optional().default(false),
-  error: z.string().trim().max(500).optional().nullable(),
-});
 
 const NAME_KEYS = ['full_name', 'fullname', 'name', 'your_name'];
 const FIRST_KEYS = ['first_name', 'firstname'];

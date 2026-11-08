@@ -6,13 +6,12 @@ type Call = { table: string; op: string; payload: unknown; filters: Array<[strin
 const calls: Call[] = [];
 const BUSINESS = '11111111-1111-1111-1111-111111111111';
 let metaRow: Record<string, unknown> | null = null;
-const directConn = { id: 'direct-conn', business_id: BUSINESS, provider: 'meta_direct', trigger_url: null, initial_lookback_days: 7, consecutive_failures: 2, next_check_at: null };
+const directConn = { id: 'direct-conn', business_id: BUSINESS, provider: 'meta_direct', initial_lookback_days: 7, consecutive_failures: 2, next_check_at: null };
 
 function respond(c: Call): { data: unknown; error: unknown } {
   const provider = c.filters.find(([k]) => k === 'provider')?.[1];
   if (c.table === 'lead_sync_connections' && c.op === 'select') {
     if (provider === 'meta_direct') return { data: [directConn], error: null };
-    if (provider === 'make') return { data: [], error: null };
     return { data: { provider: 'meta_direct', business_id: BUSINESS }, error: null };
   }
   if (c.table === 'meta_lead_accounts' && c.op === 'select') return { data: metaRow, error: null };
@@ -51,11 +50,11 @@ beforeEach(() => { calls.length = 0; metaRow = null; vi.stubEnv('TENANT_AI_ENCRY
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('five-minute sweep with a direct Facebook connection', () => {
-  it('selects direct connections separately from Make ones', async () => {
+  it('selects only direct Facebook connections that are due', async () => {
     const { sweepScheduledSyncs } = await import('./lead-sync.server');
     await sweepScheduledSyncs();
     const selects = calls.filter((c) => c.table === 'lead_sync_connections' && c.op === 'select' && c.filters.some(([k]) => k === 'provider'));
-    expect(selects.map((c) => c.filters.find(([k]) => k === 'provider')?.[1])).toEqual(['make', 'meta_direct']);
+    expect(selects.map((c) => c.filters.find(([k]) => k === 'provider')?.[1])).toEqual(['meta_direct']);
     expect(selects.every((c) => c.filters.some(([k, v]) => k === 'auto_sync_enabled' && v === true))).toBe(true);
   });
 

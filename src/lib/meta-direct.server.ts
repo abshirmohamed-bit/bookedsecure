@@ -4,9 +4,8 @@ import { decryptMetaToken, readMetaAppConfig, tokenContext } from './meta-oauth.
 
 /**
  * Direct Facebook Lead Ads import: BookedSecure reads a business's lead forms
- * from the Graph API itself, replacing a Make scenario (which costs Make credits
- * on every five-minute run). It feeds the same runs/items/checkpoints pipeline as
- * Make, so dedupe, enrichment, auto-replies and owner alerts are unchanged.
+ * from the Graph API itself, every five minutes. Leads go through the shared
+ * runs/items/checkpoints pipeline: dedupe, enrichment, auto-replies, owner alerts.
  *
  * Each business connects its own Page in Settings; the Page token is stored
  * encrypted per business (meta_lead_accounts) and only ever read server-side.

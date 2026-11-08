@@ -1,4 +1,4 @@
-/** OpenAPI 3 description of the BookedSecure public API, for Make.com, Zapier, n8n and developers. */
+/** OpenAPI 3 description of the BookedSecure public API, for Zapier, n8n and developers. */
 export function buildOpenApiSpec(origin: string) {
   const err = { $ref: '#/components/responses/Error' };
   const paging = [
@@ -24,7 +24,7 @@ export function buildOpenApiSpec(origin: string) {
         parameters: [{ name: 'Idempotency-Key', in: 'header', schema: { type: 'string' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['name', 'mobile'], properties: {
           name: { type: 'string' }, mobile: { type: 'string', example: '0412 345 678' }, email: { type: 'string' }, suburb: { type: 'string' }, address: { type: 'string' },
-          service: { type: 'string' }, message: { type: 'string' }, vehicle: { type: 'string' }, source: { type: 'string', example: 'Meta (via Make.com)' },
+          service: { type: 'string' }, message: { type: 'string' }, vehicle: { type: 'string' }, source: { type: 'string', example: 'Website' },
           campaign: { type: 'string' }, ad_name: { type: 'string' }, form_name: { type: 'string' }, consent: { type: 'boolean' }, external_id: { type: 'string', description: 'e.g. the Meta leadgen id; repeat submissions are ignored' },
         } } } } },
         responses: { 201: { description: 'Created' }, 200: { description: 'Duplicate, already received' }, 400: err, 401: err, 402: err, 403: err, 429: err },

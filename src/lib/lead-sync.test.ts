@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkLead, computeSince, enrichmentPatch, finalRunStatus, isAllowedTriggerUrl, mapEnquiryFields, mapLeadFields, metaExternalId } from './lead-sync';
+import { checkLead, computeSince, enrichmentPatch, finalRunStatus, mapEnquiryFields, mapLeadFields, metaExternalId } from './lead-sync';
 
 describe('facebook lead sync rules', () => {
   it('takes the first value of each Meta field', () => {
@@ -26,11 +26,6 @@ describe('facebook lead sync rules', () => {
   });
   it('first import uses the chosen lookback', () => {
     expect(computeSince(null, 7, new Date('2026-11-08T00:00:00Z')).toISOString()).toBe('2026-11-01T00:00:00.000Z');
-  });
-  it('only calls Make webhook addresses', () => {
-    expect(isAllowedTriggerUrl('https://hook.eu2.make.com/abc123xyz789')).toBe(true);
-    expect(isAllowedTriggerUrl('https://evil.example.com/hook.eu2.make.com')).toBe(false);
-    expect(isAllowedTriggerUrl('http://hook.eu2.make.com/abc123xyz789')).toBe(false);
   });
   it('never reports a run with failed leads as done', () => {
     expect(finalRunStatus(0, null)).toBe('completed');

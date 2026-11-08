@@ -27,7 +27,7 @@ describe('API keys', () => {
     expect(apiLeadSchema.safeParse({ name: 'Sam', mobile: '0412345678', email: '' }).success).toBe(true);
   });
   it('attributes Meta sources', () => {
-    expect(apiSourceChannel('Meta (via Make.com)')).toBe('meta');
+    expect(apiSourceChannel('Meta (via Zapier)')).toBe('meta');
     expect(apiSourceChannel('Facebook lead ad')).toBe('meta');
     expect(apiSourceChannel('Zapier')).toBe('unknown');
   });
