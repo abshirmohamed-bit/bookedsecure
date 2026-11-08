@@ -1,4 +1,6 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync as readFileSyncRaw, readdirSync } from "node:fs";
+// Source-text checks compare against "\n"; Windows checkouts (core.autocrlf) use "\r\n".
+const readFileSync = (path: string, enc: "utf8") => readFileSyncRaw(path, enc).replace(/\r\n/g, "\n");
 import { describe, expect, it } from "vitest";
 
 import {

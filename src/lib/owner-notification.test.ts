@@ -1,7 +1,9 @@
 // Tenant owner booking-confirmation SMS: policy, number roles, idempotency and
 // isolation. Nothing here contacts a carrier or a database.
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync as readFileSyncRaw } from "node:fs";
+// Source-text checks compare against "\n"; Windows checkouts (core.autocrlf) use "\r\n".
+const readFileSync = (path: string, enc: "utf8") => readFileSyncRaw(path, enc).replace(/\r\n/g, "\n");
 import {
   OWNER_BOOKING_CONFIRMED_TEMPLATE_ID,
   evaluateOwnerNotificationEligibility,

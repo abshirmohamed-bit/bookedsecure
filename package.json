@@ -9,6 +9,9 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "lint:ci": "eslint . -c eslint.ci.config.js --quiet",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
     "format": "prettier --write ."
   },
   "overrides": {

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readFile } from "node:fs/promises";
+import { readFile as readFileRaw } from "node:fs/promises";
+// Source-text checks compare against "\n"; Windows checkouts (core.autocrlf) use "\r\n".
+const readFile = async (path: string, enc: "utf8") => (await readFileRaw(path, enc)).replace(/\r\n/g, "\n");
 import {
   DUPLICATE_LEAD_CLIENT_MESSAGE,
   DUPLICATE_LEAD_CODE,
