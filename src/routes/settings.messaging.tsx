@@ -10,7 +10,7 @@ import { BusinessSettingsForm, SettingsPageBody } from "@/components/settings/se
 export const Route = createFileRoute("/settings/messaging")({
   head: () => ({
     meta: [
-      { title: "Messaging | BookedSecure" },
+      { title: "Texting | BookedSecure" },
       {
         name: "description",
         content:
@@ -30,9 +30,9 @@ export const Route = createFileRoute("/settings/messaging")({
 
 function MessagingSettingsPage() {
   return (
-    <AppShell title="Messaging">
+    <AppShell title="Texting">
       <SettingsPageBody
-        heading="Messaging"
+        heading="Texting"
         description="Your number, your texts and when they are allowed to go out."
       >
         {(data) => (

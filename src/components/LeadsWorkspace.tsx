@@ -4,18 +4,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
-  BriefcaseBusiness,
-  CircleDollarSign,
-  Clock3,
-  MessageSquareReply,
   Plus,
   Pencil,
   RefreshCw,
-  Target,
   Trash2,
   Undo2,
   Upload,
-  UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -44,7 +38,6 @@ import {
   LEAD_STATUS_LABELS,
   SOURCE_LABELS,
   formatCurrency,
-  formatMinutes,
   normaliseAuMobile,
 } from "@/lib/domain";
 import { importMethodLabel, leadSourceLabel } from "@/lib/lead-source";
@@ -63,6 +56,17 @@ import { ReactivationPanel, useReactivationOverview } from "@/components/Reactiv
 import { cn } from "@/lib/utils";
 
 type DashboardResult = Awaited<ReturnType<typeof getDashboard>>;
+
+/** One-tap status filters above the list; the full set stays in the Status dropdown. */
+const QUICK_STATUS: ReadonlyArray<readonly [string, string]> = [
+  ["all", "All"],
+  ["new", "New"],
+  ["customer_replied", "Replied"],
+  ["quote_sent", "Quote sent"],
+  ["scheduled", "Booked"],
+  ["completed", "Completed"],
+  ["previous_lead", "Past customers"],
+];
 type InboxLeadRow = DashboardResult["leads"][number];
 
 /** The main daily workspace: which leads need attention, and how they are converting. */
@@ -188,17 +192,25 @@ export function LeadsWorkspace() {
   const header = (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="font-heading text-2xl font-semibold">Lead inbox</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Leads</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Enquiries that need a reply, follow-up status and completed jobs.
+          Every enquiry, where it's up to, and who needs a reply.
         </p>
       </div>
-      <Link
-        to="/import"
-        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-primary/50 bg-card px-3 text-xs font-medium text-primary hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-      >
-        <Upload className="h-3.5 w-3.5" aria-hidden="true" /> Import data
-      </Link>
+      <div className="flex items-center gap-2">
+        <Link
+          to="/import"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-input bg-card px-3 text-xs font-medium text-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <Upload className="h-3.5 w-3.5" aria-hidden="true" /> Import
+        </Link>
+        <button
+          onClick={() => setShowAdd((current) => !current)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add lead
+        </button>
+      </div>
     </div>
   );
 
@@ -213,96 +225,39 @@ export function LeadsWorkspace() {
       </div>
     );
 
-  const metrics = dashboard.metrics;
-
-  return (
+    return (
     <div className="space-y-4">
       {header}
-      {metrics ? (
-        <section className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
-          <Metric
-            label="Total leads"
-            value={String(metrics.totalLeads)}
-            icon={UsersRound}
-            tone="success"
-          />
-          <Metric
-            label="Median response"
-            value={formatMinutes(metrics.medianResponseMinutes)}
-            hint={`${Math.round(metrics.withinFiveMinutes * 100)}% within 5 min`}
-            icon={Clock3}
-            tone="info"
-          />
-          <Metric
-            label="Reply rate"
-            value={`${Math.round(metrics.replyRate * 100)}%`}
-            icon={MessageSquareReply}
-            tone="lilac"
-          />
-          <Metric
-            label="Completed jobs"
-            value={String(metrics.completedJobs)}
-            icon={BriefcaseBusiness}
-            tone="primary"
-          />
-          <Metric
-            label="Completed revenue"
-            value={formatCurrency(metrics.completedRevenue)}
-            hint={
-              metrics.averageJobValue
-                ? `Avg ${formatCurrency(metrics.averageJobValue)}`
-                : "No jobs yet"
-            }
-            icon={CircleDollarSign}
-            tone="success"
-          />
-          <Metric
-            label="Needs follow-up"
-            value={String(metrics.needsFollowUp)}
-            hint={`${metrics.optOuts} opt-outs · ${metrics.deliveryFailures} failures`}
-            icon={Target}
-            tone="danger"
-          />
-        </section>
-      ) : dashboard.metricsStatus === "error" ? (
-        <section
-          className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-          data-testid="dashboard-metrics-error"
-          role="alert"
-        >
-          <div>
-            <p className="text-sm font-medium text-destructive">Metrics unavailable</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {dashboard.metricsError} Your leads below are unaffected.
-            </p>
-          </div>
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" role="group" aria-label="Show leads by status">
+        {QUICK_STATUS.map(([value, label]) => (
           <button
-            onClick={dashboard.retry}
-            disabled={dashboard.isRefreshing}
-            className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+            key={value}
+            type="button"
+            aria-pressed={statusFilter === value}
+            onClick={() => changeFilter(() => setStatusFilter(value))}
+            className={cn(
+              "h-8 shrink-0 rounded-full border px-3 text-xs font-medium transition-colors",
+              statusFilter === value
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:text-foreground",
+            )}
           >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            {dashboard.isRefreshing ? "Retrying…" : "Retry metrics"}
+            {label}
           </button>
-        </section>
-      ) : (
-        <section className="panel px-4 py-3" role="status">
-          <p className="text-xs text-muted-foreground">Refreshing metrics…</p>
-        </section>
-      )}
+        ))}
+      </div>
 
-      <ReactivationPanel />
 
       <section className="panel overflow-hidden">
         <div className="border-b border-border px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold">Lead inbox</h2>
+            <h2 className="text-sm font-semibold">{statusFilter === "all" ? "All leads" : (QUICK_STATUS.find(([value]) => value === statusFilter)?.[1] ?? LEAD_STATUS_LABELS[statusFilter as keyof typeof LEAD_STATUS_LABELS] ?? "Leads")}</h2>
             <span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
               {dashboard.page?.totalCount ?? leads.length}
             </span>
           </div>
           <div className="mt-3 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 xl:order-1">
               <label className="sr-only" htmlFor="source-filter">
                 Filter by source
               </label>
@@ -310,7 +265,7 @@ export function LeadsWorkspace() {
                 id="source-filter"
                 value={sourceFilter}
                 onChange={(event) => changeFilter(() => setSourceFilter(event.target.value))}
-                className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                className="h-8 shrink-0 rounded-md border border-input bg-background px-2 text-xs"
               >
                 <option value="all">All sources</option>
                 {Object.entries(SOURCE_LABELS).map(([value, label]) => (
@@ -328,7 +283,7 @@ export function LeadsWorkspace() {
                 onChange={(event) =>
                   changeFilter(() => setSmsFilter(event.target.value as SmsLeadFilter))
                 }
-                className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                className="h-8 shrink-0 rounded-md border border-input bg-background px-2 text-xs"
               >
                 {SMS_LEAD_FILTERS.map((value) => (
                   <option key={value} value={value}>
@@ -343,7 +298,7 @@ export function LeadsWorkspace() {
                 id="status-filter"
                 value={statusFilter}
                 onChange={(event) => changeFilter(() => setStatusFilter(event.target.value))}
-                className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                className="h-8 shrink-0 rounded-md border border-input bg-background px-2 text-xs"
               >
                 <option value="all">All statuses</option>
                 {LEAD_STATUSES.map((status) => (
@@ -353,7 +308,7 @@ export function LeadsWorkspace() {
                 ))}
               </select>
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="order-first min-w-0 flex-1 xl:order-2">
               <label className="sr-only" htmlFor="lead-search">
                 Search customers
               </label>
@@ -363,10 +318,10 @@ export function LeadsWorkspace() {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search name, mobile or email"
-                className="w-full min-w-0 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+                className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm sm:h-8 sm:text-xs"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 xl:order-3">
               {visibleSelection.length > 0 && (
                 <>
                   <span className="text-xs text-muted-foreground" data-testid="selected-count">
@@ -398,12 +353,6 @@ export function LeadsWorkspace() {
                 className="inline-flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
               >
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Run due follow-ups
-              </button>
-              <button
-                onClick={() => setShowAdd((current) => !current)}
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add lead
               </button>
             </div>
           </div>
@@ -437,7 +386,48 @@ export function LeadsWorkspace() {
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        <ul className="divide-y divide-border lg:hidden" aria-label="Leads">
+          {leads.map((lead) => (
+            <li key={lead.id} className="flex items-start gap-3 px-4 py-3">
+              <input
+                type="checkbox"
+                aria-label={`Select ${lead.name}`}
+                checked={visibleSelection.includes(lead.id)}
+                onChange={() => setSelection((current) => toggleSelection(current, lead.id))}
+                className="mt-1 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+              />
+              <Link to="/leads/$leadId" params={{ leadId: lead.id }} className="min-w-0 flex-1">
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="truncate text-sm font-semibold">{lead.name ?? "Unnamed lead"}</span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {new Date(lead.conversation?.last_message_at ?? lead.created_at).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+                  </span>
+                </span>
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                  {[lead.service_intent ? humanizeAnswer(lead.service_intent) : null, lead.suburb].filter(Boolean).join(" · ") || lead.mobile_number || "No details yet"}
+                </span>
+                <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <StatusBadge status={lead.status} />
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-foreground">
+                    {importMethodLabel(lead) ?? leadSourceLabel(lead)}
+                  </span>
+                  {lead.conversation?.automation_paused && <span className="text-[11px] text-warning">Paused</span>}
+                  {lead.sms_suppressed_at && <SmsSuppressedBadge reason={lead.sms_suppression_reason} />}
+                </span>
+                {lead.last_sms_failure_reason && (
+                  <span className="mt-1 block text-[11px] text-destructive">{lead.last_sms_failure_reason}</span>
+                )}
+              </Link>
+            </li>
+          ))}
+          {leads.length === 0 && (
+            <li className="px-4 py-10 text-center text-sm text-muted-foreground">
+              No leads match these filters yet. Clear the filters, add a lead, or bring across your history with Import.
+            </li>
+          )}
+        </ul>
+
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[980px] table-fixed text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
@@ -586,6 +576,8 @@ export function LeadsWorkspace() {
         />
       </section>
 
+      <ReactivationPanel />
+
       {confirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4">
           <div
@@ -664,45 +656,6 @@ export function LeadsWorkspace() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  icon: typeof UsersRound;
-  tone: "primary" | "success" | "info" | "lilac" | "danger";
-}) {
-  const tones = {
-    primary: "border-t-primary text-primary bg-primary/10",
-    success: "border-t-success text-success-foreground bg-success/15",
-    info: "border-t-info text-info-foreground bg-info/15",
-    lilac: "border-t-secondary-foreground text-secondary-foreground bg-secondary",
-    danger: "border-t-destructive text-destructive bg-destructive/10",
-  };
-  return (
-    <div className={cn("panel border-t-2 px-3 py-3", tones[tone].split(" ")[0])}>
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "grid h-7 w-7 place-items-center rounded-md",
-            tones[tone].split(" ").slice(1).join(" "),
-          )}
-        >
-          <Icon className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
-      </div>
-      <p className="mt-2 tabular font-heading text-xl font-semibold">{value}</p>
-      {hint && <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }

@@ -70,10 +70,10 @@ function UnfinishedPage() {
   }
 
   return (
-    <AppShell title="Unfinished enquiries">
+    <AppShell title="Unfinished quotes">
       <div className="min-w-0 space-y-4">
         <header className="space-y-1">
-          <h1 className="font-heading text-xl font-semibold">Unfinished enquiries</h1>
+          <h1 className="font-heading text-xl font-semibold">Unfinished quotes</h1>
           <p className="text-sm text-muted-foreground">
             They gave a mobile number but didn't finish. Kept separate from your lead inbox, and
             nothing is ever texted to them. calling is your call.

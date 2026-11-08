@@ -118,9 +118,9 @@ export function BookingsCalendar() {
             No upcoming bookings yet. Confirmed bookings appear here automatically.
           </p>
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {next.map((entry) => (
-              <li key={entry.jobId}>
+              <li key={entry.jobId} className="min-w-0">
                 <button
                   type="button"
                   onClick={() => setSelected(entry)}

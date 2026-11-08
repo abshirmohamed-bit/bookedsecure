@@ -17,7 +17,7 @@ import {
 export const Route = createFileRoute("/campaigns")({
   head: () => ({
     meta: [
-      { title: "Email campaigns | BookedSecure" },
+      { title: "Campaigns | BookedSecure" },
       {
         name: "description",
         content:
@@ -154,7 +154,7 @@ function CampaignsPage() {
   }
 
   return (
-    <AppShell title="Email campaigns">
+    <AppShell title="Campaigns">
       <div className="mx-auto max-w-3xl space-y-8 p-4">
         <section className="space-y-3 rounded-xl border border-border bg-card p-4">
           <h2 className="flex items-center gap-2 text-lg font-semibold">

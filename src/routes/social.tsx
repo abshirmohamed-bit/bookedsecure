@@ -13,7 +13,7 @@ import { convertSocialComment, getSocialThread, listSocialComments, listSocialTh
 export const Route = createFileRoute("/social")({
   head: () => ({
     meta: [
-      { title: "Facebook & Instagram | BookedSecure" },
+      { title: "Facebook and Instagram | BookedSecure" },
       { name: "description", content: "Reply to Facebook and Instagram comments and messages from one inbox. Nothing is sent until you approve." },
       { property: "og:title", content: "Facebook & Instagram | BookedSecure" },
       { property: "og:description", content: "Review and approve replies to your Facebook comments in one place." },
@@ -52,11 +52,11 @@ function SocialPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not refresh."),
   });
   return (
-    <AppShell title="Facebook & Instagram">
+    <AppShell title="Facebook and Instagram">
       <div className="mx-auto max-w-3xl space-y-5 p-4 md:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Facebook &amp; Instagram</h1>
+            <h1 className="text-2xl font-semibold">Facebook and Instagram</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Comments and messages from your connected Facebook Page and Instagram account arrive here, usually with a suggested reply. Nothing is posted or sent until you approve it.
             </p>

@@ -159,6 +159,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         <div className={cn("flex h-14 shrink-0 items-center gap-2.5 px-3", compact && "lg:justify-center lg:px-0")}>
           <Link
             to="/dashboard"
+            onClick={() => setMobileNavOpen(false)}
             className={cn("flex min-w-0 flex-1 items-center gap-2.5 rounded-md", compact && "lg:hidden")}
             title={isPlatformOwner ? "BookedSecure" : (tenantName ?? "Home")}
           >
@@ -199,7 +200,14 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </Button>
         </div>
 
-        <nav aria-label="Workspace" className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+        <nav
+          aria-label="Workspace"
+          className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"
+          // Any tapped link closes the phone menu, even when the page keeps this shell mounted.
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest("a")) setMobileNavOpen(false);
+          }}
+        >
           {isPlatformOwner ? (
             <NavGroup label="Platform" compact={compact}>
               <SidebarLink
@@ -232,7 +240,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           ))}
         </nav>
 
-        <div className={cn("shrink-0 space-y-0.5 border-t border-sidebar-border p-2", compact && "lg:flex lg:flex-col lg:items-center")}>
+        <div
+          className={cn("shrink-0 space-y-0.5 border-t border-sidebar-border p-2", compact && "lg:flex lg:flex-col lg:items-center")}
+          onClick={(event) => {
+            const link = (event.target as HTMLElement).closest("a");
+            if (link && !link.getAttribute("href")?.startsWith("tel:") && link.getAttribute("target") !== "_blank") setMobileNavOpen(false);
+          }}
+        >
           {quotePath ? (
             <a
               href={quotePath}

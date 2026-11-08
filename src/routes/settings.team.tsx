@@ -5,7 +5,7 @@ import { SettingsPageBody, TeamList } from "@/components/settings/sections";
 export const Route = createFileRoute("/settings/team")({
   head: () => ({
     meta: [
-      { title: "Team access | BookedSecure" },
+      { title: "Team | BookedSecure" },
       {
         name: "description",
         content: "See who can view and respond to enquiries in this workspace.",
@@ -24,8 +24,8 @@ export const Route = createFileRoute("/settings/team")({
 
 function TeamSettingsPage() {
   return (
-    <AppShell title="Team access">
-      <SettingsPageBody heading="Team access" description="Who can see and reply to your leads.">
+    <AppShell title="Team">
+      <SettingsPageBody heading="Team" description="Who can see and reply to your leads.">
         {(data) => <TeamList team={data.team} role={data.role} />}
       </SettingsPageBody>
     </AppShell>

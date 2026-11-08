@@ -25,7 +25,7 @@ import {
 export const Route = createFileRoute("/settings/business")({
   head: () => ({
     meta: [
-      { title: "Business settings | BookedSecure" },
+      { title: "Business and services | BookedSecure" },
       {
         name: "description",
         content:
@@ -45,9 +45,9 @@ export const Route = createFileRoute("/settings/business")({
 
 function BusinessSettingsPage() {
   return (
-    <AppShell title="Business settings">
+    <AppShell title="Business and services">
       <SettingsPageBody
-        heading="Business settings"
+        heading="Business and services"
         description="How your business is described to customers, and the services you offer."
         actions={(data) => (
           <>

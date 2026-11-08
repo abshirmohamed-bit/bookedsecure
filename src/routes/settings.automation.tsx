@@ -5,7 +5,7 @@ import { BusinessSettingsForm, RulesEditor, SettingsPageBody } from "@/component
 export const Route = createFileRoute("/settings/automation")({
   head: () => ({
     meta: [
-      { title: "Automation | BookedSecure" },
+      { title: "Automations | BookedSecure" },
       {
         name: "description",
         content:
@@ -25,9 +25,9 @@ export const Route = createFileRoute("/settings/automation")({
 
 function AutomationSettingsPage() {
   return (
-    <AppShell title="Automation">
+    <AppShell title="Automations">
       <SettingsPageBody
-        heading="Automation"
+        heading="Automations"
         description="What happens automatically after an enquiry arrives, and when follow-ups go out."
       >
         {(data) => (

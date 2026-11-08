@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Bot, Pause, Pencil, Play, Send, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Bot, Mail, MessageSquare, Pause, Pencil, Phone, Play, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import {
@@ -39,6 +39,7 @@ import { importMethodLabel, leadSourceLabel, originalSourceDetails } from "@/lib
 import { countSegments } from "@/lib/sms/segments";
 import { SuppressionRecoveryPanel } from "@/components/SuppressionRecoveryPanel";
 import { BookingPanel } from "@/components/BookingPanel";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/leads/$leadId")({
   head: () => ({
@@ -64,11 +65,20 @@ export const Route = createFileRoute("/leads/$leadId")({
 
 function LeadPage() {
   return (
-    <AppShell title="Lead conversation">
+    <AppShell title="Lead">
       <LeadDetail />
     </AppShell>
   );
 }
+
+type LeadTab = "chat" | "booking" | "details" | "activity";
+/** Phone sections; on larger screens everything shows side by side. */
+const LEAD_TABS: ReadonlyArray<readonly [LeadTab, string]> = [
+  ["chat", "Conversation"],
+  ["booking", "Booking"],
+  ["details", "Details"],
+  ["activity", "Activity"],
+];
 
 function LeadDetail() {
   const { leadId } = Route.useParams();
@@ -76,6 +86,8 @@ function LeadDetail() {
   const queryClient = useQueryClient();
   const [reply, setReply] = useState("");
   const [fromAi, setFromAi] = useState(false);
+  const [tab, setTab] = useState<LeadTab>("chat");
+  const replyRef = useRef<HTMLTextAreaElement>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["lead", leadId],
@@ -159,19 +171,25 @@ function LeadDetail() {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("") || "?";
 
+  const startText = () => {
+    setTab("chat");
+    requestAnimationFrame(() => {
+      replyRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      replyRef.current?.focus();
+    });
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-6xl space-y-4">
       <Link
-        to="/dashboard"
+        to="/leads"
         className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Back to leads
       </Link>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,17rem)_minmax(0,1fr)_minmax(0,20rem)]">
-        {/* Who this person is, and the controls that change them. */}
-        <div className="min-w-0 space-y-4">
-          <section className="brand-wash panel p-4" aria-label="Customer summary">
+      {/* Who this is, and the things you most often do next. */}
+      <section className="brand-wash panel p-4" aria-label="Customer summary">
             <div className="flex items-center gap-3">
               <span
                 aria-hidden="true"
@@ -196,138 +214,82 @@ function LeadDetail() {
               )}
             </div>
 
-            <dl className="mt-3 space-y-2 border-t border-border pt-3">
-              <Detail label="Mobile" value={lead.mobile_number} />
-              <Detail label="Email" value={lead.email} />
-              <Detail label="Suburb" value={lead.suburb} />
-              <Detail label="Address" value={lead.service_address} />
-              <Detail label={subjectLabel} value={lead.vehicle_type} />
-              <Detail label="Added" value={new Date(lead.created_at).toLocaleString("en-AU")} />
-            </dl>
-            <EditContactDialog
-              leadId={leadId}
-              lead={lead}
-              vehicleLabel={subjectLabel}
-              onSaved={invalidate}
-            />
 
-            <LeadEmailPanel leadId={lead.id} email={lead.email} />
-
-            <div className="mt-3 space-y-2 border-t border-border pt-3">
-              <label className="block text-xs text-muted-foreground" htmlFor="lead-status">
-                Status
-              </label>
-              <select
-                id="lead-status"
-                value={lead.status}
-                onChange={(event) => statusMutation.mutate(event.target.value)}
-                className="form-control text-xs"
-              >
-                {LEAD_STATUSES.filter((status) => status !== "completed").map((status) => (
-                  <option key={status} value={status}>
-                    {LEAD_STATUS_LABELS[status]}
-                  </option>
-                ))}
-                {lead.status === "completed" && <option value="completed">Completed</option>}
-              </select>
-              <button
-                onClick={() => pauseMutation.mutate(!conversation?.automation_paused)}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                {conversation?.automation_paused ? (
-                  <>
-                    <Play className="h-3.5 w-3.5" /> Resume automation
-                  </>
-                ) : (
-                  <>
-                    <Pause className="h-3.5 w-3.5" /> Pause automation
-                  </>
-                )}
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+              {lead.mobile_number ? (
+                <a href={`tel:${lead.mobile_number}`} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-medium hover:bg-secondary sm:h-9 sm:text-xs">
+                  <Phone className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" /> Call
+                </a>
+              ) : null}
+              <button type="button" onClick={startText} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 sm:h-9 sm:text-xs">
+                <MessageSquare className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" /> Text
               </button>
+              {lead.email ? (
+                <a href={`mailto:${lead.email}`} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-medium hover:bg-secondary sm:h-9 sm:text-xs">
+                  <Mail className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" /> Email
+                </a>
+              ) : null}
+              <div className="col-span-3 flex items-center gap-2 sm:ml-auto">
+                <label className="sr-only" htmlFor="lead-status">Status</label>
+                <select
+                  id="lead-status"
+                  value={lead.status}
+                  onChange={(event) => statusMutation.mutate(event.target.value)}
+                  className="form-control h-10 min-w-0 flex-1 text-sm sm:h-9 sm:w-44 sm:flex-none sm:text-xs"
+                >
+                  {LEAD_STATUSES.filter((status) => status !== "completed").map((status) => (
+                    <option key={status} value={status}>
+                      {LEAD_STATUS_LABELS[status]}
+                    </option>
+                  ))}
+                  {lead.status === "completed" && <option value="completed">Completed</option>}
+                </select>
+                <button
+                  onClick={() => pauseMutation.mutate(!conversation?.automation_paused)}
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-md border border-input bg-card px-3 text-xs text-muted-foreground hover:text-foreground sm:h-9"
+                >
+                  {conversation?.automation_paused ? (
+                    <>
+                      <Play className="h-3.5 w-3.5" /> Resume automation
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="h-3.5 w-3.5" /> Pause automation
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
+      </section>
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
-              <span className="text-muted-foreground/70">Latest SMS:</span>
-              <DeliveryBadge status={lead.last_outbound_sms_status} />
-              <ReachabilityBadge
-                state={lead.reachability_state}
-                evidence={lead.reachability_evidence}
-                evidenceAt={lead.reachability_evidence_at}
-              />
-              {lead.last_delivered_sms_at && (
-                <span>
-                  Delivered {new Date(lead.last_delivered_sms_at).toLocaleString("en-AU")}
-                </span>
-              )}
-              {lead.last_reply_at && (
-                <span>Replied {new Date(lead.last_reply_at).toLocaleString("en-AU")}</span>
-              )}
-              {conversation?.automation_paused && <span>Automation stopped</span>}
-              {conversation?.next_follow_up_at ? (
-                <span>
-                  Next follow-up {new Date(conversation.next_follow_up_at).toLocaleString("en-AU")}
-                </span>
-              ) : (
-                <span>No follow-up scheduled</span>
-              )}
-            </div>
-
-            {lead.opted_out_at && (
-              <p className="mt-2 text-xs text-destructive">
-                Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")}. Automated SMS
-                blocked.
-              </p>
+      <div className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 lg:hidden" role="tablist" aria-label="Lead sections">
+        {LEAD_TABS.map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tab === value}
+            onClick={() => setTab(value)}
+            className={cn(
+              "-mb-px h-10 shrink-0 border-b-2 px-3 text-sm font-medium",
+              tab === value ? "border-primary text-foreground" : "border-transparent text-muted-foreground",
             )}
-            {lead.last_sms_failure_reason && (
-              <p className="mt-2 text-xs text-destructive">
-                Last SMS failure: {lead.last_sms_failure_reason}
-                {lead.last_sms_failure_code ? ` (code ${lead.last_sms_failure_code})` : ""}
-              </p>
-            )}
-            {lead.sms_suppressed_at && (
-              <p className="mt-2 text-xs text-warning">
-                Automated SMS suppressed{" "}
-                {new Date(lead.sms_suppressed_at).toLocaleString("en-AU")} -{" "}
-                {lead.sms_suppression_reason ??
-                  "permanent delivery failure reported by the provider"}
-                . A later delivery or reply records new evidence but never resumes automation on
-                its own.
-              </p>
-            )}
-            {lead.lead_origin === "crm_import" && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Imported historical lead. The import sent no acknowledgement SMS, owner alert or
-                follow-up sequence.
-              </p>
-            )}
-          </section>
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-          <SuppressionRecoveryPanel lead={lead} role={data.role} onResumed={invalidate} />
-
-          <section className="panel p-4">
-            <h2 className="text-sm font-semibold">Request details</h2>
-            <dl className="mt-3 space-y-2 text-sm">
-              <Detail label="Service intent" value={lead.service_intent} />
-              <Detail label="Main concerns" value={lead.main_concerns} />
-              <Detail label="Last cleaned" value={lead.last_cleaned_at} />
-              <Detail label="Campaign" value={lead.source_campaign} />
-              <Detail label="Form" value={lead.source_form} />
-            </dl>
-            <NotesEditor leadId={leadId} initial={lead.notes ?? ""} onSaved={invalidate} />
-          </section>
-
-          <FacebookAnswersPanel sourceMetadata={lead.source_metadata as Record<string, unknown> | null} />
-        </div>
-
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         {/* Everything that was said: the quote chat, then the SMS thread. */}
-        <div className="min-w-0 space-y-4">
+        <div className={cn("min-w-0 space-y-4", tab !== "chat" && "hidden lg:block")}>
           {data.webConversation && (
             <WebChatTranscript conversation={data.webConversation} messages={data.webChatMessages} />
           )}
 
           <section className="panel flex min-w-0 flex-col">
             <h2 className="section-heading">SMS conversation</h2>
-            <div className="max-h-[520px] space-y-3 overflow-y-auto px-4 py-4">
+            <div className="max-h-[60dvh] space-y-3 overflow-y-auto px-4 py-4 lg:max-h-[520px]">
               {messages.length === 0 && (
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">
@@ -394,6 +356,8 @@ function LeadDetail() {
 
             <div className="border-t border-border p-4">
               <textarea
+                ref={replyRef}
+                aria-label="Reply by SMS"
                 value={reply}
                 onChange={(event) => setReply(event.target.value)}
                 rows={3}
@@ -474,8 +438,8 @@ function LeadDetail() {
           </section>
         </div>
 
-        {/* What has happened, is booked, and is coming next for this customer. */}
         <div className="min-w-0 space-y-4">
+          <div className={cn("space-y-4", tab !== "booking" && "hidden lg:block")}>
           <BookingPanel
             leadId={leadId}
             inboundMessages={(messages ?? [])
@@ -495,8 +459,97 @@ function LeadDetail() {
             timeZone={data.timeZone}
           />
 
-          <ActivityPanel notifications={notifications} automationJobs={automationJobs} />
+          </div>
 
+          <div className={cn("space-y-4", tab !== "details" && "hidden lg:block")}>
+            <section className="panel p-4" aria-label="Contact details">
+              <h2 className="text-sm font-semibold">Contact details</h2>
+            <dl className="mt-3 space-y-2">
+              <Detail label="Mobile" value={lead.mobile_number} />
+              <Detail label="Email" value={lead.email} />
+              <Detail label="Suburb" value={lead.suburb} />
+              <Detail label="Address" value={lead.service_address} />
+              <Detail label={subjectLabel} value={lead.vehicle_type} />
+              <Detail label="Added" value={new Date(lead.created_at).toLocaleString("en-AU")} />
+            </dl>
+            <EditContactDialog
+              leadId={leadId}
+              lead={lead}
+              vehicleLabel={subjectLabel}
+              onSaved={invalidate}
+            />
+
+            <LeadEmailPanel leadId={lead.id} email={lead.email} />
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
+              <span className="text-muted-foreground/70">Latest SMS:</span>
+              <DeliveryBadge status={lead.last_outbound_sms_status} />
+              <ReachabilityBadge
+                state={lead.reachability_state}
+                evidence={lead.reachability_evidence}
+                evidenceAt={lead.reachability_evidence_at}
+              />
+              {lead.last_delivered_sms_at && (
+                <span>
+                  Delivered {new Date(lead.last_delivered_sms_at).toLocaleString("en-AU")}
+                </span>
+              )}
+              {lead.last_reply_at && (
+                <span>Replied {new Date(lead.last_reply_at).toLocaleString("en-AU")}</span>
+              )}
+              {conversation?.automation_paused && <span>Automation stopped</span>}
+              {conversation?.next_follow_up_at ? (
+                <span>
+                  Next follow-up {new Date(conversation.next_follow_up_at).toLocaleString("en-AU")}
+                </span>
+              ) : (
+                <span>No follow-up scheduled</span>
+              )}
+            </div>
+
+            {lead.opted_out_at && (
+              <p className="mt-2 text-xs text-destructive">
+                Opted out {new Date(lead.opted_out_at).toLocaleString("en-AU")}. Automated SMS
+                blocked.
+              </p>
+            )}
+            {lead.last_sms_failure_reason && (
+              <p className="mt-2 text-xs text-destructive">
+                Last SMS failure: {lead.last_sms_failure_reason}
+                {lead.last_sms_failure_code ? ` (code ${lead.last_sms_failure_code})` : ""}
+              </p>
+            )}
+            {lead.sms_suppressed_at && (
+              <p className="mt-2 text-xs text-warning">
+                Automated SMS suppressed{" "}
+                {new Date(lead.sms_suppressed_at).toLocaleString("en-AU")} -{" "}
+                {lead.sms_suppression_reason ??
+                  "permanent delivery failure reported by the provider"}
+                . A later delivery or reply records new evidence but never resumes automation on
+                its own.
+              </p>
+            )}
+            {lead.lead_origin === "crm_import" && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Imported historical lead. The import sent no acknowledgement SMS, owner alert or
+                follow-up sequence.
+              </p>
+            )}
+            </section>
+          <SuppressionRecoveryPanel lead={lead} role={data.role} onResumed={invalidate} />
+
+          <section className="panel p-4">
+            <h2 className="text-sm font-semibold">Request details</h2>
+            <dl className="mt-3 space-y-2 text-sm">
+              <Detail label="Service intent" value={lead.service_intent} />
+              <Detail label="Main concerns" value={lead.main_concerns} />
+              <Detail label="Last cleaned" value={lead.last_cleaned_at} />
+              <Detail label="Campaign" value={lead.source_campaign} />
+              <Detail label="Form" value={lead.source_form} />
+            </dl>
+            <NotesEditor leadId={leadId} initial={lead.notes ?? ""} onSaved={invalidate} />
+          </section>
+
+          <FacebookAnswersPanel sourceMetadata={lead.source_metadata as Record<string, unknown> | null} />
           {lead.lead_origin === "crm_import" && (
             <ImportedSourcePanel
               sourceMetadata={lead.source_metadata as Record<string, unknown> | null}
@@ -505,6 +558,11 @@ function LeadDetail() {
               suburb={lead.suburb}
             />
           )}
+          </div>
+
+          <div className={cn(tab !== "activity" && "hidden lg:block")}>
+          <ActivityPanel notifications={notifications} automationJobs={automationJobs} />
+          </div>
         </div>
       </div>
     </div>

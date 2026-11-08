@@ -5,7 +5,7 @@ import { AssistantWorkspace } from "@/components/home/AssistantWorkspace";
 export const Route = createFileRoute("/assistant")({
   head: () => ({
     meta: [
-      { title: "Cowork | BookedSecure" },
+      { title: "Assistant | BookedSecure" },
       { name: "description", content: "Ask BookedSecure Cowork to help run your tenant-scoped lead operations." },
       { property: "og:title", content: "Cowork | BookedSecure" },
       { property: "og:description", content: "A focused workspace for BookedSecure Cowork conversations." },
