@@ -148,8 +148,13 @@
 
   html {
     color-scheme: light;
-    /* Nothing on any page may pan sideways on a phone. */
+    /* Nothing on any page may pan sideways on a phone. `clip` (not `hidden`)
+       keeps html/body from becoming scroll containers, so wheel and touch
+       scrolling always reach the page. `hidden` is the old-browser fallback. */
     overflow-x: hidden;
+    overflow-x: clip;
+    /* On the root this governs the page itself (no scroll chaining/bounce). */
+    overscroll-behavior-y: contain;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -159,7 +164,9 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
-    overscroll-behavior-y: contain;
+    overflow-x: clip;
+    /* Never put overscroll-behavior on body: if body becomes a scroll
+       container it blocks wheel/touch scrolling from reaching the page. */
   }
 
   h1,
