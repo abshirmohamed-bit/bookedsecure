@@ -48,8 +48,16 @@ export const getHomeSummary = createServerFn({ method: "GET" })
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000).toISOString();
 
-    const [waiting, week, latest, upcoming, business] = await Promise.all([
+    const [waiting, waitingList, week, latest, upcoming, business] = await Promise.all([
       waitingCounts(app.businessId),
+      supabaseAdmin
+        .from("lead_inbox_rows")
+        .select("id, name")
+        .eq("business_id", app.businessId)
+        .is("deleted_at", null)
+        .eq("conversation_status", "needs_attention")
+        .order("conversation_last_message_at", { ascending: false, nullsFirst: false })
+        .limit(5),
       computeMetrics(app.businessId, { from: weekAgo }),
       supabaseAdmin
         .from("lead_inbox_rows")
@@ -69,6 +77,7 @@ export const getHomeSummary = createServerFn({ method: "GET" })
       supabaseAdmin.from("businesses").select("name").eq("id", app.businessId).single(),
     ]);
     if (latest.error) throw new Error("Latest leads could not be loaded.");
+    if (waitingList.error) throw new Error("Leads waiting for a reply could not be loaded.");
     if (upcoming.error) throw new Error("Upcoming bookings could not be loaded.");
 
     const jobs = upcoming.data ?? [];
@@ -88,6 +97,8 @@ export const getHomeSummary = createServerFn({ method: "GET" })
       role: app.role,
       businessName: business.data?.name ?? null,
       waiting,
+      /** Up to five leads waiting for a reply, most recent first, so Reply opens the right conversation. */
+      waitingLeads: (waitingList.data ?? []).map((lead) => ({ id: lead.id!, name: lead.name })),
       week: {
         enquiries: week.funnel.enquiries,
         withinFiveMinutes: week.withinFiveMinutes,

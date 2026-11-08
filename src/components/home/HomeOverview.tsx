@@ -141,14 +141,21 @@ function TodayCard({
   data: Summary;
   nextStep: { title: string; path: string; search?: Record<string, unknown>; hash?: string } | null;
 }) {
-  const items: Array<{ key: string; icon: typeof Inbox; text: string; to: string; label: string; search?: Record<string, unknown>; hash?: string }> = [];
+  const items: Array<{ key: string; icon: typeof Inbox; text: string; to: string; label: string; search?: Record<string, unknown>; hash?: string; others?: Array<{ id: string; name: string | null }> }> = [];
   if (data.waiting.leads) {
+    const first = data.waitingLeads[0];
+    const firstName = first?.name?.trim().split(/\s+/)[0] ?? null;
     items.push({
       key: "leads",
       icon: Inbox,
-      text: `${data.waiting.leads} ${data.waiting.leads === 1 ? "lead is" : "leads are"} waiting for your reply`,
-      to: "/leads",
+      text:
+        data.waiting.leads === 1 && firstName
+          ? `${firstName} is waiting for your reply`
+          : `${data.waiting.leads} ${data.waiting.leads === 1 ? "lead is" : "leads are"} waiting for your reply`,
+      // Straight into the conversation, not the whole list.
+      to: first ? `/leads/${first.id}` : "/leads",
       label: "Reply",
+      ...(data.waitingLeads.length > 1 ? { others: data.waitingLeads } : {}),
     });
   }
   if (data.waiting.social) {
@@ -185,10 +192,26 @@ function TodayCard({
         </h2>
       </div>
       <ul className="divide-y divide-border">
-        {items.map(({ key, icon: Icon, text, to, label, search, hash }) => (
+        {items.map(({ key, icon: Icon, text, to, label, search, hash, others }) => (
           <li key={key} className="flex items-center gap-3 px-4 py-2.5">
             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="min-w-0 flex-1 text-sm">{text}</span>
+            <span className="min-w-0 flex-1 text-sm">
+              {text}
+              {others ? (
+                <span className="mt-1 flex flex-wrap gap-1.5">
+                  {others.map((lead) => (
+                    <Link
+                      key={lead.id}
+                      to="/leads/$leadId"
+                      params={{ leadId: lead.id }}
+                      className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                    >
+                      {lead.name ?? "Unnamed lead"}
+                    </Link>
+                  ))}
+                </span>
+              ) : null}
+            </span>
             <Button asChild size="sm" variant={key === items[0]?.key ? "default" : "outline"}>
               <Link to={to} {...(search ? { search } : {})} {...(hash ? { hash } : {})}>{label}</Link>
             </Button>
