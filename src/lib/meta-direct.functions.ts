@@ -101,6 +101,21 @@ export const importDirectMetaNow = createServerFn({ method: 'POST' }).middleware
   return startSyncRun(conn, 'manual', ctx.userId);
 });
 
+/** Whether the connected Page currently sends instant lead alerts (asked from Facebook, read-only). null = could not check. */
+export const getInstantLeadsStatus = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+  const ctx = await directOwner(context);
+  const { loadMetaAccount, createDirectMetaTransport } = await import('./meta-direct.server');
+  const { readMetaAppConfig } = await import('./meta-oauth.server');
+  const appId = readMetaAppConfig().appId;
+  if (!appId) return { on: null as boolean | null };
+  try {
+    const transport = createDirectMetaTransport(await loadMetaAccount(ctx.businessId));
+    return { on: (await transport.instantLeadsOn(appId)) as boolean | null };
+  } catch {
+    return { on: null as boolean | null };
+  }
+});
+
 /** Subscribes the connected Page to Facebook's new-lead webhook, then confirms it. */
 export const enableInstantLeads = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const ctx = await directOwner(context);

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { getLeadSync, getRunItems } from '@/lib/lead-sync.functions';
 import { LEAD_SYNC_LOOKBACK_OPTIONS } from '@/lib/lead-sync';
-import { chooseMetaPage, disconnectDirectMeta, enableInstantLeads, importDirectMetaNow, listMetaForms, saveDirectMeta, saveMetaForms, startMetaConnect, testDirectMetaAccess } from '@/lib/meta-direct.functions';
+import { chooseMetaPage, disconnectDirectMeta, enableInstantLeads, getInstantLeadsStatus, importDirectMetaNow, listMetaForms, saveDirectMeta, saveMetaForms, startMetaConnect, testDirectMetaAccess } from '@/lib/meta-direct.functions';
 
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString() : '—');
 const TRIGGER: Record<string, string> = { manual: 'Manual', schedule: 'Automatic', webhook: 'Instant' };
@@ -80,6 +80,8 @@ function FormPicker({ onDone }: { onDone: () => Promise<unknown> }) {
 function DirectImportCard({ direct, active, onChange }: { direct: DirectInfo; active: boolean; onChange: () => Promise<unknown> }) {
   const connect = useServerFn(startMetaConnect); const choose = useServerFn(chooseMetaPage);
   const instant = useServerFn(enableInstantLeads);
+  const instantStatusFn = useServerFn(getInstantLeadsStatus);
+  const qc = useQueryClient();
   const test = useServerFn(testDirectMetaAccess); const save = useServerFn(saveDirectMeta); const run = useServerFn(importDirectMetaNow); const off = useServerFn(disconnectDirectMeta);
   const [check, setCheck] = useState<{ ok: boolean; text: string } | null>(null);
   const [showForms, setShowForms] = useState(false);
@@ -87,13 +89,23 @@ function DirectImportCard({ direct, active, onChange }: { direct: DirectInfo; ac
   const connectM = useMutation({ mutationFn: () => connect(), onSuccess: (r) => { window.location.href = r.url; }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not start the Facebook connection.') });
   const chooseM = useMutation({ mutationFn: (pageId: string) => choose({ data: { pageId } }), onSuccess: async () => { toast.success('Page connected.'); await onChange(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not use that Page.') });
   const testM = useMutation({ mutationFn: () => test(), onSuccess: (r) => setCheck(r.healthy ? { ok: true, text: `Facebook access works: ${r.formCount} form${r.formCount === 1 ? '' : 's'} readable (checked ${when(r.checkedAt)}). Instant leads: ${r.instant === true ? 'on' : r.instant === false ? 'off. Click Turn on instant leads.' : 'could not be checked'}.` } : { ok: false, text: r.reason }), onError: (e) => setCheck({ ok: false, text: e instanceof Error ? e.message : 'Could not check access.' }) });
-  const instantM = useMutation({ mutationFn: () => instant(), onSuccess: (r) => setCheck(r.on ? { ok: true, text: 'Instant leads are on: Facebook now tells BookedSecure about each new lead the moment it is submitted. The five-minute check stays on as a backup.' } : { ok: false, text: 'Facebook did not confirm instant leads. The five-minute check still imports every lead.' }), onError: (e) => setCheck({ ok: false, text: e instanceof Error ? e.message : 'Could not turn on instant leads.' }) });
+  const instantM = useMutation({
+    mutationFn: () => instant(),
+    onSuccess: (r) => {
+      qc.setQueryData(['instant-leads'], { on: r.on });
+      if (r.on) toast.success('Instant leads are on.');
+      else toast.error('Facebook did not confirm instant leads. Try again in a minute.');
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not turn on instant leads.'),
+  });
   const saveM = useMutation({ mutationFn: (d: { auto_sync_enabled?: boolean; initial_lookback_days?: number }) => save({ data: d }), onSuccess: async () => { toast.success('Saved.'); await onChange(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save.') });
   const runM = useMutation({ mutationFn: () => run(), onSuccess: async (r) => { if (r.started) toast.success('Import finished.'); else toast.error(r.reason); await onChange(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not run the import.') });
   const offM = useMutation({ mutationFn: () => off(), onSuccess: async () => { toast.success('Facebook disconnected.'); await onChange(); }, onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not disconnect.') });
   const c = direct.connection;
   const connected = Boolean(direct.page);
   const auto = Boolean(connected && c && c.status !== 'disconnected' && c.auto_sync_enabled);
+  const instantStatus = useQuery({ queryKey: ['instant-leads'], enabled: connected, queryFn: () => instantStatusFn(), staleTime: 5 * 60_000, retry: false });
+  const instantOn = instantStatus.data?.on;
 
   return <div className="space-y-3">
     {!direct.available ? <p role="status" className="rounded-md border border-border bg-background p-3 text-sm">{direct.setupError ?? 'Facebook connections aren’t switched on for BookedSecure yet (META_APP_ID / META_APP_SECRET). Please contact BookedSecure support.'}</p> : null}
@@ -110,16 +122,44 @@ function DirectImportCard({ direct, active, onChange }: { direct: DirectInfo; ac
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" disabled={testM.isPending} onClick={() => testM.mutate()}><ShieldCheck className="mr-2 h-4 w-4" />{testM.isPending ? 'Checking…' : 'Test Facebook access'}</Button>
         <Button disabled={runM.isPending || active} onClick={() => runM.mutate()}><RefreshCw className="mr-2 h-4 w-4" />{runM.isPending || active ? 'Importing…' : 'Import new leads now'}</Button>
-        <Button variant="outline" disabled={instantM.isPending} onClick={() => instantM.mutate()}><Zap className="mr-2 h-4 w-4" />{instantM.isPending ? 'Turning on…' : 'Turn on instant leads'}</Button>
         <Button variant="ghost" onClick={() => setShowForms((v) => !v)}>{showForms ? 'Hide forms' : 'Choose forms'}</Button>
         <Button variant="ghost" disabled={connectM.isPending} onClick={() => connectM.mutate()}>Reconnect / change Page</Button>
         <Button variant="ghost" disabled={offM.isPending} onClick={() => { if (window.confirm('Disconnect Facebook? The saved access is deleted and automatic checks stop. Import history is kept.')) offM.mutate(); }}>Disconnect</Button>
       </div>
       {showForms ? <FormPicker onDone={async () => { setShowForms(false); await onChange(); }} /> : null}
       {check ? <p role="status" className={check.ok ? 'text-sm' : 'text-sm text-destructive'}>{check.text}</p> : null}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background p-3 text-sm">
+        <span className="flex min-w-0 items-start gap-2.5">
+          <Zap className={instantOn ? 'mt-0.5 h-4 w-4 shrink-0 text-primary' : 'mt-0.5 h-4 w-4 shrink-0 text-muted-foreground'} aria-hidden="true" />
+          <span className="min-w-0">
+            <span className="block font-medium">Instant leads</span>
+            <span className="block text-xs text-muted-foreground">
+              {instantStatus.isLoading ? 'Checking with Facebook…'
+                : instantOn ? 'Facebook sends each new lead to BookedSecure the moment it’s submitted.'
+                : instantOn === false ? 'Off. New leads wait for the five-minute check (if it’s on).'
+                : 'Couldn’t check with Facebook right now.'}
+            </span>
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span
+            className={instantOn
+              ? 'rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary'
+              : instantOn === false ? 'rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-muted-foreground'
+              : 'rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-muted-foreground'}
+          >
+            {instantStatus.isLoading ? '…' : instantOn ? 'On' : instantOn === false ? 'Off' : 'Unknown'}
+          </span>
+          {instantOn ? (
+            <Button size="sm" variant="ghost" disabled={instantStatus.isFetching} onClick={() => void instantStatus.refetch()}>{instantStatus.isFetching ? 'Checking…' : 'Check again'}</Button>
+          ) : (
+            <Button size="sm" disabled={instantM.isPending || instantStatus.isLoading} onClick={() => instantM.mutate()}>{instantM.isPending ? 'Turning on…' : 'Turn on'}</Button>
+          )}
+        </span>
+      </div>
       <div className="grid gap-3 text-sm sm:grid-cols-2">
         <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-3">
-          <span>Check for new leads every 5 minutes</span>
+          <span>Check for new leads every 5 minutes <span className="block text-xs text-muted-foreground">A backup that catches anything instant leads miss.</span></span>
           <Switch checked={auto} disabled={saveM.isPending} onCheckedChange={(v) => saveM.mutate({ auto_sync_enabled: v })} />
         </label>
         <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-3">
