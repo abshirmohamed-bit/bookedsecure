@@ -104,14 +104,27 @@ export function buildLoginUrl(config: MetaAppConfig, state: string): string {
 
 export type MetaPageCandidate = { id: string; name: string; token: string };
 
-async function graphGet(config: MetaAppConfig, path: string, params: Record<string, string>, fetcher: typeof fetch): Promise<unknown> {
+/**
+ * A connection failure tagged with the step and Facebook's numeric error code,
+ * so the owner (and support) can see where it broke. Never carries tokens,
+ * secrets or provider message text.
+ */
+export class MetaConnectError extends Error {
+  constructor(message: string, readonly step: string, readonly graphCode?: number, readonly graphSubcode?: number) { super(message); }
+  get reason(): string { return [this.step, this.graphCode, this.graphSubcode].filter((x) => x !== undefined).join('-'); }
+}
+
+async function graphGet(config: MetaAppConfig, path: string, params: Record<string, string>, fetcher: typeof fetch, step = 'graph'): Promise<unknown> {
   const url = new URL(`https://graph.facebook.com/${config.version}/${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   let res: Response;
-  try { res = await fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(15_000) }); } catch { throw new Error('Facebook could not be reached. Please try again.'); }
+  try { res = await fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(15_000) }); } catch { throw new MetaConnectError('Facebook could not be reached. Please try again.', `${step}_unreachable`); }
   let body: unknown = null;
   try { body = await res.json(); } catch { body = null; }
-  if (!res.ok || !body || (typeof body === 'object' && 'error' in body)) throw new Error('Facebook did not accept the connection. Please try again.');
+  if (!res.ok || !body || (typeof body === 'object' && 'error' in body)) {
+    const err = z.object({ error: z.object({ code: z.number().optional(), error_subcode: z.number().optional() }) }).safeParse(body);
+    throw new MetaConnectError('Facebook did not accept the connection. Please try again.', step, err.success ? err.data.error.code : res.status, err.success ? err.data.error.error_subcode : undefined);
+  }
   return body;
 }
 
@@ -127,14 +140,15 @@ const pageWithToken = z.object({ id: z.string().regex(/^\d+$/), name: z.string()
 export async function exchangeCodeForPages(config: MetaAppConfig, code: string, fetcher: typeof fetch = fetch): Promise<MetaPageCandidate[]> {
   assertMetaAppReady(config);
   const redirect = `${config.appUrl}${META_CALLBACK_PATH}`;
-  const short = tokenResponse.safeParse(await graphGet(config, 'oauth/access_token', { client_id: config.appId!, client_secret: config.appSecret!, redirect_uri: redirect, code }, fetcher));
-  if (!short.success) throw new Error('Facebook did not return a sign-in token.');
-  const long = tokenResponse.safeParse(await graphGet(config, 'oauth/access_token', { grant_type: 'fb_exchange_token', client_id: config.appId!, client_secret: config.appSecret!, fb_exchange_token: short.data.access_token }, fetcher));
-  if (!long.success) throw new Error('Facebook did not return a long-lived token.');
+  const short = tokenResponse.safeParse(await graphGet(config, 'oauth/access_token', { client_id: config.appId!, client_secret: config.appSecret!, redirect_uri: redirect, code }, fetcher, 'token'));
+  if (!short.success) throw new MetaConnectError('Facebook did not return a sign-in token.', 'token_shape');
+  const long = tokenResponse.safeParse(await graphGet(config, 'oauth/access_token', { grant_type: 'fb_exchange_token', client_id: config.appId!, client_secret: config.appSecret!, fb_exchange_token: short.data.access_token }, fetcher, 'longtoken'));
+  if (!long.success) throw new MetaConnectError('Facebook did not return a long-lived token.', 'longtoken_shape');
   const userToken = long.data.access_token;
 
   const pages = new Map<string, MetaPageCandidate>();
-  const accounts = z.object({ data: z.array(pageWithToken) }).safeParse(await graphGet(config, 'me/accounts', { fields: 'id,name,access_token', limit: '100', access_token: userToken }, fetcher));
+  // A failed Page list is not fatal: Pages may still come from the login's granted assets.
+  const accounts = z.object({ data: z.array(pageWithToken) }).safeParse(await graphGet(config, 'me/accounts', { fields: 'id,name,access_token', limit: '100', access_token: userToken }, fetcher, 'pages').catch(() => null));
   if (accounts.success) for (const p of accounts.data.data) if (p.access_token) pages.set(p.id, { id: p.id, name: p.name, token: p.access_token });
 
   const debug = z.object({ data: z.object({ granular_scopes: z.array(z.object({ scope: z.string(), target_ids: z.array(z.string()).optional() })).optional() }) })

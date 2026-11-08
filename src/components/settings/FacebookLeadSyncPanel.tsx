@@ -48,8 +48,10 @@ function useFacebookOutcome(onChange: () => Promise<unknown>) {
     const outcome = params.get('facebook');
     if (!outcome) return;
     const msg = FACEBOOK_OUTCOME[outcome] ?? FACEBOOK_OUTCOME['failed']!;
-    if (msg.ok) toast.success(msg.text); else toast.error(msg.text);
-    params.delete('facebook');
+    const why = params.get('why')?.replace(/[^a-z0-9_-]/gi, '').slice(0, 60);
+    // The reference shows exactly which connection step stopped (and Facebook's error code).
+    if (msg.ok) toast.success(msg.text); else toast.error(why ? `${msg.text} (reference: ${why})` : msg.text, { duration: 30000 });
+    params.delete('facebook'); params.delete('why');
     const qs = params.toString();
     window.history.replaceState(null, '', `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`);
     void onChange();

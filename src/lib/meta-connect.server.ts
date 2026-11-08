@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server';
-import { encryptMetaToken, exchangeCodeForPages, readMetaAppConfig, tokenContext, verifyState } from './meta-oauth.server';
+import { MetaConnectError, encryptMetaToken, exchangeCodeForPages, readMetaAppConfig, tokenContext, verifyState } from './meta-oauth.server';
 
 const CONN_COLUMNS = 'id, business_id, provider, trigger_url, initial_lookback_days, consecutive_failures, status, auto_sync_enabled';
 const PENDING_TTL_MS = 15 * 60_000;
@@ -62,20 +62,23 @@ export async function completeMetaConnect(code: string, state: string, fetcher: 
   const who = verifyState(state);
   if (!who) throw new Error('This Facebook sign-in link has expired. Please connect again.');
   const { requireAppContext, requireOwner } = await import('./app-context.server');
-  const ctx = await requireAppContext(supabaseAdmin, who.userId);
-  requireOwner(ctx);
-  if (ctx.businessId !== who.businessId) throw new Error('This Facebook sign-in belongs to a different business.');
+  const ctx = await requireAppContext(supabaseAdmin, who.userId).catch(() => { throw new MetaConnectError('Your BookedSecure account could not be checked.', 'owner'); });
+  try { requireOwner(ctx); } catch { throw new MetaConnectError('Only the business owner can connect Facebook.', 'owner'); }
+  if (ctx.businessId !== who.businessId) throw new MetaConnectError('This Facebook sign-in belongs to a different business.', 'owner_business');
 
   const pages = await exchangeCodeForPages(readMetaAppConfig(), code, fetcher);
   if (!pages.length) throw new Error('No Facebook Page was shared. Connect again and tick your business Page.');
-  const sealed = pages.map((p) => ({ id: p.id, name: p.name, token_ciphertext: encryptMetaToken(p.token, tokenContext(who.businessId, p.id)) }));
+  let sealed: Array<{ id: string; name: string; token_ciphertext: string }>;
+  try { sealed = pages.map((p) => ({ id: p.id, name: p.name, token_ciphertext: encryptMetaToken(p.token, tokenContext(who.businessId, p.id)) })); }
+  catch { throw new MetaConnectError('Secure token storage is unavailable.', 'encrypt'); }
   if (sealed.length === 1) {
-    await saveConnectedPage(who.businessId, who.userId, sealed[0]!);
+    try { await saveConnectedPage(who.businessId, who.userId, sealed[0]!); }
+    catch (e) { throw new MetaConnectError(e instanceof Error ? e.message : 'Could not save the Facebook connection.', 'save'); }
     return 'connected';
   }
   const { error } = await supabaseAdmin.from('meta_lead_accounts').upsert({
     business_id: who.businessId, pending_pages: sealed, pending_expires_at: new Date(Date.now() + PENDING_TTL_MS).toISOString(), updated_at: new Date().toISOString(),
   }, { onConflict: 'business_id' });
-  if (error) throw new Error('Could not save the Facebook Pages.');
+  if (error) throw new MetaConnectError('Could not save the Facebook Pages.', 'save_pending');
   return 'choose';
 }

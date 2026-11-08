@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { buildLoginUrl, decryptMetaToken, encryptMetaToken, exchangeCodeForPages, readMetaAppConfig, signState, tokenContext, verifyState, META_CALLBACK_PATH } from './meta-oauth.server';
+import { MetaConnectError, buildLoginUrl, decryptMetaToken, encryptMetaToken, exchangeCodeForPages, readMetaAppConfig, signState, tokenContext, verifyState, META_CALLBACK_PATH } from './meta-oauth.server';
 
 const BIZ = '22222222-2222-2222-2222-222222222222';
 const USER = '33333333-3333-3333-3333-333333333333';
@@ -74,6 +74,23 @@ describe('exchanging the Facebook login for Page tokens', () => {
   it('finds Pages shared through a business portfolio via the login grants', async () => {
     const fetcher = fakeGraph({ accounts: [], granted: ['222'], pages: { '222': { id: '222', name: 'Portfolio Page', access_token: 'page-b-token' } } });
     expect(await exchangeCodeForPages(readMetaAppConfig(), 'CODE', fetcher as typeof fetch)).toEqual([{ id: '222', name: 'Portfolio Page', token: 'page-b-token' }]);
+  });
+  it('tags a refused code exchange with the step and Facebook codes, never secrets', async () => {
+    const fetcher = vi.fn(async () => Response.json({ error: { code: 100, error_subcode: 36007, message: 'secret-ish provider text' } }, { status: 400 }));
+    const err = await exchangeCodeForPages(readMetaAppConfig(), 'CODE', fetcher as typeof fetch).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(MetaConnectError);
+    expect((err as MetaConnectError).reason).toBe('token-100-36007');
+    expect(String((err as Error).message)).not.toMatch(/app-secret-test|provider text/);
+  });
+  it('still finds granted Pages when the Page list itself fails', async () => {
+    const base = vi.fn(async (input: URL | RequestInfo) => {
+      const path = new URL(String(input)).pathname.replace('/v27.0/', '');
+      if (path === 'oauth/access_token') return Response.json({ access_token: 'user-token-xyz' });
+      if (path === 'me/accounts') return Response.json({ error: { code: 200 } }, { status: 403 });
+      if (path === 'debug_token') return Response.json({ data: { granular_scopes: [{ scope: 'pages_show_list', target_ids: ['333'] }] } });
+      return Response.json({ id: '333', name: 'Granted Page', access_token: 'page-c-token' });
+    });
+    expect(await exchangeCodeForPages(readMetaAppConfig(), 'CODE', base as typeof fetch)).toEqual([{ id: '333', name: 'Granted Page', token: 'page-c-token' }]);
   });
   it('returns nothing when no Page was shared', async () => {
     expect(await exchangeCodeForPages(readMetaAppConfig(), 'CODE', fakeGraph({}) as typeof fetch)).toEqual([]);
