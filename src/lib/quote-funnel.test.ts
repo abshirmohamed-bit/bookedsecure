@@ -167,3 +167,21 @@ describe("readAttribution", () => {
     ]);
   });
 });
+
+import { detectAdSource, leadSourceFromFormUrl, adTaggedFormUrl } from "@/lib/quote-funnel";
+
+describe("facebook trace-back", () => {
+  it("spots facebook from the ad click id, the referrer or the in-app browser", () => {
+    expect(detectAdSource({ url: "https://x.com/quote/a?fbclid=abc" })).toBe("facebook");
+    expect(detectAdSource({ url: "https://x.com/quote/a", referrer: "https://l.facebook.com/" })).toBe("facebook");
+    expect(detectAdSource({ userAgent: "Mozilla/5.0 [FBAN/FBIOS;FBAV/450.0]" })).toBe("facebook");
+    expect(detectAdSource({ userAgent: "Mozilla/5.0 Instagram 300.0" })).toBe("instagram");
+    expect(detectAdSource({ url: "https://x.com/quote/a", userAgent: "Mozilla/5.0 Safari" })).toBeNull();
+  });
+
+  it("marks quote chat customers from facebook as facebook leads", () => {
+    const url = adTaggedFormUrl("https://bookedsecure.com/quote/a", "facebook");
+    expect(leadSourceFromFormUrl(url)).toEqual({ source_channel: "meta", utm_source: "facebook" });
+    expect(leadSourceFromFormUrl("https://bookedsecure.com/quote/a").source_channel).toBe("website");
+  });
+});

@@ -26,6 +26,8 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { NotificationBell } from "@/components/NotificationBell";
+import { PushForegroundListener } from '@/components/PushForegroundListener';
+import { AutoPushPrompt } from '@/components/AutoPushPrompt';
 import { AccountMenu } from "@/components/AccountMenu";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { TenantMark } from "@/components/TenantMark";
@@ -108,6 +110,8 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         tenantRailCollapsed && "lg:pl-16",
       )}
     >
+      {pathname !== '/notifications' && <PushForegroundListener />}
+      <AutoPushPrompt />
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-16 flex-col items-center border-r border-sidebar-border bg-sidebar py-3 lg:flex">
         <Link
           to="/"
@@ -130,7 +134,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </Button>
         </div>
         <div className="mt-auto flex flex-col items-center gap-2">
-          <NotificationBell rail />
+          <NotificationBell rail enableRealtime={false} />
           <AccountMenu rail onSignOut={() => navigate({ to: "/auth", replace: true })} />
         </div>
       </aside>
@@ -202,6 +206,13 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             label="Unfinished prospects"
             active={pathname.startsWith("/unfinished")}
             icon={PanelLeft}
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <SidebarLink
+            to="/social"
+            label="Facebook comments"
+            active={pathname.startsWith("/social")}
+            icon={MessageCircle}
             onClick={() => setMobileNavOpen(false)}
           />
           <SidebarLink
@@ -335,6 +346,7 @@ function SidebarLink({
     | "/analytics"
     | "/import"
      | "/unfinished"
+    | "/social"
     | "/settings/business"
     | "/settings/messaging"
     | "/settings/automation"

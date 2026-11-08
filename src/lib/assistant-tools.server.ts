@@ -1,3 +1,4 @@
+import { bookingOutcomeSummary, customerSearchPatterns } from '@/lib/assistant-booking-result';
 /**
  * The owner assistant's tools.
  *
@@ -20,6 +21,8 @@ import { buildOperationsTools } from "@/lib/assistant-tools-ops.server";
 import { executeSharedAction, prepareAssistantText, customerInput, serviceInput, addonInput, textInput } from "@/lib/assistant-shared-actions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { requestsAllCampaignLeads } from '@/lib/campaign-audience';
+import { campaignNeedsClarification, CAMPAIGN_CLARIFICATION } from '@/lib/assistant-request-guard';
 
 export type ExecutedAction = { summary: string };
 
@@ -37,6 +40,8 @@ export type AssistantToolContext = {
   attachment: { filename: string; content: string } | null;
   /** The owner's own latest words, used to honour numbers they stated exactly. */
   request?: string;
+  /** Earlier turns or a file can supply campaign details the latest message refers to. */
+  requestHasContext?: boolean;
 };
 
 
@@ -45,7 +50,7 @@ const DATE = z
   .describe("Local calendar date in the owner's own timezone, formatted YYYY-MM-DD.");
 const TIME = z
   .string()
-  .describe("Local 24-hour time in the owner's own timezone, formatted HH:MM. Use 09:00 when the owner gave a day but no time.");
+  .describe("Local 24-hour time in the owner's own timezone, formatted HH:MM. Ask the owner when no time was specified; never choose a time for them.");
 
 export function fail(message: string) {
   return { ok: false as const, message };
@@ -60,18 +65,21 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
   }
 
   async function findLeads(query: string, limit = 6) {
-    const term = query.trim();
-    const like = `%${term}%`;
-    const { data } = await supabaseAdmin
+    const { text, mobile } = customerSearchPatterns(query);
+    const like = `%${text}%`;
+    const filters = [`name.ilike.${like}`, `email.ilike.${like}`, `mobile_number.ilike.${like}`];
+    if (mobile) filters.push(`mobile_number.ilike.%${mobile}%`);
+    const { data, error } = await supabaseAdmin
       .from("leads")
       .select(
         "id, name, mobile_number, email, suburb, service_address, vehicle_type, service_intent, status, booking_status, notes, opted_out_at, created_at",
       )
       .eq("business_id", businessId)
       .is("deleted_at", null)
-      .or(`name.ilike.${like},mobile_number.ilike.${like},email.ilike.${like}`)
+      .or(filters.join(','))
       .order("created_at", { ascending: false })
       .limit(limit);
+    if (error) throw new Error('Could not search customers. Please try again.');
     return data ?? [];
   }
 
@@ -96,6 +104,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
             rows.map((row) => row.id as string),
           )
           .order("scheduled_at", { ascending: true });
+        if (jobs.error) throw new Error('Could not read customer bookings. Please try again.');
         return {
           matches: rows.map((row) => ({
             leadId: row.id,
@@ -185,6 +194,10 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeSharedAction(ctx.client, 'create_customer', input);
+          if (result.existing) {
+            ctx.record(`${result.name} is already one of your customers, so I used that record.`);
+            return { ok: true, leadId: result.id, existingCustomer: true, message: 'This customer already exists; use this leadId. No duplicate was created.' };
+          }
           ctx.record(`Added ${result.name} to your customers.`);
           return { ok: true, leadId: result.id };
         } catch (error) { return fail(error instanceof Error ? error.message : 'Nothing was saved.'); }
@@ -205,25 +218,27 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     }),
 
     book_job: tool({
-      description: "Book this customer in at a date and time. Use find_customers first.",
+      description: "Book this customer in at a date and time. Use find_customers first. If this customer already has a booking at that exact time, it is updated (for example to add the service) instead of refused. A time held by another customer is refused and nothing is saved.",
       inputSchema: operationInputs.book_job,
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'book_job', input);
-          ctx.record('Saved that booking.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
 
     reschedule_job: tool({
-      description: "Move an existing booking to a new date and time.",
+      description: "Move an existing booking to a new date and time, optionally changing its service in the same step. If the new time belongs to another customer, the booking is not moved.",
       inputSchema: operationInputs.reschedule_job,
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'reschedule_job', input);
-          ctx.record('Moved that booking.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
@@ -235,8 +250,9 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'cancel_job', input);
-          ctx.record('Cancelled that booking.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
@@ -248,8 +264,9 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'delete_job', input);
-          ctx.record('Deleted that job record.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
@@ -261,8 +278,9 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'complete_job', input);
-          ctx.record('Marked that job completed.');
-          return result;
+          const summary = bookingOutcomeSummary(result, timeZone);
+          ctx.record(summary);
+          return { ...result, summary, savedOutcome: summary };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
@@ -318,9 +336,9 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
 
     draft_campaign: tool({
       description:
-        "Prepare or replace an SMS campaign for a group of this business's consented leads and show the actual saved messages to the owner for approval. If the owner supplies campaign wording, pass its editable middle section in campaignCopy so the saved drafts use it exactly; never merely repeat requested wording in your reply. Audiences: 'dormant' (past customers with no history on file), 'uncontacted' (leads never texted, e.g. a fresh import), 'status' (one inbox status such as new or contacted), or 'leads' (specific lead ids from find_customers or query_leads). Opt-outs, suppressed numbers and deleted leads are always excluded. Nothing sends until the owner approves on screen.",
+        "Prepare or replace an SMS campaign and show the actual saved messages to the owner for approval. Audiences: 'all' (all existing leads, whether contacted or not), 'dormant' (contacts with no history on file), 'uncontacted' (never texted), 'status' (one inbox status), or 'leads' (specific ids). Use 'all' whenever the owner asks for all existing customers; never substitute uncontacted or a single search result. If wording is supplied pass it in campaignCopy. Opt-outs, suppressed/deleted records and unusable mobiles are excluded. Eligibility does not prove consent: the owner must attest permission and confirm before anything sends.",
       inputSchema: z.object({
-        audience: z.enum(["dormant", "uncontacted", "status", "leads"]),
+        audience: z.enum(["all", "dormant", "uncontacted", "status", "leads"]),
         status: z.enum(LEAD_STATUSES).nullable().describe("Required when audience is 'status'."),
         leadIds: z.array(z.string().uuid()).nullable().describe("Required when audience is 'leads'."),
         percent: z.number().int().min(1).max(90).nullable().describe("Discount percentage for the offer, if the owner named one."),
@@ -336,13 +354,15 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         olderThanDays: z.number().int().min(1).max(3650).nullable(),
       }),
       execute: async (input) => {
+        if (campaignNeedsClarification(ctx.request ?? '', ctx.requestHasContext)) return fail(CAMPAIGN_CLARIFICATION);
         {
           const { planGateMessage } = await import("@/lib/subscription.server");
           const blocked = await planGateMessage(businessId, "campaigns");
           if (blocked) return fail(blocked);
         }
         const { proposeCampaign } = await import("@/lib/owner-actions.server");
-        const audience =
+        const allRequested = requestsAllCampaignLeads(ctx.request ?? '');
+        const audience = allRequested ? ({ kind: 'all' } as const) :
           input.audience === "status"
             ? input.status
               ? ({ kind: "status", status: input.status } as const)
@@ -368,8 +388,8 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
           percent,
           offerText,
           campaignCopy: input.campaignCopy,
-          maxLeads: asked.maxLeads ?? input.maxLeads,
-          olderThanDays: asked.olderThanDays ?? input.olderThanDays,
+          maxLeads: allRequested ? 5000 : asked.maxLeads ?? input.maxLeads,
+          olderThanDays: allRequested ? null : asked.olderThanDays ?? input.olderThanDays,
           audience,
           fresh: true,
         });
@@ -383,6 +403,8 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
           offer: proposal.offerText,
           drafted: proposal.drafts.length,
           summary: proposal.summary,
+          audience: audience.kind,
+          permission: 'Not verified by audience selection. Owner attestation and confirmation required.',
           recipients: proposal.drafts.slice(0, 20).map((d) => d.leadName ?? d.mobileNumber),
         };
       },
@@ -390,7 +412,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
 
     draft_email_campaign: tool({
       description:
-        "Prepare an email campaign to this business's customers. Use find_customers first to pick the recipients, then pass their lead ids. The email is saved as a draft on the Email campaigns page; nothing sends until the owner reviews it there and presses Send. Customers without an email address or who unsubscribed are skipped automatically.",
+        "Prepare an email campaign only after the owner specifies the audience and message or asks you to propose wording. Ask for missing details first; never choose recipients from a limited search result or invent an offer. Use find_customers to resolve owner-named recipients, not to choose an audience. If the requested audience cannot be fully resolved, explain the limitation and do not substitute a subset. Nothing sends until the owner reviews the draft and presses Send. Customers without an email address or who unsubscribed are skipped automatically; report these exclusions.",
       inputSchema: z.object({
         leadIds: z.array(z.string().uuid()).min(1).max(500),
         name: z.string().min(2).max(120).describe("Short internal name for the campaign."),
@@ -398,6 +420,7 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
         bodyText: z.string().min(2).max(5000).describe("The email body in the owner's words."),
       }),
       execute: async (input) => {
+        if (campaignNeedsClarification(ctx.request ?? '', ctx.requestHasContext)) return fail(CAMPAIGN_CLARIFICATION);
         const { createEmailCampaign } = await import("@/lib/email-campaigns.server");
         try {
           const result = await createEmailCampaign({

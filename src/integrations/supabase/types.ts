@@ -393,6 +393,104 @@ export type Database = {
           },
         ]
       }
+      api_key_requests: {
+        Row: {
+          action: string
+          api_key_id: string
+          business_id: string
+          created_at: string
+          id: string
+          outcome: string | null
+          status_code: number
+        }
+        Insert: {
+          action: string
+          api_key_id: string
+          business_id: string
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          status_code: number
+        }
+        Update: {
+          action?: string
+          api_key_id?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          outcome?: string | null
+          status_code?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_key_requests_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_key_requests_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_keys: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          key_last4: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          request_count: number
+          revoked_at: string | null
+          scopes: string[]
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          key_last4: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          request_count?: number
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          key_last4?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          request_count?: number
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistant_files: {
         Row: {
           business_id: string
@@ -1986,6 +2084,262 @@ export type Database = {
           },
         ]
       }
+      lead_sync_connections: {
+        Row: {
+          auto_sync_enabled: boolean
+          business_id: string
+          consecutive_failures: number
+          created_at: string
+          created_by: string | null
+          id: string
+          initial_lookback_days: number
+          last_attempt_at: string | null
+          last_error: string | null
+          last_success_at: string | null
+          next_check_at: string | null
+          provider: string
+          status: string
+          trigger_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          auto_sync_enabled?: boolean
+          business_id: string
+          consecutive_failures?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          initial_lookback_days?: number
+          last_attempt_at?: string | null
+          last_error?: string | null
+          last_success_at?: string | null
+          next_check_at?: string | null
+          provider?: string
+          status?: string
+          trigger_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auto_sync_enabled?: boolean
+          business_id?: string
+          consecutive_failures?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          initial_lookback_days?: number
+          last_attempt_at?: string | null
+          last_error?: string | null
+          last_success_at?: string | null
+          next_check_at?: string | null
+          provider?: string
+          status?: string
+          trigger_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_sync_connections_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_sync_form_checkpoints: {
+        Row: {
+          business_id: string
+          connection_id: string
+          form_id: string
+          form_name: string | null
+          last_submitted_at: string
+          page_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          connection_id: string
+          form_id: string
+          form_name?: string | null
+          last_submitted_at: string
+          page_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          connection_id?: string
+          form_id?: string
+          form_name?: string | null
+          last_submitted_at?: string
+          page_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_sync_form_checkpoints_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_sync_form_checkpoints_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sync_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_sync_items: {
+        Row: {
+          business_id: string
+          created_at: string
+          display_name: string | null
+          form_id: string | null
+          form_name: string | null
+          id: string
+          lead_id: string | null
+          meta_lead_id: string
+          outcome: string
+          page_id: string | null
+          reason: string | null
+          run_id: string
+          submitted_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          display_name?: string | null
+          form_id?: string | null
+          form_name?: string | null
+          id?: string
+          lead_id?: string | null
+          meta_lead_id: string
+          outcome: string
+          page_id?: string | null
+          reason?: string | null
+          run_id: string
+          submitted_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          display_name?: string | null
+          form_id?: string | null
+          form_name?: string | null
+          id?: string
+          lead_id?: string | null
+          meta_lead_id?: string
+          outcome?: string
+          page_id?: string | null
+          reason?: string | null
+          run_id?: string
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_sync_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_sync_items_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_sync_items_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_sync_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_sync_runs: {
+        Row: {
+          business_id: string
+          completed_at: string | null
+          connection_id: string
+          created_count: number
+          duplicate_count: number
+          enriched_count: number
+          error: string | null
+          failed_count: number
+          id: string
+          last_activity_at: string
+          requested_at: string
+          requested_by: string | null
+          since: string
+          skipped_count: number
+          status: string
+          trigger_kind: string
+        }
+        Insert: {
+          business_id: string
+          completed_at?: string | null
+          connection_id: string
+          created_count?: number
+          duplicate_count?: number
+          enriched_count?: number
+          error?: string | null
+          failed_count?: number
+          id?: string
+          last_activity_at?: string
+          requested_at?: string
+          requested_by?: string | null
+          since: string
+          skipped_count?: number
+          status?: string
+          trigger_kind: string
+        }
+        Update: {
+          business_id?: string
+          completed_at?: string | null
+          connection_id?: string
+          created_count?: number
+          duplicate_count?: number
+          enriched_count?: number
+          error?: string | null
+          failed_count?: number
+          id?: string
+          last_activity_at?: string
+          requested_at?: string
+          requested_by?: string | null
+          since?: string
+          skipped_count?: number
+          status?: string
+          trigger_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_sync_runs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_sync_runs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sync_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           approved_service_id: string | null
@@ -2400,6 +2754,32 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          business_id: string
+          muted_kinds: string[]
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          muted_kinds?: string[]
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          muted_kinds?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string
@@ -2460,6 +2840,106 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_push_deliveries: {
+        Row: {
+          alert_key: string
+          business_id: string
+          device_id: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          alert_key: string
+          business_id: string
+          device_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_key?: string
+          business_id?: string
+          device_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_push_deliveries_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_push_deliveries_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "owner_push_devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_push_devices: {
+        Row: {
+          business_id: string
+          id: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_id: string
+          id?: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_id?: string
+          id?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_push_devices_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_push_settings: {
+        Row: {
+          business_id: string
+          sms_fallback: boolean
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          sms_fallback?: boolean
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          sms_fallback?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_push_settings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -3522,6 +4002,116 @@ export type Database = {
           },
         ]
       }
+      social_comments: {
+        Row: {
+          api_key_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_response: string | null
+          author_name: string | null
+          business_id: string
+          comment_id: string
+          comment_text: string
+          comment_url: string | null
+          commented_at: string | null
+          created_at: string
+          draft_response: string | null
+          id: string
+          lead_id: string | null
+          needs_response: boolean
+          platform: string
+          post_error: string | null
+          post_id: string | null
+          post_text: string | null
+          posted_at: string | null
+          response_reason: string | null
+          sentiment: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_response?: string | null
+          author_name?: string | null
+          business_id: string
+          comment_id: string
+          comment_text: string
+          comment_url?: string | null
+          commented_at?: string | null
+          created_at?: string
+          draft_response?: string | null
+          id?: string
+          lead_id?: string | null
+          needs_response?: boolean
+          platform?: string
+          post_error?: string | null
+          post_id?: string | null
+          post_text?: string | null
+          posted_at?: string | null
+          response_reason?: string | null
+          sentiment?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_response?: string | null
+          author_name?: string | null
+          business_id?: string
+          comment_id?: string
+          comment_text?: string
+          comment_url?: string | null
+          commented_at?: string | null
+          created_at?: string
+          draft_response?: string | null
+          id?: string
+          lead_id?: string | null
+          needs_response?: boolean
+          platform?: string
+          post_error?: string | null
+          post_id?: string | null
+          post_text?: string | null
+          posted_at?: string | null
+          response_reason?: string | null
+          sentiment?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_comments_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_comments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_comments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_comments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stripe_events: {
         Row: {
           event_type: string
@@ -4180,6 +4770,18 @@ export type Database = {
       prepare_connected_assistant_request: {
         Args: { p_request: string }
         Returns: Json
+      }
+      push_owner_notification: {
+        Args: {
+          _body: string
+          _business_id: string
+          _key: string
+          _kind: string
+          _lead_id: string
+          _metadata?: Json
+          _title: string
+        }
+        Returns: undefined
       }
       record_blocked_sms_segments: {
         Args: { p_period_id: string; p_segments: number }

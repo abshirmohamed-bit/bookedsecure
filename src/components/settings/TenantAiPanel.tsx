@@ -31,8 +31,8 @@ export function TenantAiPanel() {
   const remove = useMutation({ mutationFn: () => disconnect(), onSuccess: () => { void queryClient.invalidateQueries({ queryKey }); }, onError: () => setError('Could not remove your connection.') });
   const resume = useMutation({ mutationFn: () => restore(), onSuccess: () => { void queryClient.invalidateQueries({ queryKey }); }, onError: () => setError('Could not restore Lovable AI.') });
   const busy = save.isPending || remove.isPending || resume.isPending;
-  return <section className="space-y-5 border-b border-border pb-8">
-    <h2 className="flex items-center gap-2 font-semibold"><KeyRound className="h-5 w-5 text-primary" />Backup AI account</h2>
+  return <section className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
+    <h2 className="flex items-center gap-2 font-heading text-lg font-semibold"><KeyRound className="h-5 w-5 text-primary" />Backup AI account</h2>
     <p className="text-sm text-muted-foreground">Lovable AI stays first. If its credits run out, your connected AI account powers Cowork, quote conversations and AI drafts instead.</p>
     {status.isError ? <p role="alert" className="text-sm text-muted-foreground">Only business owners can manage backup AI accounts. If you are an owner, try loading this page again.</p> : null}
     {status.data?.connected ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm"><span className="font-medium">Connected</span> · {AI_PROVIDER_LABELS[status.data.provider as TenantAiProvider]} · {status.data.model}</p><Button variant="outline" disabled={busy} onClick={() => { if (window.confirm('Remove your backup AI account? AI will stop if Lovable credits run out.')) remove.mutate(); }}><Unplug className="h-4 w-4" />Remove connection</Button></div> : null}

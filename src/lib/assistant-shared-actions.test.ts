@@ -5,15 +5,22 @@ import { executeSharedAction, prepareAssistantText, customerInput, serviceInput 
 
 const leadId = '10000000-0000-4000-8000-000000000001';
 const customer = { name: 'Test customer', mobile: '0412345678', email: null, suburb: null, address: null, vehicle: null, requestedService: null, notes: null };
-function clientMock(result: unknown) {
+function clientMock(result: unknown, existing: unknown[] = []) {
   const rpc = vi.fn().mockResolvedValue(result);
   const ops: Array<[string, ...unknown[]]> = [];
   const chain: Record<string, unknown> = {};
-  for (const name of ['select', 'eq', 'is', 'maybeSingle']) chain[name] = (...args: unknown[]) => { ops.push([name, ...args]); return chain; };
+  for (const name of ['select', 'eq', 'is', 'maybeSingle', 'order']) chain[name] = (...args: unknown[]) => { ops.push([name, ...args]); return chain; };
+  chain['limit'] = (...args: unknown[]) => { ops.push(['limit', ...args]); return Promise.resolve({ data: existing, error: null }); };
   chain['then'] = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve);
   return { client: { rpc, from: vi.fn(() => chain) } as unknown as SupabaseClient<Database>, rpc, ops };
 }
 describe('actions shared by Cowork and MCP', () => {
+  it('reuses an existing customer with the same mobile instead of creating another', async () => {
+    const { client, rpc } = clientMock({ data: null, error: null }, [{ id: leadId, name: 'Rhys' }]);
+    const result = await executeSharedAction(client, 'create_customer', { ...customer, mobile: '0403 392 447' });
+    expect(result).toMatchObject({ id: leadId, name: 'Rhys', existing: true });
+    expect(rpc).not.toHaveBeenCalled();
+  });
   it('normalises customer mobiles and sends no caller-supplied identity to the atomic action', async () => {
     const { client, rpc } = clientMock({ data: { ok: true, id: leadId, name: customer.name }, error: null });
     await executeSharedAction(client, 'create_customer', customer);

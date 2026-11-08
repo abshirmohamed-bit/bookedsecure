@@ -37,10 +37,17 @@ export async function executeSharedAction(client: Client, action: SharedActionNa
   const input = action === 'create_customer' && 'mobile' in parsed
     ? { ...parsed, mobile: normaliseAuMobile(parsed.mobile) ?? parsed.mobile }
     : parsed;
+  if (action === 'create_customer' && 'mobile' in input) {
+    // Reuse an existing active customer with the same number instead of failing or duplicating.
+    const { data: found, error: findError } = await client.from('leads').select('id,name')
+      .eq('mobile_number', input.mobile).is('deleted_at', null).order('created_at', { ascending: false }).limit(1);
+    if (findError) throw new Error('Could not check for an existing customer. Nothing was saved.');
+    if (found && found[0]) return { ok: true as const, id: found[0].id, name: found[0].name ?? parsed.name, existing: true };
+  }
   // The database derives identity, rechecks access and audits in the same transaction.
   const { data, error } = await client.rpc('assistant_account_action', { p_action: action, p_input: input });
   if (error || !data) throw new Error(error?.message ?? 'Nothing was saved.');
-  return data as unknown as { ok: true; id: string; name: string; changed?: string[] };
+  return data as unknown as { ok: true; id: string; name: string; changed?: string[]; existing?: boolean };
 }
 
 export async function prepareAssistantText(client: Client, businessId: string, raw: unknown) {

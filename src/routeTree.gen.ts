@@ -19,11 +19,13 @@ import { Route as HomeRouteImport } from './routes/home'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as SocialRouteImport } from './routes/social'
 import { Route as StartRouteImport } from './routes/start'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
@@ -49,6 +51,7 @@ import { Route as UnfinishedIndexRouteImport } from './routes/unfinished.index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicEmailUnsubscribeRouteImport } from './routes/api/public/email-unsubscribe'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
+import { Route as ApiPublicHooksLeadSyncRouteImport } from './routes/api/public/hooks/lead-sync'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
 import { Route as ApiPublicHooksProviderStatementsRouteImport } from './routes/api/public/hooks/provider-statements'
 import { Route as ApiPublicHooksTopupExpiryRouteImport } from './routes/api/public/hooks/topup-expiry'
@@ -59,9 +62,18 @@ import { Route as ApiPublicSmsSinchRouteImport } from './routes/api/public/sms/s
 import { Route as ApiPublicSmsStatusRouteImport } from './routes/api/public/sms/status'
 import { Route as ApiPublicSmsTelnyxRouteImport } from './routes/api/public/sms/telnyx'
 import { Route as ApiPublicTenantLogoBusinessIdRouteImport } from './routes/api/public/tenant-logo.$businessId'
+import { Route as ApiPublicV1BookingsRouteImport } from './routes/api/public/v1/bookings'
+import { Route as ApiPublicV1CustomersRouteImport } from './routes/api/public/v1/customers'
+import { Route as ApiPublicV1LeadsRouteImport } from './routes/api/public/v1/leads'
+import { Route as ApiPublicV1MeRouteImport } from './routes/api/public/v1/me'
+import { Route as ApiPublicV1OpenapiDotjsonRouteImport } from './routes/api/public/v1/openapi[.]json'
+import { Route as ApiPublicV1ServicesRouteImport } from './routes/api/public/v1/services'
+import { Route as ApiPublicV1SocialCommentsRouteImport } from './routes/api/public/v1/social-comments'
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
 import { Route as ApiPublicSmsTextoDeliveryRouteImport } from './routes/api/public/sms/texto.delivery'
 import { Route as ApiPublicSmsTextoInboundRouteImport } from './routes/api/public/sms/texto.inbound'
+import { Route as ApiPublicV1LeadSyncRunsRunIdRouteImport } from './routes/api/public/v1/lead-sync.runs.$runId'
+import { Route as ApiPublicV1SocialCommentsIdPostedRouteImport } from './routes/api/public/v1/social-comments.$id.posted'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -113,6 +125,11 @@ const McpRoute = McpRouteImport.update({
   path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
@@ -136,6 +153,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
   path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SocialRoute = SocialRouteImport.update({
+  id: '/social',
+  path: '/social',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StartRoute = StartRouteImport.update({
@@ -265,6 +287,11 @@ const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   path: '/api/public/hooks/follow-ups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksLeadSyncRoute = ApiPublicHooksLeadSyncRouteImport.update({
+  id: '/api/public/hooks/lead-sync',
+  path: '/api/public/hooks/lead-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksPilotExpiryRoute =
   ApiPublicHooksPilotExpiryRouteImport.update({
     id: '/api/public/hooks/pilot-expiry',
@@ -320,6 +347,43 @@ const ApiPublicTenantLogoBusinessIdRoute =
     path: '/api/public/tenant-logo/$businessId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicV1BookingsRoute = ApiPublicV1BookingsRouteImport.update({
+  id: '/api/public/v1/bookings',
+  path: '/api/public/v1/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1CustomersRoute = ApiPublicV1CustomersRouteImport.update({
+  id: '/api/public/v1/customers',
+  path: '/api/public/v1/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1LeadsRoute = ApiPublicV1LeadsRouteImport.update({
+  id: '/api/public/v1/leads',
+  path: '/api/public/v1/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1MeRoute = ApiPublicV1MeRouteImport.update({
+  id: '/api/public/v1/me',
+  path: '/api/public/v1/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1OpenapiDotjsonRoute =
+  ApiPublicV1OpenapiDotjsonRouteImport.update({
+    id: '/api/public/v1/openapi.json',
+    path: '/api/public/v1/openapi.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1ServicesRoute = ApiPublicV1ServicesRouteImport.update({
+  id: '/api/public/v1/services',
+  path: '/api/public/v1/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1SocialCommentsRoute =
+  ApiPublicV1SocialCommentsRouteImport.update({
+    id: '/api/public/v1/social-comments',
+    path: '/api/public/v1/social-comments',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicServiceImageKindIdRoute =
   ApiPublicServiceImageKindIdRouteImport.update({
     id: '/api/public/service-image/$kind/$id',
@@ -338,6 +402,18 @@ const ApiPublicSmsTextoInboundRoute =
     path: '/api/public/sms/texto/inbound',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicV1LeadSyncRunsRunIdRoute =
+  ApiPublicV1LeadSyncRunsRunIdRouteImport.update({
+    id: '/api/public/v1/lead-sync/runs/$runId',
+    path: '/api/public/v1/lead-sync/runs/$runId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1SocialCommentsIdPostedRoute =
+  ApiPublicV1SocialCommentsIdPostedRouteImport.update({
+    id: '/$id/posted',
+    path: '/$id/posted',
+    getParentRoute: () => ApiPublicV1SocialCommentsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -350,11 +426,13 @@ export interface FileRoutesByFullPath {
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/mcp': typeof McpRoute
+  '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/social': typeof SocialRoute
   '/start': typeof StartRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
@@ -380,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
@@ -390,9 +469,18 @@ export interface FileRoutesByFullPath {
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
+  '/api/public/v1/bookings': typeof ApiPublicV1BookingsRoute
+  '/api/public/v1/customers': typeof ApiPublicV1CustomersRoute
+  '/api/public/v1/leads': typeof ApiPublicV1LeadsRoute
+  '/api/public/v1/me': typeof ApiPublicV1MeRoute
+  '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
+  '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
+  '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/lead-sync/runs/$runId': typeof ApiPublicV1LeadSyncRunsRunIdRoute
+  '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -405,10 +493,12 @@ export interface FileRoutesByTo {
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/mcp': typeof McpRoute
+  '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
+  '/social': typeof SocialRoute
   '/start': typeof StartRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
@@ -434,6 +524,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
@@ -444,9 +535,18 @@ export interface FileRoutesByTo {
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
+  '/api/public/v1/bookings': typeof ApiPublicV1BookingsRoute
+  '/api/public/v1/customers': typeof ApiPublicV1CustomersRoute
+  '/api/public/v1/leads': typeof ApiPublicV1LeadsRoute
+  '/api/public/v1/me': typeof ApiPublicV1MeRoute
+  '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
+  '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
+  '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/lead-sync/runs/$runId': typeof ApiPublicV1LeadSyncRunsRunIdRoute
+  '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -460,11 +560,13 @@ export interface FileRoutesById {
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
   '/mcp': typeof McpRoute
+  '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/social': typeof SocialRoute
   '/start': typeof StartRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
@@ -490,6 +592,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
+  '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
   '/api/public/hooks/provider-statements': typeof ApiPublicHooksProviderStatementsRoute
   '/api/public/hooks/topup-expiry': typeof ApiPublicHooksTopupExpiryRoute
@@ -500,9 +603,18 @@ export interface FileRoutesById {
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
+  '/api/public/v1/bookings': typeof ApiPublicV1BookingsRoute
+  '/api/public/v1/customers': typeof ApiPublicV1CustomersRoute
+  '/api/public/v1/leads': typeof ApiPublicV1LeadsRoute
+  '/api/public/v1/me': typeof ApiPublicV1MeRoute
+  '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
+  '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
+  '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/lead-sync/runs/$runId': typeof ApiPublicV1LeadSyncRunsRunIdRoute
+  '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -517,11 +629,13 @@ export interface FileRouteTypes {
     | '/import'
     | '/landing'
     | '/mcp'
+    | '/notifications'
     | '/pricing'
     | '/privacy'
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/social'
     | '/start'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
@@ -547,6 +661,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
+    | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
@@ -557,9 +672,18 @@ export interface FileRouteTypes {
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
     | '/api/public/tenant-logo/$businessId'
+    | '/api/public/v1/bookings'
+    | '/api/public/v1/customers'
+    | '/api/public/v1/leads'
+    | '/api/public/v1/me'
+    | '/api/public/v1/openapi.json'
+    | '/api/public/v1/services'
+    | '/api/public/v1/social-comments'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/lead-sync/runs/$runId'
+    | '/api/public/v1/social-comments/$id/posted'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -572,10 +696,12 @@ export interface FileRouteTypes {
     | '/import'
     | '/landing'
     | '/mcp'
+    | '/notifications'
     | '/pricing'
     | '/privacy'
     | '/profile'
     | '/setup'
+    | '/social'
     | '/start'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
@@ -601,6 +727,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
+    | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
@@ -611,9 +738,18 @@ export interface FileRouteTypes {
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
     | '/api/public/tenant-logo/$businessId'
+    | '/api/public/v1/bookings'
+    | '/api/public/v1/customers'
+    | '/api/public/v1/leads'
+    | '/api/public/v1/me'
+    | '/api/public/v1/openapi.json'
+    | '/api/public/v1/services'
+    | '/api/public/v1/social-comments'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/lead-sync/runs/$runId'
+    | '/api/public/v1/social-comments/$id/posted'
   id:
     | '__root__'
     | '/'
@@ -626,11 +762,13 @@ export interface FileRouteTypes {
     | '/import'
     | '/landing'
     | '/mcp'
+    | '/notifications'
     | '/pricing'
     | '/privacy'
     | '/profile'
     | '/settings'
     | '/setup'
+    | '/social'
     | '/start'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
@@ -656,6 +794,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
+    | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
     | '/api/public/hooks/provider-statements'
     | '/api/public/hooks/topup-expiry'
@@ -666,9 +805,18 @@ export interface FileRouteTypes {
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
     | '/api/public/tenant-logo/$businessId'
+    | '/api/public/v1/bookings'
+    | '/api/public/v1/customers'
+    | '/api/public/v1/leads'
+    | '/api/public/v1/me'
+    | '/api/public/v1/openapi.json'
+    | '/api/public/v1/services'
+    | '/api/public/v1/social-comments'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/lead-sync/runs/$runId'
+    | '/api/public/v1/social-comments/$id/posted'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -682,11 +830,13 @@ export interface RootRouteChildren {
   ImportRoute: typeof ImportRoute
   LandingRoute: typeof LandingRoute
   McpRoute: typeof McpRoute
+  NotificationsRoute: typeof NotificationsRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SetupRoute: typeof SetupRoute
+  SocialRoute: typeof SocialRoute
   StartRoute: typeof StartRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
@@ -704,6 +854,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicEmailUnsubscribeRoute: typeof ApiPublicEmailUnsubscribeRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
+  ApiPublicHooksLeadSyncRoute: typeof ApiPublicHooksLeadSyncRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
   ApiPublicHooksProviderStatementsRoute: typeof ApiPublicHooksProviderStatementsRoute
   ApiPublicHooksTopupExpiryRoute: typeof ApiPublicHooksTopupExpiryRoute
@@ -714,9 +865,17 @@ export interface RootRouteChildren {
   ApiPublicSmsStatusRoute: typeof ApiPublicSmsStatusRoute
   ApiPublicSmsTelnyxRoute: typeof ApiPublicSmsTelnyxRoute
   ApiPublicTenantLogoBusinessIdRoute: typeof ApiPublicTenantLogoBusinessIdRoute
+  ApiPublicV1BookingsRoute: typeof ApiPublicV1BookingsRoute
+  ApiPublicV1CustomersRoute: typeof ApiPublicV1CustomersRoute
+  ApiPublicV1LeadsRoute: typeof ApiPublicV1LeadsRoute
+  ApiPublicV1MeRoute: typeof ApiPublicV1MeRoute
+  ApiPublicV1OpenapiDotjsonRoute: typeof ApiPublicV1OpenapiDotjsonRoute
+  ApiPublicV1ServicesRoute: typeof ApiPublicV1ServicesRoute
+  ApiPublicV1SocialCommentsRoute: typeof ApiPublicV1SocialCommentsRouteWithChildren
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
   ApiPublicSmsTextoDeliveryRoute: typeof ApiPublicSmsTextoDeliveryRoute
   ApiPublicSmsTextoInboundRoute: typeof ApiPublicSmsTextoInboundRoute
+  ApiPublicV1LeadSyncRunsRunIdRoute: typeof ApiPublicV1LeadSyncRunsRunIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -791,6 +950,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pricing': {
       id: '/pricing'
       path: '/pricing'
@@ -824,6 +990,13 @@ declare module '@tanstack/react-router' {
       path: '/setup'
       fullPath: '/setup'
       preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/social': {
+      id: '/social'
+      path: '/social'
+      fullPath: '/social'
+      preLoaderRoute: typeof SocialRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/start': {
@@ -1001,6 +1174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksFollowUpsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/lead-sync': {
+      id: '/api/public/hooks/lead-sync'
+      path: '/api/public/hooks/lead-sync'
+      fullPath: '/api/public/hooks/lead-sync'
+      preLoaderRoute: typeof ApiPublicHooksLeadSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/pilot-expiry': {
       id: '/api/public/hooks/pilot-expiry'
       path: '/api/public/hooks/pilot-expiry'
@@ -1071,6 +1251,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTenantLogoBusinessIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/v1/bookings': {
+      id: '/api/public/v1/bookings'
+      path: '/api/public/v1/bookings'
+      fullPath: '/api/public/v1/bookings'
+      preLoaderRoute: typeof ApiPublicV1BookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/customers': {
+      id: '/api/public/v1/customers'
+      path: '/api/public/v1/customers'
+      fullPath: '/api/public/v1/customers'
+      preLoaderRoute: typeof ApiPublicV1CustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/leads': {
+      id: '/api/public/v1/leads'
+      path: '/api/public/v1/leads'
+      fullPath: '/api/public/v1/leads'
+      preLoaderRoute: typeof ApiPublicV1LeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/me': {
+      id: '/api/public/v1/me'
+      path: '/api/public/v1/me'
+      fullPath: '/api/public/v1/me'
+      preLoaderRoute: typeof ApiPublicV1MeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/openapi.json': {
+      id: '/api/public/v1/openapi.json'
+      path: '/api/public/v1/openapi.json'
+      fullPath: '/api/public/v1/openapi.json'
+      preLoaderRoute: typeof ApiPublicV1OpenapiDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/services': {
+      id: '/api/public/v1/services'
+      path: '/api/public/v1/services'
+      fullPath: '/api/public/v1/services'
+      preLoaderRoute: typeof ApiPublicV1ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/social-comments': {
+      id: '/api/public/v1/social-comments'
+      path: '/api/public/v1/social-comments'
+      fullPath: '/api/public/v1/social-comments'
+      preLoaderRoute: typeof ApiPublicV1SocialCommentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/service-image/$kind/$id': {
       id: '/api/public/service-image/$kind/$id'
       path: '/api/public/service-image/$kind/$id'
@@ -1091,6 +1320,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/sms/texto/inbound'
       preLoaderRoute: typeof ApiPublicSmsTextoInboundRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/lead-sync/runs/$runId': {
+      id: '/api/public/v1/lead-sync/runs/$runId'
+      path: '/api/public/v1/lead-sync/runs/$runId'
+      fullPath: '/api/public/v1/lead-sync/runs/$runId'
+      preLoaderRoute: typeof ApiPublicV1LeadSyncRunsRunIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/social-comments/$id/posted': {
+      id: '/api/public/v1/social-comments/$id/posted'
+      path: '/$id/posted'
+      fullPath: '/api/public/v1/social-comments/$id/posted'
+      preLoaderRoute: typeof ApiPublicV1SocialCommentsIdPostedRouteImport
+      parentRoute: typeof ApiPublicV1SocialCommentsRoute
     }
   }
 }
@@ -1131,6 +1374,21 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
   SettingsRouteChildren,
 )
 
+interface ApiPublicV1SocialCommentsRouteChildren {
+  ApiPublicV1SocialCommentsIdPostedRoute: typeof ApiPublicV1SocialCommentsIdPostedRoute
+}
+
+const ApiPublicV1SocialCommentsRouteChildren: ApiPublicV1SocialCommentsRouteChildren =
+  {
+    ApiPublicV1SocialCommentsIdPostedRoute:
+      ApiPublicV1SocialCommentsIdPostedRoute,
+  }
+
+const ApiPublicV1SocialCommentsRouteWithChildren =
+  ApiPublicV1SocialCommentsRoute._addFileChildren(
+    ApiPublicV1SocialCommentsRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
@@ -1142,11 +1400,13 @@ const rootRouteChildren: RootRouteChildren = {
   ImportRoute: ImportRoute,
   LandingRoute: LandingRoute,
   McpRoute: McpRoute,
+  NotificationsRoute: NotificationsRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SetupRoute: SetupRoute,
+  SocialRoute: SocialRoute,
   StartRoute: StartRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
@@ -1165,6 +1425,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicEmailUnsubscribeRoute: ApiPublicEmailUnsubscribeRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
+  ApiPublicHooksLeadSyncRoute: ApiPublicHooksLeadSyncRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
   ApiPublicHooksProviderStatementsRoute: ApiPublicHooksProviderStatementsRoute,
   ApiPublicHooksTopupExpiryRoute: ApiPublicHooksTopupExpiryRoute,
@@ -1175,9 +1436,17 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSmsStatusRoute: ApiPublicSmsStatusRoute,
   ApiPublicSmsTelnyxRoute: ApiPublicSmsTelnyxRoute,
   ApiPublicTenantLogoBusinessIdRoute: ApiPublicTenantLogoBusinessIdRoute,
+  ApiPublicV1BookingsRoute: ApiPublicV1BookingsRoute,
+  ApiPublicV1CustomersRoute: ApiPublicV1CustomersRoute,
+  ApiPublicV1LeadsRoute: ApiPublicV1LeadsRoute,
+  ApiPublicV1MeRoute: ApiPublicV1MeRoute,
+  ApiPublicV1OpenapiDotjsonRoute: ApiPublicV1OpenapiDotjsonRoute,
+  ApiPublicV1ServicesRoute: ApiPublicV1ServicesRoute,
+  ApiPublicV1SocialCommentsRoute: ApiPublicV1SocialCommentsRouteWithChildren,
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,
   ApiPublicSmsTextoDeliveryRoute: ApiPublicSmsTextoDeliveryRoute,
   ApiPublicSmsTextoInboundRoute: ApiPublicSmsTextoInboundRoute,
+  ApiPublicV1LeadSyncRunsRunIdRoute: ApiPublicV1LeadSyncRunsRunIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

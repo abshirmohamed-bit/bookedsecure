@@ -92,6 +92,62 @@
       "when": 1792763929354,
       "tag": "0012_owner_reminder_cancel_owner_only",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792999414791,
+      "tag": "0013_book_job_new_row_and_landline_customers",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793005969357,
+      "tag": "0014_notification_center_upgrade",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793660193762,
+      "tag": "0015_booking_actions_report_saved_and_same_customer_slot",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793764245156,
+      "tag": "0016_api_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793768000728,
+      "tag": "0017_social_comments_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793803793878,
+      "tag": "0018_migration",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793828547552,
+      "tag": "0019_lead_sync_enriched_outcome",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794046102725,
+      "tag": "0020_owner_browser_push",
+      "breakpoints": true
     }
   ]
 }

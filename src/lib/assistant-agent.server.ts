@@ -15,6 +15,8 @@ import { buildAssistantTools } from "@/lib/assistant-tools.server";
 import { assistantTimeZone, nowInZone } from "@/lib/assistant-time";
 import { buildAssistantSystemPrompt } from "@/lib/owner-assistant";
 import type { OwnerProposal } from "@/lib/owner-actions.server";
+import { interruptedAssistantResult } from '@/lib/assistant-context';
+import { campaignContextAvailable, campaignNeedsClarification, CAMPAIGN_CLARIFICATION } from '@/lib/assistant-request-guard';
 
 export type AssistantAgentResult = {
   answer: string;
@@ -38,6 +40,10 @@ export async function runAssistantAgent(input: {
   /** The attached file was uploaded in an earlier message and is being reused. */
   attachmentRemembered?: boolean;
 }): Promise<AssistantAgentResult> {
+  const campaignContext = campaignContextAvailable(input);
+  if (campaignNeedsClarification(input.question, campaignContext)) {
+    return { answer: CAMPAIGN_CLARIFICATION, executed: [], proposals: [] };
+  }
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("assistant_unavailable");
 
@@ -59,6 +65,7 @@ export async function runAssistantAgent(input: {
     timeZone,
     attachment: input.attachment ?? null,
     request: input.question,
+    requestHasContext: campaignContext,
 
     record: (summary) => executed.push(summary),
     propose: (proposal) => proposals.push(proposal),
@@ -71,7 +78,7 @@ export async function runAssistantAgent(input: {
     : input.question;
 
   const messages: ModelMessage[] = [
-    ...(input.history ?? []).slice(-12).map((turn) => ({
+    ...(input.history ?? []).map((turn) => ({
       role: turn.role,
       content: turn.text,
     }) as ModelMessage),
@@ -79,6 +86,8 @@ export async function runAssistantAgent(input: {
   ];
 
   // One brain: the same agent runtime the public quote assistant uses.
+  let toolsStarted = false;
+  try {
   const answer = await runAgentTurn({
     businessId: input.businessId,
     apiKey,
@@ -98,6 +107,12 @@ export async function runAssistantAgent(input: {
     tools,
     effort: "medium",
     maxSteps: 50,
+    onToolsStarted: () => { toolsStarted = true; },
   });
   return { answer, executed, proposals };
+  } catch (error) {
+    if (!toolsStarted && executed.length === 0 && proposals.length === 0) throw error;
+    // The orchestration fallback must not re-run work that may already be saved.
+    return interruptedAssistantResult(executed, proposals);
+  }
 }

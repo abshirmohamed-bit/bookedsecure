@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { proposeOffer } from "@/lib/reactivation";
+import { requestsAllCampaignLeads } from '@/lib/campaign-audience';
 import type { LeadStatus } from "@/lib/domain";
 import {
   describeStatusChange,
@@ -221,6 +222,10 @@ export async function handleOwnerRequestFallback(input: {
   userId: string;
   question: string;
 }): Promise<{ answer: string; proposals: OwnerProposal[]; executed: string[] }> {
+  const { campaignNeedsClarification, CAMPAIGN_CLARIFICATION } = await import('@/lib/assistant-request-guard');
+  if (campaignNeedsClarification(input.question)) {
+    return { answer: CAMPAIGN_CLARIFICATION, proposals: [], executed: [] };
+  }
   // Catalogue questions and add-on linking are handled deterministically first.
   const { parseCatalogRequest } = await import("@/lib/catalog-actions");
   const catalogRequest = parseCatalogRequest(input.question);
@@ -276,6 +281,7 @@ export async function handleOwnerRequestFallback(input: {
         campaignCopy: null,
         maxLeads: request.maxLeads,
         olderThanDays: request.olderThanDays,
+        ...(requestsAllCampaignLeads(input.question) ? { audience: { kind: 'all' } as const, maxLeads: 5000, olderThanDays: null } : {}),
       });
       if (proposal) {
         proposals.push(proposal);

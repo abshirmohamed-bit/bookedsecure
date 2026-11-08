@@ -1056,6 +1056,17 @@
             "time": {
               "type": "string",
               "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+            },
+            "serviceName": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -1646,6 +1657,115 @@
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "lead_import_status",
+        "title": "Facebook lead import status",
+        "description": "Read the Facebook lead import connection status for the connected business: whether it is set up, whether automatic five-minute imports are on, the next scheduled check, and the last success or error. Never returns secrets or webhook addresses.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "lead_import_runs",
+        "title": "Facebook lead import history",
+        "description": "List recent Facebook lead import runs for the connected business with their status and counts: new leads, already-in records, updated (enriched) records, skipped and failed. Use lead_import_run_items with a run id for per-lead detail.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 10
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "lead_import_run_items",
+        "title": "Facebook lead import run details",
+        "description": "List the per-lead results of one Facebook lead import run: each Meta lead id, its form, when it was submitted, and whether it was created, already present, updated (enriched), skipped or failed, with the reason.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "run_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "lead_enquiry",
+        "title": "Read a lead’s full enquiry",
+        "description": "Read one lead’s complete enquiry: requested service, request type (quote or service — never a confirmed booking), vehicle, address, timing, notes, the raw Facebook form answers exactly as submitted, and the linked booking if one exists. Look the lead up with list_leads or query_leads first.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "lead_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "lead_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "request_lead_import",
+        "title": "Run a Facebook lead import now",
+        "description": "Start an immediate Facebook lead import for the connected business, using the saved Make connection. Owner only. The import runs in the background; check the result with lead_import_status and lead_import_runs. Never claim leads were imported until a run shows them.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
         },
         "outputSchema": null
       }

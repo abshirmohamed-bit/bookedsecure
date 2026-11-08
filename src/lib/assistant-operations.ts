@@ -25,5 +25,5 @@ export async function executeAssistantOperation(client: SupabaseClient<Database>
   }
   const { data, error } = await client.rpc('assistant_operational_action', { p_action: action, p_input: payload as Json });
   if (error || !data) throw new Error(error?.message ?? 'Nothing was saved.');
-  return data as { ok: true; id?: string; updated?: number; changed?: number; summary?: string };
+  return data as { ok: true; id?: string; updated?: number; changed?: number; summary?: string; saved?: boolean; outcome?: string; jobId?: string; scheduledAt?: string | null; serviceName?: string | null; status?: string | null };
 }
