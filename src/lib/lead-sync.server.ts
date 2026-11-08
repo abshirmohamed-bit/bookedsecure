@@ -185,6 +185,17 @@ async function ingestOne(businessId: string, runId: string, input: SyncLeadInput
       const outcome = await enrichExisting(businessId, existing.id, input, check.lead.email);
       return record({ meta_lead_id: input.meta_lead_id, outcome, lead_id: existing.id, display_name: shortName });
     }
+    // A submission already matched to a returning customer keeps that customer's
+    // own external id, so look it up in the import log; otherwise every overlapping
+    // run would re-match and re-update the same customer.
+    const { data: seen, error: seenErr } = await supabaseAdmin.from('lead_sync_items').select('lead_id')
+      .eq('business_id', businessId).eq('meta_lead_id', input.meta_lead_id).in('outcome', ['created', 'enriched', 'duplicate'])
+      .not('lead_id', 'is', null).limit(1).maybeSingle();
+    if (seenErr) throw seenErr;
+    if (seen?.lead_id) {
+      const outcome = await enrichExisting(businessId, seen.lead_id, input, check.lead.email);
+      return record({ meta_lead_id: input.meta_lead_id, outcome, lead_id: seen.lead_id, display_name: shortName });
+    }
     const { alertTitle, classifyForBusiness, respondToFacebookLead } = await import('./facebook-lead-response.server');
     const { data: bizTz } = await supabaseAdmin.from('businesses').select('timezone').eq('id', businessId).maybeSingle();
     const { intent } = classifyForBusiness(mapped.rawAnswers, bizTz?.timezone ?? null);
