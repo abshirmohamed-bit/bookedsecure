@@ -17,6 +17,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LandingRouteImport } from './routes/landing'
+import { Route as LinkedinRouteImport } from './routes/linkedin'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PricingRouteImport } from './routes/pricing'
@@ -73,6 +74,7 @@ import { Route as ApiPublicV1MeRouteImport } from './routes/api/public/v1/me'
 import { Route as ApiPublicV1OpenapiDotjsonRouteImport } from './routes/api/public/v1/openapi[.]json'
 import { Route as ApiPublicV1ServicesRouteImport } from './routes/api/public/v1/services'
 import { Route as ApiPublicV1SocialCommentsRouteImport } from './routes/api/public/v1/social-comments'
+import { Route as ApiPublicLinkedinOauthCallbackRouteImport } from './routes/api/public/linkedin/oauth.callback'
 import { Route as ApiPublicMetaOauthCallbackRouteImport } from './routes/api/public/meta/oauth.callback'
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
 import { Route as ApiPublicSmsTextoDeliveryRouteImport } from './routes/api/public/sms/texto.delivery'
@@ -117,6 +119,11 @@ const ImportRoute = ImportRouteImport.update({
 const LandingRoute = LandingRouteImport.update({
   id: '/landing',
   path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LinkedinRoute = LinkedinRouteImport.update({
+  id: '/linkedin',
+  path: '/linkedin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const McpRoute = McpRouteImport.update({
@@ -408,6 +415,12 @@ const ApiPublicV1SocialCommentsRoute =
     path: '/api/public/v1/social-comments',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicLinkedinOauthCallbackRoute =
+  ApiPublicLinkedinOauthCallbackRouteImport.update({
+    id: '/api/public/linkedin/oauth/callback',
+    path: '/api/public/linkedin/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMetaOauthCallbackRoute =
   ApiPublicMetaOauthCallbackRouteImport.update({
     id: '/api/public/meta/oauth/callback',
@@ -448,6 +461,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/linkedin': typeof LinkedinRoute
   '/mcp': typeof McpRoute
   '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
@@ -504,6 +518,7 @@ export interface FileRoutesByFullPath {
   '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
   '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
   '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
+  '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
@@ -519,6 +534,7 @@ export interface FileRoutesByTo {
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/linkedin': typeof LinkedinRoute
   '/mcp': typeof McpRoute
   '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
@@ -574,6 +590,7 @@ export interface FileRoutesByTo {
   '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
   '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
   '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
+  '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
@@ -590,6 +607,7 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/linkedin': typeof LinkedinRoute
   '/mcp': typeof McpRoute
   '/notifications': typeof NotificationsRoute
   '/pricing': typeof PricingRoute
@@ -646,6 +664,7 @@ export interface FileRoutesById {
   '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
   '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
   '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
+  '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
@@ -663,6 +682,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/import'
     | '/landing'
+    | '/linkedin'
     | '/mcp'
     | '/notifications'
     | '/pricing'
@@ -719,6 +739,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/openapi.json'
     | '/api/public/v1/services'
     | '/api/public/v1/social-comments'
+    | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
@@ -734,6 +755,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/import'
     | '/landing'
+    | '/linkedin'
     | '/mcp'
     | '/notifications'
     | '/pricing'
@@ -789,6 +811,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/openapi.json'
     | '/api/public/v1/services'
     | '/api/public/v1/social-comments'
+    | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
@@ -804,6 +827,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/import'
     | '/landing'
+    | '/linkedin'
     | '/mcp'
     | '/notifications'
     | '/pricing'
@@ -860,6 +884,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/openapi.json'
     | '/api/public/v1/services'
     | '/api/public/v1/social-comments'
+    | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
@@ -876,6 +901,7 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   ImportRoute: typeof ImportRoute
   LandingRoute: typeof LandingRoute
+  LinkedinRoute: typeof LinkedinRoute
   McpRoute: typeof McpRoute
   NotificationsRoute: typeof NotificationsRoute
   PricingRoute: typeof PricingRoute
@@ -924,6 +950,7 @@ export interface RootRouteChildren {
   ApiPublicV1OpenapiDotjsonRoute: typeof ApiPublicV1OpenapiDotjsonRoute
   ApiPublicV1ServicesRoute: typeof ApiPublicV1ServicesRoute
   ApiPublicV1SocialCommentsRoute: typeof ApiPublicV1SocialCommentsRouteWithChildren
+  ApiPublicLinkedinOauthCallbackRoute: typeof ApiPublicLinkedinOauthCallbackRoute
   ApiPublicMetaOauthCallbackRoute: typeof ApiPublicMetaOauthCallbackRoute
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
   ApiPublicSmsTextoDeliveryRoute: typeof ApiPublicSmsTextoDeliveryRoute
@@ -986,6 +1013,13 @@ declare module '@tanstack/react-router' {
       path: '/landing'
       fullPath: '/landing'
       preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/linkedin': {
+      id: '/linkedin'
+      path: '/linkedin'
+      fullPath: '/linkedin'
+      preLoaderRoute: typeof LinkedinRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -1380,6 +1414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicV1SocialCommentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/linkedin/oauth/callback': {
+      id: '/api/public/linkedin/oauth/callback'
+      path: '/api/public/linkedin/oauth/callback'
+      fullPath: '/api/public/linkedin/oauth/callback'
+      preLoaderRoute: typeof ApiPublicLinkedinOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/meta/oauth/callback': {
       id: '/api/public/meta/oauth/callback'
       path: '/api/public/meta/oauth/callback'
@@ -1478,6 +1519,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   ImportRoute: ImportRoute,
   LandingRoute: LandingRoute,
+  LinkedinRoute: LinkedinRoute,
   McpRoute: McpRoute,
   NotificationsRoute: NotificationsRoute,
   PricingRoute: PricingRoute,
@@ -1527,6 +1569,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicV1OpenapiDotjsonRoute: ApiPublicV1OpenapiDotjsonRoute,
   ApiPublicV1ServicesRoute: ApiPublicV1ServicesRoute,
   ApiPublicV1SocialCommentsRoute: ApiPublicV1SocialCommentsRouteWithChildren,
+  ApiPublicLinkedinOauthCallbackRoute: ApiPublicLinkedinOauthCallbackRoute,
   ApiPublicMetaOauthCallbackRoute: ApiPublicMetaOauthCallbackRoute,
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,
   ApiPublicSmsTextoDeliveryRoute: ApiPublicSmsTextoDeliveryRoute,
