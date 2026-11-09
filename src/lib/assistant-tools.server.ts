@@ -18,6 +18,7 @@ import { formatInZone, zonedWallTimeToIso } from "@/lib/assistant-time";
 import { resolveServiceName, upcomingBookings, visibleNotes } from "@/lib/bookings";
 import type { OwnerProposal } from "@/lib/owner-actions.server";
 import { buildOperationsTools } from "@/lib/assistant-tools-ops.server";
+import { buildFeatureTools } from "@/lib/assistant-tools-features.server";
 import { executeSharedAction, prepareAssistantText, customerInput, serviceInput, addonInput, textInput } from "@/lib/assistant-shared-actions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -410,46 +411,8 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       },
     }),
 
-    draft_email_campaign: tool({
-      description:
-        "Prepare an email campaign only after the owner specifies the audience and message or asks you to propose wording. Ask for missing details first; never choose recipients from a limited search result or invent an offer. Use find_customers to resolve owner-named recipients, not to choose an audience. If the requested audience cannot be fully resolved, explain the limitation and do not substitute a subset. Nothing sends until the owner reviews the draft and presses Send. Customers without an email address or who unsubscribed are skipped automatically; report these exclusions.",
-      inputSchema: z.object({
-        leadIds: z.array(z.string().uuid()).min(1).max(500),
-        name: z.string().min(2).max(120).describe("Short internal name for the campaign."),
-        subject: z.string().min(2).max(160),
-        bodyText: z.string().min(2).max(5000).describe("The email body in the owner's words."),
-      }),
-      execute: async (input) => {
-        if (campaignNeedsClarification(ctx.request ?? '', ctx.requestHasContext)) return fail(CAMPAIGN_CLARIFICATION);
-        const { createEmailCampaign } = await import("@/lib/email-campaigns.server");
-        try {
-          const result = await createEmailCampaign({
-            businessId,
-            userId,
-            name: input.name,
-            subject: input.subject,
-            bodyText: input.bodyText,
-            leadIds: input.leadIds,
-          });
-          ctx.record(
-            `Drafted email campaign "${input.name}" for ${result.emailable} customer${result.emailable === 1 ? "" : "s"}.`,
-          );
-          return {
-            ok: true,
-            awaitingConfirmation: true,
-            campaignId: result.campaignId,
-            emailable: result.emailable,
-            skippedNoEmail: result.skippedNoEmail,
-            skippedUnsubscribed: result.skippedUnsubscribed,
-            summary:
-              "Draft saved on the Email campaigns page. Review it there and press Send when you're happy — nothing has been emailed yet.",
-          };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "Could not draft the email campaign.");
-        }
-      },
-    }),
-
     ...buildOperationsTools(ctx),
+    // November features; its draft_email_campaign (audiences, follow-ups) replaces the basic one above.
+    ...buildFeatureTools(ctx),
   };
 }
