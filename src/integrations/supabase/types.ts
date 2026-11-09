@@ -1684,69 +1684,6 @@ export type Database = {
           },
         ]
       }
-      email_messages: {
-        Row: {
-          body_text: string
-          business_id: string
-          campaign_id: string | null
-          created_at: string
-          direction: string
-          error: string | null
-          from_email: string
-          from_name: string | null
-          id: string
-          in_reply_to: string | null
-          lead_id: string | null
-          message_id: string | null
-          provider_id: string | null
-          read_at: string | null
-          recipient_id: string | null
-          status: string
-          subject: string | null
-          to_email: string
-        }
-        Insert: {
-          body_text?: string
-          business_id: string
-          campaign_id?: string | null
-          created_at?: string
-          direction: string
-          error?: string | null
-          from_email: string
-          from_name?: string | null
-          id?: string
-          in_reply_to?: string | null
-          lead_id?: string | null
-          message_id?: string | null
-          provider_id?: string | null
-          read_at?: string | null
-          recipient_id?: string | null
-          status?: string
-          subject?: string | null
-          to_email: string
-        }
-        Update: {
-          body_text?: string
-          business_id?: string
-          campaign_id?: string | null
-          created_at?: string
-          direction?: string
-          error?: string | null
-          from_email?: string
-          from_name?: string | null
-          id?: string
-          in_reply_to?: string | null
-          lead_id?: string | null
-          message_id?: string | null
-          provider_id?: string | null
-          read_at?: string | null
-          recipient_id?: string | null
-          status?: string
-          subject?: string | null
-          to_email?: string
-        }
-        Relationships: []
-      }
       email_unsubscribes: {
         Row: {
           business_id: string
@@ -5082,10 +5019,6 @@ export type Database = {
       mcp_dismiss_social_comment: {
         Args: { p_comment_id: string }
         Returns: Json
-      }
-      mcp_email_campaign_authorize: {
-        Args: { p_action: string; p_campaign_id?: string; p_metadata?: Json }
-        Returns: string
       }
       mcp_facebook_ad_spend: { Args: { p_days?: number }; Returns: Json }
       mcp_prepare_assistant_text: {
