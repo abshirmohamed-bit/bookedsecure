@@ -11,6 +11,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   bookedRecipients,
   buildEmailHtml,
+  buildEmailText,
   CAMPAIGN_AUDIENCES,
   followUpDue,
   followUpSkipReason,
@@ -40,6 +41,7 @@ async function sendEmailViaResend(input: {
   to: string;
   subject: string;
   html: string;
+  text?: string;
   replyTo?: string | null;
 }): Promise<{ id: string | null }> {
   const lovableKey = process.env["LOVABLE_API_KEY"];
@@ -59,6 +61,7 @@ async function sendEmailViaResend(input: {
       to: [input.to],
       subject: input.subject,
       html: input.html,
+      ...(input.text ? { text: input.text } : {}),
       ...(input.replyTo ? { reply_to: input.replyTo } : {}),
     }),
   });
@@ -70,6 +73,31 @@ async function sendEmailViaResend(input: {
   }
   const parsed = (await response.json().catch(() => null)) as { id?: string } | null;
   return { id: parsed?.id ?? null };
+}
+
+type Branding = { businessName: string; branding: { logoUrl: string | null; websiteUrl: string | null; serviceArea: string | null; abn: string | null } };
+
+/** Name, logo and footer details for the email template. */
+async function loadBranding(businessId: string): Promise<Branding> {
+  const { data } = await supabaseAdmin
+    .from("businesses")
+    .select("name, logo_storage_path, logo_url, website_url, service_area, abn")
+    .eq("id", businessId)
+    .maybeSingle();
+  const logoUrl = data?.logo_storage_path
+    ? `${appOrigin()}/api/public/tenant-logo/${businessId}`
+    : typeof data?.logo_url === "string" && /^https:\/\//.test(data.logo_url)
+      ? data.logo_url
+      : null;
+  return {
+    businessName: (data?.name as string | null) ?? "your business",
+    branding: {
+      logoUrl,
+      websiteUrl: (data?.website_url as string | null) ?? null,
+      serviceArea: (data?.service_area as string | null) ?? null,
+      abn: (data?.abn as string | null) ?? null,
+    },
+  };
 }
 
 async function loadBusinessName(businessId: string): Promise<string> {
@@ -425,7 +453,7 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
   if (campaign.status === "sent") throw new Error("This campaign has already been sent.");
   if (campaign.status === "cancelled") throw new Error("This campaign was cancelled.");
 
-  const businessName = await loadBusinessName(input.businessId);
+  const { businessName, branding } = await loadBranding(input.businessId);
   const unsubscribed = await loadUnsubscribed(input.businessId);
   const sender = campaignSender(campaign.from_address as string, await creatorEmail(campaign.created_by as string | null));
 
@@ -466,6 +494,13 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
         subject: campaign.subject as string,
         html: buildEmailHtml({
           businessName,
+          branding,
+          bodyText: campaign.body_text as string,
+          unsubscribeUrl: unsubscribeUrl(input.businessId, email),
+        }),
+        text: buildEmailText({
+          businessName,
+          branding,
           bodyText: campaign.body_text as string,
           unsubscribeUrl: unsubscribeUrl(input.businessId, email),
         }),
@@ -666,7 +701,7 @@ export async function processDueEmailCampaigns(now: Date = new Date()) {
     .filter((r) => r.email_campaigns && followUpDue(r.sent_at, r.email_campaigns.follow_up_delay_days, now))
     .slice(0, 100);
   const unsubscribedBy = new Map<string, Set<string>>();
-  const businessNames = new Map<string, string>();
+  const brandings = new Map<string, Branding>();
 
   for (const row of due) {
     const campaign = row.email_campaigns!;
@@ -715,10 +750,10 @@ export async function processDueEmailCampaigns(now: Date = new Date()) {
         .eq("id", row.id);
       continue;
     }
-    if (!businessNames.has(row.business_id)) {
-      businessNames.set(row.business_id, await loadBusinessName(row.business_id));
+    if (!brandings.has(row.business_id)) {
+      brandings.set(row.business_id, await loadBranding(row.business_id));
     }
-    const businessName = businessNames.get(row.business_id)!;
+    const { businessName, branding } = brandings.get(row.business_id)!;
     const sender = campaignSender(campaign.from_address, await creatorEmail(campaign.created_by));
     try {
       await sendEmailViaResend({
@@ -728,6 +763,13 @@ export async function processDueEmailCampaigns(now: Date = new Date()) {
         subject: campaign.follow_up_subject,
         html: buildEmailHtml({
           businessName,
+          branding,
+          bodyText: campaign.follow_up_body,
+          unsubscribeUrl: unsubscribeUrl(row.business_id, email),
+        }),
+        text: buildEmailText({
+          businessName,
+          branding,
           bodyText: campaign.follow_up_body,
           unsubscribeUrl: unsubscribeUrl(row.business_id, email),
         }),
