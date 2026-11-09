@@ -14,11 +14,15 @@ describe("reply addresses", () => {
   });
 
   it("names the reply address after the business", () => {
-    expect(replyAddressFor(id, "Glocast Mobile Auto Detailing")).toBe(`glocast-mobile-auto-detailing+${id}@reply.bookedsecure.com`);
+    expect(replyAddressFor(id, "Glocast Mobile Auto Detailing")).toBe(`glocast-mobile-auto+${id}@reply.bookedsecure.com`);
+    // The part before @ must stay within the 64-character limit, whatever the name.
+    for (const name of ["Glocast Mobile Auto Detailing", "Supercalifragilisticexpialidocious Cleaning Services Pty Ltd", "A", ""]) {
+      expect(replyAddressFor(id, name).split("@")[0]!.length).toBeLessThanOrEqual(64);
+    }
     // Resend rejects quoted names, so the name is plain: Name <email>.
     expect(replyToHeader(id, `Jo's "Best" Cleaning, Pty`)).toBe(`Jo's Best Cleaning Pty <jo-s-best-cleaning-pty+${id}@reply.bookedsecure.com>`);
-    expect(replyToHeader(id, "Glocast Mobile Auto Detailing")).toMatch(/^Glocast Mobile Auto Detailing <glocast-mobile-auto-detailing\+[0-9a-f-]+@reply\.bookedsecure\.com>$/);
-    expect(recipientIdFromAddresses([`Glocast <glocast-mobile-auto-detailing+${id}@reply.bookedsecure.com>`])).toBe(id);
+    expect(replyToHeader(id, "Glocast Mobile Auto Detailing")).toMatch(/^Glocast Mobile Auto Detailing <glocast-mobile-auto\+[0-9a-f-]+@reply\.bookedsecure\.com>$/);
+    expect(recipientIdFromAddresses([`Glocast <glocast-mobile-auto+${id}@reply.bookedsecure.com>`])).toBe(id);
     expect(recipientIdFromAddresses([`reply+${id}@reply.bookedsecure.com`])).toBe(id);
   });
 

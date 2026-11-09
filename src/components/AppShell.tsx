@@ -372,6 +372,8 @@ function SidebarLink({
   return (
     <Link
       to={to}
+      // Our own active rule decides; stop the router also marking parents (Campaigns on /campaigns/replies).
+      activeOptions={{ exact: true }}
       aria-current={active ? "page" : undefined}
       title={compact ? label : undefined}
       className={cn(itemClass(active), "relative", sub && "ml-5 border-l border-sidebar-border pl-3 text-[13px]", compact && "lg:ml-0 lg:size-10 lg:justify-center lg:border-l-0 lg:px-0")}

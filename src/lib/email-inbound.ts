@@ -9,21 +9,30 @@
 export const REPLY_DOMAIN = "reply.bookedsecure.com";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
-/** A mailbox-safe version of the business name, e.g. "glocast-mobile-auto-detailing". */
+/**
+ * A mailbox-safe version of the business name, e.g. "glocast-mobile-auto".
+ * The part before @ may be at most 64 characters, and "+<recipient id>" takes
+ * 37, so the label is capped at 24 (whole words where possible).
+ */
+export const MAX_LABEL = 24;
 export function mailboxLabel(name: string | null | undefined): string {
-  const label = (name ?? "")
+  const full = (name ?? "")
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40)
-    .replace(/-+$/g, "");
+    .replace(/^-+|-+$/g, "");
+  let label = full;
+  if (label.length > MAX_LABEL) {
+    const cut = label.slice(0, MAX_LABEL + 1);
+    const lastDash = cut.lastIndexOf("-");
+    label = (lastDash >= 8 ? cut.slice(0, lastDash) : label.slice(0, MAX_LABEL)).replace(/-+$/g, "");
+  }
   return label || "reply";
 }
 
 /**
  * The address customers reply to for one campaign recipient, named after the
- * business: glocast-mobile-auto-detailing+<recipient id>@reply.bookedsecure.com.
+ * business: glocast-mobile-auto+<recipient id>@reply.bookedsecure.com.
  */
 export function replyAddressFor(recipientId: string, businessName?: string | null): string {
   return `${mailboxLabel(businessName)}+${recipientId.toLowerCase()}@${REPLY_DOMAIN}`;
