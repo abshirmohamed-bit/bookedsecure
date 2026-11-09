@@ -249,6 +249,12 @@ export async function replyToThread(input: { businessId: string; recipientId: st
   const body = input.bodyText.trim();
   if (body.length < 1 || body.length > 10_000) throw new Error("Write a reply of up to 10,000 characters.");
   const thread = await getReplyThread(input.businessId, input.recipientId);
+  // A double click (or two people pressing Send) must not email the customer twice.
+  const twoMinutesAgo = Date.now() - 2 * 60_000;
+  const duplicate = thread.messages.some(
+    (m) => m.direction === "out" && m.body_text.trim() === body && Date.parse(m.created_at) > twoMinutesAgo,
+  );
+  if (duplicate) return { sent: false, duplicate: true };
   const lastIn = [...thread.messages].reverse().find((m) => m.direction === "in");
   const { data: lastHeader } = lastIn
     ? await supabaseAdmin.from("email_messages").select("message_id, subject").eq("id", lastIn.id).maybeSingle()

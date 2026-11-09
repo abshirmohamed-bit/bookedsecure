@@ -88,8 +88,9 @@ function Thread({ recipientId, onBack }: { recipientId: string; onBack: () => vo
   }, [q.isSuccess, qc]);
   const reply = useMutation({
     mutationFn: () => send({ data: { recipientId, bodyText: text } }),
-    onSuccess: () => {
-      toast.success("Reply sent.");
+    onSuccess: (result) => {
+      if ("duplicate" in result && result.duplicate) toast.info("That reply was already sent.");
+      else toast.success("Reply sent.");
       setText("");
       void qc.invalidateQueries({ queryKey: ["email-reply-thread", recipientId] });
       void qc.invalidateQueries({ queryKey: ["email-replies"] });
