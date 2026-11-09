@@ -1543,6 +1543,9 @@ export type Database = {
           created_at: string
           email: string
           error: string | null
+          follow_up_error: string | null
+          follow_up_sent_at: string | null
+          follow_up_status: string | null
           id: string
           lead_id: string | null
           provider_id: string | null
@@ -1555,6 +1558,9 @@ export type Database = {
           created_at?: string
           email: string
           error?: string | null
+          follow_up_error?: string | null
+          follow_up_sent_at?: string | null
+          follow_up_status?: string | null
           id?: string
           lead_id?: string | null
           provider_id?: string | null
@@ -1567,6 +1573,9 @@ export type Database = {
           created_at?: string
           email?: string
           error?: string | null
+          follow_up_error?: string | null
+          follow_up_sent_at?: string | null
+          follow_up_status?: string | null
           id?: string
           lead_id?: string | null
           provider_id?: string | null
@@ -1607,44 +1616,62 @@ export type Database = {
       email_campaigns: {
         Row: {
           approved_at: string | null
+          audience_label: string | null
           body_text: string
           business_id: string
           cancelled_at: string | null
           created_at: string
           created_by: string | null
+          follow_up_body: string | null
+          follow_up_delay_days: number | null
+          follow_up_subject: string | null
           from_address: string
           id: string
           name: string
+          scheduled_at: string | null
           sent_at: string | null
           status: string
+          stop_on_booking: boolean
           subject: string
         }
         Insert: {
           approved_at?: string | null
+          audience_label?: string | null
           body_text: string
           business_id: string
           cancelled_at?: string | null
           created_at?: string
           created_by?: string | null
+          follow_up_body?: string | null
+          follow_up_delay_days?: number | null
+          follow_up_subject?: string | null
           from_address?: string
           id?: string
           name: string
+          scheduled_at?: string | null
           sent_at?: string | null
           status?: string
+          stop_on_booking?: boolean
           subject: string
         }
         Update: {
           approved_at?: string | null
+          audience_label?: string | null
           body_text?: string
           business_id?: string
           cancelled_at?: string | null
           created_at?: string
           created_by?: string | null
+          follow_up_body?: string | null
+          follow_up_delay_days?: number | null
+          follow_up_subject?: string | null
           from_address?: string
           id?: string
           name?: string
+          scheduled_at?: string | null
           sent_at?: string | null
           status?: string
+          stop_on_booking?: boolean
           subject?: string
         }
         Relationships: [
