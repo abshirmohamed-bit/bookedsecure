@@ -9,12 +9,24 @@ function mock(result = { data: { ok: true }, error: null } as { data: unknown; e
   const rpc = vi.fn().mockResolvedValue(result);
   const ops: unknown[] = [];
   const from = vi.fn((table: string) => {
-    const chain = { select: vi.fn(() => chain), eq: vi.fn((...args: unknown[]) => { ops.push(args); return chain; }), single: vi.fn().mockResolvedValue({ data: table === 'profiles' ? { business_id: 'caller-business' } : { timezone: 'Australia/Sydney' }, error: null }) };
+    const chain = { select: vi.fn(() => chain), eq: vi.fn((...args: unknown[]) => { ops.push(args); return chain; }), single: vi.fn().mockResolvedValue({ data: table === 'profiles' ? { business_id: 'caller-business' } : { timezone: 'Australia/Sydney' }, error: null }), maybeSingle: vi.fn().mockResolvedValue({ data: table === 'leads' ? { name: 'Email test Abshir', mobile_number: '+61491570156', email: 'abshir95m@gmail.com', suburb: null, status: 'new', opted_out_at: null } : null, error: null }) };
     return chain;
   });
   return { client: { rpc, from, auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'verified-user' } }, error: null }) } } as unknown as SupabaseClient<Database>, rpc, ops };
 }
 describe('shared operational actions', () => {
+  it('reports a customer update as saved with the details read back, never as 0 updated', async () => {
+    const { client } = mock({ data: { ok: true, id, updated: 0, changed: 0 }, error: null });
+    const result = await executeAssistantOperation(client, 'update_customer', { ...customer, mobile: null, name: null, email: 'abshir95m@gmail.com' });
+    expect(result.updated).toBeUndefined();
+    expect(result.changed).toBeUndefined();
+    expect(result).toMatchObject({ saved: true, changedFields: ['email'], savedCustomer: { email: 'abshir95m@gmail.com', name: 'Email test Abshir' } });
+  });
+  it('keeps the real count for bulk status changes', async () => {
+    const { client } = mock({ data: { ok: true, updated: 12, changed: 12 }, error: null });
+    const result = await executeAssistantOperation(client, 'bulk_update_lead_status', { toStatus: 'previous_lead', fromStatuses: null, source: null, origin: null, excludeOptedOut: null });
+    expect(result.updated).toBe(12);
+  });
   it('normalises customer mobile and does not pass tenant identity', async () => {
     const { client, rpc } = mock();
     await executeAssistantOperation(client, 'update_customer', customer);

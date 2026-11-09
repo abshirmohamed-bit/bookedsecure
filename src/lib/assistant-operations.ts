@@ -25,5 +25,45 @@ export async function executeAssistantOperation(client: SupabaseClient<Database>
   }
   const { data, error } = await client.rpc('assistant_operational_action', { p_action: action, p_input: payload as Json });
   if (error || !data) throw new Error(error?.message ?? 'Nothing was saved.');
-  return data as { ok: true; id?: string; updated?: number; changed?: number; summary?: string; saved?: boolean; outcome?: string; jobId?: string; scheduledAt?: string | null; serviceName?: string | null; status?: string | null };
+  const result = { ...(data as Record<string, unknown>) } as OperationResult;
+  // The database only counts rows for bulk status changes; for every other
+  // action its "updated: 0" is a placeholder that reads like a failure.
+  if (action !== 'bulk_update_lead_status') {
+    delete result.updated;
+    delete result.changed;
+  }
+  if (action === 'update_customer' && 'leadId' in input) {
+    const changedFields = Object.entries(input)
+      .filter(([key, value]) => key !== 'leadId' && value !== null && value !== undefined)
+      .map(([key]) => key);
+    // Read the record back so the reply reports what is actually saved now.
+    const { data: lead } = await client.from('leads')
+      .select('name, mobile_number, email, suburb, status, opted_out_at')
+      .eq('id', input.leadId).maybeSingle();
+    return {
+      ...result,
+      saved: true,
+      changedFields,
+      savedCustomer: lead
+        ? { name: lead.name, mobile: lead.mobile_number, email: lead.email, suburb: lead.suburb, status: lead.status, optedOut: Boolean(lead.opted_out_at) }
+        : null,
+    } as OperationResult;
+  }
+  return result;
 }
+
+export type OperationResult = {
+  ok: true;
+  id?: string;
+  updated?: number;
+  changed?: number;
+  summary?: string;
+  saved?: boolean;
+  outcome?: string;
+  jobId?: string;
+  scheduledAt?: string | null;
+  serviceName?: string | null;
+  status?: string | null;
+  changedFields?: string[];
+  savedCustomer?: { name: string | null; mobile: string | null; email: string | null; suburb: string | null; status: string | null; optedOut: boolean } | null;
+};

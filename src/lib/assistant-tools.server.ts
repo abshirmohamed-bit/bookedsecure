@@ -53,6 +53,14 @@ const TIME = z
   .string()
   .describe("Local 24-hour time in the owner's own timezone, formatted HH:MM. Ask the owner when no time was specified; never choose a time for them.");
 
+/** Plain description of a customer's saved details, for the assistant's reply. */
+function describeSaved(c: { email: string | null; mobile: string | null; status: string | null } | null | undefined): string {
+  if (!c) return "the new details";
+  return [c.email ? `email ${c.email}` : null, c.mobile ? `mobile ${c.mobile}` : null, c.status ? `status ${c.status}` : null]
+    .filter(Boolean)
+    .join(", ") || "the new details";
+}
+
 export function fail(message: string) {
   return { ok: false as const, message };
 }
@@ -212,8 +220,10 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
       execute: async (input) => {
         try {
           const result = await executeAssistantOperation(ctx.client, 'update_customer', input);
-          ctx.record('Updated that customer.');
-          return result;
+          const who = result.savedCustomer?.name ?? 'that customer';
+          const fields = (result.changedFields ?? []).map((f) => (f === 'requestedService' ? 'service' : f)).join(', ');
+          ctx.record(`Updated ${who}${fields ? `: ${fields}` : ''}.`);
+          return { ...result, summary: `Saved. ${who} now has ${describeSaved(result.savedCustomer)}.` };
         } catch (error) { return fail(error instanceof Error ? error.message : "Nothing was saved."); }
       },
     }),
