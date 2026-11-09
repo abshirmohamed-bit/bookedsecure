@@ -21,8 +21,8 @@ const actor = { businessId: "biz", userId: "user" };
 const campaign = (over: Record<string, unknown> = {}) => ({
   id: "11111111-1111-4111-8111-111111111111", name: "Spring", status: "draft", subject: "Spring special", bodyText: "Hi there", fromAddress: "onboarding@resend.dev",
   followUp: null, audienceLabel: null, scheduledAt: null, sentAt: null, createdAt: "2026-11-09T00:00:00Z",
-  recipients: [{ leadId: "a", name: "Jess", email: "jess@x.com", status: "pending", followUpStatus: null, booked: false, sentAt: null, error: null, followUpSentAt: null, followUpError: null }],
-  counts: { total: 1, pending: 1, sent: 0, failed: 0, skipped: 0, followUpsSent: 0, followUpsWaiting: 0, booked: 0 },
+  recipients: [{ leadId: "a", name: "Jess", email: "jess@x.com", status: "pending", followUpStatus: null, booked: false, sentAt: null, error: null, followUpSentAt: null, followUpError: null, recipientId: "r", replies: 0 }],
+  counts: { total: 1, pending: 1, sent: 0, failed: 0, skipped: 0, followUpsSent: 0, followUpsWaiting: 0, booked: 0, replied: 0, unreadReplies: 0 },
   ...over,
 });
 

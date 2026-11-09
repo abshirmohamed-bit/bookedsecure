@@ -13,8 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { initials, previewParagraphs } from "@/lib/campaign-templates";
+import { campaignSender } from "@/lib/email-campaigns";
 
-export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+export const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 
 export function formatDate(iso: string | null, withTime = false): string {
   if (!iso) return "";
@@ -108,7 +109,7 @@ export function EmailPreview({
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{sender}</p>
-            <p className="truncate text-xs text-muted-foreground">{fromAddress.trim() || "Sent from BookedSecure"}</p>
+            <p className="truncate text-xs text-muted-foreground">{campaignSender(fromAddress, null).from}</p>
           </div>
         </div>
         <p className={cn("text-[15px] font-semibold", !subject.trim() && "text-muted-foreground/70")}>

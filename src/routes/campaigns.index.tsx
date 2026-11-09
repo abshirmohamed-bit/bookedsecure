@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowRight, CalendarClock, ChevronRight, Mail, Plus, Send, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, ChevronRight, Inbox, Mail, Plus, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CampaignComposer } from "@/components/campaigns/CampaignComposer";
+import { CampaignsTabs } from "@/components/campaigns/CampaignsTabs";
 import { formatDate, plural, SendDialog, StatusPill } from "@/components/campaigns/CampaignParts";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/app.functions";
@@ -145,26 +146,29 @@ function CampaignsPage() {
 
   return (
     <AppShell title="Campaigns">
-      <div className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.02em]">Campaigns</h1>
-            <p className="text-sm text-muted-foreground">
-              Email your customers, with an automatic follow-up for anyone who doesn't book.
-            </p>
+      <div className="mx-auto max-w-6xl space-y-4 md:p-6">
+        <header className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Campaigns</h1>
+              <p className="text-sm text-muted-foreground">
+                Email your customers, with an automatic follow-up for anyone who doesn't book.
+              </p>
+            </div>
+            <Button onClick={() => setComposing(true)} className="shrink-0 max-sm:hidden">
+              <Plus /> New campaign
+            </Button>
           </div>
-          <Button onClick={() => setComposing(true)}>
-            <Plus /> New campaign
-          </Button>
+          <CampaignsTabs active="campaigns" />
         </header>
 
         <section aria-labelledby="your-campaigns" className="glass overflow-hidden">
           {/* Metrics live in the card header instead of a separate row of tiles. */}
           <div className="grid grid-cols-2 border-b border-white/60 sm:grid-cols-4">
-            <Metric label="Drafts and scheduled" value={stats.live} dot="bg-warning" />
-            <Metric label="Emails sent" value={stats.emailsSent} dot="bg-primary" />
-            <Metric label="Booked after an email" value={stats.booked} dot="bg-success" />
-            <Metric label="Booking rate" value={`${stats.rate}%`} dot="bg-info" />
+            <Metric label="Drafts and scheduled" value={stats.live} dot="bg-warning" loading={loading} />
+            <Metric label="Emails sent" value={stats.emailsSent} dot="bg-primary" loading={loading} />
+            <Metric label="Booked after an email" value={stats.booked} dot="bg-success" loading={loading} />
+            <Metric label="Booking rate" value={`${stats.rate}%`} dot="bg-info" loading={loading} />
           </div>
           <h2 id="your-campaigns" className="sr-only">
             Your campaigns
@@ -211,6 +215,16 @@ function CampaignsPage() {
           )}
         </section>
       </div>
+
+      {/* On a phone the main action sits at the thumb, above the safe area. */}
+      {!composing && campaigns.length > 0 && (
+        <Button
+          onClick={() => setComposing(true)}
+          className="btn-glow fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-30 h-12 rounded-full px-5 shadow-lg sm:hidden"
+        >
+          <Plus /> New campaign
+        </Button>
+      )}
 
       {composing && (
         <CampaignComposer businessName={businessName} onClose={() => setComposing(false)} onSaved={onSaved} />
@@ -261,14 +275,18 @@ function CampaignsPage() {
   );
 }
 
-function Metric({ label, value, dot }: { label: string; value: number | string; dot: string }) {
+function Metric({ label, value, dot, loading }: { label: string; value: number | string; dot: string; loading?: boolean }) {
   return (
     <div className="border-white/60 px-4 py-3 odd:border-r sm:border-r sm:last:border-r-0 [&:nth-child(-n+2)]:border-b sm:[&:nth-child(-n+2)]:border-b-0">
       <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
         <span className={cn("size-1.5 rounded-full", dot)} />
         {label}
       </p>
-      <p className="tabular text-xl font-semibold tracking-[-0.02em]">{value}</p>
+      {loading ? (
+        <span className="mt-1 block h-6 w-10 animate-pulse rounded-md bg-white/60" aria-label="Loading" />
+      ) : (
+        <p className="tabular text-xl font-semibold tracking-[-0.02em]">{value}</p>
+      )}
     </div>
   );
 }
@@ -319,6 +337,7 @@ function CampaignTable({
             <th className="w-[12%] px-3 py-2.5 font-medium">Status</th>
             <th className="px-3 py-2.5 text-right font-medium">Sent</th>
             <th className="px-3 py-2.5 text-right font-medium">Follow-ups</th>
+            <th className="px-3 py-2.5 text-right font-medium">Replies</th>
             <th className="px-3 py-2.5 text-right font-medium">Booked</th>
             <th className="w-[13%] px-3 py-2.5 font-medium">Date</th>
             <th className="w-[16%] px-5 py-2.5" aria-label="Actions" />
@@ -356,6 +375,22 @@ function CampaignTable({
                   <span className="text-muted-foreground">—</span>
                 )}
               </td>
+              <td className="tabular px-3 py-3 text-right">
+                {c.counts.replied > 0 ? (
+                  <Link
+                    to="/campaigns/replies"
+                    search={{ campaign: c.id }}
+                    onClick={(e) => e.stopPropagation()}
+                    className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 hover:bg-white/70", c.counts.unreadReplies > 0 ? "font-semibold text-primary" : "text-foreground")}
+                    title={c.counts.unreadReplies > 0 ? `${c.counts.unreadReplies} new` : "Read replies"}
+                  >
+                    {c.counts.unreadReplies > 0 && <span className="size-1.5 rounded-full bg-primary" aria-hidden />}
+                    {c.counts.replied}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">0</span>
+                )}
+              </td>
               <td className={cn("tabular px-3 py-3 text-right", c.counts.booked > 0 && "font-semibold text-success-foreground")}>{c.counts.booked}</td>
               <td className="px-3 py-3 text-xs text-muted-foreground">{when(c)}</td>
               <td className="px-5 py-3">
@@ -369,12 +404,12 @@ function CampaignTable({
         </tbody>
       </table>
 
-      <ul className="divide-y divide-white/60 md:hidden">
+      <ul className="divide-y divide-white/60 pb-16 sm:pb-0 md:hidden">
         {campaigns.map((c) => (
-          <li key={c.id} className="px-4 py-3">
+          <li key={c.id} className="min-w-0 px-4 py-3.5">
             <Link to="/campaigns/$campaignId" params={{ campaignId: c.id }} className="block">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 truncate font-medium">
                     {warn(c) && <AlertTriangle className="size-3.5 shrink-0 text-warning" aria-label="Sending domain not verified" />}
                     <span className="truncate">{c.name}</span>
@@ -390,6 +425,19 @@ function CampaignTable({
             </Link>
             <div className="mt-2 flex items-center justify-between gap-2">
               {actions(c)}
+              {c.counts.replied > 0 && (
+                <Link
+                  to="/campaigns/replies"
+                  search={{ campaign: c.id }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                    c.counts.unreadReplies > 0 ? "bg-primary text-primary-foreground" : "bg-white/70 text-primary",
+                  )}
+                >
+                  <Inbox className="size-3.5" /> {plural(c.counts.replied, "reply", "replies")}
+                  {c.counts.unreadReplies > 0 ? ` · ${c.counts.unreadReplies} new` : ""}
+                </Link>
+              )}
               <Link to="/campaigns/$campaignId" params={{ campaignId: c.id }} className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
                 Open <ArrowRight className="size-3.5" />
               </Link>

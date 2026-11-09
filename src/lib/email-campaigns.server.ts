@@ -151,7 +151,7 @@ export async function hasSequenceColumns(): Promise<boolean> {
   return sequenceColumns;
 }
 const LEGACY_CAMPAIGN_COLUMNS = "id, name, subject, body_text, from_address, status, created_at, sent_at";
-const LEGACY_RECIPIENT_COLUMNS = "campaign_id, lead_id, email, status, error, sent_at";
+const LEGACY_RECIPIENT_COLUMNS = "id, campaign_id, lead_id, email, status, error, sent_at";
 const campaignColumns = async () => ((await hasSequenceColumns()) ? CAMPAIGN_COLUMNS : LEGACY_CAMPAIGN_COLUMNS);
 const recipientColumns = async () => ((await hasSequenceColumns()) ? RECIPIENT_COLUMNS : LEGACY_RECIPIENT_COLUMNS);
 function fillCampaign(row: Partial<CampaignRow> & { id: string }): CampaignRow {
@@ -172,7 +172,7 @@ function fillRecipient(row: Partial<RecipientRow>): RecipientRow {
 const CAMPAIGN_COLUMNS =
   "id, name, subject, body_text, from_address, status, created_at, sent_at, scheduled_at, follow_up_subject, follow_up_body, follow_up_delay_days, stop_on_booking, audience_label";
 const RECIPIENT_COLUMNS =
-  "campaign_id, lead_id, email, status, error, sent_at, follow_up_status, follow_up_sent_at, follow_up_error";
+  "id, campaign_id, lead_id, email, status, error, sent_at, follow_up_status, follow_up_sent_at, follow_up_error";
 
 type CampaignRow = {
   id: string;
@@ -191,6 +191,7 @@ type CampaignRow = {
   audience_label: string | null;
 };
 type RecipientRow = {
+  id: string;
   campaign_id: string;
   lead_id: string | null;
   email: string;
@@ -216,11 +217,39 @@ async function loadJobsFor(businessId: string, leadIds: string[]) {
   return jobs;
 }
 
+/**
+ * Customer replies per campaign recipient (from Campaigns > Replies), so the
+ * campaign pages and the inbox show the same numbers. Before migration 0033
+ * there are simply no replies.
+ */
+type ReplyStats = Map<string, { replies: number; unread: number }>;
+async function loadReplyStats(businessId: string, campaignId?: string): Promise<ReplyStats> {
+  let query = supabaseAdmin
+    .from("email_messages")
+    .select("recipient_id, read_at")
+    .eq("business_id", businessId)
+    .eq("direction", "in")
+    .not("recipient_id", "is", null)
+    .limit(5000);
+  if (campaignId) query = query.eq("campaign_id", campaignId);
+  const { data, error } = await query;
+  const stats: ReplyStats = new Map();
+  if (error) return stats;
+  for (const m of (data ?? []) as { recipient_id: string; read_at: string | null }[]) {
+    const s = stats.get(m.recipient_id) ?? { replies: 0, unread: 0 };
+    s.replies += 1;
+    if (!m.read_at) s.unread += 1;
+    stats.set(m.recipient_id, s);
+  }
+  return stats;
+}
+
 function shapeCampaign(
   campaign: CampaignRow,
   rows: RecipientRow[],
   booked: Set<string>,
   names?: Map<string, string | null>,
+  replyStats: ReplyStats = new Map(),
 ) {
   return {
     id: campaign.id,
@@ -243,6 +272,7 @@ function shapeCampaign(
         }
       : null,
     recipients: rows.map((r) => ({
+      recipientId: r.id,
       leadId: r.lead_id,
       name: r.lead_id ? (names?.get(r.lead_id) ?? null) : null,
       email: r.email,
@@ -253,6 +283,7 @@ function shapeCampaign(
       followUpSentAt: r.follow_up_sent_at,
       followUpError: r.follow_up_error,
       booked: Boolean(r.lead_id && booked.has(r.lead_id)),
+      replies: replyStats.get(r.id)?.replies ?? 0,
     })),
     counts: {
       total: rows.length,
@@ -263,6 +294,8 @@ function shapeCampaign(
       followUpsSent: rows.filter((r) => r.follow_up_status === "sent").length,
       followUpsWaiting: rows.filter((r) => r.follow_up_status === "pending").length,
       booked: booked.size,
+      replied: rows.filter((r) => replyStats.has(r.id)).length,
+      unreadReplies: rows.reduce((n, r) => n + (replyStats.get(r.id)?.unread ?? 0), 0),
     },
   };
 }
@@ -296,7 +329,7 @@ export async function listEmailCampaigns(businessId: string) {
   const leadIds = [
     ...new Set(rowsAll.filter((r) => r.lead_id && r.sent_at).map((r) => r.lead_id as string)),
   ];
-  const jobs = await loadJobsFor(businessId, leadIds);
+  const [jobs, replyStats] = await Promise.all([loadJobsFor(businessId, leadIds), loadReplyStats(businessId)]);
 
   return ((campaigns ?? []) as unknown as CampaignRow[]).map(fillCampaign).map((campaign) => {
     const rows = byCampaign.get(campaign.id) ?? [];
@@ -304,7 +337,7 @@ export async function listEmailCampaigns(businessId: string) {
       rows.map((r) => ({ leadId: r.lead_id, sentAt: r.sent_at })),
       jobs,
     );
-    return shapeCampaign(campaign, rows, booked);
+    return shapeCampaign(campaign, rows, booked, undefined, replyStats);
   });
 }
 
@@ -339,12 +372,12 @@ export async function getEmailCampaign(businessId: string, campaignId: string) {
     if (nameError) throw new Error("Could not load the campaign recipients.");
     for (const lead of data ?? []) names.set(lead.id as string, (lead.name as string | null) ?? null);
   }
-  const jobs = await loadJobsFor(businessId, leadIds);
+  const [jobs, replyStats] = await Promise.all([loadJobsFor(businessId, leadIds), loadReplyStats(businessId, campaignId)]);
   const booked = bookedRecipients(
     rows.map((r) => ({ leadId: r.lead_id, sentAt: r.sent_at })),
     jobs,
   );
-  return shapeCampaign(fillCampaign(campaign as unknown as CampaignRow), rows, booked, names);
+  return shapeCampaign(fillCampaign(campaign as unknown as CampaignRow), rows, booked, names, replyStats);
 }
 
 /** Customers in a quick audience (with an email, never opted out), newest first. */

@@ -8,6 +8,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock,
+  Inbox,
   Mail,
   OctagonX,
   PenLine,
@@ -114,12 +115,12 @@ function CampaignWorkspace() {
 
   return (
     <AppShell title={c.name}>
-      <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-4 sm:space-y-5 md:p-6">
         <BackLink />
         <header className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 max-sm:w-full">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-[28px] font-semibold leading-tight tracking-[-0.02em]">{c.name}</h1>
+              <h1 className="line-clamp-2 min-w-0 break-words text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">{c.name}</h1>
               <StatusPill status={c.status} />
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -131,7 +132,17 @@ function CampaignWorkspace() {
               {c.audienceLabel ? ` · ${c.audienceLabel}` : ""} · {plural(c.counts.total, "customer")}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 max-sm:w-full max-sm:[&>*]:flex-1">
+            {c.counts.replied > 0 && (
+              <Button asChild variant="outline">
+                <Link to="/campaigns/replies" search={{ campaign: c.id }}>
+                  <Inbox /> {plural(c.counts.replied, "reply", "replies")}
+                  {c.counts.unreadReplies > 0 && (
+                    <span className="tabular rounded-full bg-primary px-1.5 text-[11px] font-semibold leading-5 text-primary-foreground">{c.counts.unreadReplies} new</span>
+                  )}
+                </Link>
+              </Button>
+            )}
             {(c.status === "draft" || c.status === "scheduled") && !editing && (
               <Button
                 variant="outline"
@@ -180,7 +191,7 @@ function CampaignWorkspace() {
           </p>
         )}
 
-        <div className="inline-flex rounded-xl border border-white/60 bg-white/40 p-1 backdrop-blur-xl" role="tablist">
+        <div className="flex w-full overflow-x-auto rounded-xl border border-white/60 bg-white/40 p-1 backdrop-blur-xl [scrollbar-width:none] sm:inline-flex sm:w-auto" role="tablist">
           {(
             [
               ["campaign", "Campaign", Mail],
@@ -195,7 +206,7 @@ function CampaignWorkspace() {
               aria-selected={tab === value}
               onClick={() => setTab(value)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
+                "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all max-sm:flex-1",
                 tab === value ? "bg-white/90 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -277,6 +288,15 @@ function CampaignWorkspace() {
                   </div>
                   <StepBadge label="First email" status={r.status} at={r.sentAt} error={r.error} />
                   {c.followUp && <StepBadge label="Follow-up" status={r.followUpStatus} at={r.followUpSentAt} error={r.followUpError} />}
+                  {r.replies > 0 && (
+                    <Link
+                      to="/campaigns/replies"
+                      search={{ thread: r.recipientId, campaign: c.id }}
+                      className="inline-flex items-center gap-1 rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20"
+                    >
+                      <Inbox className="size-3" /> Replied{r.replies > 1 ? ` ×${r.replies}` : ""}
+                    </Link>
+                  )}
                   {r.booked && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success-foreground">
                       <CheckCircle2 className="size-3" /> Booked
@@ -296,11 +316,23 @@ function CampaignWorkspace() {
               <Stat label="Booked after" value={c.counts.booked} tone="success" hint={`Within ${ATTRIBUTION_DAYS} days`} />
               <Stat label="Booking rate" value={`${rate}%`} tone="warning" />
             </div>
+            {c.counts.replied > 0 && (
+              <Link
+                to="/campaigns/replies"
+                search={{ campaign: c.id }}
+                className="glass flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-white/60"
+              >
+                <Inbox className="size-4 shrink-0 text-primary" />
+                <span className="min-w-0 flex-1">{plural(c.counts.replied, "customer")} replied to this campaign</span>
+                <span className="shrink-0 font-medium text-primary">Read replies</span>
+              </Link>
+            )}
             <div className="glass space-y-3 p-4 sm:p-5">
               <h2 className="text-[17px] font-semibold tracking-[-0.01em]">Funnel</h2>
               <Bar label="In the campaign" value={c.counts.total} max={c.counts.total} />
               <Bar label="Got the first email" value={c.counts.sent} max={c.counts.total} />
               {c.followUp && <Bar label="Got the follow-up" value={c.counts.followUpsSent} max={c.counts.total} />}
+              {c.counts.replied > 0 && <Bar label="Replied" value={c.counts.replied} max={c.counts.total} />}
               <Bar label="Booked" value={c.counts.booked} max={c.counts.total} tone="success" />
               {(c.counts.failed > 0 || c.counts.skipped > 0) && (
                 <p className="text-xs text-muted-foreground">
@@ -368,9 +400,9 @@ function BackLink() {
 
 function SequenceLabel({ icon, title, detail }: { icon: ReactNode; title: string; detail: string }) {
   return (
-    <div className="flex items-center gap-2 px-1">
-      <span className="grid size-6 place-items-center rounded-full bg-primary/12 text-primary">{icon}</span>
-      <p className="text-sm font-semibold">{title}</p>
+    <div className="flex min-w-0 items-center gap-2 px-1">
+      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/12 text-primary">{icon}</span>
+      <p className="shrink-0 text-sm font-semibold">{title}</p>
       <p className="truncate text-xs text-muted-foreground">· {detail}</p>
     </div>
   );
