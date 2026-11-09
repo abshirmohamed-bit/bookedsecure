@@ -86,6 +86,39 @@ async function loadUnsubscribed(businessId: string): Promise<Set<string>> {
   return new Set((data ?? []).map((row) => (row.email as string).toLowerCase()));
 }
 
+/**
+ * Follow-up and scheduling columns arrive with migration 0030. Until it is
+ * applied, campaigns keep working with the original columns (no follow-ups
+ * or scheduling) instead of failing to load.
+ */
+let sequenceColumns: boolean | null = null;
+export async function hasSequenceColumns(): Promise<boolean> {
+  if (sequenceColumns !== null) return sequenceColumns;
+  const { error } = await supabaseAdmin.from("email_campaigns").select("follow_up_delay_days").limit(1);
+  if (!error) sequenceColumns = true;
+  else if (error.code === "42703" || /follow_up_delay_days/.test(error.message)) sequenceColumns = false;
+  else return true;
+  return sequenceColumns;
+}
+const LEGACY_CAMPAIGN_COLUMNS = "id, name, subject, body_text, from_address, status, created_at, sent_at";
+const LEGACY_RECIPIENT_COLUMNS = "campaign_id, lead_id, email, status, error, sent_at";
+const campaignColumns = async () => ((await hasSequenceColumns()) ? CAMPAIGN_COLUMNS : LEGACY_CAMPAIGN_COLUMNS);
+const recipientColumns = async () => ((await hasSequenceColumns()) ? RECIPIENT_COLUMNS : LEGACY_RECIPIENT_COLUMNS);
+function fillCampaign(row: Partial<CampaignRow> & { id: string }): CampaignRow {
+  return {
+    scheduled_at: null,
+    follow_up_subject: null,
+    follow_up_body: null,
+    follow_up_delay_days: null,
+    stop_on_booking: true,
+    audience_label: null,
+    ...row,
+  } as CampaignRow;
+}
+function fillRecipient(row: Partial<RecipientRow>): RecipientRow {
+  return { follow_up_status: null, follow_up_sent_at: null, follow_up_error: null, ...row } as RecipientRow;
+}
+
 const CAMPAIGN_COLUMNS =
   "id, name, subject, body_text, from_address, status, created_at, sent_at, scheduled_at, follow_up_subject, follow_up_body, follow_up_delay_days, stop_on_booking, audience_label";
 const RECIPIENT_COLUMNS =
@@ -185,24 +218,25 @@ function shapeCampaign(
 }
 
 export async function listEmailCampaigns(businessId: string) {
+  const [cCols, rCols] = await Promise.all([campaignColumns(), recipientColumns()]);
   const [{ data: campaigns, error }, { data: recipients, error: recipientError }] =
     await Promise.all([
       supabaseAdmin
         .from("email_campaigns")
-        .select(CAMPAIGN_COLUMNS)
+        .select(cCols)
         .eq("business_id", businessId)
         .order("created_at", { ascending: false })
         .limit(50),
       supabaseAdmin
         .from("email_campaign_recipients")
-        .select(RECIPIENT_COLUMNS)
+        .select(rCols)
         .eq("business_id", businessId)
         .order("created_at", { ascending: false })
         .limit(5000),
     ]);
   if (error || recipientError) throw new Error("Could not load email campaigns.");
 
-  const rowsAll = (recipients ?? []) as RecipientRow[];
+  const rowsAll = ((recipients ?? []) as unknown as Partial<RecipientRow>[]).map(fillRecipient);
   const byCampaign = new Map<string, RecipientRow[]>();
   for (const row of rowsAll) {
     const list = byCampaign.get(row.campaign_id) ?? [];
@@ -214,7 +248,7 @@ export async function listEmailCampaigns(businessId: string) {
   ];
   const jobs = await loadJobsFor(businessId, leadIds);
 
-  return ((campaigns ?? []) as CampaignRow[]).map((campaign) => {
+  return ((campaigns ?? []) as unknown as CampaignRow[]).map(fillCampaign).map((campaign) => {
     const rows = byCampaign.get(campaign.id) ?? [];
     const booked = bookedRecipients(
       rows.map((r) => ({ leadId: r.lead_id, sentAt: r.sent_at })),
@@ -226,9 +260,10 @@ export async function listEmailCampaigns(businessId: string) {
 
 /** One campaign with every recipient, their names and results. */
 export async function getEmailCampaign(businessId: string, campaignId: string) {
+  const [cCols, rCols] = await Promise.all([campaignColumns(), recipientColumns()]);
   const { data: campaign, error } = await supabaseAdmin
     .from("email_campaigns")
-    .select(CAMPAIGN_COLUMNS)
+    .select(cCols)
     .eq("business_id", businessId)
     .eq("id", campaignId)
     .maybeSingle();
@@ -236,13 +271,13 @@ export async function getEmailCampaign(businessId: string, campaignId: string) {
   if (!campaign) throw new Error("Campaign not found.");
   const { data: recipients, error: recipientError } = await supabaseAdmin
     .from("email_campaign_recipients")
-    .select(RECIPIENT_COLUMNS)
+    .select(rCols)
     .eq("business_id", businessId)
     .eq("campaign_id", campaignId)
     .order("created_at", { ascending: true })
     .limit(1000);
   if (recipientError) throw new Error("Could not load the campaign recipients.");
-  const rows = (recipients ?? []) as RecipientRow[];
+  const rows = ((recipients ?? []) as unknown as Partial<RecipientRow>[]).map(fillRecipient);
   const leadIds = [...new Set(rows.filter((r) => r.lead_id).map((r) => r.lead_id as string))];
   const names = new Map<string, string | null>();
   for (let i = 0; i < leadIds.length; i += 300) {
@@ -259,7 +294,7 @@ export async function getEmailCampaign(businessId: string, campaignId: string) {
     rows.map((r) => ({ leadId: r.lead_id, sentAt: r.sent_at })),
     jobs,
   );
-  return shapeCampaign(campaign as CampaignRow, rows, booked, names);
+  return shapeCampaign(fillCampaign(campaign as unknown as CampaignRow), rows, booked, names);
 }
 
 /** Customers in a quick audience (with an email, never opted out), newest first. */
@@ -315,6 +350,10 @@ export async function createEmailCampaign(input: {
   }
 
   const fromAddress = normaliseFromAddress(input.fromAddress);
+  const sequences = await hasSequenceColumns();
+  if (!sequences && input.followUp) {
+    throw new Error("Follow-ups aren't switched on yet. Ask support to finish the campaigns update, or save without a follow-up.");
+  }
   const { data: campaign, error } = await supabaseAdmin
     .from("email_campaigns")
     .insert({
@@ -325,11 +364,15 @@ export async function createEmailCampaign(input: {
       from_address: fromAddress,
       status: "draft",
       created_by: input.userId,
-      follow_up_subject: input.followUp?.subject ?? null,
-      follow_up_body: input.followUp?.bodyText ?? null,
-      follow_up_delay_days: input.followUp?.delayDays ?? null,
-      stop_on_booking: input.followUp?.stopOnBooking ?? true,
-      audience_label: input.audienceLabel ?? null,
+      ...(sequences
+        ? {
+            follow_up_subject: input.followUp?.subject ?? null,
+            follow_up_body: input.followUp?.bodyText ?? null,
+            follow_up_delay_days: input.followUp?.delayDays ?? null,
+            stop_on_booking: input.followUp?.stopOnBooking ?? true,
+            audience_label: input.audienceLabel ?? null,
+          }
+        : {}),
     })
     .select("id")
     .single();
@@ -359,7 +402,12 @@ export async function createEmailCampaign(input: {
 export async function sendEmailCampaign(input: { businessId: string; campaignId: string }) {
   const { data: campaign } = await supabaseAdmin
     .from("email_campaigns")
-    .select("id, subject, body_text, from_address, status, follow_up_delay_days")
+    // Before migration 0030 the follow-up column is missing; it then reads as undefined.
+    .select(
+      ((await hasSequenceColumns())
+        ? "id, subject, body_text, from_address, status, follow_up_delay_days"
+        : "id, subject, body_text, from_address, status") as "id, subject, body_text, from_address, status, follow_up_delay_days",
+    )
     .eq("id", input.campaignId)
     .eq("business_id", input.businessId)
     .maybeSingle();
@@ -417,7 +465,9 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
           status: "sent",
           sent_at: new Date().toISOString(),
           provider_id: result.id,
-          follow_up_status: campaign.follow_up_delay_days ? "pending" : null,
+          ...(campaign.follow_up_delay_days
+            ? { follow_up_status: "pending" }
+            : {}),
         })
         .eq("id", recipient.id);
     } catch (error) {
@@ -480,6 +530,7 @@ export async function scheduleEmailCampaign(input: {
   scheduledAt: string;
   now?: Date;
 }) {
+  if (!(await hasSequenceColumns())) throw new Error("Scheduling isn't switched on yet. Send now instead, or try again later.");
   const at = new Date(input.scheduledAt);
   const problem = scheduleTimeProblem(at, input.now ?? new Date());
   if (problem) throw new Error(problem);
@@ -554,6 +605,7 @@ async function resetScheduled(campaignId: string) {
  * conditional update first, so overlapping runs never send twice.
  */
 export async function processDueEmailCampaigns(now: Date = new Date()) {
+  if (!(await hasSequenceColumns())) return { campaignsSent: 0, followUpsSent: 0, followUpsSkipped: 0, followUpsFailed: 0, waitingForMigration: true };
   let campaignsSent = 0;
   const { data: scheduled, error: scheduledError } = await supabaseAdmin
     .from("email_campaigns")
