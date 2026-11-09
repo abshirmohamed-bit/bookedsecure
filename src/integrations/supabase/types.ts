@@ -4989,21 +4989,15 @@ export type Database = {
         }
         Returns: Json
       }
+      mcp_dismiss_social_comment: {
+        Args: { p_comment_id: string }
+        Returns: Json
+      }
+      mcp_facebook_ad_spend: { Args: { p_days?: number }; Returns: Json }
       mcp_prepare_assistant_text: {
         Args: { p_lead_id: string; p_message: string }
         Returns: Json
       }
-      mcp_schedule_job: {
-        Args: { p_lead_id: string; p_scheduled_at: string }
-        Returns: string
-      }
-      mcp_update_lead_notes: {
-        Args: { p_lead_id: string; p_notes: string }
-        Returns: string
-      }
-      mcp_write_business: { Args: never; Returns: string }
-      mcp_dismiss_social_comment: { Args: { p_comment_id: string }; Returns: Json }
-      mcp_facebook_ad_spend: { Args: { p_days?: number }; Returns: Json }
       mcp_prepare_social_comment_reply: {
         Args: { p_comment_id: string; p_reply: string }
         Returns: Json
@@ -5013,6 +5007,10 @@ export type Database = {
         Returns: Json
       }
       mcp_read_business: { Args: never; Returns: string }
+      mcp_schedule_job: {
+        Args: { p_lead_id: string; p_scheduled_at: string }
+        Returns: string
+      }
       mcp_set_lead_import_schedule: {
         Args: { p_auto_sync?: boolean; p_lookback_days?: number }
         Returns: Json
@@ -5025,6 +5023,11 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number }
         Returns: Json
       }
+      mcp_update_lead_notes: {
+        Args: { p_lead_id: string; p_notes: string }
+        Returns: string
+      }
+      mcp_write_business: { Args: never; Returns: string }
       prepare_connected_assistant_request: {
         Args: { p_request: string }
         Returns: Json
