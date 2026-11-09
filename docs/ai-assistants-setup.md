@@ -28,6 +28,12 @@ have to add the connector for the organisation first.
 4. After BookedSecure adds new tools, refresh the connector (or start a new chat) so
    ChatGPT sees them.
 
+## Voice
+
+Both apps can be used by voice in their own voice modes; BookedSecure's tools work
+wherever the app allows connectors in voice. Inside BookedSecure, the Assistant tab
+has **Speak** (voice to text) and **Voice on** (spoken replies, hands-free).
+
 ## Email campaigns from an assistant
 
 Everything on the Campaigns page can be done by asking, for example:
