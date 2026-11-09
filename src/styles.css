@@ -4,7 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* BookedSecure light operations system. All component colours remain semantic. */
+/* BookedSecure liquid glass system. All component colours remain semantic. */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -71,70 +71,79 @@
   --color-landing-shadow: var(--landing-shadow);
 }
 
+/* BookedSecure liquid glass. Palette is taken from the logo: deep navy, royal
+   and bright shield blues, with sky and teal light behind frosted white glass. */
 :root {
-  --radius: 0.5rem;
-  --background: oklch(0.975 0.008 250);
-  --foreground: oklch(0.24 0.025 276);
-  --surface: oklch(0.99 0.003 250);
-  --surface-foreground: oklch(0.24 0.025 276);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.025 276);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.025 276);
-  --primary: oklch(0.66 0.22 300);
+  --radius: 0.75rem;
+  --background: oklch(0.95 0.025 245);
+  --foreground: oklch(0.23 0.05 260);
+  --surface: oklch(1 0 0 / 0.5);
+  --surface-foreground: oklch(0.23 0.05 260);
+  --card: oklch(1 0 0 / 0.62);
+  --card-foreground: oklch(0.23 0.05 260);
+  --popover: oklch(0.995 0.004 245 / 0.86);
+  --popover-foreground: oklch(0.23 0.05 260);
+  --primary: oklch(0.53 0.17 256);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.955 0.024 300);
-  --secondary-foreground: oklch(0.43 0.14 300);
-  --muted: oklch(0.96 0.008 250);
-  --muted-foreground: oklch(0.53 0.025 265);
-  --accent: oklch(0.94 0.035 300);
-  --accent-foreground: oklch(0.43 0.14 300);
-  --destructive: oklch(0.72 0.17 23);
+  --primary-bright: oklch(0.64 0.15 248);
+  --primary-deep: oklch(0.38 0.13 260);
+  --secondary: oklch(0.93 0.04 248 / 0.75);
+  --secondary-foreground: oklch(0.38 0.13 260);
+  --muted: oklch(0.93 0.025 248 / 0.6);
+  --muted-foreground: oklch(0.49 0.045 258);
+  --accent: oklch(0.91 0.05 248 / 0.7);
+  --accent-foreground: oklch(0.38 0.13 260);
+  --destructive: oklch(0.63 0.21 25);
   --destructive-foreground: oklch(1 0 0);
-  --success: oklch(0.76 0.15 174);
-  --success-foreground: oklch(0.28 0.07 174);
-  --warning: oklch(0.78 0.14 58);
-  --warning-foreground: oklch(0.32 0.07 58);
-  --info: oklch(0.78 0.12 213);
-  --info-foreground: oklch(0.3 0.08 225);
-  --border: oklch(0.9 0.012 255);
-  --input: oklch(0.87 0.014 255);
-  --ring: oklch(0.66 0.22 300);
-  --chart-1: oklch(0.66 0.22 300);
-  --chart-2: oklch(0.76 0.15 174);
-  --chart-3: oklch(0.78 0.12 213);
-  --chart-4: oklch(0.78 0.12 23);
-  --chart-5: oklch(0.65 0.22 303);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.28 0.025 276);
-  --sidebar-primary: oklch(0.66 0.22 300);
+  --success: oklch(0.72 0.16 155);
+  --success-foreground: oklch(0.3 0.08 155);
+  --warning: oklch(0.78 0.15 65);
+  --warning-foreground: oklch(0.34 0.08 60);
+  --info: oklch(0.72 0.12 232);
+  --info-foreground: oklch(0.32 0.09 245);
+  --border: oklch(0.42 0.07 256 / 0.14);
+  --input: oklch(0.42 0.07 256 / 0.2);
+  --ring: oklch(0.6 0.16 252);
+  --chart-1: oklch(0.53 0.17 256);
+  --chart-2: oklch(0.74 0.12 200);
+  --chart-3: oklch(0.72 0.12 232);
+  --chart-4: oklch(0.78 0.15 65);
+  --chart-5: oklch(0.38 0.13 260);
+  --sidebar: oklch(1 0 0 / 0.5);
+  --sidebar-foreground: oklch(0.25 0.05 260);
+  --sidebar-primary: oklch(0.53 0.17 256);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.955 0.024 300);
-  --sidebar-accent-foreground: oklch(0.43 0.14 300);
-  --sidebar-border: oklch(0.9 0.012 255);
-  --sidebar-ring: oklch(0.66 0.22 300);
+  --sidebar-accent: oklch(1 0 0 / 0.78);
+  --sidebar-accent-foreground: oklch(0.4 0.15 258);
+  --sidebar-border: oklch(1 0 0 / 0.6);
+  --sidebar-ring: oklch(0.6 0.16 252);
+  /* Glass surfaces: frosted white, a bright top edge, and a soft navy shadow. */
+  --glass-edge: oklch(1 0 0 / 0.7);
+  --glass-highlight: inset 0 1px 0 0 oklch(1 0 0 / 0.75);
+  --glass-shadow: 0 10px 30px -14px oklch(0.3 0.1 258 / 0.28);
+  --glass-blur: blur(40px) saturate(180%);
   /* Public AI quote conversation only: customer bubble pair + branded header wash. */
-  --chat-user: oklch(0.52 0.19 292);
-  --chat-user-foreground: oklch(0.98 0.005 292);
+  --chat-user: oklch(0.5 0.16 258);
+  --chat-user-foreground: oklch(0.98 0.005 250);
   --gradient-chat-header: linear-gradient(
     100deg,
-    color-mix(in oklab, var(--chat-user) 26%, var(--card)),
-    var(--card) 70%
+    color-mix(in oklab, var(--chat-user) 22%, white),
+    white 70%
   );
-  /* Public landing page: light editorial palette with purple/pink accents. */
-  --landing-bg: oklch(0.975 0.012 255);
-  --landing-surface: oklch(0.995 0.003 255);
-  --landing-elevated: oklch(0.965 0.014 290);
-  --landing-border: oklch(0.885 0.018 270);
-  --landing-copy: oklch(0.24 0.025 276);
-  --landing-muted: oklch(0.49 0.025 270);
-  --landing-action: oklch(0.66 0.22 300);
-  --landing-action-hover: oklch(0.58 0.24 300);
+  /* Public landing page: light editorial palette with logo-blue accents. */
+  --landing-bg: oklch(0.97 0.015 245);
+  --landing-surface: oklch(0.995 0.003 245);
+  --landing-elevated: oklch(0.955 0.025 245);
+  --landing-border: oklch(0.88 0.03 250);
+  --landing-copy: oklch(0.23 0.05 260);
+  --landing-muted: oklch(0.48 0.04 258);
+  --landing-action: oklch(0.53 0.17 256);
+  --landing-action-hover: oklch(0.46 0.17 258);
   --landing-action-foreground: oklch(1 0 0);
-  --landing-accent: oklch(0.66 0.22 300);
-  --landing-accent-alt: oklch(0.64 0.22 345);
-  --landing-accent-soft: oklch(0.94 0.035 315);
-  --landing-shadow: oklch(0.25 0.04 280 / 0.08);
+  --landing-accent: oklch(0.53 0.17 256);
+  --landing-accent-alt: oklch(0.7 0.13 220);
+  --landing-accent-soft: oklch(0.93 0.04 245);
+  --landing-shadow: oklch(0.3 0.08 258 / 0.1);
 }
 
 .dark {
@@ -169,6 +178,53 @@
        container it blocks wheel/touch scrolling from reaching the page. */
   }
 
+  /* Liquid glass light: blurred logo-blue, sky and teal orbs fixed behind the
+     content, so every translucent surface reads as frosted glass. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -12%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(38% 34% at 12% 8%, oklch(0.55 0.18 258 / 0.38), transparent 70%),
+      radial-gradient(34% 32% at 88% 14%, oklch(0.78 0.11 228 / 0.5), transparent 70%),
+      radial-gradient(40% 36% at 78% 88%, oklch(0.8 0.1 195 / 0.38), transparent 70%),
+      radial-gradient(36% 34% at 18% 82%, oklch(0.7 0.13 245 / 0.32), transparent 70%);
+    filter: blur(70px);
+  }
+
+  /* Frosted surfaces. Only elements that never contain a non-portal fixed
+     overlay get a real backdrop blur (backdrop-filter would trap it). */
+  .bg-popover {
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  }
+  .bg-card {
+    box-shadow: var(--glass-highlight), var(--glass-shadow);
+  }
+
+  /* Primary calls to action: a lit shield-blue gradient everywhere. */
+  button.bg-primary,
+  a.bg-primary,
+  label.bg-primary {
+    background-image: linear-gradient(180deg, var(--primary-bright), var(--primary) 70%);
+    transition: filter 0.2s ease, transform 0.2s ease;
+  }
+  button.bg-primary:hover:not(:disabled),
+  a.bg-primary:hover {
+    filter: brightness(1.08);
+  }
+  button:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button:active:not(:disabled) {
+      transform: none;
+    }
+  }
+
   h1,
   h2,
   h3 {
@@ -189,9 +245,27 @@
 
 @utility panel {
   background-color: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+}
+
+/* A real frosted pane: use on surfaces with no non-portal fixed overlay inside. */
+@utility glass {
+  background-color: var(--color-card);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+/* Lit shield-blue call to action (the primary button). */
+@utility btn-glow {
+  background-image: linear-gradient(180deg, var(--primary-bright), var(--primary) 70%);
+  box-shadow:
+    inset 0 1px 0 0 oklch(1 0 0 / 0.35),
+    0 8px 20px -8px color-mix(in oklab, var(--primary) 70%, transparent);
 }
 
 @utility page-heading {
@@ -206,7 +280,7 @@
   width: 100%;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-input);
-  background-color: var(--color-card);
+  background-color: oklch(1 0 0 / 0.7);
   padding-inline: 0.75rem;
   font-size: 0.875rem;
   box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent);

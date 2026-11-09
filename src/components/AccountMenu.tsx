@@ -106,7 +106,7 @@ export function AccountMenu({
         <div
           role="menu"
           aria-label="Account"
-          className={sidebar ? (compact ? "absolute bottom-0 left-full z-[70] ml-2 w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg" : "absolute bottom-full left-0 z-[70] mb-2 w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg") : rail ? "fixed bottom-3 left-14 z-[70] w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg" : "absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-md border border-border bg-sidebar shadow-lg"}
+          className={sidebar ? (compact ? "absolute bottom-0 left-full z-[70] ml-2 w-64 overflow-hidden rounded-xl border border-white/70 bg-popover shadow-[inset_0_1px_0_rgb(255_255_255),0_16px_40px_-16px_oklch(0.25_0.1_258/0.4)]" : "absolute bottom-full left-0 z-[70] mb-2 w-64 overflow-hidden rounded-xl border border-white/70 bg-popover shadow-[inset_0_1px_0_rgb(255_255_255),0_16px_40px_-16px_oklch(0.25_0.1_258/0.4)]") : rail ? "fixed bottom-3 left-14 z-[70] w-64 overflow-hidden rounded-xl border border-white/70 bg-popover shadow-[inset_0_1px_0_rgb(255_255_255),0_16px_40px_-16px_oklch(0.25_0.1_258/0.4)]" : "absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-xl border border-white/70 bg-popover shadow-[inset_0_1px_0_rgb(255_255_255),0_16px_40px_-16px_oklch(0.25_0.1_258/0.4)]"}
         >
           <div className="border-b border-border px-3 py-3">
             <p className="truncate text-sm font-medium text-foreground">

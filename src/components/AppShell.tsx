@@ -140,7 +140,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   return (
     <div
       className={cn(
-        "bg-background transition-[padding] duration-200",
+        "transition-[padding] duration-200",
         fullHeight ? "flex h-[100dvh] min-h-0 flex-col overflow-hidden" : "min-h-screen",
         collapsed ? "lg:pl-16" : "lg:pl-64",
       )}
@@ -151,7 +151,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       <aside
         aria-label="Main navigation"
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-[min(86vw,18rem)] flex-col border-r border-sidebar-border bg-sidebar transition-[transform,width] duration-200 lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-[min(86vw,18rem)] flex-col border-r border-sidebar-border bg-sidebar shadow-[inset_-1px_0_0_rgb(255_255_255/0.5),8px_0_30px_-20px_oklch(0.3_0.1_258/0.3)] backdrop-blur-2xl backdrop-saturate-150 transition-[transform,width] duration-200 lg:translate-x-0",
           mobileNavOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "lg:w-16" : "lg:w-64",
         )}
@@ -287,7 +287,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         />
       ) : null}
 
-      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 backdrop-blur sm:px-5">
+      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-white/60 bg-white/45 px-3 backdrop-blur-2xl backdrop-saturate-150 sm:px-5">
         <Button
           type="button"
           size="icon"
@@ -329,8 +329,8 @@ function itemClass(active: boolean) {
   return cn(
     "flex h-9 items-center gap-3 rounded-md px-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
     active
-      ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-      : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
+      ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-[inset_0_1px_0_rgb(255_255_255),0_2px_10px_-4px_oklch(0.3_0.1_258/0.25)]"
+      : "text-muted-foreground hover:bg-white/50 hover:text-sidebar-foreground",
   );
 }
 
