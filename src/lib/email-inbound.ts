@@ -29,11 +29,15 @@ export function replyAddressFor(recipientId: string, businessName?: string | nul
   return `${mailboxLabel(businessName)}+${recipientId.toLowerCase()}@${REPLY_DOMAIN}`;
 }
 
-/** Reply-To header that shows the business name, e.g. "Glocast Mobile Auto Detailing" <…>. */
+/**
+ * Reply-To that shows the business name, e.g. Glocast Mobile Auto Detailing <…>.
+ * Resend only accepts `Name <email>` with no quotes, so characters that would
+ * need quoting (quotes, commas, angle brackets, @, ;, :) are dropped from the name.
+ */
 export function replyToHeader(recipientId: string, businessName: string | null | undefined): string {
-  const display = (businessName ?? "").replace(/["\\<>\r\n]/g, "").trim();
+  const display = (businessName ?? "").replace(/["\\<>,;:@()[\]\r\n]/g, "").replace(/\s+/g, " ").trim();
   const address = replyAddressFor(recipientId, businessName);
-  return display ? `"${display}" <${address}>` : address;
+  return display ? `${display} <${address}>` : address;
 }
 
 /** Finds the recipient id in any of the addresses a reply was sent to (any business label). */
