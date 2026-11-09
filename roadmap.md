@@ -1,9 +1,9 @@
 # Roadmap: Facebook → Make lead import completion
 
 ## ChatGPT customer-tools audit
-- [~] Read-only diagnosis of list_leads/query_leads failures for Preshant around 01:10–01:20 UTC on 9 November 2026.
-- [ ] Present confirmed findings and any proposed repair for approval before changing production behavior.
-- [ ] After approval, apply the minimal fix and safely verify customer search, lead/history retrieval and booking retrieval without mutations or SMS.
+- [x] Read-only diagnosis: live MCP repeatedly returned 401 invalid_token before list_leads/query_leads executed; OAuth discovery, signing keys, account grant, tenant RLS and data reads passed.
+- [x] Verified Prashant (not Preshant) through base-lead and inbox reads, one message and no bookings; 53 focused tests passed without mutations or SMS.
+- [~] External ChatGPT tool verification waits for the owner to reconnect BookedSecure in ChatGPT and retry the read-only test; no production code or security change is currently indicated.
 
 
 ## Faster installed app
