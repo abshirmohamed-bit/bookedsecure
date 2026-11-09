@@ -1,5 +1,11 @@
 # Roadmap: Facebook → Make lead import completion
 
+## ChatGPT customer-tools audit
+- [x] Read-only diagnosis: live MCP repeatedly returned 401 invalid_token before list_leads/query_leads executed; OAuth discovery, signing keys, account grant, tenant RLS and data reads passed.
+- [x] Verified Prashant (not Preshant) through base-lead and inbox reads, one message and no bookings; 53 focused tests passed without mutations or SMS.
+- [~] External ChatGPT tool verification waits for the owner to reconnect BookedSecure in ChatGPT and retry the read-only test; no production code or security change is currently indicated.
+
+
 ## Faster installed app
 - [x] Preserve existing installation and Firebase push; cache static app files only, excluding customer data, API responses and OAuth.
 - [x] Verify 27 safety/push checks, clean app checks, no preview app-cache worker, unchanged install path and mobile offline screen.
