@@ -26,6 +26,7 @@ import {
   type EditableField,
   type EditableValues,
 } from "@/lib/staged-row-edit";
+import { Portal } from "@/components/Portal";
 
 export type StagedRowLike = {
   row_number: number;
@@ -118,7 +119,7 @@ export function StagedRowEditor({
   const rawFor = (field: EditableField): string => original[field] || "";
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-4">
+    <Portal><div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-background/80 p-4">
       <div
         role="dialog"
         aria-modal="true"
@@ -277,6 +278,6 @@ export function StagedRowEditor({
           </p>
         ) : null}
       </div>
-    </div>
+    </div></Portal>
   );
 }

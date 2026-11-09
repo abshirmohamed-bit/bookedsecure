@@ -21,6 +21,7 @@ import {
 } from "@/lib/lead-purge";
 import { InboxPagination } from "@/components/InboxPagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/lead-pagination";
+import { Portal } from "@/components/Portal";
 
 export const Route = createFileRoute("/leads/deleted")({
   head: () => ({
@@ -287,7 +288,7 @@ function DeletedLeadsPage() {
         )}
 
         {isOwner && purgeOpen && (
-          <div
+          <Portal><div
             role="dialog"
             aria-modal="true"
             aria-label="Confirm permanent deletion"
@@ -360,7 +361,7 @@ function DeletedLeadsPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </div></Portal>
         )}
       </div>
     </AppShell>

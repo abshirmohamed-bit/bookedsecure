@@ -33,6 +33,7 @@ import {
   WEEKDAY_LABELS,
   type BookingEntry,
 } from "@/lib/bookings";
+import { Portal } from "@/components/Portal";
 
 function stateClasses(state: BookingEntry["state"]): string {
   if (state === "completed") return "bg-primary/10 text-primary";
@@ -288,7 +289,7 @@ export function BookingsCalendar() {
       </section>
 
       {selectedDay ? (
-        <div
+        <Portal><div
           className="fixed inset-0 z-[60] flex items-end bg-foreground/25 sm:items-center sm:justify-center sm:p-6"
           role="dialog"
           aria-modal="true"
@@ -356,11 +357,11 @@ export function BookingsCalendar() {
               </ul>
             )}
           </div>
-        </div>
+        </div></Portal>
       ) : null}
 
       {selected ? (
-        <div
+        <Portal><div
           className="fixed inset-0 z-[70] flex items-end bg-foreground/25 sm:items-center sm:justify-center sm:p-6"
           role="dialog"
           aria-modal="true"
@@ -505,7 +506,7 @@ export function BookingsCalendar() {
             </Button>
 
           </div>
-        </div>
+        </div></Portal>
       ) : null}
     </div>
   );

@@ -33,6 +33,7 @@ import {
   NO_SLOT_CHOICE,
 } from "@/lib/web-chat-booking";
 import type { QuoteServiceLayout } from "@/lib/quote-service-layout";
+import { Portal } from "@/components/Portal";
 
 type Turn = { role: "customer" | "assistant" | "system"; body: string };
 
@@ -841,7 +842,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
       </div>
 
       {selectionDetail && (
-        <div
+        <Portal><div
           role="dialog"
           aria-modal="true"
           aria-label={`Details of ${selectionDetail.label}`}
@@ -930,7 +931,7 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
               <p className="mt-3 text-xs text-muted-foreground">{selectionDetail.note}</p>
             )}
           </div>
-        </div>
+        </div></Portal>
       )}
     </main>
   );

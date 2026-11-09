@@ -75,11 +75,20 @@
    and bright shield blues, with sky and teal light behind frosted white glass. */
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.95 0.025 245);
+  /* The page canvas (body) is a deep, lit blue field; --background is a
+     frosted white so anything painted with it stays glass on top of it. */
+  --canvas: oklch(0.9 0.045 246);
+  --canvas-gradient: linear-gradient(
+    165deg,
+    oklch(0.93 0.035 238) 0%,
+    oklch(0.88 0.055 250) 45%,
+    oklch(0.9 0.05 228) 100%
+  );
+  --background: oklch(1 0 0 / 0.7);
   --foreground: oklch(0.23 0.05 260);
   --surface: oklch(1 0 0 / 0.5);
   --surface-foreground: oklch(0.23 0.05 260);
-  --card: oklch(1 0 0 / 0.62);
+  --card: oklch(1 0 0 / 0.56);
   --card-foreground: oklch(0.23 0.05 260);
   --popover: oklch(0.995 0.004 245 / 0.86);
   --popover-foreground: oklch(0.23 0.05 260);
@@ -122,6 +131,7 @@
   --glass-highlight: inset 0 1px 0 0 oklch(1 0 0 / 0.75);
   --glass-shadow: 0 10px 30px -14px oklch(0.3 0.1 258 / 0.28);
   --glass-blur: blur(40px) saturate(180%);
+  --frost-blur: blur(24px) saturate(170%);
   /* Public AI quote conversation only: customer bubble pair + branded header wash. */
   --chat-user: oklch(0.5 0.16 258);
   --chat-user-foreground: oklch(0.98 0.005 250);
@@ -168,7 +178,9 @@
   }
 
   body {
-    background-color: var(--color-background);
+    background-color: var(--canvas);
+    background-image: var(--canvas-gradient);
+    background-attachment: fixed;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -178,27 +190,60 @@
        container it blocks wheel/touch scrolling from reaching the page. */
   }
 
-  /* Liquid glass light: blurred logo-blue, sky and teal orbs fixed behind the
-     content, so every translucent surface reads as frosted glass. */
+  /* Depth behind the glass: deep logo-blue, sky and teal light pools that
+     drift slowly, plus a faint dot grid. Glass blurs both, so every card
+     reads as a transparent pane with the page clearly behind it. */
   body::before {
     content: "";
     position: fixed;
-    inset: -12%;
-    z-index: -1;
+    inset: -15%;
+    z-index: -2;
     pointer-events: none;
     background:
-      radial-gradient(38% 34% at 12% 8%, oklch(0.55 0.18 258 / 0.38), transparent 70%),
-      radial-gradient(34% 32% at 88% 14%, oklch(0.78 0.11 228 / 0.5), transparent 70%),
-      radial-gradient(40% 36% at 78% 88%, oklch(0.8 0.1 195 / 0.38), transparent 70%),
-      radial-gradient(36% 34% at 18% 82%, oklch(0.7 0.13 245 / 0.32), transparent 70%);
-    filter: blur(70px);
+      radial-gradient(30% 28% at 14% 10%, oklch(0.48 0.19 260 / 0.62), transparent 72%),
+      radial-gradient(28% 30% at 86% 12%, oklch(0.7 0.15 236 / 0.66), transparent 72%),
+      radial-gradient(34% 30% at 80% 86%, oklch(0.76 0.13 196 / 0.58), transparent 72%),
+      radial-gradient(30% 30% at 16% 84%, oklch(0.58 0.18 252 / 0.5), transparent 72%),
+      radial-gradient(30% 24% at 50% 42%, oklch(1 0 0 / 0.45), transparent 75%);
+    filter: blur(48px);
+    animation: glass-drift 36s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: radial-gradient(oklch(0.3 0.09 258 / 0.12) 1px, transparent 1.3px);
+    background-size: 22px 22px;
+    -webkit-mask-image: radial-gradient(ellipse 90% 75% at 50% 35%, black 30%, transparent 85%);
+    mask-image: radial-gradient(ellipse 90% 75% at 50% 35%, black 30%, transparent 85%);
+  }
+  @keyframes glass-drift {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(3%, -2.5%, 0) scale(1.06);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body::before {
+      animation: none;
+    }
   }
 
-  /* Frosted surfaces. Only elements that never contain a non-portal fixed
-     overlay get a real backdrop blur (backdrop-filter would trap it). */
+  /* Every surface is frosted glass. Full-screen overlays render through
+     <Portal>, because backdrop-filter would trap a fixed child. */
   .bg-popover {
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
+  }
+  .bg-card,
+  .bg-background {
+    backdrop-filter: var(--frost-blur);
+    -webkit-backdrop-filter: var(--frost-blur);
   }
   .bg-card {
     box-shadow: var(--glass-highlight), var(--glass-shadow);
@@ -248,9 +293,11 @@
   border: 1px solid var(--glass-edge);
   border-radius: var(--radius-xl);
   box-shadow: var(--glass-highlight), var(--glass-shadow);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
 }
 
-/* A real frosted pane: use on surfaces with no non-portal fixed overlay inside. */
+/* A heavier frosted pane for headline surfaces. */
 @utility glass {
   background-color: var(--color-card);
   border: 1px solid var(--glass-edge);

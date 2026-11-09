@@ -54,6 +54,7 @@ import { softDeleteLeadsRequest } from "@/lib/lead-deletion.functions";
 import { draftReactivation } from "@/lib/reactivation.functions";
 import { ReactivationPanel, useReactivationOverview } from "@/components/ReactivationPanel";
 import { cn } from "@/lib/utils";
+import { Portal } from "@/components/Portal";
 
 type DashboardResult = Awaited<ReturnType<typeof getDashboard>>;
 
@@ -579,7 +580,7 @@ export function LeadsWorkspace() {
       <ReactivationPanel />
 
       {confirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4">
+        <Portal><div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4">
           <div
             role="dialog"
             aria-modal="true"
@@ -654,7 +655,7 @@ export function LeadsWorkspace() {
               </button>
             </div>
           </div>
-        </div>
+        </div></Portal>
       )}
     </div>
   );

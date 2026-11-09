@@ -10,6 +10,7 @@ import { clearAssistantConversation, createAssistantConversation, deleteAssistan
 import { Button } from "@/components/ui/button";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
 import { getSession } from "@/lib/app.functions";
+import { Portal } from "@/components/Portal";
 
 export function AssistantWorkspace({
   requestedThreadId,
@@ -189,11 +190,11 @@ export function AssistantWorkspace({
     className="relative flex h-full min-h-0 overflow-hidden bg-background"
   >
     <aside aria-label="Assistant conversations" className="hidden h-full min-h-0 w-64 shrink-0 border-r border-border bg-card/40 lg:block">{history}</aside>
-    {mobileHistory && <><button className="fixed inset-0 z-40 bg-foreground/25 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] border-r border-border bg-background lg:hidden">{history}</aside></>}
+    {mobileHistory && <Portal><button className="fixed inset-0 z-40 bg-foreground/25 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] border-r border-border bg-background lg:hidden">{history}</aside></Portal>}
     <main className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="shrink-0 px-3 pt-3 lg:hidden">
+      <Portal><div className="shrink-0 px-3 pt-3 lg:hidden">
         <Button type="button" variant="outline" size="sm" onClick={() => setMobileHistory(true)} className="gap-2 bg-card" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /> Conversations</Button>
-      </div>
+      </div></Portal>
        {showDiscovery ? <ProductDiscoveryRow /> : null}
        <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} homeMode={showDiscovery} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
     </main>
