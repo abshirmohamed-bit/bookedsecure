@@ -3,11 +3,10 @@ import { takeAssistantDraft } from "@/lib/assistant-draft";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, CheckSquare, Loader2, Mic, Paperclip, Square, UploadCloud, Volume2, VolumeX, X } from "lucide-react";
+import { Check, CheckSquare, Loader2, Paperclip, Square, UploadCloud, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { useVoice } from "@/hooks/useVoice";
 import {
   runOwnerRequest,
   confirmOwnerStatusChange,
@@ -153,26 +152,6 @@ export function OwnerAssistant({
   const [selectedCampaignDrafts, setSelectedCampaignDrafts] = useState<Record<string, string[]>>({});
   const [campaignCopies, setCampaignCopies] = useState<Record<string, string>>({});
 
-  // Voice: speak a request (voice to text). With "Read replies aloud" on, a
-  // spoken request is sent when you stop talking, the reply is read out and the
-  // microphone opens again for the next turn (voice to voice) until you stop it.
-  const spokenTurn = useRef(false);
-  const handsFree = useRef(false);
-  const voice = useVoice({
-    onTranscript: (text) => setQuestion(text),
-    onFinal: (text) => {
-      if (speakRepliesRef.current) {
-        spokenTurn.current = true;
-        handsFree.current = true;
-        submit(text);
-      } else {
-        requestAnimationFrame(() => textareaRef.current?.focus());
-      }
-    },
-  });
-  const speakRepliesRef = useRef(false);
-  speakRepliesRef.current = voice.speakReplies;
-
   // Only adopt the saved conversation when it has genuinely changed. Re-running
   // this on every parent render (the array identity changes each time) would
   // wipe the question and answer that were just added locally.
@@ -215,12 +194,6 @@ export function OwnerAssistant({
       if (result.done || (result.proposals ?? []).length > 0) {
         // Bookings, leads, settings and the performance figures may have just changed.
         void queryClient.invalidateQueries();
-      }
-      if (speakRepliesRef.current && spokenTurn.current) {
-        spokenTurn.current = false;
-        void voice.speak(result.answer).then(() => {
-          if (handsFree.current && speakRepliesRef.current) voice.startListening();
-        });
       }
     },
     onError: (error) =>
@@ -827,48 +800,6 @@ export function OwnerAssistant({
           />
            <PromptInputFooter className="min-h-11">
             <div className="flex items-center gap-2">
-            {voice.canListen ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (voice.listening) {
-                    handsFree.current = false;
-                    voice.stopListening();
-                  } else {
-                    voice.stopSpeaking();
-                    voice.startListening();
-                  }
-                }}
-                aria-pressed={voice.listening}
-                aria-label={voice.listening ? "Stop listening" : "Speak your request"}
-                title={voice.listening ? "Stop listening" : voice.speakReplies ? "Talk to the assistant (hands-free)" : "Speak your request"}
-                className={
-                  voice.listening
-                    ? "relative inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-destructive px-3 py-2 text-xs font-medium text-destructive-foreground sm:min-h-8"
-                    : "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground sm:min-h-8"
-                }
-              >
-                {voice.listening ? <span className="size-2 animate-pulse rounded-full bg-white" aria-hidden="true" /> : <Mic className="h-4 w-4" aria-hidden="true" />}
-                <span className={voice.listening ? "" : "hidden sm:inline"}>{voice.listening ? "Listening… tap to stop" : "Speak"}</span>
-              </button>
-            ) : null}
-            {voice.canSpeak ? (
-              <button
-                type="button"
-                onClick={() => voice.setSpeakReplies(!voice.speakReplies)}
-                aria-pressed={voice.speakReplies}
-                aria-label={voice.speakReplies ? "Stop reading replies aloud" : "Read replies aloud"}
-                title={voice.speakReplies ? "Replies are read aloud. Tap to turn off" : "Read replies aloud (voice conversation)"}
-                className={
-                  voice.speakReplies
-                    ? "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md bg-primary/12 px-2.5 py-2 text-xs font-medium text-primary sm:min-h-8"
-                    : "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground sm:min-h-8"
-                }
-              >
-                {voice.speaking ? <Volume2 className="h-4 w-4 animate-pulse" aria-hidden="true" /> : voice.speakReplies ? <Volume2 className="h-4 w-4" aria-hidden="true" /> : <VolumeX className="h-4 w-4" aria-hidden="true" />}
-                <span className="hidden sm:inline">{voice.speakReplies ? "Voice on" : "Voice off"}</span>
-              </button>
-            ) : null}
             {attachment ? (
               <span className="inline-flex min-h-10 max-w-[12rem] items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1.5 text-xs sm:min-h-8">
                 <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
