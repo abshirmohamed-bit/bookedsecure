@@ -11,6 +11,7 @@ import {
   parseAddress,
   recipientIdFromAddresses,
   replyAddressFor,
+  replyToHeader,
   stripQuotedReply,
   verifyResendWebhook,
 } from "@/lib/email-inbound";
@@ -259,7 +260,7 @@ export async function replyToThread(input: { businessId: string; recipientId: st
     from: `${businessName} <${PLATFORM_FROM_ADDRESS}>`,
     to: [thread.customerEmail],
     subject,
-    reply_to: replyAddressFor(input.recipientId),
+    reply_to: replyToHeader(input.recipientId, businessName),
     html: renderEmailHtml({ businessName, ...branding }, { bodyText: body }),
     text: renderEmailText({ businessName, ...branding }, { bodyText: body }),
     ...(lastHeader?.message_id ? { headers: { "In-Reply-To": lastHeader.message_id, References: lastHeader.message_id } } : {}),

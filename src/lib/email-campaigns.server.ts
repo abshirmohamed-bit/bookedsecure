@@ -9,7 +9,7 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
-import { replyAddressFor } from "@/lib/email-inbound";
+import { replyToHeader } from "@/lib/email-inbound";
 import {
   bookedRecipients,
   buildEmailHtml,
@@ -117,8 +117,8 @@ async function loadBusinessName(businessId: string): Promise<string> {
  * replies appear in Campaigns → Replies (with a copy to the owner); until then
  * replies go straight to the owner.
  */
-function replyToFor(recipientId: string, ownerReplyTo: string | null): string | null {
-  return process.env["RESEND_WEBHOOK_SECRET"] ? replyAddressFor(recipientId) : ownerReplyTo;
+function replyToFor(recipientId: string, ownerReplyTo: string | null, businessName: string): string | null {
+  return process.env["RESEND_WEBHOOK_SECRET"] ? replyToHeader(recipientId, businessName) : ownerReplyTo;
 }
 
 /** The campaign creator's login email: where customer replies go by default. */
@@ -501,7 +501,7 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
     try {
       const result = await sendEmailViaResend({
         from: `${businessName} <${sender.from}>`,
-        replyTo: replyToFor(recipient.id as string, sender.replyTo),
+        replyTo: replyToFor(recipient.id as string, sender.replyTo, businessName),
         to: email,
         subject: campaign.subject as string,
         html: buildEmailHtml({
@@ -770,7 +770,7 @@ export async function processDueEmailCampaigns(now: Date = new Date()) {
     try {
       await sendEmailViaResend({
         from: `${businessName} <${sender.from}>`,
-        replyTo: replyToFor(row.id, sender.replyTo),
+        replyTo: replyToFor(row.id, sender.replyTo, businessName),
         to: email,
         subject: campaign.follow_up_subject,
         html: buildEmailHtml({

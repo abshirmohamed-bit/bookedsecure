@@ -229,3 +229,37 @@ export const draftCampaignEmail = createServerFn({ method: "POST" })
     requireOwner(app);
     return await draft({ businessId: app.businessId, ...data, firstEmail: data.firstEmail ?? null });
   });
+
+/** Edit a draft or scheduled campaign's wording and follow-up from the campaign page. */
+export const updateEmailCampaign = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        campaignId: z.string().uuid(),
+        name: z.string().min(2).max(120),
+        subject: z.string().min(2).max(160),
+        bodyText: z.string().min(2).max(5000),
+        replyTo: z.string().max(200).nullable(),
+        followUp: z
+          .object({ subject: z.string().min(2).max(160), bodyText: z.string().min(2).max(5000), delayDays: z.number().int().min(1).max(30), stopOnBooking: z.boolean() })
+          .nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { updateEmailCampaignDraft } = await import("@/lib/email-campaigns.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    const result = await updateEmailCampaignDraft({
+      businessId: app.businessId,
+      campaignId: data.campaignId,
+      name: data.name,
+      subject: data.subject,
+      bodyText: data.bodyText,
+      replyTo: data.replyTo ?? "",
+      followUp: data.followUp,
+    });
+    return { ok: true, status: result.campaign.status };
+  });

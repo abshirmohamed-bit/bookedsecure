@@ -9,14 +9,36 @@
 export const REPLY_DOMAIN = "reply.bookedsecure.com";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
-/** The address customers reply to for one campaign recipient. */
-export function replyAddressFor(recipientId: string): string {
-  return `reply+${recipientId.toLowerCase()}@${REPLY_DOMAIN}`;
+/** A mailbox-safe version of the business name, e.g. "glocast-mobile-auto-detailing". */
+export function mailboxLabel(name: string | null | undefined): string {
+  const label = (name ?? "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+  return label || "reply";
 }
 
-/** Finds the recipient id in any of the addresses a reply was sent to. */
+/**
+ * The address customers reply to for one campaign recipient, named after the
+ * business: glocast-mobile-auto-detailing+<recipient id>@reply.bookedsecure.com.
+ */
+export function replyAddressFor(recipientId: string, businessName?: string | null): string {
+  return `${mailboxLabel(businessName)}+${recipientId.toLowerCase()}@${REPLY_DOMAIN}`;
+}
+
+/** Reply-To header that shows the business name, e.g. "Glocast Mobile Auto Detailing" <…>. */
+export function replyToHeader(recipientId: string, businessName: string | null | undefined): string {
+  const display = (businessName ?? "").replace(/["\\<>\r\n]/g, "").trim();
+  const address = replyAddressFor(recipientId, businessName);
+  return display ? `"${display}" <${address}>` : address;
+}
+
+/** Finds the recipient id in any of the addresses a reply was sent to (any business label). */
 export function recipientIdFromAddresses(addresses: (string | null | undefined)[]): string | null {
-  const re = new RegExp(`reply\\+(${UUID})@${REPLY_DOMAIN.replaceAll(".", "\\.")}`, "i");
+  const re = new RegExp(`[a-z0-9][a-z0-9-]{0,40}\\+(${UUID})@${REPLY_DOMAIN.replaceAll(".", "\\.")}`, "i");
   for (const address of addresses) {
     const match = (address ?? "").match(re);
     if (match) return match[1]!.toLowerCase();

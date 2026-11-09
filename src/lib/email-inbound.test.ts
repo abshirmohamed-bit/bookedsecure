@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { buildFeed } from "./notification-feed";
-import { htmlToText, parseAddress, recipientIdFromAddresses, replyAddressFor, stripQuotedReply, verifyResendWebhook } from "./email-inbound";
+import { htmlToText, parseAddress, recipientIdFromAddresses, replyAddressFor, replyToHeader, stripQuotedReply, verifyResendWebhook } from "./email-inbound";
 
 const id = "0d74c6e9-43dd-4463-90d7-1d1476a29ef3";
 
@@ -11,6 +11,13 @@ describe("reply addresses", () => {
     expect(address).toBe(`reply+${id}@reply.bookedsecure.com`);
     expect(recipientIdFromAddresses(["someone@else.com", `Glocast <${address.toUpperCase()}>`])).toBe(id);
     expect(recipientIdFromAddresses(["reply+not-a-uuid@reply.bookedsecure.com", "reply+" + id + "@evil.com"])).toBeNull();
+  });
+
+  it("names the reply address after the business", () => {
+    expect(replyAddressFor(id, "Glocast Mobile Auto Detailing")).toBe(`glocast-mobile-auto-detailing+${id}@reply.bookedsecure.com`);
+    expect(replyToHeader(id, `Jo's "Best" Cleaning`)).toBe(`"Jo's Best Cleaning" <jo-s-best-cleaning+${id}@reply.bookedsecure.com>`);
+    expect(recipientIdFromAddresses([`Glocast <glocast-mobile-auto-detailing+${id}@reply.bookedsecure.com>`])).toBe(id);
+    expect(recipientIdFromAddresses([`reply+${id}@reply.bookedsecure.com`])).toBe(id);
   });
 
   it("reads names and addresses", () => {

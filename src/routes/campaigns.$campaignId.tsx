@@ -10,6 +10,7 @@ import {
   Clock,
   Mail,
   OctagonX,
+  PenLine,
   Repeat2,
   Search,
   Send,
@@ -20,6 +21,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmailPreview, formatDate, plural, SendDialog, Stat, StatusPill } from "@/components/campaigns/CampaignParts";
+import { CampaignEditor } from "@/components/campaigns/CampaignEditor";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/app.functions";
 import { ATTRIBUTION_DAYS } from "@/lib/email-campaigns";
@@ -50,6 +52,7 @@ function CampaignWorkspace() {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>("campaign");
   const [sendOpen, setSendOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
@@ -129,6 +132,18 @@ function CampaignWorkspace() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {(c.status === "draft" || c.status === "scheduled") && !editing && (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => {
+                  setTab("campaign");
+                  setEditing(true);
+                }}
+              >
+                <PenLine /> Edit email
+              </Button>
+            )}
             {c.status === "draft" && (
               <Button onClick={() => setSendOpen(true)} disabled={busy || c.counts.pending === 0}>
                 <Send /> Send or schedule
@@ -190,7 +205,19 @@ function CampaignWorkspace() {
           ))}
         </div>
 
-        {tab === "campaign" && (
+        {tab === "campaign" && editing && (
+          <CampaignEditor
+            campaign={c}
+            businessName={businessName}
+            onCancel={() => setEditing(false)}
+            onSaved={() => {
+              setEditing(false);
+              void load();
+            }}
+          />
+        )}
+
+        {tab === "campaign" && !editing && (
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
               <SequenceLabel icon={<Mail className="size-3.5" />} title="First email" detail={c.sentAt ? `Sent ${formatDate(c.sentAt, true)}` : "Sends when you press Send"} />
@@ -211,8 +238,15 @@ function CampaignWorkspace() {
                   <Repeat2 className="size-5 text-muted-foreground" />
                   <p className="text-sm font-medium">No follow-up</p>
                   <p className="max-w-xs text-xs text-muted-foreground">
-                    Add a follow-up when you create your next campaign to nudge customers who don't book.
+                    {c.status === "draft" || c.status === "scheduled"
+                      ? "Nudge customers who don't book with an automatic follow-up."
+                      : "Add a follow-up when you create your next campaign to nudge customers who don't book."}
                   </p>
+                  {(c.status === "draft" || c.status === "scheduled") && (
+                    <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+                      <Repeat2 /> Add a follow-up
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
