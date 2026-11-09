@@ -8,6 +8,7 @@ export const NOTIFICATION_KINDS = [
   { kind: "new_lead", label: "New enquiries", group: "messages" },
   { kind: "social_comment", label: "Facebook and Instagram comments", group: "messages" },
   { kind: "social_message", label: "Facebook and Instagram messages", group: "messages" },
+  { kind: "email_reply", label: "Email replies from customers", group: "messages" },
   { kind: "customer_reply", label: "Customer text replies", group: "messages" },
   { kind: "sms_failed", label: "Texts that didn't arrive", group: "messages" },
   { kind: "low_credits", label: "Low text credits", group: "account" },

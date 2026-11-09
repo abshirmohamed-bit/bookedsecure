@@ -37,6 +37,7 @@ const CATEGORY_BY_KIND: Record<string, FeedCategory> = {
   booking_change_request: "bookings",
   customer_reply: "messages",
   social_message: "messages",
+  email_reply: "messages",
   social_comment: "comments",
   sms_failed: "account",
   ai_analysis_failed: "account",
@@ -60,6 +61,7 @@ export function kindsForFeedFilter(filter: FeedFilter): string[] | null {
 export type FeedLink =
   | { to: "/leads/$leadId"; params: { leadId: string } }
   | { to: "/social"; search: { view: "comments" | "messages" } }
+  | { to: "/campaigns"; search: { tab: "replies"; thread?: string } }
   | { to: "/bookings" }
   | { to: "/settings/billing" }
   | { to: "/settings/messaging" }
@@ -145,6 +147,10 @@ export function groupKey(row: FeedRow): string {
       return `comments:${platformOf(row) ?? "social"}:${localDay(row.created_at)}`;
     case "customer_reply":
       return row.lead_id ? `text:${row.lead_id}` : `row:${row.id}`;
+    case "email_reply": {
+      const recipient = str(meta(row)["recipient_id"]);
+      return recipient ? `email:${recipient}` : row.lead_id ? `email-lead:${row.lead_id}` : `row:${row.id}`;
+    }
     case "new_lead":
       return row.lead_id ? `lead:${row.lead_id}` : `row:${row.id}`;
     case "sms_failed":
@@ -188,6 +194,19 @@ function describe(rows: FeedRow[]): Omit<FeedGroup, "key" | "ids" | "unreadIds" 
       countLabel: null,
       link: { to: "/social", search: { view: "comments" } },
       action: n > 1 ? "Review all" : "Review",
+    };
+  }
+  if (kind === "email_reply") {
+    const name = latest.title.replace(/^Email from\s+/i, "");
+    const recipient = str(meta(latest)["recipient_id"]);
+    return {
+      kind, category, platform,
+      title: name,
+      subtitle: n > 1 ? "Email replies" : "Email reply",
+      preview: rows.slice(0, 2).map((r) => r.body.trim()).reverse(),
+      countLabel: n > 1 ? `${n} emails` : null,
+      link: { to: "/campaigns", search: { tab: "replies", ...(recipient ? { thread: recipient } : {}) } },
+      action: "Reply",
     };
   }
   if (kind === "customer_reply") {

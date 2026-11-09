@@ -68,7 +68,7 @@ describe("notification feed", () => {
     ]);
     expect(feed).toHaveLength(1);
     expect(feed[0]).toMatchObject({ title: "Sam", countLabel: "2 texts", preview: ["Yes please", "Tuesday?"] });
-    expect(kindsForFeedFilter("messages")).toEqual(["customer_reply", "social_message"]);
+    expect(kindsForFeedFilter("messages")).toEqual(["customer_reply", "social_message", "email_reply"]);
     expect(kindsForFeedFilter("all")).toBeNull();
   });
 });

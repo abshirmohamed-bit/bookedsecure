@@ -38,7 +38,7 @@ export type NavIcon =
   | "team";
 
 /** Live counts shown next to inbox items (what is waiting for the owner). */
-export type NavBadge = "leads" | "social";
+export type NavBadge = "leads" | "social" | "campaigns";
 
 export type NavItem = {
   to: NavPath;
@@ -72,7 +72,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: "Work",
     items: [
       { to: "/bookings", label: "Bookings", icon: "bookings" },
-      { to: "/campaigns", label: "Campaigns", icon: "campaigns" },
+      { to: "/campaigns", label: "Campaigns", icon: "campaigns", badge: "campaigns" },
       { to: "/analytics", label: "Results", icon: "results" },
     ],
   },

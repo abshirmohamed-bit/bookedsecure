@@ -14,10 +14,10 @@ describe("sidebar structure", () => {
       "/settings/team",
     ]);
   });
-  it("lists each page once and puts counts only on inboxes", () => {
+  it("lists each page once and puts counts only on pages with something waiting", () => {
     const paths = NAV_ITEMS.map((entry) => entry.to);
     expect(new Set(paths).size).toBe(paths.length);
-    expect(NAV_ITEMS.filter((entry) => entry.badge).map((entry) => entry.to)).toEqual(["/leads", "/social"]);
+    expect(NAV_ITEMS.filter((entry) => entry.badge).map((entry) => entry.to)).toEqual(["/leads", "/social", "/campaigns"]);
   });
 });
 

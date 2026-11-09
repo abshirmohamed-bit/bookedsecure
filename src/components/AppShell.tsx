@@ -320,9 +320,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   );
 }
 
-function badgeFor(item: NavItem, counts: { leads: number; social: number } | undefined): number {
+function badgeFor(item: NavItem, counts: Partial<Record<NonNullable<NavItem["badge"]>, number>> | undefined): number {
   if (!item.badge || !counts) return 0;
-  return counts[item.badge];
+  return counts[item.badge] ?? 0;
 }
 
 function itemClass(active: boolean) {

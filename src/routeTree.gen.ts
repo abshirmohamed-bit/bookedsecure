@@ -59,6 +59,7 @@ import { Route as ApiPublicHooksTopupExpiryRouteImport } from './routes/api/publ
 import { Route as ApiPublicLeadsIntakeRouteImport } from './routes/api/public/leads/intake'
 import { Route as ApiPublicMetaWebhookRouteImport } from './routes/api/public/meta/webhook'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as ApiPublicResendInboundRouteImport } from './routes/api/public/resend/inbound'
 import { Route as ApiPublicSmsInboundRouteImport } from './routes/api/public/sms/inbound'
 import { Route as ApiPublicSmsSinchRouteImport } from './routes/api/public/sms/sinch'
 import { Route as ApiPublicSmsStatusRouteImport } from './routes/api/public/sms/status'
@@ -333,6 +334,11 @@ const ApiPublicPaymentsWebhookRoute =
     path: '/api/public/payments/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicResendInboundRoute = ApiPublicResendInboundRouteImport.update({
+  id: '/api/public/resend/inbound',
+  path: '/api/public/resend/inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSmsInboundRoute = ApiPublicSmsInboundRouteImport.update({
   id: '/api/public/sms/inbound',
   path: '/api/public/sms/inbound',
@@ -478,6 +484,7 @@ export interface FileRoutesByFullPath {
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/meta/webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/resend/inbound': typeof ApiPublicResendInboundRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
@@ -546,6 +553,7 @@ export interface FileRoutesByTo {
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/meta/webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/resend/inbound': typeof ApiPublicResendInboundRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
@@ -616,6 +624,7 @@ export interface FileRoutesById {
   '/api/public/leads/intake': typeof ApiPublicLeadsIntakeRoute
   '/api/public/meta/webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/resend/inbound': typeof ApiPublicResendInboundRoute
   '/api/public/sms/inbound': typeof ApiPublicSmsInboundRoute
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
@@ -687,6 +696,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/intake'
     | '/api/public/meta/webhook'
     | '/api/public/payments/webhook'
+    | '/api/public/resend/inbound'
     | '/api/public/sms/inbound'
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
@@ -755,6 +765,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/intake'
     | '/api/public/meta/webhook'
     | '/api/public/payments/webhook'
+    | '/api/public/resend/inbound'
     | '/api/public/sms/inbound'
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
@@ -824,6 +835,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/intake'
     | '/api/public/meta/webhook'
     | '/api/public/payments/webhook'
+    | '/api/public/resend/inbound'
     | '/api/public/sms/inbound'
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
@@ -886,6 +898,7 @@ export interface RootRouteChildren {
   ApiPublicLeadsIntakeRoute: typeof ApiPublicLeadsIntakeRoute
   ApiPublicMetaWebhookRoute: typeof ApiPublicMetaWebhookRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
+  ApiPublicResendInboundRoute: typeof ApiPublicResendInboundRoute
   ApiPublicSmsInboundRoute: typeof ApiPublicSmsInboundRoute
   ApiPublicSmsSinchRoute: typeof ApiPublicSmsSinchRoute
   ApiPublicSmsStatusRoute: typeof ApiPublicSmsStatusRoute
@@ -1256,6 +1269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/resend/inbound': {
+      id: '/api/public/resend/inbound'
+      path: '/api/public/resend/inbound'
+      fullPath: '/api/public/resend/inbound'
+      preLoaderRoute: typeof ApiPublicResendInboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/sms/inbound': {
       id: '/api/public/sms/inbound'
       path: '/api/public/sms/inbound'
@@ -1473,6 +1493,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLeadsIntakeRoute: ApiPublicLeadsIntakeRoute,
   ApiPublicMetaWebhookRoute: ApiPublicMetaWebhookRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
+  ApiPublicResendInboundRoute: ApiPublicResendInboundRoute,
   ApiPublicSmsInboundRoute: ApiPublicSmsInboundRoute,
   ApiPublicSmsSinchRoute: ApiPublicSmsSinchRoute,
   ApiPublicSmsStatusRoute: ApiPublicSmsStatusRoute,
@@ -1495,11 +1516,15 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
+
 import type { startInstance } from './start.ts'
+
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
+
     router: Awaited<ReturnType<typeof getRouter>>
+
     config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

@@ -232,6 +232,13 @@
       "when": 1794230000000,
       "tag": "0032_mcp_email_campaign_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794240000000,
+      "tag": "0033_email_replies",
+      "breakpoints": true
     }
   ]
 }

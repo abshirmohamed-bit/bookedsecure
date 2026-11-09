@@ -24,8 +24,9 @@ async function waitingCounts(businessId: string) {
       .eq("needs_response", true),
   ]);
   if (leads.error) throw new Error("Lead counts could not be loaded.");
-  // Social tables may not exist on a workspace that never connected Facebook.
-  return { leads: leads.count ?? 0, social: comments.error ? 0 : (comments.count ?? 0) };
+  const { unreadReplyCount } = await import("@/lib/email-inbound.server");
+  // Social and reply tables may not exist yet on a workspace; count them as zero.
+  return { leads: leads.count ?? 0, social: comments.error ? 0 : (comments.count ?? 0), campaigns: await unreadReplyCount(businessId) };
 }
 
 /** Sidebar badges. Small and cheap so it can refresh every couple of minutes. */
