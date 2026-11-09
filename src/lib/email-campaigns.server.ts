@@ -14,6 +14,7 @@ import {
   CAMPAIGN_AUDIENCES,
   followUpDue,
   followUpSkipReason,
+  campaignSender,
   isDeliverableFromAddress,
   NEVER_EMAIL_STATUSES,
   normaliseFromAddress,
@@ -39,6 +40,7 @@ async function sendEmailViaResend(input: {
   to: string;
   subject: string;
   html: string;
+  replyTo?: string | null;
 }): Promise<{ id: string | null }> {
   const lovableKey = process.env["LOVABLE_API_KEY"];
   if (!lovableKey) throw new Error("LOVABLE_API_KEY is not configured");
@@ -57,6 +59,7 @@ async function sendEmailViaResend(input: {
       to: [input.to],
       subject: input.subject,
       html: input.html,
+      ...(input.replyTo ? { reply_to: input.replyTo } : {}),
     }),
   });
 
@@ -76,6 +79,13 @@ async function loadBusinessName(businessId: string): Promise<string> {
     .eq("id", businessId)
     .maybeSingle();
   return (data?.name as string | null) ?? "your business";
+}
+
+/** The campaign creator's login email: where customer replies go by default. */
+async function creatorEmail(userId: string | null | undefined): Promise<string | null> {
+  if (!userId) return null;
+  const { data } = await supabaseAdmin.auth.admin.getUserById(userId);
+  return data?.user?.email ?? null;
 }
 
 async function loadUnsubscribed(businessId: string): Promise<Set<string>> {
@@ -405,8 +415,8 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
     // Before migration 0030 the follow-up column is missing; it then reads as undefined.
     .select(
       ((await hasSequenceColumns())
-        ? "id, subject, body_text, from_address, status, follow_up_delay_days"
-        : "id, subject, body_text, from_address, status") as "id, subject, body_text, from_address, status, follow_up_delay_days",
+        ? "id, subject, body_text, from_address, status, created_by, follow_up_delay_days"
+        : "id, subject, body_text, from_address, status, created_by") as "id, subject, body_text, from_address, status, created_by, follow_up_delay_days",
     )
     .eq("id", input.campaignId)
     .eq("business_id", input.businessId)
@@ -417,6 +427,7 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
 
   const businessName = await loadBusinessName(input.businessId);
   const unsubscribed = await loadUnsubscribed(input.businessId);
+  const sender = campaignSender(campaign.from_address as string, await creatorEmail(campaign.created_by as string | null));
 
   const { data: recipients } = await supabaseAdmin
     .from("email_campaign_recipients")
@@ -449,7 +460,8 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
     }
     try {
       const result = await sendEmailViaResend({
-        from: `${businessName} <${campaign.from_address}>`,
+        from: `${businessName} <${sender.from}>`,
+        replyTo: sender.replyTo,
         to: email,
         subject: campaign.subject as string,
         html: buildEmailHtml({
@@ -584,6 +596,7 @@ type DueFollowUp = {
   email_campaigns: {
     status: string;
     from_address: string;
+    created_by: string | null;
     follow_up_subject: string | null;
     follow_up_body: string | null;
     follow_up_delay_days: number | null;
@@ -642,7 +655,7 @@ export async function processDueEmailCampaigns(now: Date = new Date()) {
   const { data: pending, error } = await supabaseAdmin
     .from("email_campaign_recipients")
     .select(
-      "id, business_id, lead_id, email, sent_at, email_campaigns!inner(status, from_address, follow_up_subject, follow_up_body, follow_up_delay_days, stop_on_booking)",
+      "id, business_id, lead_id, email, sent_at, email_campaigns!inner(status, from_address, created_by, follow_up_subject, follow_up_body, follow_up_delay_days, stop_on_booking)",
     )
     .eq("follow_up_status", "pending")
     .order("sent_at", { ascending: true })
@@ -706,9 +719,11 @@ export async function processDueEmailCampaigns(now: Date = new Date()) {
       businessNames.set(row.business_id, await loadBusinessName(row.business_id));
     }
     const businessName = businessNames.get(row.business_id)!;
+    const sender = campaignSender(campaign.from_address, await creatorEmail(campaign.created_by));
     try {
       await sendEmailViaResend({
-        from: `${businessName} <${campaign.from_address}>`,
+        from: `${businessName} <${sender.from}>`,
+        replyTo: sender.replyTo,
         to: email,
         subject: campaign.follow_up_subject,
         html: buildEmailHtml({

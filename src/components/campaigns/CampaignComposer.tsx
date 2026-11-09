@@ -574,9 +574,9 @@ export function CampaignComposer({
                     </div>
                   )}
                   <label className="block space-y-1.5 rounded-xl border border-white/70 bg-white/45 p-3">
-                    <span className="text-xs font-medium">Sender address (optional)</span>
+                    <span className="text-xs font-medium">Reply-to address (optional)</span>
                     <Input placeholder="hello@yourbusiness.com.au" value={fromAddress} onChange={(e) => setFromAddress(e.target.value)} maxLength={200} />
-                    <span className="block text-[11px] text-muted-foreground">Until your own sending domain is verified, emails only reach your own inbox.</span>
+                    <span className="block text-[11px] text-muted-foreground">Emails are sent under your business name from BookedSecure. Customer replies go to this address, or to your login email if you leave it blank.</span>
                   </label>
                   <p className="flex items-start gap-2 rounded-xl bg-white/50 p-3 text-xs text-muted-foreground">
                     <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />

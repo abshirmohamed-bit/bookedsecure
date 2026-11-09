@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEmailHtml,
+  campaignSender,
   isDeliverableFromAddress,
   normaliseFromAddress,
   splitRecipients,
@@ -47,9 +48,13 @@ describe("buildEmailHtml", () => {
 });
 
 describe("from address", () => {
-  it("flags the shared onboarding address as not deliverable to customers", () => {
-    expect(isDeliverableFromAddress(SHARED_FROM_ADDRESS)).toBe(false);
+  it("sends every campaign from the verified BookedSecure domain with replies to the owner", () => {
+    // Everything now goes out from the verified BookedSecure domain.
+    expect(isDeliverableFromAddress(SHARED_FROM_ADDRESS)).toBe(true);
     expect(isDeliverableFromAddress("hello@glocast.com.au")).toBe(true);
+    expect(campaignSender("hello@glocast.com.au", "owner@x.com")).toEqual({ from: "campaigns@bookedsecure.com", replyTo: "hello@glocast.com.au" });
+    expect(campaignSender(SHARED_FROM_ADDRESS, "owner@x.com")).toEqual({ from: "campaigns@bookedsecure.com", replyTo: "owner@x.com" });
+    expect(campaignSender("team@bookedsecure.com", "owner@x.com")).toEqual({ from: "team@bookedsecure.com", replyTo: null });
   });
 
   it("falls back to the shared address when the value is not an email", () => {

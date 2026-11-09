@@ -97,8 +97,30 @@ export function buildEmailHtml(input: {
 }
 
 /** True when the from address can actually reach customers. */
-export function isDeliverableFromAddress(fromAddress: string): boolean {
-  return fromAddress.trim().toLowerCase() !== SHARED_FROM_ADDRESS;
+/**
+ * Domains verified in BookedSecure's Resend account. Campaigns are sent from
+ * PLATFORM_FROM_ADDRESS under the business's name unless the owner's own
+ * address is on a verified domain; replies go to the owner either way.
+ */
+export const VERIFIED_SENDING_DOMAINS = ["bookedsecure.com"] as const;
+export const PLATFORM_FROM_ADDRESS = "campaigns@bookedsecure.com";
+
+function onVerifiedDomain(email: string): boolean {
+  const domain = email.split("@")[1] ?? "";
+  return VERIFIED_SENDING_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`));
+}
+
+/** Who the email is from and where replies go, for a saved campaign address. */
+export function campaignSender(storedAddress: string, fallbackReplyTo: string | null): { from: string; replyTo: string | null } {
+  const stored = storedAddress.trim().toLowerCase();
+  if (EMAIL_RE.test(stored) && onVerifiedDomain(stored)) return { from: stored, replyTo: null };
+  const ownAddress = EMAIL_RE.test(stored) && stored !== SHARED_FROM_ADDRESS ? stored : null;
+  return { from: PLATFORM_FROM_ADDRESS, replyTo: ownAddress ?? fallbackReplyTo };
+}
+
+/** Every campaign now reaches customers: it is sent from the verified BookedSecure domain. */
+export function isDeliverableFromAddress(_fromAddress: string): boolean {
+  return true;
 }
 
 export function normaliseFromAddress(fromAddress: string | null | undefined): string {
