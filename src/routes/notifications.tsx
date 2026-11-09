@@ -89,6 +89,7 @@ function NotificationsPage() {
 
   const rows = (list.data?.pages.flatMap((p) => p.notifications) ?? []) as FeedRow[];
   const unread = list.data?.pages[0]?.unread ?? 0;
+  const unreadLeads = list.data?.pages[0]?.unreadLeads ?? 0;
 
   return (
     <AppShell title="Notifications">
@@ -98,7 +99,11 @@ function NotificationsPage() {
             <div>
               <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Notifications</h1>
               <p className="text-xs text-muted-foreground">
-                {unread > 0 ? `${unread} new. Conversations and comments are grouped together.` : "You're all caught up."}
+                {unreadLeads > 0
+                  ? `${unreadLeads} new lead${unreadLeads === 1 ? "" : "s"} first, then everything else.`
+                  : unread > 0
+                    ? `${unread} new. Leads always show first.`
+                    : "You're all caught up."}
               </p>
             </div>
             {unread > 0 && (

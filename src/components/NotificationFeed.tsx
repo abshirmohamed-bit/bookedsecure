@@ -73,7 +73,7 @@ export function NotificationFeed({
   emptyText?: string;
 }) {
   const navigate = useNavigate();
-  const sections = feedSections(buildFeed(rows));
+  const sections = feedSections(buildFeed(rows), new Date(), compact ? { recentLeadLimit: 3 } : {});
 
   if (sections.length === 0) {
     return (
@@ -97,11 +97,19 @@ export function NotificationFeed({
     <div className="space-y-3">
       {sections.map((section) => (
         <section key={section.label} aria-label={section.label}>
-          <p className="flex items-center gap-2 px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {section.label}
-            {section.label === "New" && (
-              <span className="rounded-full bg-primary px-1.5 py-px text-[10px] text-primary-foreground">{section.groups.length}</span>
+          <p
+            className={cn(
+              "flex items-center gap-2 px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider",
+              section.id === "new-leads" ? "text-primary" : "text-muted-foreground",
             )}
+          >
+            {section.label}
+            {(section.id === "new-leads" || section.id === "other-new") && (
+              <span className={cn("rounded-full px-1.5 py-px text-[10px]", section.id === "new-leads" ? "bg-primary text-primary-foreground" : "bg-foreground/10")}>
+                {section.groups.length}
+              </span>
+            )}
+            {section.id === "other-new" && <span className="h-px flex-1 bg-foreground/10" />}
           </p>
           <ul className="space-y-1.5">
             {section.groups.map((group) => {
@@ -116,9 +124,11 @@ export function NotificationFeed({
                     className={cn(
                       "group/card flex gap-3 rounded-2xl border p-2.5 transition-all",
                       group.link && "cursor-pointer",
-                      unread
-                        ? "border-white/80 bg-white/75 shadow-[inset_0_1px_0_white,0_6px_18px_-12px_oklch(0.3_0.1_258/0.45)] hover:bg-white/90"
-                        : "border-transparent bg-white/30 hover:bg-white/55",
+                      unread && group.category === "leads"
+                        ? "border-primary/30 bg-white/90 shadow-[inset_0_1px_0_white,0_0_0_1px_color-mix(in_oklab,var(--primary)_18%,transparent),0_10px_24px_-14px_color-mix(in_oklab,var(--primary)_70%,transparent)] hover:bg-white"
+                        : unread
+                          ? "border-white/80 bg-white/70 shadow-[inset_0_1px_0_white,0_6px_18px_-12px_oklch(0.3_0.1_258/0.45)] hover:bg-white/90"
+                          : "border-transparent bg-white/30 hover:bg-white/55",
                     )}
                   >
                     <GroupIcon group={group} />
@@ -182,6 +192,15 @@ export function NotificationFeed({
               );
             })}
           </ul>
+          {section.more ? (
+            <Link
+              to="/leads"
+              onClick={() => onNavigate?.()}
+              className="mt-1.5 block rounded-xl px-2 py-1.5 text-center text-xs font-medium text-primary hover:bg-white/60"
+            >
+              {section.more} more recent lead{section.more === 1 ? "" : "s"} · Open Leads
+            </Link>
+          ) : null}
         </section>
       ))}
     </div>

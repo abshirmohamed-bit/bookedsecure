@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Bell, CheckCheck, Settings2 } from "lucide-react";
@@ -19,6 +19,7 @@ export function NotificationBell({ rail = false, enableRealtime = true }: { rail
   const [filter, setFilter] = useState<FeedFilter>("all");
   const { session } = useAuth();
   const wrapper = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     // A stale/expired session has no usable token: calling the server then
@@ -50,7 +51,19 @@ export function NotificationBell({ rail = false, enableRealtime = true }: { rail
         (payload) => {
           const row = payload.new as FeedRow;
           const { title, description } = toastText(row);
-          toast(title, { id: groupKey(row), description });
+          // Leads stay on screen with a button straight to them; anything else is a quiet, short note.
+          if (row.kind === "new_lead") {
+            toast.success(title, {
+              id: groupKey(row),
+              description,
+              duration: 20_000,
+              ...(row.lead_id
+                ? { action: { label: "Open lead", onClick: () => void navigate({ to: "/leads/$leadId", params: { leadId: row.lead_id! } }) } }
+                : {}),
+            });
+          } else {
+            toast(title, { id: groupKey(row), description, duration: 4_000 });
+          }
           queryClient.invalidateQueries({ queryKey: ["notifications"] });
         },
       )
@@ -58,7 +71,7 @@ export function NotificationBell({ rail = false, enableRealtime = true }: { rail
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [businessId, enableRealtime, queryClient]);
+  }, [businessId, enableRealtime, queryClient, navigate]);
 
   // Close on outside tap or Escape.
   useEffect(() => {
@@ -83,22 +96,26 @@ export function NotificationBell({ rail = false, enableRealtime = true }: { rail
   });
 
   const unread = data?.unread ?? 0;
+  const unreadLeads = data?.unreadLeads ?? 0;
   const rows = (data?.notifications ?? []) as FeedRow[];
 
   return (
     <div className="relative" ref={wrapper}>
       <button
-        aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
+        aria-label={`Notifications${unreadLeads ? ` (${unreadLeads} new lead${unreadLeads === 1 ? "" : "s"})` : unread ? ` (${unread} unread)` : ""}`}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         className="relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-white/60 hover:text-foreground"
       >
         <Bell className="h-4 w-4" />
-        {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
-            {unread > 99 ? "99+" : unread}
+        {/* The number is new leads; other unread items only show a small dot. */}
+        {unreadLeads > 0 ? (
+          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground shadow-[0_0_0_2px_white]">
+            {unreadLeads > 99 ? "99+" : unreadLeads}
           </span>
-        )}
+        ) : unread > 0 ? (
+          <span className="absolute right-1 top-1 size-2 rounded-full bg-primary/70 shadow-[0_0_0_2px_white]" aria-hidden />
+        ) : null}
       </button>
 
       {open && (
@@ -115,7 +132,13 @@ export function NotificationBell({ rail = false, enableRealtime = true }: { rail
           <div className="flex shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-3">
             <p className="text-sm font-semibold">
               Notifications
-              {unread > 0 && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{unread} new</span>}
+              {unreadLeads > 0 ? (
+                <span className="ml-1.5 rounded-full bg-primary px-1.5 py-px text-[11px] font-semibold text-primary-foreground">
+                  {unreadLeads} new lead{unreadLeads === 1 ? "" : "s"}
+                </span>
+              ) : unread > 0 ? (
+                <span className="ml-1.5 text-xs font-normal text-muted-foreground">{unread} new</span>
+              ) : null}
             </p>
             <div className="flex items-center gap-1">
               {unread > 0 && (

@@ -191,7 +191,7 @@ export const getNotifications = createServerFn({ method: "GET" })
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { trialEndingSoon } = await import("@/lib/notifications");
-    const { kindsForFeedFilter, unreadGroupCount } = await import("@/lib/notification-feed");
+    const { kindsForFeedFilter, unreadGroupCount, unreadLeadCount } = await import("@/lib/notification-feed");
     const app = await requireAppContext(context.supabase, context.userId);
 
     const { data: prefs } = await supabaseAdmin
@@ -251,6 +251,7 @@ export const getNotifications = createServerFn({ method: "GET" })
       notifications: rows.slice(0, data.limit),
       hasMore: rows.length > data.limit,
       unread: unreadGroupCount(unread.data ?? []),
+      unreadLeads: unreadLeadCount(unread.data ?? []),
       unreadRows: (unread.data ?? []).length,
       businessId: app.businessId,
     };

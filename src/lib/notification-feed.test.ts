@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFeed, cleanLeadLines, feedSections, kindsForFeedFilter, unreadGroupCount, type FeedRow } from "./notification-feed";
+import { buildFeed, cleanLeadLines, feedSections, kindsForFeedFilter, unreadGroupCount, unreadLeadCount, leadPushContent, type FeedRow } from "./notification-feed";
 
 let n = 0;
 const row = (over: Partial<FeedRow>): FeedRow => ({
@@ -58,7 +58,7 @@ describe("notification feed", () => {
       row({ kind: "new_lead", lead_id: "c", title: "New lead: Seen", read_at: "x", created_at: new Date("2026-11-09T09:00:00").toISOString() }),
     ]);
     expect(feed.map((g) => g.title)).toEqual(["Fresh", "Seen", "Old"]);
-    expect(feedSections(feed, now).map((s) => s.label)).toEqual(["New", "Today", "Older"]);
+    expect(feedSections(feed, now).map((s) => s.label)).toEqual(["New leads", "Recent leads", "Older"]);
   });
 
   it("groups repeat alerts for the same lead and maps filters to kinds", () => {
@@ -70,5 +70,44 @@ describe("notification feed", () => {
     expect(feed[0]).toMatchObject({ title: "Sam", countLabel: "2 texts", preview: ["Yes please", "Tuesday?"] });
     expect(kindsForFeedFilter("messages")).toEqual(["customer_reply", "social_message"]);
     expect(kindsForFeedFilter("all")).toBeNull();
+  });
+});
+
+describe("leads come first", () => {
+  it("shows unread leads above newer messages, and read leads above everything else", () => {
+    const now = new Date("2026-11-09T12:00:00");
+    const at = (h: number) => new Date(`2026-11-09T${String(h).padStart(2, "0")}:00:00`).toISOString();
+    const rows = [
+      row({ body: "imabshir: newest dm", created_at: at(11) }),
+      row({ kind: "new_lead", lead_id: "L1", title: "Quote request: Syed", created_at: at(6) }),
+      row({ kind: "new_lead", lead_id: "L2", title: "New lead: Nouha", read_at: "x", created_at: at(5) }),
+      row({ kind: "social_comment", title: "New Instagram comment to review", body: "a: hi", read_at: "x", created_at: at(10) }),
+    ];
+    const sections = feedSections(buildFeed(rows), now);
+    expect(sections.map((s) => [s.label, s.groups.map((g) => g.title)])).toEqual([
+      ["New leads", ["Syed"]],
+      ["Recent leads", ["Nouha"]],
+      ["Everything else", ["imabshir"]],
+      ["Today", ["Instagram comment to review"]],
+    ]);
+    expect(unreadLeadCount(rows)).toBe(1);
+  });
+
+  it("caps recent leads in the bell and says how many more", () => {
+    const now = new Date("2026-11-09T12:00:00");
+    const rows = [1, 2, 3, 4].map((i) => row({ kind: "new_lead", lead_id: `R${i}`, title: `New lead: P${i}`, read_at: "x", created_at: new Date(`2026-11-09T0${i}:00:00`).toISOString() }));
+    const [recent] = feedSections(buildFeed(rows), now, { recentLeadLimit: 3 });
+    expect(recent).toMatchObject({ label: "Recent leads", more: 1 });
+    expect(recent!.groups).toHaveLength(3);
+  });
+});
+
+describe("lead push", () => {
+  it("says who and what without the phone number, and opens the lead", () => {
+    const leadId = "0d74c6e9-43dd-4463-90d7-1d1476a29ef3";
+    expect(
+      leadPushContent({ title: "Quote request: Syed", leadId, metadata: { service_intent: "full_detail_(starting_$280)", suburb: "Parramatta", mobile_number: "+61435933991" } }),
+    ).toEqual({ title: "Quote request: Syed", body: "Full detail (starting $280) · Parramatta. Tap to reply.", path: `/leads/${leadId}` });
+    expect(leadPushContent({ title: "New lead: Sam", leadId: null, metadata: null })).toEqual({ title: "New lead: Sam", body: "New enquiry. Tap to reply.", path: "/leads" });
   });
 });

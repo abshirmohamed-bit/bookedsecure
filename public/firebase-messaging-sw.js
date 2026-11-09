@@ -8,7 +8,9 @@ firebase.initializeApp(Object.fromEntries(['apiKey', 'projectId', 'appId', 'mess
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const path = event.notification.data?.path;
-  const target = new URL(path === '/notifications' ? path : '/leads', self.location.origin).href;
+  // Only our own pages: the notifications page, the leads list or one lead.
+  const safe = path === '/notifications' || /^\/leads(\/[0-9a-f-]{36})?$/.test(path || '');
+  const target = new URL(safe ? path : '/leads', self.location.origin).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const existing = windows.find(client => new URL(client.url).origin === self.location.origin);

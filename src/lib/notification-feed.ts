@@ -253,8 +253,9 @@ function describe(rows: FeedRow[]): Omit<FeedGroup, "key" | "ids" | "unreadIds" 
 }
 
 /**
- * Groups rows (newest first) and sorts the groups: anything unread comes first,
- * newest first; everything already read follows, newest first.
+ * Groups rows (newest first) and sorts the groups. Leads always come first:
+ * unread leads, then the rest of the unread items, then everything read;
+ * newest first within each.
  */
 export function buildFeed(rows: FeedRow[]): FeedGroup[] {
   const sorted = [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -273,12 +274,8 @@ export function buildFeed(rows: FeedRow[]): FeedGroup[] {
     count: list.length,
     ...describe(list),
   }));
-  return groups.sort((a, b) => {
-    const unreadA = a.unreadIds.length > 0 ? 1 : 0;
-    const unreadB = b.unreadIds.length > 0 ? 1 : 0;
-    if (unreadA !== unreadB) return unreadB - unreadA;
-    return b.latestAt.localeCompare(a.latestAt);
-  });
+  const rank = (g: FeedGroup) => (g.unreadIds.length ? (g.category === "leads" ? 0 : 1) : 2);
+  return groups.sort((a, b) => rank(a) - rank(b) || b.latestAt.localeCompare(a.latestAt));
 }
 
 /** Unread conversations and items, as the owner sees them (not raw rows). */
@@ -286,26 +283,44 @@ export function unreadGroupCount(rows: FeedRow[]): number {
   return new Set(rows.filter((r) => !r.read_at).map(groupKey)).size;
 }
 
-export type FeedSection = { label: string; groups: FeedGroup[] };
+/** Unread leads (one per lead): the number the bell badge shows. */
+export function unreadLeadCount(rows: FeedRow[]): number {
+  return new Set(rows.filter((r) => !r.read_at && categoryOf(r.kind) === "leads").map(groupKey)).size;
+}
 
-/** "New" (unread) first, then read items under Today / Yesterday / This week / Older. */
-export function feedSections(groups: FeedGroup[], now: Date = new Date()): FeedSection[] {
+export type FeedSection = { id: string; label: string; groups: FeedGroup[]; more?: number };
+
+/**
+ * Leads first, everything else after:
+ *   New leads → Recent leads (read, last 7 days) → Other new → Today / Yesterday / This week / Older.
+ * `recentLeadLimit` keeps the bell short; the rest are one tap away on the Leads page.
+ */
+export function feedSections(groups: FeedGroup[], now: Date = new Date(), options: { recentLeadLimit?: number } = {}): FeedSection[] {
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
   const yesterday = new Date(start.getTime() - 86_400_000);
   const week = new Date(start.getTime() - 6 * 86_400_000);
-  const sections: FeedSection[] = [
-    { label: "New", groups: [] },
-    { label: "Today", groups: [] },
-    { label: "Yesterday", groups: [] },
-    { label: "This week", groups: [] },
-    { label: "Older", groups: [] },
-  ];
+  const newLeads: FeedGroup[] = [];
+  const recentLeads: FeedGroup[] = [];
+  const otherNew: FeedGroup[] = [];
+  const byDay: FeedGroup[][] = [[], [], [], []];
   for (const group of groups) {
     const at = new Date(group.latestAt);
-    const index = group.unreadIds.length ? 0 : at >= start ? 1 : at >= yesterday ? 2 : at >= week ? 3 : 4;
-    sections[index]!.groups.push(group);
+    const isLead = group.category === "leads";
+    if (group.unreadIds.length) (isLead ? newLeads : otherNew).push(group);
+    else if (isLead && at >= week) recentLeads.push(group);
+    else byDay[at >= start ? 0 : at >= yesterday ? 1 : at >= week ? 2 : 3]!.push(group);
   }
+  const limit = options.recentLeadLimit ?? Infinity;
+  const sections: FeedSection[] = [
+    { id: "new-leads", label: "New leads", groups: newLeads },
+    { id: "recent-leads", label: "Recent leads", groups: recentLeads.slice(0, limit), more: Math.max(0, recentLeads.length - limit) },
+    { id: "other-new", label: newLeads.length || recentLeads.length ? "Everything else" : "New", groups: otherNew },
+    { id: "today", label: "Today", groups: byDay[0]! },
+    { id: "yesterday", label: "Yesterday", groups: byDay[1]! },
+    { id: "week", label: "This week", groups: byDay[2]! },
+    { id: "older", label: "Older", groups: byDay[3]! },
+  ];
   return sections.filter((s) => s.groups.length > 0);
 }
 
@@ -314,4 +329,21 @@ export function toastText(row: FeedRow): { title: string; description: string } 
   const [group] = buildFeed([row]);
   const title = group?.subtitle ? `${group.title} · ${group.subtitle}` : (group?.title ?? row.title);
   return { title, description: (group?.preview.at(-1) ?? row.body).slice(0, 120) };
+}
+
+/**
+ * Push text for a new lead: who and what, so the owner can act from the lock
+ * screen. Service and suburb only (no phone number or street address), and the
+ * tap opens that lead.
+ */
+export function leadPushContent(input: { title: string; leadId: string | null; metadata: unknown }): { title: string; body: string; path: string } {
+  const m = input.metadata && typeof input.metadata === "object" ? (input.metadata as Record<string, unknown>) : {};
+  const service = str(m["service_intent"]);
+  const suburb = str(m["suburb"]);
+  const detail = [service ? humanizeAnswer(service) : null, suburb].filter(Boolean).join(" · ");
+  return {
+    title: input.title.slice(0, 160) || "New lead",
+    body: detail ? `${detail}. Tap to reply.` : "New enquiry. Tap to reply.",
+    path: input.leadId ? `/leads/${input.leadId}` : "/leads",
+  };
 }
