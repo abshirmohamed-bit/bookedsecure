@@ -181,16 +181,17 @@ export const getNotifications = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        filter: z.enum(["all", "unread", "bookings", "messages"]).default("all"),
+        filter: z.enum(["all", "unread", "leads", "bookings", "messages", "comments", "account"]).default("all"),
         before: z.string().datetime().optional(),
-        limit: z.number().int().min(1).max(100).default(30),
+        limit: z.number().int().min(1).max(200).default(60),
       })
       .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { kindsForFilter, trialEndingSoon } = await import("@/lib/notifications");
+    const { trialEndingSoon } = await import("@/lib/notifications");
+    const { kindsForFeedFilter, unreadGroupCount } = await import("@/lib/notification-feed");
     const app = await requireAppContext(context.supabase, context.userId);
 
     const { data: prefs } = await supabaseAdmin
@@ -226,16 +227,20 @@ export const getNotifications = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(data.limit + 1);
     if (muted.length) query = query.not("kind", "in", `(${muted.join(",")})`);
-    const kinds = kindsForFilter(data.filter);
+    const kinds = kindsForFeedFilter(data.filter);
     if (kinds) query = query.in("kind", kinds);
     if (data.filter === "unread") query = query.is("read_at", null);
     if (data.before) query = query.lt("created_at", data.before);
 
+    // The badge counts conversations and items as the owner sees them: seven
+    // DMs from one person are one unread conversation, not seven.
     let unreadQuery = supabaseAdmin
       .from("notifications")
-      .select("id", { count: "exact", head: true })
+      .select("id, lead_id, kind, title, body, created_at, read_at")
       .eq("business_id", app.businessId)
-      .is("read_at", null);
+      .is("read_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1000);
     if (muted.length) unreadQuery = unreadQuery.not("kind", "in", `(${muted.join(",")})`);
 
     const [list, unread] = await Promise.all([query, unreadQuery]);
@@ -245,7 +250,8 @@ export const getNotifications = createServerFn({ method: "GET" })
     return {
       notifications: rows.slice(0, data.limit),
       hasMore: rows.length > data.limit,
-      unread: unread.count ?? 0,
+      unread: unreadGroupCount(unread.data ?? []),
+      unreadRows: (unread.data ?? []).length,
       businessId: app.businessId,
     };
   });
@@ -284,7 +290,7 @@ export const saveNotificationPreferences = createServerFn({ method: "POST" })
 export const markNotificationsRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ ids: z.array(z.string().uuid()).max(50).optional() }).parse(input ?? {}),
+    z.object({ ids: z.array(z.string().uuid()).max(300).optional() }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");

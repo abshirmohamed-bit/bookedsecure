@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -21,6 +21,9 @@ export const Route = createFileRoute("/social")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  // ?view=messages opens the DMs tab directly (used by notifications).
+  validateSearch: (search: Record<string, unknown>): { view?: "comments" | "messages" } =>
+    search["view"] === "messages" || search["view"] === "comments" ? { view: search["view"] } : {},
   component: SocialPage,
 });
 
@@ -35,7 +38,11 @@ const TABS: { status: Status; label: string }[] = [
 type Row = Awaited<ReturnType<typeof listSocialComments>>[number];
 
 function SocialPage() {
-  const [view, setView] = useState<"comments" | "messages">("comments");
+  const search = Route.useSearch();
+  const [view, setView] = useState<"comments" | "messages">(search.view ?? "comments");
+  useEffect(() => {
+    if (search.view) setView(search.view);
+  }, [search.view]);
   const [status, setStatus] = useState<Status>("pending_review");
   const qc = useQueryClient();
   const list = useServerFn(listSocialComments);
