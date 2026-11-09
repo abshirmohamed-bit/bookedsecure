@@ -41,6 +41,9 @@ Everything on the Campaigns page can be done by asking, for example:
   customers, the first names) and asks you to confirm. It sends only after you say yes.
 - "Schedule it for Saturday at 8am instead."
 - "How did my last email campaign do?" / "Stop the follow-ups."
+- "Any replies to my campaign?" / "What did Jess say?"
+- "Reply to Jess: Saturday 9am works, see you then." The assistant shows the exact answer
+  first and sends it only after you say yes. Her next reply comes back to Campaigns > Replies.
 
 Emails go out under the business name from `campaigns@bookedsecure.com`, with replies
 to the business. Unsubscribed customers are always skipped.

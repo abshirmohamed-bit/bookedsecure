@@ -8,6 +8,10 @@ vi.mock("@/lib/email-campaigns.server", () => ({
   campaignAudience: m.audience, updateEmailCampaignDraft: m.update, listEmailCampaigns: vi.fn(), draftCampaignEmail: vi.fn(),
   unscheduleEmailCampaign: vi.fn(), cancelEmailCampaign: vi.fn(), stopCampaignFollowUps: vi.fn(),
 }));
+vi.mock("@/lib/email-inbound.server", () => ({
+  getReplyThread: vi.fn().mockResolvedValue({ recipientId: "r", customerName: "Jess", customerEmail: "jess@x.com", campaign: { id: "c", name: "Spring", subject: "Spring special", bodyText: "", sentAt: null }, messages: [] }),
+  replyToThread: m.send, markThreadRead: vi.fn(), listReplyThreads: vi.fn(),
+}));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from: m.from } }));
 
 import { campaignActions, confirmationCodeFor } from "./email-campaign-actions.server";
@@ -59,6 +63,17 @@ describe("sending needs a fresh confirmation", () => {
   });
 });
 
+describe("answering a customer's reply", () => {
+  it("sends only the exact wording the owner confirmed", async () => {
+    m.send.mockResolvedValue({ sent: true });
+    const preview = await campaignActions.previewReply(actor, { recipientId: "r", bodyText: "Saturday works!" });
+    expect(preview.summary).toMatchObject({ to: "Jess <jess@x.com>", subject: "Re: Spring special", body: "Saturday works!" });
+    await expect(campaignActions.sendReply(actor, { recipientId: "r", bodyText: "Sunday works!", confirmationCode: preview.confirmationCode })).rejects.toThrow(/Preview it again/);
+    expect(m.send).not.toHaveBeenCalled();
+    await expect(campaignActions.sendReply(actor, { recipientId: "r", bodyText: "Saturday works!", confirmationCode: preview.confirmationCode })).resolves.toEqual({ sent: true });
+  });
+});
+
 describe("in-app assistant campaign tools", () => {
   const ctx = (role: "owner" | "staff") => ({
     client: {} as never, businessId: "biz", userId: "user", role, timeZone: "Australia/Sydney",
@@ -67,11 +82,7 @@ describe("in-app assistant campaign tools", () => {
   type Exec = (input: Record<string, unknown>, options?: unknown) => Promise<Record<string, unknown>>;
 
   it("covers the whole workflow", () => {
-    expect(Object.keys(buildCampaignTools(ctx("owner"))).sort()).toEqual([
-      "cancel_email_campaign", "draft_email_campaign", "email_campaign_audience", "email_campaign_details", "list_email_campaigns",
-      "preview_email_campaign_send", "schedule_email_campaign", "send_email_campaign", "stop_email_campaign_follow_ups",
-      "unschedule_email_campaign", "update_email_campaign", "write_campaign_email",
-    ]);
+    expect(Object.keys(buildCampaignTools(ctx("owner"))).sort()).toEqual(["cancel_email_campaign", "draft_email_campaign", "email_campaign_audience", "email_campaign_details", "email_reply_thread", "list_email_campaigns", "list_email_replies", "preview_email_campaign_send", "preview_email_reply", "schedule_email_campaign", "send_email_campaign", "send_email_reply", "stop_email_campaign_follow_ups", "unschedule_email_campaign", "update_email_campaign", "write_campaign_email"]);
   });
 
   it("lets only the owner send", async () => {

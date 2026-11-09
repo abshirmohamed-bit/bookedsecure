@@ -185,6 +185,61 @@ export const campaignActions = {
   async stopFollowUps(actor: CampaignActor, input: { campaignId: string }) {
     return stopCampaignFollowUps({ businessId: actor.businessId, campaignId: input.campaignId });
   },
+
+  /* ---------- Replies: what customers wrote back, and answering them ---------- */
+
+  async replies(actor: CampaignActor, input: { unreadOnly?: boolean | undefined; limit?: number | undefined }) {
+    const { listReplyThreads } = await import("@/lib/email-inbound.server");
+    const result = await listReplyThreads(actor.businessId);
+    if (result.setupMissing) throw new Error("Email replies are not switched on yet.");
+    const threads = result.threads.filter((t) => !input.unreadOnly || t.unread > 0).slice(0, input.limit ?? 20);
+    return {
+      conversations: threads.map((t) => ({
+        recipientId: t.recipientId, customer: t.customerName ?? t.customerEmail, email: t.customerEmail,
+        campaign: t.campaignName, lastMessage: t.lastMessage, lastAt: t.lastAt,
+        lastFromCustomer: t.lastFromCustomer, unread: t.unread, messages: t.messages,
+      })),
+    };
+  },
+
+  async replyThread(actor: CampaignActor, input: { recipientId: string }) {
+    const { getReplyThread, markThreadRead } = await import("@/lib/email-inbound.server");
+    const thread = await getReplyThread(actor.businessId, input.recipientId);
+    await markThreadRead(actor.businessId, input.recipientId);
+    return {
+      recipientId: thread.recipientId, customer: thread.customerName ?? thread.customerEmail, email: thread.customerEmail,
+      campaign: thread.campaign ? { campaignId: thread.campaign.id, name: thread.campaign.name, subject: thread.campaign.subject } : null,
+      messages: thread.messages.map((m) => ({ from: m.direction === "in" ? "customer" : "business", text: m.body_text, at: m.created_at, status: m.status })),
+    };
+  },
+
+  /** Shows exactly what will be emailed, plus the code needed to send this exact answer. */
+  async previewReply(actor: CampaignActor, input: { recipientId: string; bodyText: string }) {
+    const { getReplyThread } = await import("@/lib/email-inbound.server");
+    const thread = await getReplyThread(actor.businessId, input.recipientId);
+    const body = input.bodyText.trim();
+    if (!body) throw new Error("Write the answer first.");
+    return {
+      confirmationCode: await replyCode(input.recipientId, body),
+      campaignId: thread.campaign?.id ?? null,
+      summary: { to: `${thread.customerName ?? thread.customerEmail} <${thread.customerEmail}>`, subject: `Re: ${thread.campaign?.subject ?? "your enquiry"}`, body },
+      instructions: "Show this answer to the owner and ask them to confirm. Only after a clear yes, call send with this confirmationCode and the same bodyText.",
+    };
+  },
+
+  async sendReply(actor: CampaignActor, input: { recipientId: string; bodyText: string; confirmationCode: string }) {
+    const body = input.bodyText.trim();
+    if (input.confirmationCode.trim().toUpperCase() !== (await replyCode(input.recipientId, body))) {
+      throw new Error("The answer changed or the confirmation code is wrong. Preview it again and confirm with the owner.");
+    }
+    const { replyToThread } = await import("@/lib/email-inbound.server");
+    const result = await replyToThread({ businessId: actor.businessId, recipientId: input.recipientId, bodyText: body });
+    return "duplicate" in result && result.duplicate ? { sent: false, note: "That exact answer was already sent in the last two minutes." } : { sent: true };
+  },
 };
+
+async function replyCode(recipientId: string, body: string): Promise<string> {
+  return (await sha256Hex(`${confirmSecret()}|reply|${recipientId}|${body}`)).slice(0, 8).toUpperCase();
+}
 
 export type CampaignActionName = keyof typeof campaignActions;

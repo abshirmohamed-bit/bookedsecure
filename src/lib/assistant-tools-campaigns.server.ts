@@ -162,6 +162,35 @@ export function buildCampaignTools(ctx: AssistantToolContext) {
       },
     }),
 
+    list_email_replies: tool({
+      description: "List customer replies to campaign emails (the Replies inbox under Campaigns), newest first, with the latest message and unread count.",
+      inputSchema: z.object({ unreadOnly: z.boolean().default(false), limit: z.number().int().min(1).max(50).default(20) }),
+      execute: async (input) => run(null, () => campaignActions.replies(actor, input)),
+    }),
+
+    email_reply_thread: tool({
+      description: "Read one email conversation with a customer (recipientId from list_email_replies): the campaign and every message, oldest first.",
+      inputSchema: z.object({ recipientId: z.string().uuid() }),
+      execute: async ({ recipientId }) => run(null, () => campaignActions.replyThread(actor, { recipientId })),
+    }),
+
+    preview_email_reply: tool({
+      description: "Step 1 of answering a customer's email: returns exactly what will be emailed and a confirmationCode. Show the owner the wording and ask them to confirm before sending.",
+      inputSchema: z.object({ recipientId: z.string().uuid(), bodyText: z.string().trim().min(1).max(10000) }),
+      execute: async (input) => (owner ? run(null, () => campaignActions.previewReply(actor, input)) : ownerOnly()),
+    }),
+
+    send_email_reply: tool({
+      description: "Step 2: email the answer to the customer, threaded with their reply. Only after preview_email_reply and the owner's clear yes to that exact wording; pass the same bodyText and its confirmationCode.",
+      inputSchema: z.object({ recipientId: z.string().uuid(), bodyText: z.string().trim().min(1).max(10000), confirmationCode: z.string().min(4).max(16) }),
+      execute: async (input) => {
+        if (!owner) return ownerOnly();
+        const result = await run("Answered a customer's email reply.", () => campaignActions.sendReply(actor, input));
+        if (result.ok) await audit("reply", null, { recipientId: input.recipientId });
+        return result;
+      },
+    }),
+
     stop_email_campaign_follow_ups: tool({
       description: "Stop every follow-up email of a sent campaign that hasn't gone out yet.",
       inputSchema: z.object({ campaignId: CAMPAIGN_ID }),
