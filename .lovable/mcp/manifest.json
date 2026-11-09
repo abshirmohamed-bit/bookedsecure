@@ -13,7 +13,7 @@
   "mcp": {
     "server": {
       "name": "bookedsecure",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "title": "BookedSecure"
     },
     "tools": [
@@ -2056,6 +2056,532 @@
               "default": null
             }
           },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "email_campaign_audience",
+        "title": "Count an email audience",
+        "description": "Count and sample the customers in a quick email audience: all (everyone with an email), enquiries (open enquiries), quoted (quoted, not booked), booked, past (past customers) or lost. Unsubscribed and opted-out customers are excluded. Use before create_email_campaign with an audience.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "audience": {
+              "type": "string",
+              "enum": [
+                "all",
+                "enquiries",
+                "quoted",
+                "booked",
+                "past",
+                "lost"
+              ]
+            }
+          },
+          "required": [
+            "audience"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "write_campaign_email",
+        "title": "Write campaign email wording",
+        "description": "Have BookedSecure write a campaign email (kind first) or its follow-up (kind follow_up, pass the first email) from the owner's brief. Returns subject and body only; nothing is saved. Never invent prices or offers the owner did not give. Owner only.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "first",
+                "follow_up"
+              ]
+            },
+            "instructions": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "style": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Keep it short",
+                  "Mention our offer",
+                  "Ask for a reply",
+                  "Casual tone",
+                  "Professional tone",
+                  "No discounts"
+                ]
+              },
+              "maxItems": 6,
+              "default": []
+            },
+            "firstEmail": {
+              "type": "object",
+              "properties": {
+                "subject": {
+                  "type": "string",
+                  "maxLength": 160
+                },
+                "bodyText": {
+                  "type": "string",
+                  "maxLength": 5000
+                }
+              },
+              "required": [
+                "subject",
+                "bodyText"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "instructions"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_email_campaign",
+        "title": "Create an email campaign draft",
+        "description": "Create an email campaign draft for an audience (all, enquiries, quoted, booked, past, lost) or named customers (leadIds from list_leads or query_leads; never pick recipients from a partial page). Optional followUp goes to customers who have not booked after delayDays. replyTo sets where replies go. It appears on the Campaigns page. Nothing is emailed until send_email_campaign. Owner only.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 160
+            },
+            "bodyText": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 5000
+            },
+            "audience": {
+              "type": "string",
+              "enum": [
+                "all",
+                "enquiries",
+                "quoted",
+                "booked",
+                "past",
+                "lost"
+              ]
+            },
+            "leadIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 1,
+              "maxItems": 500
+            },
+            "followUp": {
+              "type": "object",
+              "properties": {
+                "subject": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 160
+                },
+                "bodyText": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 5000
+                },
+                "delayDays": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 30
+                },
+                "stopOnBooking": {
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "required": [
+                "subject",
+                "bodyText",
+                "delayDays"
+              ],
+              "additionalProperties": false
+            },
+            "replyTo": {
+              "type": "string",
+              "format": "email"
+            }
+          },
+          "required": [
+            "name",
+            "subject",
+            "bodyText"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_email_campaign",
+        "title": "Change an email campaign draft",
+        "description": "Change a draft or scheduled email campaign: name, subject, body, replyTo, the follow-up (followUp) or removeFollowUp, add or remove customers (addLeadIds/removeLeadIds), or replace all recipients with an audience (replaceWithAudience). After any change, preview again before sending. Owner only.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "campaignId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "From list_email_campaigns or create_email_campaign. Never show it in replies."
+            },
+            "name": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 160
+            },
+            "bodyText": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 5000
+            },
+            "replyTo": {
+              "type": "string",
+              "format": "email"
+            },
+            "followUp": {
+              "type": "object",
+              "properties": {
+                "subject": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 160
+                },
+                "bodyText": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 5000
+                },
+                "delayDays": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 30
+                },
+                "stopOnBooking": {
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "required": [
+                "subject",
+                "bodyText",
+                "delayDays"
+              ],
+              "additionalProperties": false
+            },
+            "removeFollowUp": {
+              "type": "boolean"
+            },
+            "addLeadIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "maxItems": 500
+            },
+            "removeLeadIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "maxItems": 500
+            },
+            "replaceWithAudience": {
+              "type": "string",
+              "enum": [
+                "all",
+                "enquiries",
+                "quoted",
+                "booked",
+                "past",
+                "lost"
+              ]
+            }
+          },
+          "required": [
+            "campaignId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_email_campaigns",
+        "title": "List email campaigns and results",
+        "description": "List email campaigns, newest first, with status (draft, scheduled, sending, sent, cancelled), recipients, sent, failed, follow-ups and customers who booked within 30 days. Use to report results and to find a campaign to change or send.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 10
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "email_campaign_details",
+        "title": "Read an email campaign",
+        "description": "Read one email campaign: wording, follow-up, each recipient's send and follow-up status, and results.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "campaignId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "From list_email_campaigns or create_email_campaign. Never show it in replies."
+            }
+          },
+          "required": [
+            "campaignId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "preview_email_campaign_send",
+        "title": "Preview before sending",
+        "description": "Step 1 of sending or scheduling: returns exactly what will go out (subject, body, number of recipients, first names, follow-up) and a confirmationCode. Show this summary to the owner and ask them to confirm. Never send without their clear yes in this conversation. Owner only.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "campaignId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "From list_email_campaigns or create_email_campaign. Never show it in replies."
+            }
+          },
+          "required": [
+            "campaignId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "send_email_campaign",
+        "title": "Send an email campaign now",
+        "description": "Step 2: send the campaign to its customers now. Only after preview_email_campaign_send AND the owner explicitly said yes to that summary in this conversation. Pass its confirmationCode; if the campaign changed, preview again. Emails go out under the business name from campaigns@bookedsecure.com. Report the sent and failed counts this returns. Owner only.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "campaignId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "From list_email_campaigns or create_email_campaign. Never show it in replies."
+            },
+            "confirmationCode": {
+              "type": "string",
+              "minLength": 4,
+              "maxLength": 16
+            }
+          },
+          "required": [
+            "campaignId",
+            "confirmationCode"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "schedule_email_campaign",
+        "title": "Schedule an email campaign",
+        "description": "Step 2 (alternative): schedule the campaign for later instead of sending now. Only after preview_email_campaign_send and the owner's explicit yes; pass its confirmationCode. sendAt is an ISO date-time with the business timezone offset (business_settings has the timezone), 5 minutes to 60 days ahead. Owner only.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "campaignId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "From list_email_campaigns or create_email_campaign. Never show it in replies."
+            },
+            "confirmationCode": {
+              "type": "string",
+              "minLength": 4,
+              "maxLength": 16
+            },
+            "sendAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "campaignId",
+            "confirmationCode",
+            "sendAt"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "unschedule_email_campaign",
+        "title": "Unschedule an email campaign",
+        "description": "Move a scheduled email campaign back to a draft so it does not send. Owner only.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "campaignId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "From list_email_campaigns or create_email_campaign. Never show it in replies."
+            }
+          },
+          "required": [
+            "campaignId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "cancel_email_campaign",
+        "title": "Cancel an email campaign",
+        "description": "Cancel a draft or scheduled email campaign so it is never sent. Only when the owner asks. Owner only.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "campaignId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "From list_email_campaigns or create_email_campaign. Never show it in replies."
+            }
+          },
+          "required": [
+            "campaignId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "stop_email_campaign_follow_ups",
+        "title": "Stop email follow-ups",
+        "description": "Stop every follow-up email of a sent campaign that has not gone out yet. Owner only.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "campaignId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "From list_email_campaigns or create_email_campaign. Never show it in replies."
+            }
+          },
+          "required": [
+            "campaignId"
+          ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
         },
