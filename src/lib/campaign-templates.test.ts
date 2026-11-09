@@ -7,7 +7,7 @@ describe("campaign composer helpers", () => {
     const body = "Hi there,\n\nLine one\nLine two\n\n\nThanks";
     expect(previewParagraphs(body)).toEqual([["Hi there,"], ["Line one", "Line two"], ["Thanks"]]);
     const html = buildEmailHtml({ businessName: "Glocast", bodyText: body, unsubscribeUrl: "https://x" });
-    expect(html.match(/<p>/g)).toHaveLength(3);
+    expect(html.match(/<p style="margin:0 0 16px/g)).toHaveLength(3);
   });
 
   it("signs templates with the business name and never uses merge fields", () => {
