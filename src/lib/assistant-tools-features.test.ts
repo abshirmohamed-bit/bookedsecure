@@ -28,10 +28,9 @@ beforeEach(() => vi.clearAllMocks());
 describe("assistant November tools", () => {
   it("covers every new feature area", () => {
     expect(Object.keys(buildFeatureTools(ctx("owner"))).sort()).toEqual([
-      "dismiss_social_comment", "draft_email_campaign", "email_campaign_audience", "email_campaign_results",
-      "facebook_ad_performance", "facebook_lead_import_status", "import_facebook_leads_now", "list_social_comments",
-      "list_social_conversations", "notifications_summary", "prepare_social_reply", "read_social_conversation",
-      "schedule_owner_reminder", "set_facebook_lead_check", "today_overview", "write_campaign_email",
+      "dismiss_social_comment", "facebook_ad_performance", "facebook_lead_import_status", "import_facebook_leads_now",
+      "list_social_comments", "list_social_conversations", "notifications_summary", "prepare_social_reply",
+      "read_social_conversation", "schedule_owner_reminder", "set_facebook_lead_check", "today_overview",
     ]);
   });
 
@@ -48,24 +47,6 @@ describe("assistant November tools", () => {
     expect(mocks.from).not.toHaveBeenCalled();
   });
 
-  it("saves an audience email campaign as a draft, never sending it", async () => {
-    mocks.audience.mockResolvedValue([{ id: "a" }, { id: "b" }]);
-    mocks.create.mockResolvedValue({ campaignId: "c", emailable: 2, skippedNoEmail: 0, skippedUnsubscribed: 0, fromDeliverable: true });
-    const tools = buildFeatureTools(ctx("owner"));
-    const result = await run(tools, "draft_email_campaign", {
-      name: "Spring", subject: "Spring special", bodyText: "Hi there, 10% off.", audience: "past",
-      followUp: { subject: "Last chance", bodyText: "Ends Friday.", delayDays: 3, stopOnBooking: true },
-    });
-    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ leadIds: ["a", "b"], audienceLabel: "Past customers", followUp: expect.objectContaining({ delayDays: 3 }) }));
-    expect(result).toMatchObject({ ok: true, awaitingConfirmation: true });
-    expect(String(result["summary"])).toMatch(/Nothing has been emailed/);
-  });
-
-  it("asks who the campaign is for instead of guessing", async () => {
-    const result = await run(buildFeatureTools(ctx("owner")), "draft_email_campaign", { name: "X", subject: "Hi there", bodyText: "Hello there" });
-    expect(result).toMatchObject({ ok: false });
-    expect(mocks.create).not.toHaveBeenCalled();
-  });
 });
 
 describe("assistant instructions", () => {
@@ -73,7 +54,9 @@ describe("assistant instructions", () => {
     const prompt = buildAssistantSystemPrompt({ businessName: "Glocast", role: "owner", timeZone: "Australia/Sydney", localDate: "2026-11-09", localTime: "10:00", localWeekday: "Monday" });
     expect(prompt).toMatch(/'instant form'.*Facebook Lead Ads/);
     expect(prompt).toMatch(/today_overview/);
-    expect(prompt).toMatch(/Never say a reply was posted/);
+    expect(prompt).toMatch(/never say a reply was posted/);
+    expect(prompt).toMatch(/preview_email_campaign_send/);
+    expect(prompt).toMatch(/clearly says yes/);
     expect(prompt).not.toMatch(/Lead inbox pages/);
   });
 });

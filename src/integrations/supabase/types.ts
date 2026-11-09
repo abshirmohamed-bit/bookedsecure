@@ -5020,6 +5020,10 @@ export type Database = {
         Args: { p_comment_id: string }
         Returns: Json
       }
+      mcp_email_campaign_authorize: {
+        Args: { p_action: string; p_campaign_id?: string; p_metadata?: Json }
+        Returns: string
+      }
       mcp_facebook_ad_spend: { Args: { p_days?: number }; Returns: Json }
       mcp_prepare_assistant_text: {
         Args: { p_lead_id: string; p_message: string }

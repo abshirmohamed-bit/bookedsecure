@@ -8,6 +8,7 @@
  */
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
 import {
   bookedRecipients,
   buildEmailHtml,
@@ -869,4 +870,95 @@ export async function draftCampaignEmail(input: {
   const parsed = parseCampaignDraft(result.text);
   if (!parsed) throw new Error("The AI didn't return an email. Please try again.");
   return parsed;
+}
+
+/**
+ * Edit a draft (or scheduled) campaign: wording, follow-up, reply-to address
+ * and recipients. Only pending recipients can be removed; a sent campaign can
+ * no longer change. Returns the campaign as saved.
+ */
+export async function updateEmailCampaignDraft(input: {
+  businessId: string;
+  campaignId: string;
+  name?: string | null;
+  subject?: string | null;
+  bodyText?: string | null;
+  replyTo?: string | null;
+  /** undefined = leave as is, null = remove the follow-up. */
+  followUp?: { subject: string; bodyText: string; delayDays: number; stopOnBooking: boolean } | null;
+  addLeadIds?: string[];
+  removeLeadIds?: string[];
+  /** Replace every pending recipient with these customers. */
+  replaceLeadIds?: string[];
+  audienceLabel?: string | null;
+}) {
+  const { data: campaign, error } = await supabaseAdmin
+    .from("email_campaigns")
+    .select("id, status")
+    .eq("id", input.campaignId)
+    .eq("business_id", input.businessId)
+    .maybeSingle();
+  if (error) throw new Error("Could not load the campaign.");
+  if (!campaign) throw new Error("Campaign not found.");
+  if (!["draft", "scheduled"].includes(campaign.status as string)) {
+    throw new Error("Only a draft or scheduled campaign can be changed.");
+  }
+  const sequences = await hasSequenceColumns();
+  const patch: Database["public"]["Tables"]["email_campaigns"]["Update"] = {};
+  if (input.name?.trim()) patch.name = input.name.trim().slice(0, 120);
+  if (input.subject?.trim()) patch.subject = input.subject.trim().slice(0, 160);
+  if (input.bodyText?.trim()) patch.body_text = input.bodyText.trim().slice(0, 5000);
+  if (input.replyTo !== undefined) patch.from_address = normaliseFromAddress(input.replyTo);
+  if (input.followUp !== undefined) {
+    if (!sequences) throw new Error("Follow-ups aren't switched on yet.");
+    patch.follow_up_subject = input.followUp?.subject ?? null;
+    patch.follow_up_body = input.followUp?.bodyText ?? null;
+    patch.follow_up_delay_days = input.followUp?.delayDays ?? null;
+    patch.stop_on_booking = input.followUp?.stopOnBooking ?? true;
+  }
+  if (input.audienceLabel !== undefined && sequences) patch.audience_label = input.audienceLabel;
+  if (Object.keys(patch).length) {
+    const { error: updateError } = await supabaseAdmin.from("email_campaigns").update(patch)
+      .eq("id", input.campaignId).eq("business_id", input.businessId).in("status", ["draft", "scheduled"]);
+    if (updateError) throw new Error("Could not save the campaign changes.");
+  }
+
+  let added = 0;
+  let removed = 0;
+  let skippedNoEmail = 0;
+  let skippedUnsubscribed = 0;
+  const removeIds = input.replaceLeadIds ? null : (input.removeLeadIds ?? []);
+  if (input.replaceLeadIds) {
+    const { data: gone, error: clearError } = await supabaseAdmin.from("email_campaign_recipients").delete()
+      .eq("campaign_id", input.campaignId).eq("business_id", input.businessId).eq("status", "pending").select("id");
+    if (clearError) throw new Error("Could not update the recipients.");
+    removed = (gone ?? []).length;
+  } else if (removeIds && removeIds.length) {
+    const { data: gone, error: removeError } = await supabaseAdmin.from("email_campaign_recipients").delete()
+      .eq("campaign_id", input.campaignId).eq("business_id", input.businessId).eq("status", "pending").in("lead_id", removeIds).select("id");
+    if (removeError) throw new Error("Could not remove those recipients.");
+    removed = (gone ?? []).length;
+  }
+  const toAdd = input.replaceLeadIds ?? input.addLeadIds ?? [];
+  if (toAdd.length) {
+    const [{ data: leads }, { data: existing }] = await Promise.all([
+      supabaseAdmin.from("leads").select("id, name, email, deleted_at").eq("business_id", input.businessId).in("id", toAdd),
+      supabaseAdmin.from("email_campaign_recipients").select("email").eq("campaign_id", input.campaignId),
+    ]);
+    const unsubscribed = await loadUnsubscribed(input.businessId);
+    const split = splitRecipients(leads ?? [], unsubscribed);
+    const already = new Set((existing ?? []).map((r) => (r.email as string).toLowerCase()));
+    const fresh = split.emailable.filter((r) => !already.has(r.email));
+    skippedNoEmail = split.skippedNoEmail.length;
+    skippedUnsubscribed = split.skippedUnsubscribed.length;
+    if (fresh.length) {
+      const { error: insertError } = await supabaseAdmin.from("email_campaign_recipients").insert(
+        fresh.map((r) => ({ campaign_id: input.campaignId, business_id: input.businessId, lead_id: r.leadId, email: r.email })),
+      );
+      if (insertError) throw new Error("Could not add those recipients.");
+    }
+    added = fresh.length;
+  }
+  const saved = await getEmailCampaign(input.businessId, input.campaignId);
+  return { campaign: saved, added, removed, skippedNoEmail, skippedUnsubscribed };
 }

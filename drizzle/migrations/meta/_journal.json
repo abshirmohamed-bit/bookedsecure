@@ -225,6 +225,13 @@
       "when": 1794212000001,
       "tag": "0031_email_campaign_sequences",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1794230000000,
+      "tag": "0032_mcp_email_campaign_actions",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,11 @@
 /**
  * Assistant (Cowork) tools for the features added in November: what needs the
- * owner today, notifications, Facebook and Instagram comments and DMs, full
- * email campaigns (follow-ups, audiences, AI wording, results), Facebook lead
- * import, Facebook ad results and owner reminder texts.
+ * owner today, notifications, Facebook and Instagram comments and DMs, Facebook
+ * lead import, Facebook ad results and owner reminder texts. Email campaigns
+ * live in assistant-tools-campaigns.server.ts.
  *
  * Every read is scoped to ctx.businessId. Nothing here posts a public reply,
- * sends a DM, sends or schedules an email, or emails anyone: replies are saved
- * as drafts and campaigns as drafts, and the owner approves them in the app.
+ * sends a DM: replies are saved as drafts and the owner approves them in the app.
  */
 import { tool } from "ai";
 import { z } from "zod";
@@ -14,15 +13,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { AssistantToolContext } from "@/lib/assistant-tools.server";
 import { formatInZone } from "@/lib/assistant-time";
 import { buildFeed, type FeedRow } from "@/lib/notification-feed";
-import { CAMPAIGN_AUDIENCES, type CampaignAudienceId } from "@/lib/email-campaigns";
 import { buildAdPerformance, type JobRow, type LeadRow, type SpendRow } from "@/lib/meta-ads";
 import { reminderRequestKeyMaterial } from "@/lib/owner-schedule-reminder";
-import { campaignNeedsClarification, CAMPAIGN_CLARIFICATION } from "@/lib/assistant-request-guard";
 
 const fail = (message: string) => ({ ok: false as const, message });
 const DAY = 86_400_000;
 const PLATFORM = z.enum(["facebook", "instagram"]);
-const AUDIENCE_IDS = CAMPAIGN_AUDIENCES.map((a) => a.id) as [CampaignAudienceId, ...CampaignAudienceId[]];
 
 /** Meta's reply rules in plain words: open (24h), personal_reply_only (1-7 days), closed. */
 function windowLabel(w: { allowed: boolean; tag?: string; reason?: string }): "open" | "personal_reply_only" | "closed" {
@@ -282,67 +278,6 @@ export function buildFeatureTools(ctx: AssistantToolContext) {
       },
     }),
 
-    email_campaign_audience: tool({
-      description:
-        "Count and list customers in a quick email audience: all (everyone with an email), enquiries (open enquiries), quoted (quoted, not booked), booked, past (past customers), lost. Unsubscribed and opted-out customers are excluded. Use before draft_email_campaign with an audience.",
-      inputSchema: z.object({ audience: z.enum(AUDIENCE_IDS) }),
-      execute: async ({ audience }) => {
-        const { campaignAudience } = await import("@/lib/email-campaigns.server");
-        try {
-          const leads = await campaignAudience(businessId, audience);
-          return { ok: true, audience: CAMPAIGN_AUDIENCES.find((a) => a.id === audience)?.label, count: leads.length, sample: leads.slice(0, 10).map((l) => l.name ?? l.email) };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "That audience could not be read.");
-        }
-      },
-    }),
-
-    write_campaign_email: tool({
-      description:
-        "Have BookedSecure's writer draft an email (kind first) or a follow-up (kind follow_up, pass the first email) from the owner's instructions. Returns subject and body only; nothing is saved. Show it to the owner or pass it to draft_email_campaign. Never invent prices or offers the owner didn't give.",
-      inputSchema: z.object({
-        kind: z.enum(["first", "follow_up"]),
-        instructions: z.string().max(2000),
-        style: z.array(z.enum(["Keep it short", "Mention our offer", "Ask for a reply", "Casual tone", "Professional tone", "No discounts"])).max(6).default([]),
-        firstEmail: z.object({ subject: z.string().max(160), bodyText: z.string().max(5000) }).optional(),
-      }),
-      execute: async ({ kind, instructions, style, firstEmail }) => {
-        if (!isOwner && ctx.role !== "platform_admin") return ownerOnly();
-        const { draftCampaignEmail } = await import("@/lib/email-campaigns.server");
-        try {
-          const draft = await draftCampaignEmail({ businessId, kind, instructions, chips: style, firstEmail: firstEmail ?? null });
-          return { ok: true, ...draft };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "The email could not be written.");
-        }
-      },
-    }),
-
-    email_campaign_results: tool({
-      description:
-        "Email campaign results: status (draft, scheduled, sent, cancelled), emails sent, follow-ups sent and waiting, failures, and customers who booked within 30 days of the email. Use for 'how did my email campaigns do'. SMS campaigns are in campaign_report.",
-      inputSchema: z.object({ limit: z.number().int().min(1).max(20).default(10) }),
-      execute: async ({ limit }) => {
-        const { listEmailCampaigns } = await import("@/lib/email-campaigns.server");
-        try {
-          const list = await listEmailCampaigns(businessId);
-          return {
-            ok: true,
-            campaigns: list.slice(0, limit).map((c) => ({
-              name: c.name, subject: c.subject, status: c.status,
-              when: local(c.status === "scheduled" ? c.scheduledAt : (c.sentAt ?? c.createdAt)),
-              recipients: c.counts.total, sent: c.counts.sent, failed: c.counts.failed,
-              followUp: c.followUp ? { afterDays: c.followUp.delayDays, sent: c.counts.followUpsSent, waiting: c.counts.followUpsWaiting } : null,
-              booked: c.counts.booked, audience: c.audienceLabel,
-              onlyReachesOwnerInbox: !c.fromDeliverable,
-            })),
-          };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "Email campaigns could not be read.");
-        }
-      },
-    }),
-
     facebook_lead_import_status: tool({
       description:
         "Facebook lead import status: connected or not, whether instant leads arrive (Facebook sends each lead the moment it's submitted; 'instant form' or 'instant leads' means this), when the last instant lead came in, whether the five-minute backup check is on, the last success or error, and recent import runs.",
@@ -482,53 +417,5 @@ export function buildFeatureTools(ctx: AssistantToolContext) {
       },
     }),
 
-    /** Email campaign draft with optional audience, follow-up (replaces the basic draft tool). */
-    draft_email_campaign: tool({
-      description:
-        "Save an email campaign DRAFT after the owner gives the audience and message (or asks you to write it; use write_campaign_email). Choose recipients with audience (all, enquiries, quoted, booked, past, lost) or leadIds for named people found with find_customers; never pick recipients from a partial search. Optional followUp goes to customers who haven't booked after delayDays. Nothing is emailed: the owner opens Campaigns and presses Send or Schedule. Never say it was sent or scheduled.",
-      inputSchema: z.object({
-        name: z.string().min(2).max(120),
-        subject: z.string().min(2).max(160),
-        bodyText: z.string().min(2).max(5000),
-        audience: z.enum(AUDIENCE_IDS).optional(),
-        leadIds: z.array(z.string().uuid()).min(1).max(500).optional(),
-        followUp: z.object({
-          subject: z.string().min(2).max(160),
-          bodyText: z.string().min(2).max(5000),
-          delayDays: z.number().int().min(1).max(30),
-          stopOnBooking: z.boolean().default(true),
-        }).optional(),
-      }),
-      execute: async (input) => {
-        if (campaignNeedsClarification(ctx.request ?? "", ctx.requestHasContext)) return fail(CAMPAIGN_CLARIFICATION);
-        if (!isOwner && ctx.role !== "platform_admin") return ownerOnly();
-        if (!input.audience && !input.leadIds?.length) return fail("Say who the email is for: an audience or named customers.");
-        const { createEmailCampaign, campaignAudience } = await import("@/lib/email-campaigns.server");
-        try {
-          let leadIds = input.leadIds ?? [];
-          let audienceLabel: string | null = null;
-          if (input.audience) {
-            const leads = await campaignAudience(businessId, input.audience);
-            if (!leads.length) return fail("Nobody in that audience has an email address.");
-            if (leads.length > 500) return fail(`That audience has ${leads.length} customers; a campaign can go to 500 at most. Narrow the audience.`);
-            leadIds = leads.map((l) => l.id);
-            audienceLabel = CAMPAIGN_AUDIENCES.find((a) => a.id === input.audience)?.label ?? null;
-          }
-          const result = await createEmailCampaign({
-            businessId, userId: ctx.userId, name: input.name, subject: input.subject, bodyText: input.bodyText, leadIds,
-            followUp: input.followUp ? { subject: input.followUp.subject, bodyText: input.followUp.bodyText, delayDays: input.followUp.delayDays, stopOnBooking: input.followUp.stopOnBooking } : null,
-            audienceLabel,
-          });
-          ctx.record(`Drafted email campaign "${input.name}" for ${result.emailable} customer${result.emailable === 1 ? "" : "s"}${input.followUp ? ` with a follow-up after ${input.followUp.delayDays} days` : ""}.`);
-          return {
-            ok: true, awaitingConfirmation: true, emailable: result.emailable, skippedNoEmail: result.skippedNoEmail,
-            skippedUnsubscribed: result.skippedUnsubscribed, onlyReachesOwnerInbox: !result.fromDeliverable,
-            summary: "Draft saved. Open Campaigns, check it and press Send (or Schedule). Nothing has been emailed yet.",
-          };
-        } catch (error) {
-          return fail(error instanceof Error ? error.message : "Could not draft the email campaign.");
-        }
-      },
-    }),
   };
 }

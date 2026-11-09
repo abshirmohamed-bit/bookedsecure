@@ -1,0 +1,52 @@
+# Connecting ChatGPT or Claude to BookedSecure
+
+ChatGPT and Claude use the same secure BookedSecure connection (OAuth MCP):
+
+**Connection address:** `https://bookedsecure.com/mcp`
+
+The owner signs in with their BookedSecure login when the assistant asks, and the
+assistant then works only in that owner's business. Changes are owner only and
+recorded in the audit log.
+
+## Claude (claude.ai, desktop and mobile apps)
+
+1. In Claude, open **Settings → Connectors** (on some plans: **Customize → Connectors**).
+2. Choose **Add custom connector**.
+3. Name it **BookedSecure** and paste `https://bookedsecure.com/mcp`.
+4. Press **Add**, then **Connect**, and sign in with the BookedSecure owner login.
+5. In a chat, turn BookedSecure on from the tools/connectors menu.
+
+Custom connectors need a Claude plan that supports them. On team plans an admin may
+have to add the connector for the organisation first.
+
+## ChatGPT
+
+1. In ChatGPT, open **Settings → Apps & Connectors** (Developer mode may need to be on).
+2. Choose **Create** / **Add custom connector**, name it **BookedSecure** and paste
+   `https://bookedsecure.com/mcp`, with OAuth authentication.
+3. Sign in with the BookedSecure owner login.
+4. After BookedSecure adds new tools, refresh the connector (or start a new chat) so
+   ChatGPT sees them.
+
+## Voice
+
+Both apps can be used by voice in their own voice modes; BookedSecure's tools work
+wherever the app allows connectors in voice. Inside BookedSecure, the Assistant tab
+has **Speak** (voice to text) and **Voice on** (spoken replies, hands-free).
+
+## Email campaigns from an assistant
+
+Everything on the Campaigns page can be done by asking, for example:
+
+- "How many past customers can I email?"
+- "Write an email to past customers about 15% off interior details this month, keep it short."
+- "Save that as a campaign for past customers, with a follow-up after 3 days if they haven't booked."
+- "Take Jess off that campaign and add Daniel."
+- "Change the subject to 'Spring special inside'."
+- "Send it." The assistant first shows exactly what will go out (subject, how many
+  customers, the first names) and asks you to confirm. It sends only after you say yes.
+- "Schedule it for Saturday at 8am instead."
+- "How did my last email campaign do?" / "Stop the follow-ups."
+
+Emails go out under the business name from `campaigns@bookedsecure.com`, with replies
+to the business. Unsubscribed customers are always skipped.

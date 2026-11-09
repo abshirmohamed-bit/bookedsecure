@@ -19,6 +19,7 @@ import { resolveServiceName, upcomingBookings, visibleNotes } from "@/lib/bookin
 import type { OwnerProposal } from "@/lib/owner-actions.server";
 import { buildOperationsTools } from "@/lib/assistant-tools-ops.server";
 import { buildFeatureTools } from "@/lib/assistant-tools-features.server";
+import { buildCampaignTools } from "@/lib/assistant-tools-campaigns.server";
 import { executeSharedAction, prepareAssistantText, customerInput, serviceInput, addonInput, textInput } from "@/lib/assistant-shared-actions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -424,5 +425,6 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     ...buildOperationsTools(ctx),
     // November features; its draft_email_campaign (audiences, follow-ups) replaces the basic one above.
     ...buildFeatureTools(ctx),
+    ...buildCampaignTools(ctx),
   };
 }
