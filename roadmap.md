@@ -1,5 +1,11 @@
 # Roadmap: Facebook → Make lead import completion
 
+## ChatGPT customer-tools audit
+- [~] Read-only diagnosis of list_leads/query_leads failures for Preshant around 01:10–01:20 UTC on 9 November 2026.
+- [ ] Present confirmed findings and any proposed repair for approval before changing production behavior.
+- [ ] After approval, apply the minimal fix and safely verify customer search, lead/history retrieval and booking retrieval without mutations or SMS.
+
+
 ## Faster installed app
 - [x] Preserve existing installation and Firebase push; cache static app files only, excluding customer data, API responses and OAuth.
 - [x] Verify 27 safety/push checks, clean app checks, no preview app-cache worker, unchanged install path and mobile offline screen.
