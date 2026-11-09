@@ -105,3 +105,94 @@ export function normaliseFromAddress(fromAddress: string | null | undefined): st
   const value = (fromAddress ?? "").trim();
   return EMAIL_RE.test(value) ? value.toLowerCase() : SHARED_FROM_ADDRESS;
 }
+
+/* ---------- Audiences, follow-ups and results (Explee-style sequences) ---------- */
+
+/** Quick audiences: lead statuses each one covers (null means every customer). */
+export const CAMPAIGN_AUDIENCES = [
+  { id: "all", label: "Everyone with an email", statuses: null },
+  {
+    id: "enquiries",
+    label: "Open enquiries",
+    statuses: ["new", "previous_lead", "contacted", "waiting_for_customer", "customer_replied", "ready_for_quote"],
+  },
+  { id: "quoted", label: "Quoted, not booked", statuses: ["quote_sent"] },
+  { id: "booked", label: "Booked", statuses: ["scheduled"] },
+  { id: "past", label: "Past customers", statuses: ["completed"] },
+  { id: "lost", label: "Lost leads", statuses: ["lost"] },
+] as const;
+
+export type CampaignAudienceId = (typeof CAMPAIGN_AUDIENCES)[number]["id"];
+
+/** Statuses that may never be emailed by a campaign, whatever the audience. */
+export const NEVER_EMAIL_STATUSES = ["opted_out", "invalid"] as const;
+
+const DAY_MS = 86_400_000;
+
+/** A follow-up is due once its delay has passed since the first email. */
+export function followUpDue(sentAt: string | null, delayDays: number | null, now: Date): boolean {
+  if (!sentAt || !delayDays) return false;
+  const sent = Date.parse(sentAt);
+  return Number.isFinite(sent) && now.getTime() - sent >= delayDays * DAY_MS;
+}
+
+/** Why a follow-up must not go out, or null when it may be sent. */
+export function followUpSkipReason(input: {
+  unsubscribed: boolean;
+  leadDeleted: boolean;
+  bookedSinceFirstEmail: boolean;
+  stopOnBooking: boolean;
+  campaignStatus: string;
+}): string | null {
+  if (input.campaignStatus !== "sent") return "Campaign is not sent";
+  if (input.unsubscribed) return "Unsubscribed";
+  if (input.leadDeleted) return "Customer was deleted";
+  if (input.stopOnBooking && input.bookedSinceFirstEmail) return "Booked after the first email";
+  return null;
+}
+
+/** Bookings count toward a campaign when made within this many days of its email. */
+export const ATTRIBUTION_DAYS = 30;
+
+/**
+ * Recipients who booked after receiving the campaign (within ATTRIBUTION_DAYS),
+ * counted once per recipient. Cancelled jobs never count.
+ */
+export function bookedRecipients(
+  recipients: { leadId: string | null; sentAt: string | null }[],
+  jobs: { lead_id: string; created_at: string; completion_status: string }[],
+): Set<string> {
+  const byLead = new Map<string, number[]>();
+  for (const job of jobs) {
+    if (job.completion_status === "cancelled") continue;
+    const at = Date.parse(job.created_at);
+    if (!Number.isFinite(at)) continue;
+    byLead.set(job.lead_id, [...(byLead.get(job.lead_id) ?? []), at]);
+  }
+  const booked = new Set<string>();
+  for (const r of recipients) {
+    if (!r.leadId || !r.sentAt) continue;
+    const sent = Date.parse(r.sentAt);
+    if ((byLead.get(r.leadId) ?? []).some((at) => at >= sent && at - sent <= ATTRIBUTION_DAYS * DAY_MS)) {
+      booked.add(r.leadId);
+    }
+  }
+  return booked;
+}
+
+/** A schedule time must be at least 5 minutes ahead and within 60 days. */
+export function scheduleTimeProblem(at: Date, now: Date): string | null {
+  if (Number.isNaN(at.getTime())) return "Choose a valid date and time.";
+  if (at.getTime() < now.getTime() + 5 * 60_000) return "Choose a time at least 5 minutes from now.";
+  if (at.getTime() > now.getTime() + 60 * DAY_MS) return "Choose a time within the next 60 days.";
+  return null;
+}
+
+/** Reads the AI's "SUBJECT: … BODY: …" reply; strips any bracketed placeholders. */
+export function parseCampaignDraft(text: string): { subject: string; bodyText: string } | null {
+  const match = text.match(/SUBJECT:\s*(.+?)\s*\n+\s*BODY:\s*\n?([\s\S]+)/i);
+  if (!match) return null;
+  const subject = match[1]!.trim().replace(/^"|"$/g, "").slice(0, 160);
+  const bodyText = match[2]!.trim().replace(/[{}[\]]/g, "").slice(0, 5000);
+  return subject && bodyText ? { subject, bodyText } : null;
+}

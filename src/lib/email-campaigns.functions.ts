@@ -54,6 +54,16 @@ export const createEmailCampaign = createServerFn({ method: "POST" })
         bodyText: z.string().min(2).max(5000),
         fromAddress: z.string().max(200).optional().nullable(),
         leadIds: z.array(z.string().uuid()).min(1).max(500),
+        followUp: z
+          .object({
+            subject: z.string().min(2).max(160),
+            bodyText: z.string().min(2).max(5000),
+            delayDays: z.number().int().min(1).max(30),
+            stopOnBooking: z.boolean(),
+          })
+          .nullable()
+          .optional(),
+        audienceLabel: z.string().max(80).nullable().optional(),
       })
       .parse(input),
   )
@@ -70,6 +80,8 @@ export const createEmailCampaign = createServerFn({ method: "POST" })
       bodyText: data.bodyText,
       fromAddress: data.fromAddress ?? null,
       leadIds: data.leadIds,
+      followUp: data.followUp ?? null,
+      audienceLabel: data.audienceLabel ?? null,
     });
   });
 
@@ -133,4 +145,87 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
     });
     const result = await send({ businessId: app.businessId, campaignId: created.campaignId });
     return { ...result, fromDeliverable: created.fromDeliverable };
+  });
+
+const campaignIdInput = (input: unknown) => z.object({ campaignId: z.string().uuid() }).parse(input);
+
+/** One campaign with every recipient and result (the campaign workspace). */
+export const getEmailCampaign = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(campaignIdInput)
+  .handler(async ({ data, context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { getEmailCampaign: load } = await import("@/lib/email-campaigns.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    return await load(app.businessId, data.campaignId);
+  });
+
+/** Customers in one of the quick audiences (everyone, quoted, past customers…). */
+export const getCampaignAudience = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ audience: z.enum(["all", "enquiries", "quoted", "booked", "past", "lost"]) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { campaignAudience } = await import("@/lib/email-campaigns.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    return await campaignAudience(app.businessId, data.audience);
+  });
+
+/** Owner approval to send a draft later. */
+export const scheduleEmailCampaign = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ campaignId: z.string().uuid(), scheduledAt: z.string().datetime({ offset: true }) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { scheduleEmailCampaign: schedule } = await import("@/lib/email-campaigns.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return await schedule({ businessId: app.businessId, campaignId: data.campaignId, scheduledAt: data.scheduledAt });
+  });
+
+export const unscheduleEmailCampaign = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(campaignIdInput)
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { unscheduleEmailCampaign: unschedule } = await import("@/lib/email-campaigns.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return await unschedule({ businessId: app.businessId, campaignId: data.campaignId });
+  });
+
+export const stopCampaignFollowUps = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(campaignIdInput)
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { stopCampaignFollowUps: stop } = await import("@/lib/email-campaigns.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return await stop({ businessId: app.businessId, campaignId: data.campaignId });
+  });
+
+/** AI writes the first email or the follow-up from the owner's instructions. Saves nothing. */
+export const draftCampaignEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        kind: z.enum(["first", "follow_up"]),
+        instructions: z.string().max(2000),
+        chips: z.array(z.string().max(60)).max(8),
+        firstEmail: z.object({ subject: z.string().max(160), bodyText: z.string().max(5000) }).nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { requireAppContext, requireOwner } = await import("@/lib/app-context.server");
+    const { draftCampaignEmail: draft } = await import("@/lib/email-campaigns.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    requireOwner(app);
+    return await draft({ businessId: app.businessId, ...data, firstEmail: data.firstEmail ?? null });
   });

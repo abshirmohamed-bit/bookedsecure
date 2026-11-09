@@ -27,7 +27,13 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const swept = await sweepAbandonedConversations();
         const { processDueOwnerReminders } = await import("@/lib/owner-schedule-reminder.server");
         const ownerReminders = await processDueOwnerReminders();
-        return Response.json({ ...result, reminders, ownerReminders, abandonedSwept: swept.swept });
+        // Scheduled email campaigns and due campaign follow-ups. A failure here
+        // is reported but never blocks the lead follow-ups above.
+        const { processDueEmailCampaigns } = await import("@/lib/email-campaigns.server");
+        const emailCampaigns = await processDueEmailCampaigns().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Email campaigns failed",
+        }));
+        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, abandonedSwept: swept.swept });
 
 
       },

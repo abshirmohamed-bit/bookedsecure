@@ -1538,6 +1538,9 @@ export type Database = {
       }
       email_campaign_recipients: {
         Row: {
+          follow_up_error: string | null
+          follow_up_sent_at: string | null
+          follow_up_status: string | null
           business_id: string
           campaign_id: string
           created_at: string
@@ -1550,6 +1553,9 @@ export type Database = {
           status: string
         }
         Insert: {
+          follow_up_error?: string | null
+          follow_up_sent_at?: string | null
+          follow_up_status?: string | null
           business_id: string
           campaign_id: string
           created_at?: string
@@ -1562,6 +1568,9 @@ export type Database = {
           status?: string
         }
         Update: {
+          follow_up_error?: string | null
+          follow_up_sent_at?: string | null
+          follow_up_status?: string | null
           business_id?: string
           campaign_id?: string
           created_at?: string
@@ -1606,6 +1615,12 @@ export type Database = {
       }
       email_campaigns: {
         Row: {
+          audience_label: string | null
+          follow_up_body: string | null
+          follow_up_delay_days: number | null
+          follow_up_subject: string | null
+          scheduled_at: string | null
+          stop_on_booking: boolean
           approved_at: string | null
           body_text: string
           business_id: string
@@ -1620,6 +1635,12 @@ export type Database = {
           subject: string
         }
         Insert: {
+          audience_label?: string | null
+          follow_up_body?: string | null
+          follow_up_delay_days?: number | null
+          follow_up_subject?: string | null
+          scheduled_at?: string | null
+          stop_on_booking?: boolean
           approved_at?: string | null
           body_text: string
           business_id: string
@@ -1634,6 +1655,12 @@ export type Database = {
           subject: string
         }
         Update: {
+          audience_label?: string | null
+          follow_up_body?: string | null
+          follow_up_delay_days?: number | null
+          follow_up_subject?: string | null
+          scheduled_at?: string | null
+          stop_on_booking?: boolean
           approved_at?: string | null
           body_text?: string
           business_id?: string

@@ -211,6 +211,13 @@
       "when": 1794197120233,
       "tag": "0029_apply_mcp_social_ads_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1794212000000,
+      "tag": "0030_email_campaign_sequences",
+      "breakpoints": true
     }
   ]
 }

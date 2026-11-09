@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as ImportRouteImport } from './routes/import'
@@ -35,6 +34,8 @@ import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot
 import { Route as AssistantThreadIdRouteImport } from './routes/assistant.$threadId'
 import { Route as BTokenRouteImport } from './routes/b.$token'
 import { Route as BookingsIndexRouteImport } from './routes/bookings.index'
+import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
+import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as LeadsDeletedRouteImport } from './routes/leads.deleted'
@@ -94,11 +95,6 @@ const AssistantRoute = AssistantRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CampaignsRoute = CampaignsRouteImport.update({
-  id: '/campaigns',
-  path: '/campaigns',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -205,6 +201,16 @@ const BTokenRoute = BTokenRouteImport.update({
 const BookingsIndexRoute = BookingsIndexRouteImport.update({
   id: '/bookings/',
   path: '/bookings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
+  id: '/campaigns/',
+  path: '/campaigns/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
+  id: '/campaigns/$campaignId',
+  path: '/campaigns/$campaignId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsIndexRoute = LeadsIndexRouteImport.update({
@@ -426,7 +432,6 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
-  '/campaigns': typeof CampaignsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
@@ -447,6 +452,7 @@ export interface FileRoutesByFullPath {
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
@@ -457,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
   '/bookings/': typeof BookingsIndexRoute
+  '/campaigns/': typeof CampaignsIndexRoute
   '/leads/': typeof LeadsIndexRoute
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -494,7 +501,6 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
-  '/campaigns': typeof CampaignsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
@@ -514,6 +520,7 @@ export interface FileRoutesByTo {
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
@@ -524,6 +531,7 @@ export interface FileRoutesByTo {
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
   '/bookings': typeof BookingsIndexRoute
+  '/campaigns': typeof CampaignsIndexRoute
   '/leads': typeof LeadsIndexRoute
   '/quote': typeof QuoteIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -562,7 +570,6 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
-  '/campaigns': typeof CampaignsRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
@@ -583,6 +590,7 @@ export interface FileRoutesById {
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
@@ -593,6 +601,7 @@ export interface FileRoutesById {
   '/settings/messaging': typeof SettingsMessagingRoute
   '/settings/team': typeof SettingsTeamRoute
   '/bookings/': typeof BookingsIndexRoute
+  '/campaigns/': typeof CampaignsIndexRoute
   '/leads/': typeof LeadsIndexRoute
   '/quote/': typeof QuoteIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -632,7 +641,6 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/assistant'
     | '/auth'
-    | '/campaigns'
     | '/dashboard'
     | '/home'
     | '/import'
@@ -653,6 +661,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
+    | '/campaigns/$campaignId'
     | '/leads/$leadId'
     | '/leads/deleted'
     | '/quote/$slug'
@@ -663,6 +672,7 @@ export interface FileRouteTypes {
     | '/settings/messaging'
     | '/settings/team'
     | '/bookings/'
+    | '/campaigns/'
     | '/leads/'
     | '/quote/'
     | '/settings/'
@@ -700,7 +710,6 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/assistant'
     | '/auth'
-    | '/campaigns'
     | '/dashboard'
     | '/home'
     | '/import'
@@ -720,6 +729,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
+    | '/campaigns/$campaignId'
     | '/leads/$leadId'
     | '/leads/deleted'
     | '/quote/$slug'
@@ -730,6 +740,7 @@ export interface FileRouteTypes {
     | '/settings/messaging'
     | '/settings/team'
     | '/bookings'
+    | '/campaigns'
     | '/leads'
     | '/quote'
     | '/settings'
@@ -767,7 +778,6 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/assistant'
     | '/auth'
-    | '/campaigns'
     | '/dashboard'
     | '/home'
     | '/import'
@@ -788,6 +798,7 @@ export interface FileRouteTypes {
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
     | '/b/$token'
+    | '/campaigns/$campaignId'
     | '/leads/$leadId'
     | '/leads/deleted'
     | '/quote/$slug'
@@ -798,6 +809,7 @@ export interface FileRouteTypes {
     | '/settings/messaging'
     | '/settings/team'
     | '/bookings/'
+    | '/campaigns/'
     | '/leads/'
     | '/quote/'
     | '/settings/'
@@ -836,7 +848,6 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AssistantRoute: typeof AssistantRouteWithChildren
   AuthRoute: typeof AuthRoute
-  CampaignsRoute: typeof CampaignsRoute
   DashboardRoute: typeof DashboardRoute
   HomeRoute: typeof HomeRoute
   ImportRoute: typeof ImportRoute
@@ -856,10 +867,12 @@ export interface RootRouteChildren {
   AdminOverviewRoute: typeof AdminOverviewRoute
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   BTokenRoute: typeof BTokenRoute
+  CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   LeadsDeletedRoute: typeof LeadsDeletedRoute
   QuoteSlugRoute: typeof QuoteSlugRoute
   BookingsIndexRoute: typeof BookingsIndexRoute
+  CampaignsIndexRoute: typeof CampaignsIndexRoute
   LeadsIndexRoute: typeof LeadsIndexRoute
   QuoteIndexRoute: typeof QuoteIndexRoute
   UnfinishedIndexRoute: typeof UnfinishedIndexRoute
@@ -919,13 +932,6 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/campaigns': {
-      id: '/campaigns'
-      path: '/campaigns'
-      fullPath: '/campaigns'
-      preLoaderRoute: typeof CampaignsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1073,6 +1079,20 @@ declare module '@tanstack/react-router' {
       path: '/bookings'
       fullPath: '/bookings/'
       preLoaderRoute: typeof BookingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns/': {
+      id: '/campaigns/'
+      path: '/campaigns'
+      fullPath: '/campaigns/'
+      preLoaderRoute: typeof CampaignsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns/$campaignId': {
+      id: '/campaigns/$campaignId'
+      path: '/campaigns/$campaignId'
+      fullPath: '/campaigns/$campaignId'
+      preLoaderRoute: typeof CampaignsCampaignIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads/': {
@@ -1414,7 +1434,6 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AssistantRoute: AssistantRouteWithChildren,
   AuthRoute: AuthRoute,
-  CampaignsRoute: CampaignsRoute,
   DashboardRoute: DashboardRoute,
   HomeRoute: HomeRoute,
   ImportRoute: ImportRoute,
@@ -1435,10 +1454,12 @@ const rootRouteChildren: RootRouteChildren = {
   AdminOverviewRoute: AdminOverviewRoute,
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   BTokenRoute: BTokenRoute,
+  CampaignsCampaignIdRoute: CampaignsCampaignIdRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   LeadsDeletedRoute: LeadsDeletedRoute,
   QuoteSlugRoute: QuoteSlugRoute,
   BookingsIndexRoute: BookingsIndexRoute,
+  CampaignsIndexRoute: CampaignsIndexRoute,
   LeadsIndexRoute: LeadsIndexRoute,
   QuoteIndexRoute: QuoteIndexRoute,
   UnfinishedIndexRoute: UnfinishedIndexRoute,
@@ -1474,11 +1495,15 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
+
 import type { startInstance } from './start.ts'
+
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
+
     router: Awaited<ReturnType<typeof getRouter>>
+
     config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

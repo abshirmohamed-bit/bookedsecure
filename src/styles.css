@@ -77,12 +77,13 @@
   --radius: 0.75rem;
   /* The page canvas (body) is a deep, lit blue field; --background is a
      frosted white so anything painted with it stays glass on top of it. */
-  --canvas: oklch(0.9 0.045 246);
+  --canvas: oklch(0.86 0.06 248);
   --canvas-gradient: linear-gradient(
-    165deg,
-    oklch(0.93 0.035 238) 0%,
-    oklch(0.88 0.055 250) 45%,
-    oklch(0.9 0.05 228) 100%
+    160deg,
+    oklch(0.9 0.05 240) 0%,
+    oklch(0.83 0.075 252) 40%,
+    oklch(0.8 0.08 256) 62%,
+    oklch(0.87 0.065 226) 100%
   );
   --background: oklch(1 0 0 / 0.7);
   --foreground: oklch(0.23 0.05 260);
@@ -129,7 +130,7 @@
   /* Glass surfaces: frosted white, a bright top edge, and a soft navy shadow. */
   --glass-edge: oklch(1 0 0 / 0.7);
   --glass-highlight: inset 0 1px 0 0 oklch(1 0 0 / 0.75);
-  --glass-shadow: 0 10px 30px -14px oklch(0.3 0.1 258 / 0.28);
+  --glass-shadow: 0 2px 6px -2px oklch(0.3 0.1 258 / 0.1), 0 22px 44px -22px oklch(0.28 0.11 258 / 0.42);
   --glass-blur: blur(40px) saturate(180%);
   --frost-blur: blur(24px) saturate(170%);
   /* Public AI quote conversation only: customer bubble pair + branded header wash. */
@@ -190,9 +191,23 @@
        container it blocks wheel/touch scrolling from reaching the page. */
   }
 
-  /* Depth behind the glass: deep logo-blue, sky and teal light pools that
-     drift slowly, plus a faint dot grid. Glass blurs both, so every card
-     reads as a transparent pane with the page clearly behind it. */
+  /* Depth behind the glass, in three layers:
+     1. far (html::before): a navy vignette and a soft light beam from the top,
+        so the page has edges and a lit centre;
+     2. mid (body::before): deep logo-blue, sky and teal light pools that drift;
+     3. near (body::after): a faint dot grid.
+     Glass blurs all of it, so every card reads as a transparent pane. */
+  html::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -3;
+    pointer-events: none;
+    background:
+      radial-gradient(60% 45% at 50% -8%, oklch(1 0 0 / 0.55), transparent 70%),
+      conic-gradient(from 200deg at 70% -10%, transparent 0deg, oklch(1 0 0 / 0.18) 18deg, transparent 40deg, oklch(1 0 0 / 0.12) 62deg, transparent 85deg),
+      radial-gradient(130% 110% at 50% 40%, transparent 55%, oklch(0.3 0.12 260 / 0.28) 100%);
+  }
   body::before {
     content: "";
     position: fixed;
@@ -200,12 +215,13 @@
     z-index: -2;
     pointer-events: none;
     background:
-      radial-gradient(30% 28% at 14% 10%, oklch(0.48 0.19 260 / 0.62), transparent 72%),
-      radial-gradient(28% 30% at 86% 12%, oklch(0.7 0.15 236 / 0.66), transparent 72%),
-      radial-gradient(34% 30% at 80% 86%, oklch(0.76 0.13 196 / 0.58), transparent 72%),
-      radial-gradient(30% 30% at 16% 84%, oklch(0.58 0.18 252 / 0.5), transparent 72%),
-      radial-gradient(30% 24% at 50% 42%, oklch(1 0 0 / 0.45), transparent 75%);
-    filter: blur(48px);
+      radial-gradient(28% 26% at 12% 10%, oklch(0.42 0.2 262 / 0.75), transparent 70%),
+      radial-gradient(26% 30% at 88% 10%, oklch(0.66 0.17 238 / 0.75), transparent 70%),
+      radial-gradient(32% 28% at 82% 88%, oklch(0.72 0.14 196 / 0.7), transparent 70%),
+      radial-gradient(28% 30% at 14% 86%, oklch(0.52 0.2 254 / 0.62), transparent 70%),
+      radial-gradient(18% 16% at 62% 52%, oklch(0.62 0.16 232 / 0.45), transparent 70%),
+      radial-gradient(30% 22% at 46% 36%, oklch(1 0 0 / 0.42), transparent 75%);
+    filter: blur(40px);
     animation: glass-drift 36s ease-in-out infinite alternate;
     will-change: transform;
   }
