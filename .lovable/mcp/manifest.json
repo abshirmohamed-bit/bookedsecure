@@ -13,7 +13,7 @@
   "mcp": {
     "server": {
       "name": "bookedsecure",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "title": "BookedSecure"
     },
     "tools": [
@@ -2581,6 +2581,132 @@
           },
           "required": [
             "campaignId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_email_replies",
+        "title": "List customer replies to email campaigns",
+        "description": "List conversations where customers replied to the business's campaign emails (Campaigns > Replies in BookedSecure), newest first, with the latest message and unread count. unreadOnly shows only new replies.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "unreadOnly": {
+              "type": "boolean",
+              "default": false
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "email_reply_thread",
+        "title": "Read an email reply conversation",
+        "description": "Read one email conversation with a customer: the campaign they replied to and every message (customer and business), oldest first. Marks their replies as read.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "recipientId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The conversation id (recipientId) from list_email_replies. Never show it in replies."
+            }
+          },
+          "required": [
+            "recipientId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "preview_email_reply",
+        "title": "Preview an email answer to a customer",
+        "description": "Step 1 of answering a customer's email reply: returns exactly what will be emailed (to, subject, body) and a confirmationCode. Write the answer in the owner's words, show it to the owner and ask them to confirm. Never send without their clear yes. Owner only.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "recipientId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The conversation id (recipientId) from list_email_replies. Never show it in replies."
+            },
+            "bodyText": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 10000
+            }
+          },
+          "required": [
+            "recipientId",
+            "bodyText"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "send_email_reply",
+        "title": "Send an email answer to a customer",
+        "description": "Step 2: email the answer to the customer, from the business name, threaded with their reply. Only after preview_email_reply AND the owner said yes to that exact wording in this conversation; pass the same bodyText and its confirmationCode. Their next reply comes back to Campaigns > Replies. Owner only.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "recipientId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The conversation id (recipientId) from list_email_replies. Never show it in replies."
+            },
+            "bodyText": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 10000
+            },
+            "confirmationCode": {
+              "type": "string",
+              "minLength": 4,
+              "maxLength": 16
+            }
+          },
+          "required": [
+            "recipientId",
+            "bodyText",
+            "confirmationCode"
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
