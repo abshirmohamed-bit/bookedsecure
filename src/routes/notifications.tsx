@@ -133,7 +133,7 @@ function NotificationsPage() {
           )}
         </section>
 
-        <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-20 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           {enabled && (
             <div className="glass p-4">
               <PushNotificationSettings />
