@@ -204,6 +204,13 @@
       "when": 1794154046574,
       "tag": "0028_chatgpt_social_ads_tools",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794197120233,
+      "tag": "0029_apply_mcp_social_ads_functions",
+      "breakpoints": true
     }
   ]
 }
