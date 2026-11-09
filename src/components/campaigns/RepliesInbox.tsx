@@ -143,7 +143,7 @@ function Thread({ recipientId, onBack }: { recipientId: string; onBack: () => vo
   const t = q.data;
 
   return (
-    <div className="flex h-full flex-col md:min-h-[28rem]">
+    <div className="flex h-full flex-col max-md:min-h-[calc(100dvh-3.5rem)] md:min-h-[28rem]">
       {/* On a phone the header sticks under the app bar and the composer sticks to the bottom. */}
       <div className="sticky top-14 z-10 flex items-center gap-2 border-b border-white/60 bg-white/70 px-2 py-2 backdrop-blur-xl md:static md:bg-transparent md:px-4 md:py-3 md:backdrop-blur-none">
         <button type="button" onClick={onBack} className="grid size-10 shrink-0 place-items-center rounded-full hover:bg-white/70 md:hidden" aria-label="Back to conversations">
