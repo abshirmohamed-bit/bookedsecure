@@ -17,11 +17,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CampaignComposer } from "@/components/campaigns/CampaignComposer";
-import { RepliesInbox } from "@/components/campaigns/RepliesInbox";
 import { formatDate, plural, SendDialog, StatusPill } from "@/components/campaigns/CampaignParts";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/app.functions";
-import { getNavCounts } from "@/lib/home.functions";
 import {
   cancelEmailCampaign,
   getEmailCampaigns,
@@ -56,14 +54,12 @@ export const Route = createFileRoute("/campaigns/")({
 type Campaign = Awaited<ReturnType<typeof getEmailCampaigns>>[number];
 
 function CampaignsPage() {
-  const search = Route.useSearch();
-  const view: "campaigns" | "replies" = search.tab === "replies" ? "replies" : "campaigns";
-  const setView = (next: "campaigns" | "replies", thread?: string | null) =>
-    void navigate({ to: "/campaigns", search: next === "replies" ? { tab: "replies", ...(thread ? { thread } : {}) } : {}, replace: true });
-  const navCountsFn = useServerFn(getNavCounts);
-  const navCounts = useQuery({ queryKey: ["nav-counts"], queryFn: () => navCountsFn(), staleTime: 60_000 });
-  const unreadReplies = navCounts.data?.campaigns ?? 0;
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  // Older links (?tab=replies) now open the Replies page under Campaigns.
+  useEffect(() => {
+    if (search.tab === "replies") void navigate({ to: "/campaigns/replies", search: search.thread ? { thread: search.thread } : {}, replace: true });
+  }, [search.tab, search.thread, navigate]);
   const fetchSession = useServerFn(getSession);
   const session = useQuery({
     queryKey: ["session"],
@@ -162,33 +158,6 @@ function CampaignsPage() {
           </Button>
         </header>
 
-        <div className="inline-flex rounded-xl border border-white/60 bg-white/40 p-1 backdrop-blur-xl" role="tablist" aria-label="Campaigns or replies">
-          {([
-            ["campaigns", "Campaigns", null],
-            ["replies", "Replies", unreadReplies],
-          ] as const).map(([value, label, count]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={view === value}
-              onClick={() => setView(value)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
-                view === value ? "bg-white/90 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {label}
-              {count ? <span className="rounded-full bg-primary px-1.5 py-px text-[10px] font-semibold text-primary-foreground">{count}</span> : null}
-            </button>
-          ))}
-        </div>
-
-        {view === "replies" ? (
-          <section aria-label="Replies" className="glass overflow-hidden">
-            <RepliesInbox thread={search.thread ?? null} onOpen={(thread) => setView("replies", thread)} />
-          </section>
-        ) : (
         <section aria-labelledby="your-campaigns" className="glass overflow-hidden">
           {/* Metrics live in the card header instead of a separate row of tiles. */}
           <div className="grid grid-cols-2 border-b border-white/60 sm:grid-cols-4">
@@ -241,7 +210,6 @@ function CampaignsPage() {
             />
           )}
         </section>
-        )}
       </div>
 
       {composing && (

@@ -15,6 +15,7 @@ export type NavPath =
   | "/unfinished"
   | "/bookings"
   | "/campaigns"
+  | "/campaigns/replies"
   | "/analytics"
   | "/settings/business"
   | "/settings/messaging"
@@ -30,6 +31,7 @@ export type NavIcon =
   | "unfinished"
   | "bookings"
   | "campaigns"
+  | "replies"
   | "results"
   | "business"
   | "texting"
@@ -48,6 +50,10 @@ export type NavItem = {
   badge?: NavBadge;
   /** Extra paths that should keep this item in its active state. */
   contextPaths?: readonly string[];
+  /** Paths under this item that belong to a sub-item instead. */
+  excludePaths?: readonly string[];
+  /** Shown indented under the item above it. */
+  sub?: boolean;
 };
 
 export type NavSection = { label: string | null; items: readonly NavItem[] };
@@ -72,7 +78,8 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: "Work",
     items: [
       { to: "/bookings", label: "Bookings", icon: "bookings" },
-      { to: "/campaigns", label: "Campaigns", icon: "campaigns", badge: "campaigns" },
+      { to: "/campaigns", label: "Campaigns", icon: "campaigns", excludePaths: ["/campaigns/replies"] },
+      { to: "/campaigns/replies", label: "Replies", icon: "replies", badge: "campaigns", sub: true },
       { to: "/analytics", label: "Results", icon: "results" },
     ],
   },
@@ -109,6 +116,7 @@ function matches(pathname: string, path: string): boolean {
 
 /** True when a sidebar item should render as active for this pathname. */
 export function isNavItemActive(item: NavItem, pathname: string): boolean {
+  if ((item.excludePaths ?? []).some((path) => matches(pathname, path))) return false;
   if (matches(pathname, item.to)) return true;
   return (item.contextPaths ?? []).some((path) => matches(pathname, path));
 }
@@ -121,6 +129,7 @@ export function navBreadcrumb(pathname: string): string[] {
   if (matches(pathname, "/profile")) return ["Account", "Your profile"];
   if (matches(pathname, "/notifications")) return ["Account", "Alerts and notifications"];
   if (matches(pathname, "/settings/billing")) return ["Account", "Account access"];
+  if (matches(pathname, "/campaigns/replies")) return ["Campaigns", "Replies"];
   const item = NAV_ITEMS.find((candidate) => isNavItemActive(candidate, pathname));
   if (!item) return [];
   const section = NAV_SECTIONS.find((candidate) => candidate.items.includes(item));

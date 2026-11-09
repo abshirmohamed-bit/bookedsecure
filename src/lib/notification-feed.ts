@@ -61,7 +61,7 @@ export function kindsForFeedFilter(filter: FeedFilter): string[] | null {
 export type FeedLink =
   | { to: "/leads/$leadId"; params: { leadId: string } }
   | { to: "/social"; search: { view: "comments" | "messages" } }
-  | { to: "/campaigns"; search: { tab: "replies"; thread?: string } }
+  | { to: "/campaigns/replies"; search: { thread?: string } }
   | { to: "/bookings" }
   | { to: "/settings/billing" }
   | { to: "/settings/messaging" }
@@ -205,7 +205,7 @@ function describe(rows: FeedRow[]): Omit<FeedGroup, "key" | "ids" | "unreadIds" 
       subtitle: n > 1 ? "Email replies" : "Email reply",
       preview: rows.slice(0, 2).map((r) => r.body.trim()).reverse(),
       countLabel: n > 1 ? `${n} emails` : null,
-      link: { to: "/campaigns", search: { tab: "replies", ...(recipient ? { thread: recipient } : {}) } },
+      link: { to: "/campaigns/replies", search: recipient ? { thread: recipient } : {} },
       action: "Reply",
     };
   }

@@ -65,6 +65,6 @@ describe("email reply notifications", () => {
     const row = (body: string, at: string) => ({ id: at, lead_id: "L", kind: "email_reply", title: "Email from Jess", body, metadata: { recipient_id: id }, created_at: at, read_at: null });
     const [group] = buildFeed([row("Yes please", "2026-11-10T01:00:00Z"), row("Saturday?", "2026-11-10T02:00:00Z")]);
     expect(group).toMatchObject({ title: "Jess", subtitle: "Email replies", countLabel: "2 emails", action: "Reply", category: "messages" });
-    expect(group!.link).toEqual({ to: "/campaigns", search: { tab: "replies", thread: id } });
+    expect(group!.link).toEqual({ to: "/campaigns/replies", search: { thread: id } });
   });
 });

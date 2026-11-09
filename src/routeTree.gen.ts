@@ -36,6 +36,7 @@ import { Route as BTokenRouteImport } from './routes/b.$token'
 import { Route as BookingsIndexRouteImport } from './routes/bookings.index'
 import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
 import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
+import { Route as CampaignsRepliesRouteImport } from './routes/campaigns.replies'
 import { Route as LeadsIndexRouteImport } from './routes/leads.index'
 import { Route as LeadsLeadIdRouteImport } from './routes/leads.$leadId'
 import { Route as LeadsDeletedRouteImport } from './routes/leads.deleted'
@@ -212,6 +213,11 @@ const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
 const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
   id: '/campaigns/$campaignId',
   path: '/campaigns/$campaignId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsRepliesRoute = CampaignsRepliesRouteImport.update({
+  id: '/campaigns/replies',
+  path: '/campaigns/replies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsIndexRoute = LeadsIndexRouteImport.update({
@@ -459,6 +465,7 @@ export interface FileRoutesByFullPath {
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/campaigns/replies': typeof CampaignsRepliesRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
@@ -528,6 +535,7 @@ export interface FileRoutesByTo {
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/campaigns/replies': typeof CampaignsRepliesRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
@@ -599,6 +607,7 @@ export interface FileRoutesById {
   '/assistant/$threadId': typeof AssistantThreadIdRoute
   '/b/$token': typeof BTokenRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
+  '/campaigns/replies': typeof CampaignsRepliesRoute
   '/leads/$leadId': typeof LeadsLeadIdRoute
   '/leads/deleted': typeof LeadsDeletedRoute
   '/quote/$slug': typeof QuoteSlugRoute
@@ -671,6 +680,7 @@ export interface FileRouteTypes {
     | '/assistant/$threadId'
     | '/b/$token'
     | '/campaigns/$campaignId'
+    | '/campaigns/replies'
     | '/leads/$leadId'
     | '/leads/deleted'
     | '/quote/$slug'
@@ -740,6 +750,7 @@ export interface FileRouteTypes {
     | '/assistant/$threadId'
     | '/b/$token'
     | '/campaigns/$campaignId'
+    | '/campaigns/replies'
     | '/leads/$leadId'
     | '/leads/deleted'
     | '/quote/$slug'
@@ -810,6 +821,7 @@ export interface FileRouteTypes {
     | '/assistant/$threadId'
     | '/b/$token'
     | '/campaigns/$campaignId'
+    | '/campaigns/replies'
     | '/leads/$leadId'
     | '/leads/deleted'
     | '/quote/$slug'
@@ -880,6 +892,7 @@ export interface RootRouteChildren {
   AdminPilotApplicationsRoute: typeof AdminPilotApplicationsRoute
   BTokenRoute: typeof BTokenRoute
   CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRoute
+  CampaignsRepliesRoute: typeof CampaignsRepliesRoute
   LeadsLeadIdRoute: typeof LeadsLeadIdRoute
   LeadsDeletedRoute: typeof LeadsDeletedRoute
   QuoteSlugRoute: typeof QuoteSlugRoute
@@ -1106,6 +1119,13 @@ declare module '@tanstack/react-router' {
       path: '/campaigns/$campaignId'
       fullPath: '/campaigns/$campaignId'
       preLoaderRoute: typeof CampaignsCampaignIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns/replies': {
+      id: '/campaigns/replies'
+      path: '/campaigns/replies'
+      fullPath: '/campaigns/replies'
+      preLoaderRoute: typeof CampaignsRepliesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads/': {
@@ -1475,6 +1495,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminPilotApplicationsRoute: AdminPilotApplicationsRoute,
   BTokenRoute: BTokenRoute,
   CampaignsCampaignIdRoute: CampaignsCampaignIdRoute,
+  CampaignsRepliesRoute: CampaignsRepliesRoute,
   LeadsLeadIdRoute: LeadsLeadIdRoute,
   LeadsDeletedRoute: LeadsDeletedRoute,
   QuoteSlugRoute: QuoteSlugRoute,
@@ -1516,11 +1537,15 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
+
 import type { startInstance } from './start.ts'
+
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
+
     router: Awaited<ReturnType<typeof getRouter>>
+
     config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   Phone,
   Plug,
+  Reply,
   ShieldCheck,
   Sparkles,
   SquareArrowOutUpRight,
@@ -53,6 +54,7 @@ const NAV_ICONS: Record<NavIcon, typeof Home> = {
   unfinished: Hourglass,
   bookings: CalendarDays,
   campaigns: Megaphone,
+  replies: Reply,
   results: BarChart3,
   business: Building2,
   texting: MessageCircle,
@@ -234,6 +236,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                   active={isNavItemActive(item, pathname)}
                   compact={compact}
                   badge={badgeFor(item, counts.data)}
+                  sub={Boolean(item.sub)}
                 />
               ))}
             </NavGroup>
@@ -355,6 +358,7 @@ function SidebarLink({
   icon: Icon,
   compact,
   badge = 0,
+  sub = false,
 }: {
   to: NavItem["to"] | "/admin/overview";
   label: string;
@@ -362,6 +366,7 @@ function SidebarLink({
   icon: typeof Home;
   compact: boolean;
   badge?: number;
+  sub?: boolean;
 }) {
   const badgeText = badge > 99 ? "99+" : String(badge);
   return (
@@ -369,7 +374,7 @@ function SidebarLink({
       to={to}
       aria-current={active ? "page" : undefined}
       title={compact ? label : undefined}
-      className={cn(itemClass(active), "relative", compact && "lg:size-10 lg:justify-center lg:px-0")}
+      className={cn(itemClass(active), "relative", sub && "ml-5 border-l border-sidebar-border pl-3 text-[13px]", compact && "lg:ml-0 lg:size-10 lg:justify-center lg:border-l-0 lg:px-0")}
     >
       <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} aria-hidden="true" />
       <span className={cn("min-w-0 flex-1 truncate", compact && "lg:sr-only")}>{label}</span>
