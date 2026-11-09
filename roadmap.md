@@ -4,6 +4,8 @@
 - [x] Read-only diagnosis: live MCP repeatedly returned 401 invalid_token before list_leads/query_leads executed; OAuth discovery, signing keys, account grant, tenant RLS and data reads passed.
 - [x] Verified Prashant (not Preshant) through base-lead and inbox reads, one message and no bookings; 53 focused tests passed without mutations or SMS.
 - [~] External ChatGPT tool verification waits for the owner to reconnect BookedSecure in ChatGPT and retry the read-only test; no production code or security change is currently indicated.
+- [x] 9 Nov retry: still 401 invalid_token on every call; no live ChatGPT sign-in session exists and no new approval since 23 Oct, so ChatGPT never actually re-signed in. Approval flow verified reachable.
+- [ ] Save Prashant's 9 Nov internal note (no booking) after reconnect or on owner request.
 
 
 ## Faster installed app
