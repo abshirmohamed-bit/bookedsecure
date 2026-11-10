@@ -187,6 +187,31 @@ function Shot({
   );
 }
 
+/** A real phone-size screenshot (390px wide, captured at 2x) in a simple phone frame. */
+function PhoneShot({
+  src,
+  height,
+  alt,
+  className,
+  screenClassName,
+}: {
+  src: string;
+  height: number;
+  alt: string;
+  className?: string;
+  /** Extra classes for the screen, e.g. a max height to show only the top of a long page. */
+  screenClassName?: string;
+}) {
+  return (
+    <div className={cn("mx-auto w-full max-w-[260px] rounded-[2.4rem] border border-white/80 bg-white/50 p-2 shadow-[inset_0_1px_0_white,0_40px_80px_-30px_oklch(0.25_0.11_258/0.6)] backdrop-blur-xl", className)}>
+      <div className={cn("relative overflow-hidden rounded-[1.9rem] border border-foreground/10 bg-white", screenClassName)}>
+        <span className="absolute left-1/2 top-2 z-10 h-1.5 w-14 -translate-x-1/2 rounded-full bg-foreground/15" aria-hidden />
+        <img src={src} width={800} height={height} loading="lazy" alt={alt} className="block h-auto w-full" />
+      </div>
+    </div>
+  );
+}
+
 function SourceChips() {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -375,18 +400,35 @@ export function HomeLanding() {
               </li>
             ))}
           </ol>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)]">
+            <Glass className="flex flex-col p-5 sm:p-6">
+              <p className="text-sm font-semibold text-primary">What your customer sees</p>
+              <p className="mt-1.5 text-sm leading-6 text-muted-foreground">Your own quote page, with your services and prices, on their phone.</p>
+              <PhoneShot className="mt-5" screenClassName="max-h-[21rem]" src="/landing/phone-quote.webp" height={1731} alt="A business's BookedSecure quote page on a phone: a welcome message, service packages with prices and times, and a message box" />
+            </Glass>
+            <Glass className="flex flex-col p-5 sm:p-6">
+              <p className="text-sm font-semibold text-primary">What you see</p>
+              <p className="mt-1.5 text-sm leading-6 text-muted-foreground">Confirmed jobs land in your bookings calendar, next to everything else that's coming up.</p>
+              <div className="mt-5 flex flex-1 items-center">
+                <Shot src="/landing/step-bookings.webp" width={1600} height={549} alt="The BookedSecure bookings calendar for November with booked jobs, customer names blurred" />
+              </div>
+            </Glass>
+          </div>
         </section>
 
         {/* Who it's for */}
         <section id="who" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-16 sm:px-6 sm:py-24">
-          <Glass className="grid gap-8 p-6 sm:p-10 lg:grid-cols-[1fr_1.3fr] lg:gap-12">
+          <Glass className="grid gap-8 p-6 sm:p-10 md:grid-cols-[minmax(0,1fr)_15rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_15rem] lg:gap-12">
             <div>
               <p className="text-sm font-semibold text-primary">Who it's for</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-[-0.025em] sm:text-[40px]">Built for service businesses.</h2>
               <p className="mt-4 leading-7 text-muted-foreground">
                 Australian businesses that get enquiries from websites, social media, Google, quote forms, phone calls and referrals.
               </p>
+              <p className="mt-4 leading-7 text-muted-foreground">Out on a job? BookedSecure works on your phone, so you can see who's waiting and reply between jobs.</p>
             </div>
+            <PhoneShot className="md:row-span-2 lg:order-last lg:row-span-1" src="/landing/phone-home.webp" height={1700} alt="BookedSecure Home on a phone: what needs you today, the last 7 days and the latest leads, names blurred" />
             <ul className="grid gap-2.5 sm:grid-cols-2">
               {AUDIENCE.map((item) => (
                 <li key={item} className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/60 px-4 py-3.5 text-sm font-medium shadow-[inset_0_1px_0_white]">
