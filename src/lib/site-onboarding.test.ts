@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOnboardingProposal,
+  keepItemsOnPage,
+  phoneOnPage,
   isSameService,
   markExistingServices,
   normaliseAuContactNumber,
@@ -133,5 +135,80 @@ describe("service duplicate matching", () => {
       "Motorcycle Ceramic Coating",
     ]);
     expect(marked.services.filter((service) => service.alreadyHave)).toHaveLength(3);
+  });
+});
+
+describe("software and subscription sites", () => {
+  const page = `GuardFlow PRICING Run your security operation, from A$350/mo. Starter Core operations for small security teams. A$ 350 /mo
+    Growth Compliance automation + payroll for growing operations. A$ 700 /mo Scale Unlimited AI + enterprise compliance. A$ 1,000 /mo
+    AI scheduling, GPS patrol tracking, NSW SLED auto-verification and integrated payroll.`;
+
+  it("drops plans and prices the page never shows", () => {
+    const kept = keepItemsOnPage(
+      [
+        { name: "Starter", price: "A$350/mo" },
+        { name: "Scale", price: "A$1,000/mo" },
+        { name: "Starter Plan", price: "$99 per month" },
+        { name: "Growth Plan", price: "$249 per month" },
+      ],
+      page,
+    );
+    expect(kept.map((item) => item.name)).toEqual(["Starter", "Scale"]);
+  });
+
+  it("proposes the plans, not the features, the headline price or the business name", () => {
+    const proposal = buildOnboardingProposal(
+      {
+        businessName: "GuardFlow",
+        services: [
+          { name: "GuardFlow", price: "From A$350/mo", group: "Pricing" },
+          { name: "AI Scheduling", kind: "feature", price: "From A$350/mo", group: "Pricing" },
+          { name: "GPS Patrol Tracking", price: "From A$350/mo", group: "Pricing" },
+          { name: "NSW SLED Auto-verification", price: "From A$350/mo", group: "Pricing" },
+          { name: "Integrated Payroll", price: "From A$350/mo", group: "Pricing" },
+          { name: "Starter", kind: "plan", price: "A$350/mo", description: "Core operations for small security teams.", group: "Pricing" },
+          { name: "Growth", kind: "plan", price: "A$700/mo", group: "Plans and pricing" },
+          { name: "Scale", kind: "plan", price: "A$1,000/mo", group: "Product" },
+          { name: "Starter Plan", kind: "plan", price: "A$350/mo" },
+          { name: "GuardFlow - Pricing Plan", price: "From A$350/mo" },
+          { name: "Product - From A$350/mo", price: "From A$350/mo" },
+        ],
+      },
+      "https://guardflow.com.au/",
+    );
+    const byName = new Map(proposal.services.map((service) => [service.name, service]));
+    expect(byName.has("GuardFlow")).toBe(false);
+    expect(byName.has("AI Scheduling")).toBe(false);
+    expect(byName.has("GuardFlow - Pricing Plan")).toBe(false);
+    expect(byName.has("Product - From A$350/mo")).toBe(false);
+    expect(byName.has("Starter Plan")).toBe(false);
+    expect(byName.get("Starter")).toMatchObject({ price_guidance: "A$350/mo", billing: "recurring", duration_stated: false, category: null });
+    expect(byName.get("Scale")?.category).toBeNull();
+    // Unlabelled feature rows lose the page-wide headline price instead of showing it as their own.
+    expect(byName.get("GPS Patrol Tracking")?.price_guidance).toBeNull();
+    expect(proposal.warnings).toContain("The site doesn't list opening hours, so set your availability yourself.");
+  });
+
+  it("still reads a detailing price list the same way", () => {
+    const proposal = buildOnboardingProposal(
+      {
+        businessName: "Shine Detailing",
+        openingHours: "Mon-Fri 8am-5pm",
+        services: [
+          { name: "Interior Detail", price: "$180", durationMinutes: 120, group: "Interior" },
+          { name: "Full Detail", price: "from $280", group: "Packages" },
+        ],
+      },
+      "https://example.com.au/",
+    );
+    expect(proposal.services).toEqual([
+      expect.objectContaining({ name: "Interior Detail", price_guidance: "$180", duration_minutes: 120, duration_stated: true, billing: "once", category: "Interior" }),
+      expect.objectContaining({ name: "Full Detail", price_guidance: "from $280", duration_stated: false, category: "Packages" }),
+    ]);
+  });
+
+  it("only keeps a phone number that is written on the page", () => {
+    expect(phoneOnPage("0412 345 678", "Call us on 0412 345 678")).toBe(true);
+    expect(phoneOnPage("0412 345 678", "Email support@example.com")).toBe(false);
   });
 });

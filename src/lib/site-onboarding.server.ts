@@ -14,7 +14,9 @@ import { copyServiceImageFromUrl } from "@/lib/service-images.server";
 import { resolveRemoteImageUrl } from "@/lib/service-images";
 import {
   buildOnboardingProposal,
+  keepItemsOnPage,
   markExistingServices,
+  phoneOnPage,
   serviceMatchKey,
   isSameService,
   normaliseSiteUrl,
@@ -28,6 +30,13 @@ const MAX_SERVICE_PAGES = 10;
 
 const EXTRACTION_PROMPT = [
   "Read this business website and extract only what the page actually states.",
+  "The business may be a local service business or a software/subscription company.",
+  "Services are the things a customer pays for: services, packages, products, subscription plans or tiers.",
+  "Mark each with kind: 'service' (a job or appointment), 'package', or 'plan' (a subscription or tier billed per week/month/year).",
+  "A feature, benefit, capability or app screen that is not sold on its own is kind 'feature'. Never give a feature a price,",
+  "and never copy a page-wide headline price (for example 'From $350/mo' in a hero banner) onto individual items.",
+  "For a plan, write its price with its billing period exactly as shown (for example 'A$700/mo') and use the plan's tagline as the description.",
+  "Never list the business's own name, the product name on its own, or a whole page as a service.",
   "Return the trading name, the suburb/city, the areas or suburbs served, the public contact phone number,",
   "the opening hours exactly as written, and the list of services offered.",
   "For each service include its name, its price exactly as written on the page (including any 'from'),",
@@ -60,6 +69,7 @@ const EXTRACTION_SCHEMA = {
         type: "object",
         properties: {
           name: { type: "string" },
+          kind: { type: "string", enum: ["service", "package", "plan", "feature"] },
           group: { type: "string" },
           price: { type: "string" },
           description: { type: "string" },
@@ -92,6 +102,8 @@ function requireOwnerRole(app: AppContext): void {
 
 type FirecrawlScrape = {
   json?: unknown;
+  /** The page as text, used to check the reader didn't invent anything. */
+  markdown?: string | null;
   branding?: { logo?: string | null; images?: { logo?: string | null } | null } | null;
   metadata?: { title?: string | null } | null;
   data?: FirecrawlScrape;
@@ -248,7 +260,7 @@ async function scrapePage(
     url,
     onlyMainContent: false,
     actions,
-    formats: options.withBranding === false ? [json] : ["branding", json],
+    formats: options.withBranding === false ? ["markdown", json] : ["branding", "markdown", json],
   });
   let response: Response | null = null;
   for (let attempt = 0; attempt < MAX_SCRAPE_ATTEMPTS; attempt++) {
@@ -329,12 +341,24 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
 
   const payload = root.payload;
   const extracted = root.extracted;
-  const services = mergeScrapedItems(
-    allPages.map((result) => withAbsoluteImages(result.extracted["services"], result.url)),
-  );
-  const addons = mergeScrapedItems(
-    allPages.map((result) => withAbsoluteImages(result.extracted["addons"], result.url)),
-  );
+  // Each page's items are checked against that page's own text, so a plan or
+  // price the reader invented never reaches the owner.
+  const pageText = (result: ScrapeResult) => (typeof result.payload.markdown === "string" ? result.payload.markdown : null);
+  let dropped = 0;
+  const verified = <T extends { name?: string | null; price?: string | null; imageUrl?: string | null }>(
+    result: ScrapeResult,
+    key: "services" | "addons",
+  ): T[] | null => {
+    const items = withAbsoluteImages<T>(result.extracted[key], result.url);
+    if (!items) return null;
+    const kept = keepItemsOnPage(items, pageText(result));
+    dropped += items.length - kept.length;
+    return kept;
+  };
+  const services = mergeScrapedItems(allPages.map((result) => verified(result, "services")));
+  const addons = mergeScrapedItems(allPages.map((result) => verified(result, "addons")));
+  if (dropped > 0) console.warn(`[site-onboarding] dropped ${dropped} item(s) not found on the page`);
+  const allText = allPages.map(pageText).filter(Boolean).join("\n");
 
   if (!payload) {
     throw new Error(
@@ -350,7 +374,9 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
       (extracted["businessName"] as string | undefined) ?? payload.metadata?.title ?? null,
     suburb: (extracted["suburb"] as string | undefined) ?? null,
     serviceArea: (extracted["serviceArea"] as string | undefined) ?? null,
-    phone: (extracted["phone"] as string | undefined) ?? null,
+    phone: phoneOnPage(extracted["phone"] as string | undefined, allText || null)
+      ? ((extracted["phone"] as string | undefined) ?? null)
+      : null,
     openingHours: (extracted["openingHours"] as string | undefined) ?? null,
     logoUrl: branding?.logo ?? branding?.images?.logo ?? null,
     services,

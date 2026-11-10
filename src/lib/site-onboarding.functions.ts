@@ -27,6 +27,8 @@ const ProposalSchema = z.object({
         description: z.string().max(600).nullable(),
         price_guidance: z.string().max(200).nullable(),
         duration_minutes: z.number().int().min(15).max(1440),
+        duration_stated: z.boolean().optional(),
+        billing: z.enum(["once", "recurring"]).optional(),
         image_url: z.string().url().max(2048).nullable().default(null),
         alreadyHave: z.boolean(),
       }),

@@ -18,6 +18,12 @@ export const DEFAULT_SERVICE_DURATION_MINUTES = 60;
 
 export type ScrapedService = {
   name?: string | null;
+  /**
+   * What the reader says this item is: something customers buy ("service",
+   * "package", "plan") or just a product feature/benefit ("feature"), which is
+   * never proposed as a service.
+   */
+  kind?: string | null;
   /** The heading the site lists this service under ("Interior", "Paint", …). */
   group?: string | null;
   price?: string | null;
@@ -58,6 +64,10 @@ export type ProposedService = {
   description: string | null;
   price_guidance: string | null;
   duration_minutes: number;
+  /** True only when the site itself stated how long it takes (otherwise the length is a default). */
+  duration_stated?: boolean | undefined;
+  /** "recurring" for subscriptions and plans billed per week/month/year. */
+  billing?: "once" | "recurring" | undefined;
   /** Picture found on the tenant's site for this service (copied on save), or null. */
   image_url: string | null;
   /** True when the tenant already has this service, so it will be left alone. */
@@ -297,6 +307,9 @@ export function parseOpeningHours(input: string | null | undefined): Availabilit
 const SERVICE_FILLER_WORDS = new Set([
   "a",
   "and",
+  "plan",
+  "plans",
+  "tier",
   "complete",
   "detail",
   "detailing",
@@ -357,6 +370,77 @@ export function markExistingServices(
 
 const ADDON_WORDS = ["add on", "addon", "add-on", "extra", "upgrade", "optional", "additional"];
 
+/** Section headings that say nothing about the service ("Pricing", "Our services"), so they don't become groups. */
+const GENERIC_GROUPS = new Set([
+  "pricing",
+  "prices",
+  "price",
+  "price list",
+  "pricing plans",
+  "plans",
+  "plans and pricing",
+  "pricing and plans",
+  "product",
+  "products",
+  "services",
+  "our services",
+  "our pricing",
+  "our plans",
+]);
+
+function serviceGroup(value: unknown): string | null {
+  const label = normaliseGroupLabel(value);
+  if (!label) return null;
+  const key = label.toLowerCase().replace(/&/g, " and ").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+  return GENERIC_GROUPS.has(key) ? null : label;
+}
+
+/** True when a price is charged per week, month or year (a subscription or plan). */
+export function isRecurringPrice(price: string | null | undefined): boolean {
+  if (!price) return false;
+  return /\/\s?(?:mo|mth|month|wk|week|yr|year|annum)\b|\bper\s+(?:month|week|year|annum|mo)\b|\b(?:monthly|weekly|fortnightly|yearly|annually)\b/i.test(price);
+}
+
+/** Every number written in a block of text, commas removed ("A$1,000/mo" gives "1000"). */
+function numbersIn(value: string): Set<string> {
+  return new Set((value.match(/\d[\d,]*(?:\.\d+)?/g) ?? []).map((n) => n.replace(/,/g, "").replace(/\.0+$/, "")));
+}
+
+/**
+ * Keeps only items the page really shows. The website reader is an AI and can
+ * invent a plausible plan or price; an item survives only when every amount in
+ * its price and at least one meaningful word of its name appear in the text of
+ * the page it was read from. With no page text, everything is kept.
+ */
+export function keepItemsOnPage<T extends { name?: string | null; price?: string | null }>(
+  items: readonly T[] | null | undefined,
+  pageText: string | null | undefined,
+): T[] {
+  if (!Array.isArray(items)) return [];
+  if (!pageText || pageText.trim().length < 40) return [...items];
+  const lower = pageText.toLowerCase();
+  const numbers = numbersIn(pageText);
+  return items.filter((item) => {
+    if (!item || typeof item !== "object") return false;
+    const amounts = [...numbersIn(item.price ?? "")];
+    if (amounts.some((amount) => !numbers.has(amount))) return false;
+    const words: string[] = String(item.name ?? "")
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .split(/\s+/)
+      .filter((word: string) => word.length >= 3 && !SERVICE_FILLER_WORDS.has(word));
+    return words.length === 0 || words.some((word: string) => lower.includes(word));
+  });
+}
+
+/** True when the phone number the reader returned is actually written on the page. */
+export function phoneOnPage(phone: string | null | undefined, pageText: string | null | undefined): boolean {
+  if (!phone) return false;
+  if (!pageText) return true;
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 6 && pageText.replace(/\D/g, "").includes(digits.slice(-8));
+}
+
 /**
  * True when a listed item reads like an extra rather than a standalone service:
  * the site labels it as an add-on/extra/upgrade, or prices it as a top-up
@@ -374,28 +458,58 @@ export function looksLikeAddon(entry: {
   return price.startsWith("+");
 }
 
-function proposeServices(raw: ScrapedService[] | null | undefined): ProposedService[] {
+/** Meaningful words of the business's own name, so "GuardFlow - Pricing Plan" is not proposed as a service. */
+function businessWords(businessName: string | null | undefined): Set<string> {
+  return new Set(serviceMatchKey(businessName ?? "").split(" ").filter((word) => word.length >= 3));
+}
+
+const NAME_NOISE = new Set(["product", "products", "pricing", "price", "prices", "from", "mo", "month", "a"]);
+
+/**
+ * True when a name says nothing beyond the business's own name, a price or a
+ * generic word ("GuardFlow", "Product - From A$350/mo"), so it isn't a service.
+ */
+function isJustTheBusinessName(name: string, words: Set<string>): boolean {
+  const all = serviceMatchKey(name).split(" ").filter(Boolean);
+  if (all.length === 0) return false;
+  return all.every((word) => words.has(word) || NAME_NOISE.has(word) || /^\d/.test(word));
+}
+
+function proposeServices(raw: ScrapedService[] | null | undefined, businessName?: string | null): ProposedService[] {
   if (!Array.isArray(raw)) return [];
+  const own = businessWords(businessName);
+  const kept = raw.filter(
+    (entry): entry is ScrapedService => Boolean(entry) && typeof entry === "object" && entry.kind !== "feature",
+  );
+  // A "from" price repeated on three or more items is the page's headline
+  // price, not what each of them costs, so it is not copied onto them.
+  const priceCounts = new Map<string, number>();
+  for (const entry of kept) {
+    const price = normalisePriceGuidance(entry.price);
+    if (price && /^\s*from\b/i.test(price)) priceCounts.set(price, (priceCounts.get(price) ?? 0) + 1);
+  }
   const services: ProposedService[] = [];
   const names = new Set<string>();
-  for (const entry of raw) {
-    if (!entry || typeof entry !== "object") continue;
+  for (const entry of kept) {
     const name = text(entry.name, 80);
     if (!name || name.length < 2) continue;
+    if (isJustTheBusinessName(name, own)) continue;
     const key = serviceMatchKey(name);
     if (names.has(key)) continue;
     names.add(key);
 
     const duration = Number(entry.durationMinutes);
+    const stated = Number.isInteger(duration) && duration >= 15 && duration <= 1440;
+    const rawPrice = normalisePriceGuidance(entry.price);
+    const price = rawPrice && (priceCounts.get(rawPrice) ?? 0) >= 3 ? null : rawPrice;
     services.push({
       name,
-      category: normaliseGroupLabel(entry.group),
+      category: serviceGroup(entry.group),
       description: text(entry.description, 600),
-      price_guidance: normalisePriceGuidance(entry.price),
-      duration_minutes:
-        Number.isInteger(duration) && duration >= 15 && duration <= 1440
-          ? duration
-          : DEFAULT_SERVICE_DURATION_MINUTES,
+      price_guidance: price,
+      duration_minutes: stated ? duration : DEFAULT_SERVICE_DURATION_MINUTES,
+      duration_stated: stated,
+      billing: isRecurringPrice(price) || entry.kind === "plan" ? "recurring" : "once",
       image_url: imageAddress(entry.imageUrl),
       alreadyHave: false,
     });
@@ -524,7 +638,7 @@ export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): O
       appliesTo: null,
     }));
 
-  const services = proposeServices(listedServices);
+  const services = proposeServices(listedServices, site.businessName);
   const rawAddons = proposeAddons(
     [...(Array.isArray(site.addons) ? site.addons : []), ...listedAsAddons],
     services,
@@ -545,7 +659,11 @@ export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): O
   else if (services.every((service) => !service.price_guidance))
     warnings.push("The site lists services but no prices, so prices are left blank.");
   if (weeklyWindows.length === 0)
-    warnings.push("Opening hours could not be read as bookable times, so set your availability manually.");
+    warnings.push(
+      openingHours
+        ? "Opening hours could not be read as bookable times, so set your availability manually."
+        : "The site doesn't list opening hours, so set your availability yourself.",
+    );
   if (!phone && site.phone) warnings.push("The phone number on the site did not look like an Australian number.");
   if (!logoUrl) warnings.push("No logo image was found.");
 
