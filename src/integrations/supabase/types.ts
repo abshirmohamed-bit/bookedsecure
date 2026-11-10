@@ -5200,6 +5200,59 @@ export type Database = {
           },
         ]
       }
+      youtube_accounts: {
+        Row: {
+          access_token_ciphertext: string | null
+          access_token_expires_at: string | null
+          business_id: string
+          channel_handle: string | null
+          channel_id: string
+          channel_thumbnail: string | null
+          channel_title: string | null
+          connected_at: string
+          connected_by: string | null
+          refresh_token_ciphertext: string
+          scopes: string[]
+          updated_at: string
+        }
+        Insert: {
+          access_token_ciphertext?: string | null
+          access_token_expires_at?: string | null
+          business_id: string
+          channel_handle?: string | null
+          channel_id: string
+          channel_thumbnail?: string | null
+          channel_title?: string | null
+          connected_at?: string
+          connected_by?: string | null
+          refresh_token_ciphertext: string
+          scopes?: string[]
+          updated_at?: string
+        }
+        Update: {
+          access_token_ciphertext?: string | null
+          access_token_expires_at?: string | null
+          business_id?: string
+          channel_handle?: string | null
+          channel_id?: string
+          channel_thumbnail?: string | null
+          channel_title?: string | null
+          connected_at?: string
+          connected_by?: string | null
+          refresh_token_ciphertext?: string
+          scopes?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "youtube_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       lead_inbox_rows: {
