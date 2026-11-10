@@ -26,7 +26,7 @@ describe("notification feed", () => {
     expect(feed).toHaveLength(2);
     expect(feed[0]).toMatchObject({ title: "imabshir", count: 3, countLabel: "3 new", action: "Reply" });
     expect(feed[0]!.preview.at(-1)).toContain("instagram.com");
-    expect(feed[0]!.link).toEqual({ to: "/social", search: { view: "messages" } });
+    expect(feed[0]!.link).toEqual({ to: "/social", search: { view: "messages", platform: "instagram" } });
     expect(unreadGroupCount(rows)).toBe(2);
   });
 

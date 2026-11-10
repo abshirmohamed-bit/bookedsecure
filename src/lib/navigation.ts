@@ -72,7 +72,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: "Inbox",
     items: [
       { to: "/leads", label: "Leads", icon: "leads", badge: "leads", contextPaths: ["/import"] },
-      { to: "/social", label: "Facebook and Instagram", icon: "social", badge: "social" },
+      { to: "/social", label: "Social media", icon: "social", badge: "social", contextPaths: ["/linkedin"] },
       { to: "/unfinished", label: "Unfinished quotes", icon: "unfinished" },
     ],
   },
@@ -82,7 +82,6 @@ export const NAV_SECTIONS: readonly NavSection[] = [
       { to: "/bookings", label: "Bookings", icon: "bookings" },
       { to: "/campaigns", label: "Campaigns", icon: "campaigns", excludePaths: ["/campaigns/replies"] },
       { to: "/campaigns/replies", label: "Replies", icon: "replies", badge: "campaigns", sub: true },
-      { to: "/linkedin", label: "LinkedIn posts", icon: "linkedin" },
       { to: "/analytics", label: "Results", icon: "results" },
     ],
   },

@@ -14,7 +14,7 @@ import { z } from 'zod';
 export const DEFAULT_GRAPH_VERSION = 'v27.0';
 export const META_CALLBACK_PATH = '/api/public/meta/oauth/callback';
 /** Requested when no Login for Business configuration id is set. */
-export const META_SCOPES = ['leads_retrieval', 'pages_show_list', 'pages_read_engagement', 'pages_manage_metadata', 'pages_manage_ads', 'pages_messaging', 'business_management', 'ads_read', 'ads_management'] as const;
+export const META_SCOPES = ['leads_retrieval', 'pages_show_list', 'pages_read_engagement', 'pages_manage_metadata', 'pages_manage_ads', 'pages_messaging', 'business_management', 'ads_read', 'ads_management', 'pages_manage_posts', 'instagram_basic', 'instagram_content_publish'] as const;
 
 export type MetaAppConfig = { appId?: string | undefined; appSecret?: string | undefined; configId?: string | undefined; version: string; appUrl: string };
 

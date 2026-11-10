@@ -60,7 +60,7 @@ export function kindsForFeedFilter(filter: FeedFilter): string[] | null {
 
 export type FeedLink =
   | { to: "/leads/$leadId"; params: { leadId: string } }
-  | { to: "/social"; search: { view: "comments" | "messages" } }
+  | { to: "/social"; search: { view: "comments" | "messages"; platform?: "facebook" | "instagram" } }
   | { to: "/campaigns/replies"; search: { thread?: string } }
   | { to: "/bookings" }
   | { to: "/settings/billing" }
@@ -178,7 +178,7 @@ function describe(rows: FeedRow[]): Omit<FeedGroup, "key" | "ids" | "unreadIds" 
       subtitle: `${platformName(platform)} message${n > 1 ? "s" : ""}`,
       preview: rows.slice(0, 2).map((r) => splitAuthor(r.body)[1]).reverse(),
       countLabel: n > 1 ? `${unread > 1 ? unread : n} ${unread > 1 ? "new" : "messages"}` : null,
-      link: { to: "/social", search: { view: "messages" } },
+      link: { to: "/social", search: { view: "messages", ...(platform === "facebook" || platform === "instagram" ? { platform } : {}) } },
       action: "Reply",
     };
   }
@@ -192,7 +192,7 @@ function describe(rows: FeedRow[]): Omit<FeedGroup, "key" | "ids" | "unreadIds" 
         return author ? `${author}: ${text}` : text;
       }),
       countLabel: null,
-      link: { to: "/social", search: { view: "comments" } },
+      link: { to: "/social", search: { view: "comments", ...(platform === "facebook" || platform === "instagram" ? { platform } : {}) } },
       action: n > 1 ? "Review all" : "Review",
     };
   }

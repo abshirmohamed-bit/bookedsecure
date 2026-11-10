@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, Building2, ExternalLink, Globe, Linkedin, Loader2, Plus, Send, Sparkles, Unplug, User, Wand2 } from "lucide-react";
 import { toast } from "sonner";
-import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -14,23 +13,24 @@ import { LINKEDIN_POST_MAX } from "@/lib/linkedin";
 import { disconnectLinkedInAccount, finishLinkedInVideo, getLinkedIn, postToLinkedIn, setLinkedInAuthor, startLinkedInConnect, startLinkedInMediaUpload, startLinkedInPagesConnect, writeLinkedInPost } from "@/lib/linkedin.functions";
 import { AttachmentPicker, MediaPreview, uploadAttachments, type Attachment } from "@/components/linkedin/LinkedInAttachments";
 
-type Search = { linkedin?: string; why?: string };
+export type Search = { linkedin?: string; why?: string };
 
+// LinkedIn now lives in Social media. This address stays for LinkedIn's sign-in return and old links.
 export const Route = createFileRoute("/linkedin")({
-  head: () => ({ meta: [{ title: "LinkedIn posts | BookedSecure" }] }),
   validateSearch: (search: Record<string, unknown>): Search => ({
     ...(typeof search["linkedin"] === "string" ? { linkedin: search["linkedin"].slice(0, 20) } : {}),
     ...(typeof search["why"] === "string" ? { why: search["why"].slice(0, 60) } : {}),
   }),
-  component: LinkedInPage,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/social", search: { platform: "linkedin", ...search } });
+  },
 });
 
 const CHIPS = ["Share a recent job", "A helpful tip", "Seasonal reminder", "Thank our customers", "Ask for referrals", "Keep it short"];
 
-function LinkedInPage() {
+/** LinkedIn posting, shown inside the Social media page. `search` carries LinkedIn's sign-in result. */
+export function LinkedInWorkspace({ search, clearSearch }: { search: Search; clearSearch: () => void }) {
   const qc = useQueryClient();
-  const navigate = useNavigate();
-  const search = Route.useSearch();
   const load = useServerFn(getLinkedIn);
   const q = useQuery({ queryKey: ["linkedin"], queryFn: () => load() });
 
@@ -42,8 +42,8 @@ function LinkedInPage() {
     else if (search.linkedin === "expired") toast.error("That sign-in link expired. Please connect again.");
     else toast.error(`LinkedIn couldn't be connected${search.why ? ` (${search.why})` : ""}. Please try again.`);
     void qc.invalidateQueries({ queryKey: ["linkedin"] });
-    void navigate({ to: "/linkedin", search: {}, replace: true });
-  }, [search.linkedin, search.why, navigate, qc]);
+    clearSearch();
+  }, [search.linkedin, search.why, clearSearch, qc]);
 
   const start = useServerFn(startLinkedInConnect);
   const connect = useMutation({
@@ -54,15 +54,12 @@ function LinkedInPage() {
 
   const d = q.data;
   return (
-    <AppShell title="LinkedIn posts">
-      <div className="mx-auto max-w-6xl space-y-4 md:p-6">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">LinkedIn posts</h1>
-            <p className="text-sm text-muted-foreground">Write a post, or let AI draft it, and publish it to LinkedIn from here.</p>
+    <div className="space-y-4">
+        {d?.connected && (
+          <div className="flex justify-end">
+            <ConnectionChip data={d} onReconnect={() => connect.mutate()} reconnecting={connect.isPending} />
           </div>
-          {d?.connected && <ConnectionChip data={d} onReconnect={() => connect.mutate()} reconnecting={connect.isPending} />}
-        </header>
+        )}
 
         {q.isLoading ? (
           <div className="glass h-72 animate-pulse" />
@@ -85,8 +82,7 @@ function LinkedInPage() {
         )}
 
         {d && d.posts.length > 0 && <PostHistory posts={d.posts} />}
-      </div>
-    </AppShell>
+    </div>
   );
 }
 

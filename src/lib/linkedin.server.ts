@@ -351,9 +351,16 @@ export type LinkedInPost = {
 };
 
 export async function listLinkedInPosts(businessId: string, limit = 30): Promise<LinkedInPost[]> {
-  const { data, error } = await db().from("linkedin_posts")
-    .select("id, author_urn, author_name, body_text, status, post_urn, error, source, created_at, published_at")
-    .eq("business_id", businessId).order("created_at", { ascending: false }).limit(Math.min(Math.max(limit, 1), 100));
+  const query = (withPlatform: boolean) => {
+    let q = db().from("linkedin_posts")
+      .select("id, author_urn, author_name, body_text, status, post_urn, error, source, created_at, published_at")
+      .eq("business_id", businessId);
+    if (withPlatform) q = q.eq("platform", "linkedin");
+    return q.order("created_at", { ascending: false }).limit(Math.min(Math.max(limit, 1), 100));
+  };
+  let { data, error } = await query(true);
+  // Before docs/social-posts.sql there is no platform column and every row is LinkedIn.
+  if (error && (error.code === "42703" || error.code === "PGRST204")) ({ data, error } = await query(false));
   if (error) {
     if (missingTable(error.code)) return [];
     throw new Error("Could not load your LinkedIn posts.");
@@ -648,7 +655,15 @@ async function waitUntilReady(kind: "video" | "document", urn: string, token: st
 // ----- AI writing -----
 
 /** AI writes a LinkedIn post from the owner's brief. Nothing is posted or saved. */
-export async function draftLinkedInPost(input: { businessId: string; brief: string; chips?: string[] }): Promise<{ text: string }> {
+export type PostPlatform = "linkedin" | "facebook" | "instagram";
+const PLATFORM_STYLE: Record<PostPlatform, { name: string; style: string }> = {
+  linkedin: { name: "LinkedIn", style: "Write one post of 60 to 180 words: a strong first line, short paragraphs, plain text, Australian English, warm and professional." },
+  facebook: { name: "Facebook", style: "Write one Facebook Page post of 40 to 120 words: friendly and local, a clear first line, short paragraphs, plain text, Australian English." },
+  instagram: { name: "Instagram", style: "Write one Instagram caption of 30 to 100 words: a hook in the first line, short lines, plain text, Australian English. Put up to six relevant hashtags on the last line." },
+};
+
+export async function draftLinkedInPost(input: { businessId: string; brief: string; chips?: string[]; platform?: PostPlatform }): Promise<{ text: string }> {
+  const platform = PLATFORM_STYLE[input.platform ?? "linkedin"];
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("The AI service is not configured.");
   const { checkAiCap, recordAiUsage } = await import("./usage.server");
@@ -660,9 +675,9 @@ export async function draftLinkedInPost(input: { businessId: string; brief: stri
   const { withAiBackup } = await import("./tenant-ai.server");
   const { ANALYSIS_MODEL } = await import("./ai.server");
   const system = [
-    `You write LinkedIn posts for ${facts.name}.`,
+    `You write ${platform.name} posts for ${facts.name}.`,
     FACTS_ONLY_RULES,
-    "Write one post of 60 to 180 words: a strong first line, short paragraphs, plain text, Australian English, warm and professional.",
+    platform.style,
     "End with a simple call to action. Add at most three relevant hashtags on the last line.",
     "Never invent prices, discounts, dates, results, awards or customer names the owner did not give. No placeholders or brackets. No emojis unless asked.",
     "Only use a suggested angle (for example a seasonal reminder) if it fits what this business actually does.",
@@ -690,7 +705,7 @@ export async function draftLinkedInPost(input: { businessId: string; brief: stri
       return { text: await r.text, input: u?.inputTokens ?? 0, output: u?.outputTokens ?? 0 };
     },
   });
-  await recordAiUsage({ businessId: input.businessId, purpose: "linkedin_post_draft", model: ANALYSIS_MODEL, inputTokens: result.input, outputTokens: result.output }).catch(() => undefined);
+  await recordAiUsage({ businessId: input.businessId, purpose: `${input.platform ?? "linkedin"}_post_draft`, model: ANALYSIS_MODEL, inputTokens: result.input, outputTokens: result.output }).catch(() => undefined);
   const text = result.text.trim().replace(/^["']|["']$/g, "").slice(0, 3000);
   if (!text) throw new Error("The AI didn't return a post. Please try again.");
   return { text };
@@ -708,10 +723,32 @@ export function linkedInConfirmationCode(businessId: string, authorUrn: string, 
 }
 
 export const linkedInActions = {
-  status: (businessId: string) => linkedInStatus(businessId),
-  posts: (businessId: string, limit?: number) => listLinkedInPosts(businessId, limit),
-  write: (businessId: string, brief: string) => draftLinkedInPost({ businessId, brief }),
-  async preview(businessId: string, input: { text: string; authorUrn?: string | null }) {
+  async status(businessId: string) {
+    const { metaPostingStatus } = await import("./meta-publish.server");
+    const [linkedin, meta] = await Promise.all([linkedInStatus(businessId), metaPostingStatus(businessId)]);
+    return { ...linkedin, facebook: { connected: meta.connected, page: meta.pageName }, instagram: { connected: Boolean(meta.instagram), account: meta.instagram?.username ?? null } };
+  },
+  async posts(businessId: string, limit?: number, platform: PostPlatform = "linkedin") {
+    if (platform === "linkedin") return listLinkedInPosts(businessId, limit);
+    const { listMetaPosts } = await import("./meta-publish.server");
+    return listMetaPosts(businessId, platform, limit);
+  },
+  write: (businessId: string, brief: string, platform: PostPlatform = "linkedin") => draftLinkedInPost({ businessId, brief, platform }),
+  async preview(businessId: string, input: { text: string; authorUrn?: string | null; platform?: PostPlatform; imagePaths?: string[] }) {
+    if (input.platform && input.platform !== "linkedin") {
+      const { metaPostProblem, metaPostingStatus, metaConfirmationCode } = await import("./meta-publish.server");
+      const images = input.imagePaths ?? [];
+      const problem = metaPostProblem(input.platform, input.text, images.length);
+      if (problem) throw new Error(problem);
+      const meta = await metaPostingStatus(businessId);
+      if (!meta.connected) throw new Error("Facebook isn't connected. Connect it under Connections in BookedSecure first.");
+      if (input.platform === "instagram" && !meta.instagram) throw new Error("No Instagram account is linked to the connected Facebook Page.");
+      return {
+        confirmationCode: metaConfirmationCode(businessId, input.platform, input.text, images),
+        summary: { platform: input.platform, postsAs: input.platform === "instagram" ? `@${meta.instagram?.username ?? "instagram"}` : meta.pageName, text: input.text.trim(), pictures: images.length, visibility: "Public" },
+        instructions: "Show the owner exactly this post and where it goes, and ask them to confirm. Only after a clear yes, call publish with the same platform, text, imagePaths and this confirmationCode.",
+      };
+    }
     const problem = postTextProblem(input.text);
     if (problem) throw new Error(problem);
     const author = await linkedInPreviewAuthor(businessId, input.authorUrn);
@@ -722,7 +759,15 @@ export const linkedInActions = {
       instructions: "Show the owner exactly this post and who it posts as, and ask them to confirm. Only after a clear yes, call publish with the same text, authorUrn and this confirmationCode.",
     };
   },
-  async publish(businessId: string, userId: string, input: { text: string; authorUrn?: string | null; confirmationCode: string; source: "assistant" | "mcp" }) {
+  async publish(businessId: string, userId: string, input: { text: string; authorUrn?: string | null; confirmationCode: string; source: "assistant" | "mcp"; platform?: PostPlatform; imagePaths?: string[] }) {
+    if (input.platform && input.platform !== "linkedin") {
+      const { metaConfirmationCode, publishMetaPost } = await import("./meta-publish.server");
+      const images = input.imagePaths ?? [];
+      if (input.confirmationCode.trim().toUpperCase() !== metaConfirmationCode(businessId, input.platform, input.text, images)) {
+        throw new Error("That confirmation doesn't match this post. Preview it again and ask the owner to confirm.");
+      }
+      return publishMetaPost({ businessId, userId, platform: input.platform, text: input.text, imagePaths: images, source: input.source });
+    }
     const author = await linkedInPreviewAuthor(businessId, input.authorUrn);
     if (input.confirmationCode.trim().toUpperCase() !== linkedInConfirmationCode(businessId, author.urn, input.text)) {
       throw new Error("That confirmation doesn't match this post. Preview it again and ask the owner to confirm.");

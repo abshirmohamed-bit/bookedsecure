@@ -1,31 +1,107 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink, MessageCircle, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Facebook, Instagram, Linkedin, ExternalLink, MessageCircle, RefreshCw, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { LinkedInWorkspace } from "@/routes/linkedin";
+import { MetaComposer } from "@/components/social/MetaComposer";
 import { convertSocialComment, getSocialThread, listSocialComments, listSocialThreads, refreshSocialNow, reviewSocialComment, sendSocialReply, suggestSocialReply } from "@/lib/social-comments.functions";
+
+type Platform = "linkedin" | "facebook" | "instagram";
+type View = "post" | "comments" | "messages";
+type SocialSearch = { platform?: Platform; view?: View; linkedin?: string; why?: string };
 
 export const Route = createFileRoute("/social")({
   head: () => ({
     meta: [
-      { title: "Facebook and Instagram | BookedSecure" },
-      { name: "description", content: "Reply to Facebook and Instagram comments and messages from one inbox. Nothing is sent until you approve." },
-      { property: "og:title", content: "Facebook & Instagram | BookedSecure" },
-      { property: "og:description", content: "Review and approve replies to your Facebook comments in one place." },
+      { title: "Social media | BookedSecure" },
+      { name: "description", content: "Post to LinkedIn, Facebook and Instagram, and answer comments and messages, from one place. Nothing is posted or sent until you approve." },
+      { property: "og:title", content: "Social media | BookedSecure" },
+      { property: "og:description", content: "Post to LinkedIn, Facebook and Instagram and answer comments in one place." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  // ?view=messages opens the DMs tab directly (used by notifications).
-  validateSearch: (search: Record<string, unknown>): { view?: "comments" | "messages" } =>
-    search["view"] === "messages" || search["view"] === "comments" ? { view: search["view"] } : {},
-  component: SocialPage,
+  // ?view=messages opens the DMs (used by notifications); ?platform= picks the network.
+  validateSearch: (search: Record<string, unknown>): SocialSearch => ({
+    ...(search["platform"] === "linkedin" || search["platform"] === "facebook" || search["platform"] === "instagram" ? { platform: search["platform"] } : {}),
+    ...(search["view"] === "post" || search["view"] === "comments" || search["view"] === "messages" ? { view: search["view"] } : {}),
+    ...(typeof search["linkedin"] === "string" ? { linkedin: search["linkedin"].slice(0, 20) } : {}),
+    ...(typeof search["why"] === "string" ? { why: search["why"].slice(0, 60) } : {}),
+  }),
+  component: SocialMediaPage,
 });
+
+const PLATFORMS: { id: Platform; label: string; icon: typeof Linkedin; color: string }[] = [
+  { id: "facebook", label: "Facebook", icon: Facebook, color: "text-[#1877f2]" },
+  { id: "instagram", label: "Instagram", icon: Instagram, color: "text-[#d62976]" },
+  { id: "linkedin", label: "LinkedIn", icon: Linkedin, color: "text-[#0a66c2]" },
+];
+
+function SocialMediaPage() {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  // A notification about comments or messages opens the inbox, not the composer.
+  const platform: Platform = search.platform ?? "facebook";
+  const view: View = platform === "linkedin" ? "post" : search.view ?? "post";
+  const go = (next: Partial<SocialSearch>) => void navigate({ search: { platform, view, ...next }, replace: true });
+
+  return (
+    <AppShell title="Social media">
+      <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
+        <header className="space-y-3">
+          <div>
+            <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Social media</h1>
+            <p className="text-sm text-muted-foreground">Post to your pages and answer comments and messages. Nothing is posted or sent until you approve it.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div role="tablist" aria-label="Network" className="inline-flex rounded-xl border border-border bg-card p-1">
+              {PLATFORMS.map((p) => (
+                <button
+                  key={p.id}
+                  role="tab"
+                  aria-selected={platform === p.id}
+                  onClick={() => go({ platform: p.id, view: "post" })}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${platform === p.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <p.icon className={`h-4 w-4 ${platform === p.id ? "" : p.color}`} /> {p.label}
+                </button>
+              ))}
+            </div>
+            {platform !== "linkedin" && (
+              <div role="tablist" aria-label="Section" className="inline-flex rounded-xl border border-border bg-card p-1">
+                {([["post", "Post"], ["comments", "Comments"], ["messages", "Messages"]] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    role="tab"
+                    aria-selected={view === id}
+                    onClick={() => go({ view: id })}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${view === id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </header>
+
+        {platform === "linkedin" ? (
+          <LinkedInWorkspace search={{ ...(search.linkedin ? { linkedin: search.linkedin } : {}), ...(search.why ? { why: search.why } : {}) }} clearSearch={() => void navigate({ search: { platform: "linkedin" }, replace: true })} />
+        ) : view === "post" ? (
+          <MetaComposer platform={platform} />
+        ) : (
+          <SocialInbox platform={platform} view={view} />
+        )}
+      </div>
+    </AppShell>
+  );
+}
 
 type Status = "pending_review" | "approved" | "posted" | "failed" | "dismissed";
 const TABS: { status: Status; label: string }[] = [
@@ -37,12 +113,7 @@ const TABS: { status: Status; label: string }[] = [
 ];
 type Row = Awaited<ReturnType<typeof listSocialComments>>[number];
 
-function SocialPage() {
-  const search = Route.useSearch();
-  const [view, setView] = useState<"comments" | "messages">(search.view ?? "comments");
-  useEffect(() => {
-    if (search.view) setView(search.view);
-  }, [search.view]);
+function SocialInbox({ platform, view }: { platform: "facebook" | "instagram"; view: "comments" | "messages" }) {
   const [status, setStatus] = useState<Status>("pending_review");
   const qc = useQueryClient();
   const list = useServerFn(listSocialComments);
@@ -59,22 +130,14 @@ function SocialPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not refresh."),
   });
   return (
-    <AppShell title="Facebook and Instagram">
-      <div className="mx-auto max-w-3xl space-y-5 p-4 md:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold">Facebook and Instagram</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Comments and messages from your connected Facebook Page and Instagram account arrive here, usually with a suggested reply. Nothing is posted or sent until you approve it.
-            </p>
-          </div>
+    <div className="mx-auto max-w-3xl space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {view === "messages" ? "Messages" : "Comments"} from your {platform === "instagram" ? "Instagram account" : "Facebook Page"}, usually with a suggested reply.
+          </p>
           <Button size="sm" variant="outline" disabled={refreshM.isPending} onClick={() => refreshM.mutate()}><RefreshCw className="mr-2 h-4 w-4" />{refreshM.isPending ? "Checking…" : "Check now"}</Button>
         </div>
-        <div className="flex gap-2 border-b border-border pb-2">
-          <Button size="sm" variant={view === "comments" ? "default" : "ghost"} onClick={() => setView("comments")}>Comments</Button>
-          <Button size="sm" variant={view === "messages" ? "default" : "ghost"} onClick={() => setView("messages")}><MessageCircle className="mr-1 h-4 w-4" />Messages</Button>
-        </div>
-        {view === "messages" ? <MessagesView /> : <>
+        {view === "messages" ? <MessagesView platform={platform} /> : <>
           <div className="flex flex-wrap gap-2">
             {TABS.map((t) => (
               <Button key={t.status} size="sm" variant={t.status === status ? "default" : "outline"} onClick={() => setStatus(t.status)}>
@@ -89,16 +152,15 @@ function SocialPage() {
                 Nothing here yet. New comments are checked every few minutes once Facebook is connected in{" "}
                 <Link to="/settings/integrations" className="text-primary underline">Setup → Connections</Link>.
               </div>
-            ) : (q.data ?? []).map((r) => <CommentCard key={r.id} row={r} />)}
+            ) : (q.data ?? []).filter((r) => r.platform === platform).map((r) => <CommentCard key={r.id} row={r} />)}
         </>}
-      </div>
-    </AppShell>
+    </div>
   );
 }
 
 type Thread = Awaited<ReturnType<typeof listSocialThreads>>["threads"][number];
 
-function MessagesView() {
+function MessagesView({ platform }: { platform: "facebook" | "instagram" }) {
   const list = useServerFn(listSocialThreads);
   const q = useQuery({ queryKey: ["social-threads"], queryFn: () => list(), refetchInterval: 60_000 });
   const [open, setOpen] = useState<Thread | null>(null);
@@ -106,8 +168,8 @@ function MessagesView() {
   if (q.isError) return <p className="text-sm text-destructive">Could not load messages.</p>;
   if (q.data?.setupMissing) return <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">Messages are waiting for a database update (migration 0026_social_messages).</p>;
   if (open) return <ThreadView thread={open} onBack={() => setOpen(null)} />;
-  const threads = q.data?.threads ?? [];
-  if (!threads.length) return <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">No Facebook or Instagram messages yet. New messages are checked every few minutes.</p>;
+  const threads = (q.data?.threads ?? []).filter((t) => t.platform === platform);
+  if (!threads.length) return <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">No {platform === "instagram" ? "Instagram" : "Facebook"} messages yet. New messages are checked every few minutes.</p>;
   return (
     <ul className="divide-y divide-border rounded-lg border bg-card">
       {threads.map((t) => (
