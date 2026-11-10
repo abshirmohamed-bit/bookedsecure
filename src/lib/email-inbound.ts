@@ -59,6 +59,25 @@ export function recipientIdFromAddresses(addresses: (string | null | undefined)[
   return null;
 }
 
+/** BookedSecure's own domain, whose public mailboxes are forwarded to the team's inbox. */
+export const PLATFORM_DOMAIN = "bookedsecure.com";
+export const PLATFORM_MAILBOXES = ["admin", "support", "hello", "info"] as const;
+export const DEFAULT_PLATFORM_FORWARD_TO = "bookedsecure@gmail.com";
+
+/**
+ * The BookedSecure mailbox (e.g. admin@bookedsecure.com) an email was sent to,
+ * or null. Only the root domain counts; reply.bookedsecure.com is for campaign
+ * replies, and any other name is ignored.
+ */
+export function platformMailboxFrom(addresses: (string | null | undefined)[]): string | null {
+  for (const raw of addresses) {
+    const email = parseAddress(raw ?? "").email;
+    const [local, domain] = email.split("@");
+    if (domain === PLATFORM_DOMAIN && (PLATFORM_MAILBOXES as readonly string[]).includes(local ?? "")) return email;
+  }
+  return null;
+}
+
 /** "Jess Smith <jess@x.com>" → { name, email }. */
 export function parseAddress(value: string | null | undefined): { name: string | null; email: string } {
   const raw = (value ?? "").trim();

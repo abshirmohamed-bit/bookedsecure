@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { buildFeed } from "./notification-feed";
-import { htmlToText, parseAddress, recipientIdFromAddresses, replyAddressFor, replyToHeader, stripQuotedReply, verifyResendWebhook } from "./email-inbound";
+import { htmlToText, parseAddress, platformMailboxFrom, recipientIdFromAddresses, replyAddressFor, replyToHeader, stripQuotedReply, verifyResendWebhook } from "./email-inbound";
 
 const id = "0d74c6e9-43dd-4463-90d7-1d1476a29ef3";
 
@@ -70,5 +70,14 @@ describe("email reply notifications", () => {
     const [group] = buildFeed([row("Yes please", "2026-11-10T01:00:00Z"), row("Saturday?", "2026-11-10T02:00:00Z")]);
     expect(group).toMatchObject({ title: "Jess", subtitle: "Email replies", countLabel: "2 emails", action: "Reply", category: "messages" });
     expect(group!.link).toEqual({ to: "/campaigns/replies", search: { thread: id } });
+  });
+});
+
+describe("BookedSecure's own mailboxes", () => {
+  it("recognises admin@ and friends on the root domain only", () => {
+    expect(platformMailboxFrom(["BookedSecure <Admin@BookedSecure.com>"])).toBe("admin@bookedsecure.com");
+    expect(platformMailboxFrom(["support@bookedsecure.com"])).toBe("support@bookedsecure.com");
+    expect(platformMailboxFrom(["admin@reply.bookedsecure.com"])).toBeNull();
+    expect(platformMailboxFrom(["random@bookedsecure.com", "admin@example.com"])).toBeNull();
   });
 });

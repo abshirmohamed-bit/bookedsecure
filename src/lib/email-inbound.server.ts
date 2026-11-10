@@ -7,8 +7,10 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { campaignSender, PLATFORM_FROM_ADDRESS } from "@/lib/email-campaigns";
 import { renderEmailHtml, renderEmailText } from "@/lib/email-template";
 import {
+  DEFAULT_PLATFORM_FORWARD_TO,
   htmlToText,
   parseAddress,
+  platformMailboxFrom,
   recipientIdFromAddresses,
   replyAddressFor,
   replyToHeader,
@@ -114,12 +116,41 @@ export async function handleResendWebhook(request: Request): Promise<Response> {
   return new Response("ok");
 }
 
+/**
+ * Mail to BookedSecure's own mailboxes (admin@, support@, hello@, info@
+ * bookedsecure.com) is passed on to the team's inbox in full, so sign-up and
+ * verification codes arrive as sent. Replying answers the original sender.
+ */
+async function forwardPlatformMail(email: ReceivedEmail, mailbox: string) {
+  const to = process.env["PLATFORM_INBOX_FORWARD_TO"]?.trim() || DEFAULT_PLATFORM_FORWARD_TO;
+  const sender = parseAddress(email.from);
+  const header = `From: ${email.from}\nTo: ${mailbox}\n\n`;
+  const text = `${header}${email.text?.trim() ? email.text : htmlToText(email.html ?? "")}`.slice(0, 100_000);
+  await resendSend({
+    from: `BookedSecure inbox <${PLATFORM_FROM_ADDRESS}>`,
+    to: [to],
+    subject: `[${mailbox}] ${email.subject ?? "(no subject)"}`.slice(0, 200),
+    reply_to: sender.email,
+    text,
+    ...(email.html ? { html: `<p style="font:13px sans-serif;color:#555">From: ${escapeHtml(email.from)}<br>To: ${escapeHtml(mailbox)}</p><hr>${email.html}` } : {}),
+  });
+  return { stored: false, reason: "forwarded", mailbox };
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export async function storeInboundReply(emailId: string, hintedTo: string[] = []) {
   const { data: existing } = await supabaseAdmin.from("email_messages").select("id").eq("provider_id", emailId).maybeSingle();
   if (existing) return { stored: false, reason: "duplicate" };
   const email = await fetchReceivedEmail(emailId);
   const recipientId = recipientIdFromAddresses([...(email.to ?? []), ...hintedTo]);
-  if (!recipientId) return { stored: false, reason: "not a campaign reply" };
+  if (!recipientId) {
+    const mailbox = platformMailboxFrom([...(email.to ?? []), ...hintedTo]);
+    if (mailbox) return forwardPlatformMail(email, mailbox);
+    return { stored: false, reason: "not a campaign reply" };
+  }
 
   const { data: recipient } = await supabaseAdmin.from("email_campaign_recipients")
     .select("id, business_id, campaign_id, lead_id, email").eq("id", recipientId).maybeSingle();
