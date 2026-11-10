@@ -26,6 +26,53 @@ export const settingsInput = z.object({
   timezone: z.string().max(60).nullable(), quiet_hours_start: z.number().int().min(0).max(23).nullable(),
   quiet_hours_end: z.number().int().min(0).max(23).nullable(),
 }).strict();
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use 24-hour HH:MM.');
+export const availabilityInput = z.object({
+  online_booking: z.boolean().nullable().describe('Offer appointment times to customers online.'),
+  weekly_hours: z.array(z.object({
+    weekday: z.number().int().min(0).max(6).describe('0 = Sunday … 6 = Saturday'),
+    start: hhmm, end: hhmm,
+  }).strict()).max(21).nullable().describe('Replaces all working windows. Days left out are not bookable.'),
+  earliest_booking_minutes: z.number().int().min(0).max(10080).nullable().describe('Soonest a booking can start from now.'),
+  booking_window_days: z.number().int().min(1).max(30).nullable().describe('How many days ahead customers can book.'),
+  travel_minutes: z.number().int().min(0).max(240).nullable().describe('Kept free before and after every job.'),
+  start_every_minutes: z.number().int().min(5).max(240).nullable().describe('Gap between offered start times.'),
+  reminder_hours: z.number().int().min(0).max(72).nullable().describe('Customer reminder text this many hours before; 0 turns it off.'),
+}).strict();
+const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.');
+export const blockedTimeInput = z.object({
+  action: z.enum(['block', 'unblock']),
+  date: ymd.nullable().describe('First day, in the business timezone.'),
+  until_date: ymd.nullable().describe('Last day for a multi-day block; null = same day.'),
+  from: hhmm.nullable().describe('Local start time; null = start of the day.'),
+  to: hhmm.nullable().describe('Local end time; null = end of the last day.'),
+  reason: z.string().max(120).nullable(),
+  block_id: z.string().uuid().nullable().describe('For unblock: an id from the blocked list.'),
+}).strict();
+
+/** Availability, rules and blocked time: one owner-only, audited database action for every assistant. */
+export async function executeAvailabilityAction(client: Client, raw: { kind: 'update'; input: unknown } | { kind: 'blocked'; input: unknown }) {
+  let action: 'update' | 'block' | 'unblock';
+  let input: Record<string, unknown>;
+  if (raw.kind === 'update') {
+    action = 'update';
+    input = Object.fromEntries(Object.entries(availabilityInput.parse(raw.input)).filter(([, v]) => v !== null));
+  } else {
+    const parsed = blockedTimeInput.parse(raw.input);
+    action = parsed.action;
+    if (action === 'unblock') {
+      if (!parsed.block_id) throw new Error('Which blocked time? Read availability first and use its id.');
+      input = { block_id: parsed.block_id };
+    } else {
+      if (!parsed.date) throw new Error('Give the date to block (YYYY-MM-DD).');
+      input = Object.fromEntries(Object.entries({ date: parsed.date, until_date: parsed.until_date, from: parsed.from, to: parsed.to, reason: parsed.reason }).filter(([, v]) => v !== null));
+    }
+  }
+  const { data, error } = await client.rpc('assistant_availability_action' as never, { p_action: action, p_input: input } as never);
+  if (error || !data) throw new Error(error?.message ?? 'Nothing was saved.');
+  return data as unknown as Record<string, unknown>;
+}
+
 export const textInput = z.object({ leadId: z.string().uuid(), message: z.string().trim().min(2).max(600) }).strict();
 
 const actions = { create_customer: customerInput, upsert_service: serviceInput, upsert_addon: addonInput, update_business_settings: settingsInput };

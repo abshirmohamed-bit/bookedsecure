@@ -72,6 +72,9 @@ describe('external assistant read permissions and paging', () => {
     await asTool(settings).handler({}, {});
     expect(mocks.calls[0]?.ops).toContainEqual(['eq', 'id', 'caller-tenant']);
     expect(mocks.calls[0]?.ops).toContainEqual(['select', 'name,timezone,website_url,phone_number,service_area,opening_hours,quote_mode,quote_form_active,automation_enabled']);
+    // Availability and blocked time are read for the caller's own business only.
+    for (const call of mocks.calls.slice(1)) expect(call.ops).toContainEqual(['eq', 'business_id', 'caller-tenant']);
+    expect(mocks.calls.map((call) => call.table)).toEqual(expect.arrayContaining(['booking_availability', 'booking_blocks']));
   });
   it.each([leads, history, services, snapshot, reports, settings])('accepts no caller identity in its schema', tool => {
     expect(asTool(tool).inputSchema).not.toHaveProperty('business_id');

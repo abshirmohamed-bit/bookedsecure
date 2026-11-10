@@ -17,7 +17,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { LEAD_STATUSES, SOURCE_CHANNELS } from "@/lib/domain";
 import { SMS_LEAD_FILTERS } from "@/lib/sms/delivery";
 import { formatInZone } from "@/lib/assistant-time";
-import { executeSharedAction, settingsInput } from "@/lib/assistant-shared-actions";
+import { availabilityInput, blockedTimeInput, executeAvailabilityAction, executeSharedAction, settingsInput } from "@/lib/assistant-shared-actions";
 import { QUOTE_MODES } from "@/lib/quote-mode";
 import { fail, type AssistantToolContext } from "@/lib/assistant-tools.server";
 import { assistantImportCounts } from '@/lib/assistant-import-summary';
@@ -382,7 +382,7 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
               .order("step", { ascending: true }),
             supabaseAdmin
               .from("booking_availability")
-              .select("active, lead_time_minutes, horizon_days, offer_ttl_minutes, weekly_windows")
+              .select("active, lead_time_minutes, horizon_days, offer_ttl_minutes, weekly_windows, travel_buffer_minutes, slot_step_minutes, customer_reminder_hours")
               .eq("business_id", businessId)
               .maybeSingle(),
             supabaseAdmin
@@ -439,6 +439,14 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
           },
           followUpRules: rules ?? [],
           availability,
+          blockedTime: await supabaseAdmin
+            .from("booking_blocks")
+            .select("id, starts_at, ends_at, reason")
+            .eq("business_id", businessId)
+            .gt("ends_at", new Date().toISOString())
+            .order("starts_at")
+            .limit(50)
+            .then((r) => r.data ?? []),
           team: (team ?? []).map((p) => ({ profileId: p.id, name: p.name, email: p.email, active: p.active, isYou: p.id === userId })),
         };
       },
@@ -451,6 +459,32 @@ export function buildOperationsTools(ctx: AssistantToolContext) {
         try {
           const result = await executeSharedAction(ctx.client, 'update_business_settings', input);
           ctx.record('Updated your business settings.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : 'Nothing was saved.'); }
+      },
+    }),
+
+    update_availability: tool({
+      description:
+        "Owner only. Change when customers can book: online booking on/off, weekly working hours (replaces the list; 0 = Sunday), earliest booking, how many days ahead, travel time between jobs, how often start times are offered, and the customer reminder (hours before; 0 = off). Read read_settings first; null leaves a setting unchanged. Say what will change and get the owner's yes before calling.",
+      inputSchema: availabilityInput,
+      execute: async (input) => {
+        try {
+          const result = await executeAvailabilityAction(ctx.client, { kind: 'update', input });
+          ctx.record('Updated your bookable availability.');
+          return result;
+        } catch (error) { return fail(error instanceof Error ? error.message : 'Nothing was saved.'); }
+      },
+    }),
+
+    set_blocked_time: tool({
+      description:
+        "Owner only. Block time so nothing can be booked (a day off, holiday or own appointment), or remove a block. Dates and times are the business's local time: date YYYY-MM-DD, optional until_date, optional from/to HH:MM (none = whole day). To unblock, use an id from read_settings blockedTime.",
+      inputSchema: blockedTimeInput,
+      execute: async (input) => {
+        try {
+          const result = await executeAvailabilityAction(ctx.client, { kind: 'blocked', input });
+          ctx.record(input.action === 'block' ? 'Blocked time in your calendar.' : 'Removed blocked time.');
           return result;
         } catch (error) { return fail(error instanceof Error ? error.message : 'Nothing was saved.'); }
       },

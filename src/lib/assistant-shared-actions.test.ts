@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
-import { executeSharedAction, prepareAssistantText, customerInput, serviceInput } from './assistant-shared-actions';
+import { executeSharedAction, prepareAssistantText, customerInput, serviceInput, executeAvailabilityAction, availabilityInput } from './assistant-shared-actions';
 
 const leadId = '10000000-0000-4000-8000-000000000001';
 const customer = { name: 'Test customer', mobile: '0412345678', email: null, suburb: null, address: null, vehicle: null, requestedService: null, notes: null };
@@ -66,5 +66,29 @@ describe('actions shared by Cowork and MCP', () => {
   it('shares strict schemas and accepts neither user nor tenant identity', () => {
     expect(customerInput.safeParse({ ...customer, userId: 'other' }).success).toBe(false);
     expect(serviceInput.safeParse({ serviceId: null, name: 'Detail', price: null, durationMinutes: 1441, category: null, description: null, active: true }).success).toBe(false);
+  });
+});
+describe('availability action', () => {
+  const rpcClient = () => {
+    const calls: Array<[string, unknown]> = [];
+    const client = { rpc: async (name: string, args: unknown) => { calls.push([name, args]); return { data: { ok: true }, error: null }; } };
+    return { calls, client: client as never };
+  };
+  it('sends only the settings the owner named to the owner-only database action', async () => {
+    const { calls, client } = rpcClient();
+    await executeAvailabilityAction(client, { kind: 'update', input: {
+      online_booking: null, weekly_hours: [{ weekday: 1, start: '07:00', end: '17:00' }], earliest_booking_minutes: null,
+      booking_window_days: null, travel_minutes: 30, start_every_minutes: null, reminder_hours: 24,
+    } });
+    expect(calls).toEqual([['assistant_availability_action', { p_action: 'update', p_input: {
+      weekly_hours: [{ weekday: 1, start: '07:00', end: '17:00' }], travel_minutes: 30, reminder_hours: 24,
+    } }]]);
+  });
+  it('blocks local dates and times, and needs an id to unblock', async () => {
+    const { calls, client } = rpcClient();
+    await executeAvailabilityAction(client, { kind: 'blocked', input: { action: 'block', date: '2026-11-20', until_date: null, from: null, to: null, reason: 'Day off', block_id: null } });
+    expect(calls[0]).toEqual(['assistant_availability_action', { p_action: 'block', p_input: { date: '2026-11-20', reason: 'Day off' } }]);
+    await expect(executeAvailabilityAction(client, { kind: 'blocked', input: { action: 'unblock', date: null, until_date: null, from: null, to: null, reason: null, block_id: null } })).rejects.toThrow('Which blocked time');
+    expect(() => availabilityInput.parse({ online_booking: null, weekly_hours: [{ weekday: 7, start: '7am', end: '5pm' }], earliest_booking_minutes: null, booking_window_days: null, travel_minutes: null, start_every_minutes: null, reminder_hours: null })).toThrow();
   });
 });
