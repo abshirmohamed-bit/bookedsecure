@@ -51,3 +51,9 @@
 - [x] Verify both buttons start the provider flow (browser reached /~oauth/initiate for each), branding values, and the /oauth-return waiting and failure states; 6 return-store tests passed.
 - [ ] Apple's official logo artwork (SVG from Apple Design Resources) still missing — the Apple button shows its title alone until the owner supplies it.
 - [ ] Real Google/Apple account sign-in unverified in the sandbox.
+
+## Password reset
+- [x] "Forgot your password?" on the sign-in card sends a reset link; /reset-password accepts the link, saves the new password and lands the owner on their dashboard.
+- [x] Verified in the preview: the panel opens, a link is sent, "Back to sign in" returns, and both an absent and an expired link show "That link has expired" with a way to ask for a new one; 4 link-reading tests passed.
+- [ ] Opening a real reset email and setting a new password end to end is unverified (needs an inbox).
+- [ ] No sending domain is configured, so reset emails arrive from Lovable's default sender rather than bookedsecure.com.
