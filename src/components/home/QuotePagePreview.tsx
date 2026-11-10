@@ -56,10 +56,9 @@ export function QuotePagePreview({ className }: { className?: string }) {
         ))}
       </div>
 
-      <div className="mx-auto w-full max-w-[260px] rounded-[2.4rem] border border-white/80 bg-white/50 p-2 shadow-[inset_0_1px_0_white,0_40px_80px_-30px_oklch(0.25_0.11_258/0.6)] backdrop-blur-xl">
-        <div className="relative flex h-[25.5rem] flex-col overflow-hidden rounded-[1.9rem] border border-foreground/10 bg-gradient-to-b from-white to-[oklch(0.97_0.02_250)]" aria-live="polite">
-          <span className="absolute left-1/2 top-2 z-10 h-1.5 w-14 -translate-x-1/2 rounded-full bg-foreground/15" aria-hidden />
-          <div className="flex items-center gap-2 border-b border-foreground/5 px-3.5 pb-2.5 pt-6">
+      <div className="mx-auto w-full max-w-[250px]">
+        <div className="relative flex h-[24rem] flex-col overflow-hidden rounded-[1.75rem] border border-white/70 bg-gradient-to-b from-white to-[oklch(0.97_0.02_250)] shadow-[0_30px_60px_-28px_oklch(0.25_0.11_258/0.55)]" aria-live="polite">
+          <div className="flex items-center gap-2 border-b border-foreground/5 px-3.5 py-3">
             <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-[var(--primary-bright)] to-[var(--primary)] text-white">
               <Sparkles className="size-3.5" />
             </span>

@@ -179,7 +179,7 @@ function Shot({
   );
 }
 
-/** A real phone-size screenshot (390px wide, captured at 2x) in a simple phone frame. */
+/** A real phone-size screenshot (390px wide, captured at 2x) with rounded corners, no device frame. */
 function PhoneShot({
   src,
   height,
@@ -195,9 +195,14 @@ function PhoneShot({
   screenClassName?: string;
 }) {
   return (
-    <div className={cn("mx-auto w-full max-w-[260px] rounded-[2.4rem] border border-white/80 bg-white/50 p-2 shadow-[inset_0_1px_0_white,0_40px_80px_-30px_oklch(0.25_0.11_258/0.6)] backdrop-blur-xl", className)}>
-      <div className={cn("relative overflow-hidden rounded-[1.9rem] border border-foreground/10 bg-white", screenClassName)}>
-        <span className="absolute left-1/2 top-2 z-10 h-1.5 w-14 -translate-x-1/2 rounded-full bg-foreground/15" aria-hidden />
+    <div
+      className={cn(
+        "mx-auto w-full max-w-[250px] overflow-hidden rounded-[1.75rem] border border-white/70 bg-white shadow-[0_30px_60px_-28px_oklch(0.25_0.11_258/0.55)]",
+        className,
+        screenClassName,
+      )}
+    >
+      <div>
         <img src={src} width={800} height={height} loading="lazy" alt={alt} className="block h-auto w-full" />
       </div>
     </div>
@@ -419,7 +424,7 @@ export function HomeLanding() {
               </p>
               <p className="mt-4 leading-7 text-muted-foreground">Out on a job? BookedSecure works on your phone, so you can see who's waiting and reply between jobs.</p>
             </div>
-            <PhoneShot className="md:row-span-2 lg:order-last lg:row-span-1" src="/landing/phone-home.webp" height={1700} alt="BookedSecure Home on a phone: what needs you today, the last 7 days and the latest leads, names blurred" />
+            <PhoneShot className="md:row-span-2 lg:order-last lg:row-span-1" src="/landing/phone-home.webp" height={1680} alt="BookedSecure Home on a phone: what needs you today, the last 7 days and the latest leads, names blurred" />
             <ul className="grid gap-2.5 sm:grid-cols-2">
               {AUDIENCE.map((item) => (
                 <li key={item} className="flex items-center gap-3 rounded-xl border border-white/80 bg-white/60 px-4 py-3.5 text-sm font-medium shadow-[inset_0_1px_0_white]">
