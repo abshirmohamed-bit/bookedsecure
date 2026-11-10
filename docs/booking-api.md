@@ -173,7 +173,7 @@ What it guarantees:
 - **Same customer, one record.** An existing customer with that mobile is reused.
 - **Confirmation once**, by text, when `sms_consent` is `true` (show a tick box such as "Text me my
   booking confirmation and reminder"). Without consent the booking is still saved, but no text is sent.
-- **Reminder once**, if the business switched reminders on (Setup → Business and services → Website
+- **Reminder once**, if the business switched reminders on (Setup → Business and services → Bookable availability
   booking), the set number of hours before the booking. Cancelled or moved bookings aren't reminded.
 
 Errors: `400 missing_idempotency_key | invalid_body | invalid_mobile`, `409 slot_unavailable`

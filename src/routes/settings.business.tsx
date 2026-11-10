@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { AvailabilityEditor } from "@/components/settings/availability";
 import { TenantAccountPanel } from "@/components/settings/TenantAccountPanel";
 import { TradePicker } from "@/components/settings/TradePicker";
-import { WebsiteBookingSettings } from "@/components/settings/WebsiteBookingSettings";
+import { BookingRulesSettings } from "@/components/settings/BookingRulesSettings";
 
 import {
   AddonsEditor,
@@ -70,22 +70,7 @@ function BusinessSettingsPage() {
                   timezone={data.business.timezone}
                   readOnly={data.role !== "owner"}
                 />
-              </DialogContent>
-            </Dialog>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                  Website booking
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[85vh] w-[95vw] overflow-y-auto sm:max-w-3xl">
-                <DialogHeader>
-                  <DialogTitle>Website booking</DialogTitle>
-                  <DialogDescription>
-                    Travel time, blocked time, reminders and prices by size for online bookings.
-                  </DialogDescription>
-                </DialogHeader>
-                <WebsiteBookingSettings />
+                <BookingRulesSettings />
               </DialogContent>
             </Dialog>
             <Dialog>
