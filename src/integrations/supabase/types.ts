@@ -5293,6 +5293,10 @@ export type Database = {
             Args: { p_require_owner?: boolean; p_require_plan?: boolean }
             Returns: string
           }
+      assistant_availability_action: {
+        Args: { p_action: string; p_input: Json }
+        Returns: Json
+      }
       assistant_operational_action: {
         Args: { p_action: string; p_input: Json }
         Returns: Json

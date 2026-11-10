@@ -13,7 +13,7 @@
   "mcp": {
     "server": {
       "name": "bookedsecure",
-      "version": "0.10.0",
+      "version": "0.11.0",
       "title": "BookedSecure"
     },
     "tools": [
@@ -192,7 +192,7 @@
       {
         "name": "business_settings",
         "title": "Read business settings",
-        "description": "Read the connected business’s name, timezone, website, service area, opening hours and quote/automation state. No credentials, billing IDs or private provider configuration are returned.",
+        "description": "Read the connected business’s name, timezone, website, service area, opening hours, quote/automation state, bookable availability (working hours, booking rules, reminder) and upcoming blocked time. No credentials, billing IDs or private provider configuration are returned.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -779,6 +779,246 @@
             "timezone",
             "quiet_hours_start",
             "quiet_hours_end"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_availability",
+        "title": "Update bookable availability",
+        "description": "Owner only, same action as Cowork. Change when customers can book: online booking on/off, weekly working hours (replaces the list; weekday 0 = Sunday), earliest booking, days ahead, travel time between jobs, how often start times are offered, and the customer reminder (hours before; 0 = off). Read business_settings first; null leaves a setting unchanged. Show the owner what will change and get their explicit yes first.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "online_booking": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "Offer appointment times to customers online."
+            },
+            "weekly_hours": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "weekday": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6,
+                        "description": "0 = Sunday … 6 = Saturday"
+                      },
+                      "start": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "end": {
+                        "$ref": "#/properties/weekly_hours/anyOf/0/items/properties/start"
+                      }
+                    },
+                    "required": [
+                      "weekday",
+                      "start",
+                      "end"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "maxItems": 21
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Replaces all working windows. Days left out are not bookable."
+            },
+            "earliest_booking_minutes": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10080
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Soonest a booking can start from now."
+            },
+            "booking_window_days": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 30
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "How many days ahead customers can book."
+            },
+            "travel_minutes": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 240
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Kept free before and after every job."
+            },
+            "start_every_minutes": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 5,
+                  "maximum": 240
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Gap between offered start times."
+            },
+            "reminder_hours": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 72
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Customer reminder text this many hours before; 0 turns it off."
+            }
+          },
+          "required": [
+            "online_booking",
+            "weekly_hours",
+            "earliest_booking_minutes",
+            "booking_window_days",
+            "travel_minutes",
+            "start_every_minutes",
+            "reminder_hours"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "set_blocked_time",
+        "title": "Block or unblock time",
+        "description": "Owner only, same action as Cowork. Block time so nothing can be booked (day off, holiday, own appointment) or remove a block. Dates and times are the business's local time: date YYYY-MM-DD, optional until_date, optional from/to HH:MM (none = whole day). To unblock, use an id from business_settings blocked_time. Confirm with the owner first.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "block",
+                "unblock"
+              ]
+            },
+            "date": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day, in the business timezone."
+            },
+            "until_date": {
+              "anyOf": [
+                {
+                  "$ref": "#/properties/date/anyOf/0"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day for a multi-day block; null = same day."
+            },
+            "from": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Local start time; null = start of the day."
+            },
+            "to": {
+              "anyOf": [
+                {
+                  "$ref": "#/properties/from/anyOf/0"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Local end time; null = end of the last day."
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "block_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "For unblock: an id from the blocked list."
+            }
+          },
+          "required": [
+            "action",
+            "date",
+            "until_date",
+            "from",
+            "to",
+            "reason",
+            "block_id"
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
