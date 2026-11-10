@@ -3,6 +3,13 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { LINKEDIN_POST_MAX } from "./linkedin";
 
+const AUTHOR = z.string().regex(/^urn:li:(person|organization):[\w-]+$/).nullable().default(null);
+const MEDIA = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("image"), items: z.array(z.object({ urn: z.string().regex(/^urn:li:image:[\w-]+$/), altText: z.string().max(4000).nullable().optional() })).min(1).max(20) }),
+  z.object({ kind: z.literal("video"), urn: z.string().regex(/^urn:li:video:[\w-]+$/), title: z.string().max(200).nullable().optional() }),
+  z.object({ kind: z.literal("document"), urn: z.string().regex(/^urn:li:document:[\w-]+$/), title: z.string().trim().min(1).max(200) }),
+]);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function ownerContext(context: { supabase: any; userId: string }) {
   const { requireAppContext, requireOwner } = await import("./app-context.server");
@@ -77,10 +84,43 @@ export const writeLinkedInPost = createServerFn({ method: "POST" })
 export const postToLinkedIn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ text: z.string().trim().min(1).max(LINKEDIN_POST_MAX), authorUrn: z.string().regex(/^urn:li:(person|organization):[\w-]+$/).nullable().default(null) }).parse(input),
+    z.object({
+      text: z.string().trim().min(1).max(LINKEDIN_POST_MAX),
+      authorUrn: AUTHOR,
+      media: MEDIA.nullable().default(null),
+    }).parse(input),
   )
   .handler(async ({ context, data }) => {
     const ctx = await ownerContext(context);
     const { publishLinkedInPost } = await import("./linkedin.server");
-    return publishLinkedInPost({ businessId: ctx.businessId, userId: ctx.userId, text: data.text, authorUrn: data.authorUrn, source: "app" });
+    return publishLinkedInPost({ businessId: ctx.businessId, userId: ctx.userId, text: data.text, authorUrn: data.authorUrn, media: data.media, source: "app" });
+  });
+
+/** Step 1 of attaching a file: where to upload it. The pieces then go to /api/linkedin/upload. */
+export const startLinkedInMediaUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ kind: z.enum(["image", "video", "document"]), fileSize: z.number().int().positive(), authorUrn: AUTHOR }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await ownerContext(context);
+    const { startLinkedInUpload } = await import("./linkedin.server");
+    return startLinkedInUpload({ businessId: ctx.businessId, userId: ctx.userId, kind: data.kind, fileSize: data.fileSize, authorUrn: data.authorUrn });
+  });
+
+/** Videos only: tells LinkedIn every piece has arrived. */
+export const finishLinkedInVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      urn: z.string().regex(/^urn:li:video:[\w-]+$/),
+      uploadToken: z.string().max(2000).nullable(),
+      etags: z.array(z.string().max(500)).max(200),
+      authorUrn: AUTHOR,
+    }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await ownerContext(context);
+    const { finishLinkedInVideoUpload } = await import("./linkedin.server");
+    return finishLinkedInVideoUpload({ businessId: ctx.businessId, urn: data.urn, uploadToken: data.uploadToken, etags: data.etags, authorUrn: data.authorUrn });
   });

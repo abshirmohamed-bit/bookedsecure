@@ -34,7 +34,7 @@ process.env["LINKEDIN_CLIENT_SECRET"] = "secret";
 process.env["TENANT_AI_ENCRYPTION_SECRET"] = "test-secret-for-linkedin";
 
 import { encryptMetaToken } from "./meta-oauth.server";
-import { linkedInActions, publishLinkedInPost, signLinkedInState, verifyLinkedInState } from "./linkedin.server";
+import { linkedInActions, publishLinkedInPost, signLinkedInState, startLinkedInUpload, uploadLinkedInPart, finishLinkedInVideoUpload, signUploadTicket, verifyUploadTicket, verifyLinkedInState } from "./linkedin.server";
 
 const BIZ = "11111111-1111-4111-8111-111111111111";
 const USER = "22222222-2222-4222-8222-222222222222";
@@ -107,5 +107,50 @@ describe("posting needs the owner's confirmation", () => {
 
   it("refuses an author the business can't post as", async () => {
     await expect(linkedInActions.preview(BIZ, { text: "Hi", authorUrn: "urn:li:organization:999" })).rejects.toThrow(/can't post as/);
+  });
+});
+
+
+describe("attaching images, videos and documents", () => {
+  it("starts an upload, sends each piece with the business token, and finishes a video", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ value: { video: "urn:li:video:V1", uploadToken: "tok", uploadInstructions: [
+        { uploadUrl: "https://www.linkedin.com/dms-uploads/p1", firstByte: 0, lastByte: 4194303 },
+        { uploadUrl: "https://www.linkedin.com/dms-uploads/p2", firstByte: 4194304, lastByte: 5000000 },
+      ] } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200, headers: { etag: "e1" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const plan = await startLinkedInUpload({ businessId: BIZ, userId: USER, kind: "video", fileSize: 5_000_001, authorUrn: "urn:li:person:abc", fetcher });
+    expect(plan).toMatchObject({ urn: "urn:li:video:V1", uploadToken: "tok" });
+    expect(plan.parts).toHaveLength(2);
+    expect(JSON.parse((fetcher.mock.calls[0]![1] as RequestInit).body as string)).toMatchObject({ initializeUploadRequest: { owner: "urn:li:person:abc", fileSizeBytes: 5_000_001 } });
+
+    const part = await uploadLinkedInPart({ ticket: plan.parts[0]!.ticket, userId: USER, bytes: new ArrayBuffer(8), fetcher });
+    expect(part.etag).toBe("e1");
+    const [url, init] = fetcher.mock.calls[1]!;
+    expect(url).toBe("https://www.linkedin.com/dms-uploads/p1");
+    expect((init as RequestInit).headers).toMatchObject({ Authorization: "Bearer token-123" });
+
+    await finishLinkedInVideoUpload({ businessId: BIZ, urn: "urn:li:video:V1", uploadToken: "tok", etags: ["e1", "e2"], authorUrn: "urn:li:person:abc", fetcher });
+    expect(JSON.parse((fetcher.mock.calls[2]![1] as RequestInit).body as string)).toEqual({ finalizeUploadRequest: { video: "urn:li:video:V1", uploadToken: "tok", uploadedPartIds: ["e1", "e2"] } });
+  });
+
+  it("won't let a ticket be used by someone else, after it expires, or for another address", async () => {
+    const ticket = signUploadTicket({ businessId: BIZ, userId: USER, url: "https://www.linkedin.com/dms-uploads/x", authorUrn: "urn:li:person:abc" });
+    await expect(uploadLinkedInPart({ ticket, userId: "33333333-3333-4333-8333-333333333333", bytes: new ArrayBuffer(1), fetcher: vi.fn() })).rejects.toThrow(/expired/);
+    expect(verifyUploadTicket(ticket, Date.now() + 3 * 60 * 60_000)).toBeNull();
+    expect(verifyUploadTicket(signUploadTicket({ businessId: BIZ, userId: USER, url: "https://evil.example/x", authorUrn: "urn:li:person:abc" }))).toBeNull();
+  });
+
+  it("refuses files over LinkedIn's limits before asking LinkedIn", async () => {
+    const fetcher = vi.fn();
+    await expect(startLinkedInUpload({ businessId: BIZ, userId: USER, kind: "image", fileSize: 50 * 1024 * 1024, fetcher })).rejects.toThrow(/too big/);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("posts with the attached images", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 201, headers: { "x-restli-id": "urn:li:share:9" } }));
+    await publishLinkedInPost({ businessId: BIZ, userId: USER, text: "New van!", authorUrn: "urn:li:person:abc", source: "app", media: { kind: "image", items: [{ urn: "urn:li:image:A" }, { urn: "urn:li:image:B" }] }, fetcher });
+    expect(JSON.parse((fetcher.mock.calls[0]![1] as RequestInit).body as string)).toMatchObject({ content: { multiImage: { images: [{ id: "urn:li:image:A" }, { id: "urn:li:image:B" }] } } });
   });
 });

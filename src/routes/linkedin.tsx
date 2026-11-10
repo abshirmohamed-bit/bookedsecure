@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/notifications";
 import { initials } from "@/lib/campaign-templates";
 import { LINKEDIN_POST_MAX } from "@/lib/linkedin";
-import { disconnectLinkedInAccount, getLinkedIn, postToLinkedIn, setLinkedInAuthor, startLinkedInConnect, startLinkedInPagesConnect, writeLinkedInPost } from "@/lib/linkedin.functions";
+import { disconnectLinkedInAccount, finishLinkedInVideo, getLinkedIn, postToLinkedIn, setLinkedInAuthor, startLinkedInConnect, startLinkedInMediaUpload, startLinkedInPagesConnect, writeLinkedInPost } from "@/lib/linkedin.functions";
+import { AttachmentPicker, MediaPreview, uploadAttachments, type Attachment } from "@/components/linkedin/LinkedInAttachments";
 
 type Search = { linkedin?: string; why?: string };
 
@@ -198,6 +199,11 @@ function Composer({ data }: { data: Data }) {
   const write = useServerFn(writeLinkedInPost);
   const post = useServerFn(postToLinkedIn);
   const choose = useServerFn(setLinkedInAuthor);
+  const startUpload = useServerFn(startLinkedInMediaUpload);
+  const finishVideo = useServerFn(finishLinkedInVideo);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [mediaTitle, setMediaTitle] = useState("");
+  const [progress, setProgress] = useState<{ sent: number; total: number } | null>(null);
   const [brief, setBrief] = useState("");
   const [chips, setChips] = useState<string[]>([]);
   const [text, setText] = useState("");
@@ -211,7 +217,17 @@ function Composer({ data }: { data: Data }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "The AI couldn't write a post."),
   });
   const publish = useMutation({
-    mutationFn: () => post({ data: { text, authorUrn: current?.urn ?? null } }),
+    mutationFn: async () => {
+      const authorUrn = current?.urn ?? null;
+      const media = await uploadAttachments(attachments, {
+        authorUrn,
+        title: mediaTitle.trim(),
+        deps: { start: startUpload, finishVideo },
+        onProgress: (sent, total) => setProgress({ sent, total }),
+      });
+      return post({ data: { text, authorUrn, media } });
+    },
+    onSettled: () => setProgress(null),
     onSuccess: (r) => {
       toast.success(r.duplicate ? "That post was already published." : `Posted to LinkedIn as ${r.authorName}.`, {
         ...(r.url ? { action: { label: "View", onClick: () => window.open(r.url!, "_blank", "noopener") } } : {}),
@@ -219,6 +235,9 @@ function Composer({ data }: { data: Data }) {
       setText("");
       setBrief("");
       setChips([]);
+      for (const a of attachments) URL.revokeObjectURL(a.url);
+      setAttachments([]);
+      setMediaTitle("");
       void qc.invalidateQueries({ queryKey: ["linkedin"] });
     },
     onError: (e) => {
@@ -286,11 +305,22 @@ function Composer({ data }: { data: Data }) {
           <p className={cn("text-right text-[11px] tabular", over ? "text-destructive" : "text-muted-foreground")}>{text.trim().length} / {LINKEDIN_POST_MAX}</p>
         </div>
 
+        <AttachmentPicker attachments={attachments} onChange={setAttachments} title={mediaTitle} onTitle={setMediaTitle} disabled={publish.isPending} />
+
+        {progress && (
+          <div className="space-y-1" role="status">
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/60">
+              <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.round((progress.sent / Math.max(progress.total, 1)) * 100)}%` }} />
+            </div>
+            <p className="text-[11px] text-muted-foreground">Uploading to LinkedIn… {Math.round((progress.sent / Math.max(progress.total, 1)) * 100)}%</p>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground"><Globe className="size-3" /> Public post on LinkedIn</p>
           {data.isOwner ? (
             <Button className="btn-glow max-sm:w-full" onClick={() => publish.mutate()} disabled={!text.trim() || over || publish.isPending || data.expired}>
-              {publish.isPending ? <Loader2 className="animate-spin" /> : <Send />} Post to LinkedIn
+              {publish.isPending ? <Loader2 className="animate-spin" /> : <Send />} {publish.isPending && progress ? "Uploading…" : "Post to LinkedIn"}
             </Button>
           ) : (
             <p className="text-xs text-muted-foreground">Only the owner can post.</p>
@@ -300,13 +330,13 @@ function Composer({ data }: { data: Data }) {
 
       <div className="border-t border-white/60 bg-white/25 p-4 sm:p-5 lg:border-t-0">
         <p className="mb-3 text-xs font-medium text-muted-foreground">What people see</p>
-        <PostPreview name={current?.name ?? "You"} kind={current?.kind ?? "person"} text={text} />
+        <PostPreview name={current?.name ?? "You"} kind={current?.kind ?? "person"} text={text} media={<MediaPreview attachments={attachments} title={mediaTitle} />} />
       </div>
     </section>
   );
 }
 
-function PostPreview({ name, kind, text }: { name: string; kind: "person" | "organization"; text: string }) {
+function PostPreview({ name, kind, text, media }: { name: string; kind: "person" | "organization"; text: string; media?: React.ReactNode }) {
   const [more, setMore] = useState(false);
   const long = text.length > 280;
   return (
@@ -334,6 +364,7 @@ function PostPreview({ name, kind, text }: { name: string; kind: "person" | "org
           <p className="py-8 text-center text-sm text-muted-foreground">Your post will show here as you write it.</p>
         )}
       </div>
+      {media}
       <div className="flex justify-around border-t border-foreground/5 px-2 py-2 text-xs text-muted-foreground" aria-hidden>
         <span>Like</span><span>Comment</span><span>Repost</span><span>Send</span>
       </div>

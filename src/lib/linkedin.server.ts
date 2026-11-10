@@ -4,6 +4,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { decryptMetaToken, encryptMetaToken } from "./meta-oauth.server";
 import {
+  MEDIA_LIMITS,
+  isLinkedInUploadUrl,
+  mediaProblem,
+  mediaSummary,
+  postContentFor,
+  type LinkedInMediaKind,
+  type LinkedInPostMedia,
+} from "./linkedin-media";
+import {
   LINKEDIN_CALLBACK_PATH,
   PAGE_SCOPES,
   availableAuthors,
@@ -400,10 +409,14 @@ export async function publishLinkedInPost(input: {
   text: string;
   authorUrn?: string | null;
   source: "app" | "assistant" | "mcp";
+  /** Images, a video or a document already uploaded to LinkedIn. */
+  media?: LinkedInPostMedia | null;
   fetcher?: typeof fetch;
 }): Promise<{ published: true; duplicate?: boolean; postId: string; url: string | null; authorName: string }> {
   const problem = postTextProblem(input.text);
   if (problem) throw new Error(problem);
+  const badMedia = mediaProblem(input.media);
+  if (badMedia) throw new Error(badMedia);
   const text = input.text.trim();
   const config = readLinkedInConfig();
   assertReady(config);
@@ -419,9 +432,15 @@ export async function publishLinkedInPost(input: {
   const dup = (recent as { id: string; post_urn: string | null }[] | null)?.[0];
   if (dup) return { published: true, duplicate: true, postId: dup.id, url: linkedInPostUrl(dup.post_urn), authorName: author.name };
 
-  const { data: row, error: insertError } = await db().from("linkedin_posts").insert({
+  const baseRow = {
     business_id: input.businessId, author_urn: author.urn, author_name: author.name, body_text: text, status: "publishing", source: input.source, created_by: input.userId,
-  }).select("id").single();
+  };
+  let { data: row, error: insertError } = await db().from("linkedin_posts")
+    .insert({ ...baseRow, ...(input.media ? { media: { ...input.media, summary: mediaSummary(input.media) } } : {}) }).select("id").single();
+  // Before migration 0043 there is no media column: keep the post, just not its media note.
+  if (insertError && input.media && (insertError.code === "PGRST204" || insertError.code === "42703")) {
+    ({ data: row, error: insertError } = await db().from("linkedin_posts").insert(baseRow).select("id").single());
+  }
   if (insertError || !row) throw new Error(missingTable(insertError?.code) ? "LinkedIn posting is waiting for a database update (migration 0035)." : "Could not save the post.");
   const postId = (row as { id: string }).id;
 
@@ -437,10 +456,14 @@ export async function publishLinkedInPost(input: {
   let failure: string | null = null;
   let postUrn: string | null = null;
   try {
+    // A video or document must finish processing on LinkedIn before it can be posted.
+    if (input.media && input.media.kind !== "image") {
+      await waitUntilReady(input.media.kind, input.media.urn, token, config, input.fetcher ?? fetch);
+    }
     const res = await call("https://api.linkedin.com/rest/posts", {
       method: "POST",
       headers: { ...restHeaders(token, config), "Content-Type": "application/json" },
-      body: JSON.stringify(buildPostBody(author.urn, text)),
+      body: JSON.stringify(buildPostBody(author.urn, text, postContentFor(input.media))),
     }, "publish", input.fetcher ?? fetch);
     if (res.status === 201 || res.ok) postUrn = res.headers.get("x-restli-id") ?? res.headers.get("x-linkedin-id");
     else failure = friendlyPublishError(res.status, await res.text().catch(() => ""));
@@ -454,6 +477,172 @@ export async function publishLinkedInPost(input: {
   if (failure) throw new Error(failure);
   await supabaseAdmin.from("audit_events").insert({ business_id: input.businessId, user_id: input.userId, event_type: "linkedin_post_published", entity_type: "business", entity_id: input.businessId, metadata: { post_id: postId, source: input.source, author: author.kind } });
   return { published: true, postId, url: linkedInPostUrl(postUrn), authorName: author.name };
+}
+
+// ----- Images, videos and documents -----
+
+/** The LinkedIn token that may act for this author (Page posts use the Pages app's token when connected). */
+async function tokenForAuthor(businessId: string, authorUrn?: string | null) {
+  const config = readLinkedInConfig();
+  assertReady(config);
+  const account = await loadAccount(businessId);
+  if (!account) throw new Error("LinkedIn isn't connected. Connect it under LinkedIn first.");
+  const author = await resolveAuthor(account, authorUrn);
+  const usePages = author.kind === "organization" && Boolean(account.pages_token_ciphertext);
+  const token = usePages
+    ? decryptMetaToken(account.pages_token_ciphertext!, pagesTokenContext(businessId))
+    : decryptMetaToken(account.token_ciphertext, tokenContext(businessId));
+  return { config, author, token };
+}
+
+const TICKET_TTL_MS = 2 * 60 * 60_000;
+function ticketKey() {
+  return createHash("sha256").update(`linkedin-upload-ticket:${process.env["TENANT_AI_ENCRYPTION_SECRET"] ?? ""}`).digest();
+}
+
+/**
+ * A signed pass for uploading one piece of a file. It names the business, the
+ * owner, the LinkedIn upload address and the author, so the upload route can't
+ * be pointed anywhere else or used by anyone else.
+ */
+export function signUploadTicket(payload: { businessId: string; userId: string; url: string; authorUrn: string }, now = Date.now()): string {
+  const body = Buffer.from(JSON.stringify({ b: payload.businessId, u: payload.userId, l: payload.url, a: payload.authorUrn, e: now + TICKET_TTL_MS })).toString("base64url");
+  return `${body}.${createHmac("sha256", ticketKey()).update(body).digest("base64url")}`;
+}
+
+export function verifyUploadTicket(ticket: string, now = Date.now()): { businessId: string; userId: string; url: string; authorUrn: string } | null {
+  const [body, sig] = ticket.split(".");
+  if (!body || !sig) return null;
+  const expected = createHmac("sha256", ticketKey()).update(body).digest();
+  const given = Buffer.from(sig, "base64url");
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+  let raw: unknown = null;
+  try { raw = JSON.parse(Buffer.from(body, "base64url").toString("utf8")); } catch { return null; }
+  const parsed = z.object({ b: z.string().uuid(), u: z.string().uuid(), l: z.string().url(), a: z.string(), e: z.number() }).safeParse(raw);
+  if (!parsed.success || parsed.data.e < now || !isLinkedInUploadUrl(parsed.data.l)) return null;
+  return { businessId: parsed.data.b, userId: parsed.data.u, url: parsed.data.l, authorUrn: parsed.data.a };
+}
+
+export type UploadPlan = {
+  kind: LinkedInMediaKind;
+  urn: string;
+  /** Each piece of the file to send to /api/linkedin/upload with its ticket. */
+  parts: { ticket: string; firstByte: number; lastByte: number }[];
+  /** Needed to finish a video upload. */
+  uploadToken: string | null;
+};
+
+const ENDPOINT: Record<LinkedInMediaKind, string> = { image: "images", video: "videos", document: "documents" };
+
+/** Step 1: asks LinkedIn where to upload a file. Nothing is posted. */
+export async function startLinkedInUpload(input: {
+  businessId: string;
+  userId: string;
+  kind: LinkedInMediaKind;
+  fileSize: number;
+  authorUrn?: string | null;
+  fetcher?: typeof fetch;
+}): Promise<UploadPlan> {
+  const limits = MEDIA_LIMITS[input.kind];
+  if (!Number.isFinite(input.fileSize) || input.fileSize <= 0 || input.fileSize > limits.maxBytes) {
+    throw new Error(`That ${input.kind} is too big for LinkedIn (limit ${Math.round(limits.maxBytes / 1024 / 1024)}MB).`);
+  }
+  const { config, author, token } = await tokenForAuthor(input.businessId, input.authorUrn);
+  const fetcher = input.fetcher ?? fetch;
+  const request = input.kind === "video"
+    ? { owner: author.urn, fileSizeBytes: input.fileSize, uploadCaptions: false, uploadThumbnail: false }
+    : { owner: author.urn };
+  const res = await call(`https://api.linkedin.com/rest/${ENDPOINT[input.kind]}?action=initializeUpload`, {
+    method: "POST",
+    headers: { ...restHeaders(token, config), "Content-Type": "application/json" },
+    body: JSON.stringify({ initializeUploadRequest: request }),
+  }, `upload_${input.kind}`, fetcher);
+  if (res.status === 401) throw new Error("LinkedIn signed you out. Reconnect LinkedIn and try again.");
+  if (!res.ok) throw new LinkedInError(`LinkedIn didn't accept the ${input.kind} upload (${res.status}).`, `upload_${input.kind}`, res.status);
+  const body = z.object({
+    value: z.object({
+      uploadUrl: z.string().optional(),
+      image: z.string().optional(),
+      video: z.string().optional(),
+      document: z.string().optional(),
+      uploadToken: z.string().optional(),
+      uploadInstructions: z.array(z.object({ uploadUrl: z.string(), firstByte: z.number(), lastByte: z.number() })).optional(),
+    }),
+  }).safeParse(await res.json().catch(() => null));
+  if (!body.success) throw new LinkedInError(`LinkedIn's ${input.kind} upload reply wasn't understood.`, `upload_${input.kind}_shape`);
+  const v = body.data.value;
+  const urn = v.image ?? v.video ?? v.document;
+  const pieces = input.kind === "video"
+    ? (v.uploadInstructions ?? [])
+    : v.uploadUrl ? [{ uploadUrl: v.uploadUrl, firstByte: 0, lastByte: input.fileSize - 1 }] : [];
+  if (!urn || pieces.length === 0 || pieces.some((p) => !isLinkedInUploadUrl(p.uploadUrl))) {
+    throw new LinkedInError(`LinkedIn didn't give an upload address for the ${input.kind}.`, `upload_${input.kind}_url`);
+  }
+  return {
+    kind: input.kind,
+    urn,
+    uploadToken: v.uploadToken ?? null,
+    parts: pieces.map((p) => ({
+      ticket: signUploadTicket({ businessId: input.businessId, userId: input.userId, url: p.uploadUrl, authorUrn: author.urn }),
+      firstByte: p.firstByte,
+      lastByte: p.lastByte,
+    })),
+  };
+}
+
+/**
+ * Step 2 (the upload route): sends one piece of the file to LinkedIn with the
+ * business's token, which never reaches the browser. Returns LinkedIn's ETag,
+ * which a video needs to finish.
+ */
+export async function uploadLinkedInPart(input: { ticket: string; userId: string; bytes: ArrayBuffer; fetcher?: typeof fetch }): Promise<{ etag: string | null }> {
+  const pass = verifyUploadTicket(input.ticket);
+  if (!pass || pass.userId !== input.userId) throw new Error("This upload link has expired. Try attaching the file again.");
+  if (input.bytes.byteLength === 0) throw new Error("The file piece was empty.");
+  const { token } = await tokenForAuthor(pass.businessId, pass.authorUrn);
+  const res = await call(pass.url, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/octet-stream" },
+    body: input.bytes,
+  }, "upload_part", input.fetcher ?? fetch);
+  if (res.status === 401) throw new Error("LinkedIn signed you out. Reconnect LinkedIn and try again.");
+  if (!res.ok) throw new LinkedInError(`LinkedIn didn't accept the file (${res.status}).`, "upload_part", res.status);
+  return { etag: res.headers.get("etag") };
+}
+
+/** Step 3 (videos only): tells LinkedIn every piece has arrived. */
+export async function finishLinkedInVideoUpload(input: {
+  businessId: string;
+  urn: string;
+  uploadToken: string | null;
+  etags: string[];
+  authorUrn?: string | null;
+  fetcher?: typeof fetch;
+}): Promise<{ ok: true }> {
+  if (!/^urn:li:video:[\w-]+$/.test(input.urn)) throw new Error("That isn't a LinkedIn video.");
+  const { config, token } = await tokenForAuthor(input.businessId, input.authorUrn);
+  const res = await call("https://api.linkedin.com/rest/videos?action=finalizeUpload", {
+    method: "POST",
+    headers: { ...restHeaders(token, config), "Content-Type": "application/json" },
+    body: JSON.stringify({ finalizeUploadRequest: { video: input.urn, uploadToken: input.uploadToken ?? "", uploadedPartIds: input.etags } }),
+  }, "upload_video_finish", input.fetcher ?? fetch);
+  if (!res.ok) throw new LinkedInError(`LinkedIn couldn't finish the video upload (${res.status}).`, "upload_video_finish", res.status);
+  return { ok: true };
+}
+
+/** Waits (up to ~50 seconds) for LinkedIn to finish processing a video or document. */
+async function waitUntilReady(kind: "video" | "document", urn: string, token: string, config: LinkedInConfig, fetcher: typeof fetch) {
+  const path = kind === "video" ? "videos" : "documents";
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const res = await call(`https://api.linkedin.com/rest/${path}/${encodeURIComponent(urn)}`, { headers: restHeaders(token, config) }, `${kind}_status`, fetcher);
+    const body = z.object({ status: z.string().optional() }).safeParse(res.ok ? await res.json().catch(() => null) : null);
+    const status = body.success ? body.data.status : undefined;
+    if (status === "AVAILABLE") return;
+    if (status === "PROCESSING_FAILED") throw new Error(`LinkedIn couldn't process the ${kind}. Try a different file.`);
+    if (!res.ok && res.status !== 404) return; // Let the post call report anything unexpected.
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+  throw new Error(`LinkedIn is still processing the ${kind}. Wait a minute and press Post again.`);
 }
 
 // ----- AI writing -----

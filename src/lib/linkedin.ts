@@ -50,10 +50,11 @@ export function postTextProblem(text: string): string | null {
 }
 
 /** Request body for POST https://api.linkedin.com/rest/posts (a public text post). */
-export function buildPostBody(authorUrn: string, text: string) {
+export function buildPostBody(authorUrn: string, text: string, content?: Record<string, unknown> | null) {
   return {
     author: authorUrn,
     commentary: escapeLittleText(text.trim()),
+    ...(content ? { content } : {}),
     visibility: "PUBLIC",
     distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] },
     lifecycleState: "PUBLISHED",

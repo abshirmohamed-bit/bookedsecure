@@ -52,6 +52,7 @@ import { Route as SettingsMessagingRouteImport } from './routes/settings.messagi
 import { Route as SettingsTeamRouteImport } from './routes/settings.team'
 import { Route as UnfinishedIndexRouteImport } from './routes/unfinished.index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiLinkedinUploadRouteImport } from './routes/api/linkedin/upload'
 import { Route as ApiPublicEmailUnsubscribeRouteImport } from './routes/api/public/email-unsubscribe'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksLeadSyncRouteImport } from './routes/api/public/hooks/lead-sync'
@@ -297,6 +298,11 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiLinkedinUploadRoute = ApiLinkedinUploadRouteImport.update({
+  id: '/api/linkedin/upload',
+  path: '/api/linkedin/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicEmailUnsubscribeRoute =
   ApiPublicEmailUnsubscribeRouteImport.update({
     id: '/api/public/email-unsubscribe',
@@ -496,6 +502,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof SettingsIndexRoute
   '/unfinished/': typeof UnfinishedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
@@ -568,6 +575,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsIndexRoute
   '/unfinished': typeof UnfinishedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
@@ -642,6 +650,7 @@ export interface FileRoutesById {
   '/settings/': typeof SettingsIndexRoute
   '/unfinished/': typeof UnfinishedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
@@ -717,6 +726,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/unfinished/'
     | '/.lovable/oauth/consent'
+    | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
@@ -789,6 +799,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/unfinished'
     | '/.lovable/oauth/consent'
+    | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
@@ -862,6 +873,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/unfinished/'
     | '/.lovable/oauth/consent'
+    | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
@@ -928,6 +940,7 @@ export interface RootRouteChildren {
   QuoteIndexRoute: typeof QuoteIndexRoute
   UnfinishedIndexRoute: typeof UnfinishedIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiLinkedinUploadRoute: typeof ApiLinkedinUploadRoute
   ApiPublicEmailUnsubscribeRoute: typeof ApiPublicEmailUnsubscribeRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksLeadSyncRoute: typeof ApiPublicHooksLeadSyncRoute
@@ -1260,6 +1273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/linkedin/upload': {
+      id: '/api/linkedin/upload'
+      path: '/api/linkedin/upload'
+      fullPath: '/api/linkedin/upload'
+      preLoaderRoute: typeof ApiLinkedinUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/email-unsubscribe': {
       id: '/api/public/email-unsubscribe'
       path: '/api/public/email-unsubscribe'
@@ -1547,6 +1567,7 @@ const rootRouteChildren: RootRouteChildren = {
   QuoteIndexRoute: QuoteIndexRoute,
   UnfinishedIndexRoute: UnfinishedIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiLinkedinUploadRoute: ApiLinkedinUploadRoute,
   ApiPublicEmailUnsubscribeRoute: ApiPublicEmailUnsubscribeRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksLeadSyncRoute: ApiPublicHooksLeadSyncRoute,
