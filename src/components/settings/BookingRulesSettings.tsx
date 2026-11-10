@@ -163,7 +163,7 @@ function BlocksCard({ blocks, readOnly }: { blocks: Array<{ id: string; starts_a
       )}
       {!readOnly && (
         <form
-          className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]"
+          className="grid gap-2 sm:grid-cols-2"
           onSubmit={(e) => { e.preventDefault(); addM.mutate(); }}
         >
           <Input type="datetime-local" aria-label="Blocked from" value={start} onChange={(e) => setStart(e.target.value)} required />

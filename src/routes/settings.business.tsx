@@ -58,19 +58,21 @@ function BusinessSettingsPage() {
                   Bookable availability
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-h-[85vh] w-[95vw] overflow-y-auto sm:max-w-3xl">
+              <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-3xl lg:max-w-6xl">
                 <DialogHeader>
                   <DialogTitle>Bookable availability</DialogTitle>
                   <DialogDescription>
                     Working windows used to work out appointment times for customers.
                   </DialogDescription>
                 </DialogHeader>
-                <AvailabilityEditor
-                  availability={data.availability}
-                  timezone={data.business.timezone}
-                  readOnly={data.role !== "owner"}
-                />
-                <BookingRulesSettings />
+                <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+                  <AvailabilityEditor
+                    availability={data.availability}
+                    timezone={data.business.timezone}
+                    readOnly={data.role !== "owner"}
+                  />
+                  <BookingRulesSettings />
+                </div>
               </DialogContent>
             </Dialog>
             <Dialog>
