@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { ImagePlus, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -432,50 +433,43 @@ export function ServiceImageControl({
   const busy = uploading.isPending || removing.isPending;
 
   return (
-    <div className="mb-2 flex items-center gap-2">
-      {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt={name}
-          loading="lazy"
-          className="h-12 w-16 shrink-0 rounded-md bg-secondary object-cover"
-        />
-      ) : (
-        <span className="grid h-12 w-16 shrink-0 place-items-center rounded-md border border-dashed border-border text-[10px] text-muted-foreground">
-          No picture
-        </span>
-      )}
+    <div className="group/img relative h-12 w-12 shrink-0">
+      <label
+        htmlFor={readOnly ? undefined : inputId}
+        title={readOnly ? name : imageUrl ? "Change picture" : "Add picture"}
+        className={`grid h-12 w-12 place-items-center overflow-hidden rounded-lg border bg-secondary/60 text-muted-foreground ${imageUrl ? "border-border" : "border-dashed border-border"} ${readOnly ? "" : "cursor-pointer hover:border-primary/50 hover:text-primary"} ${busy ? "opacity-50" : ""}`}
+      >
+        {imageUrl ? (
+          <img src={imageUrl} alt={name} loading="lazy" className="h-full w-full object-cover" />
+        ) : (
+          <ImagePlus className="h-4 w-4" aria-hidden />
+        )}
+        <span className="sr-only">{imageUrl ? "Change picture" : "Add picture"}</span>
+      </label>
       {!readOnly && (
-        <div className="flex flex-wrap gap-2 text-[11px]">
-          <label
-            htmlFor={inputId}
-            className={`cursor-pointer rounded-md border border-input px-2 py-1 ${busy ? "opacity-50" : "hover:bg-secondary"}`}
-          >
-            {busy ? "Saving…" : imageUrl ? "Replace" : "Add picture"}
-          </label>
-          <input
-            id={inputId}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="sr-only"
-            disabled={busy}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (file) uploading.mutate(file);
-            }}
-          />
-          {imageUrl && (
-            <button
-              type="button"
-              onClick={() => removing.mutate()}
-              disabled={busy}
-              className="rounded-md border border-input px-2 py-1 text-muted-foreground hover:text-destructive"
-            >
-              Remove
-            </button>
-          )}
-        </div>
+        <input
+          id={inputId}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="sr-only"
+          disabled={busy}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) uploading.mutate(file);
+          }}
+        />
+      )}
+      {!readOnly && imageUrl && (
+        <button
+          type="button"
+          onClick={() => removing.mutate()}
+          disabled={busy}
+          aria-label="Remove picture"
+          className="absolute -right-1.5 -top-1.5 hidden h-5 w-5 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:text-destructive group-hover/img:grid"
+        >
+          <X className="h-3 w-3" />
+        </button>
       )}
     </div>
   );
@@ -689,11 +683,11 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                 {group.items.length}
               </span>
             </div>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {group.items.map((service) => (
                 <div
                   key={service.id}
-                  className="rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40"
+                  className="flex items-center gap-2.5 rounded-lg border border-border bg-card p-2 transition-colors hover:border-primary/40"
                 >
                   <ServiceImageControl
                     kind="service"
@@ -702,60 +696,55 @@ export function ServicesEditor({ services, readOnly }: { services: Service[]; re
                     imageUrl={service.image_url}
                     readOnly={readOnly}
                   />
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium">
-                      {service.name}{" "}
-                      {!service.active && (
-                        <span className="text-xs text-muted-foreground">(inactive)</span>
-                      )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium leading-5" title={service.name}>
+                      {service.name}
+                      {!service.active && <span className="ml-1 text-[11px] text-muted-foreground">(inactive)</span>}
                     </p>
-                    {!readOnly && (
-                      <div className="flex shrink-0 items-center gap-2 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => setEditing(service)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          disabled={removeMutation.isPending}
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `Remove “${service.name}”? It will disappear from your quote page and cannot be restored.`,
-                              )
-                            ) {
-                              removeMutation.mutate(service);
-                            }
-                          }}
-                          className="text-muted-foreground hover:text-destructive disabled:opacity-50"
-                        >
-                          Remove
-                        </button>
-                      </div>
+                    <p className="truncate text-[12px] leading-5">
+                      <span className="font-semibold text-primary">{service.price_guidance || "Price not set"}</span>
+                      <span className="text-muted-foreground">
+                        {" · "}
+                        {isValidDuration(service.duration_minutes) ? (
+                          formatDuration(Number(service.duration_minutes))
+                        ) : (
+                          <span className="text-destructive">no length set, not bookable</span>
+                        )}
+                      </span>
+                    </p>
+                    {service.campaign_eligible === false && (
+                      <p className="text-[11px] leading-4 text-muted-foreground">Not in campaign offers</p>
                     )}
                   </div>
-                  <p className="mt-1 text-sm font-semibold text-primary">
-                    {service.price_guidance || "Price not set"}
-                  </p>
-                  {service.description && (
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {service.description}
-                    </p>
+                  {!readOnly && (
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(service)}
+                        aria-label={`Edit ${service.name}`}
+                        className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={removeMutation.isPending}
+                        aria-label={`Remove ${service.name}`}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Remove “${service.name}”? It will disappear from your quote page and cannot be restored.`,
+                            )
+                          ) {
+                            removeMutation.mutate(service);
+                          }
+                        }}
+                        className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   )}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {isValidDuration(service.duration_minutes) ? (
-                      formatDuration(Number(service.duration_minutes))
-                    ) : (
-                      <span className="text-destructive">Duration not set. cannot be booked</span>
-                    )}
-                    {" · "}
-                    {service.campaign_eligible !== false
-                      ? "in campaign offers"
-                      : "not in campaign offers"}
-                  </p>
                 </div>
               ))}
             </div>
@@ -1411,37 +1400,12 @@ export function AddonsEditor({
                 {group.items.length}
               </span>
             </div>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {group.items.map((addon) => (
                 <div
                   key={addon.id}
-                  className="rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40"
+                  className="flex items-center gap-2.5 rounded-lg border border-border bg-card p-2 transition-colors hover:border-primary/40"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium">
-                      {addon.name}{" "}
-                      {!addon.active && (
-                        <span className="text-xs text-muted-foreground">(inactive)</span>
-                      )}
-                    </p>
-                    {!readOnly && (
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setEditing({ ...addon })}
-                          className="text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => removal.mutate(addon.id)}
-                          disabled={removal.isPending}
-                          className="text-xs text-destructive"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
                   <ServiceImageControl
                     kind="addon"
                     id={addon.id}
@@ -1449,22 +1413,42 @@ export function AddonsEditor({
                     imageUrl={addon.image_url}
                     readOnly={readOnly}
                   />
-                  <p className="mt-1 text-sm font-semibold text-primary">
-                    {addon.price_guidance || "Price not set"}
-                    {addon.duration_minutes ? (
-                      <span className="text-xs font-normal text-muted-foreground">
-                        {` · adds ${formatDuration(addon.duration_minutes)}`}
-                      </span>
-                    ) : null}
-                  </p>
-                  {addon.description && (
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {addon.description}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium leading-5" title={addon.name}>
+                      {addon.name}
+                      {!addon.active && <span className="ml-1 text-[11px] text-muted-foreground">(inactive)</span>}
                     </p>
+                    <p className="truncate text-[12px] leading-5">
+                      <span className="font-semibold text-primary">{addon.price_guidance || "Price not set"}</span>
+                      {addon.duration_minutes ? (
+                        <span className="text-muted-foreground">{` · adds ${formatDuration(addon.duration_minutes)}`}</span>
+                      ) : null}
+                    </p>
+                    <p className="truncate text-[11px] leading-4 text-muted-foreground" title={addon.serviceIds.map(serviceName).join(", ")}>
+                      With: {addon.serviceIds.map(serviceName).join(", ") || "no service yet"}
+                    </p>
+                  </div>
+                  {!readOnly && (
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditing({ ...addon })}
+                        aria-label={`Edit ${addon.name}`}
+                        className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removal.mutate(addon.id)}
+                        disabled={removal.isPending}
+                        aria-label={`Remove ${addon.name}`}
+                        className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   )}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Offered with: {addon.serviceIds.map(serviceName).join(", ") || "no service yet"}
-                  </p>
                 </div>
               ))}
             </div>

@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { AvailabilityEditor } from "@/components/settings/availability";
 import { TenantAccountPanel } from "@/components/settings/TenantAccountPanel";
-import { TradePicker } from "@/components/settings/TradePicker";
 import { BookingRulesSettings } from "@/components/settings/BookingRulesSettings";
 
 import {
@@ -81,7 +80,7 @@ function BusinessSettingsPage() {
                   Approved services
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-h-[85vh] w-[95vw] overflow-y-auto sm:max-w-3xl">
+              <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-3xl lg:max-w-6xl">
                 <DialogHeader>
                   <DialogTitle>Approved services</DialogTitle>
                   <DialogDescription>
@@ -118,7 +117,6 @@ function BusinessSettingsPage() {
                 "timezone",
               ]}
             />
-            <TradePicker readOnly={data.role !== "owner"} />
             <TenantAccountPanel />
             <QuotePageModeCard
               quoteMode={data.business.quote_mode}
