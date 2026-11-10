@@ -144,6 +144,8 @@ function mappedUrls(payload: FirecrawlMap, siteUrl: string): string[] {
     .filter((entry) => {
       try {
         const candidate = new URL(entry, siteUrl);
+        // Legal, account and blog pages mention plans without their prices and add noise.
+        if (/\/(?:privacy|terms|legal|cookies?|login|log-in|signin|sign-in|signup|sign-up|register|account|careers|jobs|blog|news|billing)(?:\/|$|[?#.-])/i.test(candidate.pathname)) return false;
         return candidate.origin === origin && candidate.href !== siteUrl;
       } catch {
         return false;
@@ -171,7 +173,19 @@ function mergeScrapedItems<T extends { name?: string | null; imageUrl?: string |
       const key = serviceMatchKey(item.name ?? "");
       if (!key) continue;
       const current = merged.get(key);
-      if (!current || (!current.imageUrl && item.imageUrl)) merged.set(key, { ...current, ...item });
+      if (!current) {
+        merged.set(key, item);
+        continue;
+      }
+      // Keep what each copy knows: a priced copy wins over an unpriced one, and
+      // missing details are filled from the other copy.
+      const priced = (value: T) => /\d/.test(String((value as { price?: unknown }).price ?? ""));
+      const [winner, other] = !priced(current) && priced(item) ? [item, current] : [current, item];
+      const filled = { ...winner } as Record<string, unknown>;
+      for (const [field, value] of Object.entries(other as Record<string, unknown>)) {
+        if ((filled[field] === undefined || filled[field] === null || filled[field] === "") && value) filled[field] = value;
+      }
+      merged.set(key, filled as T);
     }
   }
   return merged.size > 0 ? [...merged.values()] : null;

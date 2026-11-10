@@ -59,8 +59,8 @@ function SetupPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background">
-      <div className="mx-auto w-full max-w-xl px-4 py-16 sm:py-24">
-        <div className="text-center">
+      <div className="mx-auto w-full max-w-5xl px-4 py-16 sm:py-24">
+        <div className="mx-auto max-w-xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
             <Sparkles className="h-3.5 w-3.5" /> Takes about a minute
           </span>
@@ -73,11 +73,12 @@ function SetupPage() {
           </p>
         </div>
 
-        <div id="trade" className="mt-8 scroll-mt-6">
+        <div id="trade" className="mx-auto mt-8 max-w-xl scroll-mt-6">
           <TradePicker readOnly={readOnly} />
         </div>
 
-        <div id="website" className="mt-4 scroll-mt-6">
+        {/* Widens to show the preview side by side once the site has been read. */}
+        <div id="website" className="mx-auto mt-4 max-w-xl scroll-mt-6 transition-[max-width] duration-300 has-[[data-proposal]]:max-w-5xl">
           <SiteOnboardingPanel
             readOnly={readOnly}
             onApplied={() => navigate({ to: "/dashboard", replace: true })}

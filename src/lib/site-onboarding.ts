@@ -116,10 +116,17 @@ export function imageAddress(value: unknown): string | null {
   }
 }
 
+/**
+ * What the website reader writes when the page doesn't say ("N/A", "Not
+ * specified", "Unknown"). It is treated as nothing, never shown as a value.
+ */
+const PLACEHOLDER =
+  /^(?:n\/?a|none|nil|null|undefined|unknown|tba|tbc|tbd|-+|—|not (?:specified|stated|listed|available|applicable|provided|mentioned|given|found)|no (?:price|information|info|details?)(?: (?:listed|given|available))?)\.?$/i;
+
 function text(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.replace(/\s+/g, " ").trim();
-  if (!trimmed) return null;
+  if (!trimmed || PLACEHOLDER.test(trimmed)) return null;
   return trimmed.slice(0, max);
 }
 
@@ -310,6 +317,10 @@ const SERVICE_FILLER_WORDS = new Set([
   "plan",
   "plans",
   "tier",
+  "monthly",
+  "subscription",
+  "annual",
+  "yearly",
   "complete",
   "detail",
   "detailing",
@@ -489,20 +500,31 @@ function proposeServices(raw: ScrapedService[] | null | undefined, businessName?
     if (price && /^\s*from\b/i.test(price)) priceCounts.set(price, (priceCounts.get(price) ?? 0) + 1);
   }
   const services: ProposedService[] = [];
-  const names = new Set<string>();
+  const byKey = new Map<string, ProposedService>();
   for (const entry of kept) {
     const name = text(entry.name, 80);
     if (!name || name.length < 2) continue;
     if (isJustTheBusinessName(name, own)) continue;
     const key = serviceMatchKey(name);
-    if (names.has(key)) continue;
-    names.add(key);
 
     const duration = Number(entry.durationMinutes);
     const stated = Number.isInteger(duration) && duration >= 15 && duration <= 1440;
     const rawPrice = normalisePriceGuidance(entry.price);
     const price = rawPrice && (priceCounts.get(rawPrice) ?? 0) >= 3 ? null : rawPrice;
-    services.push({
+    const seen = byKey.get(key);
+    if (seen) {
+      // The same item read twice (e.g. on the pricing page and in the terms):
+      // keep the shorter name and fill in what the first copy was missing.
+      if (!seen.price_guidance && price) {
+        seen.price_guidance = price;
+        seen.billing = isRecurringPrice(price) || entry.kind === "plan" ? "recurring" : seen.billing;
+      }
+      if (name.length < seen.name.length) seen.name = name;
+      seen.description ??= text(entry.description, 600);
+      seen.image_url ??= imageAddress(entry.imageUrl);
+      continue;
+    }
+    const service: ProposedService = {
       name,
       category: serviceGroup(entry.group),
       description: text(entry.description, 600),
@@ -512,7 +534,9 @@ function proposeServices(raw: ScrapedService[] | null | undefined, businessName?
       billing: isRecurringPrice(price) || entry.kind === "plan" ? "recurring" : "once",
       image_url: imageAddress(entry.imageUrl),
       alreadyHave: false,
-    });
+    };
+    byKey.set(key, service);
+    services.push(service);
     if (services.length >= MAX_PROPOSED_SERVICES) break;
   }
   return services;
@@ -529,12 +553,18 @@ function proposeAddons(
   services: readonly ProposedService[],
 ): ProposedAddon[] {
   if (!Array.isArray(raw) || services.length === 0) return [];
+  // On a site that sells plans, an "extra" with no price is a feature, not something to buy.
+  const subscriptionSite = services.some((service) => service.billing === "recurring");
   const addons: ProposedAddon[] = [];
   const names = new Set<string>();
   for (const entry of raw) {
     if (!entry || typeof entry !== "object") continue;
     const name = text(entry.name, 80);
     if (!name || name.length < 2) continue;
+    // An extra is something paid for on top: a plan, subscription or free
+    // trial isn't one, and neither is a capability with no price.
+    if (/\b(?:plan|plans|subscription|tier|trial)\b/i.test(name)) continue;
+    if (subscriptionSite && !normalisePriceGuidance(entry.price)) continue;
     const key = serviceMatchKey(name);
     // An extra that repeats one of the services is not an extra.
     if (names.has(key) || services.some((service) => serviceMatchKey(service.name) === key)) continue;

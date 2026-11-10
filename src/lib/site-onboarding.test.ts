@@ -212,3 +212,41 @@ describe("software and subscription sites", () => {
     expect(phoneOnPage("0412 345 678", "Email support@example.com")).toBe(false);
   });
 });
+
+describe("what the live Guardflow read returned", () => {
+  it("treats N/A and Not specified as nothing, merges duplicates and keeps plans out of extras", () => {
+    const proposal = buildOnboardingProposal(
+      {
+        businessName: "Guardflow",
+        openingHours: "Not specified",
+        services: [
+          { name: "Monthly Subscription - Starter Plan", kind: "plan", price: "A$350/mo", description: "Simple per-company pricing." },
+          { name: "Starter Plan", kind: "plan", price: "N/A", description: "Access to the Service for companies." },
+          { name: "Scale Plan", kind: "plan", price: "N/A" },
+          { name: "Scale", kind: "plan", price: "A$1,000/mo" },
+        ],
+        addons: [
+          { name: "14-day free trial", price: "Free" },
+          { name: "Growth Plan", price: "N/A" },
+          { name: "SLED Verification" },
+          { name: "Additional Feature Customization", price: "Not specified" },
+        ],
+      },
+      "https://guardflow.com.au/",
+    );
+    expect(proposal.services.map((s) => [s.name, s.price_guidance])).toEqual([
+      ["Starter Plan", "A$350/mo"],
+      ["Scale", "A$1,000/mo"],
+    ]);
+    expect(proposal.addons).toEqual([]);
+    expect(proposal.business.opening_hours).toBeNull();
+  });
+
+  it("keeps unpriced extras for a service business", () => {
+    const proposal = buildOnboardingProposal(
+      { businessName: "Shine", services: [{ name: "Full Detail", price: "$280" }], addons: [{ name: "Pet hair removal" }] },
+      "https://example.com.au/",
+    );
+    expect(proposal.addons.map((a) => a.name)).toEqual(["Pet hair removal"]);
+  });
+});

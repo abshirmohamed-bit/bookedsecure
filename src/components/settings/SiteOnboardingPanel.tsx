@@ -154,9 +154,10 @@ export function ProposalPreview({
   ].filter(Boolean);
 
   return (
-    <div className="mt-5 grid gap-4 rounded-2xl border border-border bg-background/60 p-3 sm:p-4 lg:grid-cols-[17rem_minmax(0,1fr)]">
+    <div data-proposal className="@container mt-5 rounded-2xl border border-border bg-background/60 p-3 sm:p-4">
+    <div className="grid gap-4 @3xl:grid-cols-[17rem_minmax(0,1fr)]">
       {/* Left: who the business is, what's missing, and the save button. */}
-      <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
+      <aside className="space-y-3 @3xl:sticky @3xl:top-6 @3xl:self-start">
         <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
           {proposal.logoUrl ? (
             <img src={proposal.logoUrl} alt="" className="size-11 shrink-0 rounded-lg bg-secondary object-contain" />
@@ -190,7 +191,7 @@ export function ProposalPreview({
           </ul>
         )}
 
-        <div className="flex flex-col gap-2 max-lg:sticky max-lg:bottom-2 max-lg:z-10 max-lg:rounded-xl max-lg:border max-lg:border-border max-lg:bg-card/90 max-lg:p-2 max-lg:backdrop-blur-xl">
+        <div className="flex flex-col gap-2 max-@3xl:sticky max-@3xl:bottom-2 max-@3xl:z-10 max-@3xl:rounded-xl max-@3xl:border max-@3xl:border-border max-@3xl:bg-card/90 max-@3xl:p-2 max-@3xl:backdrop-blur-xl">
           <Button type="button" onClick={onSave} disabled={readOnly || saving}>
             {saving ? "Saving…" : "Looks good. save it"}
           </Button>
@@ -205,7 +206,7 @@ export function ProposalPreview({
       </aside>
 
       {/* Right: what the business sells. */}
-      <div className="min-w-0 space-y-4">
+      <div className="@container/items min-w-0 space-y-4">
         {newServices.length === 0 && newAddons.length === 0 && (
           <div className="grid h-full min-h-40 place-items-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
             No new services or prices were found. You can add them yourself after saving.
@@ -217,7 +218,7 @@ export function ProposalPreview({
             <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold">
               <Sparkles className="size-3.5 text-primary" /> Plans
             </h4>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-2 @md/items:grid-cols-2 @2xl/items:grid-cols-3">
               {plans.map((plan) => (
                 <PlanCard key={plan.name} plan={plan} />
               ))}
@@ -248,7 +249,7 @@ export function ProposalPreview({
                   {groups.length > 1 && active === "all" && (
                     <p className="mb-1.5 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">{group.label}</p>
                   )}
-                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-2 @md/items:grid-cols-2 @2xl/items:grid-cols-3">
                     {group.items.map((service) => (
                       <ServiceCard key={service.name} service={service} />
                     ))}
@@ -273,6 +274,7 @@ export function ProposalPreview({
           </section>
         )}
       </div>
+    </div>
     </div>
   );
 }
