@@ -2704,6 +2704,109 @@ export type Database = {
           },
         ]
       }
+      linkedin_accounts: {
+        Row: {
+          business_id: string
+          connected_at: string
+          connected_by: string | null
+          default_author_urn: string | null
+          member_name: string | null
+          member_urn: string
+          organizations: Json
+          scopes: string[]
+          token_ciphertext: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          connected_at?: string
+          connected_by?: string | null
+          default_author_urn?: string | null
+          member_name?: string | null
+          member_urn: string
+          organizations?: Json
+          scopes?: string[]
+          token_ciphertext: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          connected_at?: string
+          connected_by?: string | null
+          default_author_urn?: string | null
+          member_name?: string | null
+          member_urn?: string
+          organizations?: Json
+          scopes?: string[]
+          token_ciphertext?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      linkedin_posts: {
+        Row: {
+          author_name: string | null
+          author_urn: string
+          body_text: string
+          business_id: string
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          post_urn: string | null
+          published_at: string | null
+          source: string
+          status: string
+        }
+        Insert: {
+          author_name?: string | null
+          author_urn: string
+          body_text: string
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          post_urn?: string | null
+          published_at?: string | null
+          source?: string
+          status?: string
+        }
+        Update: {
+          author_name?: string | null
+          author_urn?: string
+          body_text?: string
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          post_urn?: string | null
+          published_at?: string | null
+          source?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_posts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           agent_action_id: string | null
@@ -5124,6 +5227,10 @@ export type Database = {
         Returns: string
       }
       mcp_facebook_ad_spend: { Args: { p_days?: number }; Returns: Json }
+      mcp_linkedin_authorize: {
+        Args: { p_action: string; p_metadata?: Json }
+        Returns: string
+      }
       mcp_prepare_assistant_text: {
         Args: { p_lead_id: string; p_message: string }
         Returns: Json
