@@ -304,6 +304,8 @@ export type FoundBusiness = {
   id: string; name: string; category: string | null; suburb: string | null; address: string | null; phone: string | null;
   website: string | null; rating: number | null; reviewCount: number | null; summary: string | null; email: string | null;
   emailStatus: EmailStatus; fit: ProspectFit; fitReason: string | null; status: "new" | "added" | "dismissed"; leadId: string | null;
+  /** After adding: how far the business has got (Added, Emailed, Replied, Booked). */
+  progress: "added" | "emailed" | "replied" | "booked" | null;
 };
 
 export async function leadFinderState(businessId: string, searchId?: string | null) {
@@ -326,7 +328,22 @@ export async function leadFinderState(businessId: string, searchId?: string | nu
       rating: r["rating"] === null ? null : Number(r["rating"]), reviewCount: (r["review_count"] as number) ?? null, summary: (r["summary"] as string) ?? null,
       email: (r["email"] as string) ?? null, emailStatus: r["email_status"] as EmailStatus, fit: r["fit"] as ProspectFit, fitReason: (r["fit_reason"] as string) ?? null,
       status: r["status"] as FoundBusiness["status"], leadId: (r["lead_id"] as string) ?? null,
+      progress: null as FoundBusiness["progress"],
     })).sort((a, b) => (order[a.fit] ?? 9) - (order[b.fit] ?? 9));
+    const leadIds = results.map((r) => r.leadId).filter((id): id is string => Boolean(id));
+    if (leadIds.length) {
+      const [{ data: leads }, { data: sent }] = await Promise.all([
+        supabaseAdmin.from("leads").select("id, status").eq("business_id", businessId).in("id", leadIds),
+        supabaseAdmin.from("email_campaign_recipients").select("lead_id").eq("business_id", businessId).in("lead_id", leadIds).not("sent_at", "is", null),
+      ]);
+      const statusOf = new Map((leads ?? []).map((l) => [l.id as string, l.status as string]));
+      const emailed = new Set((sent ?? []).map((s) => s.lead_id as string));
+      for (const r of results) {
+        if (!r.leadId) continue;
+        const st = statusOf.get(r.leadId);
+        r.progress = st === "scheduled" || st === "completed" ? "booked" : st === "customer_replied" || st === "ready_for_quote" || st === "quote_sent" ? "replied" : emailed.has(r.leadId) ? "emailed" : "added";
+      }
+    }
   }
   return {
     setupMissing: false,

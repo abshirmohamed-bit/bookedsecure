@@ -16,7 +16,7 @@ export const getEmailCampaigns = createServerFn({ method: "GET" })
 export const searchCampaignLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ query: z.string().max(120).optional() }).parse(input ?? {}),
+    z.object({ query: z.string().max(120).optional(), ids: z.array(z.string().uuid()).max(500).optional() }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");
@@ -28,7 +28,9 @@ export const searchCampaignLeads = createServerFn({ method: "GET" })
       .eq("business_id", app.businessId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(data.ids?.length ? 500 : 50);
+    // Customers chosen on the Leads page (always within this business).
+    if (data.ids?.length) query = query.in("id", data.ids);
     const term = (data.query ?? "").trim();
     if (term) {
       const like = `%${term}%`;
@@ -262,4 +264,35 @@ export const updateEmailCampaign = createServerFn({ method: "POST" })
       followUp: data.followUp,
     });
     return { ok: true, status: result.campaign.status };
+  });
+
+/** Campaign emails sent to one customer and their replies, newest first (lead page). */
+export const getLeadEmailHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ leadId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    const { data: recipients } = await supabaseAdmin.from("email_campaign_recipients")
+      .select("id, campaign_id, status, sent_at, follow_up_sent_at")
+      .eq("business_id", app.businessId).eq("lead_id", data.leadId).order("created_at", { ascending: false }).limit(20);
+    const campaignIds = [...new Set((recipients ?? []).map((r) => r.campaign_id as string))];
+    const [{ data: campaigns }, { data: replies }] = await Promise.all([
+      campaignIds.length ? supabaseAdmin.from("email_campaigns").select("id, name, subject").in("id", campaignIds).eq("business_id", app.businessId) : Promise.resolve({ data: [] as { id: string; name: string | null; subject: string }[] }),
+      supabaseAdmin.from("email_messages").select("recipient_id, direction, created_at").eq("business_id", app.businessId).eq("lead_id", data.leadId).limit(200),
+    ]);
+    return (recipients ?? []).map((r) => {
+      const c = (campaigns ?? []).find((x) => x.id === r.campaign_id);
+      const mine = (replies ?? []).filter((m) => m.recipient_id === r.id);
+      return {
+        recipientId: r.id as string,
+        campaignId: r.campaign_id as string,
+        subject: (c?.subject as string | undefined) ?? (c?.name as string | undefined) ?? "Campaign email",
+        status: r.status as string,
+        sentAt: (r.sent_at as string | null) ?? null,
+        followUpSentAt: (r.follow_up_sent_at as string | null) ?? null,
+        replies: mine.filter((m) => m.direction === "in").length,
+      };
+    });
   });

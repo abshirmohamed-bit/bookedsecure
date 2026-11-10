@@ -3,7 +3,7 @@ import { humanizeAnswer } from "@/lib/lead-sync";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import {
+import { Mail,
   Plus,
   Pencil,
   RefreshCw,
@@ -274,6 +274,7 @@ export function LeadsWorkspace() {
                     {label}
                   </option>
                 ))}
+                <option value="lead_finder">Lead finder (businesses you found)</option>
               </select>
               <label className="sr-only" htmlFor="sms-filter">
                 Filter by SMS delivery
@@ -328,6 +329,13 @@ export function LeadsWorkspace() {
                   <span className="text-xs text-muted-foreground" data-testid="selected-count">
                     {visibleSelection.length} selected
                   </span>
+                  <Link
+                    to="/campaigns"
+                    search={{ leads: visibleSelection.slice(0, 200).join(",") }}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-primary/50 px-2.5 py-1.5 text-xs text-primary hover:bg-primary/10"
+                  >
+                    <Mail className="h-3.5 w-3.5" aria-hidden="true" /> Email selected
+                  </Link>
                   <button
                     onClick={() => setConfirmOpen(true)}
                     className="inline-flex items-center gap-1.5 rounded-md border border-destructive/60 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10"

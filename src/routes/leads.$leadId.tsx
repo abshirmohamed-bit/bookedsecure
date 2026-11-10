@@ -648,6 +648,37 @@ function ActivityPanel({
   );
 }
 
+/** Campaign emails this customer got, and whether they replied (opens the thread in Replies). */
+function LeadEmailHistory({ leadId }: { leadId: string }) {
+  const [rows, setRows] = useState<Array<{ recipientId: string; campaignId: string; subject: string; status: string; sentAt: string | null; followUpSentAt: string | null; replies: number }> | null>(null);
+  useEffect(() => {
+    let live = true;
+    void import("@/lib/email-campaigns.functions").then(({ getLeadEmailHistory }) => getLeadEmailHistory({ data: { leadId } }))
+      .then((r) => { if (live) setRows(r); }).catch(() => { if (live) setRows([]); });
+    return () => { live = false; };
+  }, [leadId]);
+  if (!rows || rows.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-1.5 border-t border-border pt-3">
+      <p className="text-xs font-medium">Campaign emails</p>
+      {rows.map((r) => (
+        <div key={r.recipientId} className="flex items-start justify-between gap-2 text-xs">
+          <Link to="/campaigns/$campaignId" params={{ campaignId: r.campaignId }} className="min-w-0 flex-1 truncate hover:text-primary">{r.subject}</Link>
+          <span className="shrink-0 text-muted-foreground">
+            {r.sentAt ? new Date(r.sentAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : r.status}
+            {r.followUpSentAt ? " · follow-up sent" : ""}
+          </span>
+          {r.replies > 0 && (
+            <Link to="/campaigns/replies" search={{ thread: r.recipientId }} className="shrink-0 font-medium text-primary">
+              {r.replies} repl{r.replies === 1 ? "y" : "ies"}
+            </Link>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | null }) {
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState("");
@@ -683,6 +714,8 @@ function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | nul
   }
 
   return (
+    <>
+    <LeadEmailHistory leadId={leadId} />
     <div className="mt-3 border-t border-border pt-3">
       {!open ? (
         <button
@@ -723,6 +756,7 @@ function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | nul
         </div>
       )}
     </div>
+    </>
   );
 }
 

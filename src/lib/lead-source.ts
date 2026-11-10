@@ -15,15 +15,24 @@ export const CRM_IMPORT_ORIGIN = "crm_import";
 export type AttributableLead = {
   source_channel: string;
   lead_origin?: string | null;
+  source_metadata?: unknown;
 };
+
+/** A business found with Lead finder and added to customers (an outreach prospect, not an enquiry). */
+export function isLeadFinderLead(lead: { source_metadata?: unknown }): boolean {
+  const meta = lead.source_metadata;
+  return Boolean(meta && typeof meta === "object" && (meta as Record<string, unknown>)["lead_finder"]);
+}
 
 /** Human label for where the enquiry originated. */
 export function leadSourceLabel(lead: AttributableLead): string {
+  if (isLeadFinderLead(lead)) return "Lead finder";
   return SOURCE_LABELS[lead.source_channel] ?? lead.source_channel;
 }
 
 /** How the record entered the app, when that differs from the original source. */
 export function importMethodLabel(lead: AttributableLead): string | null {
+  if (isLeadFinderLead(lead)) return null;
   return lead.lead_origin === CRM_IMPORT_ORIGIN ? "CRM CSV" : null;
 }
 

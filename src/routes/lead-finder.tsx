@@ -23,10 +23,12 @@ export const Route = createFileRoute("/lead-finder")({
 
 const FIT_LABEL = { good: "Good fit", maybe: "Maybe", no: "Not a fit", unknown: "Not checked" } as const;
 const FIT_STYLE = { good: "bg-[#30d158]/15 text-[#1f8a3b]", maybe: "bg-[#ff9f0a]/15 text-[#a35d00]", no: "bg-muted text-muted-foreground", unknown: "bg-muted text-muted-foreground" } as const;
+const PROGRESS_LABEL = { added: "Added to customers", emailed: "Emailed", replied: "Replied", booked: "Booked" } as const;
 const EMAIL_LABEL = { valid: "Checked", unverified: "Mail server found", risky: "Risky", invalid: "Bounces", none: "No email" } as const;
 
 function LeadFinderPage() {
   const qc = useQueryClient();
+  const navigate = Route.useNavigate();
   const load = useServerFn(getLeadFinder);
   const run = useServerFn(runLeadFinderSearch);
   const add = useServerFn(addLeadFinderResults);
@@ -63,7 +65,9 @@ function LeadFinderPage() {
   const addM = useMutation({
     mutationFn: () => add({ data: { ids: picked } }),
     onSuccess: async (r) => {
-      toast.success(`Added ${r.added} to your customers${r.skipped ? ` (${r.skipped} skipped: no usable email or already added)` : ""}.`);
+      toast.success(`Added ${r.added} to your customers${r.skipped ? ` (${r.skipped} skipped: no usable email or already added)` : ""}.`, {
+        action: r.added ? { label: "Email them", onClick: () => void navigate({ to: "/campaigns", search: { audience: "lead_finder" } }) } : undefined,
+      });
       setPicked([]);
       await qc.invalidateQueries({ queryKey: ["lead-finder"] });
     },
@@ -164,7 +168,7 @@ function LeadFinderPage() {
                 <Button size="sm" disabled={!picked.length || addM.isPending || !d?.isOwner} onClick={() => addM.mutate()}>
                   {addM.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <UserPlus className="mr-1.5 h-4 w-4" />}Add to customers
                 </Button>
-                <Button size="sm" variant="outline" asChild><Link to="/campaigns">Start an email campaign</Link></Button>
+                <Button size="sm" variant="outline" asChild><Link to="/campaigns" search={{ audience: "lead_finder" }}>Email the businesses you added</Link></Button>
               </div>
             </div>
             <ul className="grid gap-2 md:grid-cols-2">
@@ -176,7 +180,11 @@ function LeadFinderPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-semibold">{r.name}</p>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${FIT_STYLE[r.fit]}`}>{FIT_LABEL[r.fit]}</span>
-                        {r.status === "added" && <span className="inline-flex items-center gap-1 text-[11px] text-[#1f8a3b]"><CheckCircle2 className="h-3 w-3" />Added</span>}
+                        {r.status === "added" && (
+                          r.leadId
+                            ? <Link to="/leads/$leadId" params={{ leadId: r.leadId }} className="inline-flex items-center gap-1 text-[11px] text-[#1f8a3b] hover:underline"><CheckCircle2 className="h-3 w-3" />{PROGRESS_LABEL[r.progress ?? "added"]}</Link>
+                            : <span className="inline-flex items-center gap-1 text-[11px] text-[#1f8a3b]"><CheckCircle2 className="h-3 w-3" />Added</span>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
                         {[r.category, r.suburb].filter(Boolean).join(" · ")}

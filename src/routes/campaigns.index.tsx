@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CampaignComposer } from "@/components/campaigns/CampaignComposer";
+import { CAMPAIGN_AUDIENCES, type CampaignAudienceId } from "@/lib/email-campaigns";
 import { CampaignsTabs } from "@/components/campaigns/CampaignsTabs";
 import { formatDate, plural, SendDialog, StatusPill } from "@/components/campaigns/CampaignParts";
 import { cn } from "@/lib/utils";
@@ -45,9 +46,12 @@ export const Route = createFileRoute("/campaigns/")({
     ],
   }),
   // ?tab=replies opens the replies inbox; &thread=<recipient> opens one conversation.
-  validateSearch: (search: Record<string, unknown>): { tab?: "replies"; thread?: string } => ({
+  // ?leads=<ids> (from Leads) or ?audience=<id> (from Lead finder) opens a new campaign with them.
+  validateSearch: (search: Record<string, unknown>): { tab?: "replies"; thread?: string; leads?: string; audience?: CampaignAudienceId } => ({
     ...(search["tab"] === "replies" ? { tab: "replies" as const } : {}),
     ...(typeof search["thread"] === "string" && /^[0-9a-f-]{36}$/i.test(search["thread"]) ? { thread: search["thread"] } : {}),
+    ...(typeof search["leads"] === "string" && /^[0-9a-f-]{36}(,[0-9a-f-]{36}){0,199}$/i.test(search["leads"]) ? { leads: search["leads"] } : {}),
+    ...(typeof search["audience"] === "string" && CAMPAIGN_AUDIENCES.some((a) => a.id === search["audience"]) ? { audience: search["audience"] as CampaignAudienceId } : {}),
   }),
   component: CampaignsPage,
 });
@@ -74,7 +78,7 @@ function CampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [composing, setComposing] = useState(false);
+  const [composing, setComposing] = useState(Boolean(search.leads || search.audience));
   const [sendTarget, setSendTarget] = useState<Campaign | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Campaign | null>(null);
 
@@ -227,7 +231,13 @@ function CampaignsPage() {
       )}
 
       {composing && (
-        <CampaignComposer businessName={businessName} onClose={() => setComposing(false)} onSaved={onSaved} />
+        <CampaignComposer
+          businessName={businessName}
+          onClose={() => { setComposing(false); if (search.leads || search.audience) void navigate({ to: "/campaigns", search: {}, replace: true }); }}
+          onSaved={onSaved}
+          initialAudience={search.audience}
+          initialLeadIds={search.leads ? search.leads.split(",") : undefined}
+        />
       )}
 
       {sendTarget && (

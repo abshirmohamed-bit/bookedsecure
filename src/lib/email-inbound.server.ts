@@ -180,6 +180,14 @@ export async function storeInboundReply(emailId: string, hintedTo: string[] = []
     throw new Error(error.message);
   }
 
+  // The customer answered: show it in Leads as Replied (unless they're further along or opted out).
+  if (recipient.lead_id) {
+    await supabaseAdmin.from("leads").update({ status: "customer_replied" } as never)
+      .eq("id", recipient.lead_id).eq("business_id", recipient.business_id)
+      .not("status", "in", "(completed,scheduled,quote_sent,opted_out,invalid,customer_replied)")
+      .then(() => undefined, () => undefined);
+  }
+
   // A copy in the owner's own inbox, so nothing depends on opening BookedSecure.
   if (campaign) {
     const to = await ownerAddress(campaign.from_address as string, campaign.created_by as string | null);

@@ -169,6 +169,9 @@ export function smsFilterPredicates(filter: SmsLeadFilter): LeadPredicate[] {
   }
 }
 
+/** Source filter value for businesses added from Lead finder (kept in source_metadata.lead_finder). */
+export const LEAD_FINDER_SOURCE_FILTER = "lead_finder";
+
 export function leadFilterPredicates(businessId: string, filters: LeadInboxFilters): LeadPredicate[] {
   const predicates: LeadPredicate[] = [
     // Mandatory tenant boundary: always first, always present.
@@ -178,7 +181,9 @@ export function leadFilterPredicates(businessId: string, filters: LeadInboxFilte
       : { kind: "isNull", column: "deleted_at" },
   ];
   if (filters.status !== "all") predicates.push({ kind: "eq", column: "status", value: filters.status });
-  if (filters.source !== "all")
+  if (filters.source === LEAD_FINDER_SOURCE_FILTER)
+    predicates.push({ kind: "notNull", column: "source_metadata->lead_finder" });
+  else if (filters.source !== "all")
     predicates.push({ kind: "eq", column: "source_channel", value: filters.source });
   predicates.push(...smsFilterPredicates(filters.sms));
   if (filters.search) predicates.push({ kind: "search", value: filters.search });

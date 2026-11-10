@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRef, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -56,10 +56,16 @@ export function CampaignComposer({
   businessName,
   onClose,
   onSaved,
+  initialAudience,
+  initialLeadIds,
 }: {
   businessName: string | null;
   onClose: () => void;
   onSaved: (campaignId: string, andSend: boolean) => void;
+  /** Opened from Lead finder: start with that audience. */
+  initialAudience?: CampaignAudienceId | undefined;
+  /** Opened from the Leads page: start with the customers chosen there. */
+  initialLeadIds?: string[] | undefined;
 }) {
   const [step, setStep] = useState<Step>("emails");
   const [mobilePreview, setMobilePreview] = useState(false);
@@ -158,6 +164,25 @@ export function CampaignComposer({
       return next;
     });
   }
+
+  // Start with what the owner chose on the Leads or Lead finder page; they can still change it.
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    if (initialLeadIds?.length) {
+      void searchCampaignLeads({ data: { ids: initialLeadIds } }).then((leads) => {
+        const withEmail = leads.filter((l) => l.email);
+        addLeads(withEmail, true);
+        setAudienceLabel(null);
+        if (withEmail.length < initialLeadIds.length) toast.info(`${initialLeadIds.length - withEmail.length} of the chosen customers have no email, so they're left out.`);
+      }).catch(() => undefined);
+    } else if (initialAudience) {
+      const def = CAMPAIGN_AUDIENCES.find((a) => a.id === initialAudience);
+      if (def) void pickAudience(def.id, def.label);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function pickAudience(id: CampaignAudienceId, label: string) {
     setAudienceBusy(id);
