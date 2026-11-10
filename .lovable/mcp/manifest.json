@@ -2321,7 +2321,8 @@
                 "quoted",
                 "booked",
                 "past",
-                "lost"
+                "lost",
+                "lead_finder"
               ]
             }
           },
@@ -2436,7 +2437,8 @@
                 "quoted",
                 "booked",
                 "past",
-                "lost"
+                "lost",
+                "lead_finder"
               ]
             },
             "leadIds": {
