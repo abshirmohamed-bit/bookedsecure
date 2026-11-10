@@ -164,7 +164,7 @@ export const getEmailCampaign = createServerFn({ method: "GET" })
 export const getCampaignAudience = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ audience: z.enum(["all", "enquiries", "quoted", "booked", "past", "lost"]) }).parse(input),
+    z.object({ audience: z.enum(["all", "enquiries", "quoted", "booked", "past", "lost", "lead_finder"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { requireAppContext } = await import("@/lib/app-context.server");

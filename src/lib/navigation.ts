@@ -14,6 +14,7 @@ export type NavPath =
   | "/social"
   | "/unfinished"
   | "/bookings"
+  | "/lead-finder"
   | "/campaigns"
   | "/campaigns/replies"
   | "/linkedin"
@@ -31,6 +32,7 @@ export type NavIcon =
   | "social"
   | "unfinished"
   | "bookings"
+  | "finder"
   | "campaigns"
   | "replies"
   | "linkedin"
@@ -80,6 +82,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: "Work",
     items: [
       { to: "/bookings", label: "Bookings", icon: "bookings" },
+      { to: "/lead-finder", label: "Lead finder", icon: "finder" },
       { to: "/campaigns", label: "Campaigns", icon: "campaigns", excludePaths: ["/campaigns/replies"] },
       { to: "/campaigns/replies", label: "Replies", icon: "replies", badge: "campaigns", sub: true },
       { to: "/analytics", label: "Results", icon: "results" },

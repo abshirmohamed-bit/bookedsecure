@@ -128,7 +128,11 @@ export const CAMPAIGN_AUDIENCES = [
   { id: "booked", label: "Booked", statuses: ["scheduled"] },
   { id: "past", label: "Past customers", statuses: ["completed"] },
   { id: "lost", label: "Lost leads", statuses: ["lost"] },
+  { id: "lead_finder", label: "Businesses from Lead finder", statuses: null },
 ] as const;
+
+/** Businesses added from Lead finder are reached only by their own audience, never mixed into customer audiences. */
+export const LEAD_FINDER_UTM_SOURCE = "Lead finder";
 
 export type CampaignAudienceId = (typeof CAMPAIGN_AUDIENCES)[number]["id"];
 

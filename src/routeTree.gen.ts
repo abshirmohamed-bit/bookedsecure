@@ -17,6 +17,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as ImportRouteImport } from './routes/import'
 import { Route as LandingRouteImport } from './routes/landing'
+import { Route as LeadFinderRouteImport } from './routes/lead-finder'
 import { Route as LinkedinRouteImport } from './routes/linkedin'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NotificationsRouteImport } from './routes/notifications'
@@ -129,6 +130,11 @@ const ImportRoute = ImportRouteImport.update({
 const LandingRoute = LandingRouteImport.update({
   id: '/landing',
   path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeadFinderRoute = LeadFinderRouteImport.update({
+  id: '/lead-finder',
+  path: '/lead-finder',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LinkedinRoute = LinkedinRouteImport.update({
@@ -524,6 +530,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/lead-finder': typeof LeadFinderRoute
   '/linkedin': typeof LinkedinRoute
   '/mcp': typeof McpRoute
   '/notifications': typeof NotificationsRoute
@@ -607,6 +614,7 @@ export interface FileRoutesByTo {
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/lead-finder': typeof LeadFinderRoute
   '/linkedin': typeof LinkedinRoute
   '/mcp': typeof McpRoute
   '/notifications': typeof NotificationsRoute
@@ -690,6 +698,7 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
   '/landing': typeof LandingRoute
+  '/lead-finder': typeof LeadFinderRoute
   '/linkedin': typeof LinkedinRoute
   '/mcp': typeof McpRoute
   '/notifications': typeof NotificationsRoute
@@ -775,6 +784,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/import'
     | '/landing'
+    | '/lead-finder'
     | '/linkedin'
     | '/mcp'
     | '/notifications'
@@ -858,6 +868,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/import'
     | '/landing'
+    | '/lead-finder'
     | '/linkedin'
     | '/mcp'
     | '/notifications'
@@ -940,6 +951,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/import'
     | '/landing'
+    | '/lead-finder'
     | '/linkedin'
     | '/mcp'
     | '/notifications'
@@ -1024,6 +1036,7 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   ImportRoute: typeof ImportRoute
   LandingRoute: typeof LandingRoute
+  LeadFinderRoute: typeof LeadFinderRoute
   LinkedinRoute: typeof LinkedinRoute
   McpRoute: typeof McpRoute
   NotificationsRoute: typeof NotificationsRoute
@@ -1146,6 +1159,13 @@ declare module '@tanstack/react-router' {
       path: '/landing'
       fullPath: '/landing'
       preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lead-finder': {
+      id: '/lead-finder'
+      path: '/lead-finder'
+      fullPath: '/lead-finder'
+      preLoaderRoute: typeof LeadFinderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/linkedin': {
@@ -1722,6 +1742,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   ImportRoute: ImportRoute,
   LandingRoute: LandingRoute,
+  LeadFinderRoute: LeadFinderRoute,
   LinkedinRoute: LinkedinRoute,
   McpRoute: McpRoute,
   NotificationsRoute: NotificationsRoute,

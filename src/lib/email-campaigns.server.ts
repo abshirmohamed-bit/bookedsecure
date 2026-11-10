@@ -10,7 +10,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { replyToHeader } from "@/lib/email-inbound";
-import {
+import { LEAD_FINDER_UTM_SOURCE,
   bookedRecipients,
   buildEmailHtml,
   buildEmailText,
@@ -385,6 +385,9 @@ export async function campaignAudience(businessId: string, audience: CampaignAud
     .order("created_at", { ascending: false })
     .limit(500);
   if (def.statuses) query = query.in("status", [...def.statuses]);
+  query = audience === "lead_finder"
+    ? query.eq("utm_source", LEAD_FINDER_UTM_SOURCE)
+    : query.or(`utm_source.is.null,utm_source.neq."${LEAD_FINDER_UTM_SOURCE}"`);
   const { data, error } = await query;
   if (error) throw new Error("Could not load that audience.");
   const unsubscribed = await loadUnsubscribed(businessId);
