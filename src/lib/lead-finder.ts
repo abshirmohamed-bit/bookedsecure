@@ -97,7 +97,7 @@ export type Candidate = {
 };
 
 /** Directories, marketplaces, social networks and government sites: never the business's own website. */
-const NOT_A_BUSINESS_SITE = /(^|\.)(yellowpages|yelp|truelocal|hotfrog|oneflare|airtasker|hipages|serviceseeking|localsearch|startlocal|word-of-mouth|wordofmouth|productreview|tripadvisor|cylex-australia|cylex|trustpilot|facebook|instagram|linkedin|twitter|x|tiktok|youtube|pinterest|reddit|google|bing|apple|wikipedia|seek|indeed|glassdoor|gumtree|realestate|domain|fresha|timely|zomato|ubereats|doordash|menulog|booking|expedia|mapquest|waze|openstreetmap|whitepages|aussieweb|dlook|brownbook|infobel|nearbuy|hotdoc|healthengine|bark|thumbtack|houzz|finder|canstar|abr|asic|business)\.(com|com\.au|net|net\.au|org|org\.au|co|io|gov\.au)$|\.gov\.au$|\.edu\.au$/i;
+const NOT_A_BUSINESS_SITE = /(^|\.)(yellowpages|yelp|truelocal|hotfrog|oneflare|airtasker|hipages|serviceseeking|localsearch|startlocal|word-of-mouth|wordofmouth|productreview|tripadvisor|cylex-australia|cylex|trustpilot|facebook|instagram|linkedin|twitter|x|tiktok|youtube|pinterest|reddit|google|bing|apple|wikipedia|seek|indeed|glassdoor|gumtree|realestate|domain|fresha|timely|zomato|ubereats|doordash|menulog|booking|expedia|mapquest|waze|openstreetmap|whitepages|aussieweb|dlook|brownbook|infobel|nearbuy|hotdoc|healthengine|bark|thumbtack|houzz|finder|canstar|abr|asic|business|realcommercial|commercialrealestate|lease|commercialproperty2sell|propertyguru|onthehouse|allhomes|homely|rent|realestateview|cbre|colliers|jll|knightfrank|savills|cushmanwakefield)\.(com|com\.au|net|net\.au|org|org\.au|co|io|gov\.au)$|\.gov\.au$|\.edu\.au$/i;
 
 export function isBusinessSite(url: string | null | undefined): boolean {
   const host = hostOf(url);
@@ -218,12 +218,18 @@ export function candidateFromOsm(el: { type?: string; id?: number; tags?: Record
   };
 }
 
-/** Joins sources, one entry per website (or per name when there's none); web results with a site come first. */
+/**
+ * Joins sources, one entry per website (or per name when there's none). The
+ * sources take turns, so web results don't crowd out the map's local businesses.
+ */
 export function mergeCandidates(lists: Candidate[][], limit: number): Candidate[] {
   const out: Candidate[] = [];
   const keys = new Set<string>();
   const nameKey = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
-  for (const c of lists.flat()) {
+  const turns: Candidate[] = [];
+  const longest = Math.max(0, ...lists.map((l) => l.length));
+  for (let i = 0; i < longest; i++) for (const list of lists) if (list[i]) turns.push(list[i]!);
+  for (const c of turns) {
     const host = hostOf(c.website);
     const k1 = host ? `h:${host}` : null;
     const k2 = `n:${nameKey(c.name)}`;
@@ -232,8 +238,12 @@ export function mergeCandidates(lists: Candidate[][], limit: number): Candidate[
     keys.add(k2);
     out.push(c);
   }
-  // Businesses with a website can be read and emailed, so they lead.
-  return out.sort((a, b) => Number(Boolean(b.website)) - Number(Boolean(a.website))).slice(0, limit);
+  return out.slice(0, limit);
+}
+
+/** Web search wording that finds businesses of that type, not property listings or job ads. */
+export function webSearchQuery(what: string, where: string): string {
+  return `${what.trim()} business in ${where.trim()} Australia -lease -"for sale" -"for rent" -jobs`.slice(0, 220);
 }
 
 // ----- Co-work suggestions -----
