@@ -58,6 +58,8 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [socialBusy, setSocialBusy] = useState<"google" | "apple" | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     if (loading || !session || routingSession.current === session.user.id) return;
@@ -116,9 +118,28 @@ function AuthPage() {
     }
   }
 
+  // The reset email goes to the address on the account. The link it carries
+  // opens /reset-password, the only place a new password is accepted.
+  async function sendResetLink(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+      toast.success("Reset link sent. Check your email.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send the reset link");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Google and Apple sign in through the provider, which takes the browser
-  // away and hands it back at /auth/callback. The page the owner came from is
-  // saved first so the callback can finish the journey there.
+  // away and hands it back at /oauth-return. The page the owner came from is
+  // saved first so that page can finish the journey there.
   async function socialSignIn(provider: "google" | "apple") {
     setSocialBusy(provider);
     try {
@@ -181,6 +202,36 @@ function AuthPage() {
             </div>
           </div>
 
+          {forgot ? (
+            <form onSubmit={sendResetLink} className="space-y-4 p-5">
+              <p className="text-sm text-muted-foreground">
+                Enter your email and we&rsquo;ll send a link to choose a new password.
+              </p>
+              <label className="block text-sm">
+                <span className="mb-1 block text-muted-foreground">Email</span>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </label>
+              <Button type="submit" disabled={busy} className="w-full">
+                {busy ? "Sending…" : "Send reset link"}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              {resetSent ? (
+                <div className="rounded-md border border-border bg-secondary/50 p-3 text-sm">
+                  <p className="font-medium">Check your email</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    If {email} has an account, a reset link is on its way. Links expire quickly,
+                    so use it as soon as it arrives.
+                  </p>
+                </div>
+              ) : null}
+            </form>
+          ) : (
+            <>
           <div className="space-y-3 px-5 pt-5">
             <GoogleSignInButton
               onClick={() => void socialSignIn("google")}
@@ -258,19 +309,43 @@ function AuthPage() {
                 minLength={8}
               />
             </label>
+            {mode === "signin" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setForgot(true);
+                  setResetSent(false);
+                }}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Forgot your password?
+              </button>
+            ) : null}
             <Button type="submit" disabled={busy} className="w-full">
               {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </form>
+            </>
+          )}
 
           <button
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            onClick={() => {
+              if (forgot) {
+                setForgot(false);
+                setResetSent(false);
+                setMode("signin");
+                return;
+              }
+              setMode(mode === "signin" ? "signup" : "signin");
+            }}
             className="w-full border-t border-border px-5 py-4 text-center text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground"
           >
-            {mode === "signin"
-              ? "First time? Create your team account"
-              : "Already have an account? Sign in"}
+            {forgot
+              ? "Back to sign in"
+              : mode === "signin"
+                ? "First time? Create your team account"
+                : "Already have an account? Sign in"}
           </button>
         </div>
       </section>
