@@ -10,7 +10,6 @@ import {
   ClipboardList,
   Inbox,
   Mail,
-  Megaphone,
   MessageCircle,
   MessageSquare,
   MessagesSquare,
@@ -95,126 +94,22 @@ function PrimaryCta({ signedIn, className }: { signedIn: boolean; className?: st
 
 /* ---------- Product preview, built from the real dashboard's parts ---------- */
 
-const MOCK_NAV: { label: string; icon: typeof Inbox; badge?: number; active?: boolean; group?: string }[] = [
-  { label: "Home", icon: Sparkles, active: true },
-  { label: "Assistant", icon: Bot },
-  { label: "Leads", icon: Inbox, badge: 2, group: "Inbox" },
-  { label: "Facebook and Instagram", icon: MessagesSquare, badge: 4 },
-  { label: "Bookings", icon: CalendarDays, group: "Work" },
-  { label: "Campaigns", icon: Megaphone },
-  { label: "Results", icon: BarChart3 },
-];
-
-function ProductPreview() {
+function HomeScreenshot() {
   return (
-    <div className="relative">
-      <div className="overflow-hidden rounded-[22px] border border-white/70 bg-white/45 shadow-[inset_0_1px_0_white,0_40px_90px_-30px_oklch(0.25_0.11_258/0.55)] backdrop-blur-2xl">
-        {/* window bar */}
-        <div className="flex items-center gap-1.5 border-b border-white/60 px-4 py-2.5">
-          <span className="size-2.5 rounded-full bg-foreground/15" />
-          <span className="size-2.5 rounded-full bg-foreground/15" />
-          <span className="size-2.5 rounded-full bg-foreground/15" />
-          <span className="ml-3 hidden rounded-md bg-white/60 px-2.5 py-0.5 text-[11px] text-muted-foreground sm:inline">bookedsecure.com/dashboard</span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-[13rem_minmax(0,1fr)]">
-          {/* sidebar */}
-          <aside className="hidden border-r border-white/60 bg-white/35 p-3 md:block" aria-hidden>
-            <div className="mb-3 flex items-center gap-2 px-1">
-              <img src={brandMark.url} alt="" className="size-7 object-contain" />
-              <div>
-                <p className="text-xs font-semibold">Your business</p>
-                <p className="text-[10px] text-muted-foreground">Your workspace</p>
-              </div>
-            </div>
-            {MOCK_NAV.map((item) => (
-              <div key={item.label}>
-                {item.group && <p className="mt-3 px-2 pb-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{item.group}</p>}
-                <div
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px]",
-                    item.active ? "bg-white/85 font-medium text-primary shadow-[inset_0_1px_0_white,0_2px_8px_-4px_oklch(0.3_0.1_258/0.3)]" : "text-muted-foreground",
-                  )}
-                >
-                  <item.icon className="size-3.5" />
-                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                  {item.badge ? <span className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[9px] font-semibold text-primary-foreground">{item.badge}</span> : null}
-                </div>
-              </div>
-            ))}
-          </aside>
-
-          {/* home */}
-          <div className="space-y-3 p-3 sm:p-4" aria-hidden>
-            <div>
-              <p className="text-sm font-semibold tracking-[-0.01em]">Good morning</p>
-              <p className="text-[11px] text-muted-foreground">Here's what needs you today.</p>
-            </div>
-            <div className="rounded-2xl border border-primary/25 bg-white/85 p-3 shadow-[0_10px_24px_-14px_color-mix(in_oklab,var(--primary)_70%,transparent)]">
-              <div className="flex items-center gap-2.5">
-                <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-[var(--primary-bright)] to-[var(--primary)] text-white">
-                  <UserPlus className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold">2 leads are waiting for your reply</p>
-                  <p className="truncate text-[10px] text-muted-foreground">Jess M. · Full detail · Parramatta</p>
-                </div>
-                <span className="rounded-lg bg-primary px-2 py-1 text-[10px] font-semibold text-primary-foreground">Reply</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                ["New leads", "14", "This week"],
-                ["Booked", "6", "This week"],
-                ["Replied", "9", "Customers"],
-              ].map(([label, value, hint]) => (
-                <div key={label} className="rounded-xl border border-white/70 bg-white/60 p-2.5">
-                  <p className="text-[9px] font-medium text-muted-foreground">{label}</p>
-                  <p className="text-lg font-semibold tracking-[-0.02em]">{value}</p>
-                  <p className="text-[9px] text-muted-foreground">{hint}</p>
-                </div>
-              ))}
-            </div>
-            <div className="rounded-xl border border-white/70 bg-white/55 p-2.5">
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Latest leads</p>
-              {[
-                ["JM", "Jess M.", "Quote request · Full detail", "2 min"],
-                ["DK", "Daniel K.", "Facebook lead · Interior clean", "18 min"],
-                ["AR", "Aisha R.", "Instagram DM · Ceramic coating", "1 h"],
-              ].map(([initials, name, detail, when]) => (
-                <div key={name} className="flex items-center gap-2 py-1">
-                  <span className="grid size-6 place-items-center rounded-full bg-gradient-to-br from-[var(--primary-bright)] to-[var(--primary-deep)] text-[9px] font-semibold text-white">{initials}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[11px] font-medium">{name}</p>
-                    <p className="truncate text-[10px] text-muted-foreground">{detail}</p>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">{when}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+    <div className="overflow-hidden rounded-[22px] border border-white/70 bg-white/45 shadow-[inset_0_1px_0_white,0_40px_90px_-30px_oklch(0.25_0.11_258/0.55)] backdrop-blur-2xl">
+      <div className="flex items-center gap-1.5 border-b border-white/60 px-4 py-2.5">
+        <span className="size-2.5 rounded-full bg-foreground/15" />
+        <span className="size-2.5 rounded-full bg-foreground/15" />
+        <span className="size-2.5 rounded-full bg-foreground/15" />
+        <span className="ml-3 hidden rounded-md bg-white/60 px-2.5 py-0.5 text-[11px] text-muted-foreground sm:inline">bookedsecure.com/dashboard</span>
       </div>
-
-      {/* floating glass cards */}
-      <div className="animate-float absolute -left-4 top-24 hidden w-60 rounded-2xl border border-white/80 bg-white/80 p-3 shadow-[inset_0_1px_0_white,0_20px_40px_-18px_oklch(0.25_0.1_258/0.5)] backdrop-blur-2xl lg:-left-12 lg:block" aria-hidden>
-        <div className="flex items-start gap-2.5">
-          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--primary-bright)] to-[var(--primary)] text-white">
-            <Bell className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold">Quote request: Jess</p>
-            <p className="text-[10px] text-muted-foreground">Full detail · Parramatta. Tap to reply.</p>
-            <p className="mt-0.5 text-[9px] text-muted-foreground">now</p>
-          </div>
-        </div>
-      </div>
-      <div className="animate-float-slow absolute -bottom-6 -right-3 hidden w-64 rounded-2xl border border-white/80 bg-white/80 p-3 shadow-[inset_0_1px_0_white,0_20px_40px_-18px_oklch(0.25_0.1_258/0.5)] backdrop-blur-2xl sm:block lg:-right-10" aria-hidden>
-        <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold text-primary">
-          <Bot className="size-3.5" /> Assistant
-        </p>
-        <p className="rounded-xl rounded-tr-sm bg-primary px-2.5 py-1.5 text-[11px] text-primary-foreground">Book Jess in for Saturday 9am</p>
-        <p className="mt-1.5 rounded-xl rounded-tl-sm bg-white/90 px-2.5 py-1.5 text-[11px]">Done. Jess is booked for a Full detail on Sat at 9:00 am.</p>
-      </div>
+      <img
+        src="/landing/home-desktop.webp"
+        width={1600}
+        height={1000}
+        alt="BookedSecure Home: latest leads, today's work, Co-work assistant, bookings, campaigns and social inbox side by side"
+        className="block h-auto w-full"
+      />
     </div>
   );
 }
@@ -288,17 +183,6 @@ function FollowUpTimeline() {
   );
 }
 
-function AssistantChat() {
-  return (
-    <div className="space-y-1.5 text-xs">
-      <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-3 py-1.5 text-primary-foreground">Who's waiting for my reply?</p>
-      <p className="w-fit max-w-[90%] rounded-2xl rounded-tl-sm bg-white/85 px-3 py-1.5">Jess and Daniel. Jess wants a full detail in Parramatta; Daniel asked about an interior clean.</p>
-      <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-3 py-1.5 text-primary-foreground">Text them both that I can do Saturday.</p>
-      <p className="w-fit max-w-[90%] rounded-2xl rounded-tl-sm bg-white/85 px-3 py-1.5">Both texts are ready below for you to confirm.</p>
-    </div>
-  );
-}
-
 /* ---------- Page ---------- */
 
 export function HomeLanding() {
@@ -363,9 +247,9 @@ export function HomeLanding() {
             </ul>
           </div>
 
-          <div className="mx-auto mt-14 max-w-5xl animate-in fade-in slide-in-from-bottom-8 duration-1000 sm:mt-16">
-            <ProductPreview />
-            <p className="mt-10 text-center text-xs text-muted-foreground">Example workspace. Names and numbers are illustrative.</p>
+          <div className="mx-auto mt-14 max-w-6xl animate-in fade-in slide-in-from-bottom-8 duration-1000 sm:mt-16">
+            <HomeScreenshot />
+            <p className="mt-6 text-center text-xs text-muted-foreground">BookedSecure Home on a desktop. Customer details are blurred for privacy.</p>
           </div>
         </section>
 
@@ -401,7 +285,9 @@ export function HomeLanding() {
             <FeatureCard className="md:col-span-2" icon={Bell} title="New leads first" body="Push alerts tell you who wants what, and your notifications always put new leads at the top." />
             <FeatureCard className="md:col-span-2" icon={MessagesSquare} title="Comments and DMs" body="Facebook and Instagram comments and messages arrive with a suggested reply. Nothing is posted until you approve it." />
             <FeatureCard className="md:col-span-4" icon={Bot} title="An assistant that does the work" body="Ask in plain English and it books jobs, updates leads, drafts campaigns and tells you who's waiting. Texts always wait for your confirm.">
-              <AssistantChat />
+              <div className="overflow-hidden rounded-2xl border border-white/70 shadow-[0_18px_40px_-24px_oklch(0.25_0.11_258/0.5)]">
+                <img src="/landing/home-cowork.webp" width={500} height={618} loading="lazy" alt="Co-work, the assistant inside BookedSecure Home, with a conversation and the message box" className="h-72 w-full object-cover object-bottom sm:h-80" />
+              </div>
             </FeatureCard>
             <div className="grid gap-4 md:col-span-2">
               <FeatureCard icon={Mail} title="Text and email campaigns" body="Win back past customers with an automatic follow-up for anyone who doesn't book." />
