@@ -43,6 +43,15 @@ export function readLinkedInConfig(): LinkedInConfig {
   };
 }
 
+/** Names (never values) of the platform settings LinkedIn still needs. */
+export function linkedInMissingSettings(config = readLinkedInConfig()): string[] {
+  return [
+    config.clientId ? null : "LINKEDIN_CLIENT_ID",
+    config.clientSecret ? null : "LINKEDIN_CLIENT_SECRET",
+    process.env["TENANT_AI_ENCRYPTION_SECRET"] ? null : "TENANT_AI_ENCRYPTION_SECRET",
+  ].filter((name): name is string => name !== null);
+}
+
 export function linkedInReady(config = readLinkedInConfig()): boolean {
   return Boolean(config.clientId && config.clientSecret && process.env["TENANT_AI_ENCRYPTION_SECRET"]);
 }
@@ -212,6 +221,7 @@ export async function linkedInStatus(businessId: string) {
   const days = daysUntil(account?.token_expires_at);
   return {
     platformReady: linkedInReady(config),
+    missingSettings: linkedInMissingSettings(config),
     pagesEnabled: config.pagesEnabled,
     setupMissing,
     connected: Boolean(account),

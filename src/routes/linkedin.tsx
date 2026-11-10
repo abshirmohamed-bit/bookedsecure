@@ -70,7 +70,7 @@ function LinkedInPage() {
         ) : d.setupMissing ? (
           <p className="glass p-6 text-sm text-muted-foreground">LinkedIn posting is waiting for a database update (migration 0035_linkedin_posting).</p>
         ) : !d.connected ? (
-          <ConnectCard platformReady={d.platformReady} isOwner={d.isOwner} pagesEnabled={d.pagesEnabled} connecting={connect.isPending} onConnect={() => connect.mutate()} />
+          <ConnectCard platformReady={d.platformReady} missing={d.missingSettings} isOwner={d.isOwner} pagesEnabled={d.pagesEnabled} connecting={connect.isPending} onConnect={() => connect.mutate()} />
         ) : (
           <>
             {d.expired && (
@@ -90,7 +90,7 @@ function LinkedInPage() {
 
 type Data = Awaited<ReturnType<typeof getLinkedIn>>;
 
-function ConnectCard({ platformReady, isOwner, pagesEnabled, connecting, onConnect }: { platformReady: boolean; isOwner: boolean; pagesEnabled: boolean; connecting: boolean; onConnect: () => void }) {
+function ConnectCard({ platformReady, missing, isOwner, pagesEnabled, connecting, onConnect }: { platformReady: boolean; missing: string[]; isOwner: boolean; pagesEnabled: boolean; connecting: boolean; onConnect: () => void }) {
   return (
     <section className="glass flex flex-col items-center gap-4 px-6 py-12 text-center">
       <span className="grid size-14 place-items-center rounded-2xl bg-[#0a66c2] text-white shadow-[0_8px_24px_rgb(10_102_194/0.35)]">
@@ -103,7 +103,10 @@ function ConnectCard({ platformReady, isOwner, pagesEnabled, connecting, onConne
         </p>
       </div>
       {!platformReady ? (
-        <p className="max-w-md text-xs text-muted-foreground">LinkedIn isn't switched on for BookedSecure yet. It needs the LinkedIn app keys added (see docs/linkedin-setup.md).</p>
+        <p className="max-w-md text-xs text-muted-foreground">
+          LinkedIn isn't switched on for BookedSecure yet.
+          {missing.length > 0 ? ` The site can't see: ${missing.join(", ")}. Check the name in Lovable's secrets and publish again.` : " It needs the LinkedIn app keys added."}
+        </p>
       ) : !isOwner ? (
         <p className="text-xs text-muted-foreground">Only the business owner can connect LinkedIn.</p>
       ) : (
