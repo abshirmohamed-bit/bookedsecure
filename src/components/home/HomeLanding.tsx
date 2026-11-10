@@ -21,6 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import brandMark from "@/assets/bookedsecure-mark.png.asset.json";
+import { QuotePagePreview } from "@/components/home/QuotePagePreview";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -65,15 +66,6 @@ const AUDIENCE = [
 /** Glass surface used throughout, matching the dashboard. */
 function Glass({ className, children }: { className?: string; children: ReactNode }) {
   return <div className={cn("glass", className)}>{children}</div>;
-}
-
-function Eyebrow({ children }: { children: ReactNode }) {
-  return (
-    <p className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/55 px-3 py-1 text-xs font-medium text-primary shadow-[inset_0_1px_0_white] backdrop-blur-xl">
-      <span className="size-1.5 rounded-full bg-primary" />
-      {children}
-    </p>
-  );
 }
 
 function PrimaryCta({ signedIn, className }: { signedIn: boolean; className?: string }) {
@@ -292,8 +284,7 @@ export function HomeLanding() {
         {/* Hero */}
         <section className="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 sm:pt-20 lg:pb-24">
           <div className="mx-auto max-w-3xl text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <Eyebrow>For Australian service businesses</Eyebrow>
-            <h1 className="mt-6 text-[44px] font-semibold leading-[1.02] tracking-[-0.035em] sm:text-7xl lg:text-[84px]">
+            <h1 className="text-[44px] font-semibold leading-[1.02] tracking-[-0.035em] sm:text-7xl lg:text-[84px]">
               It's really{" "}
               <span className="bg-gradient-to-r from-[var(--primary-deep)] via-[var(--primary)] to-[var(--primary-bright)] bg-clip-text text-transparent">simple.</span>
             </h1>
@@ -404,8 +395,8 @@ export function HomeLanding() {
           <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)]">
             <Glass className="flex flex-col p-5 sm:p-6">
               <p className="text-sm font-semibold text-primary">What your customer sees</p>
-              <p className="mt-1.5 text-sm leading-6 text-muted-foreground">Your own quote page, with your services and prices, on their phone.</p>
-              <PhoneShot className="mt-5" screenClassName="max-h-[21rem]" src="/landing/phone-quote.webp" height={1731} alt="A business's BookedSecure quote page on a phone: a welcome message, service packages with prices and times, and a message box" />
+              <p className="mt-1.5 text-sm leading-6 text-muted-foreground">Your own quote page, worded for your trade and showing your own services and prices.</p>
+              <QuotePagePreview className="mt-5" />
             </Glass>
             <Glass className="flex flex-col p-5 sm:p-6">
               <p className="text-sm font-semibold text-primary">What you see</p>
