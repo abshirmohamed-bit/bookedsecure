@@ -33,7 +33,12 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const emailCampaigns = await processDueEmailCampaigns().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Email campaigns failed",
         }));
-        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, abandonedSwept: swept.swept });
+        // Booked jobs whose time has passed, for businesses that complete jobs automatically.
+        const { processDueAutoCompletions } = await import("@/lib/job-autocomplete.server");
+        const autoCompleted = await processDueAutoCompletions().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Auto-complete failed",
+        }));
+        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, autoCompleted, abandonedSwept: swept.swept });
 
 
       },

@@ -11,6 +11,7 @@ import {
   Lock,
   MessagesSquare,
   Sparkles,
+  Upload,
 } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,15 @@ import { onboardingProgressLabel } from "@/lib/onboarding";
 import { LEAD_STATUS_LABELS, formatCurrency, type LeadStatus } from "@/lib/domain";
 import { saveAssistantDraft } from "@/lib/assistant-draft";
 import { cn } from "@/lib/utils";
+import {
+  CampaignsSnippet,
+  FacebookAdsSnippet,
+  LeadProgressSnippet,
+  LinkedInSnippet,
+  SocialSnippet,
+  TextMessagesSnippet,
+  UnfinishedSnippet,
+} from "@/components/home/HomeSnippets";
 
 type Summary = Awaited<ReturnType<typeof getHomeSummary>>;
 
@@ -50,12 +60,21 @@ export function HomeOverview() {
   const setup = progress.data && !progress.data.complete && progress.data.role === "owner" ? progress.data : null;
   const nextStep = setup?.steps.find((step) => !step.done && !step.blockedBy) ?? null;
 
+  const heading = (
+    <div>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">{greeting(data.businessName)}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Here's what's happening with your enquiries.</p>
+    </div>
+  );
+
+  // Phones keep the single column exactly as before. From tablet width up, Home
+  // also shows small views of the main tools: on wide screens in a column either
+  // side of today's work, on tablets below it.
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">{greeting(data.businessName)}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Here's what's happening with your enquiries.</p>
-      </div>
+    <div className="mx-auto w-full max-w-6xl md:max-w-none">
+    <div className="md:grid md:grid-cols-2 md:gap-5 xl:grid-cols-[minmax(0,19rem)_minmax(0,1fr)_minmax(0,22rem)] 2xl:grid-cols-[minmax(0,21rem)_minmax(0,1fr)_minmax(0,25rem)]">
+    <div className="min-w-0 space-y-5 md:col-span-2 xl:order-2 xl:col-span-1">
+      <div className="xl:hidden">{heading}</div>
 
       <TodayCard data={data} nextStep={nextStep} />
 
@@ -124,6 +143,22 @@ export function HomeOverview() {
       ) : null}
 
       <AskAssistant />
+    </div>
+
+    <aside aria-label="Results and inbox" className="hidden min-w-0 space-y-4 md:block xl:order-1">
+      <div className="hidden xl:block">{heading}</div>
+      <TextMessagesSnippet />
+      <LeadProgressSnippet />
+      <FacebookAdsSnippet />
+      <UnfinishedSnippet />
+      <SocialSnippet />
+    </aside>
+
+    <aside aria-label="Campaigns and posts" className="hidden min-w-0 space-y-4 md:block xl:order-3">
+      <CampaignsSnippet />
+      <LinkedInSnippet />
+    </aside>
+    </div>
     </div>
   );
 }
@@ -389,16 +424,23 @@ function AskAssistant() {
     navigate({ to: "/assistant" });
   };
   return (
-    <form onSubmit={submit} className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 pl-4">
-      <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+    <form onSubmit={submit} className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 pl-4 md:flex-wrap md:items-end md:p-3">
+      <Sparkles className="h-4 w-4 shrink-0 text-primary md:hidden" aria-hidden="true" />
       <label htmlFor="home-ask" className="sr-only">Ask the assistant</label>
       <input
         id="home-ask"
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder="Ask the assistant to text a lead, book a job or start a campaign"
-        className="min-w-0 flex-1 bg-transparent py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+        className="min-w-0 flex-1 bg-transparent py-1.5 text-sm outline-none placeholder:text-muted-foreground md:basis-full md:py-3 md:text-base"
       />
+      <Link
+        to="/assistant"
+        className="hidden items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground md:inline-flex"
+      >
+        <Upload className="h-3.5 w-3.5" /> Attach CSV
+      </Link>
+      <span className="hidden flex-1 text-center text-xs text-muted-foreground md:block">Ask for it and the assistant does it</span>
       <Button type="submit" size="sm">
         Ask <ArrowRight />
       </Button>

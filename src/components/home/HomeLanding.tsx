@@ -28,6 +28,8 @@ import { cn } from "@/lib/utils";
 
 const PHONE = "+61 466 907 824";
 const PHONE_HREF = "tel:+61466907824";
+/** Demo requests go to hello@bookedsecure.com, which reaches the team inbox. */
+const DEMO_HREF = "mailto:hello@bookedsecure.com?subject=Book%20a%20BookedSecure%20demo&body=Hi%2C%20I%27d%20like%20a%20demo%20of%20BookedSecure.%0A%0ABusiness%20name%3A%0AWhat%20we%20do%3A%0ABest%20time%20to%20call%3A";
 
 const STEPS = [
   {
@@ -320,8 +322,8 @@ export function HomeLanding() {
           </nav>
           <div className="ml-auto flex items-center gap-2">
             {!signedIn && (
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-                <a href={PHONE_HREF}><Phone /> {PHONE}</a>
+              <Button asChild variant="outline" size="sm" className="hidden rounded-xl px-4 sm:inline-flex">
+                <a href={DEMO_HREF}><CalendarDays /> Book a demo</a>
               </Button>
             )}
             <Button asChild size="sm" className="rounded-xl px-4">

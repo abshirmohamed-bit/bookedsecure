@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { BusinessSettingsForm, RulesEditor, SettingsPageBody } from "@/components/settings/sections";
+import { AutoCompleteJobsCard } from "@/components/settings/AutoCompleteJobsCard";
 
 export const Route = createFileRoute("/settings/automation")({
   head: () => ({
@@ -40,6 +41,7 @@ function AutomationSettingsPage() {
               note="Follow-ups always stop when a customer replies, opts out, or you pause a conversation."
             />
             <RulesEditor rules={data.rules} readOnly={data.role !== "owner"} />
+            <AutoCompleteJobsCard />
           </>
         )}
       </SettingsPageBody>
