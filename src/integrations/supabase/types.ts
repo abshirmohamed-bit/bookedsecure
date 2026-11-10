@@ -1112,6 +1112,7 @@ export type Database = {
           automation_enabled: boolean
           billing_interval: string
           cancel_at_period_end: boolean
+          complimentary_access: boolean
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
@@ -1166,6 +1167,7 @@ export type Database = {
           automation_enabled?: boolean
           billing_interval?: string
           cancel_at_period_end?: boolean
+          complimentary_access?: boolean
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
@@ -1220,6 +1222,7 @@ export type Database = {
           automation_enabled?: boolean
           billing_interval?: string
           cancel_at_period_end?: boolean
+          complimentary_access?: boolean
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
