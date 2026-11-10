@@ -67,7 +67,7 @@ const NAV_ICONS: Record<NavIcon, typeof Home> = {
 
 const COLLAPSE_KEY = "bookedsecure:sidebar-collapsed";
 
-export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
+export function AppShell({ children, title, wide = false }: { children: ReactNode; title?: string; /** Use the whole screen width on tablets and up (Home). */ wide?: boolean }) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -316,7 +316,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
       <main
         className={cn(
           "min-w-0",
-          fullHeight ? "min-h-0 flex-1 overflow-hidden" : "mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8",
+          fullHeight ? "min-h-0 flex-1 overflow-hidden" : cn("mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8", wide && "md:max-w-none 2xl:px-10"),
         )}
       >
         {children}

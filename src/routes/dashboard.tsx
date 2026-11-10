@@ -21,7 +21,7 @@ export const Route = createFileRoute("/dashboard")({
 
 function DashboardPage() {
   return (
-    <AppShell title="Home">
+    <AppShell title="Home" wide>
       <HomeOverview />
     </AppShell>
   );

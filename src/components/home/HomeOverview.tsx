@@ -21,6 +21,7 @@ import { onboardingProgressLabel } from "@/lib/onboarding";
 import { LEAD_STATUS_LABELS, formatCurrency, type LeadStatus } from "@/lib/domain";
 import { saveAssistantDraft } from "@/lib/assistant-draft";
 import { cn } from "@/lib/utils";
+import { HomeAssistant } from "@/components/home/HomeAssistant";
 import {
   CampaignsSnippet,
   FacebookAdsSnippet,
@@ -142,7 +143,9 @@ export function HomeOverview() {
         </Panel>
       ) : null}
 
-      <AskAssistant />
+      {/* Phones keep the quick ask box that opens the Assistant page; wider screens chat right here. */}
+      <div className="md:hidden"><AskAssistant /></div>
+      <div className="hidden md:block"><HomeAssistant /></div>
     </div>
 
     <aside aria-label="Results and inbox" className="hidden min-w-0 space-y-4 md:block xl:order-1">

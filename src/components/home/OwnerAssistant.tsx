@@ -112,11 +112,14 @@ export function OwnerAssistant({
   initialTurns = [],
   onConversationChanged,
   homeMode = false,
+  compact = false,
 }: {
   threadId: string;
   initialTurns?: OwnerAssistantTurn[];
   onConversationChanged?: () => void;
   homeMode?: boolean;
+  /** Smaller empty state, for the chat embedded on Home. */
+  compact?: boolean;
 }) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
@@ -404,7 +407,13 @@ export function OwnerAssistant({
   return (
     <section className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
       <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-        {!hasConversation ? (
+        {!hasConversation && compact ? (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5 py-5 text-center">
+            <p className="text-sm font-medium">Ask the assistant</p>
+            <p className="mt-1 max-w-sm text-xs text-muted-foreground">Text a lead, book a job, start a campaign or ask who's waiting. Texts always wait for your confirm.</p>
+          </div>
+        ) : null}
+        {!hasConversation && !compact ? (
           <div className={`mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-5 py-5 text-center ${homeMode ? "lg:pr-48" : ""}`}>
             <p className="text-xs font-semibold uppercase text-primary">Cowork</p>
             <h1 className="mt-2 text-balance font-heading text-2xl font-semibold leading-[1.15] sm:text-4xl">
