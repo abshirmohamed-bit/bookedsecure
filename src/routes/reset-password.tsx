@@ -68,7 +68,7 @@ function ResetPasswordPage() {
 
     return () => {
       clearInterval(timer);
-      subscription.subscription.unsubscribe();
+      subscription.data.subscription.unsubscribe();
     };
   }, []);
 
