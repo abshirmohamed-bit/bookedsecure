@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-const UPDATED = "10 November 2026";
+const UPDATED = "11 November 2026";
 const CONTACT = "bookedsecure@gmail.com";
 
 export const Route = createFileRoute("/privacy")({
@@ -11,7 +11,7 @@ export const Route = createFileRoute("/privacy")({
       {
         name: "description",
         content:
-          "How BookedSecure collects, uses, stores and protects personal information, including SMS and email messages and connected Facebook, Instagram and LinkedIn accounts.",
+          "How BookedSecure collects, uses, stores and protects personal information, including SMS and email messages and connected Facebook, Instagram, LinkedIn and YouTube accounts.",
       },
       { property: "og:title", content: "Privacy policy | BookedSecure" },
       { property: "og:description", content: "How BookedSecure handles personal information." },
@@ -58,7 +58,7 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
   },
   {
     id: "connected",
-    title: "Facebook, Instagram and LinkedIn connections",
+    title: "Facebook, Instagram, LinkedIn and YouTube connections",
     body: (
       <>
         <p>A business owner can connect their own social accounts. We only request what each feature needs, and the owner can disconnect at any time.</p>
@@ -74,10 +74,22 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
             Pages they manage). We keep a record of posts published from BookedSecure. We do not read, send or store LinkedIn
             messages, connections or other members’ data.
           </li>
+          <li>
+            <strong>YouTube:</strong> BookedSecure uses YouTube API Services. When the owner signs in with Google we receive
+            their YouTube channel’s ID, name and picture, and permission to upload videos they choose in BookedSecure to that
+            channel with the title, description and privacy they set. We keep a record of videos uploaded from BookedSecure. We
+            do not read, change or delete other videos, comments, subscribers or analytics. By connecting YouTube you agree to
+            the{" "}
+            <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">YouTube Terms of Service</a>, and Google’s
+            handling of data is described in the{" "}
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Google Privacy Policy</a>. You can
+            remove BookedSecure’s access at any time with Disconnect in BookedSecure or in your{" "}
+            <a href="https://myaccount.google.com/connections" target="_blank" rel="noreferrer">Google account’s third-party connections</a>.
+          </li>
         </ul>
         <p>
           Access tokens for connected accounts are encrypted and only used by our servers for the connected business. Use of
-          information received from Meta and LinkedIn follows their platform terms. Disconnecting removes the stored token.
+          information received from Meta, LinkedIn and Google (YouTube) follows their platform terms, including the Google API Services User Data Policy and its Limited Use requirements. Disconnecting removes the stored token.
         </p>
       </>
     ),
@@ -124,7 +136,7 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
           <li>SMS delivery and email delivery providers;</li>
           <li>push notification services;</li>
           <li>AI model providers, used only to produce drafts and summaries requested by the business;</li>
-          <li>Meta and LinkedIn, when a business connects those accounts and asks us to publish or read on its behalf;</li>
+          <li>Meta, LinkedIn and Google (YouTube), when a business connects those accounts and asks us to publish or read on its behalf;</li>
           <li>payment processors for business subscriptions.</li>
         </ul>
         <p>

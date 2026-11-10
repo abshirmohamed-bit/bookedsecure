@@ -656,13 +656,14 @@ async function waitUntilReady(kind: "video" | "document", urn: string, token: st
 
 /** AI writes a LinkedIn post from the owner's brief. Nothing is posted or saved. */
 export type PostPlatform = "linkedin" | "facebook" | "instagram";
-const PLATFORM_STYLE: Record<PostPlatform, { name: string; style: string }> = {
+const PLATFORM_STYLE: Record<PostPlatform | "youtube", { name: string; style: string }> = {
+  youtube: { name: "YouTube", style: "Write a YouTube video title and description. The first line is only the title: under 80 characters, clear and searchable, no quotes, no hashtags. Then one blank line, then a description of 60 to 200 words: what the video shows, who it helps and the area served, short paragraphs, plain text, Australian English. Never use < or >." },
   linkedin: { name: "LinkedIn", style: "Write one post of 60 to 180 words: a strong first line, short paragraphs, plain text, Australian English, warm and professional." },
   facebook: { name: "Facebook", style: "Write one Facebook Page post of 40 to 120 words: friendly and local, a clear first line, short paragraphs, plain text, Australian English." },
   instagram: { name: "Instagram", style: "Write one Instagram caption of 30 to 100 words: a hook in the first line, short lines, plain text, Australian English. Put up to six relevant hashtags on the last line." },
 };
 
-export async function draftLinkedInPost(input: { businessId: string; brief: string; chips?: string[]; platform?: PostPlatform }): Promise<{ text: string }> {
+export async function draftLinkedInPost(input: { businessId: string; brief: string; chips?: string[]; platform?: PostPlatform | "youtube" }): Promise<{ text: string }> {
   const platform = PLATFORM_STYLE[input.platform ?? "linkedin"];
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("The AI service is not configured.");

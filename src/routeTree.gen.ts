@@ -56,6 +56,7 @@ import { Route as UnfinishedIndexRouteImport } from './routes/unfinished.index'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiLinkedinUploadRouteImport } from './routes/api/linkedin/upload'
 import { Route as ApiPublicEmailUnsubscribeRouteImport } from './routes/api/public/email-unsubscribe'
+import { Route as ApiYoutubeUploadRouteImport } from './routes/api/youtube/upload'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksLeadSyncRouteImport } from './routes/api/public/hooks/lead-sync'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
@@ -86,6 +87,7 @@ import { Route as ApiPublicV1BookingAvailabilityRouteImport } from './routes/api
 import { Route as ApiPublicV1BookingBookRouteImport } from './routes/api/public/v1/booking.book'
 import { Route as ApiPublicV1BookingOptionsRouteImport } from './routes/api/public/v1/booking.options'
 import { Route as ApiPublicV1BookingQuoteRouteImport } from './routes/api/public/v1/booking.quote'
+import { Route as ApiPublicYoutubeOauthCallbackRouteImport } from './routes/api/public/youtube/oauth.callback'
 import { Route as ApiPublicV1SocialCommentsIdPostedRouteImport } from './routes/api/public/v1/social-comments.$id.posted'
 
 const IndexRoute = IndexRouteImport.update({
@@ -325,6 +327,11 @@ const ApiPublicEmailUnsubscribeRoute =
     path: '/api/public/email-unsubscribe',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiYoutubeUploadRoute = ApiYoutubeUploadRouteImport.update({
+  id: '/api/youtube/upload',
+  path: '/api/youtube/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   id: '/api/public/hooks/follow-ups',
   path: '/api/public/hooks/follow-ups',
@@ -489,6 +496,12 @@ const ApiPublicV1BookingQuoteRoute = ApiPublicV1BookingQuoteRouteImport.update({
   path: '/api/public/v1/booking/quote',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicYoutubeOauthCallbackRoute =
+  ApiPublicYoutubeOauthCallbackRouteImport.update({
+    id: '/api/public/youtube/oauth/callback',
+    path: '/api/public/youtube/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicV1SocialCommentsIdPostedRoute =
   ApiPublicV1SocialCommentsIdPostedRouteImport.update({
     id: '/$id/posted',
@@ -544,6 +557,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
+  '/api/youtube/upload': typeof ApiYoutubeUploadRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
@@ -574,6 +588,7 @@ export interface FileRoutesByFullPath {
   '/api/public/v1/booking/book': typeof ApiPublicV1BookingBookRoute
   '/api/public/v1/booking/options': typeof ApiPublicV1BookingOptionsRoute
   '/api/public/v1/booking/quote': typeof ApiPublicV1BookingQuoteRoute
+  '/api/public/youtube/oauth/callback': typeof ApiPublicYoutubeOauthCallbackRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesByTo {
@@ -623,6 +638,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
+  '/api/youtube/upload': typeof ApiYoutubeUploadRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
@@ -653,6 +669,7 @@ export interface FileRoutesByTo {
   '/api/public/v1/booking/book': typeof ApiPublicV1BookingBookRoute
   '/api/public/v1/booking/options': typeof ApiPublicV1BookingOptionsRoute
   '/api/public/v1/booking/quote': typeof ApiPublicV1BookingQuoteRoute
+  '/api/public/youtube/oauth/callback': typeof ApiPublicYoutubeOauthCallbackRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesById {
@@ -704,6 +721,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
+  '/api/youtube/upload': typeof ApiYoutubeUploadRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
@@ -734,6 +752,7 @@ export interface FileRoutesById {
   '/api/public/v1/booking/book': typeof ApiPublicV1BookingBookRoute
   '/api/public/v1/booking/options': typeof ApiPublicV1BookingOptionsRoute
   '/api/public/v1/booking/quote': typeof ApiPublicV1BookingQuoteRoute
+  '/api/public/youtube/oauth/callback': typeof ApiPublicYoutubeOauthCallbackRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRouteTypes {
@@ -786,6 +805,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
+    | '/api/youtube/upload'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
@@ -816,6 +836,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/booking/book'
     | '/api/public/v1/booking/options'
     | '/api/public/v1/booking/quote'
+    | '/api/public/youtube/oauth/callback'
     | '/api/public/v1/social-comments/$id/posted'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -865,6 +886,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
+    | '/api/youtube/upload'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
@@ -895,6 +917,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/booking/book'
     | '/api/public/v1/booking/options'
     | '/api/public/v1/booking/quote'
+    | '/api/public/youtube/oauth/callback'
     | '/api/public/v1/social-comments/$id/posted'
   id:
     | '__root__'
@@ -945,6 +968,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
+    | '/api/youtube/upload'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
@@ -975,6 +999,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/booking/book'
     | '/api/public/v1/booking/options'
     | '/api/public/v1/booking/quote'
+    | '/api/public/youtube/oauth/callback'
     | '/api/public/v1/social-comments/$id/posted'
   fileRoutesById: FileRoutesById
 }
@@ -1018,6 +1043,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiLinkedinUploadRoute: typeof ApiLinkedinUploadRoute
   ApiPublicEmailUnsubscribeRoute: typeof ApiPublicEmailUnsubscribeRoute
+  ApiYoutubeUploadRoute: typeof ApiYoutubeUploadRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksLeadSyncRoute: typeof ApiPublicHooksLeadSyncRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
@@ -1048,6 +1074,7 @@ export interface RootRouteChildren {
   ApiPublicV1BookingBookRoute: typeof ApiPublicV1BookingBookRoute
   ApiPublicV1BookingOptionsRoute: typeof ApiPublicV1BookingOptionsRoute
   ApiPublicV1BookingQuoteRoute: typeof ApiPublicV1BookingQuoteRoute
+  ApiPublicYoutubeOauthCallbackRoute: typeof ApiPublicYoutubeOauthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1381,6 +1408,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicEmailUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/youtube/upload': {
+      id: '/api/youtube/upload'
+      path: '/api/youtube/upload'
+      fullPath: '/api/youtube/upload'
+      preLoaderRoute: typeof ApiYoutubeUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/follow-ups': {
       id: '/api/public/hooks/follow-ups'
       path: '/api/public/hooks/follow-ups'
@@ -1591,6 +1625,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicV1BookingQuoteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/youtube/oauth/callback': {
+      id: '/api/public/youtube/oauth/callback'
+      path: '/api/public/youtube/oauth/callback'
+      fullPath: '/api/public/youtube/oauth/callback'
+      preLoaderRoute: typeof ApiPublicYoutubeOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/v1/social-comments/$id/posted': {
       id: '/api/public/v1/social-comments/$id/posted'
       path: '/$id/posted'
@@ -1693,6 +1734,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiLinkedinUploadRoute: ApiLinkedinUploadRoute,
   ApiPublicEmailUnsubscribeRoute: ApiPublicEmailUnsubscribeRoute,
+  ApiYoutubeUploadRoute: ApiYoutubeUploadRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksLeadSyncRoute: ApiPublicHooksLeadSyncRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
@@ -1723,6 +1765,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicV1BookingBookRoute: ApiPublicV1BookingBookRoute,
   ApiPublicV1BookingOptionsRoute: ApiPublicV1BookingOptionsRoute,
   ApiPublicV1BookingQuoteRoute: ApiPublicV1BookingQuoteRoute,
+  ApiPublicYoutubeOauthCallbackRoute: ApiPublicYoutubeOauthCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

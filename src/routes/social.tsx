@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Facebook, Instagram, Linkedin, ExternalLink, MessageCircle, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Facebook, Instagram, Linkedin, Youtube, ExternalLink, MessageCircle, RefreshCw, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -10,17 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { LinkedInWorkspace } from "@/routes/linkedin";
 import { MetaComposer } from "@/components/social/MetaComposer";
+import { YouTubeComposer } from "@/components/social/YouTubeComposer";
 import { convertSocialComment, getSocialThread, listSocialComments, listSocialThreads, refreshSocialNow, reviewSocialComment, sendSocialReply, suggestSocialReply } from "@/lib/social-comments.functions";
 
-type Platform = "linkedin" | "facebook" | "instagram";
+type Platform = "linkedin" | "facebook" | "instagram" | "youtube";
 type View = "post" | "comments" | "messages";
-type SocialSearch = { platform?: Platform; view?: View; linkedin?: string; why?: string };
+type SocialSearch = { platform?: Platform; view?: View; linkedin?: string; youtube?: string; why?: string };
 
 export const Route = createFileRoute("/social")({
   head: () => ({
     meta: [
       { title: "Social media | BookedSecure" },
-      { name: "description", content: "Post to LinkedIn, Facebook and Instagram, and answer comments and messages, from one place. Nothing is posted or sent until you approve." },
+      { name: "description", content: "Post to LinkedIn, Facebook, Instagram and YouTube, and answer comments and messages, from one place. Nothing is posted or sent until you approve." },
       { property: "og:title", content: "Social media | BookedSecure" },
       { property: "og:description", content: "Post to LinkedIn, Facebook and Instagram and answer comments in one place." },
       { property: "og:type", content: "website" },
@@ -29,9 +30,10 @@ export const Route = createFileRoute("/social")({
   }),
   // ?view=messages opens the DMs (used by notifications); ?platform= picks the network.
   validateSearch: (search: Record<string, unknown>): SocialSearch => ({
-    ...(search["platform"] === "linkedin" || search["platform"] === "facebook" || search["platform"] === "instagram" ? { platform: search["platform"] } : {}),
+    ...(search["platform"] === "linkedin" || search["platform"] === "facebook" || search["platform"] === "instagram" || search["platform"] === "youtube" ? { platform: search["platform"] } : {}),
     ...(search["view"] === "post" || search["view"] === "comments" || search["view"] === "messages" ? { view: search["view"] } : {}),
     ...(typeof search["linkedin"] === "string" ? { linkedin: search["linkedin"].slice(0, 20) } : {}),
+    ...(typeof search["youtube"] === "string" ? { youtube: search["youtube"].slice(0, 20) } : {}),
     ...(typeof search["why"] === "string" ? { why: search["why"].slice(0, 60) } : {}),
   }),
   component: SocialMediaPage,
@@ -41,6 +43,7 @@ const PLATFORMS: { id: Platform; label: string; icon: typeof Linkedin; color: st
   { id: "facebook", label: "Facebook", icon: Facebook, color: "text-[#1877f2]" },
   { id: "instagram", label: "Instagram", icon: Instagram, color: "text-[#d62976]" },
   { id: "linkedin", label: "LinkedIn", icon: Linkedin, color: "text-[#0a66c2]" },
+  { id: "youtube", label: "YouTube", icon: Youtube, color: "text-[#ff0000]" },
 ];
 
 function SocialMediaPage() {
@@ -48,7 +51,8 @@ function SocialMediaPage() {
   const navigate = Route.useNavigate();
   // A notification about comments or messages opens the inbox, not the composer.
   const platform: Platform = search.platform ?? "facebook";
-  const view: View = platform === "linkedin" ? "post" : search.view ?? "post";
+  const view: View = platform === "linkedin" || platform === "youtube" ? "post" : search.view ?? "post";
+  const clearYouTube = useCallback(() => void navigate({ search: { platform: "youtube" }, replace: true }), [navigate]);
   const go = (next: Partial<SocialSearch>) => void navigate({ search: { platform, view, ...next }, replace: true });
 
   return (
@@ -73,7 +77,7 @@ function SocialMediaPage() {
                 </button>
               ))}
             </div>
-            {platform !== "linkedin" && (
+            {(platform === "facebook" || platform === "instagram") && (
               <div role="tablist" aria-label="Section" className="inline-flex rounded-xl border border-border bg-card p-1">
                 {([["post", "Post"], ["comments", "Comments"], ["messages", "Messages"]] as const).map(([id, label]) => (
                   <button
@@ -93,6 +97,8 @@ function SocialMediaPage() {
 
         {platform === "linkedin" ? (
           <LinkedInWorkspace search={{ ...(search.linkedin ? { linkedin: search.linkedin } : {}), ...(search.why ? { why: search.why } : {}) }} clearSearch={() => void navigate({ search: { platform: "linkedin" }, replace: true })} />
+        ) : platform === "youtube" ? (
+          <YouTubeComposer outcome={search.youtube} why={search.why} clearOutcome={clearYouTube} />
         ) : view === "post" ? (
           <MetaComposer platform={platform} />
         ) : (
