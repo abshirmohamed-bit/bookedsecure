@@ -2842,10 +2842,12 @@ export type Database = {
           error: string | null
           id: string
           media: Json | null
+          payload: Json | null
           permalink: string | null
           platform: string
           post_urn: string | null
           published_at: string | null
+          scheduled_for: string | null
           source: string
           status: string
         }
@@ -2859,10 +2861,12 @@ export type Database = {
           error?: string | null
           id?: string
           media?: Json | null
+          payload?: Json | null
           permalink?: string | null
           platform?: string
           post_urn?: string | null
           published_at?: string | null
+          scheduled_for?: string | null
           source?: string
           status?: string
         }
@@ -2876,10 +2880,12 @@ export type Database = {
           error?: string | null
           id?: string
           media?: Json | null
+          payload?: Json | null
           permalink?: string | null
           platform?: string
           post_urn?: string | null
           published_at?: string | null
+          scheduled_for?: string | null
           source?: string
           status?: string
         }
