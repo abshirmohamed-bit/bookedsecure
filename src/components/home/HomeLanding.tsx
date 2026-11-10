@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -136,8 +136,54 @@ function FeatureCard({
       </span>
       <h3 className="mt-4 text-[17px] font-semibold tracking-[-0.01em]">{title}</h3>
       <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{body}</p>
-      {children && <div className="mt-4 flex-1">{children}</div>}
+      {children && <div className="mt-4 flex flex-1 flex-col gap-4">{children}</div>}
     </Glass>
+  );
+}
+
+/**
+ * A real dashboard screenshot (captured at 2x, customer details blurred).
+ * `fill` lets a side card's picture take the rest of its row's height on wide
+ * screens, cropped only top or bottom (`position` stays in view); on phones it
+ * keeps its own shape.
+ */
+function Shot({
+  src,
+  width,
+  height,
+  alt,
+  fill = false,
+  position = "top",
+}: {
+  src: string;
+  width: number;
+  height: number;
+  alt: string;
+  fill?: boolean;
+  position?: "top" | "bottom";
+}) {
+  const frame = "overflow-hidden rounded-2xl border border-white/70 bg-white/40 shadow-[0_18px_40px_-24px_oklch(0.25_0.11_258/0.5)]";
+  if (!fill) {
+    return (
+      <div className={frame}>
+        <img src={src} width={width} height={height} loading="lazy" alt={alt} className="block h-auto w-full" />
+      </div>
+    );
+  }
+  return (
+    <div
+      className={cn(frame, "relative aspect-[var(--shot-ratio)] md:aspect-auto md:min-h-56 md:flex-1")}
+      style={{ "--shot-ratio": `${width} / ${height}` } as CSSProperties}
+    >
+      <img
+        src={src}
+        width={width}
+        height={height}
+        loading="lazy"
+        alt={alt}
+        className={cn("absolute inset-x-0 block h-auto w-full", position === "top" ? "top-0" : "bottom-0")}
+      />
+    </div>
   );
 }
 
@@ -275,25 +321,37 @@ export function HomeLanding() {
             <h2 className="mt-3 text-3xl font-semibold tracking-[-0.025em] sm:text-[40px]">Your leads, replies and bookings, working together.</h2>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-6">
-            <FeatureCard className="md:col-span-3" icon={Inbox} title="Every enquiry in one inbox" body="Leads from your quote page, Facebook Lead Ads, Instagram and Facebook, imports and manual entry, all in one list with their full history.">
+            <FeatureCard className="md:col-span-4" icon={Inbox} title="Every enquiry in one inbox" body="Leads from your quote page, Facebook Lead Ads, Instagram and Facebook, imports and manual entry, all in one list with their full history.">
               <SourceChips />
-            </FeatureCard>
-            <FeatureCard className="md:col-span-3" icon={Zap} title="Instant reply, then follow-ups" body="Each new lead gets a text straight away and a follow-up sequence that stops when they reply or opt out. Quiet hours respected.">
-              <FollowUpTimeline />
-            </FeatureCard>
-            <FeatureCard className="md:col-span-2" icon={Sparkles} title="An AI quote page" body="Your own quote page chats with customers, works out what they need from your services and prices, and hands you a ready lead." />
-            <FeatureCard className="md:col-span-2" icon={Bell} title="New leads first" body="Push alerts tell you who wants what, and your notifications always put new leads at the top." />
-            <FeatureCard className="md:col-span-2" icon={MessagesSquare} title="Comments and DMs" body="Facebook and Instagram comments and messages arrive with a suggested reply. Nothing is posted until you approve it." />
-            <FeatureCard className="md:col-span-4" icon={Bot} title="An assistant that does the work" body="Ask in plain English and it books jobs, updates leads, drafts campaigns and tells you who's waiting. Texts always wait for your confirm.">
-              <div className="mx-auto max-w-[500px] overflow-hidden rounded-2xl border border-white/70 shadow-[0_18px_40px_-24px_oklch(0.25_0.11_258/0.5)]">
-                <img src="/landing/home-cowork.webp" width={500} height={618} loading="lazy" alt="Co-work, the assistant inside BookedSecure Home, with a conversation and the message box" className="h-[26rem] w-full object-cover object-bottom" />
-              </div>
+              <Shot src="/landing/feature-leads.webp" width={1600} height={1080} alt="The BookedSecure Leads list: each lead's source, service and status, with customer names and numbers blurred" />
             </FeatureCard>
             <div className="grid gap-4 md:col-span-2">
-              <FeatureCard icon={Mail} title="Text and email campaigns" body="Win back past customers with an automatic follow-up for anyone who doesn't book." />
-              <FeatureCard icon={BarChart3} title="Results you can trust" body="Cost per lead and per booking from your Facebook ads, booking rates and revenue from completed jobs." />
+              <FeatureCard icon={Bell} title="New leads first" body="Push alerts tell you who wants what, and your notifications always put new leads at the top.">
+                <Shot src="/landing/feature-notifications.webp" width={800} height={662} alt="BookedSecure notifications with recent quote requests at the top, names blurred" />
+              </FeatureCard>
+              <FeatureCard icon={MessagesSquare} title="Comments and DMs" body="Facebook and Instagram comments and messages arrive with a suggested reply. Nothing is posted until you approve it." />
             </div>
+
+            <FeatureCard className="md:col-span-4" icon={Sparkles} title="An AI quote page" body="Your own quote page chats with customers, works out what they need from your services and prices, and hands you a ready lead.">
+              <Shot src="/landing/feature-quote.webp" width={1600} height={1185} alt="A real quote page conversation: the customer picks a service and the assistant asks for the vehicle and suburb, address blurred" />
+            </FeatureCard>
+            <div className="grid gap-4 md:col-span-2">
+              <FeatureCard icon={Zap} title="Instant reply, then follow-ups" body="Each new lead gets a text straight away and a follow-up sequence that stops when they reply or opt out. Quiet hours respected.">
+                <FollowUpTimeline />
+              </FeatureCard>
+              <FeatureCard icon={BarChart3} title="Results you can trust" body="Cost per lead and per booking from your Facebook ads, booking rates and revenue from completed jobs.">
+                <Shot src="/landing/feature-results.webp" width={800} height={270} alt="BookedSecure Home's last 7 days: new leads, answered within 5 minutes, booked and completed work" />
+              </FeatureCard>
+            </div>
+
+            <FeatureCard className="md:col-span-2" icon={Bot} title="An assistant that does the work" body="Ask in plain English and it books jobs, updates leads, drafts campaigns and tells you who's waiting. Texts always wait for your confirm.">
+              <Shot fill position="bottom" src="/landing/feature-cowork.webp" width={800} height={1094} alt="Co-work, the assistant in BookedSecure, preparing an appointment reminder text for the owner to confirm, customer name blurred" />
+            </FeatureCard>
+            <FeatureCard className="md:col-span-4" icon={Mail} title="Text and email campaigns" body="Win back past customers with an automatic follow-up for anyone who doesn't book. AI writes the first draft and you see exactly what customers get.">
+              <Shot src="/landing/feature-campaign.webp" width={1600} height={889} alt="The BookedSecure campaign composer with an example win-back email and its live preview" />
+            </FeatureCard>
           </div>
+          <p className="mt-6 text-center text-xs text-muted-foreground">Screenshots from a real BookedSecure workspace. Customer details are blurred, and the campaign email is an example.</p>
         </section>
 
         {/* How it works */}
