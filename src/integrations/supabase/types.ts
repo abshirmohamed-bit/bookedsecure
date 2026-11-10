@@ -1110,8 +1110,8 @@ export type Database = {
           agent_kill_switch_reason: string | null
           agent_max_leads_per_activation: number
           automation_enabled: boolean
-          business_profile: Json | null
           billing_interval: string
+          business_profile: Json | null
           cancel_at_period_end: boolean
           complimentary_access: boolean
           created_at: string
@@ -1166,8 +1166,8 @@ export type Database = {
           agent_kill_switch_reason?: string | null
           agent_max_leads_per_activation?: number
           automation_enabled?: boolean
-          business_profile?: Json | null
           billing_interval?: string
+          business_profile?: Json | null
           cancel_at_period_end?: boolean
           complimentary_access?: boolean
           created_at?: string
@@ -1222,8 +1222,8 @@ export type Database = {
           agent_kill_switch_reason?: string | null
           agent_max_leads_per_activation?: number
           automation_enabled?: boolean
-          business_profile?: Json | null
           billing_interval?: string
+          business_profile?: Json | null
           cancel_at_period_end?: boolean
           complimentary_access?: boolean
           created_at?: string
@@ -2719,6 +2719,8 @@ export type Database = {
           member_name: string | null
           member_urn: string
           organizations: Json
+          pages_token_ciphertext: string | null
+          pages_token_expires_at: string | null
           scopes: string[]
           token_ciphertext: string
           token_expires_at: string | null
@@ -2732,6 +2734,8 @@ export type Database = {
           member_name?: string | null
           member_urn: string
           organizations?: Json
+          pages_token_ciphertext?: string | null
+          pages_token_expires_at?: string | null
           scopes?: string[]
           token_ciphertext: string
           token_expires_at?: string | null
@@ -2745,6 +2749,8 @@ export type Database = {
           member_name?: string | null
           member_urn?: string
           organizations?: Json
+          pages_token_ciphertext?: string | null
+          pages_token_expires_at?: string | null
           scopes?: string[]
           token_ciphertext?: string
           token_expires_at?: string | null
@@ -2770,6 +2776,7 @@ export type Database = {
           created_by: string | null
           error: string | null
           id: string
+          media: Json | null
           post_urn: string | null
           published_at: string | null
           source: string
@@ -2784,6 +2791,7 @@ export type Database = {
           created_by?: string | null
           error?: string | null
           id?: string
+          media?: Json | null
           post_urn?: string | null
           published_at?: string | null
           source?: string
@@ -2798,6 +2806,7 @@ export type Database = {
           created_by?: string | null
           error?: string | null
           id?: string
+          media?: Json | null
           post_urn?: string | null
           published_at?: string | null
           source?: string
