@@ -281,6 +281,13 @@
       "when": 1794330000001,
       "tag": "0039_trade_other",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794330000002,
+      "tag": "0040_open_access",
+      "breakpoints": true
     }
   ]
 }
