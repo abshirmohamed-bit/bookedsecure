@@ -64,7 +64,7 @@ export function ServiceReminderCard() {
             <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={days} disabled={readOnly} onChange={(e) => setDays(Number(e.target.value))}>
               {choices.map((x) => <option key={x} value={x}>{intervalLabel(x)} after their last job</option>)}
             </select>
-            <span className="block text-xs text-muted-foreground">Workshops usually choose 6 months; detailers and pool services about 4–6 weeks.</span>
+            <span className="block text-xs text-muted-foreground">Suggested from your website and trade. Change it to suit how often your customers come back.</span>
           </label>
           <div className="space-y-2">
             <label className="block space-y-1 text-sm">

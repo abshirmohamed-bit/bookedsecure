@@ -98,7 +98,7 @@ function ManualQuoteForm() {
   // form asks where they're based and what they need instead of job condition.
   const kit = tenant.niche;
   const remote = kit ? !kit.onSite : tenant.businessModel === "subscription" || tenant.businessModel === "products";
-  // Workshops, venues and lessons: the customer comes to the business, so only their suburb is asked.
+  // The customer comes to the business (workshop, venue, studio): only their suburb is asked.
   const comesToUs = remote && Boolean(kit) && kit!.locationLabel !== "Based in";
   const STEPS = ["Request", subjectLabel, kit?.lastServicedQuestion ? "Condition" : remote ? "Your needs" : "Details", "Contact"] as const;
   const [step, setStep] = useState(0);

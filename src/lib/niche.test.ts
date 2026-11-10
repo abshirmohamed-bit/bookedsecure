@@ -59,40 +59,23 @@ describe("the quote chat speaks each business's language", () => {
   });
 });
 
-import { industryNicheFor } from "./niche";
+import { readEnquiryFlow } from "./business-profile";
 
-describe("industry niches (no trade preset)", () => {
-  it("recognises workshops, removals, venues and lessons from the website industry", () => {
-    expect(industryNicheFor("Mechanic and car servicing")).toBe("workshop");
-    expect(industryNicheFor("Smash repairs and panel beating")).toBe("workshop");
-    expect(industryNicheFor("Removalists")).toBe("removals");
-    expect(industryNicheFor("Wedding and function centre")).toBe("venue_events");
-    expect(industryNicheFor("Driving school")).toBe("lessons");
-    expect(industryNicheFor("Mobile car detailing")).toBeNull();
-    expect(industryNicheFor("Office cleaning")).toBeNull();
-    expect(industryNicheFor(null)).toBeNull();
+describe("the website reader decides how enquiries run", () => {
+  it("asks only the suburb when customers come to the business, with its own questions", () => {
+    const flow = readEnquiryFlow({ location: "customer_visits", detailsQuestion: "What's the car doing, or what does it need?", detailsLabel: "What it needs", lastVisitQuestion: "When was it last serviced?", rebookDays: 180 });
+    const kit = nicheKitFor({ trade: null, flow, suggestedSubject: { label: "Vehicle", options: ["Sedan", "SUV"] } });
+    expect(kit).toMatchObject({ onSite: false, locationLabel: "Suburb", concernsLabel: "What it needs", lastServicedQuestion: "When was it last serviced?", subjectLabel: "Vehicle" });
   });
 
-  it("asks a workshop about the vehicle and last service, but not a street address", () => {
-    const kit = nicheKitFor({ trade: null, industry: "Mechanic" });
-    expect(kit).toMatchObject({ subjectLabel: "Vehicle", onSite: false, lastServicedQuestion: "When was it last serviced?", locationLabel: "Suburb" });
+  it("asks for the address when the business goes to the customer", () => {
+    const kit = nicheKitFor({ flow: readEnquiryFlow({ location: "we_visit", detailsQuestion: "Where are you moving to, and when?" }) });
+    expect(kit).toMatchObject({ onSite: true, lastServicedQuestion: null, concernsQuestion: "Where are you moving to, and when?" });
   });
 
-  it("asks removalists where from, where to and when", () => {
-    const kit = nicheKitFor({ industry: "Removalists" });
-    expect(kit).toMatchObject({ subjectLabel: "Move size", onSite: true });
-    expect(kit.concernsQuestion).toMatch(/moving to/);
-  });
-
-  it("asks a venue for the occasion, date and guests", () => {
-    const kit = nicheKitFor({ industry: "Function centre" });
-    expect(kit).toMatchObject({ subjectLabel: "Event", onSite: false });
-    expect(kit.concernsQuestion).toMatch(/guests/);
-  });
-
-  it("keeps the trade preset and plans rules ahead of the industry", () => {
-    expect(nicheKitFor({ trade: "auto_marine_detailing", industry: "Mechanic" }).subjectLabel).toBe("Vehicle");
-    expect(nicheKitFor({ trade: "pool_servicing", industry: "Mechanic" }).subjectLabel).toBe("Pool");
-    expect(nicheKitFor({ industry: "Tutoring", model: "subscription" })).toMatchObject({ onSite: false, locationLabel: "Based in", offeringWord: "plan" });
+  it("keeps plans businesses remote and drops unusable suggestions", () => {
+    expect(nicheKitFor({ model: "subscription", flow: readEnquiryFlow({ location: "we_visit" }) })).toMatchObject({ onSite: false, locationLabel: "Based in" });
+    expect(readEnquiryFlow({ location: "somewhere" })).toBeNull();
+    expect(readEnquiryFlow({ location: "remote", rebookDays: 3, detailsQuestion: "<b>hi</b>" })).toMatchObject({ rebookDays: null, detailsQuestion: null });
   });
 });

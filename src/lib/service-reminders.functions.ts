@@ -21,7 +21,7 @@ export const getServiceReminder = createServerFn({ method: "GET" })
     return {
       isOwner: ctx.role !== "staff",
       active: Boolean(data?.active),
-      intervalDays: data ? minutesToDays(data.delay_minutes) : defaultServiceIntervalDays(business?.trade ?? null, profile?.industry ?? null),
+      intervalDays: data ? minutesToDays(data.delay_minutes) : defaultServiceIntervalDays(business?.trade ?? null, profile?.enquiryFlow?.rebookDays ?? null),
       template: data?.message_template ?? defaultServiceReminderTemplate(),
     };
   });

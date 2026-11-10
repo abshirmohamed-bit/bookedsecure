@@ -162,7 +162,7 @@ export const getLead = createServerFn({ method: "GET" })
     const { readSavedProfile } = await import("@/lib/business-profile");
     const { data: profileRow } = await supabaseAdmin.from("businesses").select("business_profile").eq("id", app.businessId).maybeSingle().then((r) => r, () => ({ data: null }));
     const savedProfile = readSavedProfile((profileRow as { business_profile?: unknown } | null)?.business_profile);
-    const fittingSubject = nicheKitFor({ trade: business?.trade ?? null, model: savedProfile?.model ?? null, suggestedSubject: savedProfile?.enquirySubject ?? null, industry: savedProfile?.industry ?? null }).subjectLabel;
+    const fittingSubject = nicheKitFor({ trade: business?.trade ?? null, model: savedProfile?.model ?? null, suggestedSubject: savedProfile?.enquirySubject ?? null, flow: savedProfile?.enquiryFlow ?? null }).subjectLabel;
 
     return {
       role: app.role,

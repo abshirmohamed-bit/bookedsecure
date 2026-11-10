@@ -7,7 +7,6 @@
  * industry and the owner can change it.
  */
 import { firstName } from "@/lib/domain";
-import { industryNicheFor } from "@/lib/niche";
 import { resolveTrade } from "@/lib/trades";
 
 export const SERVICE_REMINDER_RULE_TYPE = "service_reminder";
@@ -26,11 +25,11 @@ export function intervalLabel(days: number): string {
   return `${days} days`;
 }
 
-/** A sensible starting interval: the trade's usual cycle, about 6 months for workshops, else 3 months. */
-export function defaultServiceIntervalDays(trade: string | null | undefined, industry: string | null | undefined): number {
+/** A sensible starting interval: the website reader's usual return visit, else the trade's cycle, else 3 months. */
+export function defaultServiceIntervalDays(trade: string | null | undefined, rebookDays: number | null | undefined): number {
+  if (rebookDays && rebookDays >= 7 && rebookDays <= 730) return rebookDays;
   const preset = resolveTrade(trade);
   if (preset && preset.id !== "other") return preset.reserviceDays.max;
-  if (industryNicheFor(industry) === "workshop") return 180;
   return 90;
 }
 

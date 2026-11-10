@@ -41,6 +41,29 @@ export type BusinessProfile = {
    * owner sees it in the preview before anything is saved.
    */
   enquirySubject: { label: string; options: string[] } | null;
+  /**
+   * How this business's enquiry form should run, suggested by the website
+   * reader for this kind of business: where the job happens, what to ask about
+   * it, and how often customers usually come back. A suggestion (like
+   * enquirySubject), not a fact about the business.
+   */
+  enquiryFlow: EnquiryFlow | null;
+};
+
+export const ENQUIRY_LOCATIONS = ["we_visit", "customer_visits", "remote"] as const;
+export type EnquiryLocation = (typeof ENQUIRY_LOCATIONS)[number];
+
+export type EnquiryFlow = {
+  /** we_visit: the business comes to the customer (street address needed); customer_visits: the customer comes to a shop, workshop, venue or studio; remote: online or delivered. */
+  location: EnquiryLocation;
+  /** The question about the job itself, e.g. "What's it doing, or what does it need?". */
+  detailsQuestion: string | null;
+  /** A short label for that answer, e.g. "What it needs". */
+  detailsLabel: string | null;
+  /** "When was it last serviced?" when that matters for this business, otherwise null. */
+  lastVisitQuestion: string | null;
+  /** Typical days between visits for a returning customer, when the business is repeat work. */
+  rebookDays: number | null;
 };
 
 export const EMPTY_PROFILE: BusinessProfile = {
@@ -53,6 +76,7 @@ export const EMPTY_PROFILE: BusinessProfile = {
   faqs: [],
   contactEmail: null,
   enquirySubject: null,
+  enquiryFlow: null,
 };
 
 const PLACEHOLDER =
@@ -156,6 +180,27 @@ export function buildBusinessProfile(raw: unknown, pageText?: string | null): Bu
     faqs,
     contactEmail: email && EMAIL.test(email) && (!pageText || pageText.toLowerCase().includes(email.toLowerCase())) ? email : null,
     enquirySubject: subjectLabel ? { label: subjectLabel, options: subjectOptions } : null,
+    enquiryFlow: readEnquiryFlow(r["enquiryFlow"]),
+  };
+}
+
+/** Tidies a suggested enquiry flow; anything unusable is dropped. */
+export function readEnquiryFlow(raw: unknown): EnquiryFlow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const f = raw as Record<string, unknown>;
+  const location = ENQUIRY_LOCATIONS.includes(f["location"] as EnquiryLocation) ? (f["location"] as EnquiryLocation) : null;
+  if (!location) return null;
+  const question = (value: unknown, max: number) => {
+    const text = clean(value, max);
+    return text && !/[<>]/.test(text) ? text : null;
+  };
+  const days = typeof f["rebookDays"] === "number" && Number.isFinite(f["rebookDays"]) ? Math.round(f["rebookDays"] as number) : null;
+  return {
+    location,
+    detailsQuestion: question(f["detailsQuestion"], 160),
+    detailsLabel: question(f["detailsLabel"], 30),
+    lastVisitQuestion: question(f["lastVisitQuestion"], 100),
+    rebookDays: days && days >= 7 && days <= 730 ? days : null,
   };
 }
 
@@ -189,6 +234,7 @@ export function mergeProfiles(profiles: readonly BusinessProfile[]): BusinessPro
     merged.audience ??= profile.audience;
     merged.contactEmail ??= profile.contactEmail;
     merged.enquirySubject ??= profile.enquirySubject;
+    merged.enquiryFlow ??= profile.enquiryFlow;
     if (profile.industry || profile.summary) {
       models.set(profile.model, (models.get(profile.model) ?? 0) + 1);
       modelSet = true;
@@ -228,6 +274,7 @@ export function readSavedProfile(value: unknown): BusinessProfile | null {
       v.enquirySubject && typeof v.enquirySubject.label === "string"
         ? { label: v.enquirySubject.label, options: Array.isArray(v.enquirySubject.options) ? v.enquirySubject.options.filter((o): o is string => typeof o === "string") : [] }
         : null,
+    enquiryFlow: readEnquiryFlow(v.enquiryFlow),
   };
 }
 

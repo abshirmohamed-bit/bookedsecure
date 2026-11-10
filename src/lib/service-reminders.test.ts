@@ -13,9 +13,9 @@ import {
 const DAY = 86_400_000;
 
 describe("service reminders", () => {
-  it("starts from the trade's cycle, 6 months for workshops, else 3 months", () => {
+  it("starts from the website reader's return visit, else the trade's cycle, else 3 months", () => {
     expect(defaultServiceIntervalDays("auto_marine_detailing", null)).toBe(42);
-    expect(defaultServiceIntervalDays(null, "Mechanic and logbook servicing")).toBe(180);
+    expect(defaultServiceIntervalDays(null, 180)).toBe(180);
     expect(defaultServiceIntervalDays("other", null)).toBe(90);
   });
 

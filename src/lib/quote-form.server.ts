@@ -116,7 +116,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     .maybeSingle()
     .then((result) => result, () => ({ data: null }));
   const profile = readSavedProfile((profileRow as { business_profile?: unknown } | null)?.business_profile);
-  const niche = nicheKitFor({ trade: business.trade, model: profile?.model ?? null, suggestedSubject: profile?.enquirySubject ?? null, industry: profile?.industry ?? null });
+  const niche = nicheKitFor({ trade: business.trade, model: profile?.model ?? null, suggestedSubject: profile?.enquirySubject ?? null, flow: profile?.enquiryFlow ?? null });
   // The owner's own subject wording wins; otherwise the kit's, never a vehicle list for a non-detailer.
   const ownSubject = (business.quote_subject_label ?? "").trim();
   const ownOptions = (business.quote_subject_options ?? []).map((o: string) => o.trim()).filter(Boolean);

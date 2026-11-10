@@ -204,6 +204,19 @@ export function ProposalPreview({
           </div>
         )}
 
+        {profile.enquiryFlow && (
+          <div className="rounded-xl border border-border bg-card p-3 text-xs">
+            <p className="flex items-center gap-1.5 font-medium"><MessageSquareText className="size-3.5 text-primary" /> How enquiries will run</p>
+            <p className="mt-1">
+              {profile.enquiryFlow.location === "we_visit" ? "You go to the customer, so we ask for their address."
+                : profile.enquiryFlow.location === "customer_visits" ? "Customers come to you, so we only ask their suburb."
+                : "You work online or deliver, so we ask where they're based."}
+            </p>
+            {profile.enquiryFlow.detailsQuestion && <p className="mt-0.5 text-muted-foreground">We'll also ask: “{profile.enquiryFlow.detailsQuestion}”</p>}
+            {profile.enquiryFlow.lastVisitQuestion && <p className="mt-0.5 text-muted-foreground">And: “{profile.enquiryFlow.lastVisitQuestion}”</p>}
+          </div>
+        )}
+
         {proposal.warnings.length > 0 && (
           <ul className="space-y-1.5 rounded-xl border border-warning/30 bg-warning/10 p-3 text-[0.7rem] text-foreground/80">
             {proposal.warnings.map((warning) => (

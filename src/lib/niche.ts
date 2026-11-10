@@ -7,7 +7,7 @@
  * business's own trade and website profile, and the owner's own wording (the
  * quote subject they set) always wins.
  */
-import type { BusinessModel } from "@/lib/business-profile";
+import type { BusinessModel, EnquiryFlow } from "@/lib/business-profile";
 import { VEHICLE_TYPES } from "@/lib/domain";
 
 export type NicheKit = {
@@ -135,91 +135,6 @@ const BY_TRADE: Record<string, Partial<NicheKit>> = {
 };
 
 /**
- * Kinds of business that have no trade preset, recognised from the industry
- * on the saved website profile (for example "Mechanic and car servicing").
- * Customers come to a workshop, venue or lesson, so no street address is asked.
- */
-export const INDUSTRY_NICHES = ["workshop", "removals", "venue_events", "lessons"] as const;
-export type IndustryNiche = (typeof INDUSTRY_NICHES)[number];
-
-const BY_INDUSTRY: Record<IndustryNiche, Partial<NicheKit>> = {
-  workshop: {
-    serviceExample: "a logbook service for my Corolla this Friday",
-    subjectLabel: "Vehicle",
-    subjectOptions: VEHICLE_TYPES,
-    subjectQuestion: "What's the vehicle? Make and model is perfect.",
-    subjectHint: "Just the vehicle is fine, for example Toyota Corolla.",
-    onSite: false,
-    locationQuestion: "Which suburb are you in?",
-    locationLabel: "Suburb",
-    addressQuestion: "",
-    concernsLabel: "What it needs",
-    concernsQuestion: "What's it doing, or what does it need? Any warning lights, noises or damage?",
-    concernsHint: "A short description is all I need here, I'll take your details next.",
-    lastServicedQuestion: "When was it last serviced?",
-    quantityLabel: "Vehicle",
-  },
-  removals: {
-    serviceExample: "a 2-bedroom move from Auburn to Parramatta on Saturday",
-    subjectLabel: "Move size",
-    subjectOptions: ["A few items", "Studio or 1 bedroom", "2 bedrooms", "3 bedrooms", "4+ bedrooms", "Office"],
-    subjectQuestion: "How big is the move?",
-    subjectHint: "A rough size is fine, for example 2 bedrooms.",
-    onSite: true,
-    locationQuestion: "Which suburb are you moving from, and the street address?",
-    addressQuestion: "And the street address you're moving from? (number and street)",
-    concernsLabel: "Moving to and when",
-    concernsQuestion: "Where are you moving to, and on what date? Any stairs, lifts, or big or fragile items?",
-    concernsHint: "The suburb you're moving to and the date are all I need here.",
-    lastServicedQuestion: null,
-    quantityLabel: null,
-  },
-  venue_events: {
-    serviceExample: "a wedding reception for 250 guests next March",
-    subjectLabel: "Event",
-    subjectOptions: ["Wedding", "Engagement", "Birthday", "Corporate", "Religious or cultural", "Other"],
-    subjectQuestion: "What's the occasion?",
-    subjectHint: "A word or two is fine, for example Wedding.",
-    onSite: false,
-    locationQuestion: "Which suburb are you in?",
-    locationLabel: "Suburb",
-    addressQuestion: "",
-    concernsLabel: "Date and guests",
-    concernsQuestion: "What date are you thinking, and roughly how many guests?",
-    concernsHint: "A date (or month) and a rough guest number are all I need here.",
-    lastServicedQuestion: null,
-    quantityLabel: null,
-  },
-  lessons: {
-    serviceExample: "weekly lessons for my son, after school",
-    subjectLabel: "Level",
-    subjectOptions: ["Beginner", "Some experience", "Advanced", "Getting test ready"],
-    subjectQuestion: "Where are you at right now?",
-    subjectHint: "A word or two is fine, for example Beginner.",
-    onSite: false,
-    locationQuestion: "Which suburb are you in?",
-    locationLabel: "Suburb",
-    addressQuestion: "",
-    concernsLabel: "Goals and times",
-    concernsQuestion: "What would you like to work on, and which days and times suit you?",
-    concernsHint: "A goal and a couple of times that suit are all I need here.",
-    lastServicedQuestion: null,
-    quantityLabel: null,
-  },
-};
-
-/** Recognises one of the industry niches from free text, or null. Detailing and cleaning keep their own trades. */
-export function industryNicheFor(industry: string | null | undefined): IndustryNiche | null {
-  const t = (industry ?? "").toLowerCase();
-  if (!t || /detail|car wash|clean/.test(t)) return null;
-  if (/mechanic|auto ?repair|car servic|logbook|panel beat|smash repair|tyre|tire|auto ?electric|brake|4x4|automotive|workshop/.test(t)) return "workshop";
-  if (/removal|\bmovers?\b|moving|relocation/.test(t)) return "removals";
-  if (/function (centre|center|venue|hall)|wedding|reception venue|event venue|banquet|event hire|catering|caterer|\bdj\b|decorat|event (planner|styl)/.test(t)) return "venue_events";
-  if (/driving (school|instructor|lessons)|tutor|coaching|lessons|music school|swim school|academy|classes/.test(t)) return "lessons";
-  return null;
-}
-
-/**
  * A business that sells plans or products isn't visited at an address: the
  * customer says where they're based and what they're looking for.
  */
@@ -250,18 +165,27 @@ export function nicheKitFor(input: {
   trade?: string | null;
   model?: BusinessModel | null;
   suggestedSubject?: { label: string; options: string[] } | null;
-  /** Industry from the saved website profile; used when the trade has no preset. */
-  industry?: string | null;
+  /** How the website reader suggested the enquiry should run for this business. */
+  flow?: EnquiryFlow | null;
 }): NicheKit {
   const remote = input.model === "subscription" || input.model === "products";
-  const tradeKit = input.trade ? BY_TRADE[input.trade] : undefined;
-  const industryNiche = tradeKit ? null : industryNicheFor(input.industry);
   const kit: NicheKit = {
     ...BASE,
-    ...(tradeKit ?? (industryNiche ? BY_INDUSTRY[industryNiche] : {})),
+    ...(input.trade ? BY_TRADE[input.trade] ?? {} : {}),
     ...(remote ? REMOTE : {}),
     ...(input.model === "subscription" ? { offeringWord: "plan" as const } : input.model === "products" ? { offeringWord: "product" as const } : {}),
   };
+  // The website reader's suggestion for this business beats the generic starting point.
+  const flow = input.flow;
+  if (flow && !remote) {
+    if (flow.location === "remote") Object.assign(kit, REMOTE);
+    else if (flow.location === "customer_visits") {
+      Object.assign(kit, { onSite: false, locationQuestion: "Which suburb are you in?", locationLabel: "Suburb", addressQuestion: "" });
+    } else kit.onSite = true;
+    if (flow.detailsQuestion) kit.concernsQuestion = flow.detailsQuestion;
+    if (flow.detailsLabel) kit.concernsLabel = flow.detailsLabel;
+    if (flow.location !== "remote") kit.lastServicedQuestion = flow.lastVisitQuestion;
+  }
   if (input.suggestedSubject?.label) {
     kit.subjectLabel = input.suggestedSubject.label;
     if (input.suggestedSubject.options.length > 0) kit.subjectOptions = input.suggestedSubject.options;

@@ -61,6 +61,13 @@ const ProposalSchema = z.object({
       faqs: z.array(z.object({ question: z.string().max(160), answer: z.string().max(600) })).max(12),
       contactEmail: z.string().max(120).nullable(),
       enquirySubject: z.object({ label: z.string().max(30), options: z.array(z.string().max(40)).max(10) }).nullable(),
+      enquiryFlow: z.object({
+        location: z.enum(["we_visit", "customer_visits", "remote"]),
+        detailsQuestion: z.string().max(160).nullable(),
+        detailsLabel: z.string().max(30).nullable(),
+        lastVisitQuestion: z.string().max(100).nullable(),
+        rebookDays: z.number().int().min(7).max(730).nullable(),
+      }).nullable().default(null),
     })
     .default({
       industry: null,
@@ -72,6 +79,7 @@ const ProposalSchema = z.object({
       faqs: [],
       contactEmail: null,
       enquirySubject: null,
+      enquiryFlow: null,
     }),
   warnings: z.array(z.string().max(300)).max(20),
 });
