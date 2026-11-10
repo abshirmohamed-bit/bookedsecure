@@ -15,6 +15,7 @@ export const TRADE_IDS = [
   "window_cleaning",
   "commercial_cleaning",
   "test_and_tag",
+  "other",
 ] as const;
 
 export type TradeId = (typeof TRADE_IDS)[number];
@@ -124,6 +125,15 @@ export const TRADE_PRESETS: Record<TradeId, TradePreset> = {
       { name: "RCD safety switch testing", durationMinutes: 90 },
     ],
     subjectNoun: "site",
+  },
+  other: {
+    id: "other",
+    label: "Something else",
+    description: "Any other business. You add your own services; nothing is pre-filled.",
+    reserviceDays: { min: 90, max: 180 },
+    summerReserviceDays: null,
+    serviceSeeds: [],
+    subjectNoun: "job",
   },
 };
 

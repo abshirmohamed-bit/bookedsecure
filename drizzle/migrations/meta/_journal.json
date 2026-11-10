@@ -260,6 +260,13 @@
       "when": 1794300000001,
       "tag": "0036_linkedin_posting",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1794320000000,
+      "tag": "0037_trade_other",
+      "breakpoints": true
     }
   ]
 }

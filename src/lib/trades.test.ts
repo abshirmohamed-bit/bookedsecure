@@ -17,9 +17,15 @@ describe("trade presets", () => {
       const preset = TRADE_PRESETS[id];
       expect(preset.id).toBe(id);
       expect(preset.label.length).toBeGreaterThan(3);
-      expect(preset.serviceSeeds.length).toBeGreaterThan(0);
+      if (id !== "other") expect(preset.serviceSeeds.length).toBeGreaterThan(0);
       expect(preset.reserviceDays.min).toBeLessThanOrEqual(preset.reserviceDays.max);
     }
+  });
+
+  it("lets any other business choose Something else, with nothing pre-filled", () => {
+    expect(isTradeId("other")).toBe(true);
+    expect(tradeLabel("other")).toBe("Something else");
+    expect(TRADE_PRESETS.other.serviceSeeds).toEqual([]);
   });
 
   it("never throws on an unknown or missing trade", () => {

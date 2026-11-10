@@ -112,7 +112,8 @@ const paid: SubscriptionState = {
   pastDueSince: null,
 } as SubscriptionState;
 
-describe.each(TRADE_IDS)("journey — %s", (trade) => {
+// "Something else" has no presets to journey through; it is covered in trades.test.ts.
+describe.each(TRADE_IDS.filter((t) => t !== "other"))("journey — %s", (trade) => {
   const business = pretendBusiness(trade);
 
   it("1. signs up with nothing saved and is sent to pick their trade first", () => {

@@ -120,6 +120,8 @@ async function seedStarterServices(app: AppContext, trade: TradeId): Promise<num
     campaign_eligible: true,
     active: true,
   }));
+  // "Something else" has no starting services: the owner adds their own.
+  if (rows.length === 0) return 0;
   const { error } = await supabaseAdmin.from("services").insert(rows);
   if (error) throw new Error(error.message);
   return rows.length;
