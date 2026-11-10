@@ -1112,6 +1112,7 @@ export type Database = {
           automation_enabled: boolean
           billing_interval: string
           cancel_at_period_end: boolean
+          complimentary_access: boolean
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
@@ -1145,7 +1146,6 @@ export type Database = {
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
-          complimentary_access: boolean
           subscription_status: string
           subscription_updated_at: string | null
           timezone: string
@@ -1167,6 +1167,7 @@ export type Database = {
           automation_enabled?: boolean
           billing_interval?: string
           cancel_at_period_end?: boolean
+          complimentary_access?: boolean
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
@@ -1200,7 +1201,6 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
-          complimentary_access?: boolean
           subscription_status?: string
           subscription_updated_at?: string | null
           timezone?: string
@@ -1222,6 +1222,7 @@ export type Database = {
           automation_enabled?: boolean
           billing_interval?: string
           cancel_at_period_end?: boolean
+          complimentary_access?: boolean
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
@@ -1255,7 +1256,6 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
-          complimentary_access?: boolean
           subscription_status?: string
           subscription_updated_at?: string | null
           timezone?: string
