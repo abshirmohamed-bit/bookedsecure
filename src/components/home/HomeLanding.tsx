@@ -469,6 +469,7 @@ export function HomeLanding() {
               <nav className="flex flex-wrap items-center gap-4" aria-label="Footer">
                 <Link to="/pricing" className="hover:text-foreground">Pricing</Link>
                 <Link to="/privacy" className="hover:text-foreground">Privacy policy</Link>
+                <Link to="/terms" className="hover:text-foreground">Terms</Link>
                 <Link to={signedIn ? "/dashboard" : "/auth"} className="hover:text-foreground">{signedIn ? "Dashboard" : "Sign in"}</Link>
               </nav>
             </div>

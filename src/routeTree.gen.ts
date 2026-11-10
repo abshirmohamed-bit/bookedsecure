@@ -29,6 +29,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SocialRouteImport } from './routes/social'
 import { Route as StartRouteImport } from './routes/start'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
 import { Route as AdminMessagingNumbersRouteImport } from './routes/admin.messaging-numbers'
@@ -188,6 +189,11 @@ const SocialRoute = SocialRouteImport.update({
 const StartRoute = StartRouteImport.update({
   id: '/start',
   path: '/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
@@ -530,6 +536,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/social': typeof SocialRoute
   '/start': typeof StartRoute
+  '/terms': typeof TermsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
@@ -611,6 +618,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/social': typeof SocialRoute
   '/start': typeof StartRoute
+  '/terms': typeof TermsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
@@ -694,6 +702,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/social': typeof SocialRoute
   '/start': typeof StartRoute
+  '/terms': typeof TermsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
   '/admin/messaging-numbers': typeof AdminMessagingNumbersRoute
@@ -778,6 +787,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/social'
     | '/start'
+    | '/terms'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
     | '/admin/messaging-numbers'
@@ -859,6 +869,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/social'
     | '/start'
+    | '/terms'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
     | '/admin/messaging-numbers'
@@ -941,6 +952,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/social'
     | '/start'
+    | '/terms'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
     | '/admin/messaging-numbers'
@@ -1024,6 +1036,7 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRoute
   SocialRoute: typeof SocialRoute
   StartRoute: typeof StartRoute
+  TermsRoute: typeof TermsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
   AdminMessagingNumbersRoute: typeof AdminMessagingNumbersRoute
@@ -1217,6 +1230,13 @@ declare module '@tanstack/react-router' {
       path: '/start'
       fullPath: '/start'
       preLoaderRoute: typeof StartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/oauth-protected-resource': {
@@ -1714,6 +1734,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRoute,
   SocialRoute: SocialRoute,
   StartRoute: StartRoute,
+  TermsRoute: TermsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   AdminFeedbackRoute: AdminFeedbackRoute,
