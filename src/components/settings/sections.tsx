@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ImagePlus, Pencil, Trash2, X } from "lucide-react";
+import { WebsiteEmbed } from "@/components/settings/WebsiteEmbed";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -1283,6 +1284,7 @@ export function QuotePageModeCard({
           Only the business owner can change this.
         </p>
       )}
+      <WebsiteEmbed slug={slug} />
     </section>
   );
 }
