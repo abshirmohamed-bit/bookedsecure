@@ -10,11 +10,14 @@ export const getReactivationCampaign = createServerFn({ method: "GET" })
     const { loadOpenCampaign, loadReactivationCandidates } =
       await import("@/lib/reactivation.server");
     const { getPlanForBusiness } = await import("@/lib/plans.server");
+    const { getSubscriptionForBusiness } = await import("@/lib/subscription.server");
+    const { unlocksEverything } = await import("@/lib/subscription");
     const app = await requireAppContext(context.supabase, context.userId);
-    const [view, candidates, plan] = await Promise.all([
+    const [view, candidates, plan, subscription] = await Promise.all([
       loadOpenCampaign(app.businessId),
       loadReactivationCandidates(app.businessId),
       getPlanForBusiness(app.businessId),
+      getSubscriptionForBusiness(app.businessId),
     ]);
     return {
       ...view,
@@ -23,7 +26,8 @@ export const getReactivationCampaign = createServerFn({ method: "GET" })
       // Reactivation is a Pro feature; the panel shows an upgrade note instead
       // of the controls when the plan does not include it.
       planName: plan.name,
-      reactivationEnabled: plan.reactivationEnabled,
+      // A running trial or complimentary access opens it whatever the plan.
+      reactivationEnabled: plan.reactivationEnabled || unlocksEverything(subscription),
     };
   });
 

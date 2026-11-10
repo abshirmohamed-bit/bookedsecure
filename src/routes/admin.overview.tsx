@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AiProviderCard } from "@/components/admin/AiProviderCard";
-import { getOwnerConsole } from "@/lib/owner-console.functions";
+import { getOwnerConsole, setBusinessComplimentaryAccess } from "@/lib/owner-console.functions";
 import type { TenantRow } from "@/lib/owner-console.server";
 
 export const Route = createFileRoute("/admin/overview")({
@@ -164,6 +164,7 @@ function ConsoleView() {
                 <th className="py-1.5 pr-3 font-medium">Trade</th>
                 <th className="py-1.5 pr-3 font-medium">Plan</th>
                 <th className="py-1.5 pr-3 font-medium">Subscription</th>
+                <th className="py-1.5 pr-3 font-medium">Free full access</th>
                 <th className="py-1.5 pr-3 font-medium">Number</th>
                 <th className="py-1.5 pr-3 font-medium">Credits</th>
                 <th className="py-1.5 pr-3 font-medium">Customers</th>
@@ -178,6 +179,7 @@ function ConsoleView() {
                   <td className="py-1.5 pr-3 text-muted-foreground">{tenant.trade ?? "Not available"}</td>
                   <td className="py-1.5 pr-3 text-muted-foreground">{tenant.planId}</td>
                   <td className="py-1.5 pr-3">{tenant.subscriptionStatus}</td>
+                  <td className="py-1.5 pr-3"><ComplimentaryToggle tenant={tenant} /></td>
                   <td className="py-1.5 pr-3">{tenant.numbers > 0 ? "Yes" : "No"}</td>
                   <td className="py-1.5 pr-3">{tenant.creditBalance}</td>
                   <td className="py-1.5 pr-3">{tenant.leads}</td>
@@ -190,6 +192,37 @@ function ConsoleView() {
         </div>
       </section>
     </div>
+  );
+}
+
+/** Platform admin: full access to everything at no charge for one business. */
+function ComplimentaryToggle({ tenant }: { tenant: TenantRow }) {
+  const queryClient = useQueryClient();
+  const setAccess = useServerFn(setBusinessComplimentaryAccess);
+  const mutation = useMutation({
+    mutationFn: (on: boolean) => setAccess({ data: { businessId: tenant.businessId, on } }),
+    onSuccess: async (_result, on) => {
+      toast.success(on ? `${tenant.name} now has free full access.` : `Free access removed for ${tenant.name}.`);
+      await queryClient.invalidateQueries({ queryKey: ["owner-console"] });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not change access."),
+  });
+  const on = tenant.complimentary;
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={`Free full access for ${tenant.name}`}
+      disabled={mutation.isPending}
+      onClick={() => {
+        if (on && !window.confirm(`Remove free full access for ${tenant.name}? They go back to preview unless they pay.`)) return;
+        mutation.mutate(!on);
+      }}
+      className={`inline-flex h-5 w-9 items-center rounded-full p-0.5 transition-colors disabled:opacity-60 ${on ? "bg-primary" : "bg-foreground/20"}`}
+    >
+      <span className={`size-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : ""}`} />
+    </button>
   );
 }
 

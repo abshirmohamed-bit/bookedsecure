@@ -9,6 +9,10 @@
  *                then preview until Stripe collects.
  *  - canceled  : ends at the period end; full access until then.
  *
+ * A business with complimentary access (set by a platform admin) has full
+ * access to everything at no charge. During a trial, and with complimentary
+ * access, every plan feature is unlocked.
+ *
  * The same logic runs on the server (gates) and in the shell (banners), so
  * the UI never promises something the server will refuse.
  */
@@ -31,6 +35,8 @@ export type SubscriptionState = {
   pastDueSince: string | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  /** Full access at no charge, set by a platform admin. */
+  complimentary?: boolean;
 };
 
 /** Which plan capabilities can be gated. */
@@ -46,7 +52,8 @@ export const PLAN_FEATURE_LABELS: Record<PlanFeature, string> = {
 export const PREVIEW_MESSAGE =
   "Your workspace is in preview. Call BookedSecure on +61 466 907 824 to activate booking, texting and your assistant.";
 
-export function accessLevel(state: Pick<SubscriptionState, "status" | "currentPeriodEnd" | "pastDueSince">, now: Date = new Date()): AccessLevel {
+export function accessLevel(state: Pick<SubscriptionState, "status" | "currentPeriodEnd" | "pastDueSince" | "complimentary">, now: Date = new Date()): AccessLevel {
+  if (state.complimentary) return "full";
   switch (state.status) {
     case "trialing":
       return state.currentPeriodEnd && new Date(state.currentPeriodEnd) > now ? "full" : "preview";
@@ -62,6 +69,15 @@ export function accessLevel(state: Pick<SubscriptionState, "status" | "currentPe
     default:
       return "preview";
   }
+}
+
+/**
+ * True when every feature is open whatever the plan: complimentary access, or
+ * a trial that is still running ("try everything for 14 days").
+ */
+export function unlocksEverything(state: Pick<SubscriptionState, "status" | "currentPeriodEnd" | "pastDueSince" | "complimentary">, now: Date = new Date()): boolean {
+  if (state.complimentary) return true;
+  return state.status === "trialing" && accessLevel(state, now) === "full";
 }
 
 export function planIncludes(plan: Plan, feature: PlanFeature): boolean {
@@ -89,12 +105,19 @@ export function describeSubscription(
 ): { headline: string; detail: string; tone: "neutral" | "warning" | "danger" } {
   const end = state.currentPeriodEnd ? new Date(state.currentPeriodEnd) : null;
   const endLabel = end ? end.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : null;
+  if (state.complimentary) {
+    return {
+      headline: "Full access · complimentary",
+      detail: "BookedSecure has given this business full access to everything at no charge.",
+      tone: "neutral",
+    };
+  }
   switch (state.status) {
     case "trialing":
       return {
         headline: `${planName} · 14-day trial`,
         detail: accessLevel(state, now) === "full"
-          ? `Trial access ends ${endLabel ?? "at the end of the trial"}. Your number and text credits are bought separately.`
+          ? `Every feature is open until ${endLabel ?? "the end of the trial"}. Your number and text credits are bought separately.`
           : "Your trial has ended. Call BookedSecure on +61 466 907 824 to start your subscription.",
         tone: accessLevel(state, now) === "full" ? "neutral" : "warning",
       };

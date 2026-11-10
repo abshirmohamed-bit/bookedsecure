@@ -34,6 +34,8 @@ export type TenantRow = {
   trade: string | null;
   planId: string;
   subscriptionStatus: string;
+  /** Full access at no charge, set by a platform admin. */
+  complimentary: boolean;
   numbers: number;
   creditBalance: number;
   leads: number;
@@ -95,7 +97,7 @@ export async function readOwnerConsole(month: string = monthKey()): Promise<{
   const [businesses, statements, numbers, leadCounts, topups, balance] = await Promise.all([
     supabaseAdmin
       .from("businesses")
-      .select("id, name, trade, plan_id, subscription_status, created_at, signup_source, signup_ref")
+      .select("id, name, trade, plan_id, subscription_status, complimentary_access, created_at, signup_source, signup_ref")
       .order("name"),
     listStatements(month),
     supabaseAdmin.from("texto_numbers").select("assigned_business_id, status"),
@@ -173,6 +175,7 @@ export async function readOwnerConsole(month: string = monthKey()): Promise<{
       trade: tradeLabel(business.trade),
       planId: business.plan_id,
       subscriptionStatus: business.subscription_status,
+      complimentary: business.complimentary_access === true,
       numbers: numbersBy.get(business.id) ?? 0,
       creditBalance: creditsBy.get(business.id) ?? 0,
       leads: leadsBy.get(business.id) ?? 0,

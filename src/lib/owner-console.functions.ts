@@ -22,6 +22,18 @@ export const getOwnerConsole = createServerFn({ method: "GET" })
     return await readOwnerConsole(data?.month ?? monthKey());
   });
 
+/** Platform admin only: give a business full access at no charge, or take it away. */
+export const setBusinessComplimentaryAccess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ businessId: z.string().uuid(), on: z.boolean() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { requirePlatformAdmin } = await import("@/lib/pilot.server");
+    await requirePlatformAdmin(context.supabase, context.userId);
+    const { setComplimentaryAccess } = await import("@/lib/subscription.server");
+    await setComplimentaryAccess(data.businessId, data.on, context.userId);
+    return { ok: true };
+  });
+
 /**
  * Non-throwing membership check used only to decide where a sign-in lands and
  * whether the control-room link is rendered. It reveals nothing but the

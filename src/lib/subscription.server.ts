@@ -12,6 +12,7 @@ import { getPlanForBusiness } from "@/lib/plans.server";
 import {
   accessLevel,
   planIncludes,
+  unlocksEverything,
   PREVIEW_MESSAGE,
   upgradeMessage,
   type AccessLevel,
@@ -25,7 +26,7 @@ type BusinessRow = Database["public"]["Tables"]["businesses"]["Row"];
 type UsagePeriodRow = Database["public"]["Tables"]["sms_usage_periods"]["Row"];
 
 const SUBSCRIPTION_COLUMNS =
-  "id, plan_id, subscription_status, billing_interval, stripe_customer_id, stripe_subscription_id, current_period_start, current_period_end, cancel_at_period_end, past_due_since";
+  "id, plan_id, subscription_status, billing_interval, stripe_customer_id, stripe_subscription_id, current_period_start, current_period_end, cancel_at_period_end, past_due_since, complimentary_access";
 
 type SubscriptionRow = Pick<
   BusinessRow,
@@ -39,7 +40,7 @@ type SubscriptionRow = Pick<
   | "current_period_end"
   | "cancel_at_period_end"
   | "past_due_since"
->;
+> & { complimentary_access?: boolean | null };
 
 export function toSubscriptionState(row: SubscriptionRow): SubscriptionState {
   return {
@@ -52,6 +53,7 @@ export function toSubscriptionState(row: SubscriptionRow): SubscriptionState {
     pastDueSince: row.past_due_since,
     stripeCustomerId: row.stripe_customer_id,
     stripeSubscriptionId: row.stripe_subscription_id,
+    complimentary: row.complimentary_access === true,
   };
 }
 
@@ -82,8 +84,10 @@ export async function requireActiveSubscription(businessId: string): Promise<Sub
  * subscription, since no plan feature is available in preview.
  */
 export async function requirePlanFeature(businessId: string, feature: PlanFeature): Promise<Plan> {
-  await requireActiveSubscription(businessId);
+  const state = await requireActiveSubscription(businessId);
   const plan = await getPlanForBusiness(businessId);
+  // A running trial or complimentary access opens every feature.
+  if (unlocksEverything(state)) return plan;
   if (!planIncludes(plan, feature)) throw new Error(upgradeMessage(feature));
   return plan;
 }
@@ -103,7 +107,8 @@ export async function planGateMessage(businessId: string, feature: PlanFeature):
  * unlimited. Called before a member is (re)activated or invited.
  */
 export async function assertTeamSeatAvailable(businessId: string): Promise<void> {
-  await requireActiveSubscription(businessId);
+  const state = await requireActiveSubscription(businessId);
+  if (unlocksEverything(state)) return;
   const plan = await getPlanForBusiness(businessId);
   if (plan.teamMemberLimit === null) return;
   const { count } = await supabaseAdmin
@@ -231,6 +236,17 @@ export async function applySubscriptionState(
     pastDueSince: string | null;
   }>,
 ): Promise<void> {
+  // Stripe never changes the access of a business given complimentary access.
+  const { data: current } = await supabaseAdmin.from("businesses").select("complimentary_access").eq("id", businessId).maybeSingle();
+  if (current?.complimentary_access) {
+    patch = { ...patch };
+    delete patch.status;
+    delete patch.planId;
+    delete patch.currentPeriodStart;
+    delete patch.currentPeriodEnd;
+    delete patch.pastDueSince;
+    delete patch.cancelAtPeriodEnd;
+  }
   const update: Database["public"]["Tables"]["businesses"]["Update"] = {
     subscription_updated_at: new Date().toISOString(),
   };
@@ -245,6 +261,40 @@ export async function applySubscriptionState(
   if (patch.pastDueSince !== undefined) update.past_due_since = patch.pastDueSince;
   const { error } = await supabaseAdmin.from("businesses").update(update).eq("id", businessId);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Platform admin only (checked by the caller): turn complimentary access on or
+ * off. On: full access to everything at no charge, kept 'active' so database
+ * checks allow it too. Off: back to preview unless a paid Stripe subscription
+ * exists, which then stays in charge.
+ */
+export async function setComplimentaryAccess(businessId: string, on: boolean, adminUserId: string): Promise<void> {
+  const { data: business, error: readError } = await supabaseAdmin
+    .from("businesses")
+    .select("id, stripe_subscription_id, subscription_status")
+    .eq("id", businessId)
+    .maybeSingle();
+  if (readError) throw new Error(readError.message);
+  if (!business) throw new Error("Business not found.");
+  const now = new Date().toISOString();
+  const update: Database["public"]["Tables"]["businesses"]["Update"] = on
+    ? { complimentary_access: true, subscription_status: "active", past_due_since: null, cancel_at_period_end: false, subscription_updated_at: now }
+    : {
+        complimentary_access: false,
+        subscription_updated_at: now,
+        ...(business.stripe_subscription_id ? {} : { subscription_status: "preview" }),
+      };
+  const { error } = await supabaseAdmin.from("businesses").update(update).eq("id", businessId);
+  if (error) throw new Error(error.message);
+  await supabaseAdmin.from("audit_events").insert({
+    business_id: businessId,
+    user_id: adminUserId,
+    event_type: on ? "complimentary_access_granted" : "complimentary_access_removed",
+    entity_type: "business",
+    entity_id: businessId,
+    metadata: { previous_status: business.subscription_status },
+  });
 }
 
 export async function findBusinessByStripeSubscription(subscriptionId: string): Promise<string | null> {

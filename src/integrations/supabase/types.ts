@@ -1145,6 +1145,7 @@ export type Database = {
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
+          complimentary_access: boolean
           subscription_status: string
           subscription_updated_at: string | null
           timezone: string
@@ -1199,6 +1200,7 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          complimentary_access?: boolean
           subscription_status?: string
           subscription_updated_at?: string | null
           timezone?: string
@@ -1253,6 +1255,7 @@ export type Database = {
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          complimentary_access?: boolean
           subscription_status?: string
           subscription_updated_at?: string | null
           timezone?: string
