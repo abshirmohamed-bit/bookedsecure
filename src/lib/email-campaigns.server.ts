@@ -102,15 +102,6 @@ async function loadBranding(businessId: string): Promise<Branding> {
   };
 }
 
-async function loadBusinessName(businessId: string): Promise<string> {
-  const { data } = await supabaseAdmin
-    .from("businesses")
-    .select("name")
-    .eq("id", businessId)
-    .maybeSingle();
-  return (data?.name as string | null) ?? "your business";
-}
-
 /**
  * Where a customer's reply goes. Once inbound replies are set up (the Resend
  * webhook secret exists), each recipient gets their own reply+<id> address so
@@ -856,19 +847,24 @@ export async function draftCampaignEmail(input: {
   if ((await checkAiCap(input.businessId)).blocked) {
     throw new Error("This month's AI limit is reached.");
   }
-  const businessName = await loadBusinessName(input.businessId);
+  const { loadBusinessFacts, FACTS_ONLY_RULES } = await import("./business-facts.server");
+  const facts = await loadBusinessFacts(input.businessId);
+  const businessName = facts.name;
   const { generateText, streamText } = await import("ai");
   const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
   const { withAiBackup } = await import("./tenant-ai.server");
   const { ANALYSIS_MODEL } = await import("./ai.server");
   const system = [
-    `You write marketing emails for ${businessName}, a local service business, to its own customers.`,
+    `You write marketing emails for ${businessName} to its own customers.`,
+    FACTS_ONLY_RULES,
     input.kind === "follow_up"
       ? "Write a short, friendly follow-up (under 80 words) for customers who received the first email below and have not booked yet. Do not repeat it word for word."
       : "Write one short email (under 140 words) that gets customers to reply or book.",
     "Australian English, plain text only, warm and direct. Start with 'Hi there,'. End with 'Thanks,' and the business name on the next line.",
     "Never use placeholders, merge fields or square or curly brackets. Never invent prices, discounts, dates or guarantees the owner did not give.",
     "Blank lines separate paragraphs.",
+    "Business facts:",
+    ...facts.lines,
     "Reply in exactly this format:",
     "SUBJECT: <subject under 60 characters>",
     "BODY:",

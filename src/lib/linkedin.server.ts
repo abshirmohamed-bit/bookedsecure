@@ -376,17 +376,22 @@ export async function draftLinkedInPost(input: { businessId: string; brief: stri
   if (!apiKey) throw new Error("The AI service is not configured.");
   const { checkAiCap, recordAiUsage } = await import("./usage.server");
   if ((await checkAiCap(input.businessId)).blocked) throw new Error("This month's AI limit is reached.");
-  const { data: business } = await supabaseAdmin.from("businesses").select("name").eq("id", input.businessId).maybeSingle();
-  const businessName = (business?.name as string | undefined) ?? "the business";
+  const { loadBusinessFacts, FACTS_ONLY_RULES } = await import("./business-facts.server");
+  const facts = await loadBusinessFacts(input.businessId);
   const { generateText, streamText } = await import("ai");
   const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
   const { withAiBackup } = await import("./tenant-ai.server");
   const { ANALYSIS_MODEL } = await import("./ai.server");
   const system = [
-    `You write LinkedIn posts for ${businessName}, a local service business.`,
+    `You write LinkedIn posts for ${facts.name}.`,
+    FACTS_ONLY_RULES,
     "Write one post of 60 to 180 words: a strong first line, short paragraphs, plain text, Australian English, warm and professional.",
     "End with a simple call to action. Add at most three relevant hashtags on the last line.",
     "Never invent prices, discounts, dates, results, awards or customer names the owner did not give. No placeholders or brackets. No emojis unless asked.",
+    "Only use a suggested angle (for example a seasonal reminder) if it fits what this business actually does.",
+    "",
+    "Business facts:",
+    ...facts.lines,
     "Reply with only the post.",
   ].join("\n");
   const prompt = [
