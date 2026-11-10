@@ -58,7 +58,8 @@ beforeEach(() => {
 describe("LinkedIn sign-in state", () => {
   it("round-trips and rejects tampering or expiry", () => {
     const s = signLinkedInState({ businessId: BIZ, userId: USER });
-    expect(verifyLinkedInState(s)).toEqual({ businessId: BIZ, userId: USER });
+    expect(verifyLinkedInState(s)).toEqual({ businessId: BIZ, userId: USER, pages: false });
+    expect(verifyLinkedInState(signLinkedInState({ businessId: BIZ, userId: USER, pages: true }))?.pages).toBe(true);
     expect(verifyLinkedInState(`${s}x`)).toBeNull();
     expect(verifyLinkedInState(s, Date.now() + 16 * 60_000)).toBeNull();
   });
@@ -93,6 +94,15 @@ describe("posting needs the owner's confirmation", () => {
     const fetcher = vi.fn();
     await expect(publishLinkedInPost({ businessId: BIZ, userId: USER, text: "Hi", source: "app", fetcher })).resolves.toMatchObject({ duplicate: true });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("posts as a Company Page with the Pages app's token when that app is connected", async () => {
+    state.account = { ...state.account!, pages_token_ciphertext: encryptMetaToken("pages-token-9", `linkedin-pages:${BIZ}`), pages_token_expires_at: new Date(Date.now() + 86_400_000).toISOString() };
+    const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 201, headers: { "x-restli-id": "urn:li:share:8" } }));
+    await publishLinkedInPost({ businessId: BIZ, userId: USER, text: "Page post", authorUrn: "urn:li:organization:42", source: "app", fetcher });
+    expect((fetcher.mock.calls[0]![1] as RequestInit).headers).toMatchObject({ Authorization: "Bearer pages-token-9" });
+    await publishLinkedInPost({ businessId: BIZ, userId: USER, text: "Profile post", authorUrn: "urn:li:person:abc", source: "app", fetcher });
+    expect((fetcher.mock.calls[1]![1] as RequestInit).headers).toMatchObject({ Authorization: "Bearer token-123" });
   });
 
   it("refuses an author the business can't post as", async () => {

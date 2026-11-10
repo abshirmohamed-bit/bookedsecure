@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/notifications";
 import { initials } from "@/lib/campaign-templates";
 import { LINKEDIN_POST_MAX } from "@/lib/linkedin";
-import { disconnectLinkedInAccount, getLinkedIn, postToLinkedIn, setLinkedInAuthor, startLinkedInConnect, writeLinkedInPost } from "@/lib/linkedin.functions";
+import { disconnectLinkedInAccount, getLinkedIn, postToLinkedIn, setLinkedInAuthor, startLinkedInConnect, startLinkedInPagesConnect, writeLinkedInPost } from "@/lib/linkedin.functions";
 
 type Search = { linkedin?: string; why?: string };
 
@@ -78,6 +78,7 @@ function LinkedInPage() {
                 <AlertTriangle className="size-4 shrink-0 text-warning" /> Your LinkedIn connection expired. Reconnect to keep posting.
               </p>
             )}
+            <PagesCard data={d} />
             <Composer data={d} />
           </>
         )}
@@ -160,6 +161,35 @@ function ConnectionChip({ data, onReconnect, reconnecting }: { data: Data; onRec
         </Button>
       )}
     </div>
+  );
+}
+
+/** Company Pages connect through BookedSecure's separate Pages app (LinkedIn requires it). */
+function PagesCard({ data }: { data: Data }) {
+  const start = useServerFn(startLinkedInPagesConnect);
+  const connect = useMutation({
+    mutationFn: () => start(),
+    onSuccess: ({ url }) => window.location.assign(url),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "LinkedIn couldn't be opened."),
+  });
+  if (!data.isOwner || !data.pagesAppReady) return null;
+  const renew = data.pagesRenewInDays;
+  if (data.pagesConnected && (renew === null || renew > 7)) return null;
+  return (
+    <section className="glass flex flex-wrap items-center gap-3 p-4">
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0a66c2]/10 text-[#0a66c2]"><Building2 className="size-5" /></span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{data.pagesConnected ? "Renew your Company Page connection" : "Post as your Company Page"}</p>
+        <p className="text-xs text-muted-foreground">
+          {data.pagesConnected
+            ? `LinkedIn needs you to sign in again ${renew !== null && renew < 0 ? "now" : `within ${renew} days`} to keep posting as your Page.`
+            : "Sign in once more to let BookedSecure post as a LinkedIn Page you manage. You need to be its admin or content admin."}
+        </p>
+      </div>
+      <Button onClick={() => connect.mutate()} disabled={connect.isPending} className="max-sm:w-full">
+        {connect.isPending ? <Loader2 className="animate-spin" /> : <Building2 />} {data.pagesConnected ? "Reconnect Pages" : "Connect Company Pages"}
+      </Button>
+    </section>
   );
 }
 

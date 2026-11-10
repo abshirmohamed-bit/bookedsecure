@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { decryptMetaToken, encryptMetaToken } from "./meta-oauth.server";
 import {
   LINKEDIN_CALLBACK_PATH,
+  PAGE_SCOPES,
   availableAuthors,
   buildLinkedInAuthorizeUrl,
   buildPostBody,
@@ -30,13 +31,27 @@ const DEFAULT_API_VERSION = "202610";
 // Tables from migration 0035 (not in the generated types until Lovable applies it).
 const db = () => supabaseAdmin as unknown as SupabaseClient;
 
-export type LinkedInConfig = { clientId?: string | undefined; clientSecret?: string | undefined; pagesEnabled: boolean; apiVersion: string; appUrl: string };
+export type LinkedInConfig = {
+  clientId?: string | undefined;
+  clientSecret?: string | undefined;
+  /**
+   * LinkedIn requires Company Page access (Community Management) to be the only
+   * product on its app, so Page posting uses a second app with its own keys.
+   */
+  pagesClientId?: string | undefined;
+  pagesClientSecret?: string | undefined;
+  pagesEnabled: boolean;
+  apiVersion: string;
+  appUrl: string;
+};
 
 export function readLinkedInConfig(): LinkedInConfig {
   const version = process.env["LINKEDIN_API_VERSION"]?.trim() ?? "";
   return {
     clientId: process.env["LINKEDIN_CLIENT_ID"]?.trim() || undefined,
     clientSecret: process.env["LINKEDIN_CLIENT_SECRET"]?.trim() || undefined,
+    pagesClientId: process.env["LINKEDIN_PAGES_CLIENT_ID"]?.trim() || undefined,
+    pagesClientSecret: process.env["LINKEDIN_PAGES_CLIENT_SECRET"]?.trim() || undefined,
     pagesEnabled: /^(1|true|yes)$/i.test(process.env["LINKEDIN_PAGES_ENABLED"]?.trim() ?? ""),
     apiVersion: /^\d{6}$/.test(version) ? version : DEFAULT_API_VERSION,
     appUrl: (process.env["PUBLIC_APP_URL"]?.trim() || "https://bookedsecure.com").replace(/\/+$/, ""),
@@ -62,6 +77,12 @@ function assertReady(config: LinkedInConfig) {
 }
 
 const tokenContext = (businessId: string) => `linkedin:${businessId}`;
+const pagesTokenContext = (businessId: string) => `linkedin-pages:${businessId}`;
+
+/** True when the separate Company Pages app's keys are set. */
+export function linkedInPagesAppReady(config = readLinkedInConfig()): boolean {
+  return Boolean(config.pagesClientId && config.pagesClientSecret && process.env["TENANT_AI_ENCRYPTION_SECRET"]);
+}
 
 // ----- Signed OAuth state: binds the callback to the owner who started it -----
 
@@ -70,12 +91,12 @@ function stateKey() {
   return createHash("sha256").update(`linkedin-oauth-state:${process.env["TENANT_AI_ENCRYPTION_SECRET"] ?? ""}`).digest();
 }
 
-export function signLinkedInState(payload: { businessId: string; userId: string }, now = Date.now()): string {
-  const body = Buffer.from(JSON.stringify({ b: payload.businessId, u: payload.userId, e: now + STATE_TTL_MS, n: randomBytes(8).toString("hex") })).toString("base64url");
+export function signLinkedInState(payload: { businessId: string; userId: string; pages?: boolean }, now = Date.now()): string {
+  const body = Buffer.from(JSON.stringify({ b: payload.businessId, u: payload.userId, p: payload.pages ? 1 : 0, e: now + STATE_TTL_MS, n: randomBytes(8).toString("hex") })).toString("base64url");
   return `${body}.${createHmac("sha256", stateKey()).update(body).digest("base64url")}`;
 }
 
-export function verifyLinkedInState(state: string, now = Date.now()): { businessId: string; userId: string } | null {
+export function verifyLinkedInState(state: string, now = Date.now()): { businessId: string; userId: string; pages: boolean } | null {
   const [body, sig] = state.split(".");
   if (!body || !sig) return null;
   const expected = createHmac("sha256", stateKey()).update(body).digest();
@@ -83,9 +104,9 @@ export function verifyLinkedInState(state: string, now = Date.now()): { business
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
   let raw: unknown = null;
   try { raw = JSON.parse(Buffer.from(body, "base64url").toString("utf8")); } catch { return null; }
-  const parsed = z.object({ b: z.string().uuid(), u: z.string().uuid(), e: z.number() }).safeParse(raw);
+  const parsed = z.object({ b: z.string().uuid(), u: z.string().uuid(), p: z.number().optional(), e: z.number() }).safeParse(raw);
   if (!parsed.success || parsed.data.e < now) return null;
-  return { businessId: parsed.data.b, userId: parsed.data.u };
+  return { businessId: parsed.data.b, userId: parsed.data.u, pages: parsed.data.p === 1 };
 }
 
 export function linkedInLoginUrl(businessId: string, userId: string, config = readLinkedInConfig()): string {
@@ -95,6 +116,17 @@ export function linkedInLoginUrl(businessId: string, userId: string, config = re
     redirectUri: `${config.appUrl}${LINKEDIN_CALLBACK_PATH}`,
     state: signLinkedInState({ businessId, userId }),
     scopes: linkedInScopes(config.pagesEnabled),
+  });
+}
+
+/** Sign-in for Company Pages through the separate Pages app (Community Management). */
+export function linkedInPagesLoginUrl(businessId: string, userId: string, config = readLinkedInConfig()): string {
+  if (!linkedInPagesAppReady(config)) throw new Error("Company Page posting isn't switched on yet (LINKEDIN_PAGES_CLIENT_ID / LINKEDIN_PAGES_CLIENT_SECRET).");
+  return buildLinkedInAuthorizeUrl({
+    clientId: config.pagesClientId!,
+    redirectUri: `${config.appUrl}${LINKEDIN_CALLBACK_PATH}`,
+    state: signLinkedInState({ businessId, userId, pages: true }),
+    scopes: [...PAGE_SCOPES],
   });
 }
 
@@ -148,6 +180,7 @@ export async function completeLinkedInConnect(code: string, state: string, fetch
   if (ctx.businessId !== who.businessId) throw new LinkedInError("This LinkedIn sign-in belongs to a different business.", "owner_business");
 
   const config = readLinkedInConfig();
+  if (who.pages) return completePagesConnect(code, who, config, fetcher);
   assertReady(config);
   const tokenRes = await call("https://www.linkedin.com/oauth/v2/accessToken", {
     method: "POST",
@@ -185,6 +218,41 @@ export async function completeLinkedInConnect(code: string, state: string, fetch
   return "connected";
 }
 
+/**
+ * Company Pages through the separate Pages app: keeps that app's token and the
+ * Pages the owner can post to on their existing LinkedIn connection.
+ */
+async function completePagesConnect(
+  code: string,
+  who: { businessId: string; userId: string },
+  config: LinkedInConfig,
+  fetcher: typeof fetch,
+): Promise<"connected"> {
+  if (!linkedInPagesAppReady(config)) throw new LinkedInError("Company Page posting isn't switched on yet.", "pages_config");
+  const existing = await loadAccount(who.businessId);
+  if (!existing) throw new LinkedInError("Connect your LinkedIn profile first, then your Company Pages.", "pages_profile");
+  const tokenRes = await call("https://www.linkedin.com/oauth/v2/accessToken", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: `${config.appUrl}${LINKEDIN_CALLBACK_PATH}`, client_id: config.pagesClientId!, client_secret: config.pagesClientSecret! }),
+  }, "pages_token", fetcher);
+  const token = tokenResponse.safeParse(tokenRes.ok ? await tokenRes.json().catch(() => null) : null);
+  if (!token.success) throw new LinkedInError("LinkedIn did not accept the Company Page sign-in. Please try again.", "pages_token", tokenRes.status);
+  const pages = await findPages(token.data.access_token, config, fetcher);
+  if (pages.length === 0) throw new LinkedInError("No Company Page you manage was found. You need to be an admin or content admin of the Page.", "pages_none");
+  const now = new Date();
+  const { error } = await db().from("linkedin_accounts").update({
+    organizations: pages,
+    pages_token_ciphertext: encryptMetaToken(token.data.access_token, pagesTokenContext(who.businessId)),
+    pages_token_expires_at: token.data.expires_in ? new Date(now.getTime() + token.data.expires_in * 1000).toISOString() : null,
+    default_author_urn: organizationUrn(pages[0]!.id),
+    updated_at: now.toISOString(),
+  }).eq("business_id", who.businessId);
+  if (error) throw new LinkedInError("Could not save your Company Pages (BookedSecure needs its latest update).", "pages_save");
+  await supabaseAdmin.from("audit_events").insert({ business_id: who.businessId, user_id: who.userId, event_type: "linkedin_pages_connected", entity_type: "business", entity_id: who.businessId, metadata: { pages: pages.length } });
+  return "connected";
+}
+
 // ----- Reading the connection -----
 
 type AccountRow = {
@@ -197,6 +265,9 @@ type AccountRow = {
   organizations: { id: string; name: string }[];
   default_author_urn: string | null;
   connected_at: string;
+  /** Token from the separate Company Pages app, when connected (migration 0042). */
+  pages_token_ciphertext?: string | null;
+  pages_token_expires_at?: string | null;
 };
 
 const missingTable = (code?: string) => code === "PGRST205" || code === "42P01";
@@ -209,7 +280,13 @@ async function loadAccount(businessId: string): Promise<AccountRow | null> {
     if (missingTable(error.code)) return null;
     throw new Error("Could not load the LinkedIn connection.");
   }
-  return (data as AccountRow | null) ?? null;
+  const account = (data as AccountRow | null) ?? null;
+  if (!account) return null;
+  // Read on their own so LinkedIn keeps working before migration 0042.
+  const { data: pages } = await db().from("linkedin_accounts")
+    .select("pages_token_ciphertext, pages_token_expires_at")
+    .eq("business_id", businessId).maybeSingle();
+  return { ...account, ...((pages as Partial<AccountRow> | null) ?? {}) };
 }
 
 /** What the owner sees: who is connected and who they can post as. Never the token. */
@@ -222,7 +299,10 @@ export async function linkedInStatus(businessId: string) {
   return {
     platformReady: linkedInReady(config),
     missingSettings: linkedInMissingSettings(config),
-    pagesEnabled: config.pagesEnabled,
+    pagesEnabled: config.pagesEnabled || linkedInPagesAppReady(config),
+    pagesAppReady: linkedInPagesAppReady(config),
+    pagesConnected: Boolean(account?.organizations?.length),
+    pagesRenewInDays: daysUntil(account?.pages_token_expires_at),
     setupMissing,
     connected: Boolean(account),
     expired: days !== null && days < 0,
@@ -345,7 +425,15 @@ export async function publishLinkedInPost(input: {
   if (insertError || !row) throw new Error(missingTable(insertError?.code) ? "LinkedIn posting is waiting for a database update (migration 0035)." : "Could not save the post.");
   const postId = (row as { id: string }).id;
 
-  const token = decryptMetaToken(account.token_ciphertext, tokenContext(input.businessId));
+  // Page posts go through the Company Pages app's token when that app is used.
+  const usePagesToken = author.kind === "organization" && Boolean(account.pages_token_ciphertext);
+  if (usePagesToken) {
+    const pageDays = daysUntil(account.pages_token_expires_at);
+    if (pageDays !== null && pageDays < 0) throw new Error("Your Company Page connection has expired. Reconnect your Company Pages to post.");
+  }
+  const token = usePagesToken
+    ? decryptMetaToken(account.pages_token_ciphertext!, pagesTokenContext(input.businessId))
+    : decryptMetaToken(account.token_ciphertext, tokenContext(input.businessId));
   let failure: string | null = null;
   let postUrn: string | null = null;
   try {

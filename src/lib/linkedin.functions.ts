@@ -36,6 +36,15 @@ export const startLinkedInConnect = createServerFn({ method: "POST" })
     return { url: linkedInLoginUrl(ctx.businessId, ctx.userId) };
   });
 
+/** Company Pages through the separate Pages app: the LinkedIn sign-in address. */
+export const startLinkedInPagesConnect = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = await ownerContext(context);
+    const { linkedInPagesLoginUrl } = await import("./linkedin.server");
+    return { url: linkedInPagesLoginUrl(ctx.businessId, ctx.userId) };
+  });
+
 export const disconnectLinkedInAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

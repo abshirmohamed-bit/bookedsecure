@@ -38,22 +38,27 @@ LinkedIn retires versions after about a year, so update it when LinkedIn warns.
 
 Ask Lovable to apply migration `0035_linkedin_posting`, then publish.
 
-## 3. Company Pages and comments (needs LinkedIn approval)
+## 3. Company Pages (a second app, needs LinkedIn approval)
 
-Posting as a Company Page needs LinkedIn's **Community Management API**.
-LinkedIn vets this and only gives it to registered businesses:
+LinkedIn only gives Company Page access (the **Community Management API**) to an
+app that has no other products, so Page posting uses a **second app**:
 
-- a business email address (not Gmail), legal business name, address, website and privacy policy;
-- the app verified by the Company Page (step 1.3);
-- first a Development tier request, then a Standard tier request with a narrated
-  screen recording of: connecting LinkedIn, posting to a Page, and how comments
-  and commenter details are shown.
+1. Create another app, e.g. `BookedSecure Pages`, on the same BookedSecure Page,
+   with the same privacy policy URL and logo. Verify it with the Page (Settings >
+   Verify, then a Page admin approves the link).
+2. On its **Products** tab, request **Community Management API** (Development
+   tier first). LinkedIn vets this: registered business, a business email (not
+   Gmail), legal name, address, website and privacy policy. Then a Standard tier
+   request with a narrated screen recording of connecting, posting to a Page, and
+   how comments are shown.
+3. On its **Auth** tab, add the redirect URL
+   `https://bookedsecure.com/api/public/linkedin/oauth/callback`.
+4. In Lovable add `LINKEDIN_PAGES_CLIENT_ID` and `LINKEDIN_PAGES_CLIENT_SECRET`
+   from that app, ask Lovable to apply migration `0042_linkedin_pages_app`, and publish.
 
-LinkedIn may require Community Management to be the only product on an app; if
-the request form says so, create a second app for it and use that app's keys.
-
-When approved, add the secret `LINKEDIN_PAGES_ENABLED` = `true` and publish.
-Owners then reconnect LinkedIn and can choose to post as their Page.
+Owners then see **Connect Company Pages** on the LinkedIn posts page (after
+connecting their profile) and can choose to post as any Page they administer.
+Page posts use the Pages app's token; profile posts keep using the main app.
 
 ## Notes
 
