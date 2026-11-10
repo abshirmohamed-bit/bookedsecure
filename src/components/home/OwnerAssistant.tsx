@@ -113,6 +113,7 @@ export function OwnerAssistant({
   onConversationChanged,
   homeMode = false,
   compact = false,
+  label = "Assistant",
 }: {
   threadId: string;
   initialTurns?: OwnerAssistantTurn[];
@@ -120,6 +121,8 @@ export function OwnerAssistant({
   homeMode?: boolean;
   /** Smaller empty state, for the chat embedded on Home. */
   compact?: boolean;
+  /** What the chat is called where it is shown (Home calls it Co-work). */
+  label?: string;
 }) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
@@ -409,7 +412,7 @@ export function OwnerAssistant({
       <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
         {!hasConversation && compact ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5 py-5 text-center">
-            <p className="text-sm font-medium">Ask the assistant</p>
+            <p className="text-sm font-medium">Ask {label}</p>
             <p className="mt-1 max-w-sm text-xs text-muted-foreground">Text a lead, book a job, start a campaign or ask who's waiting. Texts always wait for your confirm.</p>
           </div>
         ) : null}
@@ -804,7 +807,7 @@ export function OwnerAssistant({
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             maxLength={OWNER_ASSISTANT_MAX_QUESTION}
-            placeholder="Message Assistant…"
+            placeholder={`Message ${label}…`}
             className="min-h-12 max-h-[120px] text-base"
           />
            <PromptInputFooter className="min-h-11">

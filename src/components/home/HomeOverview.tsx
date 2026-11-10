@@ -68,6 +68,43 @@ export function HomeOverview() {
     </div>
   );
 
+  const leadsPanel = (
+    <Panel title="Latest leads" action={{ to: "/leads", label: "Open leads" }}>
+      {data.latestLeads.length ? (
+        <ul className="divide-y divide-border">
+          {data.latestLeads.map((lead) => (
+            <li key={lead.id}>
+              <Link
+                to="/leads/$leadId"
+                params={{ leadId: lead.id }}
+                className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-secondary/60"
+              >
+                <Initials name={lead.name} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{lead.name ?? "Unnamed lead"}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {[lead.service, lead.suburb].filter(Boolean).join(" · ") || "No details yet"}
+                  </span>
+                </span>
+                <LeadState needsReply={lead.needsReply} status={lead.status} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Empty
+          text="New enquiries from your quote page, Facebook and other sources land here."
+          action={{ to: "/import", label: "Bring in old customers" }}
+        />
+      )}
+    </Panel>
+  );
+  const bookingsPanel = (
+    <Panel title="Coming up" action={{ to: "/bookings", label: "Open bookings" }}>
+      <Bookings data={data} />
+    </Panel>
+  );
+
   // Phones keep the single column exactly as before. From tablet width up, Home
   // also shows small views of the main tools: on wide screens in a column either
   // side of today's work, on tablets below it.
@@ -97,51 +134,21 @@ export function HomeOverview() {
         </dl>
       </section>
 
+      {/* On wide screens the leads and bookings move to the side columns, so Co-work has the room. */}
+      <div className="space-y-5 xl:hidden">
       <div className={cn("grid gap-5", setup ? "lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]" : "lg:grid-cols-2")}>
-        <Panel title="Latest leads" action={{ to: "/leads", label: "Open leads" }}>
-          {data.latestLeads.length ? (
-            <ul className="divide-y divide-border">
-              {data.latestLeads.map((lead) => (
-                <li key={lead.id}>
-                  <Link
-                    to="/leads/$leadId"
-                    params={{ leadId: lead.id }}
-                    className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-secondary/60"
-                  >
-                    <Initials name={lead.name} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{lead.name ?? "Unnamed lead"}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {[lead.service, lead.suburb].filter(Boolean).join(" · ") || "No details yet"}
-                      </span>
-                    </span>
-                    <LeadState needsReply={lead.needsReply} status={lead.status} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty
-              text="New enquiries from your quote page, Facebook and other sources land here."
-              action={{ to: "/import", label: "Bring in old customers" }}
-            />
-          )}
-        </Panel>
+        {leadsPanel}
 
         {setup ? (
           <SetupCard steps={setup.steps} />
         ) : (
-          <Panel title="Coming up" action={{ to: "/bookings", label: "Open bookings" }}>
-            <Bookings data={data} />
-          </Panel>
+          bookingsPanel
         )}
       </div>
 
-      {setup ? (
-        <Panel title="Coming up" action={{ to: "/bookings", label: "Open bookings" }}>
-          <Bookings data={data} />
-        </Panel>
-      ) : null}
+      {setup ? bookingsPanel : null}
+      </div>
+      {setup ? <div className="hidden xl:block"><SetupCard steps={setup.steps} /></div> : null}
 
       {/* Phones keep the quick ask box that opens the Assistant page; wider screens chat right here. */}
       <div className="md:hidden"><AskAssistant /></div>
@@ -150,6 +157,7 @@ export function HomeOverview() {
 
     <aside aria-label="Results and inbox" className="hidden min-w-0 space-y-4 md:block xl:order-1">
       <div className="hidden xl:block">{heading}</div>
+      <div className="hidden xl:block">{leadsPanel}</div>
       <TextMessagesSnippet />
       <LeadProgressSnippet />
       <FacebookAdsSnippet />
@@ -158,6 +166,7 @@ export function HomeOverview() {
     </aside>
 
     <aside aria-label="Campaigns and posts" className="hidden min-w-0 space-y-4 md:block xl:order-3">
+      <div className="hidden xl:block">{bookingsPanel}</div>
       <CampaignsSnippet />
       <LinkedInSnippet />
     </aside>
