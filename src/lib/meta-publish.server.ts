@@ -64,11 +64,12 @@ function graph(account: DirectMetaAccount, fetcher: typeof fetch) {
 }
 
 function friendlyMetaError(status: number, body: unknown): string {
-  const code = (body as { error?: { code?: number } } | null)?.error?.code;
-  if (code === 200 || code === 10 || status === 403) {
-    return "Facebook didn't allow this post. Reconnect Facebook in Connections and approve posting to your Page and Instagram.";
+  const error = (body as { error?: { code?: number; message?: string } } | null)?.error;
+  const meta = error?.message ? ` Facebook said: "${error.message.slice(0, 200)}"` : "";
+  if (error?.code === 200 || error?.code === 10 || status === 403) {
+    return `Facebook didn't allow this post: the connection is missing posting permission. Reconnect Facebook in Connections and approve posting to your Page and Instagram.${meta}`;
   }
-  return describeGraphFailure(status, body);
+  return `${describeGraphFailure(status, body)}${meta}`;
 }
 
 /** The Instagram professional account linked to the connected Page, if any. */
