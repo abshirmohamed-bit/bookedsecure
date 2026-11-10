@@ -1,3 +1,4 @@
+import { MATCH_CUSTOMER_LANGUAGE, OWNER_TRANSLATION_LINE, splitOwnerTranslation } from './customer-language';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/integrations/supabase/client.server';
 import { loadMetaAccount, describeGraphFailure, type DirectMetaAccount } from './meta-direct.server';
@@ -82,7 +83,7 @@ function transport(account: DirectMetaAccount, fetcher: typeof fetch) {
 }
 
 /** text null = the AI judged that no reply is needed (spam, unrelated). */
-export type DraftResult = { ok: true; text: string | null } | { ok: false; reason: string };
+export type DraftResult = { ok: true; text: string | null; english?: string | null } | { ok: false; reason: string };
 
 /** A short, friendly suggested reply. The owner always edits/approves before anything is sent. */
 export async function draftReply(businessId: string, kind: 'comment' | 'message', platform: SocialPlatform, customerText: string): Promise<DraftResult> {
@@ -100,7 +101,9 @@ export async function draftReply(businessId: string, kind: 'comment' | 'message'
     const { ANALYSIS_MODEL } = await import('./ai.server');
     const system = [
       `You write short replies for ${biz?.name ?? 'a local service business'} to a customer's ${platform} ${kind === 'comment' ? 'public comment' : 'direct message'}.`,
-      'Be warm, plain and brief (1-2 sentences, under 280 characters). Australian English. No emojis unless the customer used them.',
+      'Be warm, plain and brief (1-2 sentences, under 280 characters). No emojis unless the customer used them.',
+      MATCH_CUSTOMER_LANGUAGE,
+      OWNER_TRANSLATION_LINE,
       'Never state prices, discounts, availability or guarantees. Never ask for personal details in a public comment.',
       quote ? `When they want a price or booking, invite them to get a quote at ${quote}${kind === 'comment' ? ' or send a message' : ''}.` : 'When they want a price or booking, invite them to send a message.',
       'If the comment needs no reply (spam, unrelated), reply with exactly: NO_REPLY',
@@ -115,7 +118,9 @@ export async function draftReply(businessId: string, kind: 'comment' | 'message'
     await recordAiUsage({ businessId, purpose: `social_${kind}_draft`, model: ANALYSIS_MODEL, inputTokens: result.input, outputTokens: result.output }).catch(() => undefined);
     const text = result.text.trim().replace(/^"|"$/g, '');
     if (!text) return { ok: false, reason: 'the AI returned nothing' };
-    return { ok: true, text: text === 'NO_REPLY' ? null : text.slice(0, 500) };
+    if (text === 'NO_REPLY') return { ok: true, text: null };
+    const { reply, english } = splitOwnerTranslation(text);
+    return { ok: true, text: reply.replace(/^"|"$/g, '').slice(0, 500) || null, english };
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? e.message.slice(0, 160) : 'the AI could not be reached' };
   }

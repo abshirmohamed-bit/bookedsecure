@@ -351,7 +351,8 @@ export async function analyseLead(input: { businessId: string; leadId: string })
     "- Never claim or confirm a date, time, availability, slot, appointment or booking.",
     "- You may record the customer's stated timing preference in extracted.requested_day_or_time using their own words only (e.g. \"weekend mornings\"). Leave it null if they gave none, and never turn it into a specific date, time or slot.",
     "- Appointment options and booking confirmations are produced by the system, not by you. If the customer asks when you can come, say the owner will send available times.",
-    "- Keep the suggested reply under 320 characters, plain Australian English, no emojis.",
+    "- Keep the suggested reply under 320 characters, plain and warm, no emojis.",
+    "- Write the suggested reply in the same language the customer writes in (for example Arabic, Turkish, Dari, Persian, Mandarin or Vietnamese); if they write in English or it's unclear, use plain Australian English. Keep the summary and every other field in English for the owner.",
     serviceSnapshot
       ? `- The customer already chose the service "${serviceSnapshot}". Do not switch, upsell or substitute it; work within that request.`
       : "- The customer did not choose an approved service. Do not pick one for them; ask what they need and say the owner will confirm the right option.",

@@ -257,16 +257,18 @@ export function buildFeatureTools(ctx: AssistantToolContext) {
           if (error || !c) return fail("That comment was not found.");
           if (!["pending_review", "failed"].includes(c.status)) return fail("That comment has already been handled.");
           let text = replyText ?? null;
+          let draftEnglish: string | null = null;
           if (!text) {
             const d = await draftReply(businessId, "comment", c.platform === "instagram" ? "instagram" : "facebook", c.comment_text);
             if (!d.ok) return fail(`A reply couldn't be written: ${d.reason}.`);
             if (!d.text) return { ok: true, saved: false, note: "This comment doesn't need a reply (looks like spam or unrelated). Offer to dismiss it." };
             text = d.text;
+            draftEnglish = d.english ?? null;
           }
           const { error: upErr } = await supabaseAdmin.from("social_comments").update({ draft_response: text.slice(0, 2000) }).eq("id", c.id).eq("business_id", businessId);
           if (upErr) return fail("The reply could not be saved.");
           ctx.record(`Saved a suggested reply to ${c.author_name ?? "a"} ${c.platform} comment (not posted).`);
-          return { ok: true, saved: true, posted: false, reply: text, nextStep: "Open Facebook and Instagram, check the reply and press Approve to post it." };
+          return { ok: true, saved: true, posted: false, reply: text, ...(draftEnglish ? { replyInEnglish: draftEnglish } : {}), nextStep: "Open Facebook and Instagram, check the reply and press Approve to post it." };
         }
         if (!platform || !participantId) return fail("Say which comment or which conversation to reply to.");
         const { data: inbound, error } = await supabaseAdmin.from("social_messages").select("id, body, participant_name, sent_at")
@@ -277,16 +279,18 @@ export function buildFeatureTools(ctx: AssistantToolContext) {
         const { replyWindow } = await import("@/lib/meta-social");
         if (windowLabel(replyWindow(last.sent_at)) === "closed") return fail("It's been over 7 days since they messaged, so Meta doesn't allow a reply.");
         let text = replyText ?? null;
+        let messageEnglish: string | null = null;
         if (!text) {
           const d = await draftReply(businessId, "message", platform, last.body);
           if (!d.ok) return fail(`A reply couldn't be written: ${d.reason}.`);
           if (!d.text) return { ok: true, saved: false, note: "This message doesn't seem to need a reply." };
           text = d.text;
+          messageEnglish = d.english ?? null;
         }
         const { error: upErr } = await supabaseAdmin.from("social_messages").update({ draft_reply: text.slice(0, 1000) }).eq("id", last.id).eq("business_id", businessId);
         if (upErr) return fail("The reply could not be saved.");
         ctx.record(`Saved a suggested reply to ${last.participant_name ?? "a customer"}'s ${platform} message (not sent).`);
-        return { ok: true, saved: true, sent: false, reply: text, nextStep: "Open Facebook and Instagram → Messages, check the reply and tap Send reply." };
+        return { ok: true, saved: true, sent: false, reply: text, ...(messageEnglish ? { replyInEnglish: messageEnglish } : {}), nextStep: "Open Facebook and Instagram → Messages, check the reply and tap Send reply." };
       },
     }),
 

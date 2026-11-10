@@ -50,9 +50,10 @@ function CommentCard({ comment, canReply }: { comment: Comment; canReply: boolea
   const suggest = useServerFn(suggestYouTubeCommentReply);
   const post = useServerFn(postYouTubeCommentReply);
   const [reply, setReply] = useState("");
+  const [english, setEnglish] = useState<string | null>(null);
   const suggestM = useMutation({
     mutationFn: () => suggest({ data: { text: comment.text, videoTitle: comment.videoTitle } }),
-    onSuccess: (r) => { if (r.text) setReply(r.text); else toast.message("This comment doesn't seem to need a reply."); },
+    onSuccess: (r) => { if (r.text) { setReply(r.text); setEnglish(r.english); } else toast.message("This comment doesn't seem to need a reply."); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "The AI couldn't suggest a reply."),
   });
   const postM = useMutation({
@@ -77,6 +78,7 @@ function CommentCard({ comment, canReply }: { comment: Comment; canReply: boolea
       {canReply && (
         <div className="space-y-2 pl-11">
           <Textarea rows={2} value={reply} maxLength={10_000} placeholder="Write a reply" onChange={(e) => setReply(e.target.value)} />
+          {english && <p className="text-xs text-muted-foreground"><span className="font-medium">In English:</span> {english}</p>}
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" disabled={suggestM.isPending} onClick={() => suggestM.mutate()}>
               {suggestM.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />} Suggest a reply

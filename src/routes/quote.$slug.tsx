@@ -98,7 +98,9 @@ function ManualQuoteForm() {
   // form asks where they're based and what they need instead of job condition.
   const kit = tenant.niche;
   const remote = kit ? !kit.onSite : tenant.businessModel === "subscription" || tenant.businessModel === "products";
-  const STEPS = ["Request", subjectLabel, remote ? "Your needs" : kit?.lastServicedQuestion ? "Condition" : "Details", "Contact"] as const;
+  // Workshops, venues and lessons: the customer comes to the business, so only their suburb is asked.
+  const comesToUs = remote && Boolean(kit) && kit!.locationLabel !== "Based in";
+  const STEPS = ["Request", subjectLabel, kit?.lastServicedQuestion ? "Condition" : remote ? "Your needs" : "Details", "Contact"] as const;
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -144,11 +146,11 @@ function ManualQuoteForm() {
       return (
         form.vehicle_type.length > 1 &&
         form.suburb.length > 1 &&
-        form.service_address.trim().length > 3
+        (comesToUs || form.service_address.trim().length > 3)
       );
     if (step === 2) return form.main_concerns.trim().length > 1;
     return form.name.length > 1 && normaliseAuMobile(form.mobile_number) !== null && form.consent;
-  }, [step, form, tenant.flexibleRequestsEnabled]);
+  }, [step, form, tenant.flexibleRequestsEnabled, comesToUs]);
 
   async function submit() {
     setBusy(true);
@@ -349,7 +351,7 @@ function ManualQuoteForm() {
 
           {step === 1 && (
             <div className="space-y-4">
-              <Field label={remote ? `Which best describes your ${subjectLabel.toLowerCase()}?` : kit && subjectLabel === kit.subjectLabel ? kit.subjectQuestion : `What type of ${subjectLabel.toLowerCase()} is it?`}>
+              <Field label={comesToUs && kit && subjectLabel === kit.subjectLabel ? kit.subjectQuestion : remote ? `Which best describes your ${subjectLabel.toLowerCase()}?` : kit && subjectLabel === kit.subjectLabel ? kit.subjectQuestion : `What type of ${subjectLabel.toLowerCase()} is it?`}>
                 <select
                   value={form.vehicle_type}
                   onChange={(event) => set("vehicle_type", event.target.value)}
@@ -363,7 +365,7 @@ function ManualQuoteForm() {
                   ))}
                 </select>
               </Field>
-              <Field label={remote ? "Where is your business based?" : `Which suburb is the ${subjectLabel.toLowerCase()} in?`}>
+              <Field label={comesToUs ? kit!.locationQuestion : remote ? "Where is your business based?" : `Which suburb is the ${subjectLabel.toLowerCase()} in?`}>
                 <input
                   value={form.suburb}
                   onChange={(event) => set("suburb", event.target.value)}
@@ -371,6 +373,7 @@ function ManualQuoteForm() {
                   className="form-control"
                 />
               </Field>
+              {!comesToUs && (
               <Field label={remote ? "Your business name" : "What's the street address we should come to?"}>
                 <input
                   value={form.service_address}
@@ -379,12 +382,13 @@ function ManualQuoteForm() {
                   className="form-control"
                 />
               </Field>
+              )}
             </div>
           )}
 
           {step === 2 && (
             <div className="space-y-4">
-              {!remote && (kit ? kit.lastServicedQuestion : true) && (
+              {(kit ? kit.lastServicedQuestion : !remote) && (
               <Field label={kit?.lastServicedQuestion ?? "When was it last professionally or thoroughly serviced?"}>
                 <select
                   value={form.last_cleaned_at}

@@ -72,7 +72,7 @@ export const suggestSocialReply = createServerFn({ method: 'POST' }).middleware(
     if (!result.ok) throw new Error(`A reply could not be suggested: ${result.reason}`);
     const text = result.text ?? '';
     await supabaseAdmin.from('social_comments').update({ draft_response: text }).eq('id', row.id).eq('business_id', ctx.businessId);
-    return { text, noReplyNeeded: result.text === null };
+    return { text, noReplyNeeded: result.text === null, english: result.english ?? null };
   });
 
 /** Turns a commenter into a customer once the owner has their mobile. No text is sent. */

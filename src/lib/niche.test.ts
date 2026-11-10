@@ -58,3 +58,41 @@ describe("the quote chat speaks each business's language", () => {
     expect(answered.ok && nextStep(answered.collected)).toBe("address");
   });
 });
+
+import { industryNicheFor } from "./niche";
+
+describe("industry niches (no trade preset)", () => {
+  it("recognises workshops, removals, venues and lessons from the website industry", () => {
+    expect(industryNicheFor("Mechanic and car servicing")).toBe("workshop");
+    expect(industryNicheFor("Smash repairs and panel beating")).toBe("workshop");
+    expect(industryNicheFor("Removalists")).toBe("removals");
+    expect(industryNicheFor("Wedding and function centre")).toBe("venue_events");
+    expect(industryNicheFor("Driving school")).toBe("lessons");
+    expect(industryNicheFor("Mobile car detailing")).toBeNull();
+    expect(industryNicheFor("Office cleaning")).toBeNull();
+    expect(industryNicheFor(null)).toBeNull();
+  });
+
+  it("asks a workshop about the vehicle and last service, but not a street address", () => {
+    const kit = nicheKitFor({ trade: null, industry: "Mechanic" });
+    expect(kit).toMatchObject({ subjectLabel: "Vehicle", onSite: false, lastServicedQuestion: "When was it last serviced?", locationLabel: "Suburb" });
+  });
+
+  it("asks removalists where from, where to and when", () => {
+    const kit = nicheKitFor({ industry: "Removalists" });
+    expect(kit).toMatchObject({ subjectLabel: "Move size", onSite: true });
+    expect(kit.concernsQuestion).toMatch(/moving to/);
+  });
+
+  it("asks a venue for the occasion, date and guests", () => {
+    const kit = nicheKitFor({ industry: "Function centre" });
+    expect(kit).toMatchObject({ subjectLabel: "Event", onSite: false });
+    expect(kit.concernsQuestion).toMatch(/guests/);
+  });
+
+  it("keeps the trade preset and plans rules ahead of the industry", () => {
+    expect(nicheKitFor({ trade: "auto_marine_detailing", industry: "Mechanic" }).subjectLabel).toBe("Vehicle");
+    expect(nicheKitFor({ trade: "pool_servicing", industry: "Mechanic" }).subjectLabel).toBe("Pool");
+    expect(nicheKitFor({ industry: "Tutoring", model: "subscription" })).toMatchObject({ onSite: false, locationLabel: "Based in", offeringWord: "plan" });
+  });
+});

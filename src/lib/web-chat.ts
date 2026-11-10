@@ -1101,7 +1101,7 @@ export function applyAnswer(
       // based; that answer also stands in for the address so it isn't asked.
       if (tenant.niche?.onSite === false) {
         const place = value.replace(/[\s.,;:]+$/, "");
-        if (place.length < 2) return { ok: false, error: "Please tell me where your business is based." };
+        if (place.length < 2) return { ok: false, error: tenant.niche?.locationLabel === "Based in" ? "Please tell me where your business is based." : "Please tell me your suburb." };
         if (place.length > 60) return { ok: false, error: fieldHint("suburb", tenant) };
         next.suburb = place;
         next.service_address = place;

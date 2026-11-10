@@ -249,12 +249,13 @@ function CommentCard({ row }: { row: Row }) {
   const convert = useServerFn(convertSocialComment);
   const suggestFn = useServerFn(suggestSocialReply);
   const [reply, setReply] = useState(row.approved_response ?? row.draft_response ?? "");
+  const [english, setEnglish] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
   const suggest = useMutation({
     mutationFn: () => suggestFn({ data: { id: row.id } }),
     onSuccess: (r) => {
       if (r.noReplyNeeded) toast.message("This one doesn't look like it needs a reply. You can still write one or dismiss it.");
-      else setReply(r.text);
+      else { setReply(r.text); setEnglish(r.english); }
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "A reply could not be suggested."),
   });
@@ -294,7 +295,10 @@ function CommentCard({ row }: { row: Row }) {
       {row.response_reason ? <p className="text-xs text-muted-foreground">Why reply: {row.response_reason}</p> : null}
       {row.post_error ? <p className="text-xs text-destructive">Posting failed: {row.post_error}</p> : null}
       {editable ? (
-        <Textarea aria-label="Reply" value={reply} onChange={(e) => setReply(e.target.value)} rows={3} placeholder="Write your reply" />
+        <>
+          <Textarea aria-label="Reply" value={reply} onChange={(e) => setReply(e.target.value)} rows={3} placeholder="Write your reply" />
+          {english && <p className="text-xs text-muted-foreground"><span className="font-medium">In English:</span> {english}</p>}
+        </>
       ) : row.approved_response ? (
         <p className="rounded-md bg-secondary p-2 text-sm">Reply: {row.approved_response}</p>
       ) : null}

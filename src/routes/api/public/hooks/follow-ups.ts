@@ -43,6 +43,11 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const reviewRequests = await processDueReviewRequests().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Review requests failed",
         }));
+        // Service reminders an interval after a customer's last completed job, once per job.
+        const { processDueServiceReminders } = await import("@/lib/service-reminders.server");
+        const serviceReminders = await processDueServiceReminders().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Service reminders failed",
+        }));
         // Customer appointment reminders, once per booking, for businesses that switch them on.
         const { processDueCustomerReminders } = await import("@/lib/customer-reminder.server");
         const customerReminders = await processDueCustomerReminders().catch((error: unknown) => ({
@@ -53,7 +58,7 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const autoCompleted = await processDueAutoCompletions().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Auto-complete failed",
         }));
-        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, scheduledPosts, autoCompleted, abandonedSwept: swept.swept });
+        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, abandonedSwept: swept.swept });
 
 
       },
