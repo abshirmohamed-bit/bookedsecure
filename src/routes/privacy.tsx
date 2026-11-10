@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 const UPDATED = "10 November 2026";
-const CONTACT = "support@bookedsecure.com";
+const CONTACT = "bookedsecure@gmail.com";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
