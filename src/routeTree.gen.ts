@@ -33,6 +33,7 @@ import { Route as AdminMessagingNumbersRouteImport } from './routes/admin.messag
 import { Route as AdminOverviewRouteImport } from './routes/admin.overview'
 import { Route as AdminPilotApplicationsRouteImport } from './routes/admin.pilot-applications'
 import { Route as AssistantThreadIdRouteImport } from './routes/assistant.$threadId'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as BTokenRouteImport } from './routes/b.$token'
 import { Route as BookingsIndexRouteImport } from './routes/bookings.index'
 import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
@@ -202,6 +203,11 @@ const AssistantThreadIdRoute = AssistantThreadIdRouteImport.update({
   id: '/$threadId',
   path: '/$threadId',
   getParentRoute: () => AssistantRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => AuthRoute,
 } as any)
 const BTokenRoute = BTokenRouteImport.update({
   id: '/b/$token',
@@ -462,7 +468,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
@@ -483,6 +489,7 @@ export interface FileRoutesByFullPath {
   '/admin/overview': typeof AdminOverviewRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/b/$token': typeof BTokenRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/campaigns/replies': typeof CampaignsRepliesRoute
@@ -536,7 +543,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
@@ -556,6 +563,7 @@ export interface FileRoutesByTo {
   '/admin/overview': typeof AdminOverviewRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/b/$token': typeof BTokenRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/campaigns/replies': typeof CampaignsRepliesRoute
@@ -610,7 +618,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
   '/import': typeof ImportRoute
@@ -631,6 +639,7 @@ export interface FileRoutesById {
   '/admin/overview': typeof AdminOverviewRoute
   '/admin/pilot-applications': typeof AdminPilotApplicationsRoute
   '/assistant/$threadId': typeof AssistantThreadIdRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/b/$token': typeof BTokenRoute
   '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
   '/campaigns/replies': typeof CampaignsRepliesRoute
@@ -707,6 +716,7 @@ export interface FileRouteTypes {
     | '/admin/overview'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
+    | '/auth/callback'
     | '/b/$token'
     | '/campaigns/$campaignId'
     | '/campaigns/replies'
@@ -780,6 +790,7 @@ export interface FileRouteTypes {
     | '/admin/overview'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
+    | '/auth/callback'
     | '/b/$token'
     | '/campaigns/$campaignId'
     | '/campaigns/replies'
@@ -854,6 +865,7 @@ export interface FileRouteTypes {
     | '/admin/overview'
     | '/admin/pilot-applications'
     | '/assistant/$threadId'
+    | '/auth/callback'
     | '/b/$token'
     | '/campaigns/$campaignId'
     | '/campaigns/replies'
@@ -908,7 +920,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AssistantRoute: typeof AssistantRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   HomeRoute: typeof HomeRoute
   ImportRoute: typeof ImportRoute
@@ -1139,6 +1151,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/assistant/$threadId'
       preLoaderRoute: typeof AssistantThreadIdRouteImport
       parentRoute: typeof AssistantRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/b/$token': {
       id: '/b/$token'
@@ -1491,6 +1510,16 @@ const AssistantRouteWithChildren = AssistantRoute._addFileChildren(
   AssistantRouteChildren,
 )
 
+interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 interface SettingsRouteChildren {
   SettingsAutomationRoute: typeof SettingsAutomationRoute
   SettingsBillingRoute: typeof SettingsBillingRoute
@@ -1534,7 +1563,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   AssistantRoute: AssistantRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   DashboardRoute: DashboardRoute,
   HomeRoute: HomeRoute,
   ImportRoute: ImportRoute,
