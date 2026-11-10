@@ -13,7 +13,7 @@
   "mcp": {
     "server": {
       "name": "bookedsecure",
-      "version": "0.11.0",
+      "version": "0.12.0",
       "title": "BookedSecure"
     },
     "tools": [
@@ -2955,8 +2955,8 @@
       },
       {
         "name": "linkedin_status",
-        "title": "LinkedIn connection",
-        "description": "Whether the business has connected LinkedIn in BookedSecure, who it can post as (personal profile and Company Pages) and when the connection must be renewed. LinkedIn messages cannot be read or sent through BookedSecure.",
+        "title": "Social accounts",
+        "description": "Which social accounts the business can post to from BookedSecure: LinkedIn (personal profile and Company Pages, and when to renew), the connected Facebook Page and its linked Instagram account. LinkedIn messages cannot be read or sent through BookedSecure.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -2972,8 +2972,8 @@
       },
       {
         "name": "list_linkedin_posts",
-        "title": "Recent LinkedIn posts",
-        "description": "Recent LinkedIn posts made from BookedSecure, newest first, with links and any failures.",
+        "title": "Recent social posts",
+        "description": "Recent LinkedIn, Facebook or Instagram posts made from BookedSecure, newest first, with links and any failures.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -2987,6 +2987,16 @@
               "minimum": 1,
               "maximum": 50,
               "default": 10
+            },
+            "platform": {
+              "type": "string",
+              "enum": [
+                "linkedin",
+                "facebook",
+                "instagram"
+              ],
+              "default": "linkedin",
+              "description": "Where to post: linkedin (default), facebook (the connected Page) or instagram (needs pictures, so Instagram posts are made on the Social media page, not here)."
             }
           },
           "additionalProperties": false,
@@ -2996,8 +3006,8 @@
       },
       {
         "name": "write_linkedin_post",
-        "title": "Write a LinkedIn post",
-        "description": "Write a LinkedIn post for the business from the owner's brief, in BookedSecure's house style. Returns the text only; nothing is posted. Never invent prices, results or customer names.",
+        "title": "Write a social post",
+        "description": "Write a LinkedIn, Facebook or Instagram post for the business from the owner's brief, in that network's style. Returns the text only; nothing is posted. Never invent prices, results or customer names.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": false,
@@ -3009,6 +3019,16 @@
             "brief": {
               "type": "string",
               "maxLength": 2000
+            },
+            "platform": {
+              "type": "string",
+              "enum": [
+                "linkedin",
+                "facebook",
+                "instagram"
+              ],
+              "default": "linkedin",
+              "description": "Where to post: linkedin (default), facebook (the connected Page) or instagram (needs pictures, so Instagram posts are made on the Social media page, not here)."
             }
           },
           "required": [
@@ -3021,8 +3041,8 @@
       },
       {
         "name": "preview_linkedin_post",
-        "title": "Preview a LinkedIn post",
-        "description": "Step 1 of posting to LinkedIn: returns exactly what will be posted, who it posts as, and a confirmationCode. Show the owner the full post and who it posts as, and ask them to confirm. Never publish without their clear yes. Owner only.",
+        "title": "Preview a social post",
+        "description": "Step 1 of posting to LinkedIn or the Facebook Page: returns exactly what will be posted, where and as whom, and a confirmationCode. Show the owner the full post and who it posts as, and ask them to confirm. Never publish without their clear yes. Owner only.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -3048,6 +3068,16 @@
               ],
               "default": null,
               "description": "Who to post as, from linkedin_status authors; null uses the saved default. Never show it."
+            },
+            "platform": {
+              "type": "string",
+              "enum": [
+                "linkedin",
+                "facebook",
+                "instagram"
+              ],
+              "default": "linkedin",
+              "description": "Where to post: linkedin (default), facebook (the connected Page) or instagram (needs pictures, so Instagram posts are made on the Social media page, not here)."
             }
           },
           "required": [
@@ -3060,8 +3090,8 @@
       },
       {
         "name": "publish_linkedin_post",
-        "title": "Publish a LinkedIn post",
-        "description": "Step 2: publish the post publicly on LinkedIn. Only after preview_linkedin_post AND the owner said yes to that exact post in this conversation; pass the same text, authorUrn and its confirmationCode. Report the link it returns. Owner only.",
+        "title": "Publish a social post",
+        "description": "Step 2: publish the post publicly on LinkedIn or the Facebook Page. Only after preview_linkedin_post AND the owner said yes to that exact post in this conversation; pass the same platform, text, authorUrn and its confirmationCode. Report the link it returns. Owner only.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
@@ -3093,6 +3123,16 @@
               "type": "string",
               "minLength": 4,
               "maxLength": 16
+            },
+            "platform": {
+              "type": "string",
+              "enum": [
+                "linkedin",
+                "facebook",
+                "instagram"
+              ],
+              "default": "linkedin",
+              "description": "Where to post: linkedin (default), facebook (the connected Page) or instagram (needs pictures, so Instagram posts are made on the Social media page, not here)."
             }
           },
           "required": [
