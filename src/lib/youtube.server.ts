@@ -18,7 +18,7 @@ import {
 /**
  * Per-business YouTube connection and video uploads through the official
  * YouTube Data API v3. Platform app credentials come from server secrets
- * (YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET); each business signs in with its
+ * (Google_Console_Client_ID / Google_Console_Client_Secret); each business signs in with its
  * own Google account and only the encrypted refresh token is kept, bound to
  * that business (server-only table youtube_accounts, docs/youtube.sql).
  */
@@ -30,8 +30,9 @@ export type YouTubeConfig = { clientId?: string | undefined; clientSecret?: stri
 
 export function readYouTubeConfig(): YouTubeConfig {
   return {
-    clientId: process.env["YOUTUBE_CLIENT_ID"]?.trim() || undefined,
-    clientSecret: process.env["YOUTUBE_CLIENT_SECRET"]?.trim() || undefined,
+    // Lovable secrets are named Google_Console_Client_ID / _Secret; YOUTUBE_* still works.
+    clientId: (process.env["Google_Console_Client_ID"] ?? process.env["YOUTUBE_CLIENT_ID"])?.trim() || undefined,
+    clientSecret: (process.env["Google_Console_Client_Secret"] ?? process.env["YOUTUBE_CLIENT_SECRET"])?.trim() || undefined,
     appUrl: (process.env["PUBLIC_APP_URL"]?.trim() || "https://bookedsecure.com").replace(/\/+$/, ""),
   };
 }
@@ -39,14 +40,14 @@ export function readYouTubeConfig(): YouTubeConfig {
 /** Names (never values) of the platform settings YouTube still needs. */
 export function youTubeMissingSettings(config = readYouTubeConfig()): string[] {
   return [
-    config.clientId ? null : "YOUTUBE_CLIENT_ID",
-    config.clientSecret ? null : "YOUTUBE_CLIENT_SECRET",
+    config.clientId ? null : "Google_Console_Client_ID",
+    config.clientSecret ? null : "Google_Console_Client_Secret",
     process.env["TENANT_AI_ENCRYPTION_SECRET"] ? null : "TENANT_AI_ENCRYPTION_SECRET",
   ].filter((name): name is string => name !== null);
 }
 
 function assertReady(config: YouTubeConfig) {
-  if (!config.clientId || !config.clientSecret) throw new Error("YouTube isn't set up on BookedSecure yet (YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET).");
+  if (!config.clientId || !config.clientSecret) throw new Error("YouTube isn't set up on BookedSecure yet (Google_Console_Client_ID / Google_Console_Client_Secret).");
   if (!process.env["TENANT_AI_ENCRYPTION_SECRET"]) throw new Error("Secure token storage is unavailable.");
 }
 

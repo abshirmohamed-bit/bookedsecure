@@ -56,8 +56,8 @@ owner presses **Upload to YouTube**.
 ## 2. Lovable
 
 1. Add these secrets (never paste them into chat):
-   - `YOUTUBE_CLIENT_ID`
-   - `YOUTUBE_CLIENT_SECRET`
+   - `Google_Console_Client_ID`
+   - `Google_Console_Client_Secret`
 2. Ask Lovable to apply `docs/youtube.sql` as a migration exactly as written,
    then publish.
 
