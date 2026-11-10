@@ -159,6 +159,25 @@ export function buildBusinessProfile(raw: unknown, pageText?: string | null): Bu
   };
 }
 
+/**
+ * Drops items that say less than another item ("Free trial" next to "14-day
+ * free trial") and, when `also` is given, items already listed there.
+ */
+export function withoutRepeats(items: readonly string[], also: readonly string[] = []): string[] {
+  const words = items.map((item) => new Set(meaningfulWords(item)));
+  const taken = also.map((item) => meaningfulWords(item).join(" "));
+  return items.filter((item, index) => {
+    const mine = words[index]!;
+    if (mine.size === 0 || taken.includes([...mine].join(" "))) return false;
+    return !words.some((other, j) => {
+      if (j === index || other.size < mine.size) return false;
+      const covers = [...mine].every((word) => other.has(word));
+      // Equal sets: keep the first one only.
+      return covers && (other.size > mine.size || j < index);
+    });
+  });
+}
+
 /** Combines profiles read from several pages: first value wins, lists are joined without repeats. */
 export function mergeProfiles(profiles: readonly BusinessProfile[]): BusinessProfile {
   const merged: BusinessProfile = { ...EMPTY_PROFILE, highlights: [], policies: [], faqs: [] };
@@ -185,6 +204,8 @@ export function mergeProfiles(profiles: readonly BusinessProfile[]): BusinessPro
     }
   }
   if (modelSet) merged.model = [...models.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+  merged.highlights = withoutRepeats(merged.highlights);
+  merged.policies = withoutRepeats(merged.policies, merged.highlights);
   return merged;
 }
 

@@ -353,6 +353,16 @@ export function ProposalPreview({
             </ul>
           </section>
         )}
+
+        {/* On a phone the list is long, so the save button is repeated at the end. */}
+        <div className="flex gap-2 @3xl:hidden">
+          <Button type="button" className="flex-1" onClick={onSave} disabled={readOnly || saving}>
+            {saving ? "Saving…" : "Looks good. save it"}
+          </Button>
+          <Button type="button" variant="outline" onClick={onReset} disabled={saving}>
+            Try another
+          </Button>
+        </div>
       </div>
     </div>
     </div>

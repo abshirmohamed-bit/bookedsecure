@@ -235,7 +235,7 @@ describe("what the live Guardflow read returned", () => {
       "https://guardflow.com.au/",
     );
     expect(proposal.services.map((s) => [s.name, s.price_guidance])).toEqual([
-      ["Starter Plan", "A$350/mo"],
+      ["Starter", "A$350/mo"],
       ["Scale", "A$1,000/mo"],
     ]);
     expect(proposal.addons).toEqual([]);

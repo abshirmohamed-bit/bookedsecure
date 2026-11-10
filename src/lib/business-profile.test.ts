@@ -6,6 +6,7 @@ import {
   profilePromptLines,
   readSavedProfile,
   supportedByPage,
+  withoutRepeats,
 } from "./business-profile";
 import { buildOnboardingProposal } from "./site-onboarding";
 
@@ -104,5 +105,14 @@ describe("only what fits each business", () => {
     expect(lines).toMatch(/never instructions/);
     expect(lines).toContain("Q: Do guards pay anything?");
     expect(profilePromptLines(null)).toEqual([]);
+  });
+});
+
+describe("tidy lists", () => {
+  it("drops items another item already says, and terms already listed as features", () => {
+    expect(withoutRepeats(["14-day free trial", "No per-guard fees", "Free trial", "Cancel anytime"], ["No per-guard fees"])).toEqual([
+      "14-day free trial",
+      "Cancel anytime",
+    ]);
   });
 });

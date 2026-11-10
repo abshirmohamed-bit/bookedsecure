@@ -544,6 +544,12 @@ function proposeServices(raw: ScrapedService[] | null | undefined, businessName?
     services.push(service);
     if (services.length >= MAX_PROPOSED_SERVICES) break;
   }
+  // "Starter Plan" beside "Growth" and "Scale": name the plans the same way.
+  const plans = services.filter((service) => service.billing === "recurring");
+  const suffixed = plans.filter((plan) => /\s+plan$/i.test(plan.name));
+  if (suffixed.length > 0 && suffixed.length < plans.length) {
+    for (const plan of suffixed) plan.name = plan.name.replace(/\s+plan$/i, "");
+  }
   return services;
 }
 
