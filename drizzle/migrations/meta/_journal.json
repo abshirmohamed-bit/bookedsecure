@@ -358,6 +358,13 @@
       "when": 1794370000003,
       "tag": "0050_assistant_availability",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1794370000004,
+      "tag": "0051_social_posts",
+      "breakpoints": true
     }
   ]
 }
