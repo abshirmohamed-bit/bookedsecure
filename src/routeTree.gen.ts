@@ -82,6 +82,10 @@ import { Route as ApiPublicMetaOauthCallbackRouteImport } from './routes/api/pub
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
 import { Route as ApiPublicSmsTextoDeliveryRouteImport } from './routes/api/public/sms/texto.delivery'
 import { Route as ApiPublicSmsTextoInboundRouteImport } from './routes/api/public/sms/texto.inbound'
+import { Route as ApiPublicV1BookingAvailabilityRouteImport } from './routes/api/public/v1/booking.availability'
+import { Route as ApiPublicV1BookingBookRouteImport } from './routes/api/public/v1/booking.book'
+import { Route as ApiPublicV1BookingOptionsRouteImport } from './routes/api/public/v1/booking.options'
+import { Route as ApiPublicV1BookingQuoteRouteImport } from './routes/api/public/v1/booking.quote'
 import { Route as ApiPublicV1SocialCommentsIdPostedRouteImport } from './routes/api/public/v1/social-comments.$id.posted'
 
 const IndexRoute = IndexRouteImport.update({
@@ -463,6 +467,28 @@ const ApiPublicSmsTextoInboundRoute =
     path: '/api/public/sms/texto/inbound',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicV1BookingAvailabilityRoute =
+  ApiPublicV1BookingAvailabilityRouteImport.update({
+    id: '/api/public/v1/booking/availability',
+    path: '/api/public/v1/booking/availability',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1BookingBookRoute = ApiPublicV1BookingBookRouteImport.update({
+  id: '/api/public/v1/booking/book',
+  path: '/api/public/v1/booking/book',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1BookingOptionsRoute =
+  ApiPublicV1BookingOptionsRouteImport.update({
+    id: '/api/public/v1/booking/options',
+    path: '/api/public/v1/booking/options',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1BookingQuoteRoute = ApiPublicV1BookingQuoteRouteImport.update({
+  id: '/api/public/v1/booking/quote',
+  path: '/api/public/v1/booking/quote',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicV1SocialCommentsIdPostedRoute =
   ApiPublicV1SocialCommentsIdPostedRouteImport.update({
     id: '/$id/posted',
@@ -544,6 +570,10 @@ export interface FileRoutesByFullPath {
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/booking/availability': typeof ApiPublicV1BookingAvailabilityRoute
+  '/api/public/v1/booking/book': typeof ApiPublicV1BookingBookRoute
+  '/api/public/v1/booking/options': typeof ApiPublicV1BookingOptionsRoute
+  '/api/public/v1/booking/quote': typeof ApiPublicV1BookingQuoteRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesByTo {
@@ -619,6 +649,10 @@ export interface FileRoutesByTo {
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/booking/availability': typeof ApiPublicV1BookingAvailabilityRoute
+  '/api/public/v1/booking/book': typeof ApiPublicV1BookingBookRoute
+  '/api/public/v1/booking/options': typeof ApiPublicV1BookingOptionsRoute
+  '/api/public/v1/booking/quote': typeof ApiPublicV1BookingQuoteRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRoutesById {
@@ -696,6 +730,10 @@ export interface FileRoutesById {
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
+  '/api/public/v1/booking/availability': typeof ApiPublicV1BookingAvailabilityRoute
+  '/api/public/v1/booking/book': typeof ApiPublicV1BookingBookRoute
+  '/api/public/v1/booking/options': typeof ApiPublicV1BookingOptionsRoute
+  '/api/public/v1/booking/quote': typeof ApiPublicV1BookingQuoteRoute
   '/api/public/v1/social-comments/$id/posted': typeof ApiPublicV1SocialCommentsIdPostedRoute
 }
 export interface FileRouteTypes {
@@ -774,6 +812,10 @@ export interface FileRouteTypes {
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/booking/availability'
+    | '/api/public/v1/booking/book'
+    | '/api/public/v1/booking/options'
+    | '/api/public/v1/booking/quote'
     | '/api/public/v1/social-comments/$id/posted'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -849,6 +891,10 @@ export interface FileRouteTypes {
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/booking/availability'
+    | '/api/public/v1/booking/book'
+    | '/api/public/v1/booking/options'
+    | '/api/public/v1/booking/quote'
     | '/api/public/v1/social-comments/$id/posted'
   id:
     | '__root__'
@@ -925,6 +971,10 @@ export interface FileRouteTypes {
     | '/api/public/service-image/$kind/$id'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
+    | '/api/public/v1/booking/availability'
+    | '/api/public/v1/booking/book'
+    | '/api/public/v1/booking/options'
+    | '/api/public/v1/booking/quote'
     | '/api/public/v1/social-comments/$id/posted'
   fileRoutesById: FileRoutesById
 }
@@ -994,6 +1044,10 @@ export interface RootRouteChildren {
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
   ApiPublicSmsTextoDeliveryRoute: typeof ApiPublicSmsTextoDeliveryRoute
   ApiPublicSmsTextoInboundRoute: typeof ApiPublicSmsTextoInboundRoute
+  ApiPublicV1BookingAvailabilityRoute: typeof ApiPublicV1BookingAvailabilityRoute
+  ApiPublicV1BookingBookRoute: typeof ApiPublicV1BookingBookRoute
+  ApiPublicV1BookingOptionsRoute: typeof ApiPublicV1BookingOptionsRoute
+  ApiPublicV1BookingQuoteRoute: typeof ApiPublicV1BookingQuoteRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1509,6 +1563,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSmsTextoInboundRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/v1/booking/availability': {
+      id: '/api/public/v1/booking/availability'
+      path: '/api/public/v1/booking/availability'
+      fullPath: '/api/public/v1/booking/availability'
+      preLoaderRoute: typeof ApiPublicV1BookingAvailabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/booking/book': {
+      id: '/api/public/v1/booking/book'
+      path: '/api/public/v1/booking/book'
+      fullPath: '/api/public/v1/booking/book'
+      preLoaderRoute: typeof ApiPublicV1BookingBookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/booking/options': {
+      id: '/api/public/v1/booking/options'
+      path: '/api/public/v1/booking/options'
+      fullPath: '/api/public/v1/booking/options'
+      preLoaderRoute: typeof ApiPublicV1BookingOptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/booking/quote': {
+      id: '/api/public/v1/booking/quote'
+      path: '/api/public/v1/booking/quote'
+      fullPath: '/api/public/v1/booking/quote'
+      preLoaderRoute: typeof ApiPublicV1BookingQuoteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/v1/social-comments/$id/posted': {
       id: '/api/public/v1/social-comments/$id/posted'
       path: '/$id/posted'
@@ -1637,6 +1719,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,
   ApiPublicSmsTextoDeliveryRoute: ApiPublicSmsTextoDeliveryRoute,
   ApiPublicSmsTextoInboundRoute: ApiPublicSmsTextoInboundRoute,
+  ApiPublicV1BookingAvailabilityRoute: ApiPublicV1BookingAvailabilityRoute,
+  ApiPublicV1BookingBookRoute: ApiPublicV1BookingBookRoute,
+  ApiPublicV1BookingOptionsRoute: ApiPublicV1BookingOptionsRoute,
+  ApiPublicV1BookingQuoteRoute: ApiPublicV1BookingQuoteRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -14,7 +14,9 @@ import {
   parseWeeklyWindows,
   type AvailabilityConfig,
   type AvailableSlot,
+  type BusyInterval,
 } from "@/lib/availability";
+import { DEFAULT_JOB_MINUTES } from "@/lib/job-autocomplete";
 import { buildApprovedFacts, hasApprovedPrice } from "@/lib/approved-facts";
 import {
   assessAutomaticBooking,
@@ -75,7 +77,10 @@ export async function loadAvailabilityConfig(businessId: string): Promise<Availa
   ]);
 
   const row = availability ?? DEFAULT_AVAILABILITY;
+  const rules = await loadBookingRules(businessId);
   return {
+    bufferMinutes: rules.bufferMinutes,
+    stepMinutes: rules.stepMinutes,
     timezone: business?.timezone ?? "Australia/Sydney",
     active: Boolean(row.active),
     leadTimeMinutes: Number(row.lead_time_minutes ?? 120),
@@ -109,6 +114,124 @@ export async function loadServiceDurationMinutes(
   const minutes = Number(data.duration_minutes);
   if (!Number.isInteger(minutes) || minutes <= 0) return null;
   return minutes;
+}
+
+export type BookingRules = {
+  /** Travel time kept free either side of a job. */
+  bufferMinutes: number;
+  /** Gap between start times offered to the booking API. */
+  stepMinutes: number;
+  /** Hours before a booking that the customer reminder goes out; null = off. */
+  reminderHours: number | null;
+};
+
+const DEFAULT_RULES: BookingRules = { bufferMinutes: 0, stepMinutes: 30, reminderHours: null };
+
+/**
+ * Booking-API settings on booking_availability. Read on their own so the rest
+ * of availability keeps working before the columns exist (docs/booking-api.sql).
+ */
+export async function loadBookingRules(businessId: string): Promise<BookingRules> {
+  const { data, error } = await supabaseAdmin
+    .from("booking_availability")
+    .select("travel_buffer_minutes, slot_step_minutes, customer_reminder_hours" as never)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (error || !data) return DEFAULT_RULES;
+  const row = data as unknown as Record<string, unknown>;
+  const buffer = Number(row["travel_buffer_minutes"]);
+  const step = Number(row["slot_step_minutes"]);
+  const reminder = row["customer_reminder_hours"] == null ? null : Number(row["customer_reminder_hours"]);
+  return {
+    bufferMinutes: Number.isInteger(buffer) && buffer >= 0 ? buffer : 0,
+    stepMinutes: Number.isInteger(step) && step >= 5 ? step : 30,
+    reminderHours: reminder !== null && Number.isInteger(reminder) && reminder > 0 ? reminder : null,
+  };
+}
+
+/**
+ * Everything that makes time unbookable for this tenant, as intervals: booked
+ * jobs with their real length (the job's own length, else its service's, else
+ * two hours), chat offers a customer has picked but not yet confirmed, and the
+ * owner's blocked time. Only times are returned; never who the booking is for.
+ */
+export async function loadBusyIntervals(
+  businessId: string,
+  options: { ignoreOfferId?: string; ignoreLeadId?: string } = {},
+): Promise<BusyInterval[]> {
+  const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+  const [jobsWithLength, offers, blocks, services] = await Promise.all([
+    supabaseAdmin
+      .from("jobs")
+      .select("lead_id, scheduled_at, service_id, duration_minutes" as never)
+      .eq("business_id", businessId)
+      .eq("completion_status", "scheduled")
+      .gte("scheduled_at", since),
+    supabaseAdmin
+      .from("booking_offers")
+      .select("id, lead_id, slot_start, slot_end, status, job_id")
+      .eq("business_id", businessId)
+      .in("status", ["accepted", "confirmed"])
+      .is("job_id", null)
+      .gte("slot_end", since),
+    supabaseAdmin
+      .from("booking_blocks" as never)
+      .select("starts_at, ends_at")
+      .eq("business_id", businessId)
+      .gte("ends_at", since),
+    supabaseAdmin.from("services").select("id, duration_minutes").eq("business_id", businessId),
+  ]);
+
+  // Before the duration column exists, fall back to the service length.
+  let jobs = (jobsWithLength.data ?? []) as unknown as Array<Record<string, unknown>>;
+  if (jobsWithLength.error) {
+    const { data } = await supabaseAdmin
+      .from("jobs")
+      .select("lead_id, scheduled_at, service_id")
+      .eq("business_id", businessId)
+      .eq("completion_status", "scheduled")
+      .gte("scheduled_at", since);
+    jobs = (data ?? []) as unknown as Array<Record<string, unknown>>;
+  }
+  const serviceMinutes = new Map(
+    (services.data ?? []).map((row) => [row.id as string, Number(row.duration_minutes) || null]),
+  );
+
+  const busy: BusyInterval[] = [];
+  for (const job of jobs) {
+    if (!job["scheduled_at"]) continue;
+    if (options.ignoreLeadId && job["lead_id"] === options.ignoreLeadId) continue;
+    const own = Number(job["duration_minutes"]);
+    const minutes =
+      Number.isInteger(own) && own > 0
+        ? own
+        : serviceMinutes.get(job["service_id"] as string) ?? DEFAULT_JOB_MINUTES;
+    const start = new Date(job["scheduled_at"] as string);
+    busy.push({
+      start: start.toISOString(),
+      end: new Date(start.getTime() + minutes * 60_000).toISOString(),
+      kind: "job",
+    });
+  }
+  for (const offer of offers.data ?? []) {
+    if (options.ignoreOfferId && offer.id === options.ignoreOfferId) continue;
+    if (options.ignoreLeadId && offer.lead_id === options.ignoreLeadId) continue;
+    busy.push({
+      start: new Date(offer.slot_start).toISOString(),
+      end: new Date(offer.slot_end).toISOString(),
+      kind: "offer",
+    });
+  }
+  if (!blocks.error) {
+    for (const block of (blocks.data ?? []) as unknown as Array<{ starts_at: string; ends_at: string }>) {
+      busy.push({
+        start: new Date(block.starts_at).toISOString(),
+        end: new Date(block.ends_at).toISOString(),
+        kind: "block",
+      });
+    }
+  }
+  return busy;
 }
 
 /** Slot starts already taken by this tenant: booked jobs and taken offers. */
@@ -205,8 +328,9 @@ export async function getBookingView(input: { businessId: string; leadId: string
     input.businessId,
     lead?.approved_service_id ?? null,
   );
-  const [occupied, offers] = await Promise.all([
+  const [occupied, busy, offers] = await Promise.all([
     occupiedSlotStarts(input.businessId),
+    loadBusyIntervals(input.businessId),
     supabaseAdmin
       .from("booking_offers")
       .select(OFFER_COLUMNS)
@@ -217,7 +341,7 @@ export async function getBookingView(input: { businessId: string; leadId: string
   return {
     config,
     slots: slotMinutes
-      ? resolveAvailableSlots({ config, slotMinutes, now: new Date(), occupiedStarts: occupied })
+      ? resolveAvailableSlots({ config, slotMinutes, now: new Date(), occupiedStarts: occupied, busy })
       : [],
     offers: (offers.data ?? []) as OfferRow[],
   };
@@ -253,11 +377,13 @@ export async function generateBookingOffers(input: {
       offers: [],
     };
   const occupied = await occupiedSlotStarts(input.businessId);
+  const busy = await loadBusyIntervals(input.businessId);
   const slots = resolveAvailableSlots({
     config,
     slotMinutes,
     now: new Date(),
     occupiedStarts: occupied,
+    busy,
     limit: MAX_OFFERED_SLOTS,
   });
 
@@ -571,12 +697,14 @@ export async function confirmBooking(input: {
     offer?.service_id ?? lead.approved_service_id,
   );
   const occupied = await occupiedSlotStarts(input.businessId, input.offerId);
+  const busy = await loadBusyIntervals(input.businessId, { ignoreOfferId: input.offerId });
   const revalidated = offer && slotMinutes
     ? isSlotStillAvailable({
         config,
         slotMinutes,
         now: new Date(),
         occupiedStarts: occupied,
+        busy,
         slotStart: offer.slot_start,
       })
     : { available: false, slot: null };

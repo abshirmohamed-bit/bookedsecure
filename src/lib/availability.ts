@@ -31,7 +31,37 @@ export type AvailabilityConfig = {
   weeklyWindows: AvailabilityWindow[];
   quietHoursStart: number;
   quietHoursEnd: number;
+  /** Travel time kept free before and after every booked job. Defaults to 0. */
+  bufferMinutes?: number;
+  /** How often start times are offered to the booking API (minutes). Defaults to the appointment length. */
+  stepMinutes?: number;
 };
+
+/** A stretch of time that is not bookable: a booked job, a held chat offer or blocked time. */
+export type BusyInterval = {
+  start: string;
+  end: string;
+  /** Blocked time is exact; jobs and held offers also keep the travel buffer either side. */
+  kind?: "job" | "offer" | "block";
+};
+
+/** True when [start, end) clashes with a busy interval, allowing the travel buffer around jobs and offers. */
+export function overlapsBusy(
+  start: number,
+  end: number,
+  busy: readonly BusyInterval[],
+  bufferMinutes: number,
+): boolean {
+  const buffer = Math.max(0, bufferMinutes) * 60_000;
+  for (const item of busy) {
+    const busyStart = Date.parse(item.start);
+    const busyEnd = Date.parse(item.end);
+    if (Number.isNaN(busyStart) || Number.isNaN(busyEnd)) continue;
+    const pad = item.kind === "block" ? 0 : buffer;
+    if (start < busyEnd + pad && end + pad > busyStart) return true;
+  }
+  return false;
+}
 
 export type AvailableSlot = {
   /** UTC instant, ISO 8601. The canonical identity of a slot. */
@@ -188,6 +218,14 @@ export type ResolveInput = {
   now: Date;
   /** ISO starts already taken for this tenant (booked jobs + accepted offers). */
   occupiedStarts?: readonly string[];
+  /** Booked jobs, held offers and blocked time; any overlap (plus the travel buffer) is unavailable. */
+  busy?: readonly BusyInterval[];
+  /** Gap between offered start times. Defaults to the appointment length (the quote chat's behaviour). */
+  stepMinutes?: number;
+  /** Only slots starting at or after this instant. */
+  notBefore?: Date;
+  /** Only slots starting before this instant. */
+  notAfter?: Date;
   limit?: number;
 };
 
@@ -211,6 +249,12 @@ export function resolveAvailableSlots(input: ResolveInput): AvailableSlot[] {
   const limit = input.limit ?? MAX_OFFERED_SLOTS;
   const today = zonedParts(config.timezone, now);
   const slots: AvailableSlot[] = [];
+  const step =
+    Number.isInteger(input.stepMinutes) && (input.stepMinutes ?? 0) > 0 ? input.stepMinutes! : slotMinutes;
+  const busy = input.busy ?? [];
+  const bufferMinutes = Math.max(0, Number(config.bufferMinutes ?? 0) || 0);
+  const notBefore = input.notBefore?.getTime() ?? Number.NEGATIVE_INFINITY;
+  const notAfter = input.notAfter?.getTime() ?? Number.POSITIVE_INFINITY;
 
   for (let dayOffset = 0; dayOffset <= config.horizonDays && slots.length < limit; dayOffset += 1) {
     const date = addLocalDays(today, dayOffset);
@@ -221,12 +265,14 @@ export function resolveAvailableSlots(input: ResolveInput): AvailableSlot[] {
       for (
         let minutes = windowStart;
         minutes + slotMinutes <= windowEnd;
-        minutes += slotMinutes
+        minutes += step
       ) {
         if (slots.length >= limit) break;
         const start = zonedWallClockToUtc(config.timezone, date.year, date.month, date.day, minutes);
         if (!start) continue; // non-existent local time (DST gap)
         if (start.getTime() < earliest) continue;
+        if (start.getTime() < notBefore) continue;
+        if (start.getTime() >= notAfter) continue;
         const end = new Date(start.getTime() + slotMinutes * 60_000);
 
         // Quiet hours apply to the whole appointment window, in tenant time.
@@ -239,6 +285,7 @@ export function resolveAvailableSlots(input: ResolveInput): AvailableSlot[] {
           continue;
         }
         if (occupied.has(start.toISOString())) continue;
+        if (busy.length > 0 && overlapsBusy(start.getTime(), end.getTime(), busy, bufferMinutes)) continue;
 
         slots.push({
           start: start.toISOString(),

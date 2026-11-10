@@ -33,12 +33,17 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const emailCampaigns = await processDueEmailCampaigns().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Email campaigns failed",
         }));
+        // Customer appointment reminders, once per booking, for businesses that switch them on.
+        const { processDueCustomerReminders } = await import("@/lib/customer-reminder.server");
+        const customerReminders = await processDueCustomerReminders().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Customer reminders failed",
+        }));
         // Booked jobs whose time has passed, for businesses that complete jobs automatically.
         const { processDueAutoCompletions } = await import("@/lib/job-autocomplete.server");
         const autoCompleted = await processDueAutoCompletions().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Auto-complete failed",
         }));
-        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, autoCompleted, abandonedSwept: swept.swept });
+        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, autoCompleted, abandonedSwept: swept.swept });
 
 
       },

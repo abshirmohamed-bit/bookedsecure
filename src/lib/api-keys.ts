@@ -2,20 +2,22 @@ import { z } from 'zod';
 
 /** Public API key helpers shared by the settings page, server routes and tests. */
 export const API_KEY_PREFIX = 'bs_live_';
-export const API_SCOPES = ['leads:write', 'records:read', 'social:write'] as const;
+export const API_SCOPES = ['leads:write', 'records:read', 'social:write', 'bookings:write'] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 export const API_ACCESS_LEVELS = {
   leads_only: ['leads:write'],
   read_write: ['leads:write', 'records:read'],
   social_comments: ['social:write'],
-  full: ['leads:write', 'records:read', 'social:write'],
+  /** A website's own quote and booking screens: options, quote, availability and book. */
+  website_booking: ['bookings:write'],
+  full: ['leads:write', 'records:read', 'social:write', 'bookings:write'],
 } as const satisfies Record<string, readonly ApiScope[]>;
 export type ApiAccessLevel = keyof typeof API_ACCESS_LEVELS;
 export const API_RATE_LIMIT_PER_MINUTE = 60;
 
 export const createApiKeySchema = z.object({
   name: z.string().trim().min(2).max(60),
-  access: z.enum(['leads_only', 'read_write', 'social_comments', 'full']),
+  access: z.enum(['leads_only', 'read_write', 'social_comments', 'website_booking', 'full']),
 });
 
 export function generateApiKey(): string {

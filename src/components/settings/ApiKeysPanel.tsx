@@ -34,7 +34,8 @@ export function ApiKeysPanel({ enabled }: { enabled: boolean }) {
         <option value="leads_only">Add leads only</option>
         <option value="read_write">Add leads + read customers & bookings</option>
         <option value="social_comments">Facebook comment inbox only</option>
-        <option value="full">Leads, records + comment inbox</option>
+        <option value="website_booking">Website quotes and bookings</option>
+        <option value="full">Leads, records, comments + bookings</option>
       </select>
       <Button type="submit" disabled={createM.isPending || name.trim().length < 2}>Create key</Button>
     </form>

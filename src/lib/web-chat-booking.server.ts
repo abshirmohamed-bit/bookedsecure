@@ -15,6 +15,7 @@ import { isSlotStillAvailable } from "@/lib/availability";
 import {
   generateBookingOffers,
   loadAvailabilityConfig,
+  loadBusyIntervals,
   loadServiceDurationMinutes,
   occupiedSlotStarts,
   type OfferRow,
@@ -81,12 +82,14 @@ export async function openBookingStep(input: {
   // Slots come from the tenant's own configuration, evaluated in the tenant
   // timezone. The eligibility gate also needs the live slot count.
   const occupied = await occupiedSlotStarts(input.businessId);
+  const busy = await loadBusyIntervals(input.businessId);
   const { resolveAvailableSlots, MAX_OFFERED_SLOTS } = await import("@/lib/availability");
   const preview = slotMinutes === null ? [] : resolveAvailableSlots({
     config,
     slotMinutes,
     now: new Date(),
     occupiedStarts: occupied,
+    busy,
     limit: MAX_OFFERED_SLOTS,
   });
 
@@ -163,6 +166,7 @@ export async function rehydrateBookingOffers(input: {
   );
   if (slotMinutes === null) return { state: "unavailable" };
   const occupied = await occupiedSlotStarts(input.businessId);
+  const busy = await loadBusyIntervals(input.businessId);
   const now = new Date();
 
   const live = rows.filter((row) => {
@@ -173,6 +177,7 @@ export async function rehydrateBookingOffers(input: {
       slotMinutes,
       now,
       occupiedStarts: occupied,
+      busy,
       slotStart: row.slot_start,
     }).available;
   });
@@ -251,11 +256,13 @@ export async function commitWebChatBooking(input: {
   );
   if (slotMinutes === null) return { ok: false, reason: "service_duration_missing" };
   const occupied = await occupiedSlotStarts(input.businessId, offerRow.id);
+  const busy = await loadBusyIntervals(input.businessId, { ignoreOfferId: offerRow.id, ignoreLeadId: input.leadId });
   const revalidated = isSlotStillAvailable({
     config,
     slotMinutes,
     now: new Date(),
     occupiedStarts: occupied,
+    busy,
     slotStart: offerRow.slot_start,
   });
   if (!revalidated.available) return { ok: false, reason: "slot_unavailable" };
