@@ -161,14 +161,14 @@ export function HomeOverview() {
       <TextMessagesSnippet />
       <LeadProgressSnippet />
       <FacebookAdsSnippet />
-      <UnfinishedSnippet />
-      <SocialSnippet />
     </aside>
 
     <aside aria-label="Campaigns and posts" className="hidden min-w-0 space-y-4 md:block xl:order-3">
       <div className="hidden xl:block">{bookingsPanel}</div>
       <CampaignsSnippet />
       <LinkedInSnippet />
+      <SocialSnippet />
+      <UnfinishedSnippet />
     </aside>
     </div>
     </div>
