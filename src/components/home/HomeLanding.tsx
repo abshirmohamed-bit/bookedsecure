@@ -285,8 +285,8 @@ export function HomeLanding() {
             <FeatureCard className="md:col-span-2" icon={Bell} title="New leads first" body="Push alerts tell you who wants what, and your notifications always put new leads at the top." />
             <FeatureCard className="md:col-span-2" icon={MessagesSquare} title="Comments and DMs" body="Facebook and Instagram comments and messages arrive with a suggested reply. Nothing is posted until you approve it." />
             <FeatureCard className="md:col-span-4" icon={Bot} title="An assistant that does the work" body="Ask in plain English and it books jobs, updates leads, drafts campaigns and tells you who's waiting. Texts always wait for your confirm.">
-              <div className="overflow-hidden rounded-2xl border border-white/70 shadow-[0_18px_40px_-24px_oklch(0.25_0.11_258/0.5)]">
-                <img src="/landing/home-cowork.webp" width={500} height={618} loading="lazy" alt="Co-work, the assistant inside BookedSecure Home, with a conversation and the message box" className="h-72 w-full object-cover object-bottom sm:h-80" />
+              <div className="mx-auto max-w-[500px] overflow-hidden rounded-2xl border border-white/70 shadow-[0_18px_40px_-24px_oklch(0.25_0.11_258/0.5)]">
+                <img src="/landing/home-cowork.webp" width={500} height={618} loading="lazy" alt="Co-work, the assistant inside BookedSecure Home, with a conversation and the message box" className="h-[26rem] w-full object-cover object-bottom" />
               </div>
             </FeatureCard>
             <div className="grid gap-4 md:col-span-2">
