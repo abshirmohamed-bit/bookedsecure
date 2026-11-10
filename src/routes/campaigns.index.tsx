@@ -105,7 +105,9 @@ function CampaignsPage() {
     const emailsSent = campaigns.reduce((sum, c) => sum + c.counts.sent + c.counts.followUpsSent, 0);
     const booked = campaigns.reduce((sum, c) => sum + c.counts.booked, 0);
     const reached = campaigns.reduce((sum, c) => sum + c.counts.sent, 0);
-    return { live, emailsSent, booked, rate: reached ? Math.round((booked / reached) * 1000) / 10 : 0 };
+    const replied = campaigns.reduce((sum, c) => sum + c.counts.replied, 0);
+    const pct = (n: number) => (reached ? Math.round((n / reached) * 1000) / 10 : 0);
+    return { live, emailsSent, booked, replied, replyRate: pct(replied), rate: pct(booked) };
   }, [campaigns]);
 
   async function run(action: () => Promise<unknown>, success: string) {
@@ -168,9 +170,11 @@ function CampaignsPage() {
 
         <section aria-labelledby="your-campaigns" className="glass overflow-hidden">
           {/* Metrics live in the card header instead of a separate row of tiles. */}
-          <div className="grid grid-cols-2 border-b border-white/60 sm:grid-cols-4">
+          <div className="grid grid-cols-2 border-b border-white/60 sm:grid-cols-3 lg:grid-cols-6">
             <Metric label="Drafts and scheduled" value={stats.live} dot="bg-warning" loading={loading} />
             <Metric label="Emails sent" value={stats.emailsSent} dot="bg-primary" loading={loading} />
+            <Metric label="Replied" value={stats.replied} dot="bg-primary" loading={loading} />
+            <Metric label="Reply rate" value={`${stats.replyRate}%`} dot="bg-info" loading={loading} />
             <Metric label="Booked after an email" value={stats.booked} dot="bg-success" loading={loading} />
             <Metric label="Booking rate" value={`${stats.rate}%`} dot="bg-info" loading={loading} />
           </div>

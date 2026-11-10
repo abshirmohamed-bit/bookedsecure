@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,6 +18,9 @@ export const Route = createFileRoute("/lead-finder")({
       { name: "description", content: "Find local businesses that match who you want to reach, with their published email checked, ready for an email campaign." },
     ],
   }),
+  // ?like=<lead id> starts from "find businesses like this customer".
+  validateSearch: (search: Record<string, unknown>): { like?: string } =>
+    typeof search["like"] === "string" && /^[0-9a-f-]{36}$/i.test(search["like"]) ? { like: search["like"] } : {},
   component: LeadFinderPage,
 });
 
@@ -29,6 +32,7 @@ const EMAIL_LABEL = { valid: "Checked", unverified: "Mail server found", risky: 
 function LeadFinderPage() {
   const qc = useQueryClient();
   const navigate = Route.useNavigate();
+  const { like } = Route.useSearch();
   const load = useServerFn(getLeadFinder);
   const run = useServerFn(runLeadFinderSearch);
   const add = useServerFn(addLeadFinderResults);
@@ -43,14 +47,21 @@ function LeadFinderPage() {
   const [ask, setAsk] = useState("");
   const suggestFn = useServerFn(suggestLeadFinderSearches);
   const suggest = useMutation({
-    mutationFn: () => suggestFn({ data: { request: ask.trim() || null } }),
+    mutationFn: (likeLeadId?: string) => suggestFn({ data: { request: ask.trim() || null, likeLeadId: likeLeadId ?? null } }),
     onSuccess: (r) => {
       if (r.suggestions.length === 0) toast.message("Co-work couldn't suggest a search. Try describing who you want to reach.");
-      else if (ask.trim() && r.suggestions[0]) applySuggestion(r.suggestions[0]);
+      else if ((ask.trim() || like) && r.suggestions[0]) applySuggestion(r.suggestions[0]);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Co-work couldn't suggest searches."),
   });
   const applySuggestion = (s: { what: string; where: string; criteria: string | null }) => { setWhat(s.what); setWhere(s.where); setCriteria(s.criteria ?? ""); };
+  // Opened from a customer's page: Co-work suggests businesses like them straight away.
+  const likeStarted = useRef(false);
+  useEffect(() => {
+    if (!like || likeStarted.current) return;
+    likeStarted.current = true;
+    suggest.mutate(like);
+  }, [like, suggest]);
 
   const search = useMutation({
     mutationFn: () => run({ data: { what, where, criteria: criteria.trim() || null, limit } }),
@@ -101,8 +112,8 @@ function LeadFinderPage() {
           <p className="flex items-center gap-1.5 text-sm font-semibold"><Sparkles className="h-4 w-4 text-primary" /> Ask Co-work who to look for</p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Textarea rows={1} value={ask} maxLength={500} className="flex-1" placeholder="Optional: e.g. warehouses and gyms around Auburn with 20+ staff. Leave empty and Co-work suggests from your business profile."
-              onChange={(e) => setAsk(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); suggest.mutate(); } }} />
-            <Button variant="outline" disabled={suggest.isPending} onClick={() => suggest.mutate()}>
+              onChange={(e) => setAsk(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); suggest.mutate(undefined); } }} />
+            <Button variant="outline" disabled={suggest.isPending} onClick={() => suggest.mutate(undefined)}>
               {suggest.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />} {ask.trim() ? "Fill the search" : "Suggest searches"}
             </Button>
           </div>
@@ -118,7 +129,7 @@ function LeadFinderPage() {
               ))}
             </div>
           )}
-          <p className="text-[11px] text-muted-foreground">Co-work reads your business profile and fills the search below. You can change anything before pressing Find.</p>
+          <p className="text-[11px] text-muted-foreground">{like ? "Suggestions are based on the customer you opened this from. " : ""}Co-work reads your business profile and fills the search below. You can change anything before pressing Find.</p>
         </section>
 
         <section className="glass grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] lg:items-end">

@@ -17,11 +17,11 @@ export function buildLeadFinderTools(ctx: AssistantToolContext) {
     suggest_lead_searches: tool({
       description:
         "Suggest who this business should look for in Lead finder (businesses to reach with an email campaign), from its own business profile, and the owner's words when they say who they want. Returns 3-4 searches (what, where, criteria, why). Nothing is searched.",
-      inputSchema: z.object({ request: z.string().max(500).optional() }),
-      execute: async ({ request }) => {
+      inputSchema: z.object({ request: z.string().max(500).optional(), likeCustomerId: z.string().uuid().optional().describe("A customer's lead id, to find more businesses like them") }),
+      execute: async ({ request, likeCustomerId }) => {
         const { suggestLeadSearches } = await import("@/lib/lead-finder.server");
         try {
-          return { ok: true, suggestions: await suggestLeadSearches(businessId, request ?? null) };
+          return { ok: true, suggestions: await suggestLeadSearches(businessId, request ?? null, likeCustomerId ?? null) };
         } catch (e) {
           return fail(e instanceof Error ? e.message : "Couldn't suggest searches.");
         }

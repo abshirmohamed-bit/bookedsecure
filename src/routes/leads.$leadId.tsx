@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Bot, Mail, MessageSquare, Pause, Pencil, Phone, Play, Send, Sparkles } from "lucide-react";
+import { Search, ArrowLeft, Bot, Mail, MessageSquare, Pause, Pencil, Phone, Play, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import {
@@ -685,7 +685,12 @@ function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | nul
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (!email) return null;
+  const likeLink = (
+    <Link to="/lead-finder" search={{ like: leadId }} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+      <Search className="h-3.5 w-3.5" /> Find businesses like this
+    </Link>
+  );
+  if (!email) return likeLink;
 
   async function onSend() {
     if (!window.confirm(`Send this email to ${email}?`)) return;
@@ -716,6 +721,7 @@ function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | nul
   return (
     <>
     <LeadEmailHistory leadId={leadId} />
+    {likeLink}
     <div className="mt-3 border-t border-border pt-3">
       {!open ? (
         <button

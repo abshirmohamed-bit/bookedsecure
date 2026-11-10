@@ -3,6 +3,8 @@
 export const LEAD_STATUSES = [
   "new",
   "previous_lead",
+  /** A business found with Lead finder that hasn't enquired yet (docs/prospect-status.sql). */
+  "prospect",
   "contacted",
   "waiting_for_customer",
   "customer_replied",
@@ -20,6 +22,7 @@ export type LeadStatus = (typeof LEAD_STATUSES)[number];
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   new: "New",
   previous_lead: "Previous lead",
+  prospect: "Prospect",
   contacted: "Contacted",
   waiting_for_customer: "Waiting for customer",
   customer_replied: "Replied",
@@ -98,6 +101,8 @@ export const DELIVERY_STATUSES = [
 
 // Statuses where automated SMS must never be sent.
 export const AUTOMATION_BLOCKED_STATUSES: LeadStatus[] = [
+  // Prospects only get emails the owner sends in a campaign, never automated texts.
+  "prospect",
   "opted_out",
   "invalid",
   "completed",

@@ -73,3 +73,19 @@ describe("free discovery", () => {
     expect(readSuggestions("no json")).toEqual([]);
   });
 });
+
+import { readSearchPlan } from "./lead-finder";
+
+describe("AI search plan", () => {
+  it("keeps only safe, well-formed parts", () => {
+    const plan = readSearchPlan('Sure: {"webQueries":["dental clinic Parramatta NSW","dentist Parramatta"],"osmTags":["amenity=dentist","healthcare=dentist","bad tag","shop=<x>","railway=station"],"nameWords":["dental","Smile!"]}');
+    expect(plan).toEqual({ webQueries: ["dental clinic Parramatta NSW", "dentist Parramatta"], osmTags: ["amenity=dentist", "healthcare=dentist"], nameWords: ["dental", "smile"] });
+    expect(readSearchPlan("no plan")).toBeNull();
+    expect(readSearchPlan('{"osmTags":["railway=station"]}')).toBeNull();
+  });
+  it("uses the plan's categories in the map query", () => {
+    const q = overpassQuery(["dentist"], [-33.9, 151, -33.8, 151.1], 40, { webQueries: [], osmTags: ["amenity=dentist"], nameWords: ["dental"] });
+    expect(q).toContain('nwr["amenity"="dentist"]["name"]');
+    expect(q).toContain('nwr["name"~"dental",i]');
+  });
+});

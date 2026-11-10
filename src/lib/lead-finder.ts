@@ -136,14 +136,16 @@ export function osmKeywords(what: string): string[] {
  */
 const OSM_CATEGORY_TAGS: Array<[RegExp, string[]]> = [
   [/^(gym|fitnes|crossfit|pilate|yoga)/, ["leisure=fitness_centre", "leisure=sports_centre"]],
-  [/^(warehou|distribution|storage)/, ["building=warehouse", "industrial=warehouse", "landuse=industrial"]],
+  [/^(warehou|distribution|storage)/, ["building=warehouse", "industrial=warehouse", "industrial=logistics"]],
   [/^(logistic|freight|transport|courier)/, ["office=logistics", "industrial=logistics", "building=warehouse"]],
   [/^(factor|manufactur|plant|work$)/, ["man_made=works", "industrial=factory", "building=industrial"]],
   [/^(office|corporate|headquarter)/, ["office=company", "building=office"]],
   [/^(construct|builder|building)/, ["office=construction_company", "craft=builder"]],
   [/^(school|college)/, ["amenity=school", "amenity=college"]],
   [/^(childcare|daycare|kindergarten|preschool)/, ["amenity=kindergarten", "amenity=childcare"]],
-  [/^(hospital|clinic|medical|doctor|dentist|dental|physio)/, ["amenity=clinic", "amenity=doctors", "amenity=dentist", "healthcare=physiotherapist"]],
+  [/^(dentist|dental|orthodont)/, ["amenity=dentist", "healthcare=dentist"]],
+  [/^(physio)/, ["healthcare=physiotherapist"]],
+  [/^(hospital|clinic|medical|doctor|gp$)/, ["amenity=clinic", "amenity=doctors"]],
   [/^(aged|nursing|retirement)/, ["amenity=nursing_home", "social_facility=nursing_home"]],
   [/^(hotel|motel|accommodation)/, ["tourism=hotel", "tourism=motel"]],
   [/^(cafe|coffee)/, ["amenity=cafe"]],
@@ -167,14 +169,42 @@ export function osmCategoryTags(keywords: string[]): string[] {
   return [...tags].slice(0, 12);
 }
 
+/** OpenStreetMap keys a search plan may use (all describe what a place is). */
+const OSM_KEYS = /^(shop|office|craft|amenity|leisure|industrial|healthcare|tourism|man_made|building|club|social_facility|sport)$/;
+
+/** How to search for one request: web search phrases, OpenStreetMap categories and name words. */
+export type SearchPlan = { webQueries: string[]; osmTags: string[]; nameWords: string[] };
+
+/** Reads the AI's search plan, keeping only safe, well-formed parts. */
+export function readSearchPlan(raw: string): SearchPlan | null {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  let v: unknown;
+  try { v = JSON.parse(raw.slice(start, end + 1)); } catch { return null; }
+  if (!v || typeof v !== "object") return null;
+  const r = v as Record<string, unknown>;
+  const list = (x: unknown) => (Array.isArray(x) ? x.filter((i): i is string => typeof i === "string") : []);
+  const webQueries = list(r["webQueries"]).map((q) => q.replace(/[<>]/g, "").trim()).filter((q) => q.length >= 4).slice(0, 2).map((q) => q.slice(0, 200));
+  const osmTags = [...new Set(list(r["osmTags"]).map((t) => t.trim().toLowerCase()).filter((t) => {
+    const [k, val, extra] = t.split("=");
+    return Boolean(k && val && extra === undefined && OSM_KEYS.test(k) && /^[a-z0-9_]{2,40}$/.test(val));
+  }))].slice(0, 10);
+  const nameWords = [...new Set(list(r["nameWords"]).map((w) => w.toLowerCase().replace(/[^a-z]/g, "")).filter((w) => w.length >= 3))].slice(0, 4);
+  if (!webQueries.length && !osmTags.length && !nameWords.length) return null;
+  return { webQueries, osmTags, nameWords };
+}
+
 /** Overpass query: exact category tags (fast) plus one name match, inside a box (south, west, north, east). */
-export function overpassQuery(keywords: string[], box: [number, number, number, number], limit = 60): string {
+export function overpassQuery(keywords: string[], box: [number, number, number, number], limit = 60, plan?: SearchPlan | null): string {
   const rx = keywords.map((k) => k.replace(/[^a-z]/g, "")).filter(Boolean).join("|");
   const b = box.map((n) => n.toFixed(4)).join(",");
-  const tags = osmCategoryTags(keywords);
+  // A plan for this exact request beats the built-in word list (which is broader).
+  const tags = (plan?.osmTags.length ? plan.osmTags : osmCategoryTags(keywords)).slice(0, 14);
   const byTag = tags.map((t) => { const [k, v] = t.split("="); return `nwr["${k}"="${v}"]["name"](${b});`; }).join("");
   // A name pattern is slow on the public servers, so it's only used for words with no known category.
-  const unmapped = keywords.filter((k) => osmCategoryTags([k]).length === 0).map((k) => k.replace(/[^a-z]/g, "")).filter(Boolean).join("|");
+  const unmapped = [...new Set([...(plan?.nameWords ?? []), ...keywords.filter((k) => osmCategoryTags([k]).length === 0 && !(plan?.osmTags.length))])]
+    .map((k) => k.replace(/[^a-z]/g, "")).filter(Boolean).slice(0, 4).join("|");
   const byName = unmapped ? `nwr["name"~"${unmapped}",i](${b});` : "";
   return `[out:json][timeout:40];(${byTag}${byName}${!byTag && !byName && rx ? `nwr["name"~"${rx}",i](${b});` : ""});out center tags ${limit};`;
 }
@@ -187,14 +217,19 @@ const NOT_A_BUSINESS_VALUE = /^(fitness_station|park|playground|pitch|bench|park
  * With keywords, a shop that only has the word in its name ("Chemist Warehouse"
  * for warehouses) is skipped: its category says it's something else.
  */
-export function candidateFromOsm(el: { type?: string; id?: number; tags?: Record<string, string> }, keywords: string[] = []): Candidate | null {
+export function candidateFromOsm(el: { type?: string; id?: number; tags?: Record<string, string> }, keywords: string[] = [], planTags: string[] = [], planNames: string[] = []): Candidate | null {
   const t = el.tags ?? {};
   const name = t["name"]?.trim();
   if (!name || !el.type || !el.id) return null;
   if (NOT_A_PLACE_OF_BUSINESS.some((k) => k in t)) return null;
   const kind = t["shop"] ?? t["office"] ?? t["craft"] ?? t["industrial"] ?? t["leisure"] ?? t["amenity"] ?? t["healthcare"] ?? t["tourism"] ?? (t["man_made"] === "works" ? "works" : null) ?? (t["building"] && t["building"] !== "yes" ? t["building"] : null);
   if (!kind || NOT_A_BUSINESS_VALUE.test(kind)) return null;
-  if (keywords.length && t["shop"]) {
+  // With a plan, a place must be one of the planned categories or carry a planned name word.
+  if (planTags.length || planNames.length) {
+    const tagMatch = Object.entries(t).some(([k, v]) => planTags.includes(`${k}=${v}`));
+    const nameMatch = planNames.some((w) => name.toLowerCase().includes(w));
+    if (!tagMatch && !nameMatch) return null;
+  } else if (keywords.length && t["shop"]) {
     const wanted = new Set(osmCategoryTags(keywords));
     const tagMatch = Object.entries(t).some(([k, v]) => wanted.has(`${k}=${v}`));
     const valueMatch = keywords.some((k) => Object.entries(t).some(([key, v]) => key !== "name" && !key.startsWith("name:") && v.toLowerCase().includes(k)));

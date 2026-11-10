@@ -60,9 +60,9 @@ export const dismissLeadFinderResults = createServerFn({ method: "POST" })
 /** Co-work's suggested searches for this business (nothing is searched yet). */
 export const suggestLeadFinderSearches = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ request: z.string().trim().max(500).nullable().default(null) }).parse(input ?? {}))
+  .inputValidator((input: unknown) => z.object({ request: z.string().trim().max(500).nullable().default(null), likeLeadId: z.string().uuid().nullable().default(null) }).parse(input ?? {}))
   .handler(async ({ context, data }) => {
     const ctx = await member(context);
     const { suggestLeadSearches } = await import("./lead-finder.server");
-    return { suggestions: await suggestLeadSearches(ctx.businessId, data.request) };
+    return { suggestions: await suggestLeadSearches(ctx.businessId, data.request, data.likeLeadId) };
   });

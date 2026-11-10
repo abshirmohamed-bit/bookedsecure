@@ -62,7 +62,7 @@ beforeEach(() => { state.writes = []; state.searches = 0; });
 describe("Lead finder search (no Google needed)", () => {
   it("finds businesses on the web and OpenStreetMap, reads the website and keeps its email", async () => {
     const fetcher = vi.fn(async (url: string, init?: RequestInit) => fakeInternet(String(url), init));
-    const r = await runLeadSearch({ businessId: BIZ, userId: USER, what: "warehouses and gyms", where: "Auburn NSW", criteria: "50+ staff", limit: 10, fetcher: fetcher as unknown as typeof fetch });
+    const r = await runLeadSearch({ businessId: BIZ, userId: USER, what: "warehouses and gyms", where: "Auburn NSW", criteria: "50+ staff", limit: 10, fetcher: fetcher as unknown as typeof fetch, plan: null });
     expect(r).toEqual({ searchId: "search-1", found: 2, withEmail: 1 });
     const saved = state.writes.find((w) => w.table === "lead_finder_prospects" && w.op === "upsert")?.value as Array<Record<string, unknown>>;
     expect(saved.map((p) => p["name"])).toEqual(["Auburn Logistics Pty Ltd", "World Gym Auburn"]);

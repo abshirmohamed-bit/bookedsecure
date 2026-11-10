@@ -67,6 +67,7 @@ const QUICK_STATUS: ReadonlyArray<readonly [string, string]> = [
   ["scheduled", "Booked"],
   ["completed", "Completed"],
   ["previous_lead", "Past customers"],
+  ["prospect", "Prospects"],
 ];
 type InboxLeadRow = DashboardResult["leads"][number];
 

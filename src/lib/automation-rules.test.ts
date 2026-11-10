@@ -29,7 +29,7 @@ describe("follow-up stop rules", () => {
   });
 
   it("never sends automated SMS to blocked statuses", () => {
-    expect(AUTOMATION_BLOCKED_STATUSES).toEqual(["opted_out", "invalid", "completed", "lost"]);
+    expect(AUTOMATION_BLOCKED_STATUSES).toEqual(["prospect", "opted_out", "invalid", "completed", "lost"]);
   });
 });
 

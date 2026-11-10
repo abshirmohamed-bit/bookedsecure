@@ -112,6 +112,7 @@ function CampaignWorkspace() {
   const c = campaign;
   const reached = c.counts.sent;
   const rate = reached ? Math.round((c.counts.booked / reached) * 1000) / 10 : 0;
+  const replyRate = reached ? Math.round((c.counts.replied / reached) * 1000) / 10 : 0;
 
   return (
     <AppShell title={c.name}>
@@ -310,8 +311,9 @@ function CampaignWorkspace() {
 
         {tab === "progress" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <Stat label="Emailed" value={`${c.counts.sent}/${c.counts.total}`} tone="primary" />
+              <Stat label="Replied" value={c.counts.replied} tone="primary" hint={`${replyRate}% of those emailed`} />
               <Stat label="Follow-ups sent" value={c.followUp ? c.counts.followUpsSent : "—"} tone="info" hint={c.counts.followUpsWaiting ? `${c.counts.followUpsWaiting} waiting` : undefined} />
               <Stat label="Booked after" value={c.counts.booked} tone="success" hint={`Within ${ATTRIBUTION_DAYS} days`} />
               <Stat label="Booking rate" value={`${rate}%`} tone="warning" />
@@ -332,7 +334,7 @@ function CampaignWorkspace() {
               <Bar label="In the campaign" value={c.counts.total} max={c.counts.total} />
               <Bar label="Got the first email" value={c.counts.sent} max={c.counts.total} />
               {c.followUp && <Bar label="Got the follow-up" value={c.counts.followUpsSent} max={c.counts.total} />}
-              {c.counts.replied > 0 && <Bar label="Replied" value={c.counts.replied} max={c.counts.total} />}
+              <Bar label="Replied" value={c.counts.replied} max={c.counts.total} />
               <Bar label="Booked" value={c.counts.booked} max={c.counts.total} tone="success" />
               {(c.counts.failed > 0 || c.counts.skipped > 0) && (
                 <p className="text-xs text-muted-foreground">
@@ -358,6 +360,7 @@ function CampaignWorkspace() {
                     at={null}
                   />
                 )}
+                <TimelineItem done={c.counts.replied > 0} label={`${plural(c.counts.replied, "reply", "replies")} from this campaign`} at={null} />
                 <TimelineItem done={c.counts.booked > 0} label={`${plural(c.counts.booked, "booking")} from this campaign`} at={null} />
               </ol>
             </div>
