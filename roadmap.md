@@ -47,5 +47,7 @@
 - [~] At the owner's request, superseded that unanswered run and sent one updated-blueprint test as run 5206355b-1706-433e-9b8c-a080c38d21e8 at 12:20:09 UTC; Make accepted the trigger and the owner will provide the running-scenario screenshot.
 
 ## Social sign-in (Google + Apple)
-- [ ] Enable Google and Apple providers and add both buttons to the sign-in screen with Google/Apple branding rules.
-- [ ] Verify both buttons render and start the provider flow; real provider sign-in unverified in sandbox.
+- [x] Enable Google and Apple providers and add both buttons to the sign-in screen with Google/Apple branding rules.
+- [x] Verify both buttons start the provider flow (browser reached /~oauth/initiate for each), branding values, and the /oauth-return waiting and failure states; 6 return-store tests passed.
+- [ ] Apple's official logo artwork (SVG from Apple Design Resources) still missing — the Apple button shows its title alone until the owner supplies it.
+- [ ] Real Google/Apple account sign-in unverified in the sandbox.
