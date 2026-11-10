@@ -47,3 +47,13 @@ Everything on the Campaigns page can be done by asking, for example:
 
 Emails go out under the business name from `campaigns@bookedsecure.com`, with replies
 to the business. Unsubscribed customers are always skipped.
+
+## What the assistant knows about your business
+
+After you set up from your website, BookedSecure keeps a business profile: your industry, whether you book jobs or sell plans, a short about, who you serve, key features, trial and terms, and the FAQs on your site. ChatGPT, Claude and the in-app Assistant read it (tool `business_profile`), so you can ask things like:
+
+- "What does my business offer, and what are my plans?"
+- "Write a campaign email about our 14-day free trial."
+- "Draft a LinkedIn post about our GPS patrol tracking."
+
+Refresh the BookedSecure connector in ChatGPT or Claude after an update so the new tool appears.
