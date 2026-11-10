@@ -20,6 +20,7 @@ import { Route as LandingRouteImport } from './routes/landing'
 import { Route as LinkedinRouteImport } from './routes/linkedin'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as OauthReturnRouteImport } from './routes/oauth-return'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -135,6 +136,11 @@ const McpRoute = McpRouteImport.update({
 const NotificationsRoute = NotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthReturnRoute = OauthReturnRouteImport.update({
+  id: '/oauth-return',
+  path: '/oauth-return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -470,6 +476,7 @@ export interface FileRoutesByFullPath {
   '/linkedin': typeof LinkedinRoute
   '/mcp': typeof McpRoute
   '/notifications': typeof NotificationsRoute
+  '/oauth-return': typeof OauthReturnRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -544,6 +551,7 @@ export interface FileRoutesByTo {
   '/linkedin': typeof LinkedinRoute
   '/mcp': typeof McpRoute
   '/notifications': typeof NotificationsRoute
+  '/oauth-return': typeof OauthReturnRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -618,6 +626,7 @@ export interface FileRoutesById {
   '/linkedin': typeof LinkedinRoute
   '/mcp': typeof McpRoute
   '/notifications': typeof NotificationsRoute
+  '/oauth-return': typeof OauthReturnRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -694,6 +703,7 @@ export interface FileRouteTypes {
     | '/linkedin'
     | '/mcp'
     | '/notifications'
+    | '/oauth-return'
     | '/pricing'
     | '/privacy'
     | '/profile'
@@ -768,6 +778,7 @@ export interface FileRouteTypes {
     | '/linkedin'
     | '/mcp'
     | '/notifications'
+    | '/oauth-return'
     | '/pricing'
     | '/privacy'
     | '/profile'
@@ -841,6 +852,7 @@ export interface FileRouteTypes {
     | '/linkedin'
     | '/mcp'
     | '/notifications'
+    | '/oauth-return'
     | '/pricing'
     | '/privacy'
     | '/profile'
@@ -916,6 +928,7 @@ export interface RootRouteChildren {
   LinkedinRoute: typeof LinkedinRoute
   McpRoute: typeof McpRoute
   NotificationsRoute: typeof NotificationsRoute
+  OauthReturnRoute: typeof OauthReturnRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
@@ -1047,6 +1060,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth-return': {
+      id: '/oauth-return'
+      path: '/oauth-return'
+      fullPath: '/oauth-return'
+      preLoaderRoute: typeof OauthReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -1542,6 +1562,7 @@ const rootRouteChildren: RootRouteChildren = {
   LinkedinRoute: LinkedinRoute,
   McpRoute: McpRoute,
   NotificationsRoute: NotificationsRoute,
+  OauthReturnRoute: OauthReturnRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,

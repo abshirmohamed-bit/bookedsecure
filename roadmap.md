@@ -45,3 +45,9 @@
 - [x] Replaced Glocast’s saved Make trigger with the new Custom webhook and verified the exact match without starting an import; automatic checks are deliberately paused until the rebuilt scenario is reviewed and activated.
 - [~] Sent one manual test to the rebuilt webhook as run 274fcfed-b3a8-4904-9f40-194ab31b9ffb at 12:15:33 UTC: Make returned HTTP success, but no authenticated callback, run items or processed leads had arrived by 12:18:20 UTC; inspect Make's execution state before retrying.
 - [~] At the owner's request, superseded that unanswered run and sent one updated-blueprint test as run 5206355b-1706-433e-9b8c-a080c38d21e8 at 12:20:09 UTC; Make accepted the trigger and the owner will provide the running-scenario screenshot.
+
+## Social sign-in (Google + Apple)
+- [x] Enable Google and Apple providers and add both buttons to the sign-in screen with Google/Apple branding rules.
+- [x] Verify both buttons start the provider flow (browser reached /~oauth/initiate for each), branding values, and the /oauth-return waiting and failure states; 6 return-store tests passed.
+- [ ] Apple's official logo artwork (SVG from Apple Design Resources) still missing — the Apple button shows its title alone until the owner supplies it.
+- [ ] Real Google/Apple account sign-in unverified in the sandbox.

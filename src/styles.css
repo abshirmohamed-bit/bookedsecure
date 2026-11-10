@@ -402,3 +402,40 @@
     display: none;
   }
 }
+
+/*
+ * Provider sign-in buttons. Google's and Apple's branding rules require exact
+ * brand colours and type, so these two classes carry those literals instead of
+ * the app's theme tokens. They sit outside every cascade layer on purpose, so
+ * the brand colours win over the button component's own hover styles.
+ */
+.btn-google {
+  background-color: #ffffff;
+  border: 1px solid #747775;
+  color: #1f1f1f;
+  font-family: "Google Sans", "Figtree", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.btn-google:hover {
+  background-color: #f8f9fa;
+}
+.btn-google:active {
+  background-color: #e8eaed;
+}
+
+.btn-apple {
+  background-color: #000000;
+  border: 1px solid #000000;
+  color: #ffffff;
+  /* Apple: the title is 43% of the button's height. */
+  font-size: 17px;
+  font-weight: 500;
+}
+.btn-apple:hover {
+  background-color: #1a1a1a;
+}
+.btn-apple:active {
+  background-color: #333333;
+}

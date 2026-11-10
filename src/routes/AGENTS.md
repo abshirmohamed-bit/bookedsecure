@@ -1,0 +1,4 @@
+# Routes
+
+- Social sign-in (Google/Apple) calls `lovable.auth.signInWithOAuth` with `redirect_uri` at the public `/oauth-return` page, which waits for the session then hands off to `/auth`; the page the owner wanted rides in `src/lib/oauth-return-store.ts` (sessionStorage), never in the provider URL. Keep it that way: a dotted file like `auth.callback.tsx` would nest inside `auth.tsx`, which renders no `<Outlet />`, so the callback would never show.
+- Provider buttons are `src/components/GoogleSignInButton.tsx` + `AppleSignInButton.tsx`; their brand-locked colours live in `.btn-google` / `.btn-apple` in `src/styles.css` because Google's and Apple's guidelines override the theme tokens. Apple's logo may only ever be Apple's own artwork from Apple Design Resources — never drawn, traced, recoloured or taken from an icon library.

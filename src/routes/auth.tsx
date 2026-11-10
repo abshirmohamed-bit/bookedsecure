@@ -12,6 +12,10 @@ import { getPlatformAccess } from "@/lib/owner-console.functions";
 import { recordSignupSource } from "@/lib/onboarding.functions";
 import { takeSignupSource } from "@/lib/signup-source";
 import { oauthReturnPath } from '@/lib/oauth-return-path';
+import { lovable } from "@/integrations/lovable";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { AppleSignInButton } from "@/components/AppleSignInButton";
+import { rememberOAuthReturn } from "@/lib/oauth-return-store";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { new?: boolean; next?: string } => {
@@ -52,6 +56,7 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [socialBusy, setSocialBusy] = useState<"google" | "apple" | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
 
   useEffect(() => {
@@ -111,6 +116,30 @@ function AuthPage() {
     }
   }
 
+  // Google and Apple sign in through the provider, which takes the browser
+  // away and hands it back at /auth/callback. The page the owner came from is
+  // saved first so the callback can finish the journey there.
+  async function socialSignIn(provider: "google" | "apple") {
+    setSocialBusy(provider);
+    try {
+      rememberOAuthReturn(search.next);
+      const result = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: `${window.location.origin}/oauth-return`,
+      });
+      if (result.error) {
+        toast.error(result.error.message || "Could not start sign-in");
+        return;
+      }
+      if (result.redirected) return; // the browser is on its way to the provider
+      // The session arrived without a detour, so the session effect above
+      // already sends the owner to their dashboard.
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not start sign-in");
+    } finally {
+      setSocialBusy(null);
+    }
+  }
+
   return (
     <div className="grid min-h-screen bg-background lg:grid-cols-[minmax(0,1.1fr)_minmax(420px,0.9fr)]">
       <section className="brand-wash hidden border-r border-border p-12 lg:flex lg:flex-col lg:justify-between">
@@ -152,7 +181,23 @@ function AuthPage() {
             </div>
           </div>
 
-          <form onSubmit={submit} className="space-y-4 p-5">
+          <div className="space-y-3 px-5 pt-5">
+            <GoogleSignInButton
+              onClick={() => void socialSignIn("google")}
+              disabled={busy || socialBusy !== null}
+            />
+            <AppleSignInButton
+              onClick={() => void socialSignIn("apple")}
+              disabled={busy || socialBusy !== null}
+            />
+            <div className="flex items-center gap-3 pt-1 text-[11px] text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or use your email</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          </div>
+
+          <form onSubmit={submit} className="space-y-4 p-5 pt-4">
             {confirmationSent ? (
               <div className="rounded-md border border-border bg-secondary/50 p-3 text-sm">
                 <p className="font-medium">Confirm your email first</p>
