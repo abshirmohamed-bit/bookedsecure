@@ -58,3 +58,22 @@ export const publishSocialPost = createServerFn({ method: "POST" })
     const { publishMetaPost } = await import("./meta-publish.server");
     return publishMetaPost({ businessId: ctx.businessId, userId: ctx.userId, platform: data.platform, text: data.text, imagePaths: data.imagePaths, source: "app" });
   });
+
+/** Saves a post to go out later (the 10-minute hook publishes it). */
+export const scheduleSocialPost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ platform: PLATFORM, text: z.string().max(5000), imagePaths: z.array(PATH).max(10).default([]), when: z.string().datetime({ offset: true }) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const ctx = await owner(context);
+    const { scheduleMetaPost } = await import("./meta-publish.server");
+    return scheduleMetaPost({ businessId: ctx.businessId, userId: ctx.userId, platform: data.platform, text: data.text, imagePaths: data.imagePaths, when: data.when, source: "app" });
+  });
+
+export const cancelSocialPost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const ctx = await owner(context);
+    const { cancelScheduledPost } = await import("./meta-publish.server");
+    return cancelScheduledPost(ctx.businessId, data.id);
+  });

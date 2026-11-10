@@ -33,6 +33,11 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const emailCampaigns = await processDueEmailCampaigns().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Email campaigns failed",
         }));
+        // Facebook and Instagram posts scheduled for now or earlier.
+        const { processDueScheduledPosts } = await import("@/lib/meta-publish.server");
+        const scheduledPosts = await processDueScheduledPosts().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Scheduled posts failed",
+        }));
         // Review requests after completed jobs, once per job, for businesses that turn them on.
         const { processDueReviewRequests } = await import("@/lib/review-requests.server");
         const reviewRequests = await processDueReviewRequests().catch((error: unknown) => ({
@@ -48,7 +53,7 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const autoCompleted = await processDueAutoCompletions().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Auto-complete failed",
         }));
-        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, autoCompleted, abandonedSwept: swept.swept });
+        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, scheduledPosts, autoCompleted, abandonedSwept: swept.swept });
 
 
       },

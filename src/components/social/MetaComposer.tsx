@@ -2,12 +2,12 @@ import { useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink, ImagePlus, Loader2, Send, Sparkles, Wand2, X } from "lucide-react";
+import { CalendarClock, ExternalLink, ImagePlus, Loader2, Send, Sparkles, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { relativeTime } from "@/lib/notifications";
-import { getSocialPosting, publishSocialPost, uploadSocialPicture, writeSocialPost } from "@/lib/social-posts.functions";
+import { cancelSocialPost, getSocialPosting, publishSocialPost, scheduleSocialPost, uploadSocialPicture, writeSocialPost } from "@/lib/social-posts.functions";
 
 type Platform = "facebook" | "instagram";
 type Picture = { id: string; preview: string; path: string | null; failed?: boolean };
@@ -53,6 +53,9 @@ export function MetaComposer({ platform }: { platform: Platform }) {
   const [brief, setBrief] = useState("");
   const [chips, setChips] = useState<string[]>([]);
   const [pictures, setPictures] = useState<Picture[]>([]);
+  const [when, setWhen] = useState("");
+  const schedule = useServerFn(scheduleSocialPost);
+  const cancel = useServerFn(cancelSocialPost);
 
   const draft = useMutation({
     mutationFn: () => write({ data: { platform, brief, chips } }),
@@ -63,13 +66,29 @@ export function MetaComposer({ platform }: { platform: Platform }) {
     mutationFn: () => publish({ data: { platform, text, imagePaths: pictures.map((p) => p.path!).filter(Boolean) } }),
     onSuccess: async (r) => {
       toast.success(r.duplicate ? "That post was already published." : `Posted to ${platform === "instagram" ? "Instagram" : "Facebook"}.`);
-      setText(""); setBrief(""); setChips([]); setPictures([]);
+      reset();
       await qc.invalidateQueries({ queryKey: ["social-posting", platform] });
     },
     onError: async (e) => {
       toast.error(e instanceof Error ? e.message : "That didn't post.");
       await qc.invalidateQueries({ queryKey: ["social-posting", platform] });
     },
+  });
+
+  const reset = () => { setText(""); setBrief(""); setChips([]); setPictures([]); setWhen(""); };
+  const scheduleM = useMutation({
+    mutationFn: () => schedule({ data: { platform, text, imagePaths: pictures.map((p) => p.path!).filter(Boolean), when: new Date(when).toISOString() } }),
+    onSuccess: async (r) => {
+      toast.success(`Scheduled for ${new Date(r.scheduledFor).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}.`);
+      reset();
+      await qc.invalidateQueries({ queryKey: ["social-posting", platform] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't schedule that."),
+  });
+  const cancelM = useMutation({
+    mutationFn: (id: string) => cancel({ data: { id } }),
+    onSuccess: async () => { toast.success("Scheduled post cancelled."); await qc.invalidateQueries({ queryKey: ["social-posting", platform] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't cancel."),
   });
 
   async function addFiles(files: FileList | null) {
@@ -164,12 +183,24 @@ export function MetaComposer({ platform }: { platform: Platform }) {
         </div>
         {missingPicture && <p className="text-xs text-muted-foreground">Instagram posts need at least one picture (up to 10).</p>}
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {!d.isOwner && <p className="mr-auto text-xs text-muted-foreground">Only the owner can post.</p>}
-          <Button disabled={!canPost || post.isPending} onClick={() => post.mutate()}>
-            {post.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />} Post to {name}
-          </Button>
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CalendarClock className="h-4 w-4" />
+            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="Schedule for"
+              className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground" />
+          </label>
+          {when ? (
+            <Button disabled={!canPost || scheduleM.isPending} onClick={() => scheduleM.mutate()}>
+              {scheduleM.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CalendarClock className="mr-1.5 h-4 w-4" />} Schedule
+            </Button>
+          ) : (
+            <Button disabled={!canPost || post.isPending} onClick={() => post.mutate()}>
+              {post.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />} Post to {name}
+            </Button>
+          )}
         </div>
+        {when && <p className="text-right text-[11px] text-muted-foreground">Leave the date empty to post now.</p>}
       </section>
 
       <div className="space-y-4">
@@ -194,9 +225,14 @@ export function MetaComposer({ platform }: { platform: Platform }) {
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-sm">{post.bodyText}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {relativeTime(post.createdAt)} · {post.status === "published" ? "Published" : post.status === "failed" ? <span className="text-destructive">Failed: {post.error}</span> : "Publishing…"}
+                      {post.status === "scheduled" && post.scheduledFor
+                        ? <span className="font-medium text-primary">Scheduled for {new Date(post.scheduledFor).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</span>
+                        : <>{relativeTime(post.createdAt)} · {post.status === "published" ? "Published" : post.status === "failed" ? <span className="text-destructive">Failed: {post.error}</span> : post.status === "cancelled" ? "Cancelled" : "Publishing…"}</>}
                     </p>
                   </div>
+                  {post.status === "scheduled" && d.isOwner && (
+                    <button type="button" onClick={() => cancelM.mutate(post.id)} disabled={cancelM.isPending} className="shrink-0 text-xs text-muted-foreground hover:text-destructive">Cancel</button>
+                  )}
                   {post.url && (
                     <a href={post.url} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 text-xs text-primary">
                       <ExternalLink className="h-3 w-3" /> Open

@@ -145,6 +145,8 @@ export async function publishMetaPost(input: {
   text: string;
   imagePaths?: string[];
   source: "app" | "assistant" | "mcp";
+  /** A scheduled post's own row: publish into it instead of creating a new one. */
+  existingPostId?: string;
   fetcher?: typeof fetch;
 }): Promise<{ published: true; duplicate?: boolean; postId: string; url: string | null; postsAs: string }> {
   const text = input.text.trim();
@@ -162,9 +164,13 @@ export async function publishMetaPost(input: {
   const postsAs = input.platform === "instagram" ? `@${ig!.username ?? "instagram"}` : account.pageName ?? "your Facebook Page";
   const bodyText = text || "(picture post)";
 
+  let postId: string;
+  if (input.existingPostId) {
+    postId = input.existingPostId;
+  } else {
   const since = new Date(Date.now() - 2 * 60_000).toISOString();
   const { data: recent } = await db().from("linkedin_posts").select("id, permalink")
-    .eq("business_id", input.businessId).eq("author_urn", authorUrn).eq("body_text", bodyText).neq("status", "failed").gte("created_at", since).limit(1);
+    .eq("business_id", input.businessId).eq("author_urn", authorUrn).eq("body_text", bodyText).in("status", ["publishing", "published"]).gte("created_at", since).limit(1);
   const dup = (recent as { id: string; permalink: string | null }[] | null)?.[0];
   if (dup) return { published: true, duplicate: true, postId: dup.id, url: dup.permalink, postsAs };
 
@@ -178,7 +184,8 @@ export async function publishMetaPost(input: {
       ? "Facebook and Instagram posting is waiting for a one-time database update."
       : "Could not save the post.");
   }
-  const postId = (row as { id: string }).id;
+  postId = (row as { id: string }).id;
+  }
 
   let failure: string | null = null;
   let externalId: string | null = null;
@@ -234,7 +241,8 @@ export type SocialPost = {
   platform: "linkedin" | MetaPlatform;
   postsAs: string | null;
   bodyText: string;
-  status: "publishing" | "published" | "failed";
+  status: "scheduled" | "publishing" | "published" | "failed" | "cancelled";
+  scheduledFor: string | null;
   url: string | null;
   error: string | null;
   createdAt: string;
@@ -242,9 +250,11 @@ export type SocialPost = {
 
 /** Recent Facebook or Instagram posts made from BookedSecure. */
 export async function listMetaPosts(businessId: string, platform: MetaPlatform, limit = 30): Promise<SocialPost[]> {
-  const { data, error } = await db().from("linkedin_posts")
-    .select("id, platform, author_name, body_text, status, permalink, error, created_at")
+  const query = (cols: string) => db().from("linkedin_posts").select(cols)
     .eq("business_id", businessId).eq("platform", platform).order("created_at", { ascending: false }).limit(Math.min(Math.max(limit, 1), 100));
+  let { data, error } = await query("id, platform, author_name, body_text, status, permalink, error, created_at, scheduled_for");
+  // Before docs/scheduled-posts.sql there is no scheduled_for column.
+  if (error) ({ data, error } = await query("id, platform, author_name, body_text, status, permalink, error, created_at"));
   if (error) return [];
   return ((data ?? []) as Record<string, string | null>[]).map((r) => ({
     id: r["id"]!,
@@ -252,6 +262,7 @@ export async function listMetaPosts(businessId: string, platform: MetaPlatform, 
     postsAs: r["author_name"] ?? null,
     bodyText: r["body_text"] ?? "",
     status: r["status"] as SocialPost["status"],
+    scheduledFor: r["scheduled_for"] ?? null,
     url: r["permalink"] ?? null,
     error: r["error"] ?? null,
     createdAt: r["created_at"]!,
@@ -267,4 +278,83 @@ function confirmSecret(): string {
 /** A short hash of exactly what will be posted where; any change needs a new preview. */
 export function metaConfirmationCode(businessId: string, platform: MetaPlatform, text: string, imagePaths: string[]): string {
   return createHash("sha256").update(`${confirmSecret()}|${platform}|${businessId}|${text.trim()}|${imagePaths.join(",")}`).digest("hex").slice(0, 8).toUpperCase();
+}
+
+// ----- Scheduling -----
+
+const MIN_LEAD_MS = 5 * 60_000;
+const MAX_AHEAD_MS = 60 * 24 * 60 * 60_000;
+
+/** Saves a post to go out later. The 10-minute hook publishes it when due. */
+export async function scheduleMetaPost(input: {
+  businessId: string;
+  userId: string;
+  platform: MetaPlatform;
+  text: string;
+  imagePaths?: string[];
+  when: string;
+  source: "app" | "assistant" | "mcp";
+}): Promise<{ scheduled: true; postId: string; scheduledFor: string }> {
+  const text = input.text.trim();
+  const imagePaths = input.imagePaths ?? [];
+  const problem = metaPostProblem(input.platform, text, imagePaths.length);
+  if (problem) throw new Error(problem);
+  const when = Date.parse(input.when);
+  if (Number.isNaN(when)) throw new Error("Pick a date and time to post.");
+  if (when < Date.now() + MIN_LEAD_MS) throw new Error("Pick a time at least 5 minutes from now, or press Post now.");
+  if (when > Date.now() + MAX_AHEAD_MS) throw new Error("Posts can be scheduled up to 60 days ahead.");
+  for (const path of imagePaths) if (!ownImagePath(input.businessId, path)) throw new Error("One of the pictures isn't from this business.");
+  const account = await loadMetaAccount(input.businessId);
+  const ig = input.platform === "instagram" ? await linkedInstagram(account) : null;
+  if (input.platform === "instagram" && !ig) throw new Error("No Instagram account is linked to your Facebook Page.");
+  const authorUrn = input.platform === "instagram" ? `instagram:${ig!.id}` : `facebook:${account.pageId}`;
+  const postsAs = input.platform === "instagram" ? `@${ig!.username ?? "instagram"}` : account.pageName ?? "your Facebook Page";
+  const scheduledFor = new Date(when).toISOString();
+  const { data, error } = await db().from("linkedin_posts").insert({
+    business_id: input.businessId, platform: input.platform, author_urn: authorUrn, author_name: postsAs,
+    body_text: text || "(picture post)", status: "scheduled", source: input.source, created_by: input.userId,
+    scheduled_for: scheduledFor, payload: { text, imagePaths },
+    ...(imagePaths.length ? { media: { kind: "image", count: imagePaths.length, summary: `${imagePaths.length} picture${imagePaths.length === 1 ? "" : "s"}` } } : {}),
+  }).select("id").single();
+  if (error || !data) {
+    throw new Error(error?.code === "23514" || error?.code === "42703" || error?.code === "PGRST204"
+      ? "Scheduling is waiting for a one-time database update. You can still post now."
+      : "Could not schedule the post.");
+  }
+  return { scheduled: true, postId: (data as { id: string }).id, scheduledFor };
+}
+
+export async function cancelScheduledPost(businessId: string, postId: string): Promise<{ cancelled: true }> {
+  const { data, error } = await db().from("linkedin_posts").update({ status: "cancelled" })
+    .eq("id", postId).eq("business_id", businessId).eq("status", "scheduled").select("id");
+  if (error || !data || (data as unknown[]).length === 0) throw new Error("That post isn't scheduled any more.");
+  return { cancelled: true };
+}
+
+/** Run by the follow-ups hook: publishes Facebook and Instagram posts that are due. Each is claimed first. */
+export async function processDueScheduledPosts(now = new Date()): Promise<{ published: number; failed: number }> {
+  const totals = { published: 0, failed: 0 };
+  const { data, error } = await db().from("linkedin_posts")
+    .select("id, business_id, platform, created_by, payload, scheduled_for")
+    .eq("status", "scheduled").lte("scheduled_for", now.toISOString()).in("platform", ["facebook", "instagram"])
+    .order("scheduled_for", { ascending: true }).limit(20);
+  if (error || !data) return totals;
+  for (const row of data as Array<{ id: string; business_id: string; platform: MetaPlatform; created_by: string | null; payload: { text?: string; imagePaths?: string[] } | null }>) {
+    const { data: claimed } = await db().from("linkedin_posts").update({ status: "publishing" })
+      .eq("id", row.id).eq("status", "scheduled").select("id");
+    if (!claimed || (claimed as unknown[]).length === 0) continue;
+    try {
+      await publishMetaPost({
+        businessId: row.business_id, userId: row.created_by ?? row.business_id, platform: row.platform,
+        text: row.payload?.text ?? "", imagePaths: row.payload?.imagePaths ?? [], source: "app", existingPostId: row.id,
+      });
+      totals.published += 1;
+    } catch (e) {
+      totals.failed += 1;
+      // publishMetaPost marks the row failed when Meta refuses; this covers failures before that point.
+      await db().from("linkedin_posts").update({ status: "failed", error: (e instanceof Error ? e.message : "Could not publish.").slice(0, 300) })
+        .eq("id", row.id).eq("status", "publishing");
+    }
+  }
+  return totals;
 }
