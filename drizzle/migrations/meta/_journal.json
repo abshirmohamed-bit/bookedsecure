@@ -253,6 +253,13 @@
       "when": 1794300000000,
       "tag": "0035_linkedin_posting",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794300000001,
+      "tag": "0036_linkedin_posting",
+      "breakpoints": true
     }
   ]
 }
