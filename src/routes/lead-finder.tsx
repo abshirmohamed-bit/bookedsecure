@@ -2,14 +2,14 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, ExternalLink, Globe, Loader2, Mail, Phone, Search, Star, UserPlus, X } from "lucide-react";
+import { CheckCircle2, ExternalLink, Globe, Loader2, Mail, Phone, Search, Sparkles, Star, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { relativeTime } from "@/lib/notifications";
-import { addLeadFinderResults, dismissLeadFinderResults, getLeadFinder, runLeadFinderSearch } from "@/lib/lead-finder.functions";
+import { addLeadFinderResults, dismissLeadFinderResults, getLeadFinder, runLeadFinderSearch, suggestLeadFinderSearches } from "@/lib/lead-finder.functions";
 
 export const Route = createFileRoute("/lead-finder")({
   head: () => ({
@@ -38,6 +38,17 @@ function LeadFinderPage() {
   const [criteria, setCriteria] = useState("");
   const [limit, setLimit] = useState(10);
   const [picked, setPicked] = useState<string[]>([]);
+  const [ask, setAsk] = useState("");
+  const suggestFn = useServerFn(suggestLeadFinderSearches);
+  const suggest = useMutation({
+    mutationFn: () => suggestFn({ data: { request: ask.trim() || null } }),
+    onSuccess: (r) => {
+      if (r.suggestions.length === 0) toast.message("Co-work couldn't suggest a search. Try describing who you want to reach.");
+      else if (ask.trim() && r.suggestions[0]) applySuggestion(r.suggestions[0]);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Co-work couldn't suggest searches."),
+  });
+  const applySuggestion = (s: { what: string; where: string; criteria: string | null }) => { setWhat(s.what); setWhere(s.where); setCriteria(s.criteria ?? ""); };
 
   const search = useMutation({
     mutationFn: () => run({ data: { what, where, criteria: criteria.trim() || null, limit } }),
@@ -81,6 +92,30 @@ function LeadFinderPage() {
             {d.setupMissing ? "Lead finder is waiting for a one-time database update." : "Lead finder isn't switched on for BookedSecure yet. It will work as soon as it is."}
           </div>
         )}
+
+        <section className="glass space-y-3 p-4">
+          <p className="flex items-center gap-1.5 text-sm font-semibold"><Sparkles className="h-4 w-4 text-primary" /> Ask Co-work who to look for</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Textarea rows={1} value={ask} maxLength={500} className="flex-1" placeholder="Optional: e.g. warehouses and gyms around Auburn with 20+ staff. Leave empty and Co-work suggests from your business profile."
+              onChange={(e) => setAsk(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); suggest.mutate(); } }} />
+            <Button variant="outline" disabled={suggest.isPending} onClick={() => suggest.mutate()}>
+              {suggest.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />} {ask.trim() ? "Fill the search" : "Suggest searches"}
+            </Button>
+          </div>
+          {suggest.data && suggest.data.suggestions.length > 0 && (
+            <div className="grid gap-2 md:grid-cols-2">
+              {suggest.data.suggestions.map((s) => (
+                <button key={`${s.what}|${s.where}`} type="button" onClick={() => applySuggestion(s)}
+                  className={`rounded-xl border p-3 text-left text-sm hover:border-primary/60 ${what === s.what && where === s.where ? "border-primary bg-primary/5" : "border-border bg-card/60"}`}>
+                  <span className="font-medium">{s.what}</span> <span className="text-muted-foreground">in {s.where}</span>
+                  {s.criteria && <span className="block text-xs text-muted-foreground">{s.criteria}</span>}
+                  {s.why && <span className="block text-[11px] text-primary">{s.why}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground">Co-work reads your business profile and fills the search below. You can change anything before pressing Find.</p>
+        </section>
 
         <section className="glass grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] lg:items-end">
           <label className="space-y-1 text-sm">

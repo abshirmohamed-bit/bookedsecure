@@ -78,3 +78,186 @@ export function readFit(value: unknown): ProspectFit {
 
 /** Whether a found business can be emailed by a campaign. */
 export const emailable = (status: EmailStatus) => status === "valid" || status === "unverified" || status === "risky";
+
+// ----- Free discovery: Firecrawl web search and OpenStreetMap -----
+
+/** A business found by any source, before its website is read. */
+export type Candidate = {
+  /** Stable id per source: "web:<host>", "osm:node/123" or a Google place id. */
+  id: string;
+  name: string;
+  category: string | null;
+  address: string | null;
+  suburb: string | null;
+  phone: string | null;
+  website: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  source: "web" | "osm" | "google";
+};
+
+/** Directories, marketplaces, social networks and government sites: never the business's own website. */
+const NOT_A_BUSINESS_SITE = /(^|\.)(yellowpages|yelp|truelocal|hotfrog|oneflare|airtasker|hipages|serviceseeking|localsearch|startlocal|word-of-mouth|wordofmouth|productreview|tripadvisor|cylex-australia|cylex|trustpilot|facebook|instagram|linkedin|twitter|x|tiktok|youtube|pinterest|reddit|google|bing|apple|wikipedia|seek|indeed|glassdoor|gumtree|realestate|domain|fresha|timely|zomato|ubereats|doordash|menulog|booking|expedia|mapquest|waze|openstreetmap|whitepages|aussieweb|dlook|brownbook|infobel|nearbuy|hotdoc|healthengine|bark|thumbtack|houzz|finder|canstar|abr|asic|business)\.(com|com\.au|net|net\.au|org|org\.au|co|io|gov\.au)$|\.gov\.au$|\.edu\.au$/i;
+
+export function isBusinessSite(url: string | null | undefined): boolean {
+  const host = hostOf(url);
+  return Boolean(host) && !NOT_A_BUSINESS_SITE.test(host!);
+}
+
+/** Web search results to candidates: one per business website, directories dropped. */
+export function candidatesFromWebSearch(results: Array<{ url?: string | null; title?: string | null; description?: string | null }>): Candidate[] {
+  const seen = new Set<string>();
+  const out: Candidate[] = [];
+  for (const r of results) {
+    if (!r.url || !isBusinessSite(r.url)) continue;
+    const host = hostOf(r.url)!;
+    if (seen.has(host)) continue;
+    seen.add(host);
+    const name = (r.title ?? host).split(/\s+[|\-–—:]\s+/)[0]!.trim().slice(0, 160) || host;
+    out.push({ id: `web:${host}`, name, category: null, address: null, suburb: null, phone: null, website: `https://${host}`, rating: null, reviewCount: null, source: "web" });
+  }
+  return out;
+}
+
+const GENERIC_WORDS = new Set(["company", "companies", "business", "businesses", "services", "service", "local", "near", "best", "small", "large", "sydney", "australia", "with", "staff", "that", "have", "their", "and", "for", "the"]);
+
+/** Words to look for in OpenStreetMap names and categories ("warehouses, gyms and factories" -> warehouse, gym, factor). */
+export function osmKeywords(what: string): string[] {
+  const words = what.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/)
+    .filter((w) => w.length >= 3 && !GENERIC_WORDS.has(w))
+    .map((w) => w.replace(/(ies)$/, "y").replace(/(ses|xes|ches|shes)$/, (m) => m.slice(0, -2)).replace(/([^s])s$/, "$1"))
+    .map((w) => (w.endsWith("y") && w.length > 4 ? w.slice(0, -1) : w));
+  return [...new Set(words)].slice(0, 6);
+}
+
+/**
+ * How OpenStreetMap files common kinds of business (it says "fitness_centre",
+ * people say "gym"). Keyword stem -> exact key=value tags; generic, never tenant-specific.
+ */
+const OSM_CATEGORY_TAGS: Array<[RegExp, string[]]> = [
+  [/^(gym|fitnes|crossfit|pilate|yoga)/, ["leisure=fitness_centre", "leisure=sports_centre"]],
+  [/^(warehou|distribution|storage)/, ["building=warehouse", "industrial=warehouse", "landuse=industrial"]],
+  [/^(logistic|freight|transport|courier)/, ["office=logistics", "industrial=logistics", "building=warehouse"]],
+  [/^(factor|manufactur|plant|work$)/, ["man_made=works", "industrial=factory", "building=industrial"]],
+  [/^(office|corporate|headquarter)/, ["office=company", "building=office"]],
+  [/^(construct|builder|building)/, ["office=construction_company", "craft=builder"]],
+  [/^(school|college)/, ["amenity=school", "amenity=college"]],
+  [/^(childcare|daycare|kindergarten|preschool)/, ["amenity=kindergarten", "amenity=childcare"]],
+  [/^(hospital|clinic|medical|doctor|dentist|dental|physio)/, ["amenity=clinic", "amenity=doctors", "amenity=dentist", "healthcare=physiotherapist"]],
+  [/^(aged|nursing|retirement)/, ["amenity=nursing_home", "social_facility=nursing_home"]],
+  [/^(hotel|motel|accommodation)/, ["tourism=hotel", "tourism=motel"]],
+  [/^(cafe|coffee)/, ["amenity=cafe"]],
+  [/^(restaurant)/, ["amenity=restaurant"]],
+  [/^(mechanic|car repair|auto|workshop|smash|panel)/, ["shop=car_repair", "craft=car_repair"]],
+  [/^(real estate|estate agent|realestate|realtor)/, ["office=estate_agent"]],
+  [/^(accountant|accounting|bookkeep)/, ["office=accountant"]],
+  [/^(lawyer|solicitor|legal)/, ["office=lawyer"]],
+  [/^(club|rsl)/, ["amenity=club", "club=sport"]],
+  [/^(salon|hairdress|barber|beauty)/, ["shop=hairdresser", "shop=beauty"]],
+  [/^(supermarket|grocer)/, ["shop=supermarket"]],
+  [/^(church|mosque|temple)/, ["amenity=place_of_worship"]],
+  [/^(council|government)/, ["office=government"]],
+  [/^(security)/, ["office=security"]],
+  [/^(clean)/, ["office=cleaning", "craft=cleaning"]],
+];
+
+export function osmCategoryTags(keywords: string[]): string[] {
+  const tags = new Set<string>();
+  for (const k of keywords) for (const [rx, list] of OSM_CATEGORY_TAGS) if (rx.test(k)) list.forEach((t) => tags.add(t));
+  return [...tags].slice(0, 12);
+}
+
+/** Overpass query: exact category tags (fast) plus one name match, inside a box (south, west, north, east). */
+export function overpassQuery(keywords: string[], box: [number, number, number, number], limit = 60): string {
+  const rx = keywords.map((k) => k.replace(/[^a-z]/g, "")).filter(Boolean).join("|");
+  const b = box.map((n) => n.toFixed(4)).join(",");
+  const tags = osmCategoryTags(keywords);
+  const byTag = tags.map((t) => { const [k, v] = t.split("="); return `nwr["${k}"="${v}"]["name"](${b});`; }).join("");
+  // A name pattern is slow on the public servers, so it's only used for words with no known category.
+  const unmapped = keywords.filter((k) => osmCategoryTags([k]).length === 0).map((k) => k.replace(/[^a-z]/g, "")).filter(Boolean).join("|");
+  const byName = unmapped ? `nwr["name"~"${unmapped}",i](${b});` : "";
+  return `[out:json][timeout:40];(${byTag}${byName}${!byTag && !byName && rx ? `nwr["name"~"${rx}",i](${b});` : ""});out center tags ${limit};`;
+}
+
+const NOT_A_PLACE_OF_BUSINESS = ["railway", "highway", "public_transport", "route", "boundary", "natural", "waterway", "power"];
+const NOT_A_BUSINESS_VALUE = /^(fitness_station|park|playground|pitch|bench|parking|toilets|bus_station|shelter|depot|intermodal_freight_terminal)$/;
+
+/**
+ * One OpenStreetMap element to a candidate, or null when it isn't a business.
+ * With keywords, a shop that only has the word in its name ("Chemist Warehouse"
+ * for warehouses) is skipped: its category says it's something else.
+ */
+export function candidateFromOsm(el: { type?: string; id?: number; tags?: Record<string, string> }, keywords: string[] = []): Candidate | null {
+  const t = el.tags ?? {};
+  const name = t["name"]?.trim();
+  if (!name || !el.type || !el.id) return null;
+  if (NOT_A_PLACE_OF_BUSINESS.some((k) => k in t)) return null;
+  const kind = t["shop"] ?? t["office"] ?? t["craft"] ?? t["industrial"] ?? t["leisure"] ?? t["amenity"] ?? t["healthcare"] ?? t["tourism"] ?? (t["man_made"] === "works" ? "works" : null) ?? (t["building"] && t["building"] !== "yes" ? t["building"] : null);
+  if (!kind || NOT_A_BUSINESS_VALUE.test(kind)) return null;
+  if (keywords.length && t["shop"]) {
+    const wanted = new Set(osmCategoryTags(keywords));
+    const tagMatch = Object.entries(t).some(([k, v]) => wanted.has(`${k}=${v}`));
+    const valueMatch = keywords.some((k) => Object.entries(t).some(([key, v]) => key !== "name" && !key.startsWith("name:") && v.toLowerCase().includes(k)));
+    if (!tagMatch && !valueMatch) return null;
+  }
+  const website = t["website"] ?? t["contact:website"] ?? null;
+  const street = [t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" ");
+  const suburb = t["addr:suburb"] ?? t["addr:city"] ?? null;
+  const address = [street, suburb, t["addr:postcode"]].filter(Boolean).join(", ") || null;
+  return {
+    id: `osm:${el.type}/${el.id}`,
+    name: name.slice(0, 160),
+    category: kind.replace(/_/g, " ").slice(0, 80),
+    address,
+    suburb: suburb?.slice(0, 60) ?? null,
+    phone: (t["phone"] ?? t["contact:phone"] ?? null)?.slice(0, 30) ?? null,
+    website: website && isBusinessSite(website) ? website.slice(0, 300) : null,
+    rating: null,
+    reviewCount: null,
+    source: "osm",
+  };
+}
+
+/** Joins sources, one entry per website (or per name when there's none); web results with a site come first. */
+export function mergeCandidates(lists: Candidate[][], limit: number): Candidate[] {
+  const out: Candidate[] = [];
+  const keys = new Set<string>();
+  const nameKey = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
+  for (const c of lists.flat()) {
+    const host = hostOf(c.website);
+    const k1 = host ? `h:${host}` : null;
+    const k2 = `n:${nameKey(c.name)}`;
+    if ((k1 && keys.has(k1)) || keys.has(k2)) continue;
+    if (k1) keys.add(k1);
+    keys.add(k2);
+    out.push(c);
+  }
+  // Businesses with a website can be read and emailed, so they lead.
+  return out.sort((a, b) => Number(Boolean(b.website)) - Number(Boolean(a.website))).slice(0, limit);
+}
+
+// ----- Co-work suggestions -----
+
+export type SearchSuggestion = { what: string; where: string; criteria: string | null; why: string | null };
+
+/** Reads the AI's JSON list of searches, keeping only usable ones (up to 4). */
+export function readSuggestions(raw: string): SearchSuggestion[] {
+  const start = raw.indexOf("[");
+  const end = raw.lastIndexOf("]");
+  if (start === -1 || end <= start) return [];
+  let list: unknown;
+  try { list = JSON.parse(raw.slice(start, end + 1)); } catch { return []; }
+  if (!Array.isArray(list)) return [];
+  const text = (v: unknown, max: number) => (typeof v === "string" && v.trim() && !/[<>]/.test(v) ? v.trim().slice(0, max) : null);
+  const out: SearchSuggestion[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const what = text(r["what"], 120);
+    const where = text(r["where"], 80);
+    if (!what || what.length < 3 || !where || where.length < 2) continue;
+    out.push({ what, where, criteria: text(r["criteria"], 400), why: text(r["why"], 200) });
+    if (out.length >= 4) break;
+  }
+  return out;
+}

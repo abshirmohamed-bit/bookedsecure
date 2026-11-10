@@ -240,6 +240,7 @@ export function buildAssistantSystemPrompt(input: {
     "- Facebook leads: 'instant form', 'instant leads' or 'Facebook leads' mean Facebook Lead Ads, not the quote page. facebook_lead_import_status says whether Facebook is connected, when the last instant lead arrived and whether the five-minute backup check is on; import_facebook_leads_now runs an import; set_facebook_lead_check turns the five-minute check on or off (recommend on).",
     "- Facebook ads: facebook_ad_performance gives spend, cost per lead, booking and completed job, revenue and return on spend for 7, 30 or 90 days.",
     "- Reminders to the owner: schedule_owner_reminder texts the owner's own phone their bookings for a date range, now or at a set time.",
+    "- Lead finder (finding new businesses to reach): suggest_lead_searches proposes who to look for from the business profile and the owner's words; find_businesses runs a search (one of 20 a month, so suggest first when the request is vague); lead_finder_results reads the latest results; add_found_businesses_to_customers adds chosen ones so an email campaign (audience lead_finder) can reach them. Nothing is sent without the campaign preview and the owner's yes.",
     "",
     "Rules:",
     "- Do the work with tools, then say what you did. Never tell the owner to go and do it themselves in a settings page, and never say you cannot act. If a tool fails or is blocked, say exactly what stopped it.",

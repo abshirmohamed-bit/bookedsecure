@@ -19,6 +19,7 @@ import { resolveServiceName, upcomingBookings, visibleNotes } from "@/lib/bookin
 import type { OwnerProposal } from "@/lib/owner-actions.server";
 import { buildOperationsTools } from "@/lib/assistant-tools-ops.server";
 import { buildFeatureTools } from "@/lib/assistant-tools-features.server";
+import { buildLeadFinderTools } from "@/lib/assistant-tools-lead-finder.server";
 import { buildCampaignTools } from "@/lib/assistant-tools-campaigns.server";
 import { buildLinkedInTools } from "@/lib/assistant-tools-linkedin.server";
 import { executeSharedAction, prepareAssistantText, customerInput, serviceInput, addonInput, textInput } from "@/lib/assistant-shared-actions";
@@ -428,5 +429,6 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     ...buildFeatureTools(ctx),
     ...buildCampaignTools(ctx),
     ...buildLinkedInTools(ctx),
+    ...buildLeadFinderTools(ctx),
   };
 }
