@@ -11,10 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { LinkedInWorkspace } from "@/routes/linkedin";
 import { MetaComposer } from "@/components/social/MetaComposer";
 import { YouTubeComposer } from "@/components/social/YouTubeComposer";
+import { YouTubeInsights } from "@/components/social/YouTubeInsights";
+import { YouTubeComments } from "@/components/social/YouTubeComments";
+import { getYouTube } from "@/lib/youtube.functions";
 import { convertSocialComment, getSocialThread, listSocialComments, listSocialThreads, refreshSocialNow, reviewSocialComment, sendSocialReply, suggestSocialReply } from "@/lib/social-comments.functions";
 
 type Platform = "linkedin" | "facebook" | "instagram" | "youtube";
-type View = "post" | "comments" | "messages";
+type View = "post" | "comments" | "messages" | "insights";
 type SocialSearch = { platform?: Platform; view?: View; linkedin?: string; youtube?: string; why?: string };
 
 export const Route = createFileRoute("/social")({
@@ -31,7 +34,7 @@ export const Route = createFileRoute("/social")({
   // ?view=messages opens the DMs (used by notifications); ?platform= picks the network.
   validateSearch: (search: Record<string, unknown>): SocialSearch => ({
     ...(search["platform"] === "linkedin" || search["platform"] === "facebook" || search["platform"] === "instagram" || search["platform"] === "youtube" ? { platform: search["platform"] } : {}),
-    ...(search["view"] === "post" || search["view"] === "comments" || search["view"] === "messages" ? { view: search["view"] } : {}),
+    ...(search["view"] === "post" || search["view"] === "comments" || search["view"] === "messages" || search["view"] === "insights" ? { view: search["view"] } : {}),
     ...(typeof search["linkedin"] === "string" ? { linkedin: search["linkedin"].slice(0, 20) } : {}),
     ...(typeof search["youtube"] === "string" ? { youtube: search["youtube"].slice(0, 20) } : {}),
     ...(typeof search["why"] === "string" ? { why: search["why"].slice(0, 60) } : {}),
@@ -51,7 +54,10 @@ function SocialMediaPage() {
   const navigate = Route.useNavigate();
   // A notification about comments or messages opens the inbox, not the composer.
   const platform: Platform = search.platform ?? "facebook";
-  const view: View = platform === "linkedin" || platform === "youtube" ? "post" : search.view ?? "post";
+  const requested = search.view ?? "post";
+  const view: View = platform === "linkedin" ? "post"
+    : platform === "youtube" ? (requested === "messages" ? "post" : requested)
+    : requested === "insights" ? "post" : requested;
   const clearYouTube = useCallback(() => void navigate({ search: { platform: "youtube" }, replace: true }), [navigate]);
   const go = (next: Partial<SocialSearch>) => void navigate({ search: { platform, view, ...next }, replace: true });
 
@@ -77,9 +83,11 @@ function SocialMediaPage() {
                 </button>
               ))}
             </div>
-            {(platform === "facebook" || platform === "instagram") && (
+            {platform !== "linkedin" && (
               <div role="tablist" aria-label="Section" className="inline-flex rounded-xl border border-border bg-card p-1">
-                {([["post", "Post"], ["comments", "Comments"], ["messages", "Messages"]] as const).map(([id, label]) => (
+                {(platform === "youtube"
+                  ? ([["post", "Upload"], ["insights", "Insights"], ["comments", "Comments"]] as const)
+                  : ([["post", "Post"], ["comments", "Comments"], ["messages", "Messages"]] as const)).map(([id, label]) => (
                   <button
                     key={id}
                     role="tab"
@@ -98,8 +106,10 @@ function SocialMediaPage() {
         {platform === "linkedin" ? (
           <LinkedInWorkspace search={{ ...(search.linkedin ? { linkedin: search.linkedin } : {}), ...(search.why ? { why: search.why } : {}) }} clearSearch={() => void navigate({ search: { platform: "linkedin" }, replace: true })} />
         ) : platform === "youtube" ? (
-          <YouTubeComposer outcome={search.youtube} why={search.why} clearOutcome={clearYouTube} />
-        ) : view === "post" ? (
+          view === "insights" ? <YouTubeSection view="insights" />
+            : view === "comments" ? <YouTubeSection view="comments" />
+            : <YouTubeComposer outcome={search.youtube} why={search.why} clearOutcome={clearYouTube} />
+        ) : view === "post" || view === "insights" ? (
           <MetaComposer platform={platform} />
         ) : (
           <SocialInbox platform={platform} view={view} />
@@ -308,4 +318,13 @@ function CommentCard({ row }: { row: Row }) {
       )}
     </div>
   );
+}
+
+/** Insights and Comments only make sense once a channel is connected. */
+function YouTubeSection({ view }: { view: "insights" | "comments" }) {
+  const load = useServerFn(getYouTube);
+  const q = useQuery({ queryKey: ["youtube"], queryFn: () => load() });
+  if (q.isLoading) return null;
+  if (!q.data?.connected) return <div className="glass p-8 text-center text-sm text-muted-foreground">Connect your YouTube channel on the Upload tab first.</div>;
+  return view === "insights" ? <YouTubeInsights isOwner={q.data.isOwner} /> : <YouTubeComments isOwner={q.data.isOwner} />;
 }

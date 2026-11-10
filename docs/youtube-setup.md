@@ -9,8 +9,8 @@ owner presses **Upload to YouTube**.
 ## What's already built
 
 - **Connect:** Google sign-in per business, with signed state, an owner check and
-  the callback `/api/public/youtube/oauth/callback`. Asks for `youtube.upload`
-  and `youtube.readonly` (to read the channel name).
+  the callback `/api/public/youtube/oauth/callback`. Asks for `youtube.upload`,
+  `youtube.readonly`, `youtube.force-ssl` (comments) and `yt-analytics.readonly`.
 - **Tokens:** the refresh token and a cached access token, AES-GCM encrypted and
   bound to the business. Disconnecting revokes the grant at Google and deletes
   the row.

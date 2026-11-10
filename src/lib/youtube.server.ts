@@ -189,12 +189,13 @@ type AccountRow = {
   refresh_token_ciphertext: string;
   access_token_ciphertext: string | null;
   access_token_expires_at: string | null;
+  scopes: string[] | null;
   connected_at: string;
 };
 
 async function loadAccount(businessId: string): Promise<AccountRow | null> {
   const { data, error } = await db().from("youtube_accounts")
-    .select("business_id, channel_id, channel_title, channel_handle, channel_thumbnail, refresh_token_ciphertext, access_token_ciphertext, access_token_expires_at, connected_at")
+    .select("business_id, channel_id, channel_title, channel_handle, channel_thumbnail, refresh_token_ciphertext, access_token_ciphertext, access_token_expires_at, scopes, connected_at")
     .eq("business_id", businessId).maybeSingle();
   if (error) {
     if (missingTable(error.code)) return null;
@@ -204,6 +205,10 @@ async function loadAccount(businessId: string): Promise<AccountRow | null> {
 }
 
 /** A current access token: the cached one, or a fresh one from the refresh token. */
+export async function youTubeAccessToken(businessId: string, fetcher: typeof fetch = fetch): Promise<{ token: string; account: AccountRow }> {
+  return accessToken(businessId, fetcher);
+}
+
 async function accessToken(businessId: string, fetcher: typeof fetch = fetch): Promise<{ token: string; account: AccountRow }> {
   const account = await loadAccount(businessId);
   if (!account) throw new Error("YouTube isn't connected. Connect it under Social media → YouTube first.");

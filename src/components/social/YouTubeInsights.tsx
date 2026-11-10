@@ -1,0 +1,148 @@
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Copy, ExternalLink, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { relativeTime } from "@/lib/notifications";
+import { getYouTubeInsights, startYouTubeConnect, suggestYouTubeVideoTitles } from "@/lib/youtube.functions";
+
+const fmt = (n: number | null) => (n === null ? "Hidden" : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 10_000 ? `${Math.round(n / 1000)}k` : n.toLocaleString("en-AU"));
+const dur = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string | undefined }) {
+  return (
+    <div className="rounded-xl border border-border bg-card/60 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-semibold tracking-[-0.02em]">{value}</p>
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+/** A small bar chart of daily views (no chart library). */
+function DailyViews({ daily }: { daily: { day: string; views: number }[] }) {
+  const max = Math.max(1, ...daily.map((d) => d.views));
+  return (
+    <div>
+      <div className="flex h-24 items-end gap-[2px]" role="img" aria-label="Daily views over the last 28 days">
+        {daily.map((d) => (
+          <div key={d.day} title={`${d.day}: ${d.views.toLocaleString("en-AU")} views`} className="flex-1 rounded-t bg-primary/70 hover:bg-primary" style={{ height: `${Math.max(2, (d.views / max) * 100)}%` }} />
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+        <span>{daily[0]?.day}</span><span>{daily[daily.length - 1]?.day}</span>
+      </div>
+    </div>
+  );
+}
+
+export function YouTubeInsights({ isOwner }: { isOwner: boolean }) {
+  const load = useServerFn(getYouTubeInsights);
+  const q = useQuery({ queryKey: ["youtube-insights"], queryFn: () => load(), staleTime: 10 * 60_000 });
+  const connect = useServerFn(startYouTubeConnect);
+  const titlesFn = useServerFn(suggestYouTubeVideoTitles);
+  const [form, setForm] = useState<"all" | "long" | "short">("all");
+  const reconnect = useMutation({ mutationFn: () => connect(), onSuccess: (r) => { window.location.href = r.url; }, onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't start the Google sign-in.") });
+  const longForm = useMemo(() => (q.data?.recent ?? []).filter((v) => v.form === "long").slice(0, 5), [q.data]);
+  const titles = useMutation({
+    mutationFn: () => titlesFn({ data: { videos: longForm.map((v) => ({ id: v.id, title: v.title, views: v.views })) } }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "The AI couldn't suggest titles."),
+  });
+
+  if (q.isLoading) return <div className="glass grid place-items-center p-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  if (q.isError || !q.data) return <div className="glass p-6 text-sm text-destructive">{q.error instanceof Error ? q.error.message : "Couldn't load YouTube insights."}</div>;
+  const d = q.data;
+  const shown = d.recent.filter((v) => form === "all" || v.form === form);
+  const longCount = d.recent.filter((v) => v.form === "long").length;
+
+  return (
+    <div className="space-y-4">
+      {(d.analyticsNeedsReconnect || d.commentsNeedReconnect) && isOwner && (
+        <div className="glass flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
+          <p className="text-muted-foreground">Reconnect YouTube once to see watch time and subscribers gained, and to reply to comments.</p>
+          <Button size="sm" disabled={reconnect.isPending} onClick={() => reconnect.mutate()}>Reconnect YouTube</Button>
+        </div>
+      )}
+
+      <section className="glass space-y-3 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">{d.channel.title}</p>
+          <Button size="sm" variant="ghost" disabled={q.isFetching} onClick={() => void q.refetch()}><RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${q.isFetching ? "animate-spin" : ""}`} /> Refresh</Button>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <Stat label="Subscribers" value={fmt(d.channel.subscribers)} />
+          <Stat label="Total views" value={fmt(d.channel.views)} />
+          <Stat label="Videos" value={fmt(d.channel.videos)} />
+          <Stat label="Views, 28 days" value={d.last28 ? fmt(d.last28.views) : "—"} />
+          <Stat label="Watch hours, 28 days" value={d.last28 ? fmt(d.last28.watchHours) : "—"} />
+          <Stat label="Subscribers, 28 days" value={d.last28 ? `${d.last28.subscribersGained - d.last28.subscribersLost >= 0 ? "+" : ""}${d.last28.subscribersGained - d.last28.subscribersLost}` : "—"} hint={d.last28 ? `${d.last28.subscribersGained} gained, ${d.last28.subscribersLost} lost` : undefined} />
+        </div>
+        {d.last28 && d.last28.daily.length > 1 && (
+          <div className="rounded-xl border border-border bg-card/60 p-3">
+            <p className="mb-2 text-xs font-medium">Views per day · average view {dur(d.last28.averageViewSeconds)}</p>
+            <DailyViews daily={d.last28.daily} />
+          </div>
+        )}
+        {!d.last28 && !d.analyticsNeedsReconnect && <p className="text-xs text-muted-foreground">YouTube Analytics has no figures for the last 28 days yet.</p>}
+      </section>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <section className="glass p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest uploads</p>
+            <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+              {([["all", "All"], ["long", "Long-form"], ["short", "Short-form"]] as const).map(([id, label]) => (
+                <button key={id} type="button" onClick={() => setForm(id)} className={`rounded-md px-2.5 py-1 text-xs font-medium ${form === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{label}</button>
+              ))}
+            </div>
+          </div>
+          {shown.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No videos here yet.</p> : (
+            <ul className="divide-y divide-border">
+              {shown.map((v) => (
+                <li key={v.id} className="flex items-center gap-3 py-2">
+                  {v.thumbnail ? <img src={v.thumbnail} alt="" className="h-12 w-20 shrink-0 rounded-md object-cover" /> : <div className="h-12 w-20 shrink-0 rounded-md bg-muted" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-1 text-sm font-medium">{v.title}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {v.form === "long" ? "Long-form" : "Short-form"} · {dur(v.seconds)} · {v.publishedAt ? relativeTime(v.publishedAt) : ""}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">{fmt(v.views)} views · {fmt(v.likes)} likes · {fmt(v.comments)} comments</p>
+                  </div>
+                  <a href={v.url} target="_blank" rel="noreferrer" className="shrink-0 text-xs text-primary" aria-label="Open on YouTube"><ExternalLink className="h-3.5 w-3.5" /></a>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">Long-form means 4 minutes or longer; anything shorter counts as short-form.</p>
+        </section>
+
+        <section className="glass space-y-3 p-4">
+          <div>
+            <p className="flex items-center gap-1.5 text-sm font-semibold"><Sparkles className="h-4 w-4 text-primary" /> Better titles</p>
+            <p className="text-xs text-muted-foreground">Three title ideas for each of your latest long-form videos. Nothing changes on YouTube; copy one into YouTube Studio if you like it.</p>
+          </div>
+          <Button size="sm" variant="outline" disabled={longCount === 0 || titles.isPending} onClick={() => titles.mutate()}>
+            {titles.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />} {titles.data ? "Suggest again" : "Suggest titles"}
+          </Button>
+          {longCount === 0 && <p className="text-xs text-muted-foreground">Upload a video of 4 minutes or more to get title ideas.</p>}
+          {titles.data?.map((t) => (
+            <div key={t.id} className="rounded-lg border border-border bg-card/60 p-3">
+              <p className="line-clamp-1 text-[11px] text-muted-foreground">Now: {t.original}</p>
+              <ul className="mt-1 space-y-1">
+                {t.options.map((o) => (
+                  <li key={o} className="flex items-start justify-between gap-2 text-sm">
+                    <span>{o}</span>
+                    <button type="button" aria-label="Copy title" className="shrink-0 text-muted-foreground hover:text-primary" onClick={() => { void navigator.clipboard.writeText(o); toast.success("Title copied."); }}>
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      </div>
+    </div>
+  );
+}

@@ -145,3 +145,54 @@ describe("YouTube upload", () => {
     await expect(uploadYouTubeChunk({ ticket, userId: "44444444-4444-4444-8444-444444444444", start: 0, bytes: new ArrayBuffer(10) })).rejects.toThrow(/expired/);
   });
 });
+
+import { hasYouTubeScope, isoDurationSeconds } from "./youtube";
+import { channelInsights, listYouTubeComments, replyToYouTubeComment } from "./youtube-insights.server";
+
+describe("YouTube insights", () => {
+  it("reads ISO durations and scopes", () => {
+    expect(isoDurationSeconds("PT4M")).toBe(240);
+    expect(isoDurationSeconds("PT1H2M3S")).toBe(3723);
+    expect(isoDurationSeconds("P1DT1S")).toBe(86401);
+    expect(isoDurationSeconds("bad")).toBe(0);
+    expect(hasYouTubeScope(["https://www.googleapis.com/auth/youtube.force-ssl"], "youtube.force-ssl")).toBe(true);
+    expect(hasYouTubeScope(null, "yt-analytics.readonly")).toBe(false);
+  });
+
+  it("classifies uploads by the 4-minute rule and sums analytics", async () => {
+    state.account!["scopes"] = ["https://www.googleapis.com/auth/youtube.readonly", "https://www.googleapis.com/auth/yt-analytics.readonly"];
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes("/channels")) return Response.json({ items: [{ id: "UC123", snippet: { title: "Glocast" }, statistics: { viewCount: "5000", subscriberCount: "120", videoCount: "2" }, contentDetails: { relatedPlaylists: { uploads: "UU123" } } }] });
+      if (url.includes("/playlistItems")) return Response.json({ items: [{ contentDetails: { videoId: "a" } }, { contentDetails: { videoId: "b" } }] });
+      if (url.includes("/videos")) return Response.json({ items: [
+        { id: "a", snippet: { title: "Full detail", publishedAt: "2026-11-01T00:00:00Z" }, contentDetails: { duration: "PT8M" }, statistics: { viewCount: "300" } },
+        { id: "b", snippet: { title: "Quick tip", publishedAt: "2026-11-05T00:00:00Z" }, contentDetails: { duration: "PT45S" }, statistics: { viewCount: "900" } },
+      ] });
+      if (url.includes("youtubeanalytics")) return Response.json({ rows: [["2026-11-01", 10, 60, 2, 1, 30], ["2026-11-02", 30, 120, 1, 0, 50]] });
+      return new Response(null, { status: 404 });
+    });
+    const r = await channelInsights(BIZ, fetcher as unknown as typeof fetch);
+    expect(r.channel).toMatchObject({ subscribers: 120, views: 5000, videos: 2 });
+    expect(r.recent.map((v) => [v.id, v.form])).toEqual([["b", "short"], ["a", "long"]]);
+    expect(r.last28).toMatchObject({ views: 40, watchHours: 3, subscribersGained: 3, subscribersLost: 1, averageViewSeconds: 45 });
+    expect(r.commentsNeedReconnect).toBe(true);
+  });
+
+  it("lists comments, skips the channel's own and marks answered threads", async () => {
+    state.account!["scopes"] = ["https://www.googleapis.com/auth/youtube.force-ssl"];
+    const fetcher = vi.fn(async (url: string) => url.includes("/commentThreads")
+      ? Response.json({ items: [
+        { id: "t1", snippet: { videoId: "a", totalReplyCount: 1, topLevelComment: { id: "c1", snippet: { authorDisplayName: "Sam", authorChannelId: { value: "UCfan" }, textOriginal: "How much?" } } }, replies: { comments: [{ snippet: { authorChannelId: { value: "UC123" } } }] } },
+        { id: "t2", snippet: { videoId: "a", topLevelComment: { id: "c2", snippet: { authorChannelId: { value: "UC123" }, textOriginal: "Pinned" } } } },
+      ] })
+      : Response.json({ items: [{ id: "a", snippet: { title: "Full detail" } }] }));
+    const r = await listYouTubeComments(BIZ, fetcher as unknown as typeof fetch);
+    expect(r.comments).toHaveLength(1);
+    expect(r.comments[0]).toMatchObject({ commentId: "c1", answered: true, videoTitle: "Full detail" });
+  });
+
+  it("needs the comments permission to reply", async () => {
+    state.account!["scopes"] = ["https://www.googleapis.com/auth/youtube.readonly"];
+    await expect(replyToYouTubeComment({ businessId: BIZ, userId: USER, parentId: "Ugxabcdefghij", text: "Thanks!" })).rejects.toThrow(/Reconnect/);
+  });
+});

@@ -5,11 +5,30 @@
 
 export const YOUTUBE_CALLBACK_PATH = "/api/public/youtube/oauth/callback";
 
-/** Upload videos, and read the channel name so the owner sees where it goes. */
+/**
+ * Upload videos, read the channel and its stats, read and answer comments
+ * (force-ssl), and read YouTube Analytics (watch time, subscribers gained).
+ */
 export const YOUTUBE_SCOPES = [
   "https://www.googleapis.com/auth/youtube.upload",
   "https://www.googleapis.com/auth/youtube.readonly",
+  "https://www.googleapis.com/auth/youtube.force-ssl",
+  "https://www.googleapis.com/auth/yt-analytics.readonly",
 ] as const;
+
+/** Whether a saved grant includes a scope (older connections predate comments and analytics). */
+export const hasYouTubeScope = (scopes: string[] | null | undefined, suffix: "youtube.force-ssl" | "yt-analytics.readonly") =>
+  (scopes ?? []).some((s) => s.endsWith(`/${suffix}`));
+
+/** The 4-minute rule: 4 minutes or longer is long-form, shorter is short-form. */
+export const LONG_FORM_SECONDS = 240;
+
+/** ISO 8601 duration ("PT1H2M3S") to seconds. */
+export function isoDurationSeconds(value: string | null | undefined): number {
+  const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(value ?? "");
+  if (!m) return 0;
+  return (Number(m[1] ?? 0) * 86400) + (Number(m[2] ?? 0) * 3600) + (Number(m[3] ?? 0) * 60) + Number(m[4] ?? 0);
+}
 
 export const YOUTUBE_TITLE_MAX = 100;
 export const YOUTUBE_DESCRIPTION_MAX = 5000;
