@@ -351,6 +351,13 @@
       "when": 1794370000002,
       "tag": "0049_booking_api",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794370000003,
+      "tag": "0050_assistant_availability",
+      "breakpoints": true
     }
   ]
 }
