@@ -9,12 +9,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isDueForAutoComplete, jobEndsAt, jobValueFromPrice } from "@/lib/job-autocomplete";
 
-// businesses.auto_complete_jobs arrives with migration 0044.
+// businesses.auto_complete_jobs arrives with migration 0047.
 const db = () => supabaseAdmin as unknown as SupabaseClient;
 
 export async function processDueAutoCompletions(now = new Date()): Promise<{ completed: number; businesses: number }> {
   const { data: businesses, error } = await db().from("businesses").select("id").eq("auto_complete_jobs", true).limit(500);
-  if (error) return { completed: 0, businesses: 0 }; // Before migration 0044 nothing is switched on.
+  if (error) return { completed: 0, businesses: 0 }; // Before migration 0047 nothing is switched on.
   let completed = 0;
   for (const business of (businesses ?? []) as { id: string }[]) {
     completed += await completeDueJobsFor(business.id, now);
@@ -98,7 +98,7 @@ export async function getAutoCompleteSetting(businessId: string): Promise<{ enab
 
 export async function setAutoCompleteSetting(businessId: string, userId: string, enabled: boolean): Promise<void> {
   const { error } = await db().from("businesses").update({ auto_complete_jobs: enabled }).eq("id", businessId);
-  if (error) throw new Error("This setting is waiting for a BookedSecure update (migration 0044).");
+  if (error) throw new Error("This setting is waiting for a BookedSecure update (migration 0047).");
   await supabaseAdmin.from("audit_events").insert({
     business_id: businessId,
     user_id: userId,
