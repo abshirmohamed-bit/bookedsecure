@@ -2193,6 +2193,154 @@ export type Database = {
           },
         ]
       }
+      lead_finder_prospects: {
+        Row: {
+          address: string | null
+          business_id: string
+          category: string | null
+          created_at: string
+          email: string | null
+          email_status: string
+          fit: string
+          fit_reason: string | null
+          id: string
+          lead_id: string | null
+          name: string
+          phone: string | null
+          place_id: string
+          rating: number | null
+          review_count: number | null
+          search_id: string | null
+          status: string
+          suburb: string | null
+          summary: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          business_id: string
+          category?: string | null
+          created_at?: string
+          email?: string | null
+          email_status?: string
+          fit?: string
+          fit_reason?: string | null
+          id?: string
+          lead_id?: string | null
+          name: string
+          phone?: string | null
+          place_id: string
+          rating?: number | null
+          review_count?: number | null
+          search_id?: string | null
+          status?: string
+          suburb?: string | null
+          summary?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          business_id?: string
+          category?: string | null
+          created_at?: string
+          email?: string | null
+          email_status?: string
+          fit?: string
+          fit_reason?: string | null
+          id?: string
+          lead_id?: string | null
+          name?: string
+          phone?: string | null
+          place_id?: string
+          rating?: number | null
+          review_count?: number | null
+          search_id?: string | null
+          status?: string
+          suburb?: string | null
+          summary?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_finder_prospects_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_finder_prospects_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_finder_prospects_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_finder_prospects_search_id_fkey"
+            columns: ["search_id"]
+            isOneToOne: false
+            referencedRelation: "lead_finder_searches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_finder_searches: {
+        Row: {
+          area: string
+          business_id: string
+          created_at: string
+          created_by: string | null
+          criteria: string | null
+          error: string | null
+          found_count: number
+          id: string
+          query: string
+          status: string
+        }
+        Insert: {
+          area: string
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          criteria?: string | null
+          error?: string | null
+          found_count?: number
+          id?: string
+          query: string
+          status?: string
+        }
+        Update: {
+          area?: string
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          criteria?: string | null
+          error?: string | null
+          found_count?: number
+          id?: string
+          query?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_finder_searches_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_import_rows: {
         Row: {
           batch_id: string
