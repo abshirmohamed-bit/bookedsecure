@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { takeOAuthReturn } from "@/lib/oauth-return-store";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/auth/callback")({
+export const Route = createFileRoute("/oauth-return")({
   head: () => ({
     meta: [
       { title: "Signing you in | BookedSecure" },
@@ -97,9 +97,7 @@ function CallbackPage() {
               className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary"
               aria-hidden="true"
             />
-            <p className="mt-4 text-sm text-muted-foreground">
-              Signing you in…
-            </p>
+            <p className="mt-4 text-sm text-muted-foreground">Signing you in…</p>
           </>
         )}
       </div>

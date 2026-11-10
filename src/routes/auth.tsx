@@ -124,7 +124,7 @@ function AuthPage() {
     try {
       rememberOAuthReturn(search.next);
       const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: `${window.location.origin}/auth/callback`,
+        redirect_uri: `${window.location.origin}/oauth-return`,
       });
       if (result.error) {
         toast.error(result.error.message || "Could not start sign-in");
