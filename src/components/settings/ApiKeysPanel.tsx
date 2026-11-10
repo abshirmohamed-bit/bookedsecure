@@ -14,6 +14,17 @@ async function copy(text: string, label: string) {
   try { await navigator.clipboard.writeText(text); toast.success(`${label} copied.`); } catch { toast.error('Could not copy. Select the text instead.'); }
 }
 
+/** What a key can do, in words, from its scopes. */
+function keyAccessLabel(scopes: readonly string[]): string {
+  const parts = [
+    scopes.includes('leads:write') ? (scopes.includes('records:read') ? 'Leads + read' : 'Add leads') : null,
+    !scopes.includes('leads:write') && scopes.includes('records:read') ? 'Read records' : null,
+    scopes.includes('social:write') ? 'Comment inbox' : null,
+    scopes.includes('bookings:write') ? 'Website quotes and bookings' : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' + ') : 'No access';
+}
+
 export function ApiKeysPanel({ enabled }: { enabled: boolean }) {
   const qc = useQueryClient();
   const list = useServerFn(listApiKeys); const create = useServerFn(createApiKey); const revoke = useServerFn(revokeApiKey);
@@ -52,7 +63,7 @@ export function ApiKeysPanel({ enabled }: { enabled: boolean }) {
       {(keys.data ?? []).map((k) => <li key={k.id} className="flex items-center justify-between gap-4 py-3">
         <div className="min-w-0">
           <p className="break-words font-medium">{k.name} {k.revoked_at ? <span className="text-xs text-muted-foreground">(revoked)</span> : null}</p>
-          <p className="text-xs text-muted-foreground">{k.key_prefix}…{k.key_last4} · {k.scopes.includes('records:read') ? 'Leads + read' : 'Add leads only'} · {k.request_count} requests · {k.last_used_at ? `last used ${new Date(k.last_used_at).toLocaleString()}` : 'never used'}</p>
+          <p className="text-xs text-muted-foreground">{k.key_prefix}…{k.key_last4} · {keyAccessLabel(k.scopes)} · {k.request_count} requests · {k.last_used_at ? `last used ${new Date(k.last_used_at).toLocaleString()}` : 'never used'}</p>
         </div>
         {!k.revoked_at ? <Button variant="outline" size="sm" disabled={revokeM.isPending} onClick={() => { if (window.confirm(`Revoke "${k.name}"? Anything using it will stop working immediately.`)) revokeM.mutate(k.id); }}>Revoke</Button> : null}
       </li>)}
