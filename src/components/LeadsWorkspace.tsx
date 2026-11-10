@@ -492,7 +492,7 @@ export function LeadsWorkspace() {
                       <EditLeadName lead={lead} />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {lead.suburb ?? "Suburb unknown"} · {lead.vehicle_type ?? "Vehicle unknown"}
+                      {[lead.suburb, lead.vehicle_type].filter(Boolean).join(" · ") || "No location yet"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {lead.service_address ?? "Address not provided"}
@@ -715,7 +715,7 @@ function AddLeadForm({ onDone }: { onDone: () => void }) {
           ["mobile_number", "Mobile (04XX XXX XXX)"],
           ["suburb", "Suburb"],
           ["service_address", "Street address"],
-          ["vehicle_type", "Vehicle type"],
+          ["vehicle_type", "What it's for (vehicle, pool, site…)"],
           ["service_intent", "Service intent"],
           ["source_campaign", "Campaign / form"],
         ] as const

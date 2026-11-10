@@ -2,6 +2,7 @@
 // Tenant identity comes from the slug in the URL and nothing else: no browser-supplied
 // business id is ever trusted, and an unknown/inactive slug resolves to null (never a default).
 import { readSavedProfile, type BusinessProfile } from "@/lib/business-profile";
+import { nicheKitFor, type NicheKit } from "@/lib/niche";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normaliseSlug } from "@/lib/tenant-slug";
 import { sanitiseLogoUrl } from "@/lib/tenant-branding";
@@ -35,6 +36,8 @@ export type PublicTenant = {
   businessId: string;
   /** What kind of business this is and what its website says (null until set up from the site). */
   profile: BusinessProfile | null;
+  /** Wording and steps for this business's customers (vehicle, pool, company size…). */
+  niche: NicheKit;
   slug: string;
   name: string;
   logoUrl: string | null;
@@ -62,7 +65,7 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
   const { data: business } = await supabaseAdmin
     .from("businesses")
     .select(
-      "id, name, slug, logo_url, service_area, privacy_policy_url, status, quote_form_active, flexible_requests_enabled, quote_mode, quote_service_layout, quote_agent_enabled, quote_subject_label, quote_subject_options",
+      "id, name, slug, logo_url, service_area, privacy_policy_url, status, quote_form_active, flexible_requests_enabled, quote_mode, quote_service_layout, quote_agent_enabled, quote_subject_label, quote_subject_options, trade",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -113,10 +116,15 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     .maybeSingle()
     .then((result) => result, () => ({ data: null }));
   const profile = readSavedProfile((profileRow as { business_profile?: unknown } | null)?.business_profile);
+  const niche = nicheKitFor({ trade: business.trade, model: profile?.model ?? null, suggestedSubject: profile?.enquirySubject ?? null });
+  // The owner's own subject wording wins; otherwise the kit's, never a vehicle list for a non-detailer.
+  const ownSubject = (business.quote_subject_label ?? "").trim();
+  const ownOptions = (business.quote_subject_options ?? []).map((o: string) => o.trim()).filter(Boolean);
 
   return {
     businessId: business.id,
     profile,
+    niche,
     slug,
     addons,
     name: business.name,
@@ -129,8 +137,8 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     quoteServiceLayout: resolveQuoteServiceLayout(business.quote_service_layout),
     // The agent is on unless the owner has explicitly switched it off.
     quoteAgentEnabled: business.quote_agent_enabled !== false,
-    quoteSubjectLabel: quoteSubjectLabel(business.quote_subject_label),
-    quoteSubjectOptions: quoteSubjectOptions(business.quote_subject_options),
+    quoteSubjectLabel: ownSubject ? quoteSubjectLabel(ownSubject) : niche.subjectLabel,
+    quoteSubjectOptions: ownOptions.length > 0 ? quoteSubjectOptions(ownOptions) : niche.subjectOptions,
     services: (services ?? []).map((service) => ({
       id: service.id,
       name: service.name,

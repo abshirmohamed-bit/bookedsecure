@@ -112,6 +112,8 @@ function toChatTenant(tenant: PublicTenant, offerPercent?: number | null): WebCh
     flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
     bookingEnabled: isBookingOnlyTenant(tenant.businessId),
     quoteSubjectLabel: tenant.quoteSubjectLabel,
+    niche: tenant.niche,
+    profile: tenant.profile,
     addons: tenant.addons ?? [],
     services: tenant.services.map((service) => ({
       id: service.id,

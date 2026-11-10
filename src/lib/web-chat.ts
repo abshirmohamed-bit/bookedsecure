@@ -3,6 +3,7 @@
 // tenant's own approved data, so nothing here can invent a service or a price.
 
 import type { BusinessProfile } from "@/lib/business-profile";
+import type { NicheKit } from "@/lib/niche";
 import { normaliseAuMobile } from "@/lib/domain";
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import { looksUncertain, uncertainServiceMessage } from "@/lib/web-chat-conversation";
@@ -83,6 +84,8 @@ export type WebChatTenant = {
   offerPercent?: number | null;
   /** What kind of business this is and what its website says, for answering questions. */
   profile?: BusinessProfile | null;
+  /** Wording and steps matched to what the business does (vehicle, pool, company size…). */
+  niche?: NicheKit | null;
 };
 
 export type WebChatCollected = {
@@ -429,9 +432,11 @@ export function reviewSummary(
         ]
       : []),
     { step: "vehicle", label: tenant?.quoteSubjectLabel ?? "Vehicle", value: collected.vehicle_type ?? "Not provided yet" },
-    { step: "suburb", label: "Suburb", value: collected.suburb ?? "Not provided yet" },
-    { step: "address", label: "Address", value: collected.service_address ?? "Not provided yet" },
-    { step: "concerns", label: "Condition or concerns", value: collected.concerns ?? "Not provided yet" },
+    { step: "suburb", label: tenant?.niche?.locationLabel ?? "Suburb", value: collected.suburb ?? "Not provided yet" },
+    ...(tenant?.niche?.onSite === false
+      ? []
+      : [{ step: "address" as WebChatStep, label: "Address", value: collected.service_address ?? "Not provided yet" }]),
+    { step: "concerns", label: tenant?.niche?.concernsLabel ?? "Condition or concerns", value: collected.concerns ?? "Not provided yet" },
     { step: "name", label: "Name", value: collected.name ?? "Not provided yet" },
     { step: "mobile", label: "Mobile", value: collected.mobile_number ?? "Not provided yet" },
     { step: "email", label: "Email", value: collected.email ?? "Not provided" },
@@ -521,7 +526,7 @@ function buildPrompt(
       return {
         step,
         kind: "choice",
-        text: "Tell me what you need in your own words, for example “ceramic coating for my Mazda in Punchbowl next Tuesday”. You can also pick a service below.",
+        text: `Tell me what you need in your own words, for example “${tenant.niche?.serviceExample ?? "ceramic coating for my Mazda in Punchbowl next Tuesday"}”. You can also pick ${tenant.niche?.offeringWord === "plan" ? "a plan" : tenant.niche?.offeringWord === "product" ? "a product" : "a service"} below.`,
         options: [
           ...tenant.services.map((service) => ({
             value: service.id,
@@ -559,26 +564,31 @@ function buildPrompt(
       };
     }
     case "vehicle":
-      return { step, kind: "text", text: `What's the ${tenant.quoteSubjectLabel.toLowerCase()}?` };
-    case "suburb":
-      // Suburb and street address are asked together, the same way as name and
-      // mobile. One answer can carry both, or just the suburb.
       return {
         step,
         kind: "text",
-        text: "Which suburb are we coming to, and the street address?",
+        text: tenant.niche?.onSite === false ? tenant.niche.subjectQuestion : `What's the ${tenant.quoteSubjectLabel.toLowerCase()}?`,
+      };
+    case "suburb":
+      // Suburb and street address are asked together, the same way as name and
+      // mobile. One answer can carry both, or just the suburb. A business that
+      // doesn't come to the customer only asks where they're based.
+      return {
+        step,
+        kind: "text",
+        text: tenant.niche?.locationQuestion ?? "Which suburb are we coming to, and the street address?",
       };
     case "address":
       return {
         step,
         kind: "text",
-        text: "And the street address? (number and street)",
+        text: tenant.niche?.addressQuestion || "And the street address? (number and street)",
       };
     case "concerns":
       return {
         step,
         kind: "text",
-        text: "Anything we should focus on? Tell us what matters most for this job.",
+        text: tenant.niche?.concernsQuestion ?? "Anything we should focus on? Tell us what matters most for this job.",
       };
     case "name":
       return { step, kind: "text", text: CONTACT_ASK_TEXT };
@@ -762,12 +772,21 @@ export function splitSuburbAddress(value: string): {
 
 
 
+/** The help line for a step, in the business's own terms when it has a niche kit. */
+function fieldHint(step: "suburb" | "vehicle" | "name" | "concerns", tenant?: WebChatTenant): string {
+  if (step === "vehicle" && tenant?.niche) return tenant.niche.subjectHint;
+  if (step === "concerns" && tenant?.niche) return tenant.niche.concernsHint;
+  if (step === "suburb" && tenant?.niche?.onSite === false) return "Just the suburb or city is fine, for example Sydney.";
+  return FIELD_HINT[step];
+}
+
 function shapeRejection(
   step: "suburb" | "vehicle" | "name" | "concerns",
   value: string,
   origin: AnswerOrigin = "customer",
+  tenant?: WebChatTenant,
 ): string | null {
-  if (carriesOtherFields(step, value)) return FIELD_HINT[step];
+  if (carriesOtherFields(step, value)) return fieldHint(step, tenant);
   const parts = clauseParts(value);
   if (step === "concerns") {
     // An extracted note has already been separated from the other fields, so
@@ -776,10 +795,10 @@ function shapeRejection(
     // Descriptive prose is welcome. Only a list of unrelated fragments, the
     // shape of a whole message stuffed into one field, is refused.
     const average = parts.reduce((sum, part) => sum + part.length, 0) / Math.max(parts.length, 1);
-    if (parts.length >= 3 && average < 25) return FIELD_HINT.concerns;
+    if (parts.length >= 3 && average < 25) return fieldHint("concerns", tenant);
     return null;
   }
-  if (value.length > SHAPE_LIMITS[step] || parts.length >= 3) return FIELD_HINT[step];
+  if (value.length > SHAPE_LIMITS[step] || parts.length >= 3) return fieldHint(step, tenant);
   return null;
 }
 
@@ -1068,7 +1087,7 @@ export function applyAnswer(
     case "vehicle": {
       const subject = tenant.quoteSubjectLabel?.toLowerCase() ?? "vehicle";
       if (value.length < 2) return { ok: false, error: `Please tell me the ${subject} type.` };
-      const rejection = shapeRejection("vehicle", value);
+      const rejection = shapeRejection("vehicle", value, "customer", tenant);
       if (rejection) return { ok: false, error: rejection };
       next.vehicle_type = value;
       return { ok: true, collected: next, echo: value };
@@ -1077,7 +1096,17 @@ export function applyAnswer(
       // Suburb and street address are asked in one question, so one answer may
       // carry both. A whole message carrying other fields is still refused, so
       // nothing foreign is ever stored as a suburb or an address.
-      if (carriesOtherFields("suburb", value)) return { ok: false, error: FIELD_HINT.suburb };
+      if (carriesOtherFields("suburb", value)) return { ok: false, error: fieldHint("suburb", tenant) };
+      // A business that doesn't come to the customer only needs where they're
+      // based; that answer also stands in for the address so it isn't asked.
+      if (tenant.niche?.onSite === false) {
+        const place = value.replace(/[\s.,;:]+$/, "");
+        if (place.length < 2) return { ok: false, error: "Please tell me where your business is based." };
+        if (place.length > 60) return { ok: false, error: fieldHint("suburb", tenant) };
+        next.suburb = place;
+        next.service_address = place;
+        return { ok: true, collected: next, echo: place };
+      }
       const split = splitSuburbAddress(value);
       const suburb = split.suburb ?? "";
       if (suburb.length < 2) {
@@ -1088,7 +1117,7 @@ export function applyAnswer(
             : "Please tell me the suburb.",
         };
       }
-      const rejection = shapeRejection("suburb", suburb);
+      const rejection = shapeRejection("suburb", suburb, "customer", tenant);
       if (rejection) return { ok: false, error: rejection };
       next.suburb = suburb;
       if (split.address && split.address.length <= 160) next.service_address = split.address;
@@ -1112,8 +1141,8 @@ export function applyAnswer(
       return { ok: true, collected: next, echo: address };
     }
     case "concerns": {
-      if (value.length < 2) return { ok: false, error: "A short description of the condition helps the team." };
-      const rejection = shapeRejection("concerns", value, origin);
+      if (value.length < 2) return { ok: false, error: tenant.niche ? tenant.niche.concernsHint : "A short description of the condition helps the team." };
+      const rejection = shapeRejection("concerns", value, origin, tenant);
       if (rejection) return { ok: false, error: rejection };
       next.concerns = value;
       return { ok: true, collected: next, echo: value };

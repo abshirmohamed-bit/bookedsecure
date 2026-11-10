@@ -45,6 +45,7 @@ export function ServiceChooser({
   busy,
   flexibleValue,
   quantityLabel = "Vehicle",
+  showQuantity = true,
   layout = "focused_list",
   onSubmit,
 }: {
@@ -52,6 +53,8 @@ export function ServiceChooser({
   busy: boolean;
   flexibleValue: string;
   quantityLabel?: string;
+  /** False when counting makes no sense for this business (plans, a site, a pool). */
+  showQuantity?: boolean;
   layout?: QuoteServiceLayout;
   onSubmit: (value: string, label: string) => void;
 }) {
@@ -474,6 +477,7 @@ export function ServiceChooser({
                         <span>Add-ons{chosenCount > 0 ? ` ${chosenCount}` : ""}</span>
                       </button>
                       )}
+                    {showQuantity && (
                     <span
                       className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card"
                       role="group"
@@ -501,6 +505,7 @@ export function ServiceChooser({
                         <Plus className="h-3 w-3" aria-hidden="true" />
                       </button>
                     </span>
+                    )}
                      </div>
                   </div>
                   {hasExtras && open && (

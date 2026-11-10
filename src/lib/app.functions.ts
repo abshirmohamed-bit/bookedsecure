@@ -152,11 +152,17 @@ export const getLead = createServerFn({ method: "GET" })
         .then((response) => response.data),
       supabaseAdmin
         .from("businesses")
-        .select("quote_subject_label, timezone")
+        .select("quote_subject_label, timezone, trade")
         .eq("id", app.businessId)
         .single()
         .then((response) => response.data),
     ]);
+    // Without the owner's own label, use the one that fits the business (Vehicle, Pool, Company size…).
+    const { nicheKitFor } = await import("@/lib/niche");
+    const { readSavedProfile } = await import("@/lib/business-profile");
+    const { data: profileRow } = await supabaseAdmin.from("businesses").select("business_profile").eq("id", app.businessId).maybeSingle().then((r) => r, () => ({ data: null }));
+    const savedProfile = readSavedProfile((profileRow as { business_profile?: unknown } | null)?.business_profile);
+    const fittingSubject = nicheKitFor({ trade: business?.trade ?? null, model: savedProfile?.model ?? null, suggestedSubject: savedProfile?.enquirySubject ?? null }).subjectLabel;
 
     return {
       role: app.role,
@@ -170,7 +176,7 @@ export const getLead = createServerFn({ method: "GET" })
       services: services.data ?? [],
       notifications: notifications ?? [],
       automationJobs: automationJobs ?? [],
-      quoteSubjectLabel: quoteSubjectLabel(business?.quote_subject_label),
+      quoteSubjectLabel: (business?.quote_subject_label ?? "").trim() ? quoteSubjectLabel(business?.quote_subject_label) : fittingSubject,
       // Booking times are shown and typed in the business's own timezone.
       timeZone: business?.timezone ?? "Australia/Sydney",
     };

@@ -63,6 +63,8 @@ type Tenant = {
   privacyPolicyUrl: string | null;
   quoteSubjectLabel: string;
   quoteServiceLayout: QuoteServiceLayout;
+  /** Counting unit on the service cards ("Vehicle", "Pet"), or null when counting makes no sense. */
+  quantityLabel?: string | null | undefined;
 };
 
 /** A submitted-but-unconfirmed customer turn, kept visible through failures. */
@@ -505,7 +507,8 @@ export function AiQuoteChat({ tenant }: { tenant: Tenant }) {
                                 options={serviceOptions}
                                 busy={busy}
                                 flexibleValue={FLEXIBLE_CHOICE}
-                                quantityLabel={tenant.quoteSubjectLabel}
+                                quantityLabel={tenant.quantityLabel ?? tenant.quoteSubjectLabel}
+                                showQuantity={tenant.quantityLabel !== null}
                                 layout={tenant.quoteServiceLayout}
                                 onSubmit={(value, label) => {
                                    setSelected(value);

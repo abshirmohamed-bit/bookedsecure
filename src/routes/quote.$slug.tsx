@@ -82,6 +82,7 @@ function TenantQuotePage() {
           privacyPolicyUrl: tenant.privacyPolicyUrl,
           quoteSubjectLabel: tenant.quoteSubjectLabel,
           quoteServiceLayout: tenant.quoteServiceLayout,
+          quantityLabel: tenant.niche ? tenant.niche.quantityLabel : undefined,
         }}
       />
     );
@@ -95,8 +96,9 @@ function ManualQuoteForm() {
   const subjectOptions = quoteSubjectOptions(tenant.quoteSubjectOptions);
   // A business that sells plans or products isn't visited at an address: the
   // form asks where they're based and what they need instead of job condition.
-  const remote = tenant.businessModel === "subscription" || tenant.businessModel === "products";
-  const STEPS = ["Request", subjectLabel, remote ? "Your needs" : "Condition", "Contact"] as const;
+  const kit = tenant.niche;
+  const remote = kit ? !kit.onSite : tenant.businessModel === "subscription" || tenant.businessModel === "products";
+  const STEPS = ["Request", subjectLabel, remote ? "Your needs" : kit?.lastServicedQuestion ? "Condition" : "Details", "Contact"] as const;
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -347,7 +349,7 @@ function ManualQuoteForm() {
 
           {step === 1 && (
             <div className="space-y-4">
-              <Field label={remote ? `Which best describes your ${subjectLabel.toLowerCase()}?` : `What type of ${subjectLabel.toLowerCase()} is it?`}>
+              <Field label={remote ? `Which best describes your ${subjectLabel.toLowerCase()}?` : kit && subjectLabel === kit.subjectLabel ? kit.subjectQuestion : `What type of ${subjectLabel.toLowerCase()} is it?`}>
                 <select
                   value={form.vehicle_type}
                   onChange={(event) => set("vehicle_type", event.target.value)}
@@ -382,8 +384,8 @@ function ManualQuoteForm() {
 
           {step === 2 && (
             <div className="space-y-4">
-              {!remote && (
-              <Field label="When was it last professionally or thoroughly serviced?">
+              {!remote && (kit ? kit.lastServicedQuestion : true) && (
+              <Field label={kit?.lastServicedQuestion ?? "When was it last professionally or thoroughly serviced?"}>
                 <select
                   value={form.last_cleaned_at}
                   onChange={(event) => set("last_cleaned_at", event.target.value)}
@@ -404,7 +406,7 @@ function ManualQuoteForm() {
                 </select>
               </Field>
               )}
-              <Field label={remote ? "What are you looking for?" : "What are your main concerns?"}>
+              <Field label={kit?.concernsQuestion ?? (remote ? "What are you looking for?" : "What are your main concerns?")}>
                 <textarea
                   value={form.main_concerns}
                   onChange={(event) => set("main_concerns", event.target.value)}

@@ -183,6 +183,7 @@ export const getPublicQuoteForm = createServerFn({ method: "GET" })
       quoteSubjectOptions: tenant.quoteSubjectOptions,
       // Only how the business sells, so the form asks the right questions.
       businessModel: tenant.profile?.model ?? "booked_services",
+      niche: tenant.niche,
       services: tenant.services,
     };
   });
