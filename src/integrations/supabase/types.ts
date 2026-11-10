@@ -810,9 +810,12 @@ export type Database = {
           active: boolean
           business_id: string
           created_at: string
+          customer_reminder_hours: number | null
           horizon_days: number
           lead_time_minutes: number
           offer_ttl_minutes: number
+          slot_step_minutes: number
+          travel_buffer_minutes: number
           updated_at: string
           weekly_windows: Json
         }
@@ -820,9 +823,12 @@ export type Database = {
           active?: boolean
           business_id: string
           created_at?: string
+          customer_reminder_hours?: number | null
           horizon_days?: number
           lead_time_minutes?: number
           offer_ttl_minutes?: number
+          slot_step_minutes?: number
+          travel_buffer_minutes?: number
           updated_at?: string
           weekly_windows?: Json
         }
@@ -830,9 +836,12 @@ export type Database = {
           active?: boolean
           business_id?: string
           created_at?: string
+          customer_reminder_hours?: number | null
           horizon_days?: number
           lead_time_minutes?: number
           offer_ttl_minutes?: number
+          slot_step_minutes?: number
+          travel_buffer_minutes?: number
           updated_at?: string
           weekly_windows?: Json
         }
@@ -841,6 +850,44 @@ export type Database = {
             foreignKeyName: "booking_availability_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_blocks: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          ends_at: string
+          id: string
+          reason: string | null
+          starts_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          ends_at: string
+          id?: string
+          reason?: string | null
+          starts_at: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string
+          id?: string
+          reason?: string | null
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_blocks_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
             referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
@@ -2003,40 +2050,55 @@ export type Database = {
       }
       jobs: {
         Row: {
+          booking_details: Json | null
+          booking_request_key: string | null
           business_id: string
           completed_at: string | null
           completed_value: number | null
           completion_status: string
           created_at: string
+          customer_reminder_sent_at: string | null
+          duration_minutes: number | null
           id: string
           lead_id: string
           notes: string | null
+          quoted_price: number | null
           scheduled_at: string | null
           service_id: string | null
           service_performed: string | null
         }
         Insert: {
+          booking_details?: Json | null
+          booking_request_key?: string | null
           business_id: string
           completed_at?: string | null
           completed_value?: number | null
           completion_status?: string
           created_at?: string
+          customer_reminder_sent_at?: string | null
+          duration_minutes?: number | null
           id?: string
           lead_id: string
           notes?: string | null
+          quoted_price?: number | null
           scheduled_at?: string | null
           service_id?: string | null
           service_performed?: string | null
         }
         Update: {
+          booking_details?: Json | null
+          booking_request_key?: string | null
           business_id?: string
           completed_at?: string | null
           completed_value?: number | null
           completion_status?: string
           created_at?: string
+          customer_reminder_sent_at?: string | null
+          duration_minutes?: number | null
           id?: string
           lead_id?: string
           notes?: string | null
+          quoted_price?: number | null
           scheduled_at?: string | null
           service_id?: string | null
           service_performed?: string | null
@@ -4201,6 +4263,7 @@ export type Database = {
           name: string
           price_guidance: string | null
           qualification_note: string | null
+          size_options: Json
         }
         Insert: {
           active?: boolean
@@ -4218,6 +4281,7 @@ export type Database = {
           name: string
           price_guidance?: string | null
           qualification_note?: string | null
+          size_options?: Json
         }
         Update: {
           active?: boolean
@@ -4235,6 +4299,7 @@ export type Database = {
           name?: string
           price_guidance?: string | null
           qualification_note?: string | null
+          size_options?: Json
         }
         Relationships: [
           {
@@ -5208,6 +5273,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      api_book_appointment: {
+        Args: {
+          p_booking: Json
+          p_business_id: string
+          p_customer: Json
+          p_request_key: string
+        }
+        Returns: Json
       }
       assistant_account_action: {
         Args: { p_action: string; p_input: Json }
