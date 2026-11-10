@@ -288,6 +288,13 @@
       "when": 1794330000002,
       "tag": "0040_open_access",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794340000000,
+      "tag": "0041_business_profile",
+      "breakpoints": true
     }
   ]
 }

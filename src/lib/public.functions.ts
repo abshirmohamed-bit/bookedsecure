@@ -181,6 +181,8 @@ export const getPublicQuoteForm = createServerFn({ method: "GET" })
       quoteServiceLayout: tenant.quoteServiceLayout,
       quoteSubjectLabel: tenant.quoteSubjectLabel,
       quoteSubjectOptions: tenant.quoteSubjectOptions,
+      // Only how the business sells, so the form asks the right questions.
+      businessModel: tenant.profile?.model ?? "booked_services",
       services: tenant.services,
     };
   });

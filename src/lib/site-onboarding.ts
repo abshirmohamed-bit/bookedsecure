@@ -11,6 +11,7 @@
  */
 
 import type { AvailabilityWindow } from "@/lib/availability";
+import { EMPTY_PROFILE, previewSections, type BusinessProfile } from "@/lib/business-profile";
 import { normaliseGroupLabel } from "@/lib/service-groups";
 
 export const MAX_PROPOSED_SERVICES = 20;
@@ -55,6 +56,8 @@ export type ScrapedSite = {
   logoUrl?: string | null;
   services?: ScrapedService[] | null;
   addons?: ScrapedAddon[] | null;
+  /** What kind of business this is and what its site says about it. */
+  profile?: BusinessProfile | null;
 };
 
 export type ProposedService = {
@@ -99,6 +102,8 @@ export type OnboardingProposal = {
   services: ProposedService[];
   addons: ProposedAddon[];
   weeklyWindows: AvailabilityWindow[];
+  /** What kind of business this is and what its site says: decides what the preview, quote page and AI chat show. */
+  profile: BusinessProfile;
   /** Plain-language notes for the owner about anything the site did not say. */
   warnings: string[];
 };
@@ -668,11 +673,13 @@ export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): O
       appliesTo: null,
     }));
 
+  const profile: BusinessProfile = site.profile ?? { ...EMPTY_PROFILE };
   const services = proposeServices(listedServices, site.businessName);
-  const rawAddons = proposeAddons(
-    [...(Array.isArray(site.addons) ? site.addons : []), ...listedAsAddons],
-    services,
-  );
+  const plans = services.filter((service) => service.billing === "recurring").length;
+  // Extras only exist for businesses that sell jobs; a plans business has none.
+  const rawAddons = previewSections(profile, { addons: 1, plans }).extras
+    ? proposeAddons([...(Array.isArray(site.addons) ? site.addons : []), ...listedAsAddons], services)
+    : [];
   const logoForImages = site.logoUrl ?? null;
   tidyScrapedCards(services, logoForImages);
   tidyScrapedCards(rawAddons, logoForImages);
@@ -688,7 +695,7 @@ export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): O
   if (services.length === 0) warnings.push("No services or prices were listed, so you'll add those yourself.");
   else if (services.every((service) => !service.price_guidance))
     warnings.push("The site lists services but no prices, so prices are left blank.");
-  if (weeklyWindows.length === 0)
+  if (weeklyWindows.length === 0 && previewSections(profile, { addons: 0, plans }).hours)
     warnings.push(
       openingHours
         ? "Opening hours could not be read as bookable times, so set your availability manually."
@@ -709,6 +716,7 @@ export function buildOnboardingProposal(site: ScrapedSite, sourceUrl: string): O
     services,
     addons,
     weeklyWindows,
+    profile,
     warnings,
   };
 }

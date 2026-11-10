@@ -50,6 +50,29 @@ const ProposalSchema = z.object({
     .max(20)
     .default([]),
   weeklyWindows: z.array(WindowSchema).max(21),
+  profile: z
+    .object({
+      industry: z.string().max(60).nullable(),
+      model: z.enum(["booked_services", "subscription", "quotes", "products"]),
+      summary: z.string().max(500).nullable(),
+      audience: z.string().max(200).nullable(),
+      highlights: z.array(z.string().max(120)).max(8),
+      policies: z.array(z.string().max(160)).max(6),
+      faqs: z.array(z.object({ question: z.string().max(160), answer: z.string().max(600) })).max(12),
+      contactEmail: z.string().max(120).nullable(),
+      enquirySubject: z.object({ label: z.string().max(30), options: z.array(z.string().max(40)).max(10) }).nullable(),
+    })
+    .default({
+      industry: null,
+      model: "booked_services",
+      summary: null,
+      audience: null,
+      highlights: [],
+      policies: [],
+      faqs: [],
+      contactEmail: null,
+      enquirySubject: null,
+    }),
   warnings: z.array(z.string().max(300)).max(20),
 });
 

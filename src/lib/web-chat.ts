@@ -2,6 +2,7 @@
 // No database, no network, no model call. every prompt is derived from the
 // tenant's own approved data, so nothing here can invent a service or a price.
 
+import type { BusinessProfile } from "@/lib/business-profile";
 import { normaliseAuMobile } from "@/lib/domain";
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import { looksUncertain, uncertainServiceMessage } from "@/lib/web-chat-conversation";
@@ -80,6 +81,8 @@ export type WebChatTenant = {
   addons?: ServiceAddon[];
   /** Campaign discount percentage for this visitor, when recognised. */
   offerPercent?: number | null;
+  /** What kind of business this is and what its website says, for answering questions. */
+  profile?: BusinessProfile | null;
 };
 
 export type WebChatCollected = {

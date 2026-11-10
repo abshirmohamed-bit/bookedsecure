@@ -12,6 +12,7 @@ import { ALLOWED_LOGO_TYPES, MAX_LOGO_BYTES } from "@/lib/tenant-logo";
 import { storeTenantLogo } from "@/lib/tenant-account.server";
 import { copyServiceImageFromUrl } from "@/lib/service-images.server";
 import { resolveRemoteImageUrl } from "@/lib/service-images";
+import { buildBusinessProfile, mergeProfiles } from "@/lib/business-profile";
 import {
   buildOnboardingProposal,
   keepItemsOnPage,
@@ -37,6 +38,16 @@ const EXTRACTION_PROMPT = [
   "and never copy a page-wide headline price (for example 'From $350/mo' in a hero banner) onto individual items.",
   "For a plan, write its price with its billing period exactly as shown (for example 'A$700/mo') and use the plan's tagline as the description.",
   "Never list the business's own name, the product name on its own, or a whole page as a service.",
+  "Also fill 'profile' with what the site says about the business itself:",
+  "industry (a short plain description such as 'Security workforce software' or 'Mobile car detailing');",
+  "businessModel: 'booked_services' when customers book a job or appointment, 'subscription' when they buy plans billed",
+  "per week/month/year, 'quotes' when each job is quoted first, 'products' when it sells goods;",
+  "summary (two or three sentences on what it does, in the site's words); audience (who it serves);",
+  "highlights (up to 8 key features or selling points, short); policies (free trial, cancellation, guarantees, data hosting",
+  "and similar terms, as stated); faqs (questions and answers shown on the page, answers shortened but not changed);",
+  "contactEmail (only if shown); and enquirySubject: what a new customer's enquiry form should ask about for this kind",
+  "of business, as a short label with up to 8 common options (for a detailer 'Vehicle' with vehicle types; for software",
+  "for businesses 'Company size' with team-size ranges). Only use facts the page states.",
   "Return the trading name, the suburb/city, the areas or suburbs served, the public contact phone number,",
   "the opening hours exactly as written, and the list of services offered.",
   "For each service include its name, its price exactly as written on the page (including any 'from'),",
@@ -75,6 +86,26 @@ const EXTRACTION_SCHEMA = {
           description: { type: "string" },
           durationMinutes: { type: "number" },
           imageUrl: { type: "string" },
+        },
+      },
+    },
+    profile: {
+      type: "object",
+      properties: {
+        industry: { type: "string" },
+        businessModel: { type: "string", enum: ["booked_services", "subscription", "quotes", "products"] },
+        summary: { type: "string" },
+        audience: { type: "string" },
+        highlights: { type: "array", items: { type: "string" } },
+        policies: { type: "array", items: { type: "string" } },
+        faqs: {
+          type: "array",
+          items: { type: "object", properties: { question: { type: "string" }, answer: { type: "string" } } },
+        },
+        contactEmail: { type: "string" },
+        enquirySubject: {
+          type: "object",
+          properties: { label: { type: "string" }, options: { type: "array", items: { type: "string" } } },
         },
       },
     },
@@ -373,6 +404,10 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
   const addons = mergeScrapedItems(allPages.map((result) => verified(result, "addons")));
   if (dropped > 0) console.warn(`[site-onboarding] dropped ${dropped} item(s) not found on the page`);
   const allText = allPages.map(pageText).filter(Boolean).join("\n");
+  // Tabs repeat their page, so only the root and its pages describe the business.
+  const profile = mergeProfiles(
+    [root, ...pageResults].map((result) => buildBusinessProfile(result.extracted["profile"], pageText(result))),
+  );
 
   if (!payload) {
     throw new Error(
@@ -395,6 +430,7 @@ export async function previewSiteOnboarding(app: AppContext, rawUrl: string): Pr
     logoUrl: branding?.logo ?? branding?.images?.logo ?? null,
     services,
     addons,
+    profile,
   };
 
   const proposal = buildOnboardingProposal(site, url);
@@ -471,6 +507,31 @@ export async function applySiteOnboarding(
   if (Object.keys(businessPatch).length > 0) {
     const { error } = await supabaseAdmin.from("businesses").update(businessPatch).eq("id", app.businessId);
     if (error) throw new Error(error.message);
+  }
+
+  // What kind of business this is and what its site says, for the quote page
+  // and the AI chat. The quote form's subject is only set when the owner hasn't
+  // chosen one, so their own wording always wins. Before migration 0041 the
+  // profile column doesn't exist yet, which never blocks saving.
+  {
+    const { data: current } = await supabaseAdmin
+      .from("businesses")
+      .select("quote_subject_label, website_url")
+      .eq("id", app.businessId)
+      .maybeSingle();
+    const extra: Record<string, unknown> = { business_profile: proposal.profile };
+    if (!current?.website_url) extra["website_url"] = proposal.sourceUrl;
+    const subject = proposal.profile.enquirySubject;
+    if (subject && !current?.quote_subject_label) {
+      extra["quote_subject_label"] = subject.label;
+      if (subject.options.length > 0) extra["quote_subject_options"] = subject.options;
+    }
+    const { error } = await supabaseAdmin.from("businesses").update(extra as never).eq("id", app.businessId);
+    if (error) {
+      const { business_profile: _profile, ...rest } = extra;
+      if (Object.keys(rest).length > 0) await supabaseAdmin.from("businesses").update(rest as never).eq("id", app.businessId);
+      notes.push("Your business profile will be kept once BookedSecure's latest update is applied.");
+    }
   }
 
   const { data: existingServices } = await supabaseAdmin

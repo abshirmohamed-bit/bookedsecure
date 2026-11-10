@@ -1110,6 +1110,7 @@ export type Database = {
           agent_kill_switch_reason: string | null
           agent_max_leads_per_activation: number
           automation_enabled: boolean
+          business_profile: Json | null
           billing_interval: string
           cancel_at_period_end: boolean
           complimentary_access: boolean
@@ -1165,6 +1166,7 @@ export type Database = {
           agent_kill_switch_reason?: string | null
           agent_max_leads_per_activation?: number
           automation_enabled?: boolean
+          business_profile?: Json | null
           billing_interval?: string
           cancel_at_period_end?: boolean
           complimentary_access?: boolean
@@ -1220,6 +1222,7 @@ export type Database = {
           agent_kill_switch_reason?: string | null
           agent_max_leads_per_activation?: number
           automation_enabled?: boolean
+          business_profile?: Json | null
           billing_interval?: string
           cancel_at_period_end?: boolean
           complimentary_access?: boolean

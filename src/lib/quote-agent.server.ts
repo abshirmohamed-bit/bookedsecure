@@ -70,6 +70,7 @@ function toAgentTenant(tenant: PublicTenant): WebChatTenant {
     flexibleRequestsEnabled: tenant.flexibleRequestsEnabled,
     bookingEnabled: isBookingOnlyTenant(tenant.businessId),
     quoteSubjectLabel: tenant.quoteSubjectLabel,
+    profile: tenant.profile,
     addons: tenant.addons ?? [],
     services: tenant.services.map((service) => ({
       id: service.id,

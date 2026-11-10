@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { AlertTriangle, Building2, Clock, Globe, MapPin, Phone, Sparkles } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Building2, ChevronDown, Clock, Globe, HelpCircle, Mail, MapPin, MessageSquareText, Phone, ShieldCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { applyTenantSite, readTenantSite } from "@/lib/site-onboarding.functions";
 import { formatMinutes, groupItems } from "@/lib/service-groups";
 import type { OnboardingProposal, ProposedService } from "@/lib/site-onboarding";
+import { BUSINESS_MODEL_LABELS, EMPTY_PROFILE, previewSections } from "@/lib/business-profile";
 
 /** "A$700/mo" → { amount: "A$700", period: "/mo" }, so plan prices read like a pricing table. */
 function splitPrice(price: string): { amount: string; period: string | null } {
@@ -145,12 +146,17 @@ export function ProposalPreview({
   const [active, setActive] = useState<string>("all");
   const visibleGroups = active === "all" ? groups : groups.filter((group) => group.label === active);
   const othersLabel = groups.length === 1 && groups[0]!.label === "Other" ? "Services" : null;
+  const profile = proposal.profile ?? EMPTY_PROFILE;
+  const sections = previewSections(profile, { addons: newAddons.length, plans: plans.length });
+  const [allFaqs, setAllFaqs] = useState(false);
+  const faqs = allFaqs ? profile.faqs : profile.faqs.slice(0, 4);
 
   const counts = [
     plans.length ? `${plans.length} plan${plans.length === 1 ? "" : "s"}` : null,
     others.length ? `${others.length} service${others.length === 1 ? "" : "s"}` : null,
-    newAddons.length ? `${newAddons.length} extra${newAddons.length === 1 ? "" : "s"}` : null,
-    proposal.weeklyWindows.length ? `${proposal.weeklyWindows.length} time windows` : null,
+    sections.extras && newAddons.length ? `${newAddons.length} extra${newAddons.length === 1 ? "" : "s"}` : null,
+    profile.faqs.length ? `${profile.faqs.length} FAQ${profile.faqs.length === 1 ? "" : "s"}` : null,
+    sections.hours && proposal.weeklyWindows.length ? `${proposal.weeklyWindows.length} time windows` : null,
   ].filter(Boolean);
 
   return (
@@ -173,12 +179,30 @@ export function ProposalPreview({
             </p>
           </div>
         </div>
+        {(profile.industry || profile.model) && (
+          <div className="flex flex-wrap gap-1.5">
+            {profile.industry && <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[0.7rem] font-medium text-primary">{profile.industry}</span>}
+            <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[0.7rem] text-muted-foreground">{BUSINESS_MODEL_LABELS[profile.model]}</span>
+          </div>
+        )}
 
         <dl className="space-y-1.5 rounded-xl border border-border bg-card p-3 text-xs">
           <Detail icon={<MapPin className="size-3.5" />} label="Area" value={proposal.business.service_area} />
           <Detail icon={<Phone className="size-3.5" />} label="Phone" value={proposal.business.phone_number} />
-          <Detail icon={<Clock className="size-3.5" />} label="Hours" value={proposal.business.opening_hours} />
+          {sections.hours && <Detail icon={<Clock className="size-3.5" />} label="Hours" value={proposal.business.opening_hours} />}
+          {(profile.contactEmail || !sections.hours) && <Detail icon={<Mail className="size-3.5" />} label="Email" value={profile.contactEmail} />}
         </dl>
+
+        {profile.enquirySubject && (
+          <div className="rounded-xl border border-border bg-card p-3 text-xs">
+            <p className="flex items-center gap-1.5 font-medium"><MessageSquareText className="size-3.5 text-primary" /> Your quote page will ask about</p>
+            <p className="mt-1 font-semibold">{profile.enquirySubject.label}</p>
+            {profile.enquirySubject.options.length > 0 && (
+              <p className="mt-0.5 text-[0.7rem] leading-snug text-muted-foreground">{profile.enquirySubject.options.join(" · ")}</p>
+            )}
+            <p className="mt-1 text-[0.65rem] text-muted-foreground">Only used if you haven't set this yourself. You can change it any time.</p>
+          </div>
+        )}
 
         {proposal.warnings.length > 0 && (
           <ul className="space-y-1.5 rounded-xl border border-warning/30 bg-warning/10 p-3 text-[0.7rem] text-foreground/80">
@@ -205,9 +229,17 @@ export function ProposalPreview({
         </div>
       </aside>
 
-      {/* Right: what the business sells. */}
+      {/* Right: about the business, then what it sells, then what customers ask. */}
       <div className="@container/items min-w-0 space-y-4">
-        {newServices.length === 0 && newAddons.length === 0 && (
+        {(profile.summary || profile.audience) && (
+          <section aria-label="About" className="rounded-xl border border-border bg-card p-3">
+            <h4 className="mb-1 text-xs font-semibold">About</h4>
+            {profile.summary && <p className="text-xs leading-relaxed text-foreground/85">{profile.summary}</p>}
+            {profile.audience && <p className="mt-1.5 text-[0.7rem] text-muted-foreground"><span className="font-medium text-foreground/70">Who it's for:</span> {profile.audience}</p>}
+          </section>
+        )}
+
+        {newServices.length === 0 && (!sections.extras || newAddons.length === 0) && (
           <div className="grid h-full min-h-40 place-items-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
             No new services or prices were found. You can add them yourself after saving.
           </div>
@@ -216,7 +248,7 @@ export function ProposalPreview({
         {plans.length > 0 && (
           <section aria-label="Plans">
             <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold">
-              <Sparkles className="size-3.5 text-primary" /> Plans
+              <Sparkles className="size-3.5 text-primary" /> {sections.offeringsTitle === "Plans and pricing" ? "Plans and pricing" : "Plans"}
             </h4>
             <div className="grid gap-2 @md/items:grid-cols-2 @2xl/items:grid-cols-3">
               {plans.map((plan) => (
@@ -251,7 +283,7 @@ export function ProposalPreview({
                   )}
                   <div className="grid gap-2 @md/items:grid-cols-2 @2xl/items:grid-cols-3">
                     {group.items.map((service) => (
-                      <ServiceCard key={service.name} service={service} />
+                      <ServiceCard key={service.name} service={service} showLength={sections.durations} />
                     ))}
                   </div>
                 </div>
@@ -260,7 +292,55 @@ export function ProposalPreview({
           </section>
         )}
 
-        {newAddons.length > 0 && (
+        {(profile.highlights.length > 0 || profile.policies.length > 0) && (
+          <div className="grid gap-3 @2xl/items:grid-cols-2">
+            {profile.highlights.length > 0 && (
+              <section aria-label="Key features" className="rounded-xl border border-border bg-card p-3">
+                <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold"><BadgeCheck className="size-3.5 text-primary" /> Key features</h4>
+                <ul className="space-y-1 text-[0.7rem] leading-snug text-foreground/85">
+                  {profile.highlights.map((item) => (
+                    <li key={item} className="flex gap-1.5"><span className="mt-1.5 size-1 shrink-0 rounded-full bg-primary" />{item}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {profile.policies.length > 0 && (
+              <section aria-label="Terms" className="rounded-xl border border-border bg-card p-3">
+                <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold"><ShieldCheck className="size-3.5 text-primary" /> Trial and terms</h4>
+                <ul className="space-y-1 text-[0.7rem] leading-snug text-foreground/85">
+                  {profile.policies.map((item) => (
+                    <li key={item} className="flex gap-1.5"><span className="mt-1.5 size-1 shrink-0 rounded-full bg-primary" />{item}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+        )}
+
+        {profile.faqs.length > 0 && (
+          <section aria-label="Questions customers ask" className="rounded-xl border border-border bg-card p-3">
+            <h4 className="mb-1 flex items-center gap-1.5 text-xs font-semibold"><HelpCircle className="size-3.5 text-primary" /> Questions customers ask</h4>
+            <p className="mb-2 text-[0.65rem] text-muted-foreground">Your AI chat answers from these.</p>
+            <div className="divide-y divide-border">
+              {faqs.map((faq) => (
+                <details key={faq.question} className="group py-1.5">
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-2 text-[0.75rem] font-medium [&::-webkit-details-marker]:hidden">
+                    {faq.question}
+                    <ChevronDown className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                  </summary>
+                  <p className="mt-1 text-[0.7rem] leading-snug text-muted-foreground">{faq.answer}</p>
+                </details>
+              ))}
+            </div>
+            {profile.faqs.length > 4 && (
+              <button type="button" onClick={() => setAllFaqs((v) => !v)} className="mt-1 text-[0.7rem] font-medium text-primary hover:underline">
+                {allFaqs ? "Show fewer" : `Show all ${profile.faqs.length}`}
+              </button>
+            )}
+          </section>
+        )}
+
+        {sections.extras && newAddons.length > 0 && (
           <section aria-label="Optional extras">
             <h4 className="mb-2 text-xs font-semibold">Optional extras</h4>
             <ul className="flex flex-wrap gap-1.5">
@@ -323,8 +403,8 @@ function PlanCard({ plan }: { plan: ProposedService }) {
   );
 }
 
-function ServiceCard({ service }: { service: ProposedService }) {
-  const length = service.duration_stated !== false ? formatMinutes(service.duration_minutes) : null;
+function ServiceCard({ service, showLength }: { service: ProposedService; showLength: boolean }) {
+  const length = showLength && service.duration_stated !== false ? formatMinutes(service.duration_minutes) : null;
   return (
     <div className="flex min-w-0 items-start gap-2.5 rounded-xl border border-border bg-card p-2.5">
       {service.image_url && (

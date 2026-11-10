@@ -1,6 +1,7 @@
 // Server-only tenant resolution for the public quote form.
 // Tenant identity comes from the slug in the URL and nothing else: no browser-supplied
 // business id is ever trusted, and an unknown/inactive slug resolves to null (never a default).
+import { readSavedProfile, type BusinessProfile } from "@/lib/business-profile";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normaliseSlug } from "@/lib/tenant-slug";
 import { sanitiseLogoUrl } from "@/lib/tenant-branding";
@@ -32,6 +33,8 @@ export type PublicService = {
 
 export type PublicTenant = {
   businessId: string;
+  /** What kind of business this is and what its website says (null until set up from the site). */
+  profile: BusinessProfile | null;
   slug: string;
   name: string;
   logoUrl: string | null;
@@ -102,8 +105,18 @@ export async function resolvePublicTenant(rawSlug: string | null | undefined): P
     }))
     .filter((addon) => addon.serviceIds.length > 0);
 
+  // Read on its own so the quote page keeps working before migration 0041.
+  const { data: profileRow } = await supabaseAdmin
+    .from("businesses")
+    .select("business_profile")
+    .eq("id", business.id)
+    .maybeSingle()
+    .then((result) => result, () => ({ data: null }));
+  const profile = readSavedProfile((profileRow as { business_profile?: unknown } | null)?.business_profile);
+
   return {
     businessId: business.id,
+    profile,
     slug,
     addons,
     name: business.name,

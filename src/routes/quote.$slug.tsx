@@ -93,7 +93,10 @@ function ManualQuoteForm() {
   const tenant = Route.useLoaderData();
   const subjectLabel = quoteSubjectLabel(tenant.quoteSubjectLabel);
   const subjectOptions = quoteSubjectOptions(tenant.quoteSubjectOptions);
-  const STEPS = ["Request", subjectLabel, "Condition", "Contact"] as const;
+  // A business that sells plans or products isn't visited at an address: the
+  // form asks where they're based and what they need instead of job condition.
+  const remote = tenant.businessModel === "subscription" || tenant.businessModel === "products";
+  const STEPS = ["Request", subjectLabel, remote ? "Your needs" : "Condition", "Contact"] as const;
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -344,7 +347,7 @@ function ManualQuoteForm() {
 
           {step === 1 && (
             <div className="space-y-4">
-              <Field label={`What type of ${subjectLabel.toLowerCase()} is it?`}>
+              <Field label={remote ? `Which best describes your ${subjectLabel.toLowerCase()}?` : `What type of ${subjectLabel.toLowerCase()} is it?`}>
                 <select
                   value={form.vehicle_type}
                   onChange={(event) => set("vehicle_type", event.target.value)}
@@ -358,7 +361,7 @@ function ManualQuoteForm() {
                   ))}
                 </select>
               </Field>
-              <Field label={`Which suburb is the ${subjectLabel.toLowerCase()} in?`}>
+              <Field label={remote ? "Where is your business based?" : `Which suburb is the ${subjectLabel.toLowerCase()} in?`}>
                 <input
                   value={form.suburb}
                   onChange={(event) => set("suburb", event.target.value)}
@@ -366,11 +369,11 @@ function ManualQuoteForm() {
                   className="form-control"
                 />
               </Field>
-              <Field label="What's the street address we should come to?">
+              <Field label={remote ? "Your business name" : "What's the street address we should come to?"}>
                 <input
                   value={form.service_address}
                   onChange={(event) => set("service_address", event.target.value)}
-                  placeholder="e.g. 12 Smith St"
+                  placeholder={remote ? "e.g. Smith Security Pty Ltd" : "e.g. 12 Smith St"}
                   className="form-control"
                 />
               </Field>
@@ -379,6 +382,7 @@ function ManualQuoteForm() {
 
           {step === 2 && (
             <div className="space-y-4">
+              {!remote && (
               <Field label="When was it last professionally or thoroughly serviced?">
                 <select
                   value={form.last_cleaned_at}
@@ -399,7 +403,8 @@ function ManualQuoteForm() {
                   ))}
                 </select>
               </Field>
-              <Field label="What are your main concerns?">
+              )}
+              <Field label={remote ? "What are you looking for?" : "What are your main concerns?"}>
                 <textarea
                   value={form.main_concerns}
                   onChange={(event) => set("main_concerns", event.target.value)}

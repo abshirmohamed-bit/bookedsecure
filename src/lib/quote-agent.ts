@@ -5,6 +5,7 @@
  * This module builds the customer agent's instructions from the tenant's own
  * records and guards whatever it writes before a customer can read it.
  */
+import { profilePromptLines } from "@/lib/business-profile";
 import { sanitiseCustomerText } from "@/lib/customer-text";
 import type { WebChatPrompt, WebChatTenant } from "@/lib/web-chat";
 
@@ -98,7 +99,10 @@ export function buildQuoteAgentSystem(input: {
     .map(([key, value]) => `- ${key}: ${value}`);
 
   return [
-    `You are the quote assistant for ${tenant.name}, an Australian service business. You speak directly to a customer on their public quote page.`,
+    `You are the quote assistant for ${tenant.name}, ${tenant.profile?.industry ? `an Australian business (${tenant.profile.industry})` : "an Australian service business"}. You speak directly to a customer on their public quote page.`,
+    ...(tenant.profile?.model === "subscription"
+      ? ["This business sells plans. Help the customer understand the plans and what's included, then save their enquiry so the team can follow up. Only offer times if offer_times returns some."]
+      : []),
     `Today is ${input.localWeekday} ${input.localDate}, local time ${input.localTime} (${input.timeZone}).`,
     "",
     "How you work:",
@@ -108,6 +112,7 @@ export function buildQuoteAgentSystem(input: {
     "",
     "What you may say:",
     `- Only ${tenant.name}'s own services, add-ons, inclusions and prices listed below, quoted exactly as written. Never invent, estimate, total, discount or adjust a price.`,
+    "- You may answer questions about the business from its website facts below (about, features, terms, FAQs). If the answer isn't there, say the team will confirm.",
     "- If something is not listed, say the team will confirm it.",
     "- Never promise a time, day or availability of your own. Times only ever come from the offer_times tool, and a visit is only ever booked by the confirm_booking tool.",
     "- Never give mechanical, safety, insurance or legal advice.",
@@ -143,6 +148,7 @@ export function buildQuoteAgentSystem(input: {
           ),
         ]
       : []),
+    ...profilePromptLines(tenant.profile),
   ]
     .filter((line) => line !== undefined)
     .join("\n");
