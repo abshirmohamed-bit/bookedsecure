@@ -5185,6 +5185,7 @@ export type Database = {
           error: string | null
           id: string
           instructions: string | null
+          options: Json | null
           progress: number
           rights_confirmed: boolean
           source_kind: string
@@ -5209,6 +5210,7 @@ export type Database = {
           error?: string | null
           id?: string
           instructions?: string | null
+          options?: Json | null
           progress?: number
           rights_confirmed?: boolean
           source_kind: string
@@ -5233,6 +5235,7 @@ export type Database = {
           error?: string | null
           id?: string
           instructions?: string | null
+          options?: Json | null
           progress?: number
           rights_confirmed?: boolean
           source_kind?: string
