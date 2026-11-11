@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { CLIP_LAYOUT_IDS, VIDEO_ASPECTS } from "@/lib/video-clips";
 
 /** Everything being clipped for this business, and whether clipping is switched on. */
 export const getVideoClips = createServerFn({ method: "POST" })
@@ -87,7 +88,7 @@ export const deleteVideoJobs = createServerFn({ method: "POST" })
     return { deleted: await deleteClipJobs(ctx.businessId, data.jobId) };
   });
 
-export const renameVideoClip =createServerFn({ method: "POST" })
+export const renameVideoClip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ clipId: z.string().uuid(), title: z.string().min(1).max(200) }).parse(input))
   .handler(async ({ context, data }) => {
@@ -95,4 +96,36 @@ export const renameVideoClip =createServerFn({ method: "POST" })
     const { renameClip } = await import("@/lib/video-clips.server");
     const ctx = await requireWriteContext(context.supabase, context.userId);
     return { title: await renameClip(ctx.businessId, data.clipId, data.title) };
+  });
+
+/** The clip editor's data: current settings, caption words and the Engine's caption styles. */
+export const getVideoClipEditor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ clipId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { clipEditorData } = await import("@/lib/video-clips.server");
+    const ctx = await requireAppContext(context.supabase, context.userId);
+    return clipEditorData(ctx.businessId, data.clipId);
+  });
+
+/** Saves caption style, words, layout, shape and trim to the clip, then makes the video again. */
+export const saveVideoClipEdits = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    clipId: z.string().uuid(),
+    styleId: z.string().trim().min(1).max(60).optional(),
+    captionsOn: z.boolean().optional(),
+    layout: z.enum(CLIP_LAYOUT_IDS).optional(),
+    aspect: z.enum(VIDEO_ASPECTS).optional(),
+    inMs: z.number().int().min(0).optional(),
+    outMs: z.number().int().min(0).optional(),
+    lineEdits: z.array(z.object({ start_ms: z.number().int(), from: z.string().max(400), to: z.string().max(400) })).max(2000).optional(),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { saveClipEdits } = await import("@/lib/video-clips.server");
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    const { clipId, ...edits } = data;
+    return saveClipEdits(ctx.businessId, clipId, edits);
   });

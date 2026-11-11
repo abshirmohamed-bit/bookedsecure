@@ -8,7 +8,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { engineClient, engineConfigured } from "@/lib/engine.server";
-import { ACTIVE_JOB_STATUSES, clipsToRender, isPublicVideoLink, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect } from "@/lib/video-clips";
+import { ACTIVE_JOB_STATUSES, applyLineEdits, applyWordFixes, type CaptionLineEdit, type CaptionWord, checkTrim, type ClipLayout, clipsToRender, isPublicVideoLink, mergeTrimmedWords, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect } from "@/lib/video-clips";
 
 type JobRow = Database["public"]["Tables"]["video_clip_jobs"]["Row"];
 type ClipRow = Database["public"]["Tables"]["video_clips"]["Row"];
@@ -137,6 +137,139 @@ export async function renameClip(businessId: string, clipId: string, title: stri
   if (error) throw new Error(error.message);
   if (!data) throw new Error("That clip no longer exists.");
   return clean;
+}
+
+type EngineProject = {
+  in_ms: number; out_ms: number; aspect: string; layout: string; caption_style_id: string;
+  caption_options: Record<string, unknown> | null; captions: CaptionWord[] | null;
+};
+export type CaptionStyle = { id: string; name: string; font: string; defaults: { size: number; position: string; animation: string } };
+let styleCache: { at: number; styles: CaptionStyle[] } | null = null;
+
+/** The Engine's caption styles. They are code on the Engine, so a short cache is safe. */
+export async function captionStyles(): Promise<CaptionStyle[]> {
+  if (styleCache && Date.now() - styleCache.at < 10 * 60_000) return styleCache.styles;
+  const r = await engineClient<{ styles: CaptionStyle[] }>("GET", "/v1/subtitle-styles");
+  if (!r.ok) throw new Error(r.error.message);
+  styleCache = { at: Date.now(), styles: r.data.styles ?? [] };
+  return styleCache.styles;
+}
+
+async function ownClip(businessId: string, clipId: string): Promise<ClipRow> {
+  const { data } = await supabaseAdmin.from("video_clips").select("*").eq("id", clipId).eq("business_id", businessId).maybeSingle();
+  if (!data) throw new Error("That clip no longer exists.");
+  return data;
+}
+
+async function engineProject(clip: ClipRow): Promise<EngineProject> {
+  const r = await engineClient<EngineProject>("GET", `/v1/projects/${encodeURIComponent(clip.engine_project_id)}`);
+  if (!r.ok) throw new Error(r.error.code === "NOT_FOUND" ? "The Engine no longer has this clip." : r.error.message);
+  return r.data;
+}
+
+/** What the editor needs: the clip's current settings, its words and the styles on offer. */
+export async function clipEditorData(businessId: string, clipId: string) {
+  const clip = await ownClip(businessId, clipId);
+  const [project, styles] = await Promise.all([engineProject(clip), captionStyles()]);
+  return {
+    styles,
+    settings: {
+      styleId: project.caption_style_id, captionsOn: project.caption_options?.["enabled"] !== false,
+      layout: project.layout, aspect: project.aspect, inMs: project.in_ms, outMs: project.out_ms,
+    },
+    words: (project.captions ?? []).map((w) => ({ text: String(w.text ?? ""), start_ms: Math.round(w.start_ms), end_ms: Math.round(w.end_ms) })),
+  };
+}
+
+export type ClipEdits = {
+  styleId?: string | undefined; captionsOn?: boolean | undefined; layout?: ClipLayout | undefined; aspect?: VideoAspect | undefined;
+  /** Source-video times. */
+  inMs?: number | undefined; outMs?: number | undefined;
+  lineEdits?: CaptionLineEdit[] | undefined; wordFixes?: { wrong: string; right: string }[] | undefined;
+};
+
+/**
+ * Saves the editor's changes to the clip's Engine project and makes the video
+ * again. Claimed first from whatever settled status it had (READY included,
+ * unlike startRender), so two saves can't race; the old export id is cleared
+ * so a late poll of it can't mark the new video ready. A failure before the
+ * Engine took the change puts the clip back as it was.
+ */
+export async function saveClipEdits(businessId: string, clipId: string, edits: ClipEdits) {
+  const clip = await ownClip(businessId, clipId);
+  if (clip.status === "EXPORTING") throw new Error("This clip is still being made. Save again once it's finished.");
+  const { data: job } = await supabaseAdmin.from("video_clip_jobs").select("duration_ms").eq("id", clip.job_id).eq("business_id", businessId).maybeSingle();
+
+  const { data: claimed } = await supabaseAdmin.from("video_clips").update({ status: "EXPORTING", engine_export_id: null, error: null, updated_at: now() })
+    .eq("id", clip.id).eq("status", clip.status).select("id").maybeSingle();
+  if (!claimed) throw new Error("This clip is already being changed. Try again in a moment.");
+  const restore = () => supabaseAdmin.from("video_clips").update({ status: clip.status, engine_export_id: clip.engine_export_id, error: clip.error, updated_at: now() })
+    .eq("id", clip.id).eq("status", "EXPORTING").is("engine_export_id", null);
+  const path = `/v1/projects/${encodeURIComponent(clip.engine_project_id)}`;
+  const changed: string[] = [];
+  let range: { inMs: number; outMs: number };
+  try {
+    const project = await engineProject(clip);
+    const patch: Record<string, unknown> = {};
+    if (edits.styleId !== undefined) {
+      const styles = await captionStyles();
+      const want = edits.styleId.trim().toLowerCase();
+      const style = styles.find((s) => s.id === want || s.name.toLowerCase() === want);
+      if (!style) throw new Error(`There's no caption style called "${edits.styleId}". Choose from: ${styles.map((s) => s.name).join(", ")}.`);
+      if (style.id !== project.caption_style_id) { patch["caption_style_id"] = style.id; changed.push("caption style"); }
+    }
+    if (edits.captionsOn !== undefined && edits.captionsOn !== (project.caption_options?.["enabled"] !== false)) {
+      patch["caption_options"] = { ...(project.caption_options ?? {}), enabled: edits.captionsOn };
+      changed.push(edits.captionsOn ? "captions on" : "captions off");
+    }
+    if (edits.layout !== undefined && edits.layout !== project.layout) { patch["layout"] = edits.layout; changed.push("layout"); }
+    if (edits.aspect !== undefined && edits.aspect !== project.aspect) { patch["aspect"] = edits.aspect; changed.push("shape"); }
+    const inMs = Math.round(edits.inMs ?? project.in_ms);
+    const outMs = Math.round(edits.outMs ?? project.out_ms);
+    const trimmed = inMs !== project.in_ms || outMs !== project.out_ms;
+    if (trimmed) {
+      const problem = checkTrim(inMs, outMs, job?.duration_ms ?? null);
+      if (problem) throw new Error(problem);
+      changed.push("trim");
+    }
+    let words = project.captions ?? [];
+    const wordsBefore = JSON.stringify(words);
+    if (edits.lineEdits?.length) words = applyLineEdits(words, edits.lineEdits);
+    if (edits.wordFixes?.length) {
+      const fixed = applyWordFixes(words, edits.wordFixes);
+      if (!fixed.changed) throw new Error(`None of ${edits.wordFixes.map((f) => `"${f.wrong}"`).join(", ")} is said in this clip's captions.`);
+      words = fixed.words;
+    }
+    const wordsEdited = JSON.stringify(words) !== wordsBefore;
+    if (wordsEdited) changed.push("caption words");
+    if (!changed.length) throw new Error("Nothing has changed, so there's nothing to re-make.");
+
+    if (trimmed) {
+      // The Engine re-cuts the words from the transcript on a trim; put the
+      // corrected ones (this save's or an earlier one's) back over the top.
+      const r = await engineClient<EngineProject>("PATCH", path, { ...patch, in_ms: inMs, out_ms: outMs });
+      if (!r.ok) throw new Error(r.error.message);
+      const merged = mergeTrimmedWords(words, project.in_ms, project.out_ms, r.data.captions ?? [], inMs, outMs);
+      const w = await engineClient("PATCH", path, { captions: merged });
+      if (!w.ok) throw new Error(w.error.message);
+    } else {
+      const r = await engineClient("PATCH", path, { ...patch, ...(wordsEdited ? { captions: words } : {}) });
+      if (!r.ok) throw new Error(r.error.message);
+    }
+    range = { inMs, outMs };
+  } catch (error) {
+    await restore();
+    throw error;
+  }
+
+  // The project has the change now: from here a failure is the video's, not the edit's.
+  const r = await engineClient<{ id: string }>("POST", `${path}/export`, { resolution: "1080p" });
+  const times = { start_ms: range.inMs, end_ms: range.outMs, duration_ms: range.outMs - range.inMs, updated_at: now() };
+  await supabaseAdmin.from("video_clips").update(
+    r.ok ? { engine_export_id: r.data.id, ...times } : { status: "FAILED", error: `Your changes are saved, but the video couldn't be made: ${r.error.message}`.slice(0, 500), ...times },
+  ).eq("id", clip.id);
+  if (!r.ok) throw new Error("Your changes are saved, but the video couldn't be made. Press Try again.");
+  return { changed, startMs: range.inMs, endMs: range.outMs };
 }
 
 async function startRender(clip: ClipRow) {
