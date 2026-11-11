@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Clapperboard, History, Loader2, Maximize2, MessageCircle, PenLine, Sparkles, TrendingUp, X, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -156,6 +156,7 @@ export function CoworkWorkspace({
       <h2 className="font-heading text-lg font-semibold">Results</h2>
       <div className="flex items-center gap-1">
         <EngineDot onAsk={askFromResults} />
+        <Link to="/studio" className="inline-flex min-h-9 items-center rounded-full px-2.5 text-xs font-medium text-primary hover:bg-primary/10">Open in Studio</Link>
         <button type="button" onClick={() => setResultsWide(true)} aria-label="Expand results" title="Expand results" className="hidden size-9 place-items-center rounded-full text-muted-foreground hover:bg-white/60 hover:text-foreground lg:grid">
           <Maximize2 className="size-4" aria-hidden="true" />
         </button>

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   BarChart3,
+  Clapperboard,
   Building2,
   CalendarDays,
   Check,
@@ -60,6 +61,7 @@ const NAV_ICONS: Record<NavIcon, typeof Home> = {
   replies: Reply,
   linkedin: Linkedin,
   results: BarChart3,
+  studio: Clapperboard,
   business: Building2,
   texting: MessageCircle,
   automations: Zap,

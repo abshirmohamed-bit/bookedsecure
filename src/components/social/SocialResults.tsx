@@ -14,8 +14,8 @@ import { listSocialComments } from "@/lib/social-comments.functions";
 import { isActiveJob, jobStatusLabel } from "@/lib/video-clips";
 import { deleteVideoJobs, getVideoClips, renameVideoClip, renderVideoClip } from "@/lib/video-clips.functions";
 
-type Job = Awaited<ReturnType<typeof getVideoClips>>["jobs"][number];
-type Clip = Job["clips"][number];
+export type Job = Awaited<ReturnType<typeof getVideoClips>>["jobs"][number];
+export type Clip = Job["clips"][number];
 
 const ACCOUNTS = [
   { id: "facebook", label: "Facebook", icon: Facebook, color: "text-[#1877f2]" },
@@ -127,7 +127,7 @@ export function SocialResults({ onAsk, wide = false }: { onAsk: (text: string) =
   );
 }
 
-function useDeleteVideoJobs() {
+export function useDeleteVideoJobs() {
   const qc = useQueryClient();
   const deleteFn = useServerFn(deleteVideoJobs);
   return useMutation({

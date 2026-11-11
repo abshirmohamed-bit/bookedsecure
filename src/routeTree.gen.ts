@@ -30,6 +30,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SocialRouteImport } from './routes/social'
 import { Route as StartRouteImport } from './routes/start'
+import { Route as StudioRouteImport } from './routes/studio'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminFeedbackRouteImport } from './routes/admin.feedback'
@@ -197,6 +198,11 @@ const SocialRoute = SocialRouteImport.update({
 const StartRoute = StartRouteImport.update({
   id: '/start',
   path: '/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudioRoute = StudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -555,6 +561,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/social': typeof SocialRoute
   '/start': typeof StartRoute
+  '/studio': typeof StudioRoute
   '/terms': typeof TermsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
@@ -640,6 +647,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/social': typeof SocialRoute
   '/start': typeof StartRoute
+  '/studio': typeof StudioRoute
   '/terms': typeof TermsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
@@ -727,6 +735,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/social': typeof SocialRoute
   '/start': typeof StartRoute
+  '/studio': typeof StudioRoute
   '/terms': typeof TermsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/feedback': typeof AdminFeedbackRoute
@@ -815,6 +824,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/social'
     | '/start'
+    | '/studio'
     | '/terms'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
@@ -900,6 +910,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/social'
     | '/start'
+    | '/studio'
     | '/terms'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
@@ -986,6 +997,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/social'
     | '/start'
+    | '/studio'
     | '/terms'
     | '/.well-known/oauth-protected-resource'
     | '/admin/feedback'
@@ -1073,6 +1085,7 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRoute
   SocialRoute: typeof SocialRoute
   StartRoute: typeof StartRoute
+  StudioRoute: typeof StudioRoute
   TermsRoute: typeof TermsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AdminFeedbackRoute: typeof AdminFeedbackRoute
@@ -1276,6 +1289,13 @@ declare module '@tanstack/react-router' {
       path: '/start'
       fullPath: '/start'
       preLoaderRoute: typeof StartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -1795,6 +1815,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRoute,
   SocialRoute: SocialRoute,
   StartRoute: StartRoute,
+  StudioRoute: StudioRoute,
   TermsRoute: TermsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
