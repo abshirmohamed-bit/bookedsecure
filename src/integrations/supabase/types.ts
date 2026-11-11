@@ -1997,6 +1997,112 @@ export type Database = {
           },
         ]
       }
+      google_ad_spend_daily: {
+        Row: {
+          business_id: string
+          campaign_id: string
+          campaign_name: string | null
+          clicks: number
+          conversions: number
+          customer_id: string
+          date: string
+          impressions: number
+          spend: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          campaign_id: string
+          campaign_name?: string | null
+          clicks?: number
+          conversions?: number
+          customer_id: string
+          date: string
+          impressions?: number
+          spend?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          campaign_id?: string
+          campaign_name?: string | null
+          clicks?: number
+          conversions?: number
+          customer_id?: string
+          date?: string
+          impressions?: number
+          spend?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ad_spend_daily_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_ads_accounts: {
+        Row: {
+          access_token_ciphertext: string | null
+          access_token_expires_at: string | null
+          available_accounts: Json
+          business_id: string
+          connected_at: string
+          connected_by: string | null
+          currency: string | null
+          customer_id: string | null
+          customer_name: string | null
+          last_error: string | null
+          last_sync_at: string | null
+          login_customer_id: string | null
+          refresh_token_ciphertext: string
+          updated_at: string
+        }
+        Insert: {
+          access_token_ciphertext?: string | null
+          access_token_expires_at?: string | null
+          available_accounts?: Json
+          business_id: string
+          connected_at?: string
+          connected_by?: string | null
+          currency?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          login_customer_id?: string | null
+          refresh_token_ciphertext: string
+          updated_at?: string
+        }
+        Update: {
+          access_token_ciphertext?: string | null
+          access_token_expires_at?: string | null
+          available_accounts?: Json
+          business_id?: string
+          connected_at?: string
+          connected_by?: string | null
+          currency?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          login_customer_id?: string | null
+          refresh_token_ciphertext?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_automation_state: {
         Row: {
           bounded_batch_batch_id: string | null
@@ -3060,6 +3166,8 @@ export type Database = {
       }
       linkedin_posts: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           author_name: string | null
           author_urn: string
           body_text: string
@@ -3068,17 +3176,22 @@ export type Database = {
           created_by: string | null
           error: string | null
           id: string
+          insights: Json | null
+          insights_at: string | null
           media: Json | null
           payload: Json | null
           permalink: string | null
           platform: string
           post_urn: string | null
           published_at: string | null
+          review_note: string | null
           scheduled_for: string | null
           source: string
           status: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           author_name?: string | null
           author_urn: string
           body_text: string
@@ -3087,17 +3200,22 @@ export type Database = {
           created_by?: string | null
           error?: string | null
           id?: string
+          insights?: Json | null
+          insights_at?: string | null
           media?: Json | null
           payload?: Json | null
           permalink?: string | null
           platform?: string
           post_urn?: string | null
           published_at?: string | null
+          review_note?: string | null
           scheduled_for?: string | null
           source?: string
           status?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           author_name?: string | null
           author_urn?: string
           body_text?: string
@@ -3106,12 +3224,15 @@ export type Database = {
           created_by?: string | null
           error?: string | null
           id?: string
+          insights?: Json | null
+          insights_at?: string | null
           media?: Json | null
           payload?: Json | null
           permalink?: string | null
           platform?: string
           post_urn?: string | null
           published_at?: string | null
+          review_note?: string | null
           scheduled_for?: string | null
           source?: string
           status?: string
@@ -3355,7 +3476,9 @@ export type Database = {
           business_id: string
           campaign_id: string
           campaign_name: string | null
+          clicks: number | null
           date: string
+          impressions: number | null
           meta_leads: number
           spend: number
           updated_at: string
@@ -3365,7 +3488,9 @@ export type Database = {
           business_id: string
           campaign_id: string
           campaign_name?: string | null
+          clicks?: number | null
           date: string
+          impressions?: number | null
           meta_leads?: number
           spend?: number
           updated_at?: string
@@ -3375,7 +3500,9 @@ export type Database = {
           business_id?: string
           campaign_id?: string
           campaign_name?: string | null
+          clicks?: number | null
           date?: string
+          impressions?: number | null
           meta_leads?: number
           spend?: number
           updated_at?: string

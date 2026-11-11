@@ -435,6 +435,13 @@
       "when": 1794450000003,
       "tag": "0061_apply_booking_confirmations",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794450000004,
+      "tag": "0062_apply_google_ads_and_social_planner",
+      "breakpoints": true
     }
   ]
 }
