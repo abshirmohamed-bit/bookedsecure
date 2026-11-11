@@ -161,7 +161,10 @@ def loudness_envelope(src: Path, window_ms: int = 500) -> list[float]:
     import math
     import wave
 
-    wav = src.with_suffix(".env.wav")
+    import uuid
+
+    # Unique per call: two jobs on one source run side by side.
+    wav = src.with_name(f"{src.stem}.{uuid.uuid4().hex[:8]}.env.wav")
     extract_audio(src, wav, rate=8000)
     with wave.open(str(wav), "rb") as w:
         frames = w.readframes(w.getnframes())

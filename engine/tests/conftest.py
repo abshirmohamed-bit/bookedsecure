@@ -13,6 +13,8 @@ os.environ.setdefault("TRANSCRIBE_PROVIDER", "fake")
 os.environ.setdefault("FINDER_PROVIDER", "rules")
 os.environ.setdefault("ENGINE_API_KEYS", "test-key")
 os.environ.setdefault("MIN_SOURCE_SECONDS", "5")
+# Tests advance the queues themselves; background workers would race them.
+os.environ.setdefault("WORKER_ENABLED", "0")
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="engine-test-")
 
 

@@ -1,7 +1,7 @@
-"""Durable imports, claimed atomically by the single container's worker.
+"""Durable imports, claimed atomically so several import workers can run.
 
 The mounted SQLite file outlives the process. Boot recovery is safe only with
-one Engine process per volume, just like the existing job/export worker.
+one Engine process per volume, just like jobs and exports.
 """
 from sqlalchemy import update
 from sqlmodel import select
@@ -31,16 +31,20 @@ def recover() -> int:
 
 def advance_one() -> bool:
     with session() as s:
-        task = s.exec(select(ImportTask).where(ImportTask.status == "queued")
-                      .order_by(ImportTask.created_at).limit(1)).first()
+        task = None
+        ids = s.exec(select(ImportTask.asset_id).where(ImportTask.status == "queued")
+                     .order_by(ImportTask.created_at)).all()
+        for asset_id in ids:
+            # One conditional UPDATE: of two racing workers exactly one wins,
+            # and the other tries the next task.
+            claimed = s.exec(update(ImportTask).where(ImportTask.asset_id == asset_id,
+                             ImportTask.status == "queued").values(status="processing", attempts=ImportTask.attempts + 1))
+            s.commit()
+            if claimed.rowcount == 1:
+                task = s.get(ImportTask, asset_id)
+                break
         if not task:
             return False
-        claimed = s.exec(update(ImportTask).where(ImportTask.asset_id == task.asset_id,
-                         ImportTask.status == "queued").values(status="processing", attempts=ImportTask.attempts + 1))
-        s.commit()
-        if claimed.rowcount != 1:
-            return False
-        s.refresh(task)
         asset = s.get(Asset, task.asset_id)
         if not asset or asset.deleted_at or asset.status == "ready":
             task.status = "completed"

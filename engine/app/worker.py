@@ -1,97 +1,166 @@
-"""A background loop that advances queued work.
+"""Background workers that advance queued work.
 
-Deliberately not Redis/RQ: one process, one SQLite file and a thread keeps the
-whole Engine to a single container on a small host. Swap in a real queue only
-when more than one worker machine is needed.
+Deliberately not Redis/RQ: one process, one SQLite file and a few threads keep
+the whole Engine to a single container on a small host. Imports, clip jobs and
+exports each get their own small pool, so one long video never holds up every
+other business. Swap in a real queue only when more than one worker machine
+is needed.
 """
 from __future__ import annotations
 
 import logging
 import threading
 import time
+from contextlib import contextmanager
 from typing import Callable
 
 log = logging.getLogger("engine.worker")
 
 _stop = threading.Event()
-_thread: threading.Thread | None = None
+_threads: list[threading.Thread] = []
 
-# The pipelines advance a job one stage per pass and nothing claims the row
-# while that stage runs. Two passes at once — the loop and a direct tick, or
-# two ticks — would both pick the same job and run the stage twice, which cuts
-# every clip twice. One pass at a time is the whole guarantee.
-_pass = threading.Lock()
+# Every step claims its own row (imports and exports flip queued -> processing
+# in one conditional UPDATE, jobs take an in-process claim), so any number of
+# workers can run side by side without one item being worked on twice.
+#
+# What still needs everyone out of the way is the local sweep: it deletes old
+# cached media, and must never do it under a running render. Steps count
+# themselves in and out; the sweep runs only at zero and holds the lock while
+# it does, so no step starts underneath it.
+_steps = threading.Condition()
+_running = 0
 
 
-def tick() -> int:
-    """One pass over everything that might have work. Returns items advanced."""
-    from . import webhooks
+@contextmanager
+def _counted():
+    global _running
+    with _steps:
+        _running += 1
+    try:
+        yield
+    finally:
+        with _steps:
+            _running -= 1
+
+
+def busy() -> bool:
+    """True while any worker is in the middle of a step."""
+    with _steps:
+        return _running > 0
+
+
+def _steps_by_kind() -> dict[str, Callable[[], bool]]:
     from .pipeline import exports as export_pipeline
-    from .pipeline import ingest as ingest_pipeline
-    from .pipeline import jobs as job_pipeline
     from .pipeline import imports as import_pipeline
+    from .pipeline import jobs as job_pipeline
 
-    done = 0
-    with _pass:
-        for step in (import_pipeline.advance_one, job_pipeline.advance_one, export_pipeline.advance_one):
-            try:
-                done += 1 if step() else 0
-            except Exception:
-                log.exception("worker step failed")
+    return {"import": import_pipeline.advance_one, "job": job_pipeline.advance_one,
+            "export": export_pipeline.advance_one}
+
+
+def _run(step: Callable[[], bool]) -> bool:
+    with _counted():
         try:
-            from . import storage
+            return bool(step())
+        except Exception:
+            log.exception("worker step failed")
+            return False
 
+
+def _sweep() -> None:
+    from . import storage
+
+    with _steps:
+        if _running:
+            return
+        try:
             storage.sweep_if_due()
         except Exception:
             log.exception("local sweep failed")
+
+
+def _deliver() -> None:
+    from . import webhooks
+
     try:
         webhooks.deliver_due()
     except Exception:
         log.exception("webhook delivery failed")
+
+
+def tick() -> int:
+    """One synchronous pass over every queue. Returns items advanced. Used by tests."""
+    done = sum(1 for step in _steps_by_kind().values() if _run(step))
+    _sweep()
+    _deliver()
     return done
 
 
-def _loop(interval: float) -> None:
+def _work_loop(step: Callable[[], bool], interval: float) -> None:
+    while not _stop.is_set():
+        _stop.wait(0 if _run(step) else interval)
+
+
+def _housekeeping_loop(interval: float) -> None:
     from . import idle
 
-    while not _stop.is_set():
+    while not _stop.wait(interval):
+        _sweep()
+        _deliver()
+        # Never stop the machine with a step under way; the queues being empty
+        # in the database is checked by sleep_if_idle itself.
+        if busy():
+            continue
         try:
-            busy = tick()
+            idle.sleep_if_idle()
         except Exception:
-            log.exception("worker tick failed")
-            busy = 0
-        if not busy:
-            # The only thread that knows the queues are empty. Checked here so
-            # the machine can never be stopped in the middle of a pass.
-            try:
-                idle.sleep_if_idle()
-            except Exception:
-                log.exception("idle check failed")
-        _stop.wait(0.1 if busy else interval)
+            log.exception("idle check failed")
+
+
+def pool_sizes() -> dict[str, int]:
+    from .config import settings
+
+    cfg = settings()
+    return {"import": max(1, cfg.import_workers), "job": max(1, cfg.job_workers),
+            "export": max(1, cfg.concurrent_renders)}
 
 
 def start(interval: float = 1.0) -> None:
-    global _thread
-    if _thread and _thread.is_alive():
+    from .config import settings
+
+    if not settings().worker_enabled or any(t.is_alive() for t in _threads):
         return
     _stop.clear()
-    _thread = threading.Thread(target=_loop, args=(interval,), daemon=True, name="engine-worker")
-    _thread.start()
+    _threads.clear()
+    steps = _steps_by_kind()
+    for kind, size in pool_sizes().items():
+        for i in range(size):
+            _threads.append(threading.Thread(target=_work_loop, args=(steps[kind], interval),
+                                             daemon=True, name=f"engine-{kind}-{i}"))
+    _threads.append(threading.Thread(target=_housekeeping_loop, args=(interval,),
+                                     daemon=True, name="engine-housekeeping"))
+    for t in _threads:
+        t.start()
+    log.info("worker started: %s", pool_sizes())
 
 
 def stop(timeout: float | None = None) -> None:
-    """Ask the loop to finish what it is doing, then wait for it.
+    """Ask every worker to finish what it is doing, then wait for them.
 
     A render takes tens of seconds. Giving it five was enough to kill one
     mid-frame on every deploy and leave the export stuck in "processing".
+    The grace period is shared: all workers drain at once, not one after another.
     """
     from .config import settings
 
     _stop.set()
-    if _thread:
-        _thread.join(timeout=timeout if timeout is not None else settings().shutdown_grace_s)
-        if _thread.is_alive():
-            log.warning("worker did not finish in time; in-flight work will be retried on boot")
+    deadline = time.monotonic() + (timeout if timeout is not None else settings().shutdown_grace_s)
+    for t in _threads:
+        t.join(timeout=max(0.0, deadline - time.monotonic()))
+    left = [t.name for t in _threads if t.is_alive()]
+    if left:
+        log.warning("workers did not finish in time (%s); in-flight work will be retried on boot",
+                    ", ".join(left))
 
 
 def recover_stuck() -> int:

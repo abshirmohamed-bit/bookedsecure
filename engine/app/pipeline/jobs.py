@@ -7,7 +7,9 @@ real rather than a spinner.
 from __future__ import annotations
 
 import logging
+import threading
 import time
+import uuid
 from pathlib import Path
 
 from sqlmodel import Session, select
@@ -48,33 +50,73 @@ def create(session: Session, asset: Asset, params: dict) -> Job:
     return job
 
 
+# A job stays "processing" across all its stages, so the status can't say who
+# is working on it. This set does: a worker adds a job id before touching the
+# row and removes it after, and no other worker picks a job that is in it.
+# In memory is enough because one Engine process owns the volume (a Fly volume
+# attaches to a single machine), and a restart empties it along with the
+# workers that held it.
+_claimed: set[str] = set()
+_claim_lock = threading.Lock()
+
+# Two jobs on the same source must not transcribe it twice at once.
+_asset_locks: dict[str, threading.Lock] = {}
+
+
+def _asset_lock(asset_id: str) -> threading.Lock:
+    with _claim_lock:
+        return _asset_locks.setdefault(asset_id, threading.Lock())
+
+
+def _claim(s: Session) -> str | None:
+    ids = s.exec(
+        select(Job.id).where(Job.status.in_(["queued", "processing"]))  # type: ignore[attr-defined]
+        .order_by(Job.created_at)
+    ).all()
+    with _claim_lock:
+        for job_id in ids:
+            if job_id not in _claimed:
+                _claimed.add(job_id)
+                return job_id
+    return None
+
+
 def advance_one() -> bool:
-    """Move the oldest active job on by one stage. Returns True if anything changed."""
+    """Move the oldest unclaimed active job on by one stage. Returns True if anything changed."""
     with db_session() as s:
-        job = s.exec(
-            select(Job).where(Job.status.in_(["queued", "processing"]))  # type: ignore[attr-defined]
-            .order_by(Job.created_at)
-        ).first()
-        if not job:
+        job_id = _claim(s)
+        if not job_id:
             return False
         try:
-            _step(s, job)
-        except Exception as e:
-            s.rollback()
-            attempts = int((job.params or {}).get("_attempts", 0))
-            if not isinstance(e, (JobFailed, EngineError)) and attempts < MAX_JOB_RETRIES:
-                log.warning("job %s failed at %s, retrying: %s", job.id, job.stage, e)
-                job.params = {**(job.params or {}), "_attempts": attempts + 1}
-                s.add(job)
-                s.commit()
-                time.sleep(3 * (attempts + 1))
-                return True
-            job.status = "failed"
-            job.error = str(e)[:500]
+            return _advance(s, job_id)
+        finally:
+            with _claim_lock:
+                _claimed.discard(job_id)
+
+
+def _advance(s: Session, job_id: str) -> bool:
+    # Read only after claiming, so the row reflects the last worker's commit.
+    job = s.get(Job, job_id)
+    if not job or job.status not in ("queued", "processing"):
+        return False
+    try:
+        _step(s, job)
+    except Exception as e:
+        s.rollback()
+        attempts = int((job.params or {}).get("_attempts", 0))
+        if not isinstance(e, (JobFailed, EngineError)) and attempts < MAX_JOB_RETRIES:
+            log.warning("job %s failed at %s, retrying: %s", job.id, job.stage, e)
+            job.params = {**(job.params or {}), "_attempts": attempts + 1}
             s.add(job)
             s.commit()
-            webhooks.emit("autoclip.failed", {"autoclip_id": job.id, "error": job.error})
-        return True
+            time.sleep(3 * (attempts + 1))
+            return True
+        job.status = "failed"
+        job.error = str(e)[:500]
+        s.add(job)
+        s.commit()
+        webhooks.emit("autoclip.failed", {"autoclip_id": job.id, "error": job.error})
+    return True
 
 
 def _step(s: Session, job: Job) -> None:
@@ -149,7 +191,14 @@ def _step(s: Session, job: Job) -> None:
 
 
 def _ensure_transcript(s: Session, asset: Asset, params: dict) -> Transcript:
-    existing = s.exec(select(Transcript).where(Transcript.asset_id == asset.id)).first()
+    with _asset_lock(asset.id):
+        return _transcribe_once(s, asset, params)
+
+
+def _transcribe_once(s: Session, asset: Asset, params: dict) -> Transcript:
+    # populate_existing: another job may have finished it while we waited.
+    existing = s.exec(select(Transcript).where(Transcript.asset_id == asset.id)
+                      .execution_options(populate_existing=True)).first()
     if existing and existing.status == "ready":
         return existing
     row = existing or Transcript(id=new_id("trn"), asset_id=asset.id)
@@ -158,7 +207,7 @@ def _ensure_transcript(s: Session, asset: Asset, params: dict) -> Transcript:
     s.commit()
     started = time.time()
     source = storage.local_path(asset.mezzanine_key or asset.storage_key)
-    audio = source.with_suffix(".16k.wav")
+    audio = source.with_name(f"{source.stem}.{uuid.uuid4().hex[:8]}.16k.wav")
     media.extract_audio(source, audio)
     result = transcribe(audio, asset.length_s, params.get("vocabulary") or [], params.get("language"))
     audio.unlink(missing_ok=True)

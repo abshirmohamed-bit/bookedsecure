@@ -4,6 +4,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from .. import media, storage, webhooks
@@ -24,13 +25,9 @@ def create(session: Session, project: Project, resolution: str = "1080p") -> Exp
 
 def advance_one() -> bool:
     with db_session() as s:
-        row = s.exec(select(Export).where(Export.status == "queued").order_by(Export.created_at)).first()
+        row = _claim(s)
         if not row:
             return False
-        row.status = "processing"
-        row.progress = 10
-        s.add(row)
-        s.commit()
         try:
             asset = _render(s, row)
             row.status = "completed"
@@ -50,6 +47,22 @@ def advance_one() -> bool:
             webhooks.emit("export.failed",
                           {"export_id": row.id, "project_id": row.project_id, "error": row.error})
         return True
+
+
+def _claim(s: Session) -> Export | None:
+    """Take the oldest queued export so no other worker can.
+
+    The status flip is one conditional UPDATE: of two workers racing for the
+    same row exactly one changes it, and the loser moves on to the next.
+    """
+    ids = s.exec(select(Export.id).where(Export.status == "queued").order_by(Export.created_at)).all()
+    for export_id in ids:
+        claimed = s.exec(update(Export).where(Export.id == export_id, Export.status == "queued")
+                         .values(status="processing", progress=10))
+        s.commit()
+        if claimed.rowcount == 1:
+            return s.get(Export, export_id)
+    return None
 
 
 def _render(s: Session, row: Export) -> Asset:

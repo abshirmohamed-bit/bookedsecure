@@ -175,14 +175,14 @@ keep it awake. Close the tab when you are done for the day.
 machine runs or not, so a 10GB volume costs the same while asleep. Only the
 CPU and RAM stop.
 
-**Scaling.** One machine processes jobs one at a time. For more throughput:
+**Scaling.** One machine works on several things at once: imports, clip jobs
+and exports each have their own workers (`IMPORT_WORKERS`, `JOB_WORKERS`,
+`CONCURRENT_RENDERS`, sized for 2 CPUs), so one long video does not hold up
+everyone else. Every item is claimed before it is worked on, so none runs twice.
+Raise the counts with the CPU count; more renders than cores only thrashes.
 
-```bash
-fly scale count 2
-```
-
-Each machine needs its own volume, and each runs its own worker. Jobs are
-claimed from the database, so they will not collide.
+The Engine's database is a SQLite file on the machine's volume, so a second
+machine would have its own separate queue. Grow the machine before adding one.
 
 ## When YouTube says "sign in to confirm you're not a bot"
 

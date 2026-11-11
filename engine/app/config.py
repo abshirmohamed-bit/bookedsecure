@@ -112,7 +112,15 @@ class Settings(BaseSettings):
     min_source_seconds: int = 10
     max_source_seconds: int = 10800
     concurrent_jobs: int = 3
-    concurrent_renders: int = 4
+    # Workers per queue, sized for a 2-CPU machine. Imports mostly wait on the
+    # network; job stages mostly wait on Groq and the AI finder; renders are
+    # the CPU-heavy part, and two at once keep one long export from holding
+    # up everyone else's without thrashing two cores.
+    # Off only in tests, which drive the queues themselves with worker.tick().
+    worker_enabled: bool = True
+    import_workers: int = 2
+    job_workers: int = 2
+    concurrent_renders: int = 2
     retention_days: int = 30
     # With object storage, the volume is only a cache: older local copies are
     # removed and fetched again if a later render needs them.
