@@ -563,7 +563,7 @@ export async function dismissFound(businessId: string, ids: string[]) {
 export { hostOf };
 
 /**
- * Co-work suggests who to look for, from the business's own profile (what it
+ * Co-Work suggests who to look for, from the business's own profile (what it
  * sells, who it serves, where it works) and the owner's words when given.
  * Nothing is searched until the owner presses Find.
  */

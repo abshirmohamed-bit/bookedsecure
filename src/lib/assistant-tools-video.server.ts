@@ -1,5 +1,5 @@
 /**
- * Co-work's video tools. The business is closed over from the signed-in request,
+ * Co-Work's video tools. The business is closed over from the signed-in request,
  * so jobs and clips of another business can't be named. Finished clips are
  * posted by the owner from the Social media page; nothing here publishes.
  */

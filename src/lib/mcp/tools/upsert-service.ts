@@ -3,7 +3,7 @@ import { callerContext, jsonResult } from '../supabase';
 import { serviceInput, executeSharedAction } from '@/lib/assistant-shared-actions';
 export default defineTool({
   name: 'upsert_service', title: 'Add or update a service',
-  description: 'Reuse Cowork’s service action. Read list_services first when updating; pass only the owner’s stated prices and details, and null for unchanged fields. Requires owner and current access.',
+  description: 'Reuse Co-Work’s service action. Read list_services first when updating; pass only the owner’s stated prices and details, and null for unchanged fields. Requires owner and current access.',
   inputSchema: serviceInput.shape,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   handler: async (input, ctx) => {

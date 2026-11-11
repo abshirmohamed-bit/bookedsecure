@@ -5,13 +5,13 @@ import { AssistantWorkspace } from "@/components/home/AssistantWorkspace";
 export const Route = createFileRoute("/assistant")({
   head: () => ({
     meta: [
-      { title: "Assistant | BookedSecure" },
-      { name: "description", content: "Ask BookedSecure Cowork to help run your tenant-scoped lead operations." },
-      { property: "og:title", content: "Cowork | BookedSecure" },
-      { property: "og:description", content: "A focused workspace for BookedSecure Cowork conversations." },
+      { title: "Co-Work | BookedSecure" },
+      { name: "description", content: "Ask BookedSecure Co-Work to help run your tenant-scoped lead operations." },
+      { property: "og:title", content: "Co-Work | BookedSecure" },
+      { property: "og:description", content: "A focused workspace for BookedSecure Co-Work conversations." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: () => <AppShell title="Assistant"><AssistantWorkspace /></AppShell>,
+  component: () => <AppShell title="Co-Work"><AssistantWorkspace /></AppShell>,
 });

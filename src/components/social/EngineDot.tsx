@@ -12,8 +12,8 @@ export function EngineDot({ onAsk }: { onAsk: (text: string) => void }) {
   const stateFn = useServerFn(getEngineState);
   const q = useQuery({ queryKey: ["engine-state"], queryFn: () => stateFn(), refetchInterval: 30_000 });
   const [open, setOpen] = useState(false);
-  if (!q.data) return null;
-  const { state, label, detail, canControl } = q.data;
+  if (!q.data && !q.isError) return null;
+  const { state, label, detail, canControl } = q.data ?? { state: "off" as const, label: "Unknown", detail: "The engine's status couldn't be checked.", canControl: false };
   const ask = (text: string) => { setOpen(false); onAsk(text); };
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -32,7 +32,7 @@ export function EngineDot({ onAsk }: { onAsk: (text: string) => void }) {
             ) : (
               <Button size="sm" className="min-h-10 flex-1 text-xs" onClick={() => ask("Start the video engine.")}>Start</Button>
             )}
-            <Button size="sm" variant="outline" className="min-h-10 flex-1 text-xs" onClick={() => ask("How is the video engine doing? Include anything in progress.")}>Ask Co-work</Button>
+            <Button size="sm" variant="outline" className="min-h-10 flex-1 text-xs" onClick={() => ask("How is the video engine doing? Include anything in progress.")}>Ask Co-Work</Button>
           </div>
         ) : null}
       </PopoverContent>

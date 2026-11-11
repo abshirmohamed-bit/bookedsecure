@@ -1,7 +1,7 @@
 /**
  * The one AI brain.
  *
- * Both the owner assistant ("Cowork") and the public quote-page assistant run
+ * Both the owner assistant ("Co-Work") and the public quote-page assistant run
  * through this single agent loop: same provider, same model, same tool-calling
  * runtime. Only the system prompt and the tool set differ, and those are always
  * built server-side from the tenant's own records.

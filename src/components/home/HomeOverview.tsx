@@ -134,7 +134,7 @@ export function HomeOverview() {
         </dl>
       </section>
 
-      {/* On wide screens the leads and bookings move to the side columns, so Co-work has the room. */}
+      {/* On wide screens the leads and bookings move to the side columns, so Co-Work has the room. */}
       <div className="space-y-5 xl:hidden">
       <div className={cn("grid gap-5", setup ? "lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]" : "lg:grid-cols-2")}>
         {leadsPanel}
@@ -439,12 +439,12 @@ function AskAssistant() {
   return (
     <form onSubmit={submit} className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 pl-4 md:flex-wrap md:items-end md:p-3">
       <Sparkles className="h-4 w-4 shrink-0 text-primary md:hidden" aria-hidden="true" />
-      <label htmlFor="home-ask" className="sr-only">Ask the assistant</label>
+      <label htmlFor="home-ask" className="sr-only">Ask Co-Work</label>
       <input
         id="home-ask"
         value={text}
         onChange={(event) => setText(event.target.value)}
-        placeholder="Ask the assistant to text a lead, book a job or start a campaign"
+        placeholder="Ask Co-Work to text a lead, book a job or start a campaign"
         className="min-w-0 flex-1 bg-transparent py-1.5 text-sm outline-none placeholder:text-muted-foreground md:basis-full md:py-3 md:text-base"
       />
       <Link
@@ -453,7 +453,7 @@ function AskAssistant() {
       >
         <Upload className="h-3.5 w-3.5" /> Attach CSV
       </Link>
-      <span className="hidden flex-1 text-center text-xs text-muted-foreground md:block">Ask for it and the assistant does it</span>
+      <span className="hidden flex-1 text-center text-xs text-muted-foreground md:block">Ask for it and Co-Work does it</span>
       <Button type="submit" size="sm">
         Ask <ArrowRight />
       </Button>

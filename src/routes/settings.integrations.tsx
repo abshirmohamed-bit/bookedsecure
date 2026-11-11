@@ -50,7 +50,7 @@ function Connections() {
   const tiles = [
     { value: 'apps', icon: Plug, title: 'Facebook and apps', text: 'Lead ads, comments, API keys' },
     { value: 'assistants', icon: Bot, title: 'AI assistants', text: grants.isSuccess ? `${connectedCount} connected` : 'ChatGPT, Claude, Grok' },
-    { value: 'backup', icon: ShieldCheck, title: 'Backup AI', text: 'Keeps the assistant running' },
+    { value: 'backup', icon: ShieldCheck, title: 'Backup AI', text: 'Keeps Co-Work running' },
   ];
   return <AppShell title="Connections"><div className="mx-auto max-w-5xl space-y-8 p-4 sm:p-8">
     <header className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-6 sm:p-10">
@@ -75,7 +75,7 @@ function Connections() {
             <div><h2 className="font-heading text-lg font-semibold">Your BookedSecure connection</h2><p className="text-sm text-muted-foreground">Paste this address into your assistant's custom connector settings.</p></div></div>
           <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-muted/50 p-2 pl-4"><code className="min-w-0 flex-1 break-all font-mono text-sm">{endpoint}</code><Button size="sm" onClick={copyEndpoint}><Copy className="h-4 w-4" />Copy</Button></div>
           <div className="grid gap-3 sm:grid-cols-3">
-            {[{ icon: CheckCircle2, title: 'Can do', text: 'Read records, manage customers, bookings, services and settings.' }, { icon: ShieldCheck, title: 'Needs your Confirm', text: 'Customer replies. Campaigns, imports and deletions go through Cowork.' }, { icon: Ban, title: 'Never', text: 'Payments are not available through this connection.' }].map(i => <div key={i.title} className="rounded-xl border border-border p-4"><i.icon className="mb-2 h-4 w-4 text-primary" /><p className="text-sm font-medium">{i.title}</p><p className="mt-1 text-xs text-muted-foreground">{i.text}</p></div>)}
+            {[{ icon: CheckCircle2, title: 'Can do', text: 'Read records, manage customers, bookings, services and settings.' }, { icon: ShieldCheck, title: 'Needs your Confirm', text: 'Customer replies. Campaigns, imports and deletions go through Co-Work.' }, { icon: Ban, title: 'Never', text: 'Payments are not available through this connection.' }].map(i => <div key={i.title} className="rounded-xl border border-border p-4"><i.icon className="mb-2 h-4 w-4 text-primary" /><p className="text-sm font-medium">{i.title}</p><p className="mt-1 text-xs text-muted-foreground">{i.text}</p></div>)}
           </div>
           <p className="text-xs text-muted-foreground">Works with assistants that support custom MCP connections with OAuth. Availability depends on the assistant, plan and rollout; ChatGPT, Claude or Grok support is not guaranteed.</p>
         </section>

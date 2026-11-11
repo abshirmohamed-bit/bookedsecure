@@ -31,7 +31,7 @@ function planPoints(plan: Plan): string[] {
     plan.includedSegments > 0
       ? `${plan.includedSegments.toLocaleString()} text credits included every month`
       : "Your own Australian number and credits bought separately",
-    "Fully integrated cowork AI assistant",
+    "Fully integrated Co-Work AI",
     "AI-led quote page and instant replies",
     plan.automationCustomEnabled ? "Customisable follow-up sequences" : "Proven default follow-up sequence",
     plan.campaignsEnabled ? "Bulk text campaigns to your leads" : null,

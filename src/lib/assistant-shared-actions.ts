@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import { normaliseAuMobile } from '@/lib/domain';
 
-// Transport-neutral contracts: Cowork and external assistants use these same actions.
+// Transport-neutral contracts: Co-Work and external assistants use these same actions.
 export const customerInput = z.object({
   name: z.string().min(1).max(200), mobile: z.string().min(6).max(20),
   email: z.string().email().nullable(), suburb: z.string().max(200).nullable(),

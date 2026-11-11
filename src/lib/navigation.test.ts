@@ -35,7 +35,7 @@ describe("active item", () => {
 describe("page title trail", () => {
   it("names pages the way the sidebar does", () => {
     expect(navBreadcrumb("/dashboard")).toEqual(["Home"]);
-    expect(navBreadcrumb("/assistant/abc")).toEqual(["Assistant"]);
+    expect(navBreadcrumb("/assistant/abc")).toEqual(["Co-Work"]);
     expect(navBreadcrumb("/settings/integrations")).toEqual(["Setup", "Connections"]);
     expect(navBreadcrumb("/import")).toEqual(["Leads", "Import"]);
     expect(navBreadcrumb("/leads/deleted")).toEqual(["Leads", "Deleted"]);

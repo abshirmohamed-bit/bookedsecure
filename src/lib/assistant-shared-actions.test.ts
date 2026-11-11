@@ -14,7 +14,7 @@ function clientMock(result: unknown, existing: unknown[] = []) {
   chain['then'] = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve);
   return { client: { rpc, from: vi.fn(() => chain) } as unknown as SupabaseClient<Database>, rpc, ops };
 }
-describe('actions shared by Cowork and MCP', () => {
+describe('actions shared by Co-Work and MCP', () => {
   it('reuses an existing customer with the same mobile instead of creating another', async () => {
     const { client, rpc } = clientMock({ data: null, error: null }, [{ id: leadId, name: 'Rhys' }]);
     const result = await executeSharedAction(client, 'create_customer', { ...customer, mobile: '0403 392 447' });

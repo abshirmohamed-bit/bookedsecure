@@ -146,7 +146,7 @@ export function renderBulkReactivationMessage(input: {
   signature?: string | null;
 }): string {
   const name = firstName(input.leadName);
-  // Owners often paste the whole desired template into Cowork. Keep only its
+  // Owners often paste the whole desired template into Co-Work. Keep only its
   // editable middle: trusted tenant/lead data supplies the personalised name,
   // private link, signature and opt-out footer below.
   const ownerCopy = input.campaignCopy

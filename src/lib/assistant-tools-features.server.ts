@@ -1,5 +1,5 @@
 /**
- * Assistant (Cowork) tools for the features added in November: what needs the
+ * Assistant (Co-Work) tools for the features added in November: what needs the
  * owner today, notifications, Facebook and Instagram comments and DMs, Facebook
  * lead import, Facebook ad results and owner reminder texts. Email campaigns
  * live in assistant-tools-campaigns.server.ts.

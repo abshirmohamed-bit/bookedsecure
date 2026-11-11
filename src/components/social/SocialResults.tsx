@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Portal } from "@/components/Portal";
 import { resultDayLabel } from "@/lib/social-cowork";
+import { getLinkedIn } from "@/lib/linkedin.functions";
 import { getSocialPosting } from "@/lib/social-posts.functions";
+import { getYouTube } from "@/lib/youtube.functions";
 import { listSocialComments } from "@/lib/social-comments.functions";
 import { isActiveJob, jobStatusLabel } from "@/lib/video-clips";
 import { getVideoClips, renderVideoClip } from "@/lib/video-clips.functions";
@@ -22,24 +24,37 @@ const ACCOUNTS = [
   { id: "youtube", label: "YouTube", icon: Youtube, color: "text-[#ff0000]" },
 ] as const;
 
-/** Links to the hands-on tools for anyone who'd rather do it themselves. */
-export function DoItYourself() {
+/** The connected accounts, each opening its hands-on tools. */
+export function YourChannels() {
+  const postsFn = useServerFn(getSocialPosting);
+  const youtubeFn = useServerFn(getYouTube);
+  const linkedinFn = useServerFn(getLinkedIn);
+  const facebook = useQuery({ queryKey: ["social-posting", "facebook"], queryFn: () => postsFn({ data: { platform: "facebook" } }) });
+  const instagram = useQuery({ queryKey: ["social-posting", "instagram"], queryFn: () => postsFn({ data: { platform: "instagram" } }) });
+  const youtube = useQuery({ queryKey: ["youtube"], queryFn: () => youtubeFn() });
+  const linkedin = useQuery({ queryKey: ["linkedin"], queryFn: () => linkedinFn() });
+  const connected: Record<(typeof ACCOUNTS)[number]["id"], boolean | undefined> = {
+    facebook: facebook.data?.connected,
+    instagram: instagram.data ? Boolean(instagram.data.instagram) : undefined,
+    linkedin: linkedin.data?.connected,
+    youtube: youtube.data?.connected,
+  };
   return (
-    <div>
-      <p className="mb-2 text-xs font-medium text-muted-foreground">Or do it yourself</p>
-      <div className="grid grid-cols-4 gap-2">
-        {ACCOUNTS.map((a) => (
-          <Link key={a.id} to="/social" search={{ platform: a.id }} aria-label={`Open ${a.label} tools`} className="glass flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium hover:bg-white/70">
-            <a.icon className={`h-4 w-4 ${a.color}`} aria-hidden="true" />
-            <span className="truncate">{a.label}</span>
-          </Link>
-        ))}
-      </div>
+    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      {ACCOUNTS.map((a) => (
+        <Link key={a.id} to="/social" search={{ platform: a.id }} aria-label={`Open ${a.label} tools`} className="glass flex min-h-14 items-center gap-2.5 rounded-2xl px-3 py-2 hover:bg-white/70">
+          <a.icon className={`size-5 shrink-0 ${a.color}`} aria-hidden="true" />
+          <span className="min-w-0">
+            <span className="block truncate text-[13px] font-medium">{a.label}</span>
+            <span className="block truncate text-[11px] text-muted-foreground">{connected[a.id] === undefined ? " " : connected[a.id] ? "Connected" : "Connect"}</span>
+          </span>
+        </Link>
+      ))}
     </div>
   );
 }
 
-/** Everything Co-work has made or is waiting on, newest first. */
+/** Everything Co-Work has made or is waiting on, newest first. */
 export function SocialResults({ onAsk }: { onAsk: (text: string) => void }) {
   const clipsFn = useServerFn(getVideoClips);
   const commentsFn = useServerFn(listSocialComments);
@@ -71,7 +86,7 @@ export function SocialResults({ onAsk }: { onAsk: (text: string) => void }) {
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><MessageCircle className="size-4" aria-hidden="true" /></span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium">{waiting} comment{waiting === 1 ? "" : "s"} waiting</span>
-            <span className="block text-xs text-muted-foreground">Ask Co-work to draft the replies</span>
+            <span className="block text-xs text-muted-foreground">Ask Co-Work to draft the replies</span>
           </span>
           <Sparkles className="size-4 text-primary" aria-hidden="true" />
         </button>

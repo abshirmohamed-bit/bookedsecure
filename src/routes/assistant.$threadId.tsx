@@ -5,10 +5,10 @@ import { AssistantWorkspace } from "@/components/home/AssistantWorkspace";
 export const Route = createFileRoute("/assistant/$threadId")({
   head: () => ({
     meta: [
-      { title: "Assistant | BookedSecure" },
-      { name: "description", content: "Continue a private BookedSecure Cowork conversation for your business." },
-      { property: "og:title", content: "Cowork conversation | BookedSecure" },
-      { property: "og:description", content: "Continue a private tenant-scoped Cowork conversation." },
+      { title: "Co-Work | BookedSecure" },
+      { name: "description", content: "Continue a private BookedSecure Co-Work conversation for your business." },
+      { property: "og:title", content: "Co-Work conversation | BookedSecure" },
+      { property: "og:description", content: "Continue a private tenant-scoped Co-Work conversation." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -18,5 +18,5 @@ export const Route = createFileRoute("/assistant/$threadId")({
 
 function AssistantThreadPage() {
   const { threadId } = Route.useParams();
-  return <AppShell title="Assistant"><AssistantWorkspace requestedThreadId={threadId} /></AppShell>;
+  return <AppShell title="Co-Work"><AssistantWorkspace requestedThreadId={threadId} /></AppShell>;
 }

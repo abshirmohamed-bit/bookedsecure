@@ -1,5 +1,5 @@
 /**
- * In-app Assistant (Cowork) tools for LinkedIn posting, built on the shared
+ * In-app Assistant (Co-Work) tools for LinkedIn posting, built on the shared
  * linkedInActions so ChatGPT and Claude behave exactly the same way.
  * Publishing needs the confirmation code from preview_linkedin_post, given only
  * after the owner says yes to that exact post. LinkedIn has no messaging API,

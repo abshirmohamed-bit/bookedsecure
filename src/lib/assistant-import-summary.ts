@@ -5,7 +5,7 @@ type ImportRow = {
   duplicate_of_row: number | null;
 };
 
-/** Mutually exclusive categories for the mobile-only Cowork import action. */
+/** Mutually exclusive categories for the mobile-only Co-Work import action. */
 export function assistantImportCounts(rows: readonly ImportRow[]) {
   const counts = { totalRows: rows.length, validRows: 0, duplicateRows: 0, invalidRows: 0 };
   for (const row of rows) {

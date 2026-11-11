@@ -1,7 +1,7 @@
 import { normaliseAuMobile } from '@/lib/domain';
 import { formatInZone } from '@/lib/assistant-time';
 
-// Shared by Cowork tools: turns what the database actually saved into plain words,
+// Shared by Co-Work tools: turns what the database actually saved into plain words,
 // so a saved booking is never read as "no change".
 export type BookingResult = {
   ok: true; saved?: boolean; outcome?: string; jobId?: string; scheduledAt?: string | null;

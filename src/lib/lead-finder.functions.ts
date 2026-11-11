@@ -57,7 +57,7 @@ export const dismissLeadFinderResults = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Co-work's suggested searches for this business (nothing is searched yet). */
+/** Co-Work's suggested searches for this business (nothing is searched yet). */
 export const suggestLeadFinderSearches = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ request: z.string().trim().max(500).nullable().default(null), likeLeadId: z.string().uuid().nullable().default(null) }).parse(input ?? {}))

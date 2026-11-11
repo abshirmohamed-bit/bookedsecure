@@ -1,4 +1,4 @@
-/** Rules for video clipping, shared by the server, Co-work and the Social page. */
+/** Rules for video clipping, shared by the server, Co-Work and the Social page. */
 
 export const VIDEO_ASPECTS = ["9:16", "1:1", "4:5", "16:9"] as const;
 export type VideoAspect = (typeof VIDEO_ASPECTS)[number];

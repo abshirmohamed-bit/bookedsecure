@@ -18,7 +18,7 @@ import type { SendTextProposal, ImportProposal, AssistantRequestProposal } from 
 import { approveReactivation, bulkEditReactivationDrafts } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { saveCrmImportBatch } from "@/lib/csv-import.functions";
-import type { AssistantSurface } from "@/lib/social-cowork";
+import { useCoworkComposer } from "@/components/cowork/useCoworkComposer";
 import { MAX_CSV_BYTES } from "@/lib/csv-import";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,6 +87,7 @@ type Turn = {
 };
 
 export type OwnerAssistantTurn = Turn;
+export type CoworkComposerApi = { chooseVideo: () => void };
 
 function newId(): string {
   return Math.random().toString(36).slice(2);
@@ -114,19 +115,15 @@ export function OwnerAssistant({
   onConversationChanged,
   homeMode = false,
   compact = false,
-  label = "Assistant",
+  label = "Co-Work",
   hideTurns = false,
   hero,
   belowComposer,
-  centerWhenEmpty = false,
-  surface,
   seed,
   placeholder,
   composerClassName,
-  composerTools,
-  emptyAction,
+  composerApi,
   onStart,
-  onSent,
 }: {
   threadId: string;
   initialTurns?: OwnerAssistantTurn[];
@@ -134,27 +131,20 @@ export function OwnerAssistant({
   homeMode?: boolean;
   /** Smaller empty state, for the chat embedded on Home. */
   compact?: boolean;
-  /** What the chat is called where it is shown (Home calls it Co-work). */
+  /** What the chat is called where it is shown (Home calls it Co-Work). */
   label?: string;
   /** Keep earlier messages out of view until the owner starts or resumes. */
   hideTurns?: boolean;
   /** Replaces the empty state. */
   hero?: ReactNode;
   belowComposer?: ReactNode;
-  /** Centre the empty state and composer on large screens. */
-  centerWhenEmpty?: boolean;
-  /** What was picked on the page, passed to the agent but not saved in the chat. */
-  surface?: AssistantSurface;
   /** Puts text in the box; a new nonce replaces what's there. */
   seed?: { text: string; nonce: number } | undefined;
   placeholder?: string;
   composerClassName?: string;
-  /** Replaces the CSV attach control on the composer's bottom row. */
-  composerTools?: ReactNode;
-  /** Shown instead of Send while the box is empty. */
-  emptyAction?: ReactNode;
+  /** Lets a page open the video picker from its own buttons. */
+  composerApi?: { current: CoworkComposerApi | null };
   onStart?: () => void;
-  onSent?: () => void;
 }) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
@@ -182,15 +172,17 @@ export function OwnerAssistant({
     } else if (textareaRef.current) autoSize(textareaRef.current);
   }, []);
   const endRef = useRef<HTMLDivElement>(null);
-  const [question, setQuestion] = useState("");
-  useEffect(() => {
-    if (!seed) return;
-    setQuestion(seed.text);
+  function writeToBox(text: string) {
+    setQuestion(text);
     requestAnimationFrame(() => {
       if (!textareaRef.current) return;
       autoSize(textareaRef.current);
       textareaRef.current.focus();
     });
+  }
+  const [question, setQuestion] = useState("");
+  useEffect(() => {
+    if (seed) writeToBox(seed.text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed?.nonce]);
   const [turns, setTurns] = useState<Turn[]>(initialTurns);
@@ -227,7 +219,7 @@ export function OwnerAssistant({
 
   const mutation = useMutation({
     mutationFn: (input: { question: string; attachment: { filename: string; content: string } | null }) =>
-      ask({ data: { question: input.question, threadId, attachment: input.attachment, ...(surface ? { surface } : {}) } }),
+      ask({ data: { question: input.question, threadId, attachment: input.attachment, ...(cowork.surface ? { surface: cowork.surface } : {}) } }),
     onSuccess: (result) => {
       setTurns((current) => [
         ...current,
@@ -304,7 +296,7 @@ export function OwnerAssistant({
         turn.id === turnId ? { ...turn, proposals: [], done: message } : turn,
       ),
     );
-    void completeMessage({ data: { messageId: turnId, done: message } }).catch(() => {
+    void completeMessage({ data: { messageId: turnId, done: message } }).then(() => queryClient.invalidateQueries({ queryKey: ["assistant-conversation", threadId] })).catch(() => {
       toast.error("The action completed, but its conversation note could not be saved.");
     });
     // Keep the completed proposal visible locally. The next server refresh will
@@ -431,9 +423,12 @@ export function OwnerAssistant({
     setQuestion("");
     const pending = attachment;
     setAttachment(null);
-    onSent?.();
+    cowork.clearAfterSend();
     mutation.mutate({ question: text, attachment: pending }, { onSettled: () => {
       onConversationChanged?.();
+      // Every page showing Co-Work reads this conversation, so none can fall behind.
+      void queryClient.invalidateQueries({ queryKey: ["assistant-conversation", threadId] });
+      void queryClient.invalidateQueries({ queryKey: ["video-clips"] });
       if (pending) {
         void queryClient.invalidateQueries({ queryKey: ["assistant-remembered-file", threadId] });
       }
@@ -449,12 +444,33 @@ export function OwnerAssistant({
     fileRef.current?.click();
   }
 
+  const csvAttached = attachment ? (
+    <span className="inline-flex h-10 max-w-[12rem] shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3 text-xs sm:h-8">
+      <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span className="truncate">{attachment.filename}</span>
+      <button type="button" onClick={() => setAttachment(null)} aria-label="Remove attached file" className="rounded p-0.5 hover:bg-background">
+        <X className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </span>
+  ) : attachMutation.isPending ? (
+    <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-label="Reading file" />
+  ) : remembered.data ? (
+    <span title="Kept from earlier. just ask about it, no need to upload again" className="inline-flex h-10 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-full border border-border px-2.5 text-[11px] text-muted-foreground sm:h-8">
+      <Paperclip className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <span className="truncate">Saved: {remembered.data.filename}</span>
+    </span>
+  ) : null;
+  const cowork = useCoworkComposer({ write: writeToBox, onImportCsv: chooseFile, extra: csvAttached });
+  useEffect(() => {
+    if (composerApi) composerApi.current = { chooseVideo: cowork.chooseVideo };
+  });
+
   const visibleTurns = hideTurns ? [] : turns;
   const hasConversation = visibleTurns.length > 0;
 
   return (
     <section className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-      <div className={`flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden ${centerWhenEmpty && !hasConversation ? "lg:justify-center" : ""}`}>
+      <div className={`flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden`}>
         {!hasConversation && hero ? hero : null}
         {!hasConversation && !hero && compact ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5 py-5 text-center">
@@ -464,7 +480,7 @@ export function OwnerAssistant({
         ) : null}
         {!hasConversation && !hero && !compact ? (
           <div className={`mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-5 py-5 text-center ${homeMode ? "lg:pr-48" : ""}`}>
-            <p className="text-xs font-semibold uppercase text-primary">Cowork</p>
+            <p className="text-xs font-semibold uppercase text-primary">Co-Work</p>
             <h1 className="mt-2 text-balance font-heading text-2xl font-semibold leading-[1.15] sm:text-4xl">
               It’s really simple.
             </h1>
@@ -492,7 +508,7 @@ export function OwnerAssistant({
                           <p className="text-muted-foreground">{proposal.summary}</p>
                           <Button disabled={mutation.isPending} onClick={() => {
                             mutation.mutate({ question: proposal.request, attachment: null }, {
-                              onSuccess: () => { markDone(turn.id, 'Request passed to Cowork. Review its result and any further approval cards.'); onConversationChanged?.(); },
+                              onSuccess: () => { markDone(turn.id, 'Request passed to Co-Work. Review its result and any further approval cards.'); onConversationChanged?.(); },
                             });
                           }}><Check className="h-4 w-4" />Confirm</Button>
                         </div>
@@ -842,7 +858,7 @@ export function OwnerAssistant({
 
         <PromptInput
           onSubmit={(message) => submit(message.text ?? question)}
-          className={composerClassName ?? "relative z-20 mx-auto mb-[max(0.75rem,env(safe-area-inset-bottom))] mt-2 w-[calc(100%-1.5rem)] max-w-3xl shrink-0 rounded-2xl border-border bg-card shadow-xl sm:w-[calc(100%-2rem)]"}
+          className={composerClassName ?? "cowork-ring relative z-20 mx-auto mb-[max(0.75rem,env(safe-area-inset-bottom))] mt-2 w-[calc(100%-1.5rem)] max-w-3xl shrink-0 rounded-[1.25rem] sm:w-[calc(100%-2rem)]"}
         >
           <label className="sr-only" htmlFor="owner-question">
             Ask about your business or ask for a campaign
@@ -857,47 +873,7 @@ export function OwnerAssistant({
             className="min-h-12 max-h-[120px] text-base"
           />
            <PromptInputFooter className="min-h-11">
-            {composerTools ?? <div className="flex items-center gap-2">
-            {attachment ? (
-              <span className="inline-flex min-h-10 max-w-[12rem] items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1.5 text-xs sm:min-h-8">
-                <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="truncate">{attachment.filename}</span>
-                <button
-                  type="button"
-                  onClick={() => setAttachment(null)}
-                  aria-label="Remove attached file"
-                  className="rounded p-0.5 hover:bg-background"
-                >
-                  <X className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              </span>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={chooseFile}
-                  disabled={attachMutation.isPending}
-                  title="Attach a contact file to import"
-                  className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60 sm:min-h-8 sm:px-3"
-                >
-                  {attachMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <UploadCloud className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  <span className="hidden sm:inline">Attach CSV</span>
-                </button>
-                {remembered.data ? (
-                  <span
-                    title="Kept from earlier. just ask about it, no need to upload again"
-                    className="inline-flex min-h-10 max-w-[11rem] items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground sm:min-h-8"
-                  >
-                    <Paperclip className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    <span className="truncate">Saved: {remembered.data.filename}</span>
-                  </span>
-                ) : null}
-              </>
-            )}
+            {cowork.tools}
             <input
               ref={fileRef}
               type="file"
@@ -915,8 +891,7 @@ export function OwnerAssistant({
                 attachMutation.mutate(file);
               }}
             />
-            </div>}
-            {emptyAction && normaliseOwnerQuestion(question).length === 0 && !mutation.isPending ? emptyAction : (
+            {cowork.emptyAction && normaliseOwnerQuestion(question).length === 0 && !attachment && !mutation.isPending ? cowork.emptyAction : (
             <PromptInputSubmit
               status={mutation.isPending ? "submitted" : "ready"}
               disabled={mutation.isPending || (normaliseOwnerQuestion(question).length === 0 && !attachment)}
@@ -925,11 +900,7 @@ export function OwnerAssistant({
             />
             )}
           </PromptInputFooter>
-          {!loading && !composerTools ? (
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              {signedIn ? "Ask for it and the assistant does it" : "Sign in to ask"}
-            </p>
-          ) : null}
+          {!loading && !signedIn ? <p className="mt-2 text-center text-xs text-muted-foreground">Sign in to ask</p> : null}
         </PromptInput>
         {!hasConversation ? belowComposer : null}
       </div>

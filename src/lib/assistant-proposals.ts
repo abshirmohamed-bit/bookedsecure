@@ -25,7 +25,7 @@ export type ImportProposal = {
   summary: string;
 };
 
-/** Connected assistants request existing work; the owner starts it in Cowork. */
+/** Connected assistants request existing work; the owner starts it in Co-Work. */
 export type AssistantRequestProposal = {
   kind: 'assistant_request';
   request: string;

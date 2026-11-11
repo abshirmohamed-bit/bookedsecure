@@ -67,7 +67,7 @@ describe("free discovery", () => {
     expect(mergeCandidates([web, osm], 10).map((c) => c.id)).toEqual(["web:plusfitness.com.au", "osm:node/2"]);
   });
 
-  it("reads Co-work's suggested searches", () => {
+  it("reads Co-Work's suggested searches", () => {
     const s = readSuggestions('Here: [{"what":"warehouses","where":"Auburn NSW","criteria":"20+ staff","why":"Staff need snacks"},{"what":"x","where":"y"}]');
     expect(s).toEqual([{ what: "warehouses", where: "Auburn NSW", criteria: "20+ staff", why: "Staff need snacks" }]);
     expect(readSuggestions("no json")).toEqual([]);

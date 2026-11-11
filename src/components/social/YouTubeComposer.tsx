@@ -80,7 +80,7 @@ export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle 
     onError: (e) => toast.error(e instanceof Error ? e.message : "The AI couldn't write that."),
   });
 
-  // A finished clip sent over from Co-work's Results arrives ready to upload.
+  // A finished clip sent over from Co-Work's Results arrives ready to upload.
   const loadedClip = useRef<string | null>(null);
   useEffect(() => {
     if (!clipId || loadedClip.current === clipId) return;

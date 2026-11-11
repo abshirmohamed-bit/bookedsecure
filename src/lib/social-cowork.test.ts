@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { assistantSurfaceSchema, describeAssistantSurface, greetingFor, resultDayLabel } from "@/lib/social-cowork";
+import { assistantSurfaceSchema, describeAssistantSurface, greetingFor, hasSurfaceChoices, resultDayLabel } from "@/lib/social-cowork";
 
-const auto = { area: "social", platform: "auto", format: "auto", style: "auto" } as const;
+const auto = { platform: "auto", format: "auto", style: "auto" } as const;
 
-describe("telling Co-work what was picked", () => {
+describe("telling Co-Work what was picked", () => {
   it("only mentions real choices", () => {
-    expect(describeAssistantSurface({ ...auto, platform: "youtube", format: "9:16", style: "bold" })).toBe("[On the Social media page. Post to: YouTube. Format: 9:16. Style: Bold.]");
+    expect(describeAssistantSurface({ ...auto, platform: "youtube", format: "9:16", style: "bold" })).toBe("[Chosen on the composer. Post to: YouTube. Format: 9:16. Style: Bold.]");
   });
-  it("stays short when everything is automatic", () => {
-    expect(describeAssistantSurface(auto)).toBe("[On the Social media page.]");
+  it("sends nothing extra when everything is automatic", () => {
+    expect(hasSurfaceChoices(auto)).toBe(false);
+    expect(hasSurfaceChoices({ ...auto, style: "bold" })).toBe(true);
   });
   it("names an attached video by id", () => {
     const id = "00000000-0000-4000-8000-000000000001";

@@ -99,7 +99,7 @@ function HomeScreenshot() {
         src="/landing/home-desktop.webp"
         width={1600}
         height={1000}
-        alt="BookedSecure Home: latest leads, today's work, Co-work assistant, bookings, campaigns and social inbox side by side"
+        alt="BookedSecure Home: latest leads, today's work, Co-Work assistant, bookings, campaigns and social inbox side by side"
         className="block h-auto w-full"
       />
     </div>
@@ -365,8 +365,8 @@ export function HomeLanding() {
               </FeatureCard>
             </div>
 
-            <FeatureCard className="md:col-span-2" icon={Bot} title="An assistant that does the work" body="Ask in plain English and it books jobs, updates leads, drafts campaigns and tells you who's waiting. Texts always wait for your confirm.">
-              <Shot fill position="bottom" src="/landing/feature-cowork.webp" width={800} height={1094} alt="Co-work, the assistant in BookedSecure, preparing an appointment reminder text for the owner to confirm, customer name blurred" />
+            <FeatureCard className="md:col-span-2" icon={Bot} title="Co-Work does the work" body="Ask in plain English and it books jobs, updates leads, drafts campaigns and tells you who's waiting. Texts always wait for your confirm.">
+              <Shot fill position="bottom" src="/landing/feature-cowork.webp" width={800} height={1094} alt="Co-Work, the assistant in BookedSecure, preparing an appointment reminder text for the owner to confirm, customer name blurred" />
             </FeatureCard>
             <FeatureCard className="md:col-span-4" icon={Mail} title="Text and email campaigns" body="Win back past customers with an automatic follow-up for anyone who doesn't book. AI writes the first draft and you see exactly what customers get.">
               <Shot src="/landing/feature-campaign.webp" width={1600} height={889} alt="The BookedSecure campaign composer with an example win-back email and its live preview" />

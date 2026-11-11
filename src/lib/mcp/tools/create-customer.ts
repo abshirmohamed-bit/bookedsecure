@@ -3,7 +3,7 @@ import { callerContext, jsonResult } from '../supabase';
 import { customerInput, executeSharedAction } from '@/lib/assistant-shared-actions';
 export default defineTool({
   name: 'create_customer', title: 'Add a customer',
-  description: 'Reuse Cowork’s customer creation action for the connected owner. Only add a customer explicitly requested by the user; never infer text consent.',
+  description: 'Reuse Co-Work’s customer creation action for the connected owner. Only add a customer explicitly requested by the user; never infer text consent.',
   inputSchema: customerInput.shape,
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   handler: async (input, ctx) => {

@@ -380,7 +380,7 @@ function PostHistory({ posts }: { posts: Data["posts"] }) {
               <p className="line-clamp-2 whitespace-pre-line break-words text-sm">{p.bodyText}</p>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
                 <span>{p.authorName ?? "LinkedIn"}</span>·<span>{relativeTime(p.publishedAt ?? p.createdAt)}</span>
-                {p.source !== "app" && <>·<span>{p.source === "mcp" ? "via ChatGPT/Claude" : "via Assistant"}</span></>}
+                {p.source !== "app" && <>·<span>{p.source === "mcp" ? "via ChatGPT/Claude" : "via Co-Work"}</span></>}
               </p>
               {p.status === "failed" && <p className="mt-0.5 text-[11px] text-destructive">{p.error ?? "Didn't post."}</p>}
             </div>

@@ -6,6 +6,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { OwnerAssistant, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
 import { ProductDiscoveryRow } from "@/components/home/ProductDiscoveryRow";
+import { EngineDot } from "@/components/social/EngineDot";
+import { SocialResults } from "@/components/social/SocialResults";
 import { clearAssistantConversation, createAssistantConversation, deleteAssistantConversation, getAssistantConversation, getAssistantHome } from "@/lib/assistant-history.functions";
 import { Button } from "@/components/ui/button";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
@@ -29,6 +31,8 @@ export function AssistantWorkspace({
   const fetchSession = useServerFn(getSession);
   const [mobileHistory, setMobileHistory] = useState(false);
   const [websiteSetup, setWebsiteSetup] = useState(false);
+  const [seed, setSeed] = useState<{ text: string; nonce: number } | undefined>();
+  const ask = (text: string) => setSeed({ text, nonce: Date.now() });
   const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
   const home = useQuery({ queryKey: ["assistant-home"], queryFn: () => getHome() });
   const activeId = requestedThreadId ?? home.data?.ongoing.id;
@@ -60,8 +64,8 @@ export function AssistantWorkspace({
     onSuccess: async (ongoing) => { await queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); navigate({ to: "/assistant/$threadId", params: { threadId: ongoing.id } }); },
     onError: (error: Error) => toast.error(error.message),
   });
-  if (home.isLoading || (activeId && conversation.isLoading)) return <div className="grid min-h-[70vh] place-items-center text-sm text-muted-foreground">Opening Assistant…</div>;
-  if (home.error || conversation.error || !activeId || !conversation.data) return <div className="grid min-h-[70vh] place-items-center text-sm text-destructive">Assistant could not be opened.</div>;
+  if (home.isLoading || (activeId && conversation.isLoading)) return <div className="grid min-h-[70vh] place-items-center text-sm text-muted-foreground">Opening Co-Work…</div>;
+  if (home.error || conversation.error || !activeId || !conversation.data) return <div className="grid min-h-[70vh] place-items-center text-sm text-destructive">Co-Work could not be opened.</div>;
 
   const threads = conversation.data.threads;
   const turns: OwnerAssistantTurn[] = conversation.data.messages.map((message) => ({
@@ -189,15 +193,19 @@ export function AssistantWorkspace({
   return <div
     className="relative flex h-full min-h-0 overflow-hidden bg-background"
   >
-    <aside aria-label="Assistant conversations" className="hidden h-full min-h-0 w-64 shrink-0 border-r border-border bg-card/40 lg:block">{history}</aside>
+    <aside aria-label="Co-Work conversations" className="hidden h-full min-h-0 w-64 shrink-0 border-r border-border bg-card/40 lg:block">{history}</aside>
     {mobileHistory && <Portal><button className="fixed inset-0 z-40 bg-foreground/25 lg:hidden" onClick={() => setMobileHistory(false)} aria-label="Close history overlay" /><aside className="fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] border-r border-border bg-background lg:hidden">{history}</aside></Portal>}
-    <main className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+    <main className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <Portal><div className="shrink-0 px-3 pt-3 lg:hidden">
         <Button type="button" variant="outline" size="sm" onClick={() => setMobileHistory(true)} className="gap-2 bg-card" aria-label="Open conversation history"><PanelLeft className="h-4 w-4" /> Conversations</Button>
       </div></Portal>
        {showDiscovery ? <ProductDiscoveryRow /> : null}
-       <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} homeMode={showDiscovery} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
+       <OwnerAssistant key={activeId} threadId={activeId} initialTurns={turns} homeMode={showDiscovery} seed={seed} onConversationChanged={() => { queryClient.invalidateQueries({ queryKey: ["assistant-home"] }); }} />
     </main>
+    <aside aria-label="Results" className="hidden h-full min-h-0 w-80 shrink-0 overflow-y-auto border-l border-border p-4 2xl:block">
+      <div className="mb-3 flex items-center justify-between"><h2 className="font-heading text-lg font-semibold">Results</h2><EngineDot onAsk={ask} /></div>
+      <SocialResults onAsk={ask} />
+    </aside>
     {websiteSetup && <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/45 p-3 sm:p-8"><div className="mx-auto max-w-5xl rounded-2xl bg-background p-4 shadow-2xl sm:p-6"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-heading text-lg font-semibold">Set up from your website</h2><p className="text-xs text-muted-foreground">Review everything before it is saved.</p></div><button onClick={() => setWebsiteSetup(false)} className="rounded-full p-2 hover:bg-secondary" aria-label="Close website setup"><X className="h-4 w-4" /></button></div><SiteOnboardingPanel readOnly={false} onApplied={() => setWebsiteSetup(false)} /></div></div>}
   </div>;
 }

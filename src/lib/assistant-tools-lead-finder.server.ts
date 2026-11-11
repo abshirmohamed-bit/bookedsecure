@@ -1,5 +1,5 @@
 /**
- * Assistant (Co-work) tools for Lead finder: suggest who to look for from the
+ * Assistant (Co-Work) tools for Lead finder: suggest who to look for from the
  * business's own profile, run a search, read the results, and add chosen
  * businesses to customers. Nothing is ever sent from here: reaching them is
  * an email campaign, which keeps its own preview and the owner's yes.

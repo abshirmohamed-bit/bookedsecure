@@ -13,7 +13,7 @@ const input = {
   businessId: 'test-business', userId: 'test-owner', role: 'owner' as const, question: 'Book Sam and prepare a text.',
 };
 
-describe('Cowork interrupted tool work', () => {
+describe('Co-Work interrupted tool work', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.stubEnv('LOVABLE_API_KEY', 'test-only');

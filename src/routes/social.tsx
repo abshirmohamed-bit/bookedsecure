@@ -54,7 +54,7 @@ const PLATFORMS: { id: Platform; label: string; icon: typeof Linkedin; color: st
 
 function SocialMediaPage() {
   const search = Route.useSearch();
-  // Co-work is the front door; any link to a network or section opens the hands-on tools.
+  // Co-Work is the front door; any link to a network or section opens the hands-on tools.
   if (Object.keys(search).length === 0) return <AppShell title="Social media"><SocialCowork /></AppShell>;
   return <SocialTools />;
 }
@@ -75,7 +75,7 @@ function SocialTools() {
     <AppShell title="Social media">
       <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
         <header className="space-y-3">
-          <Link to="/social" className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to Co-work</Link>
+          <Link to="/social" className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to Co-Work</Link>
           <div>
             <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Social media</h1>
             <p className="text-sm text-muted-foreground">Post to your pages and answer comments and messages. Nothing is posted or sent until you approve it.</p>

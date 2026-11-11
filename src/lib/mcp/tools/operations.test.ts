@@ -11,7 +11,7 @@ type TestTool = { handler: (input: unknown, context: unknown) => Promise<unknown
 const tool = (x: unknown) => x as TestTool;
 beforeEach(() => { vi.clearAllMocks(); mocks.context.mockResolvedValue({ client: { rpc: mocks.rpc }, businessId: 'verified-business' }); mocks.execute.mockResolvedValue({ ok: true }); });
 describe('external assistant shared operations', () => {
-  it.each([[update, 'update_customer'], [book, 'book_job'], [complete, 'complete_job']])('uses exactly the Cowork action boundary', async (definition, action) => {
+  it.each([[update, 'update_customer'], [book, 'book_job'], [complete, 'complete_job']])('uses exactly the Co-Work action boundary', async (definition, action) => {
     await tool(definition).handler({ ownerWords: 'exact' }, {});
     expect(mocks.execute).toHaveBeenCalledWith({ rpc: mocks.rpc }, action, { ownerWords: 'exact' });
   });

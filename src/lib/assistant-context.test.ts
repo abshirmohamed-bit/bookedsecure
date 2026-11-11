@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { conversationContext, interruptedAssistantResult } from './assistant-context';
 
-describe('Cowork task context', () => {
+describe('Co-Work task context', () => {
   it('keeps the first instruction beyond twelve turns', () => {
     const turns = Array.from({ length: 30 }, (_, i) => ({ role: 'user' as const, text: `Request ${i}` }));
     const context = conversationContext(turns);

@@ -49,13 +49,13 @@ function LeadFinderPage() {
   const suggest = useMutation({
     mutationFn: (likeLeadId?: string) => suggestFn({ data: { request: ask.trim() || null, likeLeadId: likeLeadId ?? null } }),
     onSuccess: (r) => {
-      if (r.suggestions.length === 0) toast.message("Co-work couldn't suggest a search. Try describing who you want to reach.");
+      if (r.suggestions.length === 0) toast.message("Co-Work couldn't suggest a search. Try describing who you want to reach.");
       else if ((ask.trim() || like) && r.suggestions[0]) applySuggestion(r.suggestions[0]);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Co-work couldn't suggest searches."),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Co-Work couldn't suggest searches."),
   });
   const applySuggestion = (s: { what: string; where: string; criteria: string | null }) => { setWhat(s.what); setWhere(s.where); setCriteria(s.criteria ?? ""); };
-  // Opened from a customer's page: Co-work suggests businesses like them straight away.
+  // Opened from a customer's page: Co-Work suggests businesses like them straight away.
   const likeStarted = useRef(false);
   useEffect(() => {
     if (!like || likeStarted.current) return;
@@ -109,9 +109,9 @@ function LeadFinderPage() {
         )}
 
         <section className="glass space-y-3 p-4">
-          <p className="flex items-center gap-1.5 text-sm font-semibold"><Sparkles className="h-4 w-4 text-primary" /> Ask Co-work who to look for</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold"><Sparkles className="h-4 w-4 text-primary" /> Ask Co-Work who to look for</p>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Textarea rows={1} value={ask} maxLength={500} className="flex-1" placeholder="Optional: e.g. warehouses and gyms around Auburn with 20+ staff. Leave empty and Co-work suggests from your business profile."
+            <Textarea rows={1} value={ask} maxLength={500} className="flex-1" placeholder="Optional: e.g. warehouses and gyms around Auburn with 20+ staff. Leave empty and Co-Work suggests from your business profile."
               onChange={(e) => setAsk(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); suggest.mutate(undefined); } }} />
             <Button variant="outline" disabled={suggest.isPending} onClick={() => suggest.mutate(undefined)}>
               {suggest.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />} {ask.trim() ? "Fill the search" : "Suggest searches"}
@@ -129,7 +129,7 @@ function LeadFinderPage() {
               ))}
             </div>
           )}
-          <p className="text-[11px] text-muted-foreground">{like ? "Suggestions are based on the customer you opened this from. " : ""}Co-work reads your business profile and fills the search below. You can change anything before pressing Find.</p>
+          <p className="text-[11px] text-muted-foreground">{like ? "Suggestions are based on the customer you opened this from. " : ""}Co-Work reads your business profile and fills the search below. You can change anything before pressing Find.</p>
         </section>
 
         <section className="glass grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] lg:items-end">

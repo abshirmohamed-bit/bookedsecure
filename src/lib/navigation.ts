@@ -67,7 +67,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: null,
     items: [
       { to: "/dashboard", label: "Home", icon: "home" },
-      { to: "/assistant", label: "Assistant", icon: "assistant" },
+      { to: "/assistant", label: "Co-Work", icon: "assistant" },
     ],
   },
   {

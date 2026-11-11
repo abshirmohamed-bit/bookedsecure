@@ -82,7 +82,7 @@ const STEP_COPY: Record<
   },
   campaign: {
     title: "Run your first campaign",
-    detail: "Pick the customers yourself, or ask Cowork to do it for you.",
+    detail: "Pick the customers yourself, or ask Co-Work to do it for you.",
     path: "/leads",
     hash: "reactivation",
   },

@@ -355,7 +355,7 @@ export function webSearchQuery(what: string, where: string): string {
   return `${what.trim()} business in ${where.trim()} Australia -lease -"for sale" -"for rent" -jobs`.slice(0, 220);
 }
 
-// ----- Co-work suggestions -----
+// ----- Co-Work suggestions -----
 
 export type SearchSuggestion = { what: string; where: string; criteria: string | null; why: string | null };
 

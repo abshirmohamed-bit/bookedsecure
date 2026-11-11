@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { assistantImportCounts } from './assistant-import-summary';
 
-describe('Cowork mobile import counts', () => {
+describe('Co-Work mobile import counts', () => {
   it('reports 10 existing and 5 without mobiles as zero new, not 5 ready and 10 invalid', () => {
     const rows = [
       ...Array.from({ length: 10 }, () => ({ normalized_payload: { mobile_number: '+61412345678' },

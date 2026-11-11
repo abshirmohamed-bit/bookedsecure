@@ -1,6 +1,6 @@
 /**
  * The whole email campaign workflow as one set of typed actions, shared by the
- * in-app Assistant (Cowork) and external assistants (ChatGPT, Claude via MCP):
+ * in-app Assistant (Co-Work) and external assistants (ChatGPT, Claude via MCP):
  * audience, writing, drafting, editing recipients and wording, previewing,
  * sending, scheduling, cancelling and stopping follow-ups.
  *

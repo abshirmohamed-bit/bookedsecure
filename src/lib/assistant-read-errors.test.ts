@@ -14,7 +14,7 @@ function query(result: unknown) {
   return chain;
 }
 const options = { toolCallId: 'test', messages: [], context: {} };
-describe('Cowork failed customer reads', () => {
+describe('Co-Work failed customer reads', () => {
   it('does not report a failed customer search as no matching customers', async () => {
     mocks.from.mockReturnValue(query({ data: null, error: { message: 'Read failed' } }));
     const execute = buildAssistantTools(ctx).find_customers.execute;

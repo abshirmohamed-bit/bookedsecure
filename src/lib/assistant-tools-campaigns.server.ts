@@ -1,5 +1,5 @@
 /**
- * In-app Assistant (Cowork) tools for the whole email campaign workflow, from
+ * In-app Assistant (Co-Work) tools for the whole email campaign workflow, from
  * picking customers and writing the email to sending it, built on the shared
  * campaignActions so ChatGPT and Claude behave exactly the same way.
  * Sending and scheduling need the confirmation code from

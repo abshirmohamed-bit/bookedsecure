@@ -74,7 +74,7 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
       businessId: app.businessId,
       userId: app.userId,
       role: app.role,
-      // What was picked on the page goes to Co-work, not into the saved chat.
+      // What was picked on the page goes to Co-Work, not into the saved chat.
       question: data.surface ? `${question}\n\n${describeAssistantSurface(data.surface)}` : question,
       history: conversationContext(prior.messages),
       attachment,
