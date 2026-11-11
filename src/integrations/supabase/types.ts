@@ -893,6 +893,79 @@ export type Database = {
           },
         ]
       }
+      booking_confirmations: {
+        Row: {
+          attempts: number
+          business_id: string
+          channel: string
+          created_at: string
+          id: string
+          job_id: string
+          lead_id: string | null
+          provider_message_id: string | null
+          reason: string | null
+          recipient: string | null
+          status: string
+          subject: string | null
+          trigger: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          business_id: string
+          channel: string
+          created_at?: string
+          id?: string
+          job_id: string
+          lead_id?: string | null
+          provider_message_id?: string | null
+          reason?: string | null
+          recipient?: string | null
+          status: string
+          subject?: string | null
+          trigger?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          business_id?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+          lead_id?: string | null
+          provider_message_id?: string | null
+          reason?: string | null
+          recipient?: string | null
+          status?: string
+          subject?: string | null
+          trigger?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_confirmations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_confirmations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_confirmations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["job_id"]
+          },
+        ]
+      }
       booking_offers: {
         Row: {
           accepted_at: string | null
@@ -1159,6 +1232,7 @@ export type Database = {
           auto_complete_jobs: boolean
           automation_enabled: boolean
           billing_interval: string
+          booking_email: Json | null
           business_profile: Json | null
           cancel_at_period_end: boolean
           complimentary_access: boolean
@@ -1216,6 +1290,7 @@ export type Database = {
           auto_complete_jobs?: boolean
           automation_enabled?: boolean
           billing_interval?: string
+          booking_email?: Json | null
           business_profile?: Json | null
           cancel_at_period_end?: boolean
           complimentary_access?: boolean
@@ -1273,6 +1348,7 @@ export type Database = {
           auto_complete_jobs?: boolean
           automation_enabled?: boolean
           billing_interval?: string
+          booking_email?: Json | null
           business_profile?: Json | null
           cancel_at_period_end?: boolean
           complimentary_access?: boolean
@@ -2062,6 +2138,7 @@ export type Database = {
           id: string
           lead_id: string
           notes: string | null
+          notify_customer: boolean
           quoted_price: number | null
           scheduled_at: string | null
           service_id: string | null
@@ -2080,6 +2157,7 @@ export type Database = {
           id?: string
           lead_id: string
           notes?: string | null
+          notify_customer?: boolean
           quoted_price?: number | null
           scheduled_at?: string | null
           service_id?: string | null
@@ -2098,6 +2176,7 @@ export type Database = {
           id?: string
           lead_id?: string
           notes?: string | null
+          notify_customer?: boolean
           quoted_price?: number | null
           scheduled_at?: string | null
           service_id?: string | null
