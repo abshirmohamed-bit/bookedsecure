@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Download, Facebook, Film, Instagram, Linkedin, Loader2, MessageCircle, PenLine, Play, Send, Sparkles, TriangleAlert, X, Youtube } from "lucide-react";
+import { CheckCircle2, Download, Facebook, Film, Instagram, Linkedin, Loader2, MessageCircle, PenLine, Play, Send, Sparkles, Trash2, TriangleAlert, X, Youtube } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { getSocialPosting } from "@/lib/social-posts.functions";
 import { getYouTube } from "@/lib/youtube.functions";
 import { listSocialComments } from "@/lib/social-comments.functions";
 import { isActiveJob, jobStatusLabel } from "@/lib/video-clips";
-import { getVideoClips, renameVideoClip, renderVideoClip } from "@/lib/video-clips.functions";
+import { deleteVideoJobs, getVideoClips, renameVideoClip, renderVideoClip } from "@/lib/video-clips.functions";
 
 type Job = Awaited<ReturnType<typeof getVideoClips>>["jobs"][number];
 type Clip = Job["clips"][number];
@@ -98,6 +98,7 @@ export function SocialResults({ onAsk, wide = false }: { onAsk: (text: string) =
           {group.jobs.map((job) => <JobCard key={job.id} job={job} onAsk={onAsk} wide={wide} />)}
         </section>
       ))}
+      {jobs.length > 1 ? <ClearAllClips count={jobs.length} /> : null}
 
       {posts.length > 0 ? (
         <section className="space-y-2">
@@ -126,8 +127,33 @@ export function SocialResults({ onAsk, wide = false }: { onAsk: (text: string) =
   );
 }
 
+function useDeleteVideoJobs() {
+  const qc = useQueryClient();
+  const deleteFn = useServerFn(deleteVideoJobs);
+  return useMutation({
+    mutationFn: (jobId?: string) => deleteFn({ data: jobId ? { jobId } : {} }),
+    onSuccess: async (r) => { await qc.invalidateQueries({ queryKey: ["video-clips"] }); toast.success(r.deleted === 1 ? "Video and its clips deleted." : `${r.deleted} videos and their clips deleted.`); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "That couldn't be deleted."),
+  });
+}
+
+function ClearAllClips({ count }: { count: number }) {
+  const remove = useDeleteVideoJobs();
+  return (
+    <button
+      type="button"
+      disabled={remove.isPending}
+      onClick={() => { if (window.confirm(`Delete all ${count} videos and every clip made from them? This can't be undone.`)) remove.mutate(undefined); }}
+      className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+    >
+      <Trash2 className="size-3.5" aria-hidden="true" />{remove.isPending ? "Deleting…" : "Delete all clips"}
+    </button>
+  );
+}
+
 function JobCard({ job, onAsk, wide }: { job: Job; onAsk: (text: string) => void; wide: boolean }) {
   const moving = isActiveJob(job.status);
+  const remove = useDeleteVideoJobs();
   return (
     <article className="glass overflow-hidden rounded-2xl p-3">
       <div className="flex items-center gap-3">
@@ -141,6 +167,16 @@ function JobCard({ job, onAsk, wide }: { job: Job; onAsk: (text: string) => void
           </p>
         </div>
         {moving ? <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden="true" /> : null}
+        <button
+          type="button"
+          disabled={remove.isPending}
+          aria-label={`Delete ${job.source_name} and its clips`}
+          title="Delete this video and its clips"
+          onClick={() => { if (window.confirm(`Delete "${job.source_name}" and every clip made from it? This can't be undone.`)) remove.mutate(job.id); }}
+          className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+        >
+          {remove.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Trash2 className="size-4" aria-hidden="true" />}
+        </button>
       </div>
       {moving ? (
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-primary/10" role="progressbar" aria-valuenow={job.progress} aria-valuemin={0} aria-valuemax={100}>

@@ -76,7 +76,18 @@ export const renderVideoClip = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const renameVideoClip = createServerFn({ method: "POST" })
+/** Deletes one clip job (and its clips) or, without jobId, every one of the business's. */
+export const deleteVideoJobs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ jobId: z.string().uuid().optional() }).parse(input ?? {}))
+  .handler(async ({ context, data }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { deleteClipJobs } = await import("@/lib/video-clips.server");
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    return { deleted: await deleteClipJobs(ctx.businessId, data.jobId) };
+  });
+
+export const renameVideoClip =createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ clipId: z.string().uuid(), title: z.string().min(1).max(200) }).parse(input))
   .handler(async ({ context, data }) => {

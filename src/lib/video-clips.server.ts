@@ -115,6 +115,20 @@ export async function renderClip(businessId: string, clipId: string) {
   await startRender(clip);
 }
 
+/**
+ * Removes clip work from the business's Results: one job (jobId) or all of it.
+ * Clips go with their job (ON DELETE CASCADE); late Engine webhooks find no row
+ * and are ignored. Files already on the Engine stay there until its retention.
+ */
+export async function deleteClipJobs(businessId: string, jobId?: string) {
+  let q = supabaseAdmin.from("video_clip_jobs").delete().eq("business_id", businessId);
+  if (jobId) q = q.eq("id", jobId);
+  const { data, error } = await q.select("id");
+  if (error) throw new Error(error.message);
+  if (jobId && !data?.length) throw new Error("That video no longer exists.");
+  return data?.length ?? 0;
+}
+
 /** Renames one of the caller's clips. Engine updates never overwrite it: clips are inserted once (ignoreDuplicates). */
 export async function renameClip(businessId: string, clipId: string, title: string) {
   const clean = title.replace(/\s+/g, " ").trim().slice(0, 100);
