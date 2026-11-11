@@ -209,7 +209,7 @@
       {
         "name": "query_leads",
         "title": "Filter the lead inbox",
-        "description": "Reuse the same paginated inbox query as Cowork and BookedSecure. Filter by status, source, text-delivery state or customer search. Returns exact counts and a bounded page; follow next_page for all matches.",
+        "description": "Reuse the same paginated inbox query as Co-Work and BookedSecure. Filter by status, source, text-delivery state or customer search. Returns exact counts and a bounded page; follow next_page for all matches.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -346,7 +346,7 @@
       {
         "name": "create_customer",
         "title": "Add a customer",
-        "description": "Reuse Cowork’s customer creation action for the connected owner. Only add a customer explicitly requested by the user; never infer text consent.",
+        "description": "Reuse Co-Work’s customer creation action for the connected owner. Only add a customer explicitly requested by the user; never infer text consent.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
@@ -451,7 +451,7 @@
       {
         "name": "upsert_service",
         "title": "Add or update a service",
-        "description": "Reuse Cowork’s service action. Read list_services first when updating; pass only the owner’s stated prices and details, and null for unchanged fields. Requires owner and current access.",
+        "description": "Reuse Co-Work’s service action. Read list_services first when updating; pass only the owner’s stated prices and details, and null for unchanged fields. Requires owner and current access.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
@@ -554,7 +554,7 @@
       {
         "name": "upsert_addon",
         "title": "Add or update an extra",
-        "description": "Reuse Cowork’s add-on action. Read list_services first when updating; use the owner’s exact prices. Linking extras to services remains a separate approval in BookedSecure.",
+        "description": "Reuse Co-Work’s add-on action. Read list_services first when updating; use the owner’s exact prices. Linking extras to services remains a separate approval in BookedSecure.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
@@ -657,7 +657,7 @@
       {
         "name": "update_business_settings",
         "title": "Update business details",
-        "description": "Reuse Cowork’s owner-only business settings action: service area, opening hours, contact details, signature, timezone or quiet hours. Read business_settings first; null leaves fields unchanged. Cannot change billing or credentials.",
+        "description": "Reuse Co-Work’s owner-only business settings action: service area, opening hours, contact details, signature, timezone or quiet hours. Read business_settings first; null leaves fields unchanged. Cannot change billing or credentials.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
@@ -789,7 +789,7 @@
       {
         "name": "update_availability",
         "title": "Update bookable availability",
-        "description": "Owner only, same action as Cowork. Change when customers can book: online booking on/off, weekly working hours (replaces the list; weekday 0 = Sunday), earliest booking, days ahead, travel time between jobs, how often start times are offered, and the customer reminder (hours before; 0 = off). Read business_settings first; null leaves a setting unchanged. Show the owner what will change and get their explicit yes first.",
+        "description": "Owner only, same action as Co-Work. Change when customers can book: online booking on/off, weekly working hours (replaces the list; weekday 0 = Sunday), earliest booking, days ahead, travel time between jobs, how often start times are offered, and the customer reminder (hours before; 0 = off). Read business_settings first; null leaves a setting unchanged. Show the owner what will change and get their explicit yes first.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
@@ -925,7 +925,7 @@
       {
         "name": "set_blocked_time",
         "title": "Block or unblock time",
-        "description": "Owner only, same action as Cowork. Block time so nothing can be booked (day off, holiday, own appointment) or remove a block. Dates and times are the business's local time: date YYYY-MM-DD, optional until_date, optional from/to HH:MM (none = whole day). To unblock, use an id from business_settings blocked_time. Confirm with the owner first.",
+        "description": "Owner only, same action as Co-Work. Block time so nothing can be booked (day off, holiday, own appointment) or remove a block. Dates and times are the business's local time: date YYYY-MM-DD, optional until_date, optional from/to HH:MM (none = whole day). To unblock, use an id from business_settings blocked_time. Confirm with the owner first.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
@@ -1029,7 +1029,7 @@
       {
         "name": "send_text",
         "title": "Prepare a customer reply for approval",
-        "description": "Reuse Cowork’s text proposal. Find the customer and read customer_history first, then prepare the user-approved wording. Saves the exact reply to BookedSecure’s ongoing Cowork conversation, where the owner must press Confirm. Does NOT send a text. Existing consent, quiet hours, credits and sending safeguards apply when confirmed.",
+        "description": "Reuse Co-Work’s text proposal. Find the customer and read customer_history first, then prepare the user-approved wording. Saves the exact reply to BookedSecure’s ongoing Co-Work conversation, where the owner must press Confirm. Does NOT send a text. Existing consent, quiet hours, credits and sending safeguards apply when confirmed.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
@@ -1783,8 +1783,8 @@
       },
       {
         "name": "request_account_action",
-        "title": "Request any existing Cowork action for confirmation",
-        "description": "Prepare an exact request for any existing Cowork capability: SMS/email campaigns, imports, deleting mistaken jobs or unfinished prospects, team access, and other account work. Saves the request in the ongoing Cowork conversation. The owner must review and Confirm in BookedSecure; Cowork then uses its existing tools and permissions. Messages and imports retain their separate approval gates. Nothing is executed by this tool.",
+        "title": "Request any existing Co-Work action for confirmation",
+        "description": "Prepare an exact request for any existing Co-Work capability: SMS/email campaigns, imports, deleting mistaken jobs or unfinished prospects, team access, and other account work. Saves the request in the ongoing Co-Work conversation. The owner must review and Confirm in BookedSecure; Co-Work then uses its existing tools and permissions. Messages and imports retain their separate approval gates. Nothing is executed by this tool.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
