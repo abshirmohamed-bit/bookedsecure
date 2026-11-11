@@ -3,6 +3,7 @@ from unittest.mock import patch
 from sqlmodel import select
 
 from app import media
+from app.config import settings
 from app.db import session
 from app.ids import new_id
 from app.models import Asset, ImportTask
@@ -13,13 +14,16 @@ def test_ffmpeg_bounds_each_input_and_output():
     with patch("app.media.run") as run, patch("app.media._bin", return_value="ffmpeg"):
         media.ffmpeg(["-i", "one.mp4", "-i", "two.mp4", "-c:v", "libx264", "out.mp4"])
     args = run.call_args.args[0]
-    assert args[args.index("-filter_threads") + 1] == "2"
-    assert args[args.index("-filter_complex_threads") + 1] == "2"
+    # The bound follows the machine's cores (2 on Fly), so read it rather than
+    # assume it: a hardcoded "2" fails on any larger test machine.
+    threads = str(settings().worker_threads())
+    assert args[args.index("-filter_threads") + 1] == threads
+    assert args[args.index("-filter_complex_threads") + 1] == threads
     assert args.count("-threads") == 3
     for i, arg in enumerate(args):
         if arg == "-i":
-            assert args[i - 2:i] == ["-threads", "2"]
-    assert args[-3:] == ["-threads", "2", "out.mp4"]
+            assert args[i - 2:i] == ["-threads", threads]
+    assert args[-3:] == ["-threads", threads, "out.mp4"]
 
 
 def test_av1_import_retains_video_without_full_frame_encode():
