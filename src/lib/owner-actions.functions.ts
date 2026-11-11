@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { LEAD_STATUSES } from "@/lib/domain";
 import { OWNER_ASSISTANT_MAX_QUESTION, normaliseOwnerQuestion } from "@/lib/owner-assistant";
 import { conversationContext } from '@/lib/assistant-context';
+import { assistantSurfaceSchema, describeAssistantSurface } from "@/lib/social-cowork";
 
 /**
  * One owner request from the assistant. The tool-using assistant reads and
@@ -16,6 +17,7 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
     z.object({
       question: z.string().max(OWNER_ASSISTANT_MAX_QUESTION * 2),
       threadId: z.string().uuid(),
+      surface: assistantSurfaceSchema.optional(),
       attachment: z
         .object({
           filename: z.string().min(1).max(200),
@@ -72,7 +74,8 @@ export const runOwnerRequest = createServerFn({ method: "POST" })
       businessId: app.businessId,
       userId: app.userId,
       role: app.role,
-      question,
+      // What was picked on the page goes to Co-work, not into the saved chat.
+      question: data.surface ? `${question}\n\n${describeAssistantSurface(data.surface)}` : question,
       history: conversationContext(prior.messages),
       attachment,
       attachmentRemembered: !fresh && Boolean(remembered),

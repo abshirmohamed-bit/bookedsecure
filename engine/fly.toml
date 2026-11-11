@@ -1,0 +1,78 @@
+# crayZmundo Engine on Fly.io
+#
+# Rename the app below, then: fly launch --no-deploy --copy-config  (see DEPLOY.md)
+app = "crayzmundo-engine"
+primary_region = "syd"            # Sydney — closest to Melbourne
+
+# Give an in-flight render time to finish on deploy before SIGKILL.
+# Must stay above the Engine's SHUTDOWN_GRACE_S (120s). These are top-level
+# keys: in TOML anything after a [table] header belongs to that table.
+kill_signal = "SIGTERM"
+kill_timeout = "300s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# "on-failure" is the default and must stay that way: the Engine shuts itself
+# down with a clean exit when idle, and "always" would restart it instantly
+# and undo the whole point. A crash still gets restarted.
+[[restart]]
+  policy = "on-failure"
+
+[env]
+  DATA_DIR = "/data"
+  # Go to sleep after 10 quiet minutes. Billing is per second while running,
+  # so this is the difference between paying for a month and paying for the
+  # hours actually used. Set it to 0 to keep the machine up around the clock.
+  IDLE_SHUTDOWN_S = "600"
+  # Whisper weights land here so a deploy does not re-download them.
+  HF_HOME = "/data/models"
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # MUST stay "off". Fly's proxy only sees inbound requests — it cannot see a
+  # render in progress, so autostop would kill jobs mid-encode. The Engine
+  # stops itself instead (IDLE_SHUTDOWN_S), which it can only do if the proxy
+  # is not also keeping it alive: hence "off" and min_machines_running = 0.
+  auto_stop_machines = "off"
+  # Wakes the machine on the next request. A cold start takes a few seconds.
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    # Encoding is CPU-bound; queueing beats thrashing.
+    soft_limit = 20
+    hard_limit = 40
+
+
+[[vm]]
+  # Video encoding is the whole job. Dedicated cores roughly halve render time
+  # against shared ones. Needs a payment method: trial organizations cannot
+  # launch "performance" machines and are capped at 2 cores.
+  # Trial fallback: cpu_kind = "shared", cpus = 2.
+  size = "performance-2x"
+  memory = "4gb"
+
+# SQLite, the Whisper weights, and any locally-stored media.
+# Media itself belongs in Tigris (see DEPLOY.md); this volume is for state.
+[[mounts]]
+  source = "crayz_data"
+  destination = "/data"
+  initial_size = "10gb"
+  # Media fills disks. Grow at 80% full rather than failing a render at 3am.
+  auto_extend_size_threshold = 80
+  auto_extend_size_increment = "5GB"
+  auto_extend_size_limit = "50GB"
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8080
+    method = "GET"
+    path = "/v1/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "40s"

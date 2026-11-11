@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
+import { SocialCowork } from "@/components/social/SocialCowork";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Facebook, Instagram, Linkedin, Youtube, ExternalLink, MessageCircle, RefreshCw, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, Facebook, Instagram, Linkedin, Youtube, ExternalLink, MessageCircle, RefreshCw, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import { convertSocialComment, getSocialThread, listSocialComments, listSocialTh
 
 type Platform = "linkedin" | "facebook" | "instagram" | "youtube";
 type View = "post" | "comments" | "messages" | "insights";
-type SocialSearch = { platform?: Platform; view?: View; linkedin?: string; youtube?: string; why?: string };
+type SocialSearch = { platform?: Platform; view?: View; linkedin?: string; youtube?: string; why?: string; clip?: string; clipTitle?: string };
 
 export const Route = createFileRoute("/social")({
   head: () => ({
@@ -38,6 +39,8 @@ export const Route = createFileRoute("/social")({
     ...(typeof search["linkedin"] === "string" ? { linkedin: search["linkedin"].slice(0, 20) } : {}),
     ...(typeof search["youtube"] === "string" ? { youtube: search["youtube"].slice(0, 20) } : {}),
     ...(typeof search["why"] === "string" ? { why: search["why"].slice(0, 60) } : {}),
+    ...(typeof search["clip"] === "string" && /^[0-9a-f-]{36}$/i.test(search["clip"]) ? { clip: search["clip"] } : {}),
+    ...(typeof search["clipTitle"] === "string" ? { clipTitle: search["clipTitle"].slice(0, 100) } : {}),
   }),
   component: SocialMediaPage,
 });
@@ -50,6 +53,13 @@ const PLATFORMS: { id: Platform; label: string; icon: typeof Linkedin; color: st
 ];
 
 function SocialMediaPage() {
+  const search = Route.useSearch();
+  // Co-work is the front door; any link to a network or section opens the hands-on tools.
+  if (Object.keys(search).length === 0) return <AppShell title="Social media"><SocialCowork /></AppShell>;
+  return <SocialTools />;
+}
+
+function SocialTools() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   // A notification about comments or messages opens the inbox, not the composer.
@@ -65,12 +75,13 @@ function SocialMediaPage() {
     <AppShell title="Social media">
       <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
         <header className="space-y-3">
+          <Link to="/social" className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to Co-work</Link>
           <div>
             <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Social media</h1>
             <p className="text-sm text-muted-foreground">Post to your pages and answer comments and messages. Nothing is posted or sent until you approve it.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div role="tablist" aria-label="Network" className="inline-flex rounded-xl border border-border bg-card p-1">
+            <div role="tablist" aria-label="Network" className="inline-flex max-w-full overflow-x-auto rounded-xl border border-border bg-card p-1">
               {PLATFORMS.map((p) => (
                 <button
                   key={p.id}
@@ -108,7 +119,7 @@ function SocialMediaPage() {
         ) : platform === "youtube" ? (
           view === "insights" ? <YouTubeSection view="insights" />
             : view === "comments" ? <YouTubeSection view="comments" />
-            : <YouTubeComposer outcome={search.youtube} why={search.why} clearOutcome={clearYouTube} />
+            : <YouTubeComposer outcome={search.youtube} why={search.why} clearOutcome={clearYouTube} clipId={search.clip} clipTitle={search.clipTitle} />
         ) : view === "post" || view === "insights" ? (
           <MetaComposer platform={platform} />
         ) : (

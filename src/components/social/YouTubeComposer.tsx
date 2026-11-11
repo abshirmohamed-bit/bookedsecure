@@ -32,7 +32,7 @@ const WHY: Record<string, string> = {
 const fmtWhen = (iso: string) => new Date(iso).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(bytes > 100 * 1024 * 1024 ? 0 : 1)} MB`;
 
-export function YouTubeComposer({ outcome, why, clearOutcome }: { outcome?: string | undefined; why?: string | undefined; clearOutcome: () => void }) {
+export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle }: { outcome?: string | undefined; why?: string | undefined; clearOutcome: () => void; clipId?: string | undefined; clipTitle?: string | undefined }) {
   const qc = useQueryClient();
   const load = useServerFn(getYouTube);
   const q = useQuery({ queryKey: ["youtube"], queryFn: () => load() });
@@ -80,7 +80,26 @@ export function YouTubeComposer({ outcome, why, clearOutcome }: { outcome?: stri
     onError: (e) => toast.error(e instanceof Error ? e.message : "The AI couldn't write that."),
   });
 
-  function choose(files: FileList | null) {
+  // A finished clip sent over from Co-work's Results arrives ready to upload.
+  const loadedClip = useRef<string | null>(null);
+  useEffect(() => {
+    if (!clipId || loadedClip.current === clipId) return;
+    loadedClip.current = clipId;
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const res = await fetch(`/api/video-clips/${clipId}/file`, { headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` } });
+        if (!res.ok) throw new Error(await res.text());
+        const blob = await res.blob();
+        choose([new File([blob], `${clipTitle || "clip"}.mp4`, { type: "video/mp4" })]);
+      } catch (e) {
+        toast.error(e instanceof Error && e.message ? e.message : "That clip couldn't be loaded.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clipId]);
+
+  function choose(files: ArrayLike<File> | null) {
     const f = files?.[0];
     if (!f) return;
     const problem = videoProblem({ title: "x", description: "", fileSize: f.size, mimeType: f.type });

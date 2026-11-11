@@ -5348,6 +5348,150 @@ export type Database = {
           },
         ]
       }
+      video_clip_jobs: {
+        Row: {
+          id: string
+          business_id: string
+          created_by: string | null
+          source_kind: string
+          source_name: string
+          source_url: string | null
+          rights_confirmed: boolean
+          engine_upload_id: string | null
+          engine_asset_id: string | null
+          engine_job_id: string | null
+          thumbnail_url: string | null
+          duration_ms: number | null
+          status: string
+          clip_requested: boolean
+          stage: string | null
+          progress: number
+          aspect: string
+          clip_count: number | null
+          instructions: string | null
+          error: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          created_by?: string | null
+          source_kind: string
+          source_name: string
+          source_url?: string | null
+          rights_confirmed?: boolean
+          engine_upload_id?: string | null
+          engine_asset_id?: string | null
+          engine_job_id?: string | null
+          thumbnail_url?: string | null
+          duration_ms?: number | null
+          status?: string
+          clip_requested?: boolean
+          stage?: string | null
+          progress?: number
+          aspect?: string
+          clip_count?: number | null
+          instructions?: string | null
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          created_by?: string | null
+          source_kind?: string
+          source_name?: string
+          source_url?: string | null
+          rights_confirmed?: boolean
+          engine_upload_id?: string | null
+          engine_asset_id?: string | null
+          engine_job_id?: string | null
+          thumbnail_url?: string | null
+          duration_ms?: number | null
+          status?: string
+          clip_requested?: boolean
+          stage?: string | null
+          progress?: number
+          aspect?: string
+          clip_count?: number | null
+          instructions?: string | null
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      video_clips: {
+        Row: {
+          id: string
+          business_id: string
+          job_id: string
+          engine_project_id: string
+          position: number
+          title: string | null
+          reason: string | null
+          score: number | null
+          start_ms: number | null
+          end_ms: number | null
+          duration_ms: number | null
+          thumbnail_url: string | null
+          status: string
+          engine_export_id: string | null
+          video_url: string | null
+          width: number | null
+          height: number | null
+          error: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          business_id: string
+          job_id: string
+          engine_project_id: string
+          position?: number
+          title?: string | null
+          reason?: string | null
+          score?: number | null
+          start_ms?: number | null
+          end_ms?: number | null
+          duration_ms?: number | null
+          thumbnail_url?: string | null
+          status?: string
+          engine_export_id?: string | null
+          video_url?: string | null
+          width?: number | null
+          height?: number | null
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          business_id?: string
+          job_id?: string
+          engine_project_id?: string
+          position?: number
+          title?: string | null
+          reason?: string | null
+          score?: number | null
+          start_ms?: number | null
+          end_ms?: number | null
+          duration_ms?: number | null
+          thumbnail_url?: string | null
+          status?: string
+          engine_export_id?: string | null
+          video_url?: string | null
+          width?: number | null
+          height?: number | null
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       youtube_accounts: {
         Row: {
           access_token_ciphertext: string | null

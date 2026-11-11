@@ -4,7 +4,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, CheckSquare, Loader2, Paperclip, Square, UploadCloud, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -18,6 +18,7 @@ import type { SendTextProposal, ImportProposal, AssistantRequestProposal } from 
 import { approveReactivation, bulkEditReactivationDrafts } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { saveCrmImportBatch } from "@/lib/csv-import.functions";
+import type { AssistantSurface } from "@/lib/social-cowork";
 import { MAX_CSV_BYTES } from "@/lib/csv-import";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,6 +115,18 @@ export function OwnerAssistant({
   homeMode = false,
   compact = false,
   label = "Assistant",
+  hideTurns = false,
+  hero,
+  belowComposer,
+  centerWhenEmpty = false,
+  surface,
+  seed,
+  placeholder,
+  composerClassName,
+  composerTools,
+  emptyAction,
+  onStart,
+  onSent,
 }: {
   threadId: string;
   initialTurns?: OwnerAssistantTurn[];
@@ -123,6 +136,25 @@ export function OwnerAssistant({
   compact?: boolean;
   /** What the chat is called where it is shown (Home calls it Co-work). */
   label?: string;
+  /** Keep earlier messages out of view until the owner starts or resumes. */
+  hideTurns?: boolean;
+  /** Replaces the empty state. */
+  hero?: ReactNode;
+  belowComposer?: ReactNode;
+  /** Centre the empty state and composer on large screens. */
+  centerWhenEmpty?: boolean;
+  /** What was picked on the page, passed to the agent but not saved in the chat. */
+  surface?: AssistantSurface;
+  /** Puts text in the box; a new nonce replaces what's there. */
+  seed?: { text: string; nonce: number } | undefined;
+  placeholder?: string;
+  composerClassName?: string;
+  /** Replaces the CSV attach control on the composer's bottom row. */
+  composerTools?: ReactNode;
+  /** Shown instead of Send while the box is empty. */
+  emptyAction?: ReactNode;
+  onStart?: () => void;
+  onSent?: () => void;
 }) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
@@ -151,6 +183,16 @@ export function OwnerAssistant({
   }, []);
   const endRef = useRef<HTMLDivElement>(null);
   const [question, setQuestion] = useState("");
+  useEffect(() => {
+    if (!seed) return;
+    setQuestion(seed.text);
+    requestAnimationFrame(() => {
+      if (!textareaRef.current) return;
+      autoSize(textareaRef.current);
+      textareaRef.current.focus();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed?.nonce]);
   const [turns, setTurns] = useState<Turn[]>(initialTurns);
   const [attested, setAttested] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -185,7 +227,7 @@ export function OwnerAssistant({
 
   const mutation = useMutation({
     mutationFn: (input: { question: string; attachment: { filename: string; content: string } | null }) =>
-      ask({ data: { question: input.question, threadId, attachment: input.attachment } }),
+      ask({ data: { question: input.question, threadId, attachment: input.attachment, ...(surface ? { surface } : {}) } }),
     onSuccess: (result) => {
       setTurns((current) => [
         ...current,
@@ -384,10 +426,12 @@ export function OwnerAssistant({
     const shown = attachment
       ? `${text || "Please check and import these contacts."} (attached ${attachment.filename})`
       : text;
+    onStart?.();
     setTurns((current) => [...current, { id: newId(), role: "you", text: shown }]);
     setQuestion("");
     const pending = attachment;
     setAttachment(null);
+    onSent?.();
     mutation.mutate({ question: text, attachment: pending }, { onSettled: () => {
       onConversationChanged?.();
       if (pending) {
@@ -405,18 +449,20 @@ export function OwnerAssistant({
     fileRef.current?.click();
   }
 
-  const hasConversation = turns.length > 0;
+  const visibleTurns = hideTurns ? [] : turns;
+  const hasConversation = visibleTurns.length > 0;
 
   return (
     <section className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-      <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-        {!hasConversation && compact ? (
+      <div className={`flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden ${centerWhenEmpty && !hasConversation ? "lg:justify-center" : ""}`}>
+        {!hasConversation && hero ? hero : null}
+        {!hasConversation && !hero && compact ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5 py-5 text-center">
             <p className="text-sm font-medium">Ask {label}</p>
             <p className="mt-1 max-w-sm text-xs text-muted-foreground">Text a lead, book a job, start a campaign or ask who's waiting. Texts always wait for your confirm.</p>
           </div>
         ) : null}
-        {!hasConversation && !compact ? (
+        {!hasConversation && !hero && !compact ? (
           <div className={`mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col justify-center overflow-y-auto px-5 py-5 text-center ${homeMode ? "lg:pr-48" : ""}`}>
             <p className="text-xs font-semibold uppercase text-primary">Cowork</p>
             <h1 className="mt-2 text-balance font-heading text-2xl font-semibold leading-[1.15] sm:text-4xl">
@@ -431,7 +477,7 @@ export function OwnerAssistant({
         {hasConversation ? (
           <Conversation className="min-h-0 min-w-0 flex-1 overscroll-contain [&>div]:overflow-y-auto">
             <ConversationContent className={`mx-auto w-full min-w-0 max-w-3xl gap-5 px-4 pb-6 pt-4 sm:px-8 ${homeMode ? "lg:pt-28" : "lg:pt-8"}`}>
-            {turns.map((turn) => (
+            {visibleTurns.map((turn) => (
               <Message key={turn.id} from={turn.role === "you" ? "user" : "assistant"}>
                 {turn.role === "you" ? (
                   <MessageContent className="bg-primary text-primary-foreground"><MessageResponse>{turn.text}</MessageResponse></MessageContent>
@@ -796,7 +842,7 @@ export function OwnerAssistant({
 
         <PromptInput
           onSubmit={(message) => submit(message.text ?? question)}
-          className="relative z-20 mx-auto mb-[max(0.75rem,env(safe-area-inset-bottom))] mt-2 w-[calc(100%-1.5rem)] max-w-3xl shrink-0 rounded-2xl border-border bg-card shadow-xl sm:w-[calc(100%-2rem)]"
+          className={composerClassName ?? "relative z-20 mx-auto mb-[max(0.75rem,env(safe-area-inset-bottom))] mt-2 w-[calc(100%-1.5rem)] max-w-3xl shrink-0 rounded-2xl border-border bg-card shadow-xl sm:w-[calc(100%-2rem)]"}
         >
           <label className="sr-only" htmlFor="owner-question">
             Ask about your business or ask for a campaign
@@ -807,11 +853,11 @@ export function OwnerAssistant({
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             maxLength={OWNER_ASSISTANT_MAX_QUESTION}
-            placeholder={`Message ${label}…`}
+            placeholder={placeholder ?? `Message ${label}…`}
             className="min-h-12 max-h-[120px] text-base"
           />
            <PromptInputFooter className="min-h-11">
-            <div className="flex items-center gap-2">
+            {composerTools ?? <div className="flex items-center gap-2">
             {attachment ? (
               <span className="inline-flex min-h-10 max-w-[12rem] items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1.5 text-xs sm:min-h-8">
                 <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -869,20 +915,23 @@ export function OwnerAssistant({
                 attachMutation.mutate(file);
               }}
             />
-            </div>
+            </div>}
+            {emptyAction && normaliseOwnerQuestion(question).length === 0 && !mutation.isPending ? emptyAction : (
             <PromptInputSubmit
               status={mutation.isPending ? "submitted" : "ready"}
               disabled={mutation.isPending || (normaliseOwnerQuestion(question).length === 0 && !attachment)}
               aria-label={signedIn ? "Ask" : "Sign in to ask"}
                className="size-10 sm:size-8"
             />
+            )}
           </PromptInputFooter>
-          {!loading ? (
+          {!loading && !composerTools ? (
             <p className="mt-2 text-center text-xs text-muted-foreground">
               {signedIn ? "Ask for it and the assistant does it" : "Sign in to ask"}
             </p>
           ) : null}
         </PromptInput>
+        {!hasConversation ? belowComposer : null}
       </div>
     </section>
   );

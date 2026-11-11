@@ -1,0 +1,19 @@
+services:
+  engine:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - engine-data:/data
+    ports:
+      - "8080:8080"
+    # Whisper and ffmpeg both want room; 4 GB is the realistic floor.
+    deploy:
+      resources:
+        limits:
+          memory: 6g
+
+volumes:
+  engine-data:

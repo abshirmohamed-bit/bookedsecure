@@ -38,6 +38,9 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const scheduledPosts = await processDueScheduledPosts().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Scheduled posts failed",
         }));
+        // Video clips whose Engine webhook was lost.
+        const { advanceAllVideoJobs } = await import("@/lib/video-clips.server");
+        await advanceAllVideoJobs().catch((error: unknown) => console.error("video clips", error));
         // Review requests after completed jobs, once per job, for businesses that turn them on.
         const { processDueReviewRequests } = await import("@/lib/review-requests.server");
         const reviewRequests = await processDueReviewRequests().catch((error: unknown) => ({

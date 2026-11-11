@@ -1,0 +1,48 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+/** Everything being clipped for this business, and whether clipping is switched on. */
+export const getVideoClips = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { engineConfigured, listVideoJobs } = await import("@/lib/video-clips.server");
+    const ctx = await requireAppContext(context.supabase, context.userId);
+    return { configured: engineConfigured(), jobs: await listVideoJobs(ctx.businessId) };
+  });
+
+export const startVideoUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    filename: z.string().trim().min(1).max(300),
+    contentType: z.string().regex(/^video\//).max(100),
+    sizeBytes: z.number().int().positive(),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { startUpload } = await import("@/lib/video-clips.server");
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    return startUpload({ businessId: ctx.businessId, userId: ctx.userId, ...data });
+  });
+
+export const finishVideoUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ jobId: z.string().uuid(), failure: z.string().max(300).optional() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { finishUpload } = await import("@/lib/video-clips.server");
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    return { status: await finishUpload(ctx.businessId, data.jobId, data.failure) };
+  });
+
+export const renderVideoClip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ clipId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { renderClip } = await import("@/lib/video-clips.server");
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    await renderClip(ctx.businessId, data.clipId);
+    return { ok: true };
+  });

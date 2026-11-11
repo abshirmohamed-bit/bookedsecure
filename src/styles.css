@@ -439,3 +439,25 @@
 .btn-apple:active {
   background-color: #333333;
 }
+
+/* Co-work on Social media: the lit composer ring, on the logo palette. */
+.cowork-ring {
+  border: 2.5px solid transparent;
+  background:
+    linear-gradient(oklch(1 0 0), oklch(1 0 0)) padding-box,
+    linear-gradient(100deg, var(--primary), oklch(0.7 0.13 195), var(--primary-bright), var(--primary-deep)) border-box;
+  box-shadow: 0 10px 34px -14px oklch(0.53 0.17 256 / 0.45);
+}
+.cowork-ring [data-slot="input-group"] {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.cowork-accent {
+  background: linear-gradient(95deg, var(--primary), oklch(0.66 0.12 205));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.cowork-scroll { scrollbar-width: none; }
+.cowork-scroll::-webkit-scrollbar { display: none; }

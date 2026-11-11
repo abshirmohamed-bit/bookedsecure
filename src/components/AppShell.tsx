@@ -73,6 +73,7 @@ export function AppShell({ children, title, wide = false }: { children: ReactNod
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const search = useRouterState({ select: (s) => s.location.search });
   const fetchSession = useServerFn(getSession);
   const fetchCounts = useServerFn(getNavCounts);
   const appSession = useQuery({
@@ -138,7 +139,7 @@ export function AppShell({ children, title, wide = false }: { children: ReactNod
   const isPlatformOwner = Boolean(appSession.data?.isPlatformAdmin);
   const tenantName = business?.name ?? null;
   const quotePath = tenantQuotePath(business?.slug ?? null);
-  const fullHeight = pathname.startsWith("/assistant");
+  const fullHeight = pathname.startsWith("/assistant") || (pathname === "/social" && Object.keys(search).length === 0);
   // The icon-only state applies on desktop; the mobile drawer is always full width.
   const compact = collapsed && !mobileNavOpen;
   const signOut = () => navigate({ to: "/auth", replace: true });

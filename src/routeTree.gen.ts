@@ -59,6 +59,7 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as ApiLinkedinUploadRouteImport } from './routes/api/linkedin/upload'
 import { Route as ApiPublicEmailUnsubscribeRouteImport } from './routes/api/public/email-unsubscribe'
 import { Route as ApiYoutubeUploadRouteImport } from './routes/api/youtube/upload'
+import { Route as ApiPublicHooksEngineRouteImport } from './routes/api/public/hooks/engine'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksLeadSyncRouteImport } from './routes/api/public/hooks/lead-sync'
 import { Route as ApiPublicHooksPilotExpiryRouteImport } from './routes/api/public/hooks/pilot-expiry'
@@ -80,6 +81,7 @@ import { Route as ApiPublicV1MeRouteImport } from './routes/api/public/v1/me'
 import { Route as ApiPublicV1OpenapiDotjsonRouteImport } from './routes/api/public/v1/openapi[.]json'
 import { Route as ApiPublicV1ServicesRouteImport } from './routes/api/public/v1/services'
 import { Route as ApiPublicV1SocialCommentsRouteImport } from './routes/api/public/v1/social-comments'
+import { Route as ApiVideoClipsClipIdFileRouteImport } from './routes/api/video-clips.$clipId.file'
 import { Route as ApiPublicLinkedinOauthCallbackRouteImport } from './routes/api/public/linkedin/oauth.callback'
 import { Route as ApiPublicMetaOauthCallbackRouteImport } from './routes/api/public/meta/oauth.callback'
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
@@ -344,6 +346,11 @@ const ApiYoutubeUploadRoute = ApiYoutubeUploadRouteImport.update({
   path: '/api/youtube/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksEngineRoute = ApiPublicHooksEngineRouteImport.update({
+  id: '/api/public/hooks/engine',
+  path: '/api/public/hooks/engine',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksFollowUpsRoute = ApiPublicHooksFollowUpsRouteImport.update({
   id: '/api/public/hooks/follow-ups',
   path: '/api/public/hooks/follow-ups',
@@ -456,6 +463,11 @@ const ApiPublicV1SocialCommentsRoute =
     path: '/api/public/v1/social-comments',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiVideoClipsClipIdFileRoute = ApiVideoClipsClipIdFileRouteImport.update({
+  id: '/api/video-clips/$clipId/file',
+  path: '/api/video-clips/$clipId/file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicLinkedinOauthCallbackRoute =
   ApiPublicLinkedinOauthCallbackRouteImport.update({
     id: '/api/public/linkedin/oauth/callback',
@@ -572,6 +584,7 @@ export interface FileRoutesByFullPath {
   '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/youtube/upload': typeof ApiYoutubeUploadRoute
+  '/api/public/hooks/engine': typeof ApiPublicHooksEngineRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
@@ -593,6 +606,7 @@ export interface FileRoutesByFullPath {
   '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
   '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
   '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
+  '/api/video-clips/$clipId/file': typeof ApiVideoClipsClipIdFileRoute
   '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
@@ -655,6 +669,7 @@ export interface FileRoutesByTo {
   '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/youtube/upload': typeof ApiYoutubeUploadRoute
+  '/api/public/hooks/engine': typeof ApiPublicHooksEngineRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
@@ -676,6 +691,7 @@ export interface FileRoutesByTo {
   '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
   '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
   '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
+  '/api/video-clips/$clipId/file': typeof ApiVideoClipsClipIdFileRoute
   '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
@@ -740,6 +756,7 @@ export interface FileRoutesById {
   '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/youtube/upload': typeof ApiYoutubeUploadRoute
+  '/api/public/hooks/engine': typeof ApiPublicHooksEngineRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
   '/api/public/hooks/pilot-expiry': typeof ApiPublicHooksPilotExpiryRoute
@@ -761,6 +778,7 @@ export interface FileRoutesById {
   '/api/public/v1/openapi.json': typeof ApiPublicV1OpenapiDotjsonRoute
   '/api/public/v1/services': typeof ApiPublicV1ServicesRoute
   '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
+  '/api/video-clips/$clipId/file': typeof ApiVideoClipsClipIdFileRoute
   '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
@@ -826,6 +844,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
     | '/api/youtube/upload'
+    | '/api/public/hooks/engine'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
@@ -847,6 +866,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/openapi.json'
     | '/api/public/v1/services'
     | '/api/public/v1/social-comments'
+    | '/api/video-clips/$clipId/file'
     | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
@@ -909,6 +929,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
     | '/api/youtube/upload'
+    | '/api/public/hooks/engine'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
@@ -930,6 +951,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/openapi.json'
     | '/api/public/v1/services'
     | '/api/public/v1/social-comments'
+    | '/api/video-clips/$clipId/file'
     | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
@@ -993,6 +1015,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
     | '/api/youtube/upload'
+    | '/api/public/hooks/engine'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
     | '/api/public/hooks/pilot-expiry'
@@ -1014,6 +1037,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/openapi.json'
     | '/api/public/v1/services'
     | '/api/public/v1/social-comments'
+    | '/api/video-clips/$clipId/file'
     | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
@@ -1070,6 +1094,7 @@ export interface RootRouteChildren {
   ApiLinkedinUploadRoute: typeof ApiLinkedinUploadRoute
   ApiPublicEmailUnsubscribeRoute: typeof ApiPublicEmailUnsubscribeRoute
   ApiYoutubeUploadRoute: typeof ApiYoutubeUploadRoute
+  ApiPublicHooksEngineRoute: typeof ApiPublicHooksEngineRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksLeadSyncRoute: typeof ApiPublicHooksLeadSyncRoute
   ApiPublicHooksPilotExpiryRoute: typeof ApiPublicHooksPilotExpiryRoute
@@ -1091,6 +1116,7 @@ export interface RootRouteChildren {
   ApiPublicV1OpenapiDotjsonRoute: typeof ApiPublicV1OpenapiDotjsonRoute
   ApiPublicV1ServicesRoute: typeof ApiPublicV1ServicesRoute
   ApiPublicV1SocialCommentsRoute: typeof ApiPublicV1SocialCommentsRouteWithChildren
+  ApiVideoClipsClipIdFileRoute: typeof ApiVideoClipsClipIdFileRoute
   ApiPublicLinkedinOauthCallbackRoute: typeof ApiPublicLinkedinOauthCallbackRoute
   ApiPublicMetaOauthCallbackRoute: typeof ApiPublicMetaOauthCallbackRoute
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
@@ -1455,6 +1481,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiYoutubeUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/engine': {
+      id: '/api/public/hooks/engine'
+      path: '/api/public/hooks/engine'
+      fullPath: '/api/public/hooks/engine'
+      preLoaderRoute: typeof ApiPublicHooksEngineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/follow-ups': {
       id: '/api/public/hooks/follow-ups'
       path: '/api/public/hooks/follow-ups'
@@ -1600,6 +1633,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/v1/social-comments'
       fullPath: '/api/public/v1/social-comments'
       preLoaderRoute: typeof ApiPublicV1SocialCommentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-clips/$clipId/file': {
+      id: '/api/video-clips/$clipId/file'
+      path: '/api/video-clips/$clipId/file'
+      fullPath: '/api/video-clips/$clipId/file'
+      preLoaderRoute: typeof ApiVideoClipsClipIdFileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/linkedin/oauth/callback': {
@@ -1777,6 +1817,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLinkedinUploadRoute: ApiLinkedinUploadRoute,
   ApiPublicEmailUnsubscribeRoute: ApiPublicEmailUnsubscribeRoute,
   ApiYoutubeUploadRoute: ApiYoutubeUploadRoute,
+  ApiPublicHooksEngineRoute: ApiPublicHooksEngineRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksLeadSyncRoute: ApiPublicHooksLeadSyncRoute,
   ApiPublicHooksPilotExpiryRoute: ApiPublicHooksPilotExpiryRoute,
@@ -1798,6 +1839,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicV1OpenapiDotjsonRoute: ApiPublicV1OpenapiDotjsonRoute,
   ApiPublicV1ServicesRoute: ApiPublicV1ServicesRoute,
   ApiPublicV1SocialCommentsRoute: ApiPublicV1SocialCommentsRouteWithChildren,
+  ApiVideoClipsClipIdFileRoute: ApiVideoClipsClipIdFileRoute,
   ApiPublicLinkedinOauthCallbackRoute: ApiPublicLinkedinOauthCallbackRoute,
   ApiPublicMetaOauthCallbackRoute: ApiPublicMetaOauthCallbackRoute,
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,
