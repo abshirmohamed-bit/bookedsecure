@@ -14,7 +14,8 @@ import {
   confirmLeadUpdate,
   confirmAssistantText,
 } from "@/lib/owner-actions.functions";
-import type { SendTextProposal, ImportProposal, AssistantRequestProposal } from "@/lib/assistant-proposals";
+import type { SendTextProposal, ImportProposal, AssistantRequestProposal, VideoLinkProposal } from "@/lib/assistant-proposals";
+import { VideoLinkCard } from "@/components/cowork/VideoLinkCard";
 import { approveReactivation, bulkEditReactivationDrafts } from "@/lib/reactivation.functions";
 import { normaliseOwnerQuestion, OWNER_ASSISTANT_MAX_QUESTION } from "@/lib/owner-assistant";
 import { saveCrmImportBatch } from "@/lib/csv-import.functions";
@@ -76,7 +77,8 @@ type Proposal =
   | LeadUpdateProposal
   | SendTextProposal
   | ImportProposal
-  | AssistantRequestProposal;
+  | AssistantRequestProposal
+  | VideoLinkProposal;
 
 type Turn = {
   id: string;
@@ -502,7 +504,9 @@ export function OwnerAssistant({
                     <MessageContent><MessageResponse>{turn.text}</MessageResponse></MessageContent>
 
                     {turn.proposals?.map((proposal) =>
-                      proposal.kind === 'assistant_request' ? (
+                      proposal.kind === "video_link" ? (
+                        <VideoLinkCard key={proposal.url} proposal={proposal} onDone={(message) => { markDone(turn.id, message); void queryClient.invalidateQueries({ queryKey: ["video-clips"] }); }} />
+                      ) : proposal.kind === 'assistant_request' ? (
                         <div key={turn.id + '-request'} className="space-y-3 rounded-lg border border-border bg-card p-4 text-sm">
                           <p className="whitespace-pre-wrap font-medium">{proposal.request}</p>
                           <p className="text-muted-foreground">{proposal.summary}</p>

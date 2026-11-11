@@ -69,6 +69,20 @@ export async function finishUpload(businessId: string, jobId: string, failure?: 
   return "FAILED";
 }
 
+export type VideoLinkDetails = {
+  url: string; title: string; channel: string; duration_ms: number; thumbnail_url: string; quality: string;
+  description: string; transcript: { start_ms: number; end_ms: number; text: string }[]; transcript_language: string;
+  subtitle_languages: string[]; chapters: { title: string; start_ms: number; end_ms: number }[]; needs_rights: boolean;
+};
+
+/** Read a pasted link's details and captions. Nothing is downloaded or stored. */
+export async function lookUpVideoLink(url: string): Promise<VideoLinkDetails> {
+  if (!isPublicVideoLink(url)) throw new Error("That needs to be a normal public https link to a video.");
+  const r = await engineClient<VideoLinkDetails>("POST", "/v1/analyze", { url, transcript: true }, { timeoutMs: 120_000 });
+  if (!r.ok) throw new Error(r.error.message);
+  return r.data;
+}
+
 /** Clip a pasted link. The owner must already have confirmed they hold the rights. */
 export async function clipFromLink(input: { businessId: string; userId: string; url: string; name?: string | undefined; options: ClipOptions }) {
   if (!isPublicVideoLink(input.url)) throw new Error("That needs to be a normal public https link to a video.");

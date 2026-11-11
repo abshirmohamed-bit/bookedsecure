@@ -145,7 +145,7 @@ export function useCoworkComposer({ write, onImportCsv, extra }: { write: (text:
         <PopoverContent side="top" align="start" className="w-[min(calc(100vw-2rem),22rem)] rounded-2xl bg-white p-2 shadow-xl">
           <div className="grid grid-cols-2 gap-2">
             <PlusCard icon={Film} label="Add a video" onClick={chooseVideo} />
-            <PlusCard icon={Link2} label="Paste a video link" onClick={() => fromPlus(() => write("Clip this video into shorts. I own it or have permission: "))} />
+            <PlusCard icon={Link2} label="Paste a video link" onClick={() => fromPlus(() => write("Here's a video: "))} />
             <PlusCard icon={PenLine} label="Write a post" onClick={() => fromPlus(() => write("Write a post about "))} />
             <PlusCard icon={MessageCircle} label="Answer comments" onClick={() => fromPlus(() => write("Which comments and messages are waiting for a reply? Suggest what to say to each."))} />
             <PlusCard icon={FileUp} label="Import contacts (CSV)" onClick={() => fromPlus(onImportCsv)} />

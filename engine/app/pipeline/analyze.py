@@ -66,6 +66,10 @@ class UrlInfo:
     needs_rights: bool = False
     extractor: str = ""
     quality_warning: bool = False
+    description: str = ""
+    #: [{start_ms, end_ms, text}] from the video's own captions, when asked for.
+    transcript: list[dict] = field(default_factory=list)
+    transcript_language: str = ""
 
     def payload(self) -> dict[str, Any]:
         d = asdict(self)
@@ -94,13 +98,18 @@ class UrlInfo:
         }
 
 
-def analyze(url: str) -> UrlInfo:
-    """Metadata only — nothing is downloaded and nothing is stored."""
+def analyze(url: str, transcript: bool = False) -> UrlInfo:
+    """Metadata only — nothing is downloaded and nothing is stored.
+
+    With `transcript`, the video's own captions come back too, so the app can
+    read and summarise a video without downloading it.
+    """
     url = (url or "").strip()
     if not re.match(r"^https?://", url, re.I):
         raise EngineError("VALIDATION_ERROR", "That does not look like a link. Paste a full URL.")
     provider = settings().analyze_provider
-    info = _fake(url) if provider == "fake" else _ytdlp(url)
+    reader = _fake if provider == "fake" else _ytdlp
+    info = reader(url, transcript) if transcript else reader(url)
     cfg = settings()
     if info.duration_ms and info.duration_ms > cfg.max_source_seconds * 1000:
         hours = cfg.max_source_seconds // 3600
@@ -117,7 +126,7 @@ def _common(url: str, info: UrlInfo) -> UrlInfo:
     return info
 
 
-def _ytdlp(url: str) -> UrlInfo:
+def _ytdlp(url: str, want_transcript: bool = False) -> UrlInfo:
     try:
         import yt_dlp
     except ImportError as e:  # pragma: no cover - production dependency
@@ -129,6 +138,7 @@ def _ytdlp(url: str) -> UrlInfo:
     # worth retrying as another before telling the user it cannot be read.
     raw = None
     last = ""
+    used_proxy = False
     for client, via_proxy in ytdlp_opts.attempts():
         # format=None keeps yt-dlp from doing format selection at all on a
         # metadata read, which is where a thin server-side list bites.
@@ -137,6 +147,7 @@ def _ytdlp(url: str) -> UrlInfo:
         try:
             with yt_dlp.YoutubeDL(opts) as y:
                 raw = y.extract_info(url, download=False)
+            used_proxy = via_proxy
             break
         except Exception as e:
             last = str(e)
@@ -164,7 +175,18 @@ def _ytdlp(url: str) -> UrlInfo:
                 for i, c in enumerate(raw.get("chapters") or [])]
     subs = sorted(set(raw.get("subtitles") or {}) | set(raw.get("automatic_captions") or {}))
 
-    return _common(url, UrlInfo(
+    lines: list[dict] = []
+    caption_lang = ""
+    if want_transcript:
+        caption_lang, track = pick_caption_track(raw)
+        if track:
+            try:
+                lines = _fetch_json3(track, ytdlp_opts.proxy() if used_proxy else "")
+            except Exception as e:  # captions are a bonus; the read still stands
+                log.warning("captions for %s could not be read: %s", url, e)
+                caption_lang = ""
+
+    info = _common(url, UrlInfo(
         url=url,
         title=str(raw.get("title") or "")[:300],
         channel=str(raw.get("channel") or raw.get("uploader") or "")[:160],
@@ -179,6 +201,57 @@ def _ytdlp(url: str) -> UrlInfo:
         is_live=bool(raw.get("is_live")),
         extractor=str(raw.get("extractor_key") or ""),
     ))
+    info.description = str(raw.get("description") or "")[:5000]
+    info.transcript = lines
+    info.transcript_language = caption_lang if lines else ""
+    return info
+
+
+MAX_CAPTION_LINES = 6000
+
+
+def pick_caption_track(raw: dict) -> tuple[str, str]:
+    """(language, json3 url): the creator's own captions first, then YouTube's automatic ones.
+
+    The video's own language wins, then English, then anything at all.
+    """
+    own = str(raw.get("language") or "").lower()
+    wanted = [x for x in (own, "en") if x]
+    for group in ("subtitles", "automatic_captions"):
+        tracks: dict = raw.get(group) or {}
+        langs = list(tracks)
+        ordered = [l for w in wanted for l in langs if l.lower() == w or l.lower().startswith(w + "-")]
+        if group == "subtitles":
+            ordered += [l for l in langs if l not in ordered]
+        for lang in ordered:
+            for fmt in tracks.get(lang) or []:
+                if fmt.get("ext") == "json3" and fmt.get("url"):
+                    return lang, str(fmt["url"])
+    return "", ""
+
+
+def parse_json3(data: dict) -> list[dict]:
+    """YouTube's caption format into [{start_ms, end_ms, text}]."""
+    out: list[dict] = []
+    for ev in data.get("events") or []:
+        text = "".join(str(s.get("utf8") or "") for s in ev.get("segs") or [])
+        text = re.sub(r"\s+", " ", text).strip()
+        if not text:
+            continue
+        start = int(ev.get("tStartMs") or 0)
+        out.append({"start_ms": start, "end_ms": start + int(ev.get("dDurationMs") or 0), "text": text})
+        if len(out) >= MAX_CAPTION_LINES:
+            break
+    return out
+
+
+def _fetch_json3(track_url: str, proxy: str = "") -> list[dict]:
+    import httpx
+
+    with httpx.Client(timeout=20, follow_redirects=True, **({"proxy": proxy} if proxy else {})) as client:
+        r = client.get(track_url)
+        r.raise_for_status()
+        return parse_json3(r.json())
 
 
 def _friendly(message: str) -> str:
@@ -214,11 +287,11 @@ def _friendly(message: str) -> str:
             "(fly logs -a crayzmundo-engine).")
 
 
-def _fake(url: str) -> UrlInfo:
+def _fake(url: str, want_transcript: bool = False) -> UrlInfo:
     """Deterministic stand-in so the flow is testable without network access."""
     seed = sum(url.encode()) % 7
     minutes = 12 + seed * 9
-    return _common(url, UrlInfo(
+    info = _common(url, UrlInfo(
         url=url,
         title=f"Sample video {seed}",
         channel="Sample channel",
@@ -232,3 +305,8 @@ def _fake(url: str) -> UrlInfo:
         language="en",
         extractor="Fake",
     ))
+    if want_transcript:
+        info.description = "A sample description."
+        info.transcript = [{"start_ms": 0, "end_ms": 4000, "text": "Welcome to the sample."}]
+        info.transcript_language = "en"
+    return info

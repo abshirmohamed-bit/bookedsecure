@@ -13,6 +13,27 @@ export function isTemporaryEngineError(code: string): boolean {
   return ["ENGINE_NOT_CONFIGURED", "ENGINE_UNREACHABLE", "JOB_LIMIT_REACHED", "RATE_LIMITED", "HTTP_502", "HTTP_503", "HTTP_504"].includes(code);
 }
 
+export type TranscriptLine = { start_ms: number; end_ms: number; text: string };
+
+/** The transcript as "[m:ss] words" lines about every 30 seconds, cut at `maxChars`. */
+export function transcriptText(lines: readonly TranscriptLine[], maxChars = 15000): { text: string; cut: boolean } {
+  const blocks: string[] = [];
+  let current: string[] = [];
+  let blockStart = -1;
+  const stamp = (ms: number) => `[${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}]`;
+  for (const line of lines) {
+    if (blockStart < 0 || line.start_ms - blockStart >= 30_000) {
+      if (current.length) blocks.push(`${stamp(blockStart)} ${current.join(" ")}`);
+      current = [];
+      blockStart = line.start_ms;
+    }
+    current.push(line.text);
+  }
+  if (current.length) blocks.push(`${stamp(blockStart)} ${current.join(" ")}`);
+  const full = blocks.join("\n");
+  return full.length > maxChars ? { text: full.slice(0, maxChars), cut: true } : { text: full, cut: false };
+}
+
 /** Clips rendered without being asked, so the best ones are ready to watch. */
 export const AUTO_RENDER_COUNT = 3;
 

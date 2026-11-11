@@ -127,12 +127,14 @@ def get_upload(upload_id: str) -> dict:
 
 class AnalyzeBody(BaseModel):
     url: str
+    #: Also return the video's own captions as a transcript.
+    transcript: bool = False
 
 
 @router.post("/v1/analyze")
 def analyze_url(body: AnalyzeBody) -> dict:
     """Read a link's details so the creator can choose before anything downloads."""
-    return ok(url_analyze.analyze(body.url).payload())
+    return ok(url_analyze.analyze(body.url, transcript=body.transcript).payload())
 
 
 class ImportBody(BaseModel):

@@ -49,6 +49,22 @@ export const finishVideoUpload = createServerFn({ method: "POST" })
     return { status: await finishUpload(ctx.businessId, data.jobId, data.failure) };
   });
 
+/** The owner ticked that they hold the rights and pressed Clip on Co-Work's card. */
+export const clipVideoLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    url: z.string().url().max(2000),
+    name: z.string().trim().max(200).optional(),
+    rightsConfirmed: z.literal(true),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { clipFromLink } = await import("@/lib/video-clips.server");
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    const job = await clipFromLink({ businessId: ctx.businessId, userId: ctx.userId, url: data.url, name: data.name, options: {} });
+    return { jobId: job.id };
+  });
+
 export const renderVideoClip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ clipId: z.string().uuid() }).parse(input))

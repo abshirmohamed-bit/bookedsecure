@@ -25,6 +25,17 @@ export type ImportProposal = {
   summary: string;
 };
 
+/** A video link Co-Work looked up, ready to clip once the owner confirms the rights. */
+export type VideoLinkProposal = {
+  kind: "video_link";
+  url: string;
+  title: string;
+  channel: string;
+  durationMs: number;
+  thumbnailUrl: string;
+  summary: string;
+};
+
 /** Connected assistants request existing work; the owner starts it in Co-Work. */
 export type AssistantRequestProposal = {
   kind: 'assistant_request';

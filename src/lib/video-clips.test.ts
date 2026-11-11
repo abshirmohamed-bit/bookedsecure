@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipsToRender, isActiveJob, isPublicVideoLink, isTemporaryEngineError, jobStatusLabel } from "@/lib/video-clips";
+import { clipsToRender, isActiveJob, isPublicVideoLink, isTemporaryEngineError, jobStatusLabel, transcriptText } from "@/lib/video-clips";
 
 describe("links the Engine may fetch", () => {
   it.each(["https://www.youtube.com/watch?v=abc", "https://youtu.be/abc", "https://cdn.example.com/talk.mp4"])("allows %s", (url) => {
@@ -31,6 +31,24 @@ describe("when the Engine says no", () => {
   });
   it.each(["VALIDATION_ERROR", "NOT_FOUND", "HTTP_400"])("fails the job on %s", (code) => {
     expect(isTemporaryEngineError(code)).toBe(false);
+  });
+});
+
+describe("a pasted video's transcript", () => {
+  const lines = [
+    { start_ms: 0, end_ms: 2000, text: "Hello" },
+    { start_ms: 12_000, end_ms: 14_000, text: "there" },
+    { start_ms: 31_000, end_ms: 33_000, text: "next part" },
+    { start_ms: 65_500, end_ms: 67_000, text: "later" },
+  ];
+  it("groups words into stamped half-minute blocks", () => {
+    expect(transcriptText(lines)).toEqual({ text: "[0:00] Hello there\n[0:31] next part\n[1:05] later", cut: false });
+  });
+  it("says when it had to cut", () => {
+    expect(transcriptText(lines, 10)).toEqual({ text: "[0:00] Hel", cut: true });
+  });
+  it("copes with no captions", () => {
+    expect(transcriptText([])).toEqual({ text: "", cut: false });
   });
 });
 
