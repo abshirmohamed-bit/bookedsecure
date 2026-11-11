@@ -2034,7 +2034,15 @@ export type Database = {
           spend?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "google_ad_spend_daily_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       google_ads_accounts: {
         Row: {
@@ -2085,7 +2093,15 @@ export type Database = {
           refresh_token_ciphertext?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "google_ads_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       import_automation_state: {
         Row: {
@@ -3150,6 +3166,8 @@ export type Database = {
       }
       linkedin_posts: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           author_name: string | null
           author_urn: string
           body_text: string
@@ -3158,17 +3176,22 @@ export type Database = {
           created_by: string | null
           error: string | null
           id: string
+          insights: Json | null
+          insights_at: string | null
           media: Json | null
           payload: Json | null
           permalink: string | null
           platform: string
           post_urn: string | null
           published_at: string | null
+          review_note: string | null
           scheduled_for: string | null
           source: string
           status: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           author_name?: string | null
           author_urn: string
           body_text: string
@@ -3177,17 +3200,22 @@ export type Database = {
           created_by?: string | null
           error?: string | null
           id?: string
+          insights?: Json | null
+          insights_at?: string | null
           media?: Json | null
           payload?: Json | null
           permalink?: string | null
           platform?: string
           post_urn?: string | null
           published_at?: string | null
+          review_note?: string | null
           scheduled_for?: string | null
           source?: string
           status?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           author_name?: string | null
           author_urn?: string
           body_text?: string
@@ -3196,12 +3224,15 @@ export type Database = {
           created_by?: string | null
           error?: string | null
           id?: string
+          insights?: Json | null
+          insights_at?: string | null
           media?: Json | null
           payload?: Json | null
           permalink?: string | null
           platform?: string
           post_urn?: string | null
           published_at?: string | null
+          review_note?: string | null
           scheduled_for?: string | null
           source?: string
           status?: string
@@ -3441,37 +3472,37 @@ export type Database = {
       }
       meta_ad_spend_daily: {
         Row: {
-          impressions: number | null
-          clicks: number | null
           ad_account_id: string
           business_id: string
           campaign_id: string
           campaign_name: string | null
+          clicks: number | null
           date: string
+          impressions: number | null
           meta_leads: number
           spend: number
           updated_at: string
         }
         Insert: {
-          impressions?: number | null
-          clicks?: number | null
           ad_account_id: string
           business_id: string
           campaign_id: string
           campaign_name?: string | null
+          clicks?: number | null
           date: string
+          impressions?: number | null
           meta_leads?: number
           spend?: number
           updated_at?: string
         }
         Update: {
-          impressions?: number | null
-          clicks?: number | null
           ad_account_id?: string
           business_id?: string
           campaign_id?: string
           campaign_name?: string | null
+          clicks?: number | null
           date?: string
+          impressions?: number | null
           meta_leads?: number
           spend?: number
           updated_at?: string
