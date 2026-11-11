@@ -115,6 +115,16 @@ export async function renderClip(businessId: string, clipId: string) {
   await startRender(clip);
 }
 
+/** Renames one of the caller's clips. Engine updates never overwrite it: clips are inserted once (ignoreDuplicates). */
+export async function renameClip(businessId: string, clipId: string, title: string) {
+  const clean = title.replace(/\s+/g, " ").trim().slice(0, 100);
+  if (!clean) throw new Error("Give the clip a title.");
+  const { data, error } = await supabaseAdmin.from("video_clips").update({ title: clean, updated_at: now() }).eq("id", clipId).eq("business_id", businessId).select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("That clip no longer exists.");
+  return clean;
+}
+
 async function startRender(clip: ClipRow) {
   const { data: claimed } = await supabaseAdmin.from("video_clips").update({ status: "EXPORTING", error: null, updated_at: now() })
     .eq("id", clip.id).in("status", ["FOUND", "FAILED"]).select("id").maybeSingle();

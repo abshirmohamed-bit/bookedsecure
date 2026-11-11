@@ -75,3 +75,13 @@ export const renderVideoClip = createServerFn({ method: "POST" })
     await renderClip(ctx.businessId, data.clipId);
     return { ok: true };
   });
+
+export const renameVideoClip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ clipId: z.string().uuid(), title: z.string().min(1).max(200) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { renameClip } = await import("@/lib/video-clips.server");
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    return { title: await renameClip(ctx.businessId, data.clipId, data.title) };
+  });

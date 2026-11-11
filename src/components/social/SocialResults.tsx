@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Download, Facebook, Film, Instagram, Linkedin, Loader2, MessageCircle, Play, Send, Sparkles, TriangleAlert, Youtube } from "lucide-react";
-import { useState } from "react";
+import { CheckCircle2, Download, Facebook, Film, Instagram, Linkedin, Loader2, MessageCircle, PenLine, Play, Send, Sparkles, TriangleAlert, X, Youtube } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Portal } from "@/components/Portal";
@@ -12,7 +12,7 @@ import { getSocialPosting } from "@/lib/social-posts.functions";
 import { getYouTube } from "@/lib/youtube.functions";
 import { listSocialComments } from "@/lib/social-comments.functions";
 import { isActiveJob, jobStatusLabel } from "@/lib/video-clips";
-import { getVideoClips, renderVideoClip } from "@/lib/video-clips.functions";
+import { getVideoClips, renameVideoClip, renderVideoClip } from "@/lib/video-clips.functions";
 
 type Job = Awaited<ReturnType<typeof getVideoClips>>["jobs"][number];
 type Clip = Job["clips"][number];
@@ -55,7 +55,7 @@ export function YourChannels({ narrow = false }: { narrow?: boolean }) {
 }
 
 /** Everything Co-Work has made or is waiting on, newest first. */
-export function SocialResults({ onAsk }: { onAsk: (text: string) => void }) {
+export function SocialResults({ onAsk, wide = false }: { onAsk: (text: string) => void; wide?: boolean }) {
   const clipsFn = useServerFn(getVideoClips);
   const commentsFn = useServerFn(listSocialComments);
   const postsFn = useServerFn(getSocialPosting);
@@ -95,7 +95,7 @@ export function SocialResults({ onAsk }: { onAsk: (text: string) => void }) {
       {groups.map((group) => (
         <section key={group.label} className="space-y-2">
           <h3 className="text-xs font-semibold text-muted-foreground">{group.label}</h3>
-          {group.jobs.map((job) => <JobCard key={job.id} job={job} onAsk={onAsk} />)}
+          {group.jobs.map((job) => <JobCard key={job.id} job={job} onAsk={onAsk} wide={wide} />)}
         </section>
       ))}
 
@@ -126,7 +126,7 @@ export function SocialResults({ onAsk }: { onAsk: (text: string) => void }) {
   );
 }
 
-function JobCard({ job, onAsk }: { job: Job; onAsk: (text: string) => void }) {
+function JobCard({ job, onAsk, wide }: { job: Job; onAsk: (text: string) => void; wide: boolean }) {
   const moving = isActiveJob(job.status);
   return (
     <article className="glass overflow-hidden rounded-2xl p-3">
@@ -152,7 +152,7 @@ function JobCard({ job, onAsk }: { job: Job; onAsk: (text: string) => void }) {
         <Button size="sm" className="mt-2 min-h-10 w-full" onClick={() => onAsk("Turn this video into short clips.")}>Make clips</Button>
       ) : null}
       {job.clips.length > 0 ? (
-        <div className="-mx-3 mt-3 flex snap-x gap-2 overflow-x-auto px-3 pb-1 cowork-scroll">
+        <div className={`mt-3 grid grid-cols-2 gap-x-2.5 gap-y-4 ${wide ? "sm:grid-cols-3 xl:grid-cols-5" : ""}`}>
           {job.clips.map((clip) => <ClipCard key={clip.id} clip={clip} onAsk={onAsk} />)}
         </div>
       ) : null}
@@ -163,22 +163,23 @@ function JobCard({ job, onAsk }: { job: Job; onAsk: (text: string) => void }) {
 function ClipCard({ clip, onAsk }: { clip: Clip; onAsk: (text: string) => void }) {
   const qc = useQueryClient();
   const renderFn = useServerFn(renderVideoClip);
-  const [watching, setWatching] = useState(false);
+  const [open, setOpen] = useState(false);
   const render = useMutation({
     mutationFn: () => renderFn({ data: { clipId: clip.id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["video-clips"] }),
     onError: (e) => toast.error(e instanceof Error ? e.message : "That clip couldn't be rendered."),
   });
-  const ready = clip.status === "READY" && clip.video_url;
+  const ready = Boolean(clip.status === "READY" && clip.video_url);
   const title = clip.title ?? "Clip";
+  const caption = () => onAsk(`Write a caption for the clip called "${title.slice(0, 120)}".`);
   return (
-    <div className="w-36 shrink-0 snap-start">
-      <button type="button" disabled={!ready} onClick={() => setWatching(true)} aria-label={ready ? `Watch ${title}` : title} className="relative block aspect-[9/16] w-full overflow-hidden rounded-xl bg-primary/10">
+    <div className="min-w-0">
+      <button type="button" onClick={() => setOpen(true)} aria-label={`Open ${title}`} className="group relative block aspect-[9/16] w-full overflow-hidden rounded-xl bg-primary/10 ring-primary/40 transition hover:ring-2">
         {clip.thumbnail_url ? <img src={clip.thumbnail_url} alt="" loading="lazy" className="size-full object-cover" /> : null}
-        {ready ? <span className="absolute inset-0 grid place-items-center"><span className="grid size-10 place-items-center rounded-full bg-black/45 text-white backdrop-blur"><Play className="size-4" aria-hidden="true" /></span></span> : null}
+        {ready ? <span className="absolute inset-0 grid place-items-center"><span className="grid size-10 place-items-center rounded-full bg-black/45 text-white backdrop-blur transition group-hover:scale-110"><Play className="size-4" aria-hidden="true" /></span></span> : null}
         {clip.status === "EXPORTING" ? <span className="absolute inset-0 grid place-items-center bg-black/30 text-xs font-medium text-white"><Loader2 className="size-5 animate-spin" aria-label="Rendering" /></span> : null}
       </button>
-      <p className="mt-1.5 line-clamp-2 text-xs font-medium">{title}</p>
+      <button type="button" onClick={() => setOpen(true)} className="mt-1.5 line-clamp-2 text-left text-xs font-medium hover:text-primary">{title}</button>
       <div className="mt-1.5 space-y-1">
         {ready ? (
           <>
@@ -186,7 +187,7 @@ function ClipCard({ clip, onAsk }: { clip: Clip; onAsk: (text: string) => void }
               <Link to="/social" search={{ platform: "youtube", clip: clip.id, clipTitle: title.slice(0, 100) }}><Send className="size-3" aria-hidden="true" />Post</Link>
             </Button>
             <div className="flex gap-1">
-              <Button size="sm" variant="outline" className="min-h-9 flex-1 px-1 text-xs" onClick={() => onAsk(`Write a caption for the clip called "${title.slice(0, 120)}".`)}>Caption</Button>
+              <Button size="sm" variant="outline" className="min-h-9 flex-1 px-1 text-xs" onClick={caption}>Caption</Button>
               <Button asChild size="icon" variant="outline" className="size-9 shrink-0"><a href={clip.video_url ?? undefined} download aria-label={`Download ${title}`}><Download className="size-3.5" aria-hidden="true" /></a></Button>
             </div>
           </>
@@ -194,14 +195,85 @@ function ClipCard({ clip, onAsk }: { clip: Clip; onAsk: (text: string) => void }
           <Button size="sm" variant="outline" className="min-h-9 w-full text-xs" disabled={render.isPending} onClick={() => render.mutate()}>{clip.status === "FAILED" ? "Try again" : "Make video"}</Button>
         ) : null}
       </div>
-      {watching && clip.video_url ? (
-        <Portal>
-          <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[70] grid place-items-center bg-black/80 p-4" onClick={() => setWatching(false)}>
-            <video src={clip.video_url} controls autoPlay playsInline poster={clip.thumbnail_url ?? undefined} className="max-h-[85dvh] max-w-full rounded-xl" onClick={(e) => e.stopPropagation()} />
-            <Button variant="secondary" className="mt-3 min-h-11" onClick={() => setWatching(false)}>Close</Button>
-          </div>
-        </Portal>
-      ) : null}
+      {open ? <ClipPanel clip={clip} ready={ready} onClose={() => setOpen(false)} onCaption={() => { setOpen(false); caption(); }} onRender={() => render.mutate()} rendering={render.isPending} /> : null}
     </div>
+  );
+}
+
+const clock = (ms: number | null) => {
+  if (ms === null) return null;
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+/** One clip, opened large: watch it, rename it, caption, post, download or make it again. */
+function ClipPanel({ clip, ready, onClose, onCaption, onRender, rendering }: { clip: Clip; ready: boolean; onClose: () => void; onCaption: () => void; onRender: () => void; rendering: boolean }) {
+  const qc = useQueryClient();
+  const renameFn = useServerFn(renameVideoClip);
+  const [title, setTitle] = useState(clip.title ?? "");
+  const saved = (clip.title ?? "") === title.trim();
+  const rename = useMutation({
+    mutationFn: () => renameFn({ data: { clipId: clip.id, title } }),
+    onSuccess: async (r) => { setTitle(r.title); await qc.invalidateQueries({ queryKey: ["video-clips"] }); toast.success("Clip renamed."); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "That clip couldn't be renamed."),
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const start = clock(clip.start_ms);
+  const end = clock(clip.end_ms);
+  const length = clock(clip.duration_ms ?? (clip.start_ms !== null && clip.end_ms !== null ? clip.end_ms - clip.start_ms : null));
+  const name = title.trim() || "Clip";
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/60 p-3 sm:grid sm:place-items-center sm:p-6" onClick={onClose}>
+        <div role="dialog" aria-modal="true" aria-label={name} onClick={(e) => e.stopPropagation()} className="relative mx-auto flex w-full max-w-3xl flex-col gap-5 rounded-3xl border border-white/70 bg-background p-4 shadow-2xl sm:flex-row sm:p-5">
+          <button type="button" onClick={onClose} aria-label="Close clip" className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-background/80 text-muted-foreground hover:bg-secondary hover:text-foreground"><X className="size-4" aria-hidden="true" /></button>
+          <div className="mx-auto w-full max-w-[17rem] shrink-0">
+            {ready && clip.video_url ? (
+              <video src={clip.video_url} controls autoPlay playsInline poster={clip.thumbnail_url ?? undefined} className="aspect-[9/16] w-full rounded-2xl bg-black object-contain" />
+            ) : (
+              <div className="relative aspect-[9/16] w-full overflow-hidden rounded-2xl bg-primary/10">
+                {clip.thumbnail_url ? <img src={clip.thumbnail_url} alt="" className="size-full object-cover" /> : null}
+                <span className="absolute inset-x-3 bottom-3 rounded-xl bg-black/55 p-2 text-center text-xs text-white">{clip.status === "EXPORTING" ? "Making the video…" : clip.status === "FAILED" ? (clip.error ?? "This clip couldn't be made.") : "Not made into a video yet."}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-4 sm:pt-8">
+            <form onSubmit={(e) => { e.preventDefault(); if (!saved && title.trim()) rename.mutate(); }}>
+              <label htmlFor={`clip-title-${clip.id}`} className="text-xs font-medium text-muted-foreground">Title</label>
+              <div className="mt-1 flex gap-2">
+                <input id={`clip-title-${clip.id}`} value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} className="min-h-10 min-w-0 flex-1 rounded-xl border border-input bg-white/70 px-3 text-base outline-none focus:ring-2 focus:ring-primary/40 sm:text-sm" />
+                <Button type="submit" size="sm" variant="outline" className="min-h-10" disabled={saved || !title.trim() || rename.isPending}>{rename.isPending ? "Saving…" : "Save"}</Button>
+              </div>
+            </form>
+            {start || length ? (
+              <p className="text-xs text-muted-foreground">{start && end ? `From ${start} to ${end} of the original` : null}{start && end && length ? " · " : null}{length ? `${length} long` : null}</p>
+            ) : null}
+            {clip.reason ? (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Why Co-Work picked it</p>
+                <p className="mt-1 text-sm leading-relaxed">{clip.reason}</p>
+              </div>
+            ) : null}
+            <div className="mt-auto grid gap-2 sm:grid-cols-2">
+              {ready ? (
+                <>
+                  <Button asChild className="min-h-11 sm:col-span-2">
+                    <Link to="/social" search={{ platform: "youtube", clip: clip.id, clipTitle: name.slice(0, 100) }}><Send className="size-4" aria-hidden="true" />Post this clip</Link>
+                  </Button>
+                  <Button variant="outline" className="min-h-11" onClick={onCaption}><PenLine className="size-4" aria-hidden="true" />Write a caption</Button>
+                  <Button asChild variant="outline" className="min-h-11"><a href={clip.video_url ?? undefined} download><Download className="size-4" aria-hidden="true" />Download</a></Button>
+                </>
+              ) : clip.status === "FOUND" || clip.status === "FAILED" ? (
+                <Button className="min-h-11 sm:col-span-2" disabled={rendering} onClick={onRender}>{clip.status === "FAILED" ? "Try again" : "Make video"}</Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Portal>
   );
 }

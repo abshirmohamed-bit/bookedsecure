@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Clapperboard, History, Loader2, MessageCircle, PenLine, Sparkles, TrendingUp, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Clapperboard, History, Loader2, Maximize2, MessageCircle, PenLine, Sparkles, TrendingUp, X, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { CoworkHistory } from "@/components/cowork/CoworkHistory";
@@ -64,6 +64,7 @@ export function CoworkWorkspace({
 
   const [chatting, setChatting] = useState(Boolean(requestedThreadId));
   const [resultsOpen, setResultsOpen] = useState(false);
+  const [resultsWide, setResultsWide] = useState(false);
   const [websiteSetup, setWebsiteSetup] = useState(false);
   const [seed, setSeed] = useState<{ text: string; nonce: number } | undefined>();
   const [greeting, setGreeting] = useState("Hello");
@@ -102,7 +103,7 @@ export function CoworkWorkspace({
   });
 
   const write = (text: string) => setSeed({ text, nonce: Date.now() });
-  const askFromResults = (text: string) => { setResultsOpen(false); write(text); };
+  const askFromResults = (text: string) => { setResultsOpen(false); setResultsWide(false); write(text); };
   const firstName = session.data?.name?.trim().split(/\s+/)[0];
 
   const turns: OwnerAssistantTurn[] = useMemo(() => (conversation.data?.messages ?? []).map((message) => ({
@@ -153,7 +154,12 @@ export function CoworkWorkspace({
   const resultsHeader = (
     <div className="flex items-center justify-between">
       <h2 className="font-heading text-lg font-semibold">Results</h2>
-      <EngineDot onAsk={askFromResults} />
+      <div className="flex items-center gap-1">
+        <EngineDot onAsk={askFromResults} />
+        <button type="button" onClick={() => setResultsWide(true)} aria-label="Expand results" title="Expand results" className="hidden size-9 place-items-center rounded-full text-muted-foreground hover:bg-white/60 hover:text-foreground lg:grid">
+          <Maximize2 className="size-4" aria-hidden="true" />
+        </button>
+      </div>
     </div>
   );
 
@@ -215,7 +221,7 @@ export function CoworkWorkspace({
         />
       </div>
 
-      <aside aria-label="Results" className="hidden h-full min-h-0 w-[22rem] shrink-0 overflow-y-auto border-l border-border/60 p-4 lg:block xl:w-96">
+      <aside aria-label="Results" className="hidden h-full min-h-0 w-[24rem] shrink-0 overflow-y-auto border-l border-border/60 p-4 lg:block xl:w-[26rem] 2xl:w-[28rem]">
         {chatting ? <div className="mb-6 space-y-5">{starters(true)}{channels(true)}</div> : null}
         <div className="mb-3">{resultsHeader}</div>
         <SocialResults onAsk={askFromResults} />
@@ -231,6 +237,22 @@ export function CoworkWorkspace({
           </div>
         </DrawerContent>
       </Drawer>
+
+      {resultsWide ? (
+        <Portal>
+          <div className="fixed inset-0 z-[60] hidden bg-foreground/25 lg:block" onClick={() => setResultsWide(false)} aria-hidden="true" />
+          <aside role="dialog" aria-modal="true" aria-label="Results" className="fixed inset-y-0 right-0 z-[61] hidden w-[min(64rem,calc(100vw-4rem))] flex-col border-l border-white/70 bg-background shadow-2xl lg:flex">
+            <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-5 py-3">
+              <h2 className="font-heading text-lg font-semibold">Results</h2>
+              <div className="flex items-center gap-1">
+                <EngineDot onAsk={askFromResults} />
+                <button type="button" onClick={() => setResultsWide(false)} aria-label="Close results" className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"><X className="size-4" aria-hidden="true" /></button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5"><SocialResults onAsk={askFromResults} wide /></div>
+          </aside>
+        </Portal>
+      ) : null}
 
       {websiteSetup ? (
         <Portal>
