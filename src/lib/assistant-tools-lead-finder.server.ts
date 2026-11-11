@@ -35,7 +35,7 @@ export function buildLeadFinderTools(ctx: AssistantToolContext) {
         what: z.string().min(3).max(120),
         where: z.string().min(2).max(80),
         criteria: z.string().max(400).optional(),
-        limit: z.number().int().min(1).max(20).default(10),
+        limit: z.number().int().min(1).max(50).default(20),
       }),
       execute: async ({ what, where, criteria, limit }) => {
         if (!isOwner) return fail("Only the business owner can run Lead finder searches.");
@@ -73,7 +73,7 @@ export function buildLeadFinderTools(ctx: AssistantToolContext) {
 
     add_found_businesses_to_customers: tool({
       description: "Add chosen Lead finder businesses (ids from find_businesses or lead_finder_results) to customers so an email campaign can reach them (audience lead_finder). Only ones with a usable email are added. Nothing is sent.",
-      inputSchema: z.object({ ids: z.array(z.string().uuid()).min(1).max(20) }),
+      inputSchema: z.object({ ids: z.array(z.string().uuid()).min(1).max(50) }),
       execute: async ({ ids }) => {
         if (!isOwner) return fail("Only the business owner can add businesses to customers.");
         const { addFoundToCustomers } = await import("@/lib/lead-finder.server");

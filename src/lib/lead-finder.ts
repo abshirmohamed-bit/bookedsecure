@@ -9,7 +9,9 @@
  * their work, always with an unsubscribe. Nothing is sent from here.
  */
 
-export const LEAD_FINDER_MAX_RESULTS = 20;
+export const LEAD_FINDER_MAX_RESULTS = 50;
+/** Websites read per search (each read uses Firecrawl credits and time). */
+export const LEAD_FINDER_MAX_READS = 20;
 /** Searches a business can run each month (keeps Google, Firecrawl and checking costs bounded). */
 export const LEAD_FINDER_MONTHLY_SEARCHES = 20;
 export const LEAD_FINDER_SOURCE = "Lead finder";
@@ -31,8 +33,11 @@ const EMAIL_IN_TEXT = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const NOT_A_CONTACT = /\.(png|jpe?g|gif|webp|svg)$|^(no-?reply|do-?not-?reply|example|test|user|email|name|your(name|email)?)@|@(example\.|sentry|wixpress|godaddy|domain\.|email\.com$|yourdomain|squarespace|shopify)/i;
 
 /** Emails published on the page, preferring ones on the business's own domain, then role inboxes. */
-export function emailsOnPage(text: string, website: string | null): string[] {
+export function emailsOnPage(rawText: string, website: string | null): string[] {
   const host = hostOf(website);
+  const text = rawText
+    .replace(/\s*[[(]\s*at\s*[\])]\s*/gi, "@")
+    .replace(/\s*[[(]\s*dot\s*[\])]\s*/gi, ".");
   const found = [...new Set((text.match(EMAIL_IN_TEXT) ?? []).map((e) => e.toLowerCase().replace(/^mailto:/, "").replace(/[.,;:]+$/, "")))]
     .filter((e) => !NOT_A_CONTACT.test(e) && e.length <= 120);
   const score = (e: string) => {
@@ -94,6 +99,10 @@ export type Candidate = {
   rating: number | null;
   reviewCount: number | null;
   source: "web" | "osm" | "google";
+  /** An email the listing itself publishes (OpenStreetMap). */
+  email?: string | null;
+  /** Only the name matches, so it ranks after real category matches. */
+  weak?: boolean;
 };
 
 /** Directories, marketplaces, social networks and government sites: never the business's own website. */
@@ -119,7 +128,7 @@ export function candidatesFromWebSearch(results: Array<{ url?: string | null; ti
   return out;
 }
 
-const GENERIC_WORDS = new Set(["company", "companies", "business", "businesses", "services", "service", "local", "near", "best", "small", "large", "sydney", "australia", "with", "staff", "that", "have", "their", "and", "for", "the"]);
+const GENERIC_WORDS = new Set(["company", "companies", "business", "businesses", "services", "service", "local", "near", "best", "small", "large", "sydney", "australia", "with", "staff", "that", "have", "their", "and", "for", "the", "shop", "shops", "store", "stores", "supplier", "suppliers", "provider", "providers", "centre", "centres", "center", "centers", "agent", "agents", "agency", "agencies", "machine", "machines", "home", "homes", "firm", "firms", "contractor", "contractors", "specialist", "specialists"]);
 
 /** Words to look for in OpenStreetMap names and categories ("warehouses, gyms and factories" -> warehouse, gym, factor). */
 export function osmKeywords(what: string): string[] {
@@ -135,37 +144,88 @@ export function osmKeywords(what: string): string[] {
  * people say "gym"). Keyword stem -> exact key=value tags; generic, never tenant-specific.
  */
 const OSM_CATEGORY_TAGS: Array<[RegExp, string[]]> = [
-  [/^(gym|fitnes|crossfit|pilate|yoga)/, ["leisure=fitness_centre", "leisure=sports_centre"]],
-  [/^(warehou|distribution|storage)/, ["building=warehouse", "industrial=warehouse", "industrial=logistics"]],
-  [/^(logistic|freight|transport|courier)/, ["office=logistics", "industrial=logistics", "building=warehouse"]],
-  [/^(factor|manufactur|plant|work$)/, ["man_made=works", "industrial=factory", "building=industrial"]],
-  [/^(office|corporate|headquarter)/, ["office=company", "building=office"]],
-  [/^(construct|builder|building)/, ["office=construction_company", "craft=builder"]],
+  [/^(gym|fitnes|crossfit|pilate|yoga|martial)/, ["leisure=fitness_centre", "sport=martial_arts", "sport=yoga"]],
+  [/^(pool|spa$)/, ["shop=swimming_pool", "craft=pool_installer"]],
+  [/^(warehou|distribution|storage)/, ["building=warehouse", "industrial=warehouse", "industrial=logistics", "shop=storage_rental"]],
+  [/^(logistic|freight|transport|courier|trucking)/, ["office=logistics", "industrial=logistics", "building=warehouse", "office=courier"]],
+  [/^(factor|manufactur|plant$|work$|fabricat)/, ["man_made=works", "industrial=factory", "building=industrial", "building=manufacture"]],
+  [/^(office|corporate|headquarter|compan$)/, ["office=company", "building=office", "office=consulting"]],
+  [/^(construct|builder|civil|renovat)/, ["office=construction_company", "craft=builder", "craft=carpenter"]],
+  [/^(plumb)/, ["craft=plumber"]],
+  [/^(electric|sparky)/, ["craft=electrician"]],
+  [/^(carpent|joiner|cabinet)/, ["craft=carpenter", "craft=joiner", "craft=cabinet_maker"]],
+  [/^(roof)/, ["craft=roofer"]],
+  [/^(paint)/, ["craft=painter", "shop=paint"]],
+  [/^(tiler|tiling|floor)/, ["craft=tiler", "craft=floorer", "shop=flooring"]],
+  [/^(plaster)/, ["craft=plasterer"]],
+  [/^(glaz|glass)/, ["craft=glaziery", "shop=glaziery"]],
+  [/^(hvac|aircon|air condition|heating|cooling)/, ["craft=hvac", "shop=hvac"]],
+  [/^(solar)/, ["craft=photovoltaic", "office=energy_supplier", "shop=energy"]],
+  [/^(locksmith)/, ["shop=locksmith", "craft=locksmith"]],
+  [/^(landscap|garden|lawn|arborist|tree)/, ["craft=gardener", "shop=garden_centre", "office=landscape_architect"]],
+  [/^(removal|mover$|moving)/, ["office=moving_company", "shop=storage_rental"]],
+  [/^(welder|welding|metal|steel)/, ["craft=metal_construction", "craft=welder", "man_made=works"]],
   [/^(school|college)/, ["amenity=school", "amenity=college"]],
-  [/^(childcare|daycare|kindergarten|preschool)/, ["amenity=kindergarten", "amenity=childcare"]],
+  [/^(tutor|coaching|learning)/, ["office=tutoring", "amenity=prep_school", "amenity=language_school"]],
+  [/^(driving)/, ["amenity=driving_school", "office=driving_school"]],
+  [/^(music)/, ["amenity=music_school", "shop=musical_instrument"]],
+  [/^(dance)/, ["leisure=dance", "amenity=dancing_school"]],
+  [/^(childcare|daycare|kindergarten|preschool|early)/, ["amenity=kindergarten", "amenity=childcare"]],
   [/^(dentist|dental|orthodont)/, ["amenity=dentist", "healthcare=dentist"]],
   [/^(physio)/, ["healthcare=physiotherapist"]],
-  [/^(hospital|clinic|medical|doctor|gp$)/, ["amenity=clinic", "amenity=doctors"]],
-  [/^(aged|nursing|retirement)/, ["amenity=nursing_home", "social_facility=nursing_home"]],
-  [/^(hotel|motel|accommodation)/, ["tourism=hotel", "tourism=motel"]],
+  [/^(chiropract|osteo)/, ["healthcare=chiropractor", "healthcare=osteopathy"]],
+  [/^(psycholog|counsel)/, ["healthcare=psychotherapist", "healthcare=counselling"]],
+  [/^(optometr|optician)/, ["shop=optician", "healthcare=optometrist"]],
+  [/^(pharmac|chemist)/, ["amenity=pharmacy"]],
+  [/^(hospital|clinic|medical|doctor|gp$)/, ["amenity=clinic", "amenity=doctors", "amenity=hospital"]],
+  [/^(vet$|veterinar)/, ["amenity=veterinary"]],
+  [/^(pet|dog)/, ["shop=pet", "shop=pet_grooming", "amenity=animal_boarding"]],
+  [/^(aged|nursing|retirement)/, ["amenity=nursing_home", "social_facility=nursing_home", "social_facility=group_home", "amenity=social_facility"]],
+  [/^(hotel|motel|accommodation|hostel)/, ["tourism=hotel", "tourism=motel", "tourism=hostel", "tourism=guest_house"]],
   [/^(cafe|coffee)/, ["amenity=cafe"]],
-  [/^(restaurant)/, ["amenity=restaurant"]],
+  [/^(restaurant|dining)/, ["amenity=restaurant"]],
+  [/^(takeaway|fast)/, ["amenity=fast_food"]],
+  [/^(bar$|pub$|tavern|brewer)/, ["amenity=bar", "amenity=pub", "craft=brewery"]],
+  [/^(bakery|baker|cake|patisser)/, ["shop=bakery", "shop=pastry", "shop=confectionery"]],
+  [/^(butcher)/, ["shop=butcher"]],
+  [/^(cater)/, ["craft=caterer", "office=catering"]],
+  [/^(function|venue|reception|wedding|event)/, ["amenity=events_venue", "amenity=conference_centre", "shop=wedding"]],
   [/^(mechanic|car repair|auto|workshop|smash|panel)/, ["shop=car_repair", "craft=car_repair"]],
-  [/^(real estate|estate agent|realestate|realtor)/, ["office=estate_agent"]],
-  [/^(accountant|accounting|bookkeep)/, ["office=accountant"]],
-  [/^(lawyer|solicitor|legal)/, ["office=lawyer"]],
-  [/^(club|rsl)/, ["amenity=club", "club=sport"]],
-  [/^(salon|hairdress|barber|beauty)/, ["shop=hairdresser", "shop=beauty"]],
-  [/^(supermarket|grocer)/, ["shop=supermarket"]],
-  [/^(church|mosque|temple)/, ["amenity=place_of_worship"]],
+  [/^(tyre|tire)/, ["shop=tyres"]],
+  [/^(car$|dealership|dealer|vehicle)/, ["shop=car", "shop=car_parts"]],
+  [/^(detail|car wash)/, ["amenity=car_wash", "shop=car_repair"]],
+  [/^(real estate|realestate|estate|realtor|property)/, ["office=estate_agent", "office=property_management"]],
+  [/^(accountant|accounting|bookkeep|tax)/, ["office=accountant", "office=tax_advisor"]],
+  [/^(lawyer|solicitor|legal|conveyanc)/, ["office=lawyer", "office=notary"]],
+  [/^(insur)/, ["office=insurance"]],
+  [/^(mortgage|broker|finance|financial)/, ["office=financial", "office=financial_advisor", "amenity=bank"]],
+  [/^(architect)/, ["office=architect"]],
+  [/^(engineer)/, ["office=engineer"]],
+  [/^(recruit|staffing|employment)/, ["office=employment_agency"]],
+  [/^(software|technology|digital|marketing|agency)/, ["office=it", "office=company", "office=advertising_agency"]],
+  [/^(print|signage|sign$)/, ["shop=copyshop", "craft=printer", "craft=signmaker"]],
+  [/^(photograph|videograph)/, ["craft=photographer", "shop=photo"]],
+  [/^(club|rsl)/, ["amenity=club", "club=sport", "leisure=sports_centre"]],
+  [/^(salon|hairdress|barber|hair)/, ["shop=hairdresser"]],
+  [/^(beauty|nail|lash|spa$|massage)/, ["shop=beauty", "shop=massage", "leisure=spa"]],
+  [/^(florist|flower)/, ["shop=florist"]],
+  [/^(jewel)/, ["shop=jewelry"]],
+  [/^(cloth|fashion|boutique)/, ["shop=clothes", "shop=boutique"]],
+  [/^(furniture)/, ["shop=furniture"]],
+  [/^(hardware|trade supply)/, ["shop=hardware", "shop=doityourself", "shop=trade"]],
+  [/^(laundr|dry clean)/, ["shop=laundry", "shop=dry_cleaning"]],
+  [/^(supermarket|grocer)/, ["shop=supermarket", "shop=greengrocer", "shop=convenience"]],
+  [/^(phone|mobile|computer|electronic|repair)/, ["shop=mobile_phone", "shop=computer", "shop=electronics", "craft=electronics_repair"]],
+  [/^(church|mosque|temple|synagogue)/, ["amenity=place_of_worship"]],
   [/^(council|government)/, ["office=government"]],
-  [/^(security)/, ["office=security"]],
-  [/^(clean)/, ["office=cleaning", "craft=cleaning"]],
+  [/^(security)/, ["office=security", "office=company"]],
+  [/^(clean)/, ["office=cleaning", "craft=cleaning", "shop=dry_cleaning"]],
 ];
 
 export function osmCategoryTags(keywords: string[]): string[] {
   const tags = new Set<string>();
-  for (const k of keywords) for (const [rx, list] of OSM_CATEGORY_TAGS) if (rx.test(k)) list.forEach((t) => tags.add(t));
+  // Single words, and the whole phrase ("real estate agent").
+  for (const k of [...keywords, keywords.join(" ")]) for (const [rx, list] of OSM_CATEGORY_TAGS) if (rx.test(k)) list.forEach((t) => tags.add(t));
   return [...tags].slice(0, 12);
 }
 
@@ -173,7 +233,7 @@ export function osmCategoryTags(keywords: string[]): string[] {
 const OSM_KEYS = /^(shop|office|craft|amenity|leisure|industrial|healthcare|tourism|man_made|building|club|social_facility|sport)$/;
 
 /** How to search for one request: web search phrases, OpenStreetMap categories and name words. */
-export type SearchPlan = { webQueries: string[]; osmTags: string[]; nameWords: string[] };
+export type SearchPlan = { webQueries: string[]; osmTags: string[]; nameWords: string[]; nearby?: string[] };
 
 /** Reads the AI's search plan, keeping only safe, well-formed parts. */
 export function readSearchPlan(raw: string): SearchPlan | null {
@@ -185,28 +245,33 @@ export function readSearchPlan(raw: string): SearchPlan | null {
   if (!v || typeof v !== "object") return null;
   const r = v as Record<string, unknown>;
   const list = (x: unknown) => (Array.isArray(x) ? x.filter((i): i is string => typeof i === "string") : []);
-  const webQueries = list(r["webQueries"]).map((q) => q.replace(/[<>]/g, "").trim()).filter((q) => q.length >= 4).slice(0, 2).map((q) => q.slice(0, 200));
+  const webQueries = list(r["webQueries"]).map((q) => q.replace(/[<>]/g, "").trim()).filter((q) => q.length >= 4).slice(0, 4).map((q) => q.slice(0, 200));
   const osmTags = [...new Set(list(r["osmTags"]).map((t) => t.trim().toLowerCase()).filter((t) => {
     const [k, val, extra] = t.split("=");
     return Boolean(k && val && extra === undefined && OSM_KEYS.test(k) && /^[a-z0-9_]{2,40}$/.test(val));
   }))].slice(0, 10);
   const nameWords = [...new Set(list(r["nameWords"]).map((w) => w.toLowerCase().replace(/[^a-z]/g, "")).filter((w) => w.length >= 3))].slice(0, 4);
   if (!webQueries.length && !osmTags.length && !nameWords.length) return null;
-  return { webQueries, osmTags, nameWords };
+  const nearby = [...new Set(list(r["nearby"]).map((n) => n.replace(/[<>]/g, "").trim()).filter((n) => n.length >= 3))].slice(0, 5).map((n) => n.slice(0, 40));
+  return nearby.length ? { webQueries, osmTags, nameWords, nearby } : { webQueries, osmTags, nameWords };
 }
 
 /** Overpass query: exact category tags (fast) plus one name match, inside a box (south, west, north, east). */
-export function overpassQuery(keywords: string[], box: [number, number, number, number], limit = 60, plan?: SearchPlan | null): string {
+export function overpassQuery(keywords: string[], box: [number, number, number, number], limit = 60, plan?: SearchPlan | null, mode: "all" | "tags" | "names" = "all"): string {
   const rx = keywords.map((k) => k.replace(/[^a-z]/g, "")).filter(Boolean).join("|");
   const b = box.map((n) => n.toFixed(4)).join(",");
   // A plan for this exact request beats the built-in word list (which is broader).
   const tags = (plan?.osmTags.length ? plan.osmTags : osmCategoryTags(keywords)).slice(0, 14);
   const byTag = tags.map((t) => { const [k, v] = t.split("="); return `nwr["${k}"="${v}"]["name"](${b});`; }).join("");
-  // A name pattern is slow on the public servers, so it's only used for words with no known category.
-  const unmapped = [...new Set([...(plan?.nameWords ?? []), ...keywords.filter((k) => osmCategoryTags([k]).length === 0 && !(plan?.osmTags.length))])]
+  if (mode === "names") {
+    const words = [...new Set([...(plan?.nameWords ?? []), ...keywords])].map((k) => k.replace(/[^a-z]/g, "")).filter((k) => k.length >= 3).slice(0, 6).join("|");
+    return `[out:json][timeout:40];(nwr["name"~"${words || rx}",i](${b}););out center tags ${limit};`;
+  }
+  // A name pattern is slow on the public servers, so in "all" mode it's only used for words with no known category.
+  const unmapped = mode === "tags" ? "" : [...new Set([...(plan?.nameWords ?? []), ...keywords.filter((k) => osmCategoryTags([k]).length === 0 && !(plan?.osmTags.length))])]
     .map((k) => k.replace(/[^a-z]/g, "")).filter(Boolean).slice(0, 4).join("|");
   const byName = unmapped ? `nwr["name"~"${unmapped}",i](${b});` : "";
-  return `[out:json][timeout:40];(${byTag}${byName}${!byTag && !byName && rx ? `nwr["name"~"${rx}",i](${b});` : ""});out center tags ${limit};`;
+  return `[out:json][timeout:40];(${byTag}${byName}${mode !== "tags" && !byTag && !byName && rx ? `nwr["name"~"${rx}",i](${b});` : ""});out center tags ${limit};`;
 }
 
 const NOT_A_PLACE_OF_BUSINESS = ["railway", "highway", "public_transport", "route", "boundary", "natural", "waterway", "power"];
@@ -222,18 +287,23 @@ export function candidateFromOsm(el: { type?: string; id?: number; tags?: Record
   const name = t["name"]?.trim();
   if (!name || !el.type || !el.id) return null;
   if (NOT_A_PLACE_OF_BUSINESS.some((k) => k in t)) return null;
+  if (name.split(/\s+/).length === 1 && (Object.values(t).some((v) => v !== name && v.toLowerCase() === name.toLowerCase()) || keywords.some((k) => name.toLowerCase().startsWith(k)))) return null;
   const kind = t["shop"] ?? t["office"] ?? t["craft"] ?? t["industrial"] ?? t["leisure"] ?? t["amenity"] ?? t["healthcare"] ?? t["tourism"] ?? (t["man_made"] === "works" ? "works" : null) ?? (t["building"] && t["building"] !== "yes" ? t["building"] : null);
-  if (!kind || NOT_A_BUSINESS_VALUE.test(kind)) return null;
-  // With a plan, a place must be one of the planned categories or carry a planned name word.
+  // A named place with no category still counts if it shows signs of being a business.
+  const looksLikeBusiness = Boolean(t["website"] || t["contact:website"] || t["phone"] || t["contact:phone"] || t["email"] || t["contact:email"] || t["brand"] || t["operator"] || t["addr:street"]);
+  if (kind ? NOT_A_BUSINESS_VALUE.test(kind) : !looksLikeBusiness) return null;
+  // Places that only match by name rank after real category matches, but are still returned.
+  let weak = false;
   if (planTags.length || planNames.length) {
     const tagMatch = Object.entries(t).some(([k, v]) => planTags.includes(`${k}=${v}`));
     const nameMatch = planNames.some((w) => name.toLowerCase().includes(w));
-    if (!tagMatch && !nameMatch) return null;
+    if (!tagMatch && !nameMatch) weak = true;
+    else if (!tagMatch && t["shop"]) weak = true;
   } else if (keywords.length && t["shop"]) {
     const wanted = new Set(osmCategoryTags(keywords));
     const tagMatch = Object.entries(t).some(([k, v]) => wanted.has(`${k}=${v}`));
     const valueMatch = keywords.some((k) => Object.entries(t).some(([key, v]) => key !== "name" && !key.startsWith("name:") && v.toLowerCase().includes(k)));
-    if (!tagMatch && !valueMatch) return null;
+    if (!tagMatch && !valueMatch) weak = true;
   }
   const website = t["website"] ?? t["contact:website"] ?? null;
   const street = [t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" ");
@@ -242,7 +312,7 @@ export function candidateFromOsm(el: { type?: string; id?: number; tags?: Record
   return {
     id: `osm:${el.type}/${el.id}`,
     name: name.slice(0, 160),
-    category: kind.replace(/_/g, " ").slice(0, 80),
+    category: kind ? kind.replace(/_/g, " ").slice(0, 80) : null,
     address,
     suburb: suburb?.slice(0, 60) ?? null,
     phone: (t["phone"] ?? t["contact:phone"] ?? null)?.slice(0, 30) ?? null,
@@ -250,6 +320,8 @@ export function candidateFromOsm(el: { type?: string; id?: number; tags?: Record
     rating: null,
     reviewCount: null,
     source: "osm",
+    email: (t["email"] ?? t["contact:email"] ?? null)?.toLowerCase().slice(0, 120) ?? null,
+    weak,
   };
 }
 
@@ -263,7 +335,9 @@ export function mergeCandidates(lists: Candidate[][], limit: number): Candidate[
   const nameKey = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
   const turns: Candidate[] = [];
   const longest = Math.max(0, ...lists.map((l) => l.length));
-  for (let i = 0; i < longest; i++) for (const list of lists) if (list[i]) turns.push(list[i]!);
+  const ordered = lists.map((l) => [...l].sort((a, b) => Number(Boolean(a.weak)) - Number(Boolean(b.weak))));
+  for (let i = 0; i < longest; i++) for (const list of ordered) if (list[i] && !list[i]!.weak) turns.push(list[i]!);
+  for (let i = 0; i < longest; i++) for (const list of ordered) if (list[i]?.weak) turns.push(list[i]!);
   for (const c of turns) {
     const host = hostOf(c.website);
     const k1 = host ? `h:${host}` : null;
@@ -305,4 +379,61 @@ export function readSuggestions(raw: string): SearchSuggestion[] {
     if (out.length >= 4) break;
   }
   return out;
+}
+
+/** Plain web phrases that work for any kind of business; used alongside (or instead of) the AI's. */
+export function webFallbackQueries(what: string, where: string): string[] {
+  const w = what.trim();
+  const place = where.trim();
+  return [`${w} ${place}`, `${w} near ${place} contact us`, `best ${w} in ${place} Australia`];
+}
+
+/** On a business's site: the links most likely to hold its email. */
+export function contactLinks(links: unknown, website: string): string[] {
+  const host = hostOf(website);
+  const origin = (() => { try { return new URL(website).origin; } catch { return null; } })();
+  const found = (Array.isArray(links) ? links : [])
+    .filter((l): l is string => typeof l === "string" && hostOf(l) === host && /contact|get-in-touch|enquir|about/i.test(l))
+    .sort((a, b) => Number(/about/i.test(a)) - Number(/about/i.test(b)));
+  const guesses = origin ? [`${origin}/contact`, `${origin}/contact-us`] : [];
+  return [...new Set([...found, ...guesses])].slice(0, 2);
+}
+
+/** Whether a web result really is this named business's website (shares a distinctive word with the name). */
+export function siteMatchesName(name: string, url: string, title?: string | null, area?: string | null): boolean {
+  const generic = new Set(["the", "and", "pty", "ltd", "limited", "group", "services", "service", "australia", "sydney", "company", "centre", "center", "shop", "store"]);
+  // The suburb is in many other businesses' names too, so it doesn't count as a match.
+  const place = new Set((area ?? "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/));
+  const words = name.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !generic.has(w) && !place.has(w));
+  if (words.length === 0) return false;
+  const host = (hostOf(url) ?? "").replace(/[^a-z0-9]/g, "");
+  const heading = (title ?? "").toLowerCase();
+  const hits = words.filter((w) => host.includes(w) || heading.includes(w)).length;
+  return hits >= Math.min(2, words.length);
+}
+
+/** A second-tier search area when a suburb is thin: the same centre, about 10-15 km around. */
+export function widerBox(box: [number, number, number, number]): [number, number, number, number] {
+  const [s, w, n, e] = box;
+  const pad = 0.1;
+  return [s - pad, w - pad, n + pad, e + pad];
+}
+
+/** A Photon (free OpenStreetMap geocoder) result in the same shape as an Overpass element. */
+export function photonToElement(feature: { properties?: Record<string, unknown> }): { type: string; id: number; tags: Record<string, string> } | null {
+  const p = feature.properties ?? {};
+  const id = typeof p["osm_id"] === "number" ? (p["osm_id"] as number) : null;
+  const key = typeof p["osm_key"] === "string" ? (p["osm_key"] as string) : null;
+  const value = typeof p["osm_value"] === "string" ? (p["osm_value"] as string) : null;
+  const name = typeof p["name"] === "string" ? (p["name"] as string) : null;
+  if (!id || !key || !value || !name) return null;
+  const type = p["osm_type"] === "W" ? "way" : p["osm_type"] === "R" ? "relation" : "node";
+  const tags: Record<string, string> = { name, [key]: value };
+  const copy = (from: string, to: string) => { if (typeof p[from] === "string") tags[to] = p[from] as string; };
+  copy("street", "addr:street");
+  copy("housenumber", "addr:housenumber");
+  copy("city", "addr:city");
+  copy("district", "addr:suburb");
+  copy("postcode", "addr:postcode");
+  return { type, id, tags };
 }

@@ -30,7 +30,7 @@ export const runLeadFinderSearch = createServerFn({ method: "POST" })
     what: z.string().trim().min(3).max(120),
     where: z.string().trim().min(2).max(80),
     criteria: z.string().trim().max(400).nullable().default(null),
-    limit: z.number().int().min(1).max(20).default(10),
+    limit: z.number().int().min(1).max(50).default(20),
   }).parse(input))
   .handler(async ({ context, data }) => {
     const ctx = await owner(context);
@@ -40,7 +40,7 @@ export const runLeadFinderSearch = createServerFn({ method: "POST" })
 
 export const addLeadFinderResults = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ ids: z.array(z.string().uuid()).min(1).max(20) }).parse(input))
+  .inputValidator((input: unknown) => z.object({ ids: z.array(z.string().uuid()).min(1).max(50) }).parse(input))
   .handler(async ({ context, data }) => {
     const ctx = await owner(context);
     const { addFoundToCustomers } = await import("./lead-finder.server");
@@ -49,7 +49,7 @@ export const addLeadFinderResults = createServerFn({ method: "POST" })
 
 export const dismissLeadFinderResults = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ ids: z.array(z.string().uuid()).min(1).max(20) }).parse(input))
+  .inputValidator((input: unknown) => z.object({ ids: z.array(z.string().uuid()).min(1).max(50) }).parse(input))
   .handler(async ({ context, data }) => {
     const ctx = await owner(context);
     const { dismissFound } = await import("./lead-finder.server");

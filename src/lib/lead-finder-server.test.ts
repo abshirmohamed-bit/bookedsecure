@@ -63,9 +63,10 @@ describe("Lead finder search (no Google needed)", () => {
   it("finds businesses on the web and OpenStreetMap, reads the website and keeps its email", async () => {
     const fetcher = vi.fn(async (url: string, init?: RequestInit) => fakeInternet(String(url), init));
     const r = await runLeadSearch({ businessId: BIZ, userId: USER, what: "warehouses and gyms", where: "Auburn NSW", criteria: "50+ staff", limit: 10, fetcher: fetcher as unknown as typeof fetch, plan: null });
-    expect(r).toEqual({ searchId: "search-1", found: 2, withEmail: 1 });
+    expect(r).toEqual({ searchId: "search-1", found: 3, withEmail: 1 });
     const saved = state.writes.find((w) => w.table === "lead_finder_prospects" && w.op === "upsert")?.value as Array<Record<string, unknown>>;
-    expect(saved.map((p) => p["name"])).toEqual(["Auburn Logistics Pty Ltd", "World Gym Auburn"]);
+    // The shop that only has the word in its name still comes back, but last.
+    expect(saved.map((p) => p["name"])).toEqual(["Auburn Logistics Pty Ltd", "World Gym Auburn", "Chemist Warehouse"]);
     expect(saved[0]).toMatchObject({ place_id: "web:auburnlogistics.com.au", email: "info@auburnlogistics.com.au", email_status: "unverified", fit: "good", suburb: "Auburn", phone: "02 9000 1111" });
     expect(saved[1]).toMatchObject({ place_id: "osm:node/7", email: null, email_status: "none", fit: "unknown" });
     // No Google call was made.

@@ -42,7 +42,7 @@ function LeadFinderPage() {
   const [what, setWhat] = useState("");
   const [where, setWhere] = useState("");
   const [criteria, setCriteria] = useState("");
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(20);
   const [picked, setPicked] = useState<string[]>([]);
   const [ask, setAsk] = useState("");
   const suggestFn = useServerFn(suggestLeadFinderSearches);
@@ -147,7 +147,7 @@ function LeadFinderPage() {
           </label>
           <div className="flex items-end gap-2">
             <select aria-label="How many" value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="h-10 rounded-md border border-input bg-background px-2 text-sm">
-              {[5, 10, 20].map((n) => <option key={n} value={n}>{n} results</option>)}
+              {[10, 20, 50].map((n) => <option key={n} value={n}>{n} results</option>)}
             </select>
             <Button disabled={!ready || !d?.isOwner || search.isPending || what.trim().length < 3 || where.trim().length < 2} onClick={() => search.mutate()}>
               {search.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Search className="mr-1.5 h-4 w-4" />} Find

@@ -28,7 +28,7 @@ export default defineTool({
     let rows: Row[] = [];
     if (latest) {
       const res = await db.from('lead_finder_prospects').select('id,name,suburb,fit,fit_reason,email,email_status,phone,website,status')
-        .eq('business_id', businessId).eq('search_id', String(latest['id'])).neq('status', 'dismissed').order('created_at', { ascending: true }).limit(20);
+        .eq('business_id', businessId).eq('search_id', String(latest['id'])).neq('status', 'dismissed').order('created_at', { ascending: true }).limit(50);
       if (res.error) throw new ToolError('Lead finder results could not be read.');
       rows = res.data ?? [];
     }

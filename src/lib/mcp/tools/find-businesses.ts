@@ -10,7 +10,7 @@ export default defineTool({
     what: z.string().min(3).max(120).describe("The kind of business, e.g. 'warehouses' or 'security companies'."),
     where: z.string().min(2).max(80).describe("An Australian suburb, city or region, e.g. 'Auburn NSW'."),
     criteria: z.string().max(400).optional().describe('Who exactly fits, e.g. 50+ staff on site.'),
-    limit: z.number().int().min(1).max(20).default(10),
+    limit: z.number().int().min(1).max(50).default(20),
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   handler: async ({ what, where, criteria, limit }, ctx) => leadFinderResult(async () => {
