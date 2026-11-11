@@ -1,0 +1,1 @@
+ALTER TABLE public.video_clip_jobs ADD COLUMN IF NOT EXISTS options jsonb;
