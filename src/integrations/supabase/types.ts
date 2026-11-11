@@ -942,7 +942,29 @@ export type Database = {
           trigger?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "booking_confirmations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_confirmations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_confirmations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["job_id"]
+          },
+        ]
       }
       booking_offers: {
         Row: {
@@ -1197,7 +1219,6 @@ export type Database = {
       }
       businesses: {
         Row: {
-          booking_email: Json | null
           abn: string | null
           agent_daily_send_cap: number
           agent_enabled: boolean
@@ -1211,6 +1232,7 @@ export type Database = {
           auto_complete_jobs: boolean
           automation_enabled: boolean
           billing_interval: string
+          booking_email: Json | null
           business_profile: Json | null
           cancel_at_period_end: boolean
           complimentary_access: boolean
@@ -1255,7 +1277,6 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
-          booking_email?: Json | null
           abn?: string | null
           agent_daily_send_cap?: number
           agent_enabled?: boolean
@@ -1269,6 +1290,7 @@ export type Database = {
           auto_complete_jobs?: boolean
           automation_enabled?: boolean
           billing_interval?: string
+          booking_email?: Json | null
           business_profile?: Json | null
           cancel_at_period_end?: boolean
           complimentary_access?: boolean
@@ -1313,7 +1335,6 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
-          booking_email?: Json | null
           abn?: string | null
           agent_daily_send_cap?: number
           agent_enabled?: boolean
@@ -1327,6 +1348,7 @@ export type Database = {
           auto_complete_jobs?: boolean
           automation_enabled?: boolean
           billing_interval?: string
+          booking_email?: Json | null
           business_profile?: Json | null
           cancel_at_period_end?: boolean
           complimentary_access?: boolean
@@ -2104,7 +2126,6 @@ export type Database = {
       }
       jobs: {
         Row: {
-          notify_customer: boolean
           booking_details: Json | null
           booking_request_key: string | null
           business_id: string
@@ -2117,13 +2138,13 @@ export type Database = {
           id: string
           lead_id: string
           notes: string | null
+          notify_customer: boolean
           quoted_price: number | null
           scheduled_at: string | null
           service_id: string | null
           service_performed: string | null
         }
         Insert: {
-          notify_customer?: boolean
           booking_details?: Json | null
           booking_request_key?: string | null
           business_id: string
@@ -2136,13 +2157,13 @@ export type Database = {
           id?: string
           lead_id: string
           notes?: string | null
+          notify_customer?: boolean
           quoted_price?: number | null
           scheduled_at?: string | null
           service_id?: string | null
           service_performed?: string | null
         }
         Update: {
-          notify_customer?: boolean
           booking_details?: Json | null
           booking_request_key?: string | null
           business_id?: string
@@ -2155,6 +2176,7 @@ export type Database = {
           id?: string
           lead_id?: string
           notes?: string | null
+          notify_customer?: boolean
           quoted_price?: number | null
           scheduled_at?: string | null
           service_id?: string | null

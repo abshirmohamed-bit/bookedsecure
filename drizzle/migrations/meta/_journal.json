@@ -428,6 +428,13 @@
       "when": 1794450000002,
       "tag": "0060_video_clip_options",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794450000003,
+      "tag": "0061_apply_booking_confirmations",
+      "breakpoints": true
     }
   ]
 }

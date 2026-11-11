@@ -1260,6 +1260,13 @@
                   "type": "null"
                 }
               ]
+            },
+            "notifyCustomer": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "False to book without sending the customer the confirmation email and text. Leave out to send them."
             }
           },
           "required": [
