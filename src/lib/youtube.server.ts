@@ -74,12 +74,13 @@ async function call(url: string, init: RequestInit, step: string, fetcher: typeo
 const STATE_TTL_MS = 15 * 60_000;
 const hmacKey = (purpose: string) => createHash("sha256").update(`${purpose}:${process.env["TENANT_AI_ENCRYPTION_SECRET"] ?? ""}`).digest();
 
-function sign(purpose: string, payload: Record<string, unknown>): string {
+/** Signed, tamper-proof state for Google sign-ins (YouTube and Google Ads share it, by purpose). */
+export function sign(purpose: string, payload: Record<string, unknown>): string {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${body}.${createHmac("sha256", hmacKey(purpose)).update(body).digest("base64url")}`;
 }
 
-function verify(purpose: string, token: string): unknown {
+export function verify(purpose: string, token: string): unknown {
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = createHmac("sha256", hmacKey(purpose)).update(body).digest();

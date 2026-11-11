@@ -418,6 +418,25 @@ export function buildFeatureTools(ctx: AssistantToolContext) {
       },
     }),
 
+    google_ad_performance: tool({
+      description: "Google Ads results for the last 7, 30 or 90 days per campaign: spend, impressions, clicks, CTR, cost per click, leads, bookings, completed jobs, revenue, cost per lead and per booking, and return on spend. Spend comes from the connected Google Ads account (read only); leads are quote-page visits that carried a Google ad click, joined to BookedSecure's bookings. Same figures as the Ad results page.",
+      inputSchema: z.object({ days: z.union([z.literal(7), z.literal(30), z.literal(90)]).default(30) }),
+      execute: async ({ days }) => {
+        try {
+          const { googleAdPerformance } = await import("@/lib/google-ads.server");
+          const r = await googleAdPerformance(businessId, days);
+          return {
+            ok: true, days, googleAdsConnected: Boolean(r.account?.id), account: r.account?.name ?? null, currency: r.account?.currency ?? null,
+            figuresUpdated: local(r.account?.lastSyncAt ?? null), syncError: r.account?.lastError ?? null, googleCountedConversions: r.googleConversions,
+            campaigns: r.campaigns, total: r.total,
+            note: r.setupMissing ? "Google Ads is waiting for a database update (migration 0062)." : r.platformMissing.length ? `Google Ads isn't set up on BookedSecure yet (${r.platformMissing.join(", ")}).` : r.account?.id ? null : "No Google Ads account is connected; connect it on the Ad results page. Leads from Google ads are still counted.",
+          };
+        } catch (error) {
+          return fail(error instanceof Error ? error.message : "Google Ads results could not be read.");
+        }
+      },
+    }),
+
     schedule_owner_reminder: tool({
       description:
         "Text the owner's own alert mobile a list of their scheduled bookings for a date range, now or at a set local time. BookedSecure re-reads bookings when it sends, so later changes are included. Uses text credits. Dates are local YYYY-MM-DD; rangeEnd is inclusive.",

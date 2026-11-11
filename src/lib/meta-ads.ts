@@ -4,7 +4,7 @@
  * and completed-job revenue come from BookedSecure's own records, joined on the
  * campaign id each Facebook lead was attributed to.
  */
-export type SpendRow = { campaign_id: string; campaign_name: string | null; date: string; spend: number; meta_leads: number };
+export type SpendRow = { campaign_id: string; campaign_name: string | null; date: string; spend: number; meta_leads: number; clicks?: number | null; impressions?: number | null };
 export type LeadRow = { id: string; campaign_id: string | null; campaign_name: string | null };
 export type JobRow = { lead_id: string; scheduled_at: string | null; completion_status: string | null; completed_value: number | null };
 
@@ -12,6 +12,11 @@ export type CampaignPerformance = {
   campaignId: string | null;
   campaignName: string;
   spend: number;
+  clicks: number;
+  impressions: number;
+  /** Clicks ÷ impressions, as a percentage. */
+  ctr: number | null;
+  costPerClick: number | null;
   leads: number;
   booked: number;
   completed: number;
@@ -39,12 +44,17 @@ export function buildAdPerformance(spend: SpendRow[], leads: LeadRow[], jobs: Jo
     const key = id ?? '__none__';
     let r = rows.get(key);
     if (!r) {
-      r = { campaignId: id, campaignName: name || (id ? `Campaign ${id}` : 'Not from a known campaign'), spend: 0, leads: 0, booked: 0, completed: 0, revenue: 0, costPerLead: null, costPerBooked: null, costPerCompleted: null, roas: null };
+      r = { campaignId: id, campaignName: name || (id ? `Campaign ${id}` : 'Not from a known campaign'), spend: 0, clicks: 0, impressions: 0, ctr: null, costPerClick: null, leads: 0, booked: 0, completed: 0, revenue: 0, costPerLead: null, costPerBooked: null, costPerCompleted: null, roas: null };
       rows.set(key, r);
     } else if (name && r.campaignName.startsWith('Campaign ')) r.campaignName = name;
     return r;
   };
-  for (const s of spend) row(s.campaign_id, s.campaign_name).spend += s.spend;
+  for (const s of spend) {
+    const r = row(s.campaign_id, s.campaign_name);
+    r.spend += s.spend;
+    r.clicks += Number(s.clicks) || 0;
+    r.impressions += Number(s.impressions) || 0;
+  }
   for (const l of leads) {
     const r = row(l.campaign_id, l.campaign_name);
     r.leads += 1;
@@ -56,11 +66,11 @@ export function buildAdPerformance(spend: SpendRow[], leads: LeadRow[], jobs: Jo
   }
   const finish = (r: CampaignPerformance): CampaignPerformance => {
     const spendTotal = money(r.spend);
-    return { ...r, spend: spendTotal, revenue: money(r.revenue), costPerLead: ratio(spendTotal, r.leads), costPerBooked: ratio(spendTotal, r.booked), costPerCompleted: ratio(spendTotal, r.completed), roas: spendTotal > 0 ? Math.round((r.revenue / spendTotal) * 100) / 100 : null };
+    return { ...r, spend: spendTotal, ctr: r.impressions > 0 ? Math.round((r.clicks / r.impressions) * 10000) / 100 : null, costPerClick: ratio(spendTotal, r.clicks), revenue: money(r.revenue), costPerLead: ratio(spendTotal, r.leads), costPerBooked: ratio(spendTotal, r.booked), costPerCompleted: ratio(spendTotal, r.completed), roas: spendTotal > 0 ? Math.round((r.revenue / spendTotal) * 100) / 100 : null };
   };
   const campaigns = [...rows.values()].map(finish).sort((a, b) => b.spend - a.spend || b.leads - a.leads);
-  const total = finish(campaigns.reduce<CampaignPerformance>((t, c) => ({ ...t, spend: t.spend + c.spend, leads: t.leads + c.leads, booked: t.booked + c.booked, completed: t.completed + c.completed, revenue: t.revenue + c.revenue }),
-    { campaignId: null, campaignName: 'All campaigns', spend: 0, leads: 0, booked: 0, completed: 0, revenue: 0, costPerLead: null, costPerBooked: null, costPerCompleted: null, roas: null }));
+  const total = finish(campaigns.reduce<CampaignPerformance>((t, c) => ({ ...t, spend: t.spend + c.spend, clicks: t.clicks + c.clicks, impressions: t.impressions + c.impressions, leads: t.leads + c.leads, booked: t.booked + c.booked, completed: t.completed + c.completed, revenue: t.revenue + c.revenue }),
+    { campaignId: null, campaignName: 'All campaigns', spend: 0, clicks: 0, impressions: 0, ctr: null, costPerClick: null, leads: 0, booked: 0, completed: 0, revenue: 0, costPerLead: null, costPerBooked: null, costPerCompleted: null, roas: null }));
   return { campaigns, total };
 }
 

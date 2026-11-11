@@ -28,7 +28,7 @@ beforeEach(() => vi.clearAllMocks());
 describe("assistant November tools", () => {
   it("covers every new feature area", () => {
     expect(Object.keys(buildFeatureTools(ctx("owner"))).sort()).toEqual([
-      "business_profile", "dismiss_social_comment", "facebook_ad_performance", "facebook_lead_import_status", "import_facebook_leads_now",
+      "business_profile", "dismiss_social_comment", "facebook_ad_performance", "facebook_lead_import_status", "google_ad_performance", "import_facebook_leads_now",
       "list_social_comments", "list_social_conversations", "notifications_summary", "prepare_social_reply",
       "read_social_conversation", "schedule_owner_reminder", "set_facebook_lead_check", "today_overview",
     ]);

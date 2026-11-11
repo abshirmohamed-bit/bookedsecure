@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdsRouteImport } from './routes/ads'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -84,6 +85,7 @@ import { Route as ApiPublicV1ServicesRouteImport } from './routes/api/public/v1/
 import { Route as ApiPublicV1SocialCommentsRouteImport } from './routes/api/public/v1/social-comments'
 import { Route as ApiVideoClipsClipIdFileRouteImport } from './routes/api/video-clips.$clipId.file'
 import { Route as ApiPublicEmailImageBusinessIdNameRouteImport } from './routes/api/public/email-image.$businessId.$name'
+import { Route as ApiPublicGoogleAdsOauthCallbackRouteImport } from './routes/api/public/google-ads/oauth.callback'
 import { Route as ApiPublicLinkedinOauthCallbackRouteImport } from './routes/api/public/linkedin/oauth.callback'
 import { Route as ApiPublicMetaOauthCallbackRouteImport } from './routes/api/public/meta/oauth.callback'
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
@@ -99,6 +101,11 @@ import { Route as ApiPublicV1SocialCommentsIdPostedRouteImport } from './routes/
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdsRoute = AdsRouteImport.update({
+  id: '/ads',
+  path: '/ads',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -481,6 +488,12 @@ const ApiPublicEmailImageBusinessIdNameRoute =
     path: '/api/public/email-image/$businessId/$name',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicGoogleAdsOauthCallbackRoute =
+  ApiPublicGoogleAdsOauthCallbackRouteImport.update({
+    id: '/api/public/google-ads/oauth/callback',
+    path: '/api/public/google-ads/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicLinkedinOauthCallbackRoute =
   ApiPublicLinkedinOauthCallbackRouteImport.update({
     id: '/api/public/linkedin/oauth/callback',
@@ -548,6 +561,7 @@ const ApiPublicV1SocialCommentsIdPostedRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ads': typeof AdsRoute
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
@@ -622,6 +636,7 @@ export interface FileRoutesByFullPath {
   '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
   '/api/video-clips/$clipId/file': typeof ApiVideoClipsClipIdFileRoute
   '/api/public/email-image/$businessId/$name': typeof ApiPublicEmailImageBusinessIdNameRoute
+  '/api/public/google-ads/oauth/callback': typeof ApiPublicGoogleAdsOauthCallbackRoute
   '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
@@ -636,6 +651,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ads': typeof AdsRoute
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
@@ -709,6 +725,7 @@ export interface FileRoutesByTo {
   '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
   '/api/video-clips/$clipId/file': typeof ApiVideoClipsClipIdFileRoute
   '/api/public/email-image/$businessId/$name': typeof ApiPublicEmailImageBusinessIdNameRoute
+  '/api/public/google-ads/oauth/callback': typeof ApiPublicGoogleAdsOauthCallbackRoute
   '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
@@ -724,6 +741,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ads': typeof AdsRoute
   '/analytics': typeof AnalyticsRoute
   '/assistant': typeof AssistantRouteWithChildren
   '/auth': typeof AuthRoute
@@ -798,6 +816,7 @@ export interface FileRoutesById {
   '/api/public/v1/social-comments': typeof ApiPublicV1SocialCommentsRouteWithChildren
   '/api/video-clips/$clipId/file': typeof ApiVideoClipsClipIdFileRoute
   '/api/public/email-image/$businessId/$name': typeof ApiPublicEmailImageBusinessIdNameRoute
+  '/api/public/google-ads/oauth/callback': typeof ApiPublicGoogleAdsOauthCallbackRoute
   '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
@@ -814,6 +833,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ads'
     | '/analytics'
     | '/assistant'
     | '/auth'
@@ -888,6 +908,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/social-comments'
     | '/api/video-clips/$clipId/file'
     | '/api/public/email-image/$businessId/$name'
+    | '/api/public/google-ads/oauth/callback'
     | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
@@ -902,6 +923,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/ads'
     | '/analytics'
     | '/assistant'
     | '/auth'
@@ -975,6 +997,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/social-comments'
     | '/api/video-clips/$clipId/file'
     | '/api/public/email-image/$businessId/$name'
+    | '/api/public/google-ads/oauth/callback'
     | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
@@ -989,6 +1012,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/ads'
     | '/analytics'
     | '/assistant'
     | '/auth'
@@ -1063,6 +1087,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/social-comments'
     | '/api/video-clips/$clipId/file'
     | '/api/public/email-image/$businessId/$name'
+    | '/api/public/google-ads/oauth/callback'
     | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
@@ -1078,6 +1103,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdsRoute: typeof AdsRoute
   AnalyticsRoute: typeof AnalyticsRoute
   AssistantRoute: typeof AssistantRouteWithChildren
   AuthRoute: typeof AuthRoute
@@ -1144,6 +1170,7 @@ export interface RootRouteChildren {
   ApiPublicV1SocialCommentsRoute: typeof ApiPublicV1SocialCommentsRouteWithChildren
   ApiVideoClipsClipIdFileRoute: typeof ApiVideoClipsClipIdFileRoute
   ApiPublicEmailImageBusinessIdNameRoute: typeof ApiPublicEmailImageBusinessIdNameRoute
+  ApiPublicGoogleAdsOauthCallbackRoute: typeof ApiPublicGoogleAdsOauthCallbackRoute
   ApiPublicLinkedinOauthCallbackRoute: typeof ApiPublicLinkedinOauthCallbackRoute
   ApiPublicMetaOauthCallbackRoute: typeof ApiPublicMetaOauthCallbackRoute
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
@@ -1163,6 +1190,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ads': {
+      id: '/ads'
+      path: '/ads'
+      fullPath: '/ads'
+      preLoaderRoute: typeof AdsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -1683,6 +1717,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicEmailImageBusinessIdNameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/google-ads/oauth/callback': {
+      id: '/api/public/google-ads/oauth/callback'
+      path: '/api/public/google-ads/oauth/callback'
+      fullPath: '/api/public/google-ads/oauth/callback'
+      preLoaderRoute: typeof ApiPublicGoogleAdsOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/linkedin/oauth/callback': {
       id: '/api/public/linkedin/oauth/callback'
       path: '/api/public/linkedin/oauth/callback'
@@ -1816,6 +1857,7 @@ const ApiPublicV1SocialCommentsRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdsRoute: AdsRoute,
   AnalyticsRoute: AnalyticsRoute,
   AssistantRoute: AssistantRouteWithChildren,
   AuthRoute: AuthRoute,
@@ -1884,6 +1926,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVideoClipsClipIdFileRoute: ApiVideoClipsClipIdFileRoute,
   ApiPublicEmailImageBusinessIdNameRoute:
     ApiPublicEmailImageBusinessIdNameRoute,
+  ApiPublicGoogleAdsOauthCallbackRoute: ApiPublicGoogleAdsOauthCallbackRoute,
   ApiPublicLinkedinOauthCallbackRoute: ApiPublicLinkedinOauthCallbackRoute,
   ApiPublicMetaOauthCallbackRoute: ApiPublicMetaOauthCallbackRoute,
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,

@@ -61,11 +61,15 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const bookingEmails = await retryFailedBookingEmails().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Booking email retry failed",
         }));
+        const { sweepGoogleAdSpend } = await import("@/lib/google-ads.server");
+        const googleAds = await sweepGoogleAdSpend().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Google Ads sync failed",
+        }));
         const { processDueAutoCompletions } = await import("@/lib/job-autocomplete.server");
         const autoCompleted = await processDueAutoCompletions().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Auto-complete failed",
         }));
-        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, abandonedSwept: swept.swept });
+        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, abandonedSwept: swept.swept });
 
 
       },

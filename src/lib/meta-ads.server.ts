@@ -16,7 +16,7 @@ const RESYNC_DAYS = 3;
 
 const accountsPage = z.object({ data: z.array(z.object({ account_id: z.string(), name: z.string().optional(), currency: z.string().optional(), account_status: z.number().optional() })) });
 const insightsPage = z.object({
-  data: z.array(z.object({ campaign_id: z.string().optional(), campaign_name: z.string().optional(), date_start: z.string(), spend: z.string().optional(), actions: z.array(z.object({ action_type: z.string().optional(), value: z.union([z.string(), z.number()]).optional() })).optional() })),
+  data: z.array(z.object({ campaign_id: z.string().optional(), campaign_name: z.string().optional(), date_start: z.string(), spend: z.string().optional(), clicks: z.string().optional(), impressions: z.string().optional(), actions: z.array(z.object({ action_type: z.string().optional(), value: z.union([z.string(), z.number()]).optional() })).optional() })),
   paging: z.object({ next: z.string().optional(), cursors: z.object({ after: z.string().optional() }).optional() }).optional(),
 });
 
@@ -98,18 +98,22 @@ export async function syncAdSpend(businessId: string, fetcher: typeof fetch = fe
     for (let page = 0; page < 40; page++) {
       const parsed = insightsPage.safeParse(await graph(`act_${accountId}/insights`, {
         level: 'campaign', time_increment: '1', time_range: JSON.stringify({ since, until }),
-        fields: 'campaign_id,campaign_name,spend,actions', limit: '500', ...(after ? { after } : {}),
+        fields: 'campaign_id,campaign_name,spend,clicks,impressions,actions', limit: '500', ...(after ? { after } : {}),
       }, token, fetcher));
       if (!parsed.success) throw new Error('Facebook returned invalid ad spend data.');
       for (const r of parsed.data.data) {
         if (!r.campaign_id) continue;
-        rows.push({ business_id: businessId, ad_account_id: accountId, campaign_id: r.campaign_id, campaign_name: r.campaign_name ?? null, date: r.date_start, spend: Number(r.spend) || 0, meta_leads: metaLeadCount(r.actions), updated_at: now.toISOString() });
+        rows.push({ business_id: businessId, ad_account_id: accountId, campaign_id: r.campaign_id, campaign_name: r.campaign_name ?? null, date: r.date_start, spend: Number(r.spend) || 0, meta_leads: metaLeadCount(r.actions), clicks: Math.round(Number(r.clicks) || 0), impressions: Math.round(Number(r.impressions) || 0), updated_at: now.toISOString() });
       }
       after = parsed.data.paging?.next ? parsed.data.paging.cursors?.after : undefined;
       if (!after) break;
     }
     if (rows.length) {
-      const { error: upErr } = await supabaseAdmin.from('meta_ad_spend_daily').upsert(rows, { onConflict: 'business_id,campaign_id,date' });
+      let { error: upErr } = await supabaseAdmin.from('meta_ad_spend_daily').upsert(rows, { onConflict: 'business_id,campaign_id,date' });
+      if (upErr && (upErr.code === 'PGRST204' || upErr.code === '42703')) {
+        // clicks/impressions arrive with migration 0062; spend still saves without them.
+        ({ error: upErr } = await supabaseAdmin.from('meta_ad_spend_daily').upsert(rows.map(({ clicks: _c, impressions: _i, ...rest }) => rest), { onConflict: 'business_id,campaign_id,date' }));
+      }
       if (upErr) throw new Error('Could not save ad spend.');
     }
     await supabaseAdmin.from('meta_ad_accounts').update({ last_spend_sync_at: now.toISOString(), last_error: null }).eq('business_id', businessId);
@@ -134,6 +138,19 @@ export async function sweepAdSpend(now = new Date()) {
   return { synced };
 }
 
+type MetaSpendRead = { campaign_id: string; campaign_name: string | null; date: string; spend: number; meta_leads: number; clicks?: number | null; impressions?: number | null };
+
+/** Daily spend rows, with clicks and impressions once migration 0062 has added them. */
+async function readMetaSpend(businessId: string, accountId: string, since: string): Promise<{ data: MetaSpendRead[] | null; error: { message: string } | null }> {
+  const base = supabaseAdmin.from('meta_ad_spend_daily');
+  const full = await (base.select('campaign_id, campaign_name, date, spend, meta_leads, clicks, impressions' as 'campaign_id, campaign_name, date, spend, meta_leads') as unknown as ReturnType<typeof base.select>)
+    .eq('business_id', businessId).eq('ad_account_id', accountId).gte('date', since).limit(5000);
+  if (!full.error) return { data: full.data as unknown as MetaSpendRead[], error: null };
+  if (full.error.code !== '42703' && full.error.code !== 'PGRST204') return { data: null, error: full.error };
+  const plain = await supabaseAdmin.from('meta_ad_spend_daily').select('campaign_id, campaign_name, date, spend, meta_leads').eq('business_id', businessId).eq('ad_account_id', accountId).gte('date', since).limit(5000);
+  return { data: plain.data as MetaSpendRead[] | null, error: plain.error };
+}
+
 /** Campaign performance for the last `days` days, in the business's ad account currency. */
 export async function adPerformance(businessId: string, days: number, now = new Date()) {
   const { data: acct, error: acctErr } = await supabaseAdmin.from('meta_ad_accounts')
@@ -143,7 +160,7 @@ export async function adPerformance(businessId: string, days: number, now = new 
   const sinceDate = new Date(now.getTime() - (days - 1) * 86400_000);
   const since = sinceDate.toISOString().slice(0, 10);
   const spendRes = acct?.ad_account_id
-    ? await supabaseAdmin.from('meta_ad_spend_daily').select('campaign_id, campaign_name, date, spend, meta_leads').eq('business_id', businessId).eq('ad_account_id', acct.ad_account_id).gte('date', since).limit(5000)
+    ? await readMetaSpend(businessId, acct.ad_account_id, since)
     : { data: [], error: null };
   if (spendRes.error) throw new Error('Could not load ad spend.');
   const leadsRes = await supabaseAdmin.from('leads').select('id, source_campaign, campaign_id:source_metadata->ad->>campaign_id')
@@ -157,7 +174,7 @@ export async function adPerformance(businessId: string, days: number, now = new 
     if (error) throw new Error('Could not load jobs.');
     for (const j of data ?? []) if (j.lead_id) jobs.push({ lead_id: j.lead_id, scheduled_at: j.scheduled_at, completion_status: j.completion_status, completed_value: j.completed_value === null ? null : Number(j.completed_value) });
   }
-  const spend: SpendRow[] = (spendRes.data ?? []).map((s) => ({ campaign_id: s.campaign_id, campaign_name: s.campaign_name, date: s.date, spend: Number(s.spend) || 0, meta_leads: s.meta_leads ?? 0 }));
+  const spend: SpendRow[] = (spendRes.data ?? []).map((s) => ({ campaign_id: s.campaign_id, campaign_name: s.campaign_name, date: s.date, spend: Number(s.spend) || 0, meta_leads: s.meta_leads ?? 0, clicks: s.clicks ?? 0, impressions: s.impressions ?? 0 }));
   return {
     account: acct ? { id: acct.ad_account_id, name: acct.ad_account_name, currency: acct.currency, choices: z.array(z.object({ id: z.string(), name: z.string() })).catch([]).parse(acct.available_accounts), tokenExpiresAt: acct.token_expires_at, lastSyncAt: acct.last_spend_sync_at, lastError: acct.last_error } : null,
     setupMissing,
