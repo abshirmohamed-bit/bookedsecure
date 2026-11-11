@@ -421,6 +421,13 @@
       "when": 1794450000001,
       "tag": "0059_apply_pending_video_clips",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794450000002,
+      "tag": "0060_video_clip_options",
+      "breakpoints": true
     }
   ]
 }
