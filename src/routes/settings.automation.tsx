@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { BusinessSettingsForm, RulesEditor, SettingsPageBody } from "@/components/settings/sections";
 import { AutoCompleteJobsCard } from "@/components/settings/AutoCompleteJobsCard";
+import { BookingConfirmationCard } from "@/components/settings/BookingConfirmationCard";
 import { ReviewRequestCard } from "@/components/settings/ReviewRequestCard";
 import { ServiceReminderCard } from "@/components/settings/ServiceReminderCard";
 
@@ -43,6 +44,7 @@ function AutomationSettingsPage() {
               note="Follow-ups always stop when a customer replies, opts out, or you pause a conversation."
             />
             <RulesEditor rules={data.rules.filter((rule) => rule.rule_type !== "review_request" && rule.rule_type !== "service_reminder")} readOnly={data.role !== "owner"} />
+            <BookingConfirmationCard />
             <ReviewRequestCard />
             <ServiceReminderCard />
             <AutoCompleteJobsCard />

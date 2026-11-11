@@ -34,6 +34,7 @@ import {
   type BookingEntry,
 } from "@/lib/bookings";
 import { Portal } from "@/components/Portal";
+import { BookingConfirmations } from "@/components/bookings/BookingConfirmations";
 
 function stateClasses(state: BookingEntry["state"]): string {
   if (state === "completed") return "bg-primary/10 text-primary";
@@ -437,6 +438,7 @@ export function BookingsCalendar() {
                 </div>
               ) : null}
             </dl>
+            {selected.state !== "cancelled" ? <BookingConfirmations jobId={selected.jobId} /> : null}
             {selected.state === "scheduled" ? (
               <div className="mt-4 rounded-xl border border-border bg-secondary/40 p-3">
                 <p className="text-sm font-semibold">Job finished?</p>

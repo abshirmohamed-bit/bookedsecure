@@ -516,7 +516,7 @@ export const recordCompletedJob = createServerFn({ method: "POST" })
 export const scheduleJob = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ leadId: z.string().uuid(), scheduled_at: z.string().min(8) }).parse(input),
+    z.object({ leadId: z.string().uuid(), scheduled_at: z.string().min(8), notifyCustomer: z.boolean().optional() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const { requireAppContext, requireWriteContext, assertLeadOwnership } = await import("@/lib/app-context.server");
@@ -537,11 +537,18 @@ export const scheduleJob = createServerFn({ method: "POST" })
       businessRow?.timezone ?? DEFAULT_TIME_ZONE,
     );
     const { saveScheduledJob } = await import("@/lib/job-scheduling.server");
-    return saveScheduledJob(supabaseAdmin, {
+    const saved = await saveScheduledJob(supabaseAdmin, {
       businessId: app.businessId,
       leadId: data.leadId,
       scheduledAt,
     });
+    // A new booking gets the customer's confirmation email and text, unless
+    // the owner unticked it; moving an existing booking sends nothing.
+    const { confirmIfNewBooking } = await import("@/lib/booking-email.server");
+    const confirmations = await confirmIfNewBooking({
+      businessId: app.businessId, jobId: saved.jobId, leadId: data.leadId, notifyCustomer: data.notifyCustomer ?? true,
+    });
+    return { ...saved, confirmations };
   });
 
 export const analyseConversation = createServerFn({ method: "POST" })

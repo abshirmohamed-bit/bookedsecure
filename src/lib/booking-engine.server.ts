@@ -361,6 +361,9 @@ export async function bookAppointment(input: {
       console.error("[booking-api] confirmation failed", e instanceof Error ? e.message : e);
       confirmation = { outcome: "failed", sent: false };
     }
+    // The confirmation email, and the log of both. The text above is recorded, not resent.
+    const { confirmNewBooking, smsOutcome } = await import("@/lib/booking-email.server");
+    await confirmNewBooking({ businessId: input.businessId, jobId: result.job_id, leadId: result.lead_id, sms: smsOutcome(confirmation) });
   }
 
   const start = new Date(result.starts_at ?? startsAt);

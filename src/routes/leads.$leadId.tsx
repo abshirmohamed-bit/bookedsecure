@@ -1026,6 +1026,8 @@ function JobPanel({
   const [scheduledAt, setScheduledAt] = useState(
     isoToLocalDateTimeInput(job?.scheduled_at, timeZone),
   );
+  // A new booking emails and texts the customer a confirmation unless unticked.
+  const [notifyCustomer, setNotifyCustomer] = useState(true);
 
   const completeMutation = useMutation({
     mutationFn: () =>
@@ -1050,7 +1052,7 @@ function JobPanel({
   });
 
   const scheduleMutation = useMutation({
-    mutationFn: () => schedule({ data: { leadId, scheduled_at: scheduledAt } }),
+    mutationFn: () => schedule({ data: { leadId, scheduled_at: scheduledAt, notifyCustomer } }),
     onSuccess: () => {
       toast.success("Job scheduled");
       onDone();
@@ -1093,6 +1095,12 @@ function JobPanel({
                   Save
                 </button>
               </div>
+              {!job?.scheduled_at ? (
+                <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" checked={notifyCustomer} onChange={(event) => setNotifyCustomer(event.target.checked)} />
+                  Email and text the customer a confirmation
+                </label>
+              ) : null}
             </div>
 
             <div className="rounded-md border border-border p-3">

@@ -853,6 +853,16 @@ export async function confirmBooking(input: {
     },
   });
 
+  // The confirmation email, and the log. The text above was the confirmation
+  // the conversation itself needed; it is recorded, not resent.
+  if (jobId && !existingJob) {
+    const { confirmNewBooking } = await import("@/lib/booking-email.server");
+    await confirmNewBooking({
+      businessId: input.businessId, jobId, leadId: input.leadId,
+      sms: { status: "sent", reason: sms.duplicate ? "Text already sent." : "Confirmed in the text conversation." },
+    });
+  }
+
   return {
     ok: true,
     decision,

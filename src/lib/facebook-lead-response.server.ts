@@ -22,8 +22,14 @@ async function tryBook(businessId: string, leadId: string, at: string): Promise<
   if ((clash ?? []).some((j) => j.lead_id !== leadId)) return false;
   const { data: own } = await supabaseAdmin.from('jobs').select('id').eq('business_id', businessId).eq('lead_id', leadId).eq('completion_status', 'scheduled').limit(1);
   if (own?.length) return false; // never move a customer's existing booking automatically
-  const { error: rpcErr } = await supabaseAdmin.rpc('schedule_owner_job', { p_business_id: businessId, p_lead_id: leadId, p_scheduled_at: at });
+  const { data: jobId, error: rpcErr } = await supabaseAdmin.rpc('schedule_owner_job', { p_business_id: businessId, p_lead_id: leadId, p_scheduled_at: at });
   if (rpcErr) throw rpcErr;
+  // The confirmation email, if they left one. The reply below confirms the
+  // time by text, so the text confirmation is recorded as covered by it.
+  if (typeof jobId === 'string') {
+    const { confirmIfNewBooking } = await import('@/lib/booking-email.server');
+    await confirmIfNewBooking({ businessId, jobId, leadId, sms: { status: 'skipped', reason: 'The Facebook lead reply confirms the time by text.' } });
+  }
   return true;
 }
 

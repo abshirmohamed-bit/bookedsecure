@@ -57,11 +57,15 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
           error: error instanceof Error ? error.message : "Customer reminders failed",
         }));
         // Booked jobs whose time has passed, for businesses that complete jobs automatically.
+        const { retryFailedBookingEmails } = await import("@/lib/booking-email.server");
+        const bookingEmails = await retryFailedBookingEmails().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Booking email retry failed",
+        }));
         const { processDueAutoCompletions } = await import("@/lib/job-autocomplete.server");
         const autoCompleted = await processDueAutoCompletions().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Auto-complete failed",
         }));
-        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, abandonedSwept: swept.swept });
+        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, abandonedSwept: swept.swept });
 
 
       },

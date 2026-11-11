@@ -84,6 +84,13 @@ export async function finalizeBookingOnlyBooking(input: {
   const smsSent = confirmation.sent;
   const smsSkippedReason = confirmation.sent ? null : confirmation.outcome;
 
+  // The confirmation email, and the log of both. The text above is recorded,
+  // not resent; a replayed booking was already confirmed the first time.
+  if (!input.replay) {
+    const { confirmNewBooking, smsOutcome } = await import("@/lib/booking-email.server");
+    await confirmNewBooking({ businessId: input.businessId, jobId: offer.job_id, leadId: input.leadId, sms: smsOutcome(confirmation) });
+  }
+
 
   const alert = ownerBookingAlert({
     businessId: input.businessId,

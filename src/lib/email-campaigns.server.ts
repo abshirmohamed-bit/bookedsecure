@@ -38,7 +38,8 @@ export function unsubscribeUrl(businessId: string, email: string): string {
   return `${appOrigin()}/api/public/email-unsubscribe?${params.toString()}`;
 }
 
-async function sendEmailViaResend(input: {
+/** BookedSecure's one email sender (the Lovable Resend connector). Campaigns, replies and booking confirmations all go through it. */
+export async function sendEmailViaResend(input: {
   from: string;
   to: string;
   subject: string;

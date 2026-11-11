@@ -893,6 +893,57 @@ export type Database = {
           },
         ]
       }
+      booking_confirmations: {
+        Row: {
+          attempts: number
+          business_id: string
+          channel: string
+          created_at: string
+          id: string
+          job_id: string
+          lead_id: string | null
+          provider_message_id: string | null
+          reason: string | null
+          recipient: string | null
+          status: string
+          subject: string | null
+          trigger: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          business_id: string
+          channel: string
+          created_at?: string
+          id?: string
+          job_id: string
+          lead_id?: string | null
+          provider_message_id?: string | null
+          reason?: string | null
+          recipient?: string | null
+          status: string
+          subject?: string | null
+          trigger?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          business_id?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+          lead_id?: string | null
+          provider_message_id?: string | null
+          reason?: string | null
+          recipient?: string | null
+          status?: string
+          subject?: string | null
+          trigger?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       booking_offers: {
         Row: {
           accepted_at: string | null
@@ -1146,6 +1197,7 @@ export type Database = {
       }
       businesses: {
         Row: {
+          booking_email: Json | null
           abn: string | null
           agent_daily_send_cap: number
           agent_enabled: boolean
@@ -1203,6 +1255,7 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          booking_email?: Json | null
           abn?: string | null
           agent_daily_send_cap?: number
           agent_enabled?: boolean
@@ -1260,6 +1313,7 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          booking_email?: Json | null
           abn?: string | null
           agent_daily_send_cap?: number
           agent_enabled?: boolean
@@ -2050,6 +2104,7 @@ export type Database = {
       }
       jobs: {
         Row: {
+          notify_customer: boolean
           booking_details: Json | null
           booking_request_key: string | null
           business_id: string
@@ -2068,6 +2123,7 @@ export type Database = {
           service_performed: string | null
         }
         Insert: {
+          notify_customer?: boolean
           booking_details?: Json | null
           booking_request_key?: string | null
           business_id: string
@@ -2086,6 +2142,7 @@ export type Database = {
           service_performed?: string | null
         }
         Update: {
+          notify_customer?: boolean
           booking_details?: Json | null
           booking_request_key?: string | null
           business_id?: string

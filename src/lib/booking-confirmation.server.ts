@@ -165,3 +165,77 @@ export async function deliverBookingConfirmation(input: {
   await record({ ...input, outcome: "failed", reason: result.reason ?? "Send failed." });
   return { ...base, outcome: "failed", reason: result.reason ?? "Send failed." };
 }
+
+/**
+ * The same confirmation text for a booking that has no offer behind it: one
+ * the owner entered, or Co-Work/ChatGPT booked. Same template, same consent,
+ * opt-out, suppression and callback-number checks, keyed to the job so it is
+ * sent once however often it is asked for.
+ */
+export async function deliverJobConfirmationSms(input: {
+  businessId: string;
+  jobId: string;
+  leadId: string;
+}): Promise<{ outcome: ConfirmationOutcome; sent: boolean; reason: string }> {
+  const [{ data: lead }, { data: business }, { data: job }] = await Promise.all([
+    supabaseAdmin
+      .from("leads")
+      .select("id, name, mobile_number, consent_status, opted_out_at, sms_suppressed_at, service_name_snapshot")
+      .eq("id", input.leadId)
+      .eq("business_id", input.businessId)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("businesses")
+      .select("name, timezone, phone_number, owner_notification_number")
+      .eq("id", input.businessId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("jobs")
+      .select("id, lead_id, scheduled_at, completion_status, services(name)")
+      .eq("id", input.jobId)
+      .eq("business_id", input.businessId)
+      .maybeSingle(),
+  ]);
+  const audit = async (outcome: ConfirmationOutcome, reason: string) => {
+    await supabaseAdmin.from("audit_events").insert({
+      business_id: input.businessId, event_type: "booking_confirmation_sms", entity_type: "lead", entity_id: input.leadId,
+      metadata: { job_id: input.jobId, outcome, reason, template_id: BOOKING_CONFIRMATION_TEMPLATE_ID } as never,
+    });
+  };
+  if (!lead || !business || !job || job.lead_id !== input.leadId || !job.scheduled_at) {
+    return { outcome: "blocked_no_booking", sent: false, reason: "Booking, customer or business record not found for this tenant." };
+  }
+  const decision = evaluateConfirmationEligibility({
+    offerStatus: job.completion_status === "cancelled" ? "withdrawn" : "confirmed",
+    jobId: job.id,
+    confirmationSentAt: null,
+    consentStatus: lead.consent_status,
+    optedOutAt: lead.opted_out_at,
+    smsSuppressedAt: lead.sms_suppressed_at,
+    mobileNumber: lead.mobile_number,
+    tenantCallbackNumber: business.phone_number,
+    ownerNotificationNumber: business.owner_notification_number,
+  });
+  if (!decision.sendable) {
+    await audit(decision.outcome, decision.reason);
+    return { outcome: decision.outcome, sent: false, reason: decision.reason };
+  }
+  const service = (job as { services?: { name?: string | null } | null }).services?.name ?? lead.service_name_snapshot;
+  const { body, templateId } = renderBookingConfirmation({
+    customerName: lead.name, tenantName: business.name, serviceName: service,
+    slotStart: job.scheduled_at, timezone: business.timezone, callbackNumber: resolveTenantCallbackNumber(business)!,
+  });
+  const { sendSms } = await import("@/lib/lead-engine.server");
+  const result = await sendSms({
+    businessId: input.businessId, leadId: input.leadId, body, kind: "manual", respectAutomation: false,
+    userId: null, source: "manual", templateId, idempotencyKey: `booking_confirm_job:${input.jobId}`,
+  });
+  if (result.sent || result.duplicate) {
+    const outcome: ConfirmationOutcome = result.sent ? "sent" : "duplicate_suppressed";
+    await audit(outcome, result.reason ?? "Confirmation sent.");
+    return { outcome, sent: true, reason: result.sent ? "Text sent." : "Already sent." };
+  }
+  await audit("failed", result.reason ?? "Send failed.");
+  return { outcome: "failed", sent: false, reason: result.reason ?? "The text could not be sent." };
+}

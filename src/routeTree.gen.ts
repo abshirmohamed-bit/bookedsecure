@@ -86,6 +86,7 @@ import { Route as ApiVideoClipsClipIdFileRouteImport } from './routes/api/video-
 import { Route as ApiPublicLinkedinOauthCallbackRouteImport } from './routes/api/public/linkedin/oauth.callback'
 import { Route as ApiPublicMetaOauthCallbackRouteImport } from './routes/api/public/meta/oauth.callback'
 import { Route as ApiPublicServiceImageKindIdRouteImport } from './routes/api/public/service-image.$kind.$id'
+import { Route as ApiPublicEmailImageBusinessIdNameRouteImport } from './routes/api/public/email-image.$businessId.$name'
 import { Route as ApiPublicSmsTextoDeliveryRouteImport } from './routes/api/public/sms/texto.delivery'
 import { Route as ApiPublicSmsTextoInboundRouteImport } from './routes/api/public/sms/texto.inbound'
 import { Route as ApiPublicV1BookingAvailabilityRouteImport } from './routes/api/public/v1/booking.availability'
@@ -539,6 +540,59 @@ const ApiPublicV1SocialCommentsIdPostedRoute =
     getParentRoute: () => ApiPublicV1SocialCommentsRoute,
   } as any)
 
+const ApiPublicEmailImageBusinessIdNameRoute =
+  ApiPublicEmailImageBusinessIdNameRouteImport.update({
+    id: '/api/public/email-image/$businessId/$name',
+    path: '/api/public/email-image/$businessId/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicSmsTextoDeliveryRoute =
+  ApiPublicSmsTextoDeliveryRouteImport.update({
+    id: '/api/public/sms/texto/delivery',
+    path: '/api/public/sms/texto/delivery',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicSmsTextoInboundRoute =
+  ApiPublicSmsTextoInboundRouteImport.update({
+    id: '/api/public/sms/texto/inbound',
+    path: '/api/public/sms/texto/inbound',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1BookingAvailabilityRoute =
+  ApiPublicV1BookingAvailabilityRouteImport.update({
+    id: '/api/public/v1/booking/availability',
+    path: '/api/public/v1/booking/availability',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1BookingBookRoute = ApiPublicV1BookingBookRouteImport.update({
+  id: '/api/public/v1/booking/book',
+  path: '/api/public/v1/booking/book',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicV1BookingOptionsRoute =
+  ApiPublicV1BookingOptionsRouteImport.update({
+    id: '/api/public/v1/booking/options',
+    path: '/api/public/v1/booking/options',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1BookingQuoteRoute = ApiPublicV1BookingQuoteRouteImport.update({
+  id: '/api/public/v1/booking/quote',
+  path: '/api/public/v1/booking/quote',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicYoutubeOauthCallbackRoute =
+  ApiPublicYoutubeOauthCallbackRouteImport.update({
+    id: '/api/public/youtube/oauth/callback',
+    path: '/api/public/youtube/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicV1SocialCommentsIdPostedRoute =
+  ApiPublicV1SocialCommentsIdPostedRouteImport.update({
+    id: '/$id/posted',
+    path: '/$id/posted',
+    getParentRoute: () => ApiPublicV1SocialCommentsRoute,
+  } as any)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
@@ -617,6 +671,7 @@ export interface FileRoutesByFullPath {
   '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
+  '/api/public/email-image/$businessId/$name': typeof ApiPublicEmailImageBusinessIdNameRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
   '/api/public/v1/booking/availability': typeof ApiPublicV1BookingAvailabilityRoute
@@ -703,6 +758,7 @@ export interface FileRoutesByTo {
   '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
+  '/api/public/email-image/$businessId/$name': typeof ApiPublicEmailImageBusinessIdNameRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
   '/api/public/v1/booking/availability': typeof ApiPublicV1BookingAvailabilityRoute
@@ -791,6 +847,7 @@ export interface FileRoutesById {
   '/api/public/linkedin/oauth/callback': typeof ApiPublicLinkedinOauthCallbackRoute
   '/api/public/meta/oauth/callback': typeof ApiPublicMetaOauthCallbackRoute
   '/api/public/service-image/$kind/$id': typeof ApiPublicServiceImageKindIdRoute
+  '/api/public/email-image/$businessId/$name': typeof ApiPublicEmailImageBusinessIdNameRoute
   '/api/public/sms/texto/delivery': typeof ApiPublicSmsTextoDeliveryRoute
   '/api/public/sms/texto/inbound': typeof ApiPublicSmsTextoInboundRoute
   '/api/public/v1/booking/availability': typeof ApiPublicV1BookingAvailabilityRoute
@@ -880,6 +937,7 @@ export interface FileRouteTypes {
     | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
+    | '/api/public/email-image/$businessId/$name'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
     | '/api/public/v1/booking/availability'
@@ -966,6 +1024,7 @@ export interface FileRouteTypes {
     | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
+    | '/api/public/email-image/$businessId/$name'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
     | '/api/public/v1/booking/availability'
@@ -1053,6 +1112,7 @@ export interface FileRouteTypes {
     | '/api/public/linkedin/oauth/callback'
     | '/api/public/meta/oauth/callback'
     | '/api/public/service-image/$kind/$id'
+    | '/api/public/email-image/$businessId/$name'
     | '/api/public/sms/texto/delivery'
     | '/api/public/sms/texto/inbound'
     | '/api/public/v1/booking/availability'
@@ -1133,6 +1193,7 @@ export interface RootRouteChildren {
   ApiPublicLinkedinOauthCallbackRoute: typeof ApiPublicLinkedinOauthCallbackRoute
   ApiPublicMetaOauthCallbackRoute: typeof ApiPublicMetaOauthCallbackRoute
   ApiPublicServiceImageKindIdRoute: typeof ApiPublicServiceImageKindIdRoute
+  ApiPublicEmailImageBusinessIdNameRoute: typeof ApiPublicEmailImageBusinessIdNameRoute
   ApiPublicSmsTextoDeliveryRoute: typeof ApiPublicSmsTextoDeliveryRoute
   ApiPublicSmsTextoInboundRoute: typeof ApiPublicSmsTextoInboundRoute
   ApiPublicV1BookingAvailabilityRoute: typeof ApiPublicV1BookingAvailabilityRoute
@@ -1683,6 +1744,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicServiceImageKindIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/email-image/$businessId/$name': {
+      id: '/api/public/email-image/$businessId/$name'
+      path: '/api/public/email-image/$businessId/$name'
+      fullPath: '/api/public/email-image/$businessId/$name'
+      preLoaderRoute: typeof ApiPublicEmailImageBusinessIdNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/sms/texto/delivery': {
       id: '/api/public/sms/texto/delivery'
       path: '/api/public/sms/texto/delivery'
@@ -1864,6 +1932,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLinkedinOauthCallbackRoute: ApiPublicLinkedinOauthCallbackRoute,
   ApiPublicMetaOauthCallbackRoute: ApiPublicMetaOauthCallbackRoute,
   ApiPublicServiceImageKindIdRoute: ApiPublicServiceImageKindIdRoute,
+  ApiPublicEmailImageBusinessIdNameRoute: ApiPublicEmailImageBusinessIdNameRoute,
   ApiPublicSmsTextoDeliveryRoute: ApiPublicSmsTextoDeliveryRoute,
   ApiPublicSmsTextoInboundRoute: ApiPublicSmsTextoInboundRoute,
   ApiPublicV1BookingAvailabilityRoute: ApiPublicV1BookingAvailabilityRoute,
