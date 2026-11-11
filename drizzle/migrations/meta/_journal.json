@@ -393,6 +393,13 @@
       "when": 1794370000008,
       "tag": "0055_prospect_status",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794370000009,
+      "tag": "0056_mcp_lead_finder",
+      "breakpoints": true
     }
   ]
 }

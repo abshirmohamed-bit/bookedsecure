@@ -5536,6 +5536,10 @@ export type Database = {
         Returns: string
       }
       mcp_facebook_ad_spend: { Args: { p_days?: number }; Returns: Json }
+      mcp_lead_finder_authorize: {
+        Args: { p_action: string; p_metadata?: Json }
+        Returns: string
+      }
       mcp_linkedin_authorize: {
         Args: { p_action: string; p_metadata?: Json }
         Returns: string
