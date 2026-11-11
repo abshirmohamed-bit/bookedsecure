@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { relativeTime } from "@/lib/notifications";
-import { cancelSocialPost, getSocialPosting, publishSocialPost, scheduleSocialPost, uploadSocialPicture, writeSocialPost } from "@/lib/social-posts.functions";
+import { cancelSocialPost, getSocialPosting, publishSocialPost, saveSocialDraft, scheduleSocialPost, uploadSocialPicture, writeSocialPost } from "@/lib/social-posts.functions";
 
 type Platform = "facebook" | "instagram";
 type Picture = { id: string; preview: string; path: string | null; failed?: boolean };
@@ -56,6 +56,7 @@ export function MetaComposer({ platform }: { platform: Platform }) {
   const [when, setWhen] = useState("");
   const schedule = useServerFn(scheduleSocialPost);
   const cancel = useServerFn(cancelSocialPost);
+  const saveDraftFn = useServerFn(saveSocialDraft);
 
   const draft = useMutation({
     mutationFn: () => write({ data: { platform, brief, chips } }),
@@ -84,6 +85,16 @@ export function MetaComposer({ platform }: { platform: Platform }) {
       await qc.invalidateQueries({ queryKey: ["social-posting", platform] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't schedule that."),
+  });
+  // Drafts and approval: anyone on the team can save or send for approval; nothing is posted.
+  const draftM = useMutation({
+    mutationFn: (submit: boolean) => saveDraftFn({ data: { platform, text, imagePaths: pictures.map((p) => p.path!).filter(Boolean), plannedFor: when ? new Date(when).toISOString() : null, submit } }),
+    onSuccess: async (r) => {
+      toast.success(r.status === "pending_approval" ? "Sent to the owner for approval. It's in the Calendar tab." : "Draft saved. Find it in the Calendar tab.");
+      reset();
+      await qc.invalidateQueries({ queryKey: ["social-planner"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't save the draft."),
   });
   const cancelM = useMutation({
     mutationFn: (id: string) => cancel({ data: { id } }),
@@ -184,13 +195,19 @@ export function MetaComposer({ platform }: { platform: Platform }) {
         {missingPicture && <p className="text-xs text-muted-foreground">Instagram posts need at least one picture (up to 10).</p>}
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {!d.isOwner && <p className="mr-auto text-xs text-muted-foreground">Only the owner can post.</p>}
+          {!d.isOwner && <p className="mr-auto text-xs text-muted-foreground">The owner approves posts before they go out.</p>}
+          <Button variant="ghost" disabled={!ready || (!text.trim() && pictures.length === 0) || draftM.isPending} onClick={() => draftM.mutate(false)}>Save draft</Button>
+          {!d.isOwner && (
+            <Button disabled={!ready || missingPicture || (!text.trim() && pictures.length === 0) || draftM.isPending} onClick={() => draftM.mutate(true)}>
+              {draftM.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />} Send for approval
+            </Button>
+          )}
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CalendarClock className="h-4 w-4" />
             <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="Schedule for"
               className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground" />
           </label>
-          {when ? (
+          {!d.isOwner ? null : when ? (
             <Button disabled={!canPost || scheduleM.isPending} onClick={() => scheduleM.mutate()}>
               {scheduleM.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CalendarClock className="mr-1.5 h-4 w-4" />} Schedule
             </Button>

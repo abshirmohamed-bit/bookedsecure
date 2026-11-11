@@ -38,7 +38,7 @@ export function metaPostProblem(platform: MetaPlatform, text: string, imageCount
   return null;
 }
 
-function graph(account: DirectMetaAccount, fetcher: typeof fetch) {
+export function graph(account: DirectMetaAccount, fetcher: typeof fetch) {
   const version = readMetaAppConfig().version;
   return async function call(method: "GET" | "POST", path: string, params: Record<string, string> = {}) {
     const url = new URL(`https://graph.facebook.com/${version}/${path}`);
@@ -94,7 +94,7 @@ export async function metaPostingStatus(businessId: string) {
 
 // ----- Pictures -----
 
-function ownImagePath(businessId: string, path: string): boolean {
+export function ownImagePath(businessId: string, path: string): boolean {
   return new RegExp(`^${businessId}/social-[0-9a-f-]{36}\\.jpg$`).test(path);
 }
 
@@ -278,6 +278,16 @@ function confirmSecret(): string {
 /** A short hash of exactly what will be posted where; any change needs a new preview. */
 export function metaConfirmationCode(businessId: string, platform: MetaPlatform, text: string, imagePaths: string[]): string {
   return createHash("sha256").update(`${confirmSecret()}|${platform}|${businessId}|${text.trim()}|${imagePaths.join(",")}`).digest("hex").slice(0, 8).toUpperCase();
+}
+
+/** Who a Facebook or Instagram post goes out as: the Page, or its linked Instagram account. */
+export async function metaAuthor(businessId: string, platform: MetaPlatform): Promise<{ authorUrn: string; postsAs: string }> {
+  const account = await loadMetaAccount(businessId);
+  const ig = platform === "instagram" ? await linkedInstagram(account) : null;
+  if (platform === "instagram" && !ig) throw new Error("No Instagram account is linked to your Facebook Page.");
+  return platform === "instagram"
+    ? { authorUrn: `instagram:${ig!.id}`, postsAs: `@${ig!.username ?? "instagram"}` }
+    : { authorUrn: `facebook:${account.pageId}`, postsAs: account.pageName ?? "your Facebook Page" };
 }
 
 // ----- Scheduling -----

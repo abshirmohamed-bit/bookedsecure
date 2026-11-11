@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { LinkedInWorkspace } from "@/routes/linkedin";
 import { MetaComposer } from "@/components/social/MetaComposer";
+import { SocialPlanner } from "@/components/social/SocialPlanner";
 import { YouTubeComposer } from "@/components/social/YouTubeComposer";
 import { YouTubeInsights } from "@/components/social/YouTubeInsights";
 import { YouTubeComments } from "@/components/social/YouTubeComments";
@@ -17,7 +18,7 @@ import { getYouTube } from "@/lib/youtube.functions";
 import { convertSocialComment, getSocialThread, listSocialComments, listSocialThreads, refreshSocialNow, reviewSocialComment, sendSocialReply, suggestSocialReply } from "@/lib/social-comments.functions";
 
 type Platform = "linkedin" | "facebook" | "instagram" | "youtube";
-type View = "post" | "comments" | "messages" | "insights";
+type View = "post" | "calendar" | "comments" | "messages" | "insights";
 type SocialSearch = { platform?: Platform; view?: View; linkedin?: string; youtube?: string; why?: string; clip?: string; clipTitle?: string };
 
 export const Route = createFileRoute("/social")({
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/social")({
   // ?view=messages opens the DMs (used by notifications); ?platform= picks the network.
   validateSearch: (search: Record<string, unknown>): SocialSearch => ({
     ...(search["platform"] === "linkedin" || search["platform"] === "facebook" || search["platform"] === "instagram" || search["platform"] === "youtube" ? { platform: search["platform"] } : {}),
-    ...(search["view"] === "post" || search["view"] === "comments" || search["view"] === "messages" || search["view"] === "insights" ? { view: search["view"] } : {}),
+    ...(search["view"] === "post" || search["view"] === "calendar" || search["view"] === "comments" || search["view"] === "messages" || search["view"] === "insights" ? { view: search["view"] } : {}),
     ...(typeof search["linkedin"] === "string" ? { linkedin: search["linkedin"].slice(0, 20) } : {}),
     ...(typeof search["youtube"] === "string" ? { youtube: search["youtube"].slice(0, 20) } : {}),
     ...(typeof search["why"] === "string" ? { why: search["why"].slice(0, 60) } : {}),
@@ -62,6 +63,7 @@ function SocialTools() {
   const view: View = platform === "linkedin" ? "post"
     : platform === "youtube" ? (requested === "messages" ? "post" : requested)
     : requested === "insights" ? "post" : requested;
+  const metaView = view === "calendar" && (platform === "youtube" || platform === "linkedin") ? "post" : view;
   const clearYouTube = useCallback(() => void navigate({ search: { platform: "youtube" }, replace: true }), [navigate]);
   const go = (next: Partial<SocialSearch>) => void navigate({ search: { platform, view, ...next }, replace: true });
 
@@ -92,7 +94,7 @@ function SocialTools() {
               <div role="tablist" aria-label="Section" className="inline-flex rounded-xl border border-border bg-card p-1">
                 {(platform === "youtube"
                   ? ([["post", "Upload"], ["insights", "Insights"], ["comments", "Comments"]] as const)
-                  : ([["post", "Post"], ["comments", "Comments"], ["messages", "Messages"]] as const)).map(([id, label]) => (
+                  : ([["post", "Post"], ["calendar", "Calendar"], ["comments", "Comments"], ["messages", "Messages"]] as const)).map(([id, label]) => (
                   <button
                     key={id}
                     role="tab"
@@ -114,10 +116,12 @@ function SocialTools() {
           view === "insights" ? <YouTubeSection view="insights" />
             : view === "comments" ? <YouTubeSection view="comments" />
             : <YouTubeComposer outcome={search.youtube} why={search.why} clearOutcome={clearYouTube} clipId={search.clip} clipTitle={search.clipTitle} />
-        ) : view === "post" || view === "insights" ? (
-          <MetaComposer platform={platform} />
-        ) : (
+        ) : metaView === "calendar" ? (
+          <SocialPlanner />
+        ) : view === "comments" || view === "messages" ? (
           <SocialInbox platform={platform} view={view} />
+        ) : (
+          <MetaComposer platform={platform} />
         )}
       </div>
     </AppShell>
