@@ -8,7 +8,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { engineClient, engineConfigured } from "@/lib/engine.server";
-import { ACTIVE_JOB_STATUSES, applyLineEdits, applyWordFixes, type CaptionLineEdit, type CaptionWord, checkTrim, type ClipLayout, clipsToRender, isPublicVideoLink, mergeTrimmedWords, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect } from "@/lib/video-clips";
+import { ACTIVE_JOB_STATUSES, applyLineEdits, applyWordFixes, CAPTION_POSITIONS, CAPTION_SIZE, type CaptionLineEdit, type CaptionPosition, type CaptionWord, checkTrim, CLIP_LAYOUTS, CLIP_ZOOMS, type ClipJobOptions, type ClipLayout, type ClipZoom, clipsToRender, FALLBACK_CAPTION_STYLES, isPublicVideoLink, mergeTrimmedWords, readJobOptions, TITLE_STYLES, type TitlePosition, type TitleStyle, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect } from "@/lib/video-clips";
 
 type JobRow = Database["public"]["Tables"]["video_clip_jobs"]["Row"];
 type ClipRow = Database["public"]["Tables"]["video_clips"]["Row"];
@@ -16,7 +16,7 @@ type EngineAsset = { id: string; status?: string; error?: string | null; thumbna
 type EngineClip = Record<string, unknown>;
 type EngineJob = { id: string; status: string; stage: string | null; progress: number; error: string | null; finder_note?: string | null; clips?: EngineClip[] };
 type EngineExport = { id: string; status: string; error?: string | null; asset?: Record<string, unknown> | null };
-export type ClipOptions = { aspect?: VideoAspect | undefined; clipCount?: number | null | undefined; instructions?: string | undefined };
+export type ClipOptions = { aspect?: VideoAspect | undefined; clipCount?: number | null | undefined; instructions?: string | undefined; defaults?: ClipJobOptions | undefined };
 
 const STUCK_MS = 5 * 60_000;
 const now = () => new Date().toISOString();
@@ -24,7 +24,23 @@ const clipOptions = (o: ClipOptions) => ({
   ...(o.aspect ? { aspect: o.aspect } : {}),
   ...(o.clipCount !== undefined ? { clip_count: o.clipCount === null ? null : Math.max(MIN_CLIPS_PER_JOB, o.clipCount) } : {}),
   ...(o.instructions !== undefined ? { instructions: o.instructions.trim().slice(0, MAX_CLIP_INSTRUCTIONS) || null } : {}),
+  ...(o.defaults !== undefined ? { options: Object.keys(o.defaults).length ? readJobOptions(o.defaults) : null } : {}),
 });
+
+/**
+ * video_clip_jobs.options (migration 0059) holds how a video should be
+ * clipped. Until Lovable applies it, PostgREST refuses the column; the write
+ * is retried without it, so clipping never stops over a missing column.
+ */
+const MISSING_COLUMN = new Set(["PGRST204", "42703"]);
+let warnedOptions = false;
+async function writeJob<T>(run: (values: Record<string, unknown>) => PromiseLike<{ data: T | null; error: { code?: string; message: string } | null }>, values: Record<string, unknown>) {
+  const first = await run(values);
+  if (!first.error || !("options" in values) || !MISSING_COLUMN.has(first.error.code ?? "")) return first;
+  if (!warnedOptions) { warnedOptions = true; console.warn("video_clip_jobs.options is missing: apply drizzle/migrations/0059_video_clip_options.sql; clipping defaults are ignored until then"); }
+  const { options: _dropped, ...rest } = values;
+  return run(rest);
+}
 
 export { engineConfigured };
 
@@ -41,17 +57,17 @@ export async function listVideoJobs(businessId: string) {
 }
 
 /** Reserves an upload on the Engine. The browser then sends the file straight there. */
-export async function startUpload(input: { businessId: string; userId: string; filename: string; contentType: string; sizeBytes: number }) {
+export async function startUpload(input: { businessId: string; userId: string; filename: string; contentType: string; sizeBytes: number; options?: ClipOptions | undefined }) {
   if (input.sizeBytes > MAX_VIDEO_BYTES) throw new Error("Videos can be up to 4 GB.");
   const r = await engineClient<{ id: string; url: string; method?: string; headers?: Record<string, string> }>("POST", "/v1/uploads", {
     filename: input.filename, content_type: input.contentType, size_bytes: input.sizeBytes,
   });
   if (!r.ok) throw new Error(r.error.message);
-  const { data, error } = await supabaseAdmin.from("video_clip_jobs").insert({
+  const { data, error } = await writeJob<{ id: string }>((values) => supabaseAdmin.from("video_clip_jobs").insert(values as never).select("id").single(), {
     business_id: input.businessId, created_by: input.userId, source_kind: "upload", source_name: input.filename.slice(0, 200),
-    rights_confirmed: true, engine_upload_id: r.data.id, status: "UPLOADING",
-  }).select("id").single();
-  if (error) throw new Error(error.message);
+    rights_confirmed: true, engine_upload_id: r.data.id, status: "UPLOADING", ...clipOptions(input.options ?? {}),
+  });
+  if (error || !data) throw new Error(error?.message ?? "The upload couldn't be recorded.");
   return { jobId: data.id, url: r.data.url, method: r.data.method ?? "PUT", headers: r.data.headers ?? {} };
 }
 
@@ -88,11 +104,11 @@ export async function clipFromLink(input: { businessId: string; userId: string; 
   if (!isPublicVideoLink(input.url)) throw new Error("That needs to be a normal public https link to a video.");
   const r = await engineClient<EngineAsset>("POST", "/v1/assets", { url: input.url, name: input.name ?? "", rights_confirmed: true });
   if (!r.ok) throw new Error(r.error.message);
-  const { data, error } = await supabaseAdmin.from("video_clip_jobs").insert({
+  const { data, error } = await writeJob<JobRow>((values) => supabaseAdmin.from("video_clip_jobs").insert(values as never).select("*").single(), {
     business_id: input.businessId, created_by: input.userId, source_kind: "link", source_name: (input.name || input.url).slice(0, 200), source_url: input.url,
     rights_confirmed: true, engine_asset_id: r.data.id, status: "IMPORTING", clip_requested: true, ...clipOptions(input.options),
-  }).select("*").single();
-  if (error) throw new Error(error.message);
+  });
+  if (error || !data) throw new Error(error?.message ?? "That video couldn't be recorded.");
   await advanceJob(data);
   return data;
 }
@@ -101,10 +117,10 @@ export async function clipFromLink(input: { businessId: string; userId: string; 
 export async function requestClips(businessId: string, jobId: string, options: ClipOptions) {
   const job = await ownJob(businessId, jobId);
   if (job.status === "FAILED" || job.status === "COMPLETED") throw new Error(job.status === "FAILED" ? (job.error ?? "That video couldn't be prepared. Upload it again.") : "That video has already been clipped.");
-  const { data, error } = await supabaseAdmin.from("video_clip_jobs").update({
+  const { data, error } = await writeJob<JobRow>((values) => supabaseAdmin.from("video_clip_jobs").update(values as never).eq("id", job.id).select("*").single(), {
     clip_requested: true, updated_at: now(), ...clipOptions(options), ...(job.status === "WAITING" ? { status: "QUEUED" } : {}),
-  }).eq("id", job.id).select("*").single();
-  if (error) throw new Error(error.message);
+  });
+  if (error || !data) throw new Error(error?.message ?? "That video couldn't be updated.");
   await advanceJob(data);
   return data;
 }
@@ -142,17 +158,64 @@ export async function renameClip(businessId: string, clipId: string, title: stri
 type EngineProject = {
   in_ms: number; out_ms: number; aspect: string; layout: string; caption_style_id: string;
   caption_options: Record<string, unknown> | null; captions: CaptionWord[] | null;
+  framing: Record<string, unknown> | null; title: Record<string, unknown> | null;
 };
+export type CatalogItem = { id: string; name: string; hint?: string | null; needs?: string | null };
 export type CaptionStyle = { id: string; name: string; font: string; defaults: { size: number; position: string; animation: string } };
-let styleCache: { at: number; styles: CaptionStyle[] } | null = null;
+export type EngineCatalog = {
+  /** False when the Engine could not be asked and these are the app's own copies. */
+  live: boolean;
+  layouts: CatalogItem[]; zoom: CatalogItem[]; captionPositions: CatalogItem[];
+  captionSize: { min: number; max: number; default: number }; captionStyles: CaptionStyle[];
+  titleStyles: CatalogItem[]; focus: CatalogItem[]; aspects: { id: string; w: number; h: number }[];
+};
+type RawCatalog = {
+  layouts?: CatalogItem[]; zoom?: CatalogItem[]; caption_positions?: CatalogItem[];
+  caption_size?: { min: number; max: number; default: number }; caption_styles?: CaptionStyle[];
+  title_styles?: CatalogItem[]; focus?: CatalogItem[]; aspects?: { id: string; w: number; h: number }[];
+};
+const FALLBACK_CATALOG: EngineCatalog = {
+  live: false,
+  layouts: CLIP_LAYOUTS.map((l) => ({ id: l.id, name: l.label, hint: l.hint })),
+  zoom: CLIP_ZOOMS.map((z) => ({ id: z.id, name: z.label, hint: z.hint })),
+  captionPositions: CAPTION_POSITIONS.map((p) => ({ id: p, name: p === "lower" ? "Lower" : p === "middle" ? "Middle" : "Top" })),
+  captionSize: { min: CAPTION_SIZE.min, max: CAPTION_SIZE.max, default: 1 },
+  captionStyles: FALLBACK_CAPTION_STYLES,
+  titleStyles: TITLE_STYLES.map((t) => ({ id: t.id, name: t.label, hint: t.hint })),
+  focus: [{ id: "auto", name: "Let the finder decide" }, { id: "speaker", name: "Whoever is talking" }, { id: "reaction", name: "The other person's reaction" }, { id: "everyone", name: "Everyone in the shot" }],
+  aspects: [{ id: "9:16", w: 1080, h: 1920 }, { id: "1:1", w: 1080, h: 1080 }, { id: "4:5", w: 1080, h: 1350 }, { id: "16:9", w: 1920, h: 1080 }],
+};
+let catalogCache: { at: number; catalog: EngineCatalog } | null = null;
 
-/** The Engine's caption styles. They are code on the Engine, so a short cache is safe. */
+/**
+ * Every choice the Engine offers (GET /v1/catalog): layouts, zoom, caption
+ * styles and positions, title styles, shapes. Studio's controls and the
+ * assistants' tools are built from it. Cached briefly; when the Engine can't
+ * be asked the app's own copy stands in, marked `live: false`.
+ */
+export async function engineCatalog(): Promise<EngineCatalog> {
+  if (catalogCache && Date.now() - catalogCache.at < 10 * 60_000) return catalogCache.catalog;
+  const r = await engineClient<RawCatalog>("GET", "/v1/catalog");
+  if (!r.ok) return catalogCache?.catalog ?? FALLBACK_CATALOG;
+  const d = r.data;
+  const catalog: EngineCatalog = {
+    live: true,
+    layouts: d.layouts?.length ? d.layouts : FALLBACK_CATALOG.layouts,
+    zoom: d.zoom?.length ? d.zoom : FALLBACK_CATALOG.zoom,
+    captionPositions: d.caption_positions?.length ? d.caption_positions : FALLBACK_CATALOG.captionPositions,
+    captionSize: d.caption_size ?? FALLBACK_CATALOG.captionSize,
+    captionStyles: d.caption_styles?.length ? d.caption_styles : FALLBACK_CATALOG.captionStyles,
+    titleStyles: d.title_styles?.length ? d.title_styles : FALLBACK_CATALOG.titleStyles,
+    focus: d.focus?.length ? d.focus : FALLBACK_CATALOG.focus,
+    aspects: d.aspects?.length ? d.aspects : FALLBACK_CATALOG.aspects,
+  };
+  catalogCache = { at: Date.now(), catalog };
+  return catalog;
+}
+
+/** The Engine's caption styles (part of the catalog; kept for callers that only need these). */
 export async function captionStyles(): Promise<CaptionStyle[]> {
-  if (styleCache && Date.now() - styleCache.at < 10 * 60_000) return styleCache.styles;
-  const r = await engineClient<{ styles: CaptionStyle[] }>("GET", "/v1/subtitle-styles");
-  if (!r.ok) throw new Error(r.error.message);
-  styleCache = { at: Date.now(), styles: r.data.styles ?? [] };
-  return styleCache.styles;
+  return (await engineCatalog()).captionStyles;
 }
 
 async function ownClip(businessId: string, clipId: string): Promise<ClipRow> {
@@ -167,26 +230,135 @@ async function engineProject(clip: ClipRow): Promise<EngineProject> {
   return r.data;
 }
 
-/** What the editor needs: the clip's current settings, its words and the styles on offer. */
+export type ClipSettings = {
+  styleId: string; captionsOn: boolean; captionPosition: CaptionPosition | null; captionSize: number;
+  layout: string; zoom: string; aspect: string; focus: string; inMs: number; outMs: number;
+  headline: { text: string; enabled: boolean; style: string; position: string };
+};
+
+function settingsOf(project: EngineProject): ClipSettings {
+  const options = project.caption_options ?? {};
+  const framing = project.framing ?? {};
+  const title = project.title ?? {};
+  const size = Number(options["size"]);
+  const position = options["position"];
+  return {
+    styleId: project.caption_style_id, captionsOn: options["enabled"] !== false,
+    captionPosition: (CAPTION_POSITIONS as readonly unknown[]).includes(position) ? (position as CaptionPosition) : null,
+    captionSize: Number.isFinite(size) && size > 0 ? size : 1,
+    layout: project.layout, zoom: typeof framing["zoom"] === "string" ? (framing["zoom"] as string) : "auto",
+    aspect: project.aspect, focus: typeof framing["focus"] === "string" ? (framing["focus"] as string) : "auto",
+    inMs: project.in_ms, outMs: project.out_ms,
+    headline: {
+      text: typeof title["text"] === "string" ? (title["text"] as string) : "", enabled: title["enabled"] !== false,
+      style: typeof title["style"] === "string" ? (title["style"] as string) : "bold_band",
+      position: typeof title["position"] === "string" ? (title["position"] as string) : "auto",
+    },
+  };
+}
+
+/** What the editor needs: the clip's current settings, its words and every choice on offer. */
 export async function clipEditorData(businessId: string, clipId: string) {
   const clip = await ownClip(businessId, clipId);
-  const [project, styles] = await Promise.all([engineProject(clip), captionStyles()]);
+  const [project, catalog] = await Promise.all([engineProject(clip), engineCatalog()]);
   return {
-    styles,
-    settings: {
-      styleId: project.caption_style_id, captionsOn: project.caption_options?.["enabled"] !== false,
-      layout: project.layout, aspect: project.aspect, inMs: project.in_ms, outMs: project.out_ms,
-    },
+    catalog, settings: settingsOf(project),
     words: (project.captions ?? []).map((w) => ({ text: String(w.text ?? ""), start_ms: Math.round(w.start_ms), end_ms: Math.round(w.end_ms) })),
   };
 }
 
+export type ShotPlan = {
+  layout: string; zoom: string; aspect: string; people: number;
+  source: { w: number; h: number }; output: { w: number; h: number };
+  cuts: number[]; summary: Record<string, number>;
+  shots: { start_ms: number; end_ms: number; kind: string; zoom: number; why: string; base: string | null }[];
+};
+
+/**
+ * How the Engine will cut this clip into shots and compose each one, for the
+ * chosen or a tried layout, zoom and shape. The analysis behind it is cached
+ * on the Engine per source and range; the first call on a clip can take a
+ * little while.
+ */
+export async function clipPlan(businessId: string, clipId: string, tryOut: { layout?: string | undefined; zoom?: string | undefined; aspect?: string | undefined } = {}): Promise<ShotPlan> {
+  const clip = await ownClip(businessId, clipId);
+  const q = new URLSearchParams();
+  if (tryOut.layout) q.set("layout", tryOut.layout);
+  if (tryOut.zoom) q.set("zoom", tryOut.zoom);
+  if (tryOut.aspect) q.set("aspect", tryOut.aspect);
+  const r = await engineClient<ShotPlan & { shots: ShotPlan["shots"] }>("GET", `/v1/projects/${encodeURIComponent(clip.engine_project_id)}/framing${q.size ? `?${q}` : ""}`, undefined, { timeoutMs: 150_000 });
+  if (!r.ok) throw new Error(r.error.code === "NOT_FOUND" ? "The Engine no longer has this clip." : r.error.message);
+  const d = r.data;
+  return {
+    layout: d.layout, zoom: d.zoom, aspect: d.aspect, people: d.people ?? 0, source: d.source, output: d.output,
+    cuts: d.cuts ?? [], summary: d.summary ?? {},
+    shots: (d.shots ?? []).map((s) => ({ start_ms: s.start_ms, end_ms: s.end_ms, kind: s.kind, zoom: s.zoom, why: s.why, base: s.base ?? null })),
+  };
+}
+
 export type ClipEdits = {
-  styleId?: string | undefined; captionsOn?: boolean | undefined; layout?: ClipLayout | undefined; aspect?: VideoAspect | undefined;
+  styleId?: string | undefined; captionsOn?: boolean | undefined; captionPosition?: CaptionPosition | null | undefined;
+  captionSize?: number | undefined; layout?: ClipLayout | undefined; zoom?: ClipZoom | undefined; aspect?: VideoAspect | undefined;
+  headlineText?: string | undefined; headlineEnabled?: boolean | undefined; headlineStyle?: TitleStyle | undefined; headlinePosition?: TitlePosition | undefined;
   /** Source-video times. */
   inMs?: number | undefined; outMs?: number | undefined;
   lineEdits?: CaptionLineEdit[] | undefined; wordFixes?: { wrong: string; right: string }[] | undefined;
 };
+
+/** The Engine's view of the edits: a PATCH body plus what it changes, in the owner's words. */
+async function engineChanges(project: EngineProject, edits: ClipEdits): Promise<{ patch: Record<string, unknown>; changed: string[] }> {
+  const patch: Record<string, unknown> = {};
+  const changed: string[] = [];
+  if (edits.styleId !== undefined) {
+    const styles = await captionStyles();
+    const want = edits.styleId.trim().toLowerCase();
+    const style = styles.find((s) => s.id === want || s.name.toLowerCase() === want);
+    if (!style) throw new Error(`There's no caption style called "${edits.styleId}". Choose from: ${styles.map((s) => s.name).join(", ")}.`);
+    if (style.id !== project.caption_style_id) { patch["caption_style_id"] = style.id; changed.push("caption style"); }
+  }
+  const options: Record<string, unknown> = {};
+  const current = project.caption_options ?? {};
+  if (edits.captionsOn !== undefined && edits.captionsOn !== (current["enabled"] !== false)) { options["enabled"] = edits.captionsOn; changed.push(edits.captionsOn ? "captions on" : "captions off"); }
+  if (edits.captionPosition !== undefined && (edits.captionPosition ?? null) !== (current["position"] ?? null)) { options["position"] = edits.captionPosition; changed.push("caption position"); }
+  if (edits.captionSize !== undefined) {
+    const size = Math.round(Math.min(CAPTION_SIZE.max, Math.max(CAPTION_SIZE.min, edits.captionSize)) * 100) / 100;
+    if (size !== (Number(current["size"]) || 1)) { options["size"] = size; changed.push("caption size"); }
+  }
+  if (Object.keys(options).length) patch["caption_options"] = { ...current, ...options };
+  if (edits.layout !== undefined && edits.layout !== project.layout) { patch["layout"] = edits.layout; changed.push("layout"); }
+  if (edits.zoom !== undefined && edits.zoom !== ((project.framing ?? {})["zoom"] ?? "auto")) { patch["framing"] = { ...(project.framing ?? {}), zoom: edits.zoom }; changed.push("zoom"); }
+  if (edits.aspect !== undefined && edits.aspect !== project.aspect) { patch["aspect"] = edits.aspect; changed.push("shape"); }
+  const title = project.title ?? {};
+  const titlePatch: Record<string, unknown> = {};
+  if (edits.headlineText !== undefined && edits.headlineText.trim() !== ((title["text"] as string | undefined) ?? "")) { titlePatch["text"] = edits.headlineText.trim().slice(0, 120); changed.push("headline"); }
+  if (edits.headlineEnabled !== undefined && edits.headlineEnabled !== (title["enabled"] !== false)) { titlePatch["enabled"] = edits.headlineEnabled; changed.push(edits.headlineEnabled ? "headline on" : "headline off"); }
+  if (edits.headlineStyle !== undefined && edits.headlineStyle !== ((title["style"] as string | undefined) ?? "bold_band")) { titlePatch["style"] = edits.headlineStyle; changed.push("headline style"); }
+  if (edits.headlinePosition !== undefined && edits.headlinePosition !== ((title["position"] as string | undefined) ?? "auto")) { titlePatch["position"] = edits.headlinePosition; changed.push("headline position"); }
+  if (Object.keys(titlePatch).length) patch["title"] = { ...title, ...titlePatch };
+  return { patch, changed };
+}
+
+/**
+ * A quick preview of the clip with the editor's unsaved settings, rendered by
+ * the Engine at half size. Nothing is saved; the clip's own preview and video
+ * are untouched.
+ */
+export async function previewClipEdits(businessId: string, clipId: string, edits: ClipEdits): Promise<{ url: string }> {
+  const clip = await ownClip(businessId, clipId);
+  const project = await engineProject(clip);
+  const { patch } = await engineChanges(project, edits);
+  if (edits.inMs !== undefined || edits.outMs !== undefined) {
+    const inMs = Math.round(edits.inMs ?? project.in_ms);
+    const outMs = Math.round(edits.outMs ?? project.out_ms);
+    const problem = checkTrim(inMs, outMs, null);
+    if (problem) throw new Error(problem);
+    patch["in_ms"] = inMs;
+    patch["out_ms"] = outMs;
+  }
+  const r = await engineClient<{ preview_url: string }>("POST", `/v1/projects/${encodeURIComponent(clip.engine_project_id)}/preview`, patch, { timeoutMs: 180_000 });
+  if (!r.ok) throw new Error(r.error.message);
+  return { url: r.data.preview_url };
+}
 
 /**
  * Saves the editor's changes to the clip's Engine project and makes the video
@@ -206,24 +378,13 @@ export async function saveClipEdits(businessId: string, clipId: string, edits: C
   const restore = () => supabaseAdmin.from("video_clips").update({ status: clip.status, engine_export_id: clip.engine_export_id, error: clip.error, updated_at: now() })
     .eq("id", clip.id).eq("status", "EXPORTING").is("engine_export_id", null);
   const path = `/v1/projects/${encodeURIComponent(clip.engine_project_id)}`;
-  const changed: string[] = [];
+  let changed: string[] = [];
   let range: { inMs: number; outMs: number };
   try {
     const project = await engineProject(clip);
-    const patch: Record<string, unknown> = {};
-    if (edits.styleId !== undefined) {
-      const styles = await captionStyles();
-      const want = edits.styleId.trim().toLowerCase();
-      const style = styles.find((s) => s.id === want || s.name.toLowerCase() === want);
-      if (!style) throw new Error(`There's no caption style called "${edits.styleId}". Choose from: ${styles.map((s) => s.name).join(", ")}.`);
-      if (style.id !== project.caption_style_id) { patch["caption_style_id"] = style.id; changed.push("caption style"); }
-    }
-    if (edits.captionsOn !== undefined && edits.captionsOn !== (project.caption_options?.["enabled"] !== false)) {
-      patch["caption_options"] = { ...(project.caption_options ?? {}), enabled: edits.captionsOn };
-      changed.push(edits.captionsOn ? "captions on" : "captions off");
-    }
-    if (edits.layout !== undefined && edits.layout !== project.layout) { patch["layout"] = edits.layout; changed.push("layout"); }
-    if (edits.aspect !== undefined && edits.aspect !== project.aspect) { patch["aspect"] = edits.aspect; changed.push("shape"); }
+    const plan = await engineChanges(project, edits);
+    const patch = plan.patch;
+    changed = plan.changed;
     const inMs = Math.round(edits.inMs ?? project.in_ms);
     const outMs = Math.round(edits.outMs ?? project.out_ms);
     const trimmed = inMs !== project.in_ms || outMs !== project.out_ms;
@@ -340,9 +501,13 @@ async function submit(job: JobRow) {
   // Claimed first, so two open tabs can't start the same job twice.
   const { data: claimed } = await supabaseAdmin.from("video_clip_jobs").update({ status: "PROCESSING", stage: "TRANSCRIBING", progress: 5, updated_at: now() }).eq("id", job.id).eq("status", "QUEUED").select("id").maybeSingle();
   if (!claimed) return;
+  const o = readJobOptions(job.options);
   const r = await engineClient<{ id: string }>("POST", "/v1/autoclip", {
     asset_id: job.engine_asset_id, coverage: "best", clip_count: job.clip_count ?? "auto", clip_length: "auto", genre: "auto", mode: "auto",
-    prompt: job.instructions ?? "", confirm_count: false, edit_level: "full", aspect: job.aspect, formats: ["auto"], framing: "auto", caption_style_id: "bold_white",
+    prompt: job.instructions ?? "", confirm_count: false, edit_level: "full", aspect: job.aspect, formats: [o.layout ?? "auto"], framing: "auto",
+    zoom: o.zoom ?? "auto", caption_style_id: o.captionStyleId ?? "bold_white",
+    ...(o.captionPosition ? { caption_position: o.captionPosition } : {}), ...(o.captionSize ? { caption_size: o.captionSize } : {}),
+    title_enabled: o.titleEnabled ?? true, title_style: o.titleStyle ?? "bold_band",
   });
   if (r.ok) { await supabaseAdmin.from("video_clip_jobs").update({ engine_job_id: r.data.id, updated_at: now() }).eq("id", job.id); return; }
   if (isTemporaryEngineError(r.error.code)) {

@@ -89,16 +89,73 @@ export function clipsToRender<T extends { id: string; score: number | null }>(cl
 export type CaptionWord = { text: string; start_ms: number; end_ms: number; [key: string]: unknown };
 export type CaptionLine = { start_ms: number; end_ms: number; text: string; words: CaptionWord[] };
 
-/** The Engine's layouts the editor offers, in plain words. "title-subtitles" stays Engine-only. */
+/**
+ * The Engine's choices, as the app knows them without asking. The ids must match
+ * the Engine's catalog (GET /v1/catalog), which is what the editor shows when it
+ * answers; these words stand in when it is asleep, and the ids validate input.
+ */
 export const CLIP_LAYOUTS = [
-  { id: "auto", label: "Let Co-Work choose", hint: "Picks per clip" },
-  { id: "full-video", label: "Follow the speaker", hint: "Re-aims on every cut" },
-  { id: "split", label: "Split screen", hint: "Two people stacked" },
-  { id: "streamer", label: "Blurred background", hint: "Whole shot over a blur" },
-  { id: "black-box", label: "Whole shot", hint: "Fit with black bars" },
+  { id: "auto", label: "Let the Engine choose", hint: "Decided shot by shot: follows the speaker, stacks two people, shows screenshots whole" },
+  { id: "full-video", label: "Follow the speaker", hint: "One crop that holds on whoever is talking, re-aimed on every cut" },
+  { id: "split", label: "Split screen", hint: "Two people who share the shot, one cell each" },
+  { id: "grid", label: "Group grid", hint: "Three or four people, each framed in their own cell" },
+  { id: "screen", label: "Screen + speaker", hint: "The picture on top, the person below: slides, screen shares, gameplay" },
+  { id: "pip", label: "Picture-in-picture", hint: "The main shot with the other person's face in a small inset" },
+  { id: "streamer", label: "Blurred background", hint: "The whole picture over a blurred copy of itself" },
+  { id: "black-box", label: "Black bars", hint: "The whole picture with black above and below" },
+  { id: "title-subtitles", label: "Headline + captions", hint: "The picture in the middle, the headline above and the words below" },
 ] as const;
 export type ClipLayout = (typeof CLIP_LAYOUTS)[number]["id"];
 export const CLIP_LAYOUT_IDS = CLIP_LAYOUTS.map((l) => l.id) as [ClipLayout, ...ClipLayout[]];
+
+export const CLIP_ZOOMS = [
+  { id: "off", label: "No zoom", hint: "The crop is as wide as the output allows" },
+  { id: "auto", label: "Push in on wide shots", hint: "Tighter when the person is small in the frame, with room above the head" },
+  { id: "moments", label: "Punch in on lines", hint: "Pushes in further on every other sentence, for energy" },
+] as const;
+export type ClipZoom = (typeof CLIP_ZOOMS)[number]["id"];
+export const CLIP_ZOOM_IDS = CLIP_ZOOMS.map((z) => z.id) as [ClipZoom, ...ClipZoom[]];
+
+export const CAPTION_POSITIONS = ["top", "middle", "lower"] as const;
+export type CaptionPosition = (typeof CAPTION_POSITIONS)[number];
+export const CAPTION_SIZE = { min: 0.6, max: 1.6, step: 0.1 } as const;
+export const TITLE_STYLES = [
+  { id: "bold_band", label: "Bold band", hint: "Capitals on a dark band" },
+  { id: "boxed", label: "Boxed", hint: "As written, on a softer box" },
+  { id: "headline", label: "Headline", hint: "Capitals with an outline, no box" },
+  { id: "clean", label: "Clean", hint: "As written, with a soft shadow" },
+] as const;
+export type TitleStyle = (typeof TITLE_STYLES)[number]["id"];
+export const TITLE_STYLE_IDS = TITLE_STYLES.map((t) => t.id) as [TitleStyle, ...TitleStyle[]];
+export const TITLE_POSITIONS = ["auto", "top", "bottom"] as const;
+export type TitlePosition = (typeof TITLE_POSITIONS)[number];
+
+/** How a whole video should be clipped, chosen before the Engine runs (video_clip_jobs.options). */
+export type ClipJobOptions = {
+  layout?: ClipLayout | undefined; zoom?: ClipZoom | undefined; captionStyleId?: string | undefined; captionPosition?: CaptionPosition | undefined;
+  captionSize?: number | undefined; titleEnabled?: boolean | undefined; titleStyle?: TitleStyle | undefined;
+};
+
+/** A jsonb value as job options: unknown keys and bad values are dropped, never thrown on. */
+export function readJobOptions(value: unknown): ClipJobOptions {
+  if (!value || typeof value !== "object") return {};
+  const v = value as Record<string, unknown>;
+  const out: ClipJobOptions = {};
+  if (CLIP_LAYOUT_IDS.includes(v["layout"] as ClipLayout)) out.layout = v["layout"] as ClipLayout;
+  if (CLIP_ZOOM_IDS.includes(v["zoom"] as ClipZoom)) out.zoom = v["zoom"] as ClipZoom;
+  if (typeof v["captionStyleId"] === "string" && v["captionStyleId"]) out.captionStyleId = v["captionStyleId"].slice(0, 60);
+  if (CAPTION_POSITIONS.includes(v["captionPosition"] as CaptionPosition)) out.captionPosition = v["captionPosition"] as CaptionPosition;
+  if (typeof v["captionSize"] === "number" && v["captionSize"] >= CAPTION_SIZE.min && v["captionSize"] <= CAPTION_SIZE.max) out.captionSize = v["captionSize"];
+  if (typeof v["titleEnabled"] === "boolean") out.titleEnabled = v["titleEnabled"];
+  if (TITLE_STYLE_IDS.includes(v["titleStyle"] as TitleStyle)) out.titleStyle = v["titleStyle"] as TitleStyle;
+  return out;
+}
+
+/** The kinds of shot the Engine composes, in the owner's words. */
+export const SHOT_KINDS: Record<string, string> = {
+  fill: "Follows the speaker", fit: "Whole picture over a blur", bars: "Whole picture with bars", headline: "Headline layout",
+  split: "Split screen", grid: "Group grid", screen: "Screen + speaker", pip: "Picture-in-picture", feed: "One side of a split-screen call",
+};
 
 export const MIN_CLIP_MS = 3_000;
 export const MAX_CLIP_MS = 10 * 60_000;
@@ -201,3 +258,27 @@ export function checkTrim(inMs: number, outMs: number, sourceMs: number | null):
   if (outMs - inMs > MAX_CLIP_MS) return "A clip can be up to 10 minutes long.";
   return null;
 }
+
+/** The Engine's caption styles, for when it is asleep and cannot be asked. Ids match engine/app/pipeline/caption.py. */
+export const FALLBACK_CAPTION_STYLES: { id: string; name: string; font: string; defaults: { size: number; position: string; animation: string } }[] = [
+  { id: "bold_white", name: "Bold white", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "yellow_pop", name: "Yellow pop", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "pop" } },
+  { id: "outlined", name: "Outlined", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "boxed", name: "Boxed", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "neon", name: "Neon", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "minimal", name: "Minimal", font: "Montserrat", defaults: { size: 52, position: "middle", animation: "none" } },
+  { id: "karaoke_highlight", name: "Karaoke highlight", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "karaoke" } },
+  { id: "word_pop", name: "Word pop", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "pop" } },
+  { id: "two_color_speaker", name: "Two-colour speaker", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "lower_third", name: "Lower third", font: "Montserrat", defaults: { size: 48, position: "lower", animation: "none" } },
+  { id: "uppercase_impact", name: "Uppercase impact", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "handwritten", name: "Handwritten", font: "Permanent Marker", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "bounce", name: "Bounce", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "bounce" } },
+  { id: "typewriter", name: "Typewriter", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "typewriter" } },
+  { id: "glow_box", name: "Glow box", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "highlighter", name: "Highlighter", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "comic", name: "Comic", font: "Montserrat", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "serif_quote", name: "Serif quote", font: "Playfair Display", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "clean_caps", name: "Clean caps", font: "Anton", defaults: { size: 64, position: "middle", animation: "none" } },
+  { id: "podcast_bar", name: "Podcast bar", font: "Montserrat", defaults: { size: 46, position: "lower", animation: "none" } },
+];

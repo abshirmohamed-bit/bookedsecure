@@ -66,3 +66,14 @@ describe("trim limits", () => {
     expect(checkTrim(-1, 5000, null)).toMatch(/before the video/);
   });
 });
+
+describe("a video's clipping defaults", () => {
+  it("keeps only known choices", async () => {
+    const { readJobOptions } = await import("@/lib/video-clips");
+    expect(readJobOptions({ layout: "split", zoom: "moments", captionStyleId: "neon", captionPosition: "lower", captionSize: 1.2, titleEnabled: false, titleStyle: "clean", extra: 1 }))
+      .toEqual({ layout: "split", zoom: "moments", captionStyleId: "neon", captionPosition: "lower", captionSize: 1.2, titleEnabled: false, titleStyle: "clean" });
+    expect(readJobOptions({ layout: "diagonal", zoom: 3, captionSize: 9, titleStyle: "loud" })).toEqual({});
+    expect(readJobOptions(null)).toEqual({});
+    expect(readJobOptions("split")).toEqual({});
+  });
+});
