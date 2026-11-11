@@ -1997,96 +1997,6 @@ export type Database = {
           },
         ]
       }
-      google_ad_spend_daily: {
-        Row: {
-          business_id: string
-          campaign_id: string
-          campaign_name: string | null
-          clicks: number
-          conversions: number
-          customer_id: string
-          date: string
-          impressions: number
-          spend: number
-          updated_at: string
-        }
-        Insert: {
-          business_id: string
-          campaign_id: string
-          campaign_name?: string | null
-          clicks?: number
-          conversions?: number
-          customer_id: string
-          date: string
-          impressions?: number
-          spend?: number
-          updated_at?: string
-        }
-        Update: {
-          business_id?: string
-          campaign_id?: string
-          campaign_name?: string | null
-          clicks?: number
-          conversions?: number
-          customer_id?: string
-          date?: string
-          impressions?: number
-          spend?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      google_ads_accounts: {
-        Row: {
-          access_token_ciphertext: string | null
-          access_token_expires_at: string | null
-          available_accounts: Json
-          business_id: string
-          connected_at: string
-          connected_by: string | null
-          currency: string | null
-          customer_id: string | null
-          customer_name: string | null
-          last_error: string | null
-          last_sync_at: string | null
-          login_customer_id: string | null
-          refresh_token_ciphertext: string
-          updated_at: string
-        }
-        Insert: {
-          access_token_ciphertext?: string | null
-          access_token_expires_at?: string | null
-          available_accounts?: Json
-          business_id: string
-          connected_at?: string
-          connected_by?: string | null
-          currency?: string | null
-          customer_id?: string | null
-          customer_name?: string | null
-          last_error?: string | null
-          last_sync_at?: string | null
-          login_customer_id?: string | null
-          refresh_token_ciphertext: string
-          updated_at?: string
-        }
-        Update: {
-          access_token_ciphertext?: string | null
-          access_token_expires_at?: string | null
-          available_accounts?: Json
-          business_id?: string
-          connected_at?: string
-          connected_by?: string | null
-          currency?: string | null
-          customer_id?: string | null
-          customer_name?: string | null
-          last_error?: string | null
-          last_sync_at?: string | null
-          login_customer_id?: string | null
-          refresh_token_ciphertext?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       import_automation_state: {
         Row: {
           bounded_batch_batch_id: string | null
@@ -3441,8 +3351,6 @@ export type Database = {
       }
       meta_ad_spend_daily: {
         Row: {
-          impressions: number | null
-          clicks: number | null
           ad_account_id: string
           business_id: string
           campaign_id: string
@@ -3453,8 +3361,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          impressions?: number | null
-          clicks?: number | null
           ad_account_id: string
           business_id: string
           campaign_id: string
@@ -3465,8 +3371,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          impressions?: number | null
-          clicks?: number | null
           ad_account_id?: string
           business_id?: string
           campaign_id?: string
