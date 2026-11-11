@@ -76,6 +76,32 @@ export function apiSourceChannel(source: string | null | undefined): 'meta' | 'w
   return 'unknown';
 }
 
+export const BOOKING_STATUSES = ['scheduled', 'completed', 'cancelled'] as const;
+
+export type ApiListFilters = { limit: number; offset: number; from: string | null; to: string | null; status: string | null; search: string };
+
+/** Reads limit, offset, from, to, status and search from a list request. A bad date or status is refused rather than ignored, so a caller never mistakes unfiltered records for filtered ones. */
+export function readListFilters(params: URLSearchParams, statuses: readonly string[]): { ok: true; filters: ApiListFilters } | { ok: false; message: string } {
+  const readDate = (name: 'from' | 'to'): string | null | undefined => {
+    const raw = params.get(name)?.trim();
+    if (!raw) return null;
+    if (Number.isNaN(Date.parse(raw))) return undefined;
+    // "to=2026-11-11" means up to the end of that day.
+    return new Date(name === 'to' && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T23:59:59.999Z` : raw).toISOString();
+  };
+  const from = readDate('from');
+  const to = readDate('to');
+  if (from === undefined || to === undefined) return { ok: false, message: 'from and to must be dates, for example 2026-11-01 or 2026-11-01T09:00:00Z.' };
+  const status = params.get('status')?.trim() || null;
+  if (status && !statuses.includes(status)) return { ok: false, message: `status must be one of: ${statuses.join(', ')}.` };
+  return { ok: true, filters: {
+    limit: clampLimit(params.get('limit')),
+    offset: Math.max(0, Math.floor(Number(params.get('offset')) || 0)),
+    from, to, status,
+    search: (params.get('search') ?? '').trim().slice(0, 80).replace(/[,()%*\\]/g, ' ').trim(),
+  } };
+}
+
 export function clampLimit(raw: string | null, fallback = 25, max = 100): number {
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 1) return fallback;

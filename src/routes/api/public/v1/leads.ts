@@ -7,6 +7,10 @@ export const Route = createFileRoute('/api/public/v1/leads')({
         const { API_CORS } = await import('@/lib/api-keys.server');
         return new Response(null, { status: 204, headers: API_CORS });
       },
+      GET: async ({ request }) => {
+        const { listLeadsResponse } = await import('@/lib/api-records.server');
+        return listLeadsResponse(request);
+      },
       POST: async ({ request }) => {
         const { authenticateApiRequest, apiOk, apiError, logApiRequest } = await import('@/lib/api-keys.server');
         const caller = await authenticateApiRequest(request, 'leads:write', 'create_lead');

@@ -1,3 +1,6 @@
+import { BOOKING_STATUSES } from './api-keys';
+import { LEAD_STATUSES } from './domain';
+
 /** OpenAPI 3 description of the BookedSecure public API, for Zapier, n8n and developers. */
 export function buildOpenApiSpec(origin: string) {
   const err = { $ref: '#/components/responses/Error' };
@@ -10,6 +13,11 @@ export function buildOpenApiSpec(origin: string) {
     { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 25 } },
     { name: 'offset', in: 'query', schema: { type: 'integer', minimum: 0, default: 0 } },
   ];
+  const dateRange = [
+    { name: 'from', in: 'query', schema: { type: 'string', format: 'date-time' } },
+    { name: 'to', in: 'query', description: 'A date alone means the end of that day (UTC)', schema: { type: 'string', format: 'date-time' } },
+  ];
+  const statusFilter = { name: 'status', in: 'query', schema: { type: 'string', enum: [...LEAD_STATUSES] } };
   return {
     openapi: '3.0.3',
     info: { title: 'BookedSecure API', version: '1.0.0', description: 'Send leads into BookedSecure, read customers, bookings and services, and quote and book from your own website. Authenticate with an API key created in Settings → Integrations.' },
@@ -24,7 +32,11 @@ export function buildOpenApiSpec(origin: string) {
     },
     paths: {
       '/me': { get: { summary: 'Check connection', responses: { 200: { description: 'Business name and key scopes' }, 401: err } } },
-      '/leads': { post: {
+      '/leads': { get: {
+        summary: 'List leads', description: 'Requires records:read. Newest first, with what each person asked for and where they came from. from and to filter by when the lead arrived.',
+        parameters: [statusFilter, ...dateRange, { name: 'search', in: 'query', description: 'Name, email or mobile', schema: { type: 'string' } }, ...paging],
+        responses: { 200: { description: 'Leads, total, limit, offset' }, 400: err, 401: err, 402: err, 403: err, 429: err },
+      }, post: {
         summary: 'Create a lead', description: 'Requires leads:write. Reuses an existing customer with the same mobile. Triggers the normal acknowledgement and follow-ups.',
         parameters: [{ name: 'Idempotency-Key', in: 'header', schema: { type: 'string' } }],
         requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['name', 'mobile'], properties: {
@@ -34,8 +46,8 @@ export function buildOpenApiSpec(origin: string) {
         } } } } },
         responses: { 201: { description: 'Created' }, 200: { description: 'Duplicate, already received' }, 400: err, 401: err, 402: err, 403: err, 429: err },
       } },
-      '/customers': { get: { summary: 'Find customers', description: 'Requires records:read.', parameters: [{ name: 'search', in: 'query', schema: { type: 'string' } }, ...paging], responses: { 200: { description: 'Customers' }, 403: err } } },
-      '/bookings': { get: { summary: 'List bookings', description: 'Requires records:read. Defaults to upcoming.', parameters: [{ name: 'from', in: 'query', schema: { type: 'string', format: 'date-time' } }, { name: 'to', in: 'query', schema: { type: 'string', format: 'date-time' } }, ...paging], responses: { 200: { description: 'Bookings' }, 403: err } } },
+      '/customers': { get: { summary: 'Find customers', description: 'Requires records:read. Contact details, newest first. from and to filter by when the customer was added.', parameters: [{ name: 'search', in: 'query', schema: { type: 'string' } }, statusFilter, ...dateRange, ...paging], responses: { 200: { description: 'Customers, total, limit, offset' }, 400: err, 401: err, 403: err } } },
+      '/bookings': { get: { summary: 'List bookings', description: 'Requires records:read. Shows upcoming bookings unless from is set.', parameters: [...dateRange, { name: 'status', in: 'query', schema: { type: 'string', enum: [...BOOKING_STATUSES] } }, ...paging], responses: { 200: { description: 'Bookings, total, limit, offset' }, 400: err, 401: err, 403: err } } },
       '/services': { get: { summary: 'List services', responses: { 200: { description: 'Active services' } } } },
       '/booking/options': { get: { summary: 'Booking options', description: 'Requires bookings:write. Packages with sizes, add-ons, prices and lengths, plus the booking rules.', responses: { 200: { description: 'Options' }, 401: err, 403: err } } },
       '/booking/quote': { post: {

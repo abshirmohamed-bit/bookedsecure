@@ -70,6 +70,18 @@ export function ApiKeysPanel({ enabled }: { enabled: boolean }) {
     </ul>
 
     <details className="rounded-md border border-border p-3 text-sm">
+      <summary className="cursor-pointer font-medium">Read leads, customers and bookings</summary>
+      <p className="mt-3 text-muted-foreground">Use a key with read access and the same <b>Authorization</b> header, then send an HTTP <b>GET</b> to:</p>
+      <ul className="mt-2 space-y-1 text-muted-foreground">
+        <li><code className="break-all">{BASE}/leads</code></li>
+        <li><code className="break-all">{BASE}/customers</code></li>
+        <li><code className="break-all">{BASE}/bookings</code></li>
+      </ul>
+      <p className="mt-3 text-muted-foreground">Optional filters: <code>from</code>, <code>to</code>, <code>status</code>, <code>limit</code> (up to 100) and <code>offset</code>. Leads and customers also take <code>search</code>. Bookings show upcoming jobs unless you set <code>from</code>.</p>
+      <pre className="mt-2 overflow-x-auto rounded bg-muted p-2 text-xs">{`${BASE}/leads?status=new&from=2026-11-01&limit=50`}</pre>
+    </details>
+
+    <details className="rounded-md border border-border p-3 text-sm">
       <summary className="cursor-pointer font-medium">Send leads with an API key</summary>
       <ol className="mt-3 list-decimal space-y-2 pl-5 text-muted-foreground">
         <li>In your tool (Zapier, n8n, your website code), send an HTTP <b>POST</b> to <code className="break-all">{BASE}/leads</code>.</li>
