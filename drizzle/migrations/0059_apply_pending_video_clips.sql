@@ -1,0 +1,2 @@
+-- Apply the existing pending 0058_video_clips.sql migration unchanged.
+-- No additional schema changes are needed in this migration.

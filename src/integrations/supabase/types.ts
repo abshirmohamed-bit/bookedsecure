@@ -5170,6 +5170,173 @@ export type Database = {
         }
         Relationships: []
       }
+      video_clip_jobs: {
+        Row: {
+          aspect: string
+          business_id: string
+          clip_count: number | null
+          clip_requested: boolean
+          created_at: string
+          created_by: string | null
+          duration_ms: number | null
+          engine_asset_id: string | null
+          engine_job_id: string | null
+          engine_upload_id: string | null
+          error: string | null
+          id: string
+          instructions: string | null
+          progress: number
+          rights_confirmed: boolean
+          source_kind: string
+          source_name: string
+          source_url: string | null
+          stage: string | null
+          status: string
+          thumbnail_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          aspect?: string
+          business_id: string
+          clip_count?: number | null
+          clip_requested?: boolean
+          created_at?: string
+          created_by?: string | null
+          duration_ms?: number | null
+          engine_asset_id?: string | null
+          engine_job_id?: string | null
+          engine_upload_id?: string | null
+          error?: string | null
+          id?: string
+          instructions?: string | null
+          progress?: number
+          rights_confirmed?: boolean
+          source_kind: string
+          source_name: string
+          source_url?: string | null
+          stage?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aspect?: string
+          business_id?: string
+          clip_count?: number | null
+          clip_requested?: boolean
+          created_at?: string
+          created_by?: string | null
+          duration_ms?: number | null
+          engine_asset_id?: string | null
+          engine_job_id?: string | null
+          engine_upload_id?: string | null
+          error?: string | null
+          id?: string
+          instructions?: string | null
+          progress?: number
+          rights_confirmed?: boolean
+          source_kind?: string
+          source_name?: string
+          source_url?: string | null
+          stage?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_clip_jobs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_clips: {
+        Row: {
+          business_id: string
+          created_at: string
+          duration_ms: number | null
+          end_ms: number | null
+          engine_export_id: string | null
+          engine_project_id: string
+          error: string | null
+          height: number | null
+          id: string
+          job_id: string
+          position: number
+          reason: string | null
+          score: number | null
+          start_ms: number | null
+          status: string
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          video_url: string | null
+          width: number | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          duration_ms?: number | null
+          end_ms?: number | null
+          engine_export_id?: string | null
+          engine_project_id: string
+          error?: string | null
+          height?: number | null
+          id?: string
+          job_id: string
+          position?: number
+          reason?: string | null
+          score?: number | null
+          start_ms?: number | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          video_url?: string | null
+          width?: number | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          end_ms?: number | null
+          engine_export_id?: string | null
+          engine_project_id?: string
+          error?: string | null
+          height?: number | null
+          id?: string
+          job_id?: string
+          position?: number
+          reason?: string | null
+          score?: number | null
+          start_ms?: number | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          video_url?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_clips_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_clips_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "video_clip_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       web_conversation_messages: {
         Row: {
           body: string
