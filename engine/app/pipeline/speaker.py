@@ -160,8 +160,16 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
         args = ["-ss", f"{in_ms / 1000:.3f}"]
         if out_ms is not None:
             args += ["-t", f"{span / 1000:.3f}"]
-        media.ffmpeg([*args, "-i", str(video), "-an", "-vf", f"scale=480:-2,fps={fps}",
-                      "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", str(proxy)],
+        # One decode, two outputs: the proxy faces are read from, and a tiny
+        # grey copy at the source's own frame rate, which pins every camera
+        # cut to its exact frame (the proxy only knows it to a tenth of a
+        # second, which is three frames of the wrong framing on every cut).
+        raw = Path(directory) / "cuts.gray"
+        media.ffmpeg([*args, "-i", str(video), "-an", "-filter_complex",
+                      f"[0:v]split=2[a][b];[a]scale=480:-2,fps={fps}[p];"
+                      f"[b]scale={RAW_W}:{RAW_H},format=gray[r]",
+                      "-map", "[p]", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+                      str(proxy), "-map", "[r]", "-f", "rawvideo", str(raw)],
                      timeout=600)
 
         cv2.setNumThreads(settings().worker_threads())
@@ -185,11 +193,13 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
             ms = int(index / fps * 1000) + in_ms
             grey = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
 
+            cut_now = False
             if previous is not None and previous.shape == grey.shape:
                 change = float(np.mean(np.abs(grey.astype("float32")
                                               - previous.astype("float32"))))
                 usual = float(np.median(recent)) if recent else change
                 if change > max(CUT_MIN_DIFF, CUT_FACTOR * usual) and recent:
+                    cut_now = True
                     cuts.append(ms)
                     since = ms              # nobody from the old shot carries over
                     last_patch.clear()      # and no mouth is measured across it
@@ -199,7 +209,9 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                     recent.pop(0)
             previous = grey
 
-            if index % step == 0:
+            # Also on the first frame of every new shot, so a shot is never
+            # framed from a detection made half a second into it.
+            if index % step == 0 or cut_now:
                 fh, fw = bgr.shape[:2]
                 found = detect(bgr) or []
                 boxes = [((x + w / 2) / fw, (y + h / 2) / fh, w / fw, h / fh)
@@ -228,8 +240,60 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                 last_patch[t.id] = patch
                 last_box[t.id] = box
         cap.release()
-    # Someone glimpsed for a moment is not a participant.
-    return [t for t in tracks if len(t.boxes) >= 2], cuts
+        cuts = refine_cuts(cuts, raw, media.probe(video).fps, in_ms, step_ms=1000 / fps)
+    # Someone glimpsed for a moment is not a participant — unless the shot
+    # they are in is that short too.
+    return [t for t in tracks if len(t.boxes) >= 2 or _alone_in_shot(t, cuts)], cuts
+
+
+#: The full-rate grey copy used to pin cuts: tiny, because a cut changes the
+#: whole frame and needs no detail to be seen.
+RAW_W, RAW_H = 64, 36
+
+
+def refine_cuts(cuts: list[int], raw: Path, src_fps: float, in_ms: int,
+                step_ms: float) -> list[int]:
+    """Each cut moved to the first frame of the new shot.
+
+    The proxy saw the cut between two of its frames; the full-rate copy says
+    which source frame it actually was. Falls back to the proxy's answer when
+    the copy is missing or the rate is unknown.
+    """
+    import numpy as np
+
+    if not cuts or src_fps <= 0:
+        return cuts
+    try:
+        frames = np.fromfile(str(raw), dtype=np.uint8)
+    except OSError:
+        return cuts
+    size = RAW_W * RAW_H
+    if frames.size < size * 2:
+        return cuts
+    frames = frames[: frames.size // size * size].reshape(-1, RAW_H, RAW_W).astype("float32")
+    diffs = np.abs(np.diff(frames, axis=0)).mean(axis=(1, 2))     # diffs[j]: frame j+1 vs j
+    out = []
+    for c in cuts:
+        # The cut lies after the proxy frame before `c` and no later than `c`.
+        lo = (c - step_ms - in_ms) * src_fps / 1000 - 1
+        hi = (c - in_ms) * src_fps / 1000 + 1
+        js = [j for j in range(max(1, int(lo)), min(len(frames), int(hi) + 2)) if lo <= j <= hi]
+        if not js:
+            out.append(c)
+            continue
+        best = max(js, key=lambda j: diffs[j - 1])
+        out.append(int(round(best * 1000 / src_fps)) + in_ms)
+    return sorted(set(out))
+
+
+def _alone_in_shot(track: FaceTrack, cuts: list[int]) -> bool:
+    """A single detection is a real person if the shot itself is that brief."""
+    if not track.boxes:
+        return False
+    ms = track.boxes[0][0]
+    after = [c for c in cuts if c > ms]
+    before = [c for c in cuts if c <= ms]
+    return bool(before and after and after[0] - before[-1] <= 1500)
 
 
 def _link(tracks: list[FaceTrack], boxes: list[tuple[float, float, float, float]],

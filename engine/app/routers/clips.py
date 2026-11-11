@@ -288,12 +288,14 @@ def project_framing(project_id: str, aspect: str = "") -> dict:
         track = framing.track(path, mode=mode, in_ms=p.in_ms, out_ms=p.out_ms)
         # The voices decide as much as the faces do, and the preview has to
         # see the same thing the render will.
-        tracks, turns_, _cuts = framing.speech(path, in_ms=p.in_ms, out_ms=p.out_ms)
-        track = framing.follow_speaker(track, path, in_ms=p.in_ms, out_ms=p.out_ms)
+        tracks, turns_, cuts = framing.speech(path, in_ms=p.in_ms, out_ms=p.out_ms)
         w, h = ASPECTS[want]
         focus = (p.framing or {}).get("focus", "auto")
+        if mode != "center":
+            track = framing.direct(track, path, w, h, in_ms=p.in_ms, out_ms=p.out_ms, focus=focus)
         return ok(aspect=want, layout=p.layout, focus=focus,
-                  **framing.geometry(track, w, h, tracks=tracks, turns_=turns_, focus=focus))
+                  **framing.geometry(track, w, h, tracks=tracks, turns_=turns_, focus=focus,
+                                     cuts=cuts))
 
 
 class ExportBody(BaseModel):

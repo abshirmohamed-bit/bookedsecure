@@ -307,22 +307,18 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     # not match the render is worse than none.
     one_feed = ""
     layout = render.layout
-    wants_everyone = render.focus in framing.WANTS_EVERYONE
-    if track is not None and render.source is not None and not wants_everyone:
-        # Point the crop at whoever is talking rather than at the average of
-        # everyone on screen, which on a two-person interview is the gap
-        # between them. Only worth the decoding when there is a choice.
-        #
-        # Not for a reaction, though: chasing the talker is how you miss the
-        # face the clip was chosen for. Those stay framed on everybody.
-        track = framing.follow_speaker(track, render.source,
-                                       in_ms=render.in_ms, out_ms=render.out_ms)
+    if track is not None and render.source is not None:
+        # Shot by shot: re-aimed on every cut, held still within a shot, on
+        # the speaker when the people cannot all fit (on everyone, or the
+        # most prominent face, for a reaction clip). See director.py.
+        track = framing.direct(track, render.source, w, h, in_ms=render.in_ms,
+                               out_ms=render.out_ms, focus=render.focus)
     if layout == "auto":
-        tracks, turns_ = ((), ())  # nothing known until the clip is read
+        tracks, turns_, cuts = ((), (), [])  # nothing known until the clip is read
         if track is not None and render.source is not None:
-            tracks, turns_, _cuts = framing.speech(render.source,
-                                                   in_ms=render.in_ms, out_ms=render.out_ms)
-        chosen = framing.plan(track, tracks, turns_, w, h, render.focus)
+            tracks, turns_, cuts = framing.speech(render.source,
+                                                  in_ms=render.in_ms, out_ms=render.out_ms)
+        chosen = framing.plan(track, tracks, turns_, w, h, render.focus, cuts)
         layout = chosen["layout"]
         if chosen["feed"]:
             f = chosen["feed"]

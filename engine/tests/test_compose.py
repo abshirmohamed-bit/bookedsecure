@@ -473,16 +473,17 @@ def test_a_reaction_clip_does_not_chase_the_talker(tmp_path, monkeypatch):
     called = []
     monkeypatch.setattr(compose.framing, "track", lambda *a, **k: t)
     monkeypatch.setattr(compose.framing, "speech", lambda *a, **k: (tracks, turns, []))
-    monkeypatch.setattr(compose.framing, "follow_speaker",
-                        lambda tr, *a, **k: called.append(1) or tr)
+    monkeypatch.setattr(compose.framing, "direct",
+                        lambda tr, *a, **k: called.append(k["focus"]) or tr)
     compose.build(compose.Render(out=tmp_path / "o.mp4", source=tmp_path / "in.mp4",
                                  in_ms=0, out_ms=10000, layout="auto", focus="reaction"),
                   tmp_path / "w")
-    assert called == []
     compose.build(compose.Render(out=tmp_path / "o2.mp4", source=tmp_path / "in.mp4",
                                  in_ms=0, out_ms=10000, layout="auto", focus="speaker"),
                   tmp_path / "w2")
-    assert called == [1]
+    # The director is told why the clip was picked: a reaction is framed on
+    # everyone or the most prominent face, never chased to the talker.
+    assert called == ["reaction", "speaker"]
 
 
 # --- holding still --------------------------------------------------------

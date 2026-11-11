@@ -1,5 +1,6 @@
 """Long audio, a full disk and failures that shouldn't end a job."""
 import os
+from datetime import datetime, timezone
 import time
 from pathlib import Path
 
@@ -91,7 +92,10 @@ def _job(params=None):
     from app.models import Job
 
     with session() as s:
-        row = Job(id=new_id("job"), asset_id="ast_x", params=params or {}, status="processing", stage="finding")
+        # Oldest in the queue, so advance_one picks this job and not one an
+        # earlier test left behind (tests run without the background workers).
+        row = Job(id=new_id("job"), asset_id="ast_x", params=params or {}, status="processing",
+                  stage="finding", created_at=datetime(2000, 1, 1, tzinfo=timezone.utc))
         s.add(row)
         s.commit()
         return row.id

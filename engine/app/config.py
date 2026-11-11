@@ -121,6 +121,9 @@ class Settings(BaseSettings):
     import_workers: int = 2
     job_workers: int = 2
     concurrent_renders: int = 2
+    # ffmpeg processes at once, across every worker. Each one already uses
+    # all the threads it is allowed (PROCESSING_THREADS).
+    ffmpeg_slots: int = 2
     retention_days: int = 30
     # With object storage, the volume is only a cache: older local copies are
     # removed and fetched again if a later render needs them.

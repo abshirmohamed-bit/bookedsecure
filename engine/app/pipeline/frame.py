@@ -545,7 +545,7 @@ WANTS_EVERYONE = {"reaction", "everyone"}
 
 
 def plan(track: Track | None, tracks, turns_, out_w: int, out_h: int,
-         focus: str = "auto") -> dict:
+         focus: str = "auto", cuts: list[int] | None = None) -> dict:
     """The one place a layout is chosen, so the render and the preview agree.
 
     The editor draws its own preview and the Engine renders the clip; if they
@@ -562,6 +562,14 @@ def plan(track: Track | None, tracks, turns_, out_w: int, out_h: int,
     if track is None:
         return {"layout": "full-video", "cells": [], "feed": None}
     layout = suggest_layout(track)
+    if layout == "split" and track.seam is None and tracks:
+        from . import director
+
+        times = [b[0] for t in tracks for b in t.boxes]
+        window = director.window_share(track.width, track.height, out_w, out_h)
+        if times and shared_shots(tracks, cuts or [], min(times), max(times) + 1,
+                                  window) < SHARED_FOR_SPLIT:
+            layout = "full-video"
     if layout == "split" and track.seam is not None and turns_ and focus not in WANTS_EVERYONE:
         side = dominant_panel(tracks or [], turns_, track.seam)
         if side is not None:
@@ -619,6 +627,69 @@ def follow_speaker(track: Track, video: Path, *, in_ms: int = 0,
                  track.faces, track.seam)
 
 
+def direct(track: Track, video: Path, out_w: int, out_h: int, *, in_ms: int = 0,
+           out_ms: int | None = None, focus: str = "auto") -> Track:
+    """Frame the clip shot by shot, the way an editor would (see director.py).
+
+    Every camera cut is re-aimed on its own frame, a shot holds still unless
+    its subject moves, the speaker is chosen within the shot rather than
+    carried across it, and nobody is left half in frame. Falls back to the
+    plain tracking when there are no faces to work from.
+    """
+    from . import director
+
+    if track.strategy not in {"yunet", "haar"} or not track.width or not track.height:
+        return track
+    window = director.window_share(track.width, track.height, out_w, out_h)
+    if window >= 1.0:
+        return track
+    try:
+        tracks, turns_, cuts = speech(video, in_ms=in_ms, out_ms=out_ms)
+    except Exception:
+        # Better framing is never worth a failed export: keep the plain track.
+        import logging
+
+        logging.getLogger("engine.frame").exception("shot analysis failed; using plain tracking")
+        return track
+    if not tracks:
+        return track
+    end = out_ms if out_ms is not None else max(
+        [b[0] for t in tracks for b in t.boxes] + [s[0] for s in track.samples] + [in_ms]) + 1
+    samples = director.plan_camera(tracks, turns_, cuts, in_ms, end, window,
+                                   use_turns=focus not in WANTS_EVERYONE)
+    if not samples:
+        return track
+    return Track("director", track.width, track.height, samples, track.faces, track.seam)
+
+
+def shared_shots(tracks, cuts: list[int], start_ms: int, end_ms: int, window: float) -> float:
+    """Share of the clip in which two people are in the same shot, too far
+    apart for one window.
+
+    The clip-wide face clusters cannot tell a two-shot from two different
+    shots of one person: a close-up at one side of the frame and a wide shot
+    at the other look like two people sitting apart. Stacking those would
+    show the same person twice, so a split is only for people who really
+    share the screen.
+    """
+    from . import director
+
+    total = max(1, end_ms - start_ms)
+    shared = 0
+    for a, b in director.shots(cuts, start_ms, end_ms):
+        cast = director.people_in(tracks, a, b)
+        if len(cast) < 2:
+            continue
+        xs = sorted(p.x for p in cast)
+        if xs[-1] - xs[0] > window:
+            shared += b - a
+    return shared / total
+
+
+#: A split needs the people sharing the screen for at least this much of it.
+SHARED_FOR_SPLIT = 0.5
+
+
 def feed_crop(track: Track, out_w: int, out_h: int, side: int) -> str:
     """One feed of a composite, cropped to fill the frame on its own.
 
@@ -655,7 +726,7 @@ def feed_crop(track: Track, out_w: int, out_h: int, side: int) -> str:
 
 
 def geometry(track: Track, out_w: int, out_h: int, *, tracks=None, turns_=None,
-             focus: str = "auto") -> dict:
+             focus: str = "auto", cuts: list[int] | None = None) -> dict:
     """Every layout's crop boxes for this clip, in source pixels.
 
     The editor draws its own preview, so it needs the same numbers the render
@@ -674,7 +745,7 @@ def geometry(track: Track, out_w: int, out_h: int, *, tracks=None, turns_=None,
     max_x = max(0, sw - cw)
     pan = [[ms, max(0, min(max_x, int(round(centre * sw - cw / 2))))]
            for ms, centre in track.samples]
-    chosen = plan(track, tracks, turns_, out_w, out_h, focus)
+    chosen = plan(track, tracks, turns_, out_w, out_h, focus, cuts)
     return {
         "source": {"w": sw, "h": sh},
         "strategy": track.strategy,
@@ -725,7 +796,7 @@ def crop_filter(track: Track, out_w: int, out_h: int, duration_ms: int,
     for ms, centre in track.samples:
         x = int(round(centre * sw - cw / 2))
         x = max(0, min(max_x, x))
-        commands.append(f"{ms / 1000:.2f} crop@{name} x {x};")
+        commands.append(f"{ms / 1000:.3f} crop@{name} x {x};")
     first = int(round(track.samples[0][1] * sw - cw / 2))
     first = max(0, min(max_x, first))
     return f"crop@{name}={cw}:{ch}:{first}:{y}", "\n".join(commands)

@@ -11,7 +11,21 @@ from pathlib import Path
 from .errors import EngineError
 from .config import settings
 
-_processing_slot = threading.BoundedSemaphore(1)
+_slots: threading.BoundedSemaphore | None = None
+_slots_lock = threading.Lock()
+
+
+def _processing_slot() -> threading.BoundedSemaphore:
+    """How many ffmpeg processes may run at once (FFMPEG_SLOTS).
+
+    One at a time made the worker pools pointless: a long render held every
+    other video's audio extract and proxy decode behind it.
+    """
+    global _slots
+    with _slots_lock:
+        if _slots is None:
+            _slots = threading.BoundedSemaphore(max(1, settings().ffmpeg_slots))
+        return _slots
 
 
 def _bin(name: str) -> str:
@@ -38,7 +52,7 @@ def ffmpeg(args: list[str], timeout: int = 3600) -> subprocess.CompletedProcess:
         bounded.append(arg)
     # Decoder options are per input; encoder options must precede the output.
     bounded[-1:-1] = ["-threads", threads]
-    with _processing_slot:
+    with _processing_slot():
         return run([_bin("ffmpeg"), "-hide_banner", "-loglevel", "error", "-y",
                     "-filter_threads", threads, "-filter_complex_threads", threads, *bounded], timeout)
 
