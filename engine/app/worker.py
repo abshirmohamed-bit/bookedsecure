@@ -38,6 +38,12 @@ def tick() -> int:
                 done += 1 if step() else 0
             except Exception:
                 log.exception("worker step failed")
+        try:
+            from . import storage
+
+            storage.sweep_if_due()
+        except Exception:
+            log.exception("local sweep failed")
     try:
         webhooks.deliver_due()
     except Exception:

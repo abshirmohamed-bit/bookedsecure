@@ -5,10 +5,16 @@ YouTube and X all fetch the file themselves.
 """
 from __future__ import annotations
 
+import logging
 import shutil
+import time
 from pathlib import Path
 
 from .config import settings
+
+log = logging.getLogger("engine.storage")
+SWEEP_EVERY_S = 3600.0
+_last_sweep: float | None = None
 
 
 def _local_path(key: str) -> Path:
@@ -87,3 +93,34 @@ def delete(key: str) -> None:
 def usage_bytes() -> int:
     root = settings().media_root
     return sum(f.stat().st_size for f in root.rglob("*") if f.is_file())
+
+
+def sweep_local(now: float | None = None) -> int:
+    """Free the volume: leftover render folders, and cached media once it is in the bucket."""
+    s = settings()
+    cutoff = (now if now is not None else time.time()) - s.local_cache_days * 86400
+    removed = 0
+    work = s.data_dir / "work"
+    if work.is_dir():
+        for folder in work.iterdir():
+            if folder.is_dir() and folder.stat().st_mtime < cutoff:
+                shutil.rmtree(folder, ignore_errors=True)
+                removed += 1
+    if s.storage_backend == "s3" and s.media_root.is_dir():
+        for path in s.media_root.rglob("*"):
+            if path.is_file() and path.stat().st_mtime < cutoff:
+                path.unlink(missing_ok=True)
+                removed += 1
+    return removed
+
+
+def sweep_if_due() -> int:
+    """At most hourly. Called between worker steps, so no render is ever underneath it."""
+    global _last_sweep
+    if _last_sweep is not None and time.monotonic() - _last_sweep < SWEEP_EVERY_S:
+        return 0
+    _last_sweep = time.monotonic()
+    removed = sweep_local()
+    if removed:
+        log.info("cleared %d old local item(s)", removed)
+    return removed

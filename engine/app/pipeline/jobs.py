@@ -6,6 +6,7 @@ real rather than a spinner.
 """
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 
@@ -14,11 +15,22 @@ from sqlmodel import Session, select
 from .. import media, storage, webhooks
 from ..config import settings
 from ..db import session as db_session
+from ..errors import EngineError
 from ..ids import new_id
 from ..models import Asset, Job, Project, Transcript, utcnow
 from . import find as finder
 from . import frame as framing
 from .transcribe import slice_words, transcribe
+
+log = logging.getLogger("engine.jobs")
+
+#: Retries across a whole job, for failures that may not happen twice.
+MAX_JOB_RETRIES = 2
+
+
+class JobFailed(RuntimeError):
+    """This job can't succeed however often it is tried."""
+
 
 STAGE_PROGRESS = {"transcribing": 15, "finding": 40, "cutting": 60, "framing": 80, "finalizing": 95}
 
@@ -28,8 +40,6 @@ def create(session: Session, asset: Asset, params: dict) -> Job:
         select(Job).where(Job.status.in_(["queued", "processing"]))  # type: ignore[attr-defined]
     ).all()
     if len(running) >= settings().concurrent_jobs:
-        from ..errors import EngineError
-
         raise EngineError("JOB_LIMIT_REACHED", "Three jobs are already running. Wait for one to finish.")
     job = Job(id=new_id("job"), asset_id=asset.id, params=params, status="queued")
     session.add(job)
@@ -50,6 +60,15 @@ def advance_one() -> bool:
         try:
             _step(s, job)
         except Exception as e:
+            s.rollback()
+            attempts = int((job.params or {}).get("_attempts", 0))
+            if not isinstance(e, (JobFailed, EngineError)) and attempts < MAX_JOB_RETRIES:
+                log.warning("job %s failed at %s, retrying: %s", job.id, job.stage, e)
+                job.params = {**(job.params or {}), "_attempts": attempts + 1}
+                s.add(job)
+                s.commit()
+                time.sleep(3 * (attempts + 1))
+                return True
             job.status = "failed"
             job.error = str(e)[:500]
             s.add(job)
@@ -70,7 +89,7 @@ def _step(s: Session, job: Job) -> None:
 
     asset = s.get(Asset, job.asset_id)
     if not asset:
-        raise RuntimeError("the source for this job has gone")
+        raise JobFailed("the source for this job has gone")
     params = job.params or {}
 
     if job.stage == "transcribing":
@@ -110,7 +129,7 @@ def _step(s: Session, job: Job) -> None:
 
     if job.stage == "finalizing":
         if not clips_payload(s, job.id):
-            raise RuntimeError("No usable moments were found. Try Clip anything or choose a different range.")
+            raise JobFailed("No usable moments were found. Try Clip anything or choose a different range.")
         job.status = "completed"
         job.progress = 100
         job.processing_s = round(job.processing_s + (time.time() - started), 2)
@@ -121,6 +140,7 @@ def _step(s: Session, job: Job) -> None:
             "autoclip_id": job.id,
             "source_name": _source_name(s, job),
             "processing_seconds": round(job.processing_s),
+            "finder_note": (job.params or {}).get("finder_note") or None,
             # full: the app writes these onto each clip so the editor opens
             # ready — captions, title, watermark and layout already in place.
             "clips": clips_payload(s, job.id, full=True),
@@ -194,6 +214,7 @@ def _find(s: Session, job: Job, asset: Asset, params: dict) -> list[finder.Momen
         count = int(requested)
 
     envelope: list[float] = []
+    report: dict = {}
     mode = params.get("mode", "auto")
     if mode in {"energy", "visual"} or (mode == "auto" and not sentences):
         envelope = media.loudness_envelope(storage.local_path(asset.mezzanine_key or asset.storage_key))
@@ -203,8 +224,10 @@ def _find(s: Session, job: Job, asset: Asset, params: dict) -> list[finder.Momen
         mode="energy" if mode == "visual" else mode,
         coverage=coverage, genre=params.get("genre", "auto"), prompt=params.get("prompt", ""),
         must_include=params.get("must_include") or [], keep_qa=params.get("keep_qa", True),
-        title_brief=params.get("title_brief", ""), envelope=envelope,
+        title_brief=params.get("title_brief", ""), envelope=envelope, report=report,
     )
+    if report.get("note"):
+        job.params = {**(job.params or {}), "finder_note": report["note"]}
     # Sparse speech can yield sentences but no viable speech-sized clip. Auto
     # must then use the real source's audio peaks, not finish with zero projects.
     if not moments and mode == "auto":
@@ -222,7 +245,7 @@ def _find(s: Session, job: Job, asset: Asset, params: dict) -> list[finder.Momen
         bounded.append(moment)
     moments = bounded
     if not moments:
-        raise RuntimeError("No usable moments were found. Try Clip anything or choose a different range.")
+        raise JobFailed("No usable moments were found. Try Clip anything or choose a different range.")
     if coverage == "whole":
         covered = [{"start_ms": m.start_ms, "end_ms": m.end_ms} for m in moments]
         job.skipped = _gaps(covered, start_ms, end_ms)

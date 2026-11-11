@@ -8,13 +8,13 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { controlEngine, isEngineOperator, readEngineState } from "@/lib/engine-control.server";
 import { z } from "zod";
 import type { AssistantToolContext } from "@/lib/assistant-tools.server";
-import { jobStatusLabel, VIDEO_ASPECTS } from "@/lib/video-clips";
+import { jobStatusLabel, MAX_CLIP_INSTRUCTIONS, MIN_CLIPS_PER_JOB, VIDEO_ASPECTS } from "@/lib/video-clips";
 import { clipFromLink, engineConfigured, listVideoJobs, renderClip, requestClips } from "@/lib/video-clips.server";
 
 const OPTIONS = {
   aspect: z.enum(VIDEO_ASPECTS).default("9:16").describe("9:16 for Reels, TikTok and Shorts unless the owner chose otherwise."),
-  clipCount: z.number().int().min(1).max(20).nullable().default(null).describe("How many clips. Null lets the Engine decide."),
-  instructions: z.string().max(1000).default("").describe("What to look for, and the style the owner chose. Their words only."),
+  clipCount: z.number().int().min(MIN_CLIPS_PER_JOB).max(20).nullable().default(null).describe("How many clips, at least 2. If the owner wants one clip, use 2 and tell them why. Null lets the Engine decide."),
+  instructions: z.string().max(MAX_CLIP_INSTRUCTIONS).default("").describe("What to look for, and the style the owner chose. Their words only."),
 };
 const fail = (message: string) => ({ ok: false as const, message });
 const NOT_ON = "Video clipping isn't switched on for this workspace yet.";

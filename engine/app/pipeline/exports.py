@@ -1,6 +1,7 @@
 """Rendering an approved clip to a finished file."""
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from sqlmodel import Session, select
@@ -77,7 +78,11 @@ def _render(s: Session, row: Export) -> Asset:
         resolution=row.resolution,
         finish_ass=(options.get("finish_ass") or {}).get(row.resolution),
     )
-    run_render(render, settings().data_dir / "work" / row.id)
+    workdir = settings().data_dir / "work" / row.id
+    try:
+        run_render(render, workdir)
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
     storage.put_file(out, key, "video/mp4")
     info = media.probe(out)
 
@@ -114,7 +119,11 @@ def preview(s: Session, project: Project) -> str:
         watermark=project.watermark or None, preview=True, loudnorm=False,
         finish_ass=(options.get("finish_ass") or {}).get("preview"),
     )
-    run_render(render, settings().data_dir / "work" / f"prev_{project.id}")
+    workdir = settings().data_dir / "work" / f"prev_{project.id}"
+    try:
+        run_render(render, workdir)
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
     storage.put_file(out, key, "video/mp4")
     project.preview_key = key
     s.add(project)

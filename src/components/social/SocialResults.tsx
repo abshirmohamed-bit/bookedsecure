@@ -147,6 +147,7 @@ function JobCard({ job, onAsk }: { job: Job; onAsk: (text: string) => void }) {
           <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${Math.max(job.progress, 6)}%` }} />
         </div>
       ) : null}
+      {job.status === "COMPLETED" && job.error ? <p className="mt-2 text-xs text-muted-foreground">{job.error}</p> : null}
       {job.status === "WAITING" ? (
         <Button size="sm" className="mt-2 min-h-10 w-full" onClick={() => onAsk("Turn this video into short clips.")}>Make clips</Button>
       ) : null}

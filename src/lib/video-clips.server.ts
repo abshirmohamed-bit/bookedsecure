@@ -8,13 +8,13 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { engineClient, engineConfigured } from "@/lib/engine.server";
-import { ACTIVE_JOB_STATUSES, clipsToRender, isPublicVideoLink, MAX_VIDEO_BYTES, type VideoAspect } from "@/lib/video-clips";
+import { ACTIVE_JOB_STATUSES, clipsToRender, isPublicVideoLink, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect } from "@/lib/video-clips";
 
 type JobRow = Database["public"]["Tables"]["video_clip_jobs"]["Row"];
 type ClipRow = Database["public"]["Tables"]["video_clips"]["Row"];
 type EngineAsset = { id: string; status?: string; error?: string | null; thumbnail_url?: string; length?: number | null };
 type EngineClip = Record<string, unknown>;
-type EngineJob = { id: string; status: string; stage: string | null; progress: number; error: string | null; clips?: EngineClip[] };
+type EngineJob = { id: string; status: string; stage: string | null; progress: number; error: string | null; finder_note?: string | null; clips?: EngineClip[] };
 type EngineExport = { id: string; status: string; error?: string | null; asset?: Record<string, unknown> | null };
 export type ClipOptions = { aspect?: VideoAspect | undefined; clipCount?: number | null | undefined; instructions?: string | undefined };
 
@@ -22,8 +22,8 @@ const STUCK_MS = 5 * 60_000;
 const now = () => new Date().toISOString();
 const clipOptions = (o: ClipOptions) => ({
   ...(o.aspect ? { aspect: o.aspect } : {}),
-  ...(o.clipCount !== undefined ? { clip_count: o.clipCount } : {}),
-  ...(o.instructions !== undefined ? { instructions: o.instructions.trim().slice(0, 1000) || null } : {}),
+  ...(o.clipCount !== undefined ? { clip_count: o.clipCount === null ? null : Math.max(MIN_CLIPS_PER_JOB, o.clipCount) } : {}),
+  ...(o.instructions !== undefined ? { instructions: o.instructions.trim().slice(0, MAX_CLIP_INSTRUCTIONS) || null } : {}),
 });
 
 export { engineConfigured };
@@ -64,7 +64,7 @@ export async function finishUpload(businessId: string, jobId: string, failure?: 
   // carries on, and advancing picks the result up from GET /v1/uploads/{id}.
   const r = await engineClient<EngineAsset>("POST", `/v1/uploads/${encodeURIComponent(job.engine_upload_id ?? "")}/complete`, undefined, { timeoutMs: 25_000, wake: false });
   if (r.ok) { await assetReached({ ...job, status: "INGESTING" }, r.data); return "INGESTING"; }
-  if (r.error.code === "ENGINE_UNREACHABLE") return "INGESTING";
+  if (isTemporaryEngineError(r.error.code)) return "INGESTING";
   await failJob(job, r.error.message);
   return "FAILED";
 }
@@ -174,7 +174,7 @@ async function submit(job: JobRow) {
     prompt: job.instructions ?? "", confirm_count: false, edit_level: "full", aspect: job.aspect, formats: ["auto"], framing: "auto", caption_style_id: "bold_white",
   });
   if (r.ok) { await supabaseAdmin.from("video_clip_jobs").update({ engine_job_id: r.data.id, updated_at: now() }).eq("id", job.id); return; }
-  if (r.error.code === "ENGINE_NOT_CONFIGURED" || r.error.code === "ENGINE_UNREACHABLE") {
+  if (isTemporaryEngineError(r.error.code)) {
     await supabaseAdmin.from("video_clip_jobs").update({ status: "QUEUED", stage: null, progress: 0, updated_at: now() }).eq("id", job.id);
     return;
   }
@@ -184,7 +184,7 @@ async function submit(job: JobRow) {
 async function pollJob(job: JobRow) {
   const r = await engineClient<EngineJob>("GET", `/v1/autoclip/${encodeURIComponent(job.engine_job_id ?? "")}`);
   if (!r.ok) return;
-  if (r.data.status === "completed") await jobCompleted(job, r.data.clips ?? []);
+  if (r.data.status === "completed") await jobCompleted(job, r.data.clips ?? [], r.data.finder_note ?? null);
   else if (r.data.status === "failed") await failJob(job, r.data.error ?? "The clips couldn't be made.");
   else if (r.data.progress !== job.progress || (r.data.stage ?? "").toUpperCase() !== job.stage) {
     await supabaseAdmin.from("video_clip_jobs").update({ stage: (r.data.stage ?? "").toUpperCase() || job.stage, progress: Math.round(r.data.progress), updated_at: now() }).eq("id", job.id);
@@ -194,7 +194,7 @@ async function pollJob(job: JobRow) {
 const num = (v: unknown) => (typeof v === "number" ? Math.round(v) : null);
 const text = (v: unknown) => (typeof v === "string" ? v : null);
 
-async function jobCompleted(job: JobRow, clips: EngineClip[]) {
+async function jobCompleted(job: JobRow, clips: EngineClip[], note: string | null = null) {
   const rows = clips.filter((c) => typeof c["project_id"] === "string").map((c, i) => ({
     business_id: job.business_id, job_id: job.id, engine_project_id: c["project_id"] as string, position: num(c["index"]) ?? i + 1,
     title: text(c["title"]), reason: text(c["reason"]), score: typeof c["score"] === "number" ? c["score"] : null,
@@ -205,7 +205,7 @@ async function jobCompleted(job: JobRow, clips: EngineClip[]) {
     const { error } = await supabaseAdmin.from("video_clips").upsert(rows, { onConflict: "job_id,engine_project_id", ignoreDuplicates: true });
     if (error) throw new Error(error.message);
   }
-  const { data: first } = await supabaseAdmin.from("video_clip_jobs").update({ status: "COMPLETED", stage: null, progress: 100, error: null, updated_at: now() }).eq("id", job.id).neq("status", "COMPLETED").select("id").maybeSingle();
+  const { data: first } = await supabaseAdmin.from("video_clip_jobs").update({ status: "COMPLETED", stage: null, progress: 100, error: note, updated_at: now() }).eq("id", job.id).neq("status", "COMPLETED").select("id").maybeSingle();
   if (!first) return;
   const { data: saved } = await supabaseAdmin.from("video_clips").select("*").eq("job_id", job.id);
   for (const clip of clipsToRender(saved ?? [])) await startRender(clip);
@@ -240,7 +240,7 @@ export async function applyVideoEngineEvent(ev: { type: string; data: Record<str
     const { data: job } = await supabaseAdmin.from("video_clip_jobs").select("*").eq("engine_job_id", String(d["autoclip_id"] ?? "")).maybeSingle();
     if (!job) return;
     if (ev.type === "autoclip.failed") await failJob(job, text(d["error"]) ?? "The clips couldn't be made.");
-    else await jobCompleted(job, Array.isArray(d["clips"]) ? (d["clips"] as EngineClip[]) : []);
+    else await jobCompleted(job, Array.isArray(d["clips"]) ? (d["clips"] as EngineClip[]) : [], text(d["finder_note"]));
   } else if (ev.type === "export.completed" || ev.type === "export.failed") {
     const { data: clip } = await supabaseAdmin.from("video_clips").select("id").eq("engine_export_id", String(d["export_id"] ?? "")).maybeSingle();
     if (!clip) return;

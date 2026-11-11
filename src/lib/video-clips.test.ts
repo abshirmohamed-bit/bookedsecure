@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipsToRender, isActiveJob, isPublicVideoLink, jobStatusLabel } from "@/lib/video-clips";
+import { clipsToRender, isActiveJob, isPublicVideoLink, isTemporaryEngineError, jobStatusLabel } from "@/lib/video-clips";
 
 describe("links the Engine may fetch", () => {
   it.each(["https://www.youtube.com/watch?v=abc", "https://youtu.be/abc", "https://cdn.example.com/talk.mp4"])("allows %s", (url) => {
@@ -22,6 +22,15 @@ describe("which clips render by themselves", () => {
     const clips = [{ id: "a", score: 1 }, { id: "b", score: 2 }];
     clipsToRender(clips);
     expect(clips[0]?.id).toBe("a");
+  });
+});
+
+describe("when the Engine says no", () => {
+  it.each(["JOB_LIMIT_REACHED", "RATE_LIMITED", "ENGINE_UNREACHABLE", "HTTP_503"])("keeps the job waiting on %s", (code) => {
+    expect(isTemporaryEngineError(code)).toBe(true);
+  });
+  it.each(["VALIDATION_ERROR", "NOT_FOUND", "HTTP_400"])("fails the job on %s", (code) => {
+    expect(isTemporaryEngineError(code)).toBe(false);
   });
 });
 

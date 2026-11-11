@@ -164,6 +164,7 @@ def _job_payload(s, job: Job) -> dict:
             "clip_count": (job.params or {}).get("clip_count", "auto"),
             "suggested_count": job.suggested_count, "skipped": job.skipped,
             "processing_s": job.processing_s, "error": job.error or None,
+            "finder_note": (job.params or {}).get("finder_note") or None,
             "created_at": job.created_at.isoformat(),
             "clips": job_pipeline.clips_payload(s, job.id)}
 

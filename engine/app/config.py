@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     concurrent_jobs: int = 3
     concurrent_renders: int = 4
     retention_days: int = 30
+    # With object storage, the volume is only a cache: older local copies are
+    # removed and fetched again if a later render needs them.
+    local_cache_days: float = 2.0
 
     # test/dev
     engine_mock: bool = False

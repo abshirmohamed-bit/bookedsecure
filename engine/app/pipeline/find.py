@@ -10,11 +10,16 @@ start and end on sentence boundaries and never overlap.
 from __future__ import annotations
 
 import json
+import logging
 import re
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from ..config import settings
+
+log = logging.getLogger("engine.find")
+AI_FALLBACK_NOTE = "Co-Work's AI was unavailable, so these clips were picked with basic rules. Run it again for better picks."
 
 GENRES = ["auto", "qa", "commentary", "podcast", "church", "news", "comedy", "academic",
           "webinar", "motivational", "listicle", "how_to", "vlog", "marketing",
@@ -520,21 +525,34 @@ def _fill_to_count(found: list[Moment], sentences: list[dict], target_ms: int,
 def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto",
          coverage: str = "best", genre: str = "auto", prompt: str = "",
          must_include: list[str] | None = None, keep_qa: bool = True,
-         title_brief: str = "", envelope: list[float] | None = None) -> list[Moment]:
-    """Pick moments with whichever provider is configured, then snap them."""
+         title_brief: str = "", envelope: list[float] | None = None,
+         report: dict | None = None) -> list[Moment]:
+    """Pick moments with whichever provider is configured, then snap them.
+
+    `report` gets a `note` when the AI could not be used, so nobody takes
+    rule-based picks for the real thing.
+    """
     cfg = settings()
     provider = cfg.resolve_finder()
     if mode == "energy" or (mode == "auto" and not sentences):
         raw = energy_find(envelope or [], count, target_ms)
     elif provider in ("ai", "claude"):
-        try:
-            raw = ai_find(sentences, count, target_ms, genre=genre, prompt=prompt,
-                          must_include=must_include, coverage=coverage, keep_qa=keep_qa,
-                          title_brief=title_brief)
-            if not raw:
-                raw = rules_find(sentences, count, target_ms, coverage)
-        except Exception:
+        raw = []
+        for attempt in range(2):
+            try:
+                raw = ai_find(sentences, count, target_ms, genre=genre, prompt=prompt,
+                              must_include=must_include, coverage=coverage, keep_qa=keep_qa,
+                              title_brief=title_brief)
+            except Exception as e:
+                log.warning("AI moment finding failed (attempt %d): %s", attempt + 1, e)
+            if raw:
+                break
+            if attempt == 0:
+                time.sleep(2)
+        if not raw:
             raw = rules_find(sentences, count, target_ms, coverage)
+            if report is not None:
+                report["note"] = AI_FALLBACK_NOTE
     else:
         raw = rules_find(sentences, count, target_ms, coverage)
     snapped = snap(raw, sentences, target_ms)

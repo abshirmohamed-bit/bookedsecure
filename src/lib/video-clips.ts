@@ -4,6 +4,15 @@ export const VIDEO_ASPECTS = ["9:16", "1:1", "4:5", "16:9"] as const;
 export type VideoAspect = (typeof VIDEO_ASPECTS)[number];
 
 export const MAX_VIDEO_BYTES = 4 * 1024 * 1024 * 1024;
+/** The Engine's own limits; anything outside them is refused outright. */
+export const MIN_CLIPS_PER_JOB = 2;
+export const MAX_CLIP_INSTRUCTIONS = 500;
+
+/** Worth another try later: the Engine is busy or waking, not refusing the job. */
+export function isTemporaryEngineError(code: string): boolean {
+  return ["ENGINE_NOT_CONFIGURED", "ENGINE_UNREACHABLE", "JOB_LIMIT_REACHED", "RATE_LIMITED", "HTTP_502", "HTTP_503", "HTTP_504"].includes(code);
+}
+
 /** Clips rendered without being asked, so the best ones are ready to watch. */
 export const AUTO_RENDER_COUNT = 3;
 

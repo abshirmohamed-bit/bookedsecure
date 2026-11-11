@@ -15,7 +15,8 @@ from __future__ import annotations
 import difflib
 import logging
 import re
-from dataclasses import asdict, dataclass
+import wave
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from ..config import settings
@@ -167,7 +168,79 @@ def _faster_whisper(audio: Path, vocabulary: list[str], language: str | None) ->
     return Transcription(getattr(info, "language", "") or "en", f"faster-whisper/{cfg.whisper_model}", words, group_sentences(words))
 
 
+# Uploads are capped per file, and uncompressed speech reaches the free cap in
+# about 13 minutes. Twenty minutes of compressed speech is around 5 MB.
+GROQ_CHUNK_S = 1200.0
+GROQ_OVERLAP_S = 2.0
+GROQ_MAX_BYTES = 24 * 1024 * 1024
+
+
+def plan_chunks(duration_s: float, chunk_s: float = GROQ_CHUNK_S, overlap_s: float = GROQ_OVERLAP_S) -> list[tuple[float, float]]:
+    """(start, length) pairs covering the audio, each overlapping the one before."""
+    if duration_s <= chunk_s:
+        return [(0.0, duration_s)]
+    out: list[tuple[float, float]] = []
+    start = 0.0
+    while start < duration_s:
+        out.append((start, min(chunk_s, duration_s - start)))
+        if start + chunk_s >= duration_s:
+            break
+        start += chunk_s - overlap_s
+    return out
+
+
+def merge_chunk_words(merged: list[Word], words: list[Word], start_s: float, overlap_s: float = GROQ_OVERLAP_S) -> list[Word]:
+    """Add one chunk's words in source time, cutting the overlap at its midpoint."""
+    offset = int(start_s * 1000)
+    shifted = [replace(w, start_ms=w.start_ms + offset, end_ms=w.end_ms + offset) for w in words]
+    if not merged:
+        return shifted
+    seam = offset + int(overlap_s * 500)
+    return [w for w in merged if w.start_ms < seam] + [w for w in shifted if w.start_ms >= seam]
+
+
+def _wav_seconds(audio: Path) -> float:
+    try:
+        with wave.open(str(audio), "rb") as f:
+            return f.getnframes() / float(f.getframerate() or 1)
+    except (wave.Error, EOFError, OSError):
+        return 0.0
+
+
+def _encode_chunk(audio: Path, start_s: float, length_s: float) -> Path:
+    from .. import media
+
+    dest = audio.with_name(f"{audio.stem}.{int(start_s)}.ogg")
+    media.ffmpeg(["-ss", f"{start_s:.3f}", "-t", f"{length_s:.3f}", "-i", str(audio), "-vn", "-ac", "1",
+                  "-c:a", "libopus", "-b:a", "32k", str(dest)], timeout=600)
+    return dest
+
+
 def _groq(audio: Path, vocabulary: list[str], language: str | None) -> Transcription:
+    """Long audio goes up in compressed pieces, stitched back into source time."""
+    plan = plan_chunks(_wav_seconds(audio))
+    merged: list[Word] = []
+    detected = ""
+    model = ""
+    for start_s, length_s in plan:
+        try:
+            part = _encode_chunk(audio, start_s, length_s)
+        except Exception:
+            # Only safe when this one request is the whole audio and fits.
+            if len(plan) > 1 or audio.stat().st_size > GROQ_MAX_BYTES:
+                raise
+            part = audio
+        try:
+            piece = _groq_request(part, vocabulary, language)
+        finally:
+            if part != audio:
+                part.unlink(missing_ok=True)
+        merged = merge_chunk_words(merged, piece.words, start_s)
+        detected, model = detected or piece.language, piece.model
+    return Transcription(detected, model, merged, group_sentences(merged))
+
+
+def _groq_request(audio: Path, vocabulary: list[str], language: str | None) -> Transcription:
     """Whisper on Groq. Word timings come back in the response, not from DTW."""
     import httpx
 
@@ -188,7 +261,7 @@ def _groq(audio: Path, vocabulary: list[str], language: str | None) -> Transcrip
         r = httpx.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
             headers={"Authorization": f"Bearer {cfg.groq_api_key}"},
-            files={"file": (audio.name, fh, "audio/wav")},
+            files={"file": (audio.name, fh, "audio/ogg" if audio.suffix == ".ogg" else "audio/wav")},
             data=data,
             timeout=cfg.groq_timeout_s,
         )
