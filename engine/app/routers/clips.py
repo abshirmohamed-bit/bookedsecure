@@ -13,10 +13,11 @@ from ..errors import EngineError
 from ..responses import ok
 from ..ids import new_id
 from ..models import Asset, Export, Job, Project, Transcript
+from ..pipeline import compose
 from ..pipeline import exports as export_pipeline
 from ..pipeline import frame as framing
 from ..pipeline import jobs as job_pipeline
-from ..pipeline.compose import ASPECTS, LAYOUTS
+from ..pipeline.compose import ASPECTS, CAPTION_POSITIONS, LAYOUTS, TITLE_STYLES, ZOOMS
 from ..pipeline.find import GENRES
 
 router = APIRouter()
@@ -24,6 +25,34 @@ COVERAGE = {"best", "whole", "none"}
 MODES = {"auto", "speech", "energy", "visual"}
 EDIT_LEVELS = {"clips", "captions", "cropped", "full"}
 FRAMING = {"auto", "both", "center", "manual"}
+
+
+def _check_edit(data: dict) -> None:
+    """The validation a project edit and a preview override share."""
+    if "aspect" in data and data["aspect"] not in ASPECTS:
+        raise EngineError("VALIDATION_ERROR", f"aspect must be one of {sorted(ASPECTS)}.")
+    if "layout" in data and data["layout"] not in LAYOUTS:
+        raise EngineError("VALIDATION_ERROR", f"layout must be one of {sorted(LAYOUTS)}.")
+    framing_ = data.get("framing") or {}
+    if framing_.get("zoom") is not None and framing_["zoom"] not in ZOOMS:
+        raise EngineError("VALIDATION_ERROR", f"framing.zoom must be one of {sorted(ZOOMS)}.")
+    if framing_.get("mode") is not None and framing_["mode"] not in FRAMING:
+        raise EngineError("VALIDATION_ERROR", f"framing.mode must be one of {sorted(FRAMING)}.")
+    options = data.get("caption_options") or {}
+    if options.get("position") is not None and options["position"] not in CAPTION_POSITIONS:
+        raise EngineError("VALIDATION_ERROR", f"caption_options.position must be one of {list(CAPTION_POSITIONS)}.")
+    if options.get("size") is not None:
+        try:
+            size = float(options["size"])
+        except (TypeError, ValueError):
+            raise EngineError("VALIDATION_ERROR", "caption_options.size must be a number.")
+        if not 0.5 <= size <= 2.0:
+            raise EngineError("VALIDATION_ERROR", "caption_options.size must be between 0.5 and 2.")
+    if options.get("max_words") is not None and not (1 <= int(options["max_words"]) <= 8):
+        raise EngineError("VALIDATION_ERROR", "caption_options.max_words must be between 1 and 8.")
+    title = data.get("title") or {}
+    if title.get("style") is not None and title["style"] not in TITLE_STYLES:
+        raise EngineError("VALIDATION_ERROR", f"title.style must be one of {list(TITLE_STYLES)}.")
 
 
 # ------------------------------------------------------------------ transcripts
@@ -83,12 +112,26 @@ class AutoClipBody(BaseModel):
     aspect: str = "9:16"
     formats: list[str] = Field(default_factory=lambda: ["full-video"])
     framing: str = "auto"
+    #: off | auto | moments — see shots.py
+    zoom: str = "auto"
     language: str | None = None
     caption_style_id: str = "bold_white"
+    caption_position: str | None = None
+    caption_size: float | None = None
+    title_enabled: bool = True
+    title_style: str = "bold_band"
     vocabulary: list[str] = Field(default_factory=list)
     edits: dict = Field(default_factory=dict)
 
     def validated(self) -> dict:
+        if self.zoom not in ZOOMS:
+            raise EngineError("VALIDATION_ERROR", f"zoom must be one of {sorted(ZOOMS)}.")
+        if self.caption_position is not None and self.caption_position not in CAPTION_POSITIONS:
+            raise EngineError("VALIDATION_ERROR", f"caption_position must be one of {list(CAPTION_POSITIONS)}.")
+        if self.caption_size is not None and not 0.5 <= self.caption_size <= 2.0:
+            raise EngineError("VALIDATION_ERROR", "caption_size must be between 0.5 and 2.")
+        if self.title_style not in TITLE_STYLES:
+            raise EngineError("VALIDATION_ERROR", f"title_style must be one of {list(TITLE_STYLES)}.")
         if self.coverage not in COVERAGE:
             raise EngineError("VALIDATION_ERROR", f"coverage must be one of {sorted(COVERAGE)}.")
         if self.mode not in MODES:
@@ -202,10 +245,12 @@ def patch_project(project_id: str, body: PatchBody) -> dict:
         if not p or p.deleted_at:
             raise EngineError("NOT_FOUND", "No clip with that id.")
         data = {k: v for k, v in body.model_dump().items() if v is not None}
-        if "aspect" in data and data["aspect"] not in ASPECTS:
-            raise EngineError("VALIDATION_ERROR", f"aspect must be one of {sorted(ASPECTS)}.")
-        if "layout" in data and data["layout"] not in LAYOUTS:
-            raise EngineError("VALIDATION_ERROR", f"layout must be one of {sorted(LAYOUTS)}.")
+        _check_edit(data)
+        # Partial dictionaries merge: sending {"zoom": "off"} must not drop
+        # the focus the finder chose, nor {"position": "top"} the censored words.
+        for key in ("framing", "caption_options", "title"):
+            if key in data and isinstance(data[key], dict):
+                data[key] = {**(getattr(p, key) or {}), **data[key]}
         if "in_ms" in data or "out_ms" in data:
             new_in = data.get("in_ms", p.in_ms)
             new_out = data.get("out_ms", p.out_ms)
@@ -251,25 +296,37 @@ RENDER_FIELDS = {"in_ms", "out_ms", "aspect", "layout", "framing", "caption_styl
                  "caption_options", "captions", "title", "watermark", "background"}
 
 
+class PreviewBody(PatchBody):
+    """Settings to try without saving them. Empty means the clip as it is."""
+
+
 @router.post("/v1/projects/{project_id}/preview")
-def make_preview(project_id: str) -> dict:
+def make_preview(project_id: str, body: PreviewBody | None = None) -> dict:
+    overrides = {k: v for k, v in (body.model_dump() if body else {}).items() if v is not None}
+    _check_edit(overrides)
     with session() as s:
         p = s.get(Project, project_id)
         if not p or p.deleted_at:
             raise EngineError("NOT_FOUND", "No clip with that id.")
+        if overrides:
+            # The editor trying a layout: a one-off, never the remembered preview.
+            return ok(preview_url=export_pipeline.preview(s, p, overrides=overrides), saved=False)
         # Hand back the one already cut. Rendering is seconds of CPU even at
         # preview quality, and this runs inside the request while the worker
         # may be rendering the same clip for export. Any edit clears the key
         # (see patch_project), so a cached preview is never a stale one.
         if p.preview_key:
-            return ok(preview_url=storage.public_url(p.preview_key))
-        return ok(preview_url=export_pipeline.preview(s, p))
+            return ok(preview_url=storage.public_url(p.preview_key), saved=True)
+        return ok(preview_url=export_pipeline.preview(s, p), saved=True)
 
 
 @router.get("/v1/projects/{project_id}/framing")
-def project_framing(project_id: str, aspect: str = "") -> dict:
-    """Where every layout would put its crop, so the editor can draw its own.
+def project_framing(project_id: str, aspect: str = "", layout: str = "", zoom: str = "") -> dict:
+    """The shot list this clip renders with, so the editor can draw it.
 
+    Shot by shot: kind (fill, fit, split, grid, screen, pip, bars, headline,
+    feed), the crop boxes in source pixels and where a fill crop pans. Pass
+    `aspect`, `layout` or `zoom` to see what a different choice would do.
     The analysis behind this is cached per source and range, so asking for it
     costs nothing after the first clip of a video.
     """
@@ -278,24 +335,29 @@ def project_framing(project_id: str, aspect: str = "") -> dict:
         if not p or p.deleted_at:
             raise EngineError("NOT_FOUND", "No clip with that id.")
         want = aspect or p.aspect
-        if want not in ASPECTS:
-            raise EngineError("VALIDATION_ERROR", f"aspect must be one of {sorted(ASPECTS)}.")
+        overrides: dict = {"aspect": want}
+        if layout:
+            overrides["layout"] = layout
+        if zoom:
+            overrides["framing"] = {"zoom": zoom}
+        _check_edit(overrides)
         source = s.get(Asset, p.asset_id)
         if not source:
             raise EngineError("NOT_FOUND", "The source for that clip no longer exists.")
         path = storage.local_path(source.mezzanine_key or source.storage_key)
-        mode = (p.framing or {}).get("mode", "auto")
-        track = framing.track(path, mode=mode, in_ms=p.in_ms, out_ms=p.out_ms)
-        # The voices decide as much as the faces do, and the preview has to
-        # see the same thing the render will.
-        tracks, turns_, cuts = framing.speech(path, in_ms=p.in_ms, out_ms=p.out_ms)
-        w, h = ASPECTS[want]
-        focus = (p.framing or {}).get("focus", "auto")
-        if mode != "center":
-            track = framing.direct(track, path, w, h, in_ms=p.in_ms, out_ms=p.out_ms, focus=focus)
-        return ok(aspect=want, layout=p.layout, focus=focus,
-                  **framing.geometry(track, w, h, tracks=tracks, turns_=turns_, focus=focus,
-                                     cuts=cuts))
+        render = export_pipeline.render_for(p, path, path.with_suffix(".plan.mp4"), overrides=overrides)
+        plan, inputs = compose.plan_for(render)
+        track = inputs.track
+        faces = [{"x": f.x, "y": f.y, "w": f.w, "h": f.h, "share": f.share}
+                 for f in getattr(track, "faces", [])]
+        return ok(aspect=want, layout=render.layout, zoom=render.zoom, focus=render.focus,
+                  source={"w": inputs.width, "h": inputs.height},
+                  output={"w": inputs.out_w, "h": inputs.out_h},
+                  strategy=getattr(track, "strategy", "none"),
+                  seam=framing.seam_of(track) if track is not None else None,
+                  faces=faces, people=len(inputs.tracks), cuts=[c - p.in_ms for c in inputs.cuts],
+                  shots=[sh.as_dict(p.in_ms) for sh in plan],
+                  summary={k: v for k, v in sorted(compose.shotplan.summary(plan).items(), key=lambda kv: -kv[1])})
 
 
 class ExportBody(BaseModel):

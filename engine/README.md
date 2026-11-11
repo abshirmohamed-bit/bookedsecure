@@ -15,8 +15,8 @@ model for judgement, and the host and bucket you rent.
 | Ingest | `ffprobe` for the real duration and size, a thumbnail, and a mezzanine at the **source resolution** — a 4K source stays 4K, so a 9:16 crop out of it is still sharp |
 | Transcribe | faster-whisper with word-level timestamps, your own vocabulary hinted so names are spelled right |
 | Find moments | Claude reads the transcript and picks what works as a short; every pick is snapped to sentence boundaries and de-overlapped |
-| Frame | the speaker is tracked and the 9:16 window pans to follow, smoothed so it drifts rather than snaps |
-| Caption | word timings become ASS subtitles in one of 20 styles, burned into the render |
+| Frame | shot by shot (`pipeline/shots.py`): the clip is split at its camera cuts and each shot is composed on its own — a crop on whoever is talking, pushed in when they are small and held still; two people who share a shot stacked; a group in a grid; a screenshot or slide shown whole over a blur; a small face over a wide picture as screen + speaker. The layouts (`auto`, `full-video`, `split`, `grid`, `screen`, `pip`, `streamer`, `black-box`, `title-subtitles`) and zoom (`off`, `auto`, `moments`) are policies over the same shot list, and `GET /v1/catalog` lists every choice |
+| Caption | word timings become ASS subtitles in one of 20 styles, burned into the render; position, size and words per line can be set per clip (`caption_options`) |
 | Export | a real 1080×1920 (or 2160×3840) H.264 file on a public URL |
 
 ## Running it

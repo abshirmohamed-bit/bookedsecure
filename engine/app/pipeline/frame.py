@@ -586,6 +586,8 @@ def plan(track: Track | None, tracks, turns_, out_w: int, out_h: int,
 #: read its mouths costs seconds and the answer cannot change unless the file
 #: or the range does.
 _SPEECH: "OrderedDict[tuple, tuple]" = OrderedDict()
+#: The detail profiles read in the same pass, by the same key.
+_DETAIL: "OrderedDict[tuple, list]" = OrderedDict()
 
 
 def speech(video: Path, *, in_ms: int = 0, out_ms: int | None = None):
@@ -596,14 +598,64 @@ def speech(video: Path, *, in_ms: int = 0, out_ms: int | None = None):
     if key is not None and key in _SPEECH:
         _SPEECH.move_to_end(key)
         return _SPEECH[key]
-    tracks, cuts = sp.face_tracks(video, in_ms=in_ms, out_ms=out_ms)
+    detail: list = []
+    tracks, cuts = sp.face_tracks(video, in_ms=in_ms, out_ms=out_ms, detail=detail)
     turns = sp.turns(tracks, sp.energy(video, in_ms=in_ms, out_ms=out_ms)) if tracks else []
     result = (tracks, turns, cuts)
     if key is not None:
         _SPEECH[key] = result
+        _DETAIL[key] = detail
         while len(_SPEECH) > CACHE_MAX:
             _SPEECH.popitem(last=False)
+        while len(_DETAIL) > CACHE_MAX:
+            _DETAIL.popitem(last=False)
     return result
+
+
+def details(video: Path, *, in_ms: int = 0, out_ms: int | None = None) -> list:
+    """The detail profiles the speech pass read, (ms, bins) per detection."""
+    key = _key(video, "speech", 0, in_ms, out_ms)
+    return list(_DETAIL.get(key, [])) if key is not None else []
+
+
+def _tracks_from_faces(track: Track, start_ms: int, end_ms: int) -> list:
+    """People the clip-level pass found, as tracks spanning the clip.
+
+    The fallback when the shot analysis could not run: the faces are only
+    known as clip-wide clusters, so each is treated as present throughout.
+    """
+    from .speaker import FaceTrack
+
+    out = []
+    for f in people(track, limit=4):
+        box = (f.x, f.y, f.w, f.h)
+        out.append(FaceTrack(id=f.id, boxes=[(start_ms, box), (max(start_ms, end_ms - 1), box)]))
+    return out
+
+
+def analyse(video: Path, *, in_ms: int = 0, out_ms: int | None = None, mode: str = "auto"):
+    """Everything the shot plan needs: (track, tracks, turns, cuts, detail).
+
+    Each part is cached by source and range, so the editor's framing call,
+    the preview and the export all pay for one analysis between them.
+    """
+    import logging
+
+    t = track(video, mode=mode, in_ms=in_ms, out_ms=out_ms)
+    tracks: list = []
+    turns_: list = []
+    cuts: list[int] = []
+    detail: list = []
+    if t.strategy in {"yunet", "haar"}:
+        try:
+            tracks, turns_, cuts = speech(video, in_ms=in_ms, out_ms=out_ms)
+            detail = details(video, in_ms=in_ms, out_ms=out_ms)
+        except Exception:
+            logging.getLogger("engine.frame").exception("shot analysis failed; using the clip-level faces")
+    if not tracks and t.faces:
+        end = out_ms if out_ms is not None else max([s[0] for s in t.samples] + [in_ms]) + 1
+        tracks = _tracks_from_faces(t, in_ms, end)
+    return t, tracks, turns_, cuts, detail
 
 
 def follow_speaker(track: Track, video: Path, *, in_ms: int = 0,

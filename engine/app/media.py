@@ -35,15 +35,17 @@ def _bin(name: str) -> str:
     return path
 
 
-def run(args: list[str], timeout: int = 3600) -> subprocess.CompletedProcess:
-    proc = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+def run(args: list[str], timeout: int = 3600, cwd: Path | None = None) -> subprocess.CompletedProcess:
+    proc = subprocess.run(args, capture_output=True, text=True, timeout=timeout, cwd=str(cwd) if cwd else None)
     if proc.returncode != 0:
         tail = (proc.stderr or "").strip().splitlines()[-4:]
         raise EngineError("VALIDATION_ERROR", "ffmpeg failed: " + " / ".join(tail))
     return proc
 
 
-def ffmpeg(args: list[str], timeout: int = 3600) -> subprocess.CompletedProcess:
+def ffmpeg(args: list[str], timeout: int = 3600, cwd: Path | None = None) -> subprocess.CompletedProcess:
+    """Run ffmpeg. `cwd` lets a filter graph name its side files bare, which is
+    the one spelling that needs no escaping on any platform."""
     threads = str(settings().worker_threads())
     bounded = []
     for arg in args:
@@ -54,7 +56,7 @@ def ffmpeg(args: list[str], timeout: int = 3600) -> subprocess.CompletedProcess:
     bounded[-1:-1] = ["-threads", threads]
     with _processing_slot():
         return run([_bin("ffmpeg"), "-hide_banner", "-loglevel", "error", "-y",
-                    "-filter_threads", threads, "-filter_complex_threads", threads, *bounded], timeout)
+                    "-filter_threads", threads, "-filter_complex_threads", threads, *bounded], timeout, cwd=cwd)
 
 
 @dataclass

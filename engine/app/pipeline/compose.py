@@ -1,21 +1,32 @@
 """Turning a project into a finished vertical video.
 
-One ffmpeg pass builds the whole frame: cut, reframe, layout, burn captions,
-draw the title and handle, normalise the audio, encode. Every feature is a
-function that adds to the filter graph, so the app's Finish panel maps onto
+One ffmpeg pass builds the whole frame: cut, reframe shot by shot, lay out,
+burn captions, draw the title and handle, normalise the audio, encode. The
+picture is made from a shot list (shots.py): the clip is split at its camera
+cuts, each shot is composed on its own — a crop that follows the speaker, two
+people stacked, a screenshot shown whole — and the pieces are joined back
+together, so one clip can change layout as its footage does. Every feature is
+a function that adds to the filter graph, so the app's Finish panel maps onto
 these fields one-to-one.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .. import media
 from . import frame as framing
+from . import shots as shotplan
 from .caption import BY_ID, Style, build_ass
 
+log = logging.getLogger("engine.compose")
+
 ASPECTS = {"9:16": (1080, 1920), "1:1": (1080, 1080), "4:5": (1080, 1350), "16:9": (1920, 1080)}
-LAYOUTS = {"auto", "full-video", "streamer", "black-box", "title-subtitles", "split"}
+LAYOUTS = set(shotplan.LAYOUTS)
+ZOOMS = set(shotplan.ZOOMS)
+CAPTION_POSITIONS = ("top", "middle", "lower")
+TITLE_STYLES = ("bold_band", "boxed", "headline", "clean")
 
 
 @dataclass
@@ -46,11 +57,18 @@ class Render:
     #: A moment picked because of how someone reacted is thrown away by a
     #: tight shot of whoever happens to be talking.
     focus: str = "auto"
+    #: off | auto (push in on wide shots) | moments (and punch in on lines)
+    zoom: str = "auto"
     words: list[dict] | None = None
     caption_style_id: str = "bold_white"
     captions_enabled: bool = True
+    #: Overrides of the style's own placement: top | middle | lower, a size
+    #: multiplier, and words per line. None keeps what the style says.
+    caption_position: str | None = None
+    caption_size: float = 1.0
+    caption_max_words: int | None = None
     censored: list[str] | None = None
-    title: dict | None = None               # {text, style, position}
+    title: dict | None = None               # {text, style, enabled}
     watermark: dict | None = None           # {text, position, opacity}
     broll: Path | None = None
     resolution: str = "1080p"
@@ -102,13 +120,48 @@ def _escape_drawtext(text: str) -> str:
             .replace("'", r"'\''"))
 
 
+def fpath(path: Path | str) -> str:
+    """A file path as a filter option value.
+
+    Inside a filter graph a colon ends the option, so a Windows drive letter
+    has to be escaped; forward slashes are fine everywhere.
+    """
+    return str(Path(path).as_posix()).replace("\\", "/").replace(":", r"\:")
+
+
 def _text_source(text: str, workdir: Path | None, name: str) -> str:
     """`textfile=` when there is somewhere to write, `text=` otherwise."""
     if workdir is None:
         return f"text='{_escape_drawtext(text)}'"
     path = workdir / f"{name}.txt"
     path.write_text(text, encoding="utf-8")
-    return f"textfile={path.as_posix()}:reload=0"
+    # Bare: the graph runs with the work folder as its working directory (see
+    # `run`), and a bare name needs no escaping on any platform.
+    return f"textfile={path.name}:reload=0"
+
+
+def _font_option(workdir: Path | None = None) -> str:
+    """How drawtext finds its face: by file when one is configured, else by name.
+
+    With a work folder the font is copied in and named bare, which needs no
+    escaping; without one the path is quoted and escaped for a -vf graph.
+    """
+    import shutil
+
+    from ..config import settings
+
+    file = settings().font_file.strip()
+    if not file:
+        return ""
+    if workdir is not None:
+        local = workdir / ("title" + (Path(file).suffix or ".ttf"))
+        if not local.exists():
+            try:
+                shutil.copyfile(file, local)
+            except OSError:
+                return ""
+        return f":fontfile={local.name}"
+    return f":fontfile={fpath(file)}"
 
 
 def wrap_title(text: str, max_chars: int, max_lines: int = 2) -> list[str]:
@@ -132,16 +185,65 @@ def wrap_title(text: str, max_chars: int, max_lines: int = 2) -> list[str]:
     # anything that did not fit is trimmed onto the last line with an ellipsis
     used = sum(len(l.split()) for l in lines)
     if used < len(words):
-        lines[-1] = lines[-1][: max(0, max_chars - 1)].rstrip() + "\u2026"
+        lines[-1] = lines[-1][: max(0, max_chars - 1)].rstrip() + "…"
     return lines
 
 
-def _title_filter(title: dict, w: int, h: int, workdir: Path | None = None) -> str:
-    """A headline that always fits: wrapped to two lines, then shrunk to the width.
+def title_lines(text: str, w: int, h: int) -> tuple[list[str], int]:
+    """(lines, font size) for a headline that always fits.
 
     ffmpeg cannot measure text for us, so the size is derived from the longest
-    line. 0.52em is a safe average advance for a heavy sans.
+    line. 0.52em is a safe average advance for a heavy sans. A headline that
+    will not fit on two lines at the base size tries a smaller size on three
+    before anything is cut off: a title that ends in "…" has lost its point.
     """
+    base = max(20, int(h * 0.034))
+    usable = w * 0.84
+    best: tuple[list[str], int] | None = None
+    for max_lines, size in ((2, base), (3, int(base * 0.9)), (3, int(base * 0.8))):
+        max_chars = max(10, int(usable / (0.52 * size)))
+        lines = wrap_title(text, max_chars, max_lines)
+        if not lines:
+            return [], size
+        if best is None:
+            best = (lines, size)
+        if not lines[-1].endswith("…"):
+            best = (lines, size)
+            break
+    lines, size = best or ([], base)
+    longest = max((len(l) for l in lines), default=1)
+    size = max(16, int(min(size, usable / (0.52 * max(1, longest)))))
+    return lines, size
+
+
+#: Where the headline goes: at the top unless told otherwise, or unless the
+#: person's head is already up there (see `title_place`).
+TITLE_POSITIONS = ("auto", "top", "bottom")
+#: A face whose top is above this share of the frame has the headline on it.
+HEAD_UP_HIGH = 0.16
+
+
+def title_place(title: dict, head_top: float | None, top_busy: float = 0.0,
+                bottom_busy: float = 0.0) -> str:
+    """"top" or "bottom" for this clip's headline.
+
+    Up top unless the head is already there, and then at the bottom only if
+    the bottom is the calmer place: a news lower-third is busier than a
+    forehead, and the headline goes over the forehead.
+    """
+    want = title.get("position", "auto")
+    if want in {"top", "bottom"}:
+        return want
+    if head_top is not None and head_top < HEAD_UP_HIGH and bottom_busy <= top_busy:
+        return "bottom"
+    return "top"
+
+
+def _title_filter(title: dict, w: int, h: int, workdir: Path | None = None,
+                  top: int | None = None, place: str = "top") -> str:
+    """A headline that always fits: wrapped, then shrunk to the width."""
+    if title.get("enabled") is False:
+        return ""
     text = (title.get("text") or "").strip()
     if not text:
         return ""
@@ -149,24 +251,23 @@ def _title_filter(title: dict, w: int, h: int, workdir: Path | None = None) -> s
     upper = kind in {"bold_band", "headline"}
     if upper:
         text = text.upper()
-
-    base = max(20, int(h * 0.034))
-    usable = w * 0.84
-    # start from the base size, wrap to what fits, then shrink if a line is still long
-    max_chars = max(10, int(usable / (0.52 * base)))
-    lines = wrap_title(text, max_chars)
+    lines, size = title_lines(text, w, h)
     if not lines:
         return ""
-    longest = max(len(l) for l in lines)
-    size = int(min(base, usable / (0.52 * max(1, longest))))
-    size = max(16, size)
-
     gap = int(size * 1.18)
-    top = int(h * 0.06)
+    block = len(lines) * gap
+    if top is not None:
+        y0 = top
+    elif place == "bottom":
+        # Above the handle and clear of the bottom caption band.
+        y0 = int(h * 0.80) - block
+    else:
+        y0 = int(h * 0.06)
+    font = _font_option(workdir)
     parts: list[str] = []
     for i, line in enumerate(lines):
-        y = top + i * gap
-        common = (f"{_text_source(line, workdir, f'title_{i}')}:fontcolor=white:fontsize={size}"
+        y = y0 + i * gap
+        common = (f"{_text_source(line, workdir, f'title_{i}')}{font}:fontcolor=white:fontsize={size}"
                   f":x=(w-text_w)/2:y={y}")
         if kind == "bold_band":
             parts.append(f"drawtext={common}:box=1:boxcolor=black@0.78:boxborderw={int(size * 0.42)}")
@@ -192,7 +293,8 @@ def _watermark_filter(mark: dict, w: int, h: int, workdir: Path | None = None) -
     y = {"top-left": f"{int(h * 0.05)}", "top-right": f"{int(h * 0.05)}",
          "bottom-left": f"h-text_h-{int(h * 0.05)}", "bottom-right": f"h-text_h-{int(h * 0.05)}",
          "centre-below-captions": f"{int(h * 0.62)}"}.get(pos, f"h-text_h-{int(h * 0.05)}")
-    return f"drawtext={_text_source(text, workdir, 'watermark')}:fontcolor=white@{opacity}:fontsize={size}:x={x}:y={y}"
+    return (f"drawtext={_text_source(text, workdir, 'watermark')}{_font_option(workdir)}"
+            f":fontcolor=white@{opacity}:fontsize={size}:x={x}:y={y}")
 
 
 def stitch(render: Render, workdir: Path) -> tuple[Path, int, int]:
@@ -287,174 +389,214 @@ def flatten(render: Render, workdir: Path) -> Render:
     )
 
 
+# ------------------------------------------------------------------ the plan
+
+def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
+    """The shot list for this render, from one analysis of its range.
+
+    The render and the editor's preview both come here, so what the editor
+    draws is what gets made. Any failure in the analysis falls back to a
+    centred crop rather than a failed export.
+    """
+    w, h = render.size
+    source = render.source
+    assert source is not None
+    track = None
+    tracks: list = []
+    turns_: list = []
+    cuts: list[int] = []
+    detail: list = []
+    if render.framing_mode not in {"center", "manual"}:
+        try:
+            track, tracks, turns_, cuts, detail = framing.analyse(
+                source, in_ms=render.in_ms, out_ms=render.out_ms)
+        except Exception:
+            log.exception("shot analysis failed; rendering a centred crop")
+    sw = getattr(track, "width", 0) or 0
+    sh = getattr(track, "height", 0) or 0
+    if not sw or not sh:
+        try:
+            info = media.probe(source)
+            sw, sh = info.width, info.height
+        except Exception:
+            sw, sh = w, h
+    inputs = shotplan.Inputs(
+        width=sw, height=sh, out_w=w, out_h=h, in_ms=render.in_ms, out_ms=render.out_ms,
+        tracks=tracks, turns=turns_, cuts=cuts, detail=detail, track=track,
+        layout=render.layout, focus=render.focus, zoom=render.zoom, words=render.words,
+    )
+    return shotplan.plan(inputs), inputs
+
+
+# ------------------------------------------------------------------ per-shot graphs
+
+def _seconds(ms: int) -> str:
+    return f"{max(0, ms) / 1000:.3f}"
+
+
+def _pan_file(shot: shotplan.Shot, name: str, workdir: Path) -> str:
+    """The crop's x over the shot, as a sendcmd script in shot time."""
+    lines = []
+    for ms, x in shot.pan:
+        lines.append(f"{max(0.0, (ms - shot.start_ms) / 1000):.3f} {name} x {x};")
+    path = workdir / f"{name.replace('@', '_')}.cmd"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path.name
+
+
+def _scale(w: int, h: int) -> str:
+    return f"scale={w}:{h}:flags=lanczos"
+
+
+def _fit_chain(w: int, h: int) -> str:
+    return f"scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos"
+
+
+def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h: int,
+                workdir: Path) -> tuple[list[str], int]:
+    """Filter graph lines turning [s{i}] into [v{i}]. Returns (lines, copies of [s{i}] used)."""
+    head = f"trim=start={_seconds(shot.start_ms - inputs.in_ms)}:end={_seconds(shot.end_ms - inputs.in_ms)},setpts=PTS-STARTPTS"
+    s = f"s{i}"
+    out = f"v{i}"
+    lines: list[str] = []
+
+    def fill(label_in: str, label_out: str) -> None:
+        win = shot.window
+        assert win is not None
+        name = f"crop@c{i}"
+        pan = f"sendcmd=f={_pan_file(shot, name, workdir)}," if len(shot.pan) > 1 else ""
+        lines.append(f"[{label_in}]{pan}{name}={win.w}:{win.h}:{win.x}:{win.y},{_scale(w, h)},setsar=1[{label_out}]")
+
+    def fit(label_in: str, label_out: str, copies_from: str | None = None) -> None:
+        lines.append(f"[{label_in}]split=2[{label_out}a][{label_out}b]")
+        lines.append(f"[{label_out}a]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},boxblur=24:2[{label_out}bg]")
+        lines.append(f"[{label_out}b]{_fit_chain(w, h)}[{label_out}fg]")
+        lines.append(f"[{label_out}bg][{label_out}fg]overlay=(W-w)/2:(H-h)/2,setsar=1[{label_out}]")
+
+    if shot.kind == "fill":
+        lines.append(f"[{s}]{head}[{s}t]")
+        fill(f"{s}t", out)
+        return lines, 1
+    if shot.kind == "fit":
+        lines.append(f"[{s}]{head}[{s}t]")
+        fit(f"{s}t", out)
+        return lines, 1
+    if shot.kind in {"bars", "headline"}:
+        lines.append(f"[{s}]{head},{_fit_chain(w, h)},pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1[{out}]")
+        return lines, 1
+    if shot.kind == "feed":
+        box = shot.main
+        assert box is not None
+        lines.append(f"[{s}]{head},{box.crop()},{_scale(w, h)},setsar=1[{out}]")
+        return lines, 1
+    if shot.kind in {"split", "grid"}:
+        cells = shot.cells
+        k = len(cells)
+        portrait = h >= w
+        if k == 4:
+            cw, ch = w // 2 - (w // 2) % 2, h // 2 - (h // 2) % 2
+        elif portrait:
+            cw, ch = w, h // k - (h // k) % 2
+        else:
+            cw, ch = w // k - (w // k) % 2, h
+        lines.append(f"[{s}]{head},split={k}" + "".join(f"[{s}p{j}]" for j in range(k)))
+        for j, box in enumerate(cells):
+            lines.append(f"[{s}p{j}]{box.crop()},{_scale(cw, ch)},setsar=1[{s}k{j}]")
+        if k == 4:
+            lines.append(f"[{s}k0][{s}k1]hstack=inputs=2[{s}r0]")
+            lines.append(f"[{s}k2][{s}k3]hstack=inputs=2[{s}r1]")
+            lines.append(f"[{s}r0][{s}r1]vstack=inputs=2,{_scale(w, h)},setsar=1[{out}]")
+        else:
+            stack = "vstack" if portrait else "hstack"
+            lines.append("".join(f"[{s}k{j}]" for j in range(k)) + f"{stack}=inputs={k},{_scale(w, h)},setsar=1[{out}]")
+        return lines, 1
+    if shot.kind == "screen":
+        top, bottom = shotplan.screen_split(inputs)
+        box = shot.main
+        assert box is not None
+        lines.append(f"[{s}]{head},split=2[{s}a][{s}b]")
+        lines.append(f"[{s}a]scale={w}:{top}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{top},setsar=1[{s}sc]")
+        lines.append(f"[{s}b]{box.crop()},{_scale(w, bottom)},setsar=1[{s}pe]")
+        lines.append(f"[{s}sc][{s}pe]vstack=inputs=2,{_scale(w, h)},setsar=1[{out}]")
+        return lines, 1
+    if shot.kind == "pip":
+        inset = shot.inset
+        assert inset is not None
+        iw = int(w * 0.30)
+        iw -= iw % 2
+        ih = int(iw / 0.75)
+        ih -= ih % 2
+        lines.append(f"[{s}]{head},split=2[{s}m][{s}q]")
+        if shot.base == "fit" or shot.window is None:
+            fit(f"{s}m", f"{s}base")
+        else:
+            fill(f"{s}m", f"{s}base")
+        edge = max(2, int(w * 0.006))
+        lines.append(f"[{s}q]{inset.crop()},{_scale(iw, ih)},pad={iw + 2 * edge}:{ih + 2 * edge}:{edge}:{edge}:white,setsar=1[{s}in]")
+        lines.append(f"[{s}base][{s}in]overlay=W-w-{int(w * 0.04)}:{int(h * 0.18)},setsar=1[{out}]")
+        return lines, 1
+    raise ValueError(f"unknown shot kind {shot.kind}")
+
+
 def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
-    """Assemble the ffmpeg arguments. Returns (args, path of the sendcmd file or /dev/null)."""
+    """Assemble the ffmpeg arguments. Returns (args, path of the work folder)."""
     workdir.mkdir(parents=True, exist_ok=True)
     render = flatten(render, workdir)
     w, h = render.size
     dur_s = max(0.1, (render.out_ms - render.in_ms) / 1000)
 
-    inputs: list[str] = ["-ss", f"{render.in_ms / 1000:.3f}", "-t", f"{dur_s:.3f}", "-i", str(render.source)]
+    plan, inputs = plan_for(render)
+    if not plan:
+        plan = [shotplan.Shot(render.in_ms, render.out_ms, "bars", why="nothing to frame")]
+
     chain: list[str] = []
-
-    track = framing.track(render.source, mode=render.framing_mode,
-                          in_ms=render.in_ms, out_ms=render.out_ms) if render.framing_mode != "center" else None
-    sendcmd_path = workdir / "pan.cmd"
-
-    # "auto" asks the faces and the voices what shape the clip wants. The
-    # decision itself lives in framing.plan, which the editor's preview also
-    # calls — worked out separately they would drift, and a preview that does
-    # not match the render is worse than none.
-    one_feed = ""
-    layout = render.layout
-    if track is not None and render.source is not None:
-        # Shot by shot: re-aimed on every cut, held still within a shot, on
-        # the speaker when the people cannot all fit (on everyone, or the
-        # most prominent face, for a reaction clip). See director.py.
-        track = framing.direct(track, render.source, w, h, in_ms=render.in_ms,
-                               out_ms=render.out_ms, focus=render.focus)
-    if layout == "auto":
-        tracks, turns_, cuts = ((), (), [])  # nothing known until the clip is read
-        if track is not None and render.source is not None:
-            tracks, turns_, cuts = framing.speech(render.source,
-                                                  in_ms=render.in_ms, out_ms=render.out_ms)
-        chosen = framing.plan(track, tracks, turns_, w, h, render.focus, cuts)
-        layout = chosen["layout"]
-        if chosen["feed"]:
-            f = chosen["feed"]
-            one_feed = f"crop={f['w']}:{f['h']}:{f['x']}:{f['y']}"
-
-    cells = framing.cell_crops(track, w, h, 2) if layout == "split" and track else []
-    if layout == "split" and not cells:
-        layout = "full-video"
-    if layout == "one-feed" and not one_feed:
-        layout = "split" if cells else "full-video"
-
-    if layout in {"full-video", "title-subtitles"}:
-        crop, commands = framing.crop_filter(
-            track or framing.Track("center", 0, 0, [], []), w, h, render.out_ms - render.in_ms)
-        pan = _shift(commands, sendcmd_path, render.in_ms)
-        if pan:
-            chain.append(pan.rstrip(","))
-        chain.append(crop)
-        chain.append(f"scale={w}:{h}:flags=lanczos")
-    elif layout == "streamer":
-        # the clip over a blurred, filled copy of itself
-        return _two_layer(render, workdir, blur=True, track=track)
-    elif layout == "one-feed":
-        # the side of the composite the clip is actually about
-        chain.append(one_feed)
-        chain.append(f"scale={w}:{h}:flags=lanczos")
-    elif layout == "split":
-        # one cell per speaker, each framed on their own face
-        return _split_stack(render, workdir, cells)
-    elif layout == "black-box":
-        chain.append(f"scale={w}:-2:flags=lanczos")
-        chain.append(f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black")
+    n = len(plan)
+    chain.append(f"[0:v]fps=30,split={n}" + "".join(f"[s{i}]" for i in range(n)))
+    for i, shot in enumerate(plan):
+        lines, _ = _shot_graph(shot, i, inputs, w, h, workdir)
+        chain.extend(lines)
+    if n == 1:
+        chain[-1] = chain[-1].rsplit("[v0]", 1)[0] + "[base]"
     else:
-        chain.append(f"scale={w}:{h}:flags=lanczos:force_original_aspect_ratio=increase")
-        chain.append(f"crop={w}:{h}")
+        chain.append("".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[base]")
 
-    chain.append("setsar=1")
+    # The headline layout keeps its picture in the middle band: the title
+    # goes in the black above it, centred in that band.
+    title_top: int | None = None
+    if plan and plan[0].kind == "headline" and inputs.width and inputs.height:
+        fit_h = min(h, int(w * inputs.height / inputs.width))
+        band = (h - fit_h) // 2
+        lines_, size = title_lines(((render.title or {}).get("text") or "").upper(), w, h)
+        block = len(lines_) * int(size * 1.18) if lines_ else 0
+        title_top = max(int(h * 0.04), (band - block) // 2) if band > block else None
 
-    if render.finish_ass is not None:
-        ass = workdir / "finish.ass"
-        ass.write_text(render.finish_ass, encoding="utf-8")
-        chain.append(f"subtitles={ass.as_posix()}")
-    elif render.captions_enabled and render.words:
-        style = BY_ID.get(render.caption_style_id, BY_ID["bold_white"])
-        ass = workdir / "captions.ass"
-        ass.write_text(build_ass(render.words, style, w, h, censored=render.censored), encoding="utf-8")
-        chain.append(f"subtitles={ass.as_posix()}")
+    # Heads up against the top of the frame get the headline at the bottom.
+    tops = [b[1][1] - b[1][3] / 2 for t in inputs.tracks for b in t.boxes]
+    head_top = sorted(tops)[len(tops) // 2] if tops else None
+    bands = [(e[3], e[4]) for e in inputs.detail if len(e) > 4]
+    top_busy = sorted(b[0] for b in bands)[len(bands) // 2] if bands else 0.0
+    bottom_busy = sorted(b[1] for b in bands)[len(bands) // 2] if bands else 0.0
+    place = title_place(render.title or {}, head_top, top_busy, bottom_busy)
+    last = _overlays(render, workdir, chain, w, h, title_top=title_top, place=place)
 
-    if render.title and render.finish_ass is None:
-        f = _title_filter(render.title, w, h, workdir)
-        if f:
-            chain.append(f)
-    if render.watermark and render.finish_ass is None:
-        f = _watermark_filter(render.watermark, w, h, workdir)
-        if f:
-            chain.append(f)
-
-    vf = ",".join(c for c in chain if c)
-    args = [*inputs, "-vf", vf]
-    if render.loudnorm:
-        args += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
-    args += _encode_args(render)
-    args.append(str(render.out))
-    return args, sendcmd_path
-
-
-def _shift(commands: str | None, sendcmd_path: Path, in_ms: int) -> str:
-    """Write the pan script with times relative to the trimmed clip."""
-    if not commands:
-        return ""
-    shifted = []
-    for line in commands.splitlines():
-        at, _, rest = line.partition(" ")
-        try:
-            shifted.append(f"{max(0.0, float(at) - in_ms / 1000):.2f} {rest}")
-        except ValueError:
-            shifted.append(line)
-    sendcmd_path.write_text("\n".join(shifted), encoding="utf-8")
-    return f"sendcmd=f={sendcmd_path.as_posix()},"
-
-
-def _two_layer(render: Render, workdir: Path, blur: bool,
-               track: framing.Track | None = None) -> tuple[list[str], Path]:
-    """Streamer layout: the clip sits over a blurred fill of itself.
-
-    The subject is tracked here too. Without it the speaker sits wherever they
-    happened to stand and the blur does all the work, which is the look of a
-    clip nobody edited.
-    """
-    w, h = render.size
-    dur_s = max(0.1, (render.out_ms - render.in_ms) / 1000)
-    sendcmd_path = workdir / "pan.cmd"
-    crop, commands = framing.crop_filter(
-        track or framing.Track("center", 0, 0, [], []), w, h, render.out_ms - render.in_ms)
-    fg = f"[0:v]{_shift(commands, sendcmd_path, render.in_ms)}{crop},scale={w}:-2:flags=lanczos[fg]"
-    chain = [
-        f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},boxblur=24:2[bg]",
-        fg,
-        "[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[base]",
-    ]
-    last = _overlays(render, workdir, chain, w, h)
     args = ["-ss", f"{render.in_ms / 1000:.3f}", "-t", f"{dur_s:.3f}", "-i", str(render.source),
             "-filter_complex", ";".join(chain), "-map", f"[{last}]", "-map", "0:a?"]
     if render.loudnorm:
         args += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
     args += _encode_args(render)
     args.append(str(render.out))
-    return args, sendcmd_path
+    return args, workdir
 
 
-def _split_stack(render: Render, workdir: Path, cells: list[str]) -> tuple[list[str], Path]:
-    """Split layout: each speaker gets their own cell, stacked top to bottom.
-
-    One 9:16 window cannot hold two people sitting apart — centring on both
-    frames the gap between them. Each cell is cropped around its own face
-    instead, so a two-person interview reads as two close-ups.
-    """
-    w, h = render.size
-    dur_s = max(0.1, (render.out_ms - render.in_ms) / 1000)
-    rows = len(cells)
-    cell_h = max(2, (h // rows) - ((h // rows) % 2))
-    chain = [f"[0:v]{crop},scale={w}:{cell_h}:flags=lanczos,setsar=1[cell{i}]"
-             for i, crop in enumerate(cells)]
-    chain.append("".join(f"[cell{i}]" for i in range(rows))
-                 + f"vstack=inputs={rows},scale={w}:{h}:flags=lanczos,setsar=1[base]")
-    last = _overlays(render, workdir, chain, w, h)
-    args = ["-ss", f"{render.in_ms / 1000:.3f}", "-t", f"{dur_s:.3f}", "-i", str(render.source),
-            "-filter_complex", ";".join(chain), "-map", f"[{last}]", "-map", "0:a?"]
-    if render.loudnorm:
-        args += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
-    args += _encode_args(render)
-    args.append(str(render.out))
-    return args, workdir / "pan.cmd"
+def _captions_ass(render: Render, w: int, h: int) -> str:
+    style = BY_ID.get(render.caption_style_id, BY_ID["bold_white"])
+    return build_ass(render.words or [], style, w, h, censored=render.censored,
+                     position=render.caption_position, size_scale=render.caption_size,
+                     max_words=render.caption_max_words)
 
 
-def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int) -> str:
+def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int,
+              title_top: int | None = None, place: str = "top") -> str:
     """Append captions, title and watermark to a filter_complex graph.
 
     Takes the graph ending in [base] and returns the name of the last link, so
@@ -464,20 +606,27 @@ def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int) -
     if render.finish_ass is not None:
         ass = workdir / "finish.ass"
         ass.write_text(render.finish_ass, encoding="utf-8")
-        chain.append(f"[{last}]subtitles={ass.as_posix()}[finish]")
+        chain.append(f"[{last}]subtitles={ass.name}[finish]")
         return "finish"
     if render.captions_enabled and render.words:
-        style = BY_ID.get(render.caption_style_id, BY_ID["bold_white"])
         ass = workdir / "captions.ass"
-        ass.write_text(build_ass(render.words, style, w, h, censored=render.censored), encoding="utf-8")
-        chain.append(f"[{last}]subtitles={ass.as_posix()}[cap]")
+        ass.write_text(_captions_ass(render, w, h), encoding="utf-8")
+        chain.append(f"[{last}]subtitles={ass.name}[cap]")
         last = "cap"
-    for name, f in (("title", _title_filter(render.title or {}, w, h, workdir)),
+    for name, f in (("title", _title_filter(render.title or {}, w, h, workdir, top=title_top, place=place)),
                     ("mark", _watermark_filter(render.watermark or {}, w, h, workdir))):
         if f:
             chain.append(f"[{last}]{f}[{name}]")
             last = name
     return last
+
+
+def graph_of(args: list[str]) -> str:
+    """The filter graph inside a built argument list, for tests and logs."""
+    for flag in ("-filter_complex", "-vf"):
+        if flag in args:
+            return args[args.index(flag) + 1]
+    return ""
 
 
 def _encode_args(render: Render) -> list[str]:
@@ -492,5 +641,9 @@ def _encode_args(render: Render) -> list[str]:
 def run(render: Render, workdir: Path) -> Path:
     args, _ = build(render, workdir)
     render.out.parent.mkdir(parents=True, exist_ok=True)
-    media.ffmpeg(args)
+    # Source and output are absolute; the graph's own files are bare names
+    # resolved against the work folder.
+    special = {str(render.out)} | {str(s.source) for s in (render.segments or [])}
+    args = [str(Path(a).resolve()) if a in special else a for a in args]
+    media.ffmpeg(args, cwd=workdir)
     return render.out

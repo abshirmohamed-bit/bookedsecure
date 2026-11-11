@@ -41,6 +41,13 @@ LINK_DISTANCE = 0.10
 #: A track survives this long without a detection before it is closed, so a
 #: head turn or a hand across the face does not start a new person.
 TRACK_GAP_MS = 1500
+#: Width of the copy faces are read from. 480 missed faces in wide shots: a
+#: face a twentieth of a 1080p frame across is barely 24 pixels there, under
+#: what the detector holds on to. 640 keeps them without doubling the cost.
+PROXY_W = 640
+#: Columns in a detail profile (see `detail`): enough to tell whether a crop
+#: would cut through the content, few enough to keep per sample.
+DETAIL_BINS = 64
 #: A whole frame changing this much at once is a camera cut rather than
 #: anything moving inside the shot. Measured in grey levels, 0..255.
 CUT_MIN_DIFF = 18.0
@@ -124,8 +131,42 @@ def _mouth_patch(grey, box: tuple[float, float, float, float], size: int = 24):
     return patch - float(np.mean(patch))
 
 
+def detail_profile(grey) -> tuple[list[float], float, float, float]:
+    """(detail per slice left to right, share of flat pixels, top-band and
+    bottom-band edge density).
+
+    Text, screenshots and graphics have edges all the way across and large
+    plain areas between them; a person in front of a wall has edges in one
+    place; a busy studio or a street has edges everywhere and nothing plain.
+    The planner uses both: a crop that would throw away most of the detail of
+    a shot that is mostly flat is cutting a screenshot in half, and the shot
+    should be fitted whole instead.
+    """
+    import cv2
+    import numpy as np
+
+    g = grey.astype("int16")
+    d = np.abs(np.diff(g, axis=1))
+    edges = d > max(18.0, 2.5 * float(d.mean()))
+    flat = float((d < 3).mean())
+    rows = edges.shape[0]
+    # Where a headline could go: the top fifth and the bottom quarter. A
+    # lower-third banner or a caption bar lights the bottom one up.
+    top_band = float(edges[: max(1, rows // 5)].mean())
+    bottom_band = float(edges[rows - max(1, rows // 4):].mean())
+    col = edges.mean(axis=0).astype("float32")
+    if col.size < DETAIL_BINS:
+        bins = [round(float(v), 4) for v in np.interp(
+            np.linspace(0, col.size - 1, DETAIL_BINS), np.arange(col.size), col)]
+    else:
+        binned = cv2.resize(col[None, :], (DETAIL_BINS, 1), interpolation=cv2.INTER_AREA)[0]
+        bins = [round(float(v), 4) for v in binned]
+    return bins, round(flat, 4), round(top_band, 4), round(bottom_band, 4)
+
+
 def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                 detect_ms: int = DETECT_MS, fps: int = MOTION_FPS,
+                detail: list | None = None,
                 ) -> tuple[list[FaceTrack], list[int]]:
     """Follow each person through the clip, measuring their mouth as we go.
 
@@ -140,7 +181,9 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
     whole frame changing at once looks, to a mouth, exactly like a mouth
     moving — so no motion is measured across one either.
 
-    Returns the people and the times they were cut between.
+    Returns the people and the times they were cut between. Pass a list as
+    `detail` to also collect (ms, detail_profile) at every detection, which
+    is how the planner tells a screenshot from a shot of someone talking.
     """
     import cv2
     import numpy as np
@@ -166,7 +209,7 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
         # second, which is three frames of the wrong framing on every cut).
         raw = Path(directory) / "cuts.gray"
         media.ffmpeg([*args, "-i", str(video), "-an", "-filter_complex",
-                      f"[0:v]split=2[a][b];[a]scale=480:-2,fps={fps}[p];"
+                      f"[0:v]split=2[a][b];[a]scale={PROXY_W}:-2,fps={fps}[p];"
                       f"[b]scale={RAW_W}:{RAW_H},format=gray[r]",
                       "-map", "[p]", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
                       str(proxy), "-map", "[r]", "-f", "rawvideo", str(raw)],
@@ -217,6 +260,9 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                 boxes = [((x + w / 2) / fw, (y + h / 2) / fh, w / fw, h / fh)
                          for x, y, w, h in found]
                 _link(tracks, boxes, ms, since=since)
+                if detail is not None:
+                    bins, flat, top_band, bottom_band = detail_profile(grey)
+                    detail.append((ms, bins, flat, top_band, bottom_band))
 
             for t in tracks:
                 if ms - t.last_ms > TRACK_GAP_MS or t.last_ms < since:

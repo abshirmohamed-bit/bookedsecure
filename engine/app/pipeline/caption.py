@@ -106,19 +106,32 @@ def _escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("{", "(").replace("}", ")")
 
 
+POSITIONS = ("top", "middle", "lower")
+#: How far the size may be pushed either way before the words stop fitting.
+SIZE_RANGE = (0.6, 1.6)
+
+
 def build_ass(words: list[dict], style: Style, width: int, height: int, *,
               censored: list[str] | None = None, keyword_highlight: bool = False,
-              max_words: int = MAX_WORDS_PER_LINE) -> str:
-    """The whole subtitle file as a string, ready for ffmpeg's subtitles filter."""
+              max_words: int | None = MAX_WORDS_PER_LINE, position: str | None = None,
+              size_scale: float = 1.0) -> str:
+    """The whole subtitle file as a string, ready for ffmpeg's subtitles filter.
+
+    `position` and `size_scale` override what the style says, so the creator
+    can put the words where the picture allows without changing the look.
+    """
     scale = height / 1920
-    size = max(14, int(style.size * scale))
+    factor = max(SIZE_RANGE[0], min(SIZE_RANGE[1], float(size_scale or 1.0)))
+    size = max(14, int(style.size * scale * factor))
     outline = round(style.outline_w * scale, 1)
-    margin_v = int((height * (0.08 if style.position == "lower" else 0.5 if style.position == "middle" else 0.78)))
+    where = position if position in POSITIONS else style.position
+    margin_v = int((height * (0.08 if where == "lower" else 0.5 if where == "middle" else 0.78)))
     align = 2  # bottom-centre; MarginV positions it
-    if style.position == "middle":
+    if where == "middle":
         margin_v = int(height * 0.42)
-    elif style.position == "top":
+    elif where == "top":
         margin_v = int(height * 0.72)
+    max_words = max(1, min(8, int(max_words or MAX_WORDS_PER_LINE)))
 
     back = _ass_colour("000000", int(255 * (1 - style.box_opacity))) if style.box else _ass_colour("000000", 255)
     border_style = 3 if style.box else 1

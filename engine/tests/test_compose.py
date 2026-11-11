@@ -131,22 +131,22 @@ def test_a_title_with_an_apostrophe_renders(tmp_path):
     """A quote used to end the drawtext value early and break the whole graph.
 
     The failure was "No such filter: '30'" on a title reading
-    "WHAT HAPPENS WHEN YOU'VE POSTED 20, 30". This renders it for real.
+    "WHAT HAPPENS WHEN YOU'VE POSTED 20, 30". This renders it for real, through
+    the same path an export takes: the words in a side file, the graph run
+    from the work folder.
     """
     import subprocess
 
-    from app.pipeline.compose import _escape_drawtext
+    from app.pipeline import compose
 
-    title = "WHAT HAPPENS WHEN YOU'VE POSTED 20, 30"
-    out = tmp_path / "frame.png"
-    proc = subprocess.run(
-        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=320x180:d=0.1",
-         "-vf", f"drawtext=text='{_escape_drawtext(title)}':fontcolor=white:fontsize=18:x=4:y=4",
-         "-frames:v", "1", "-y", str(out)],
-        capture_output=True, text=True,
-    )
-    assert proc.returncode == 0, proc.stderr
-    assert out.exists() and out.stat().st_size > 0
+    src = tmp_path / "in.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=320x180:r=10:d=1",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(src)], check=True)
+    r = compose.Render(out=tmp_path / "out.mp4", source=src, in_ms=0, out_ms=1000, framing_mode="center",
+                       aspect="16:9", preview=True, loudnorm=False,
+                       title={"text": "WHAT HAPPENS WHEN YOU'VE POSTED 20, 30", "style": "bold_band"})
+    compose.run(r, tmp_path / "work")
+    assert (tmp_path / "out.mp4").stat().st_size > 0
 
 
 def test_every_character_that_breaks_a_filter_graph_is_escaped():
@@ -160,15 +160,15 @@ def test_every_character_that_breaks_a_filter_graph_is_escaped():
     assert "," in _escape_drawtext("20, 30")
 
 
-def test_the_blurred_layout_follows_the_subject_instead_of_ignoring_it():
-    """The streamer layout used to discard tracking and just letterbox."""
-    import inspect
-
+def test_the_blurred_layout_shows_the_whole_picture_over_a_blur(tmp_path):
+    """Streamer used to render the same crop as fill, with the blur doing nothing."""
     from app.pipeline import compose
 
-    source = inspect.getsource(compose._two_layer)
-    assert "crop_filter" in source, "the blurred layout must use the tracked crop"
-    assert "[fg]" in source
+    r = compose.Render(out=tmp_path / "o.mp4", source=tmp_path / "in.mp4",
+                       in_ms=0, out_ms=2000, layout="streamer", framing_mode="center")
+    graph = compose.graph_of(compose.build(r, tmp_path / "w")[0])
+    assert "boxblur" in graph and "overlay" in graph
+    assert "force_original_aspect_ratio=decrease" in graph, "the picture itself is fitted whole"
 
 
 def test_two_faces_are_held_together_when_they_fit():
@@ -466,24 +466,19 @@ def test_a_reaction_clip_renders_as_a_stack(tmp_path, monkeypatch):
     assert "vstack=inputs=2" in " ".join(compose.build(r, tmp_path / "w")[0])
 
 
-def test_a_reaction_clip_does_not_chase_the_talker(tmp_path, monkeypatch):
+def test_a_reaction_clip_does_not_chase_the_talker():
     """Following the speaker is how you miss the face the clip is about."""
-    from app.pipeline import compose
-    t, tracks, turns = _two_feeds_one_talker()
-    called = []
-    monkeypatch.setattr(compose.framing, "track", lambda *a, **k: t)
-    monkeypatch.setattr(compose.framing, "speech", lambda *a, **k: (tracks, turns, []))
-    monkeypatch.setattr(compose.framing, "direct",
-                        lambda tr, *a, **k: called.append(k["focus"]) or tr)
-    compose.build(compose.Render(out=tmp_path / "o.mp4", source=tmp_path / "in.mp4",
-                                 in_ms=0, out_ms=10000, layout="auto", focus="reaction"),
-                  tmp_path / "w")
-    compose.build(compose.Render(out=tmp_path / "o2.mp4", source=tmp_path / "in.mp4",
-                                 in_ms=0, out_ms=10000, layout="auto", focus="speaker"),
-                  tmp_path / "w2")
-    # The director is told why the clip was picked: a reaction is framed on
-    # everyone or the most prominent face, never chased to the talker.
-    assert called == ["reaction", "speaker"]
+    from app.pipeline import shots as P, speaker as S
+
+    tracks = [S.FaceTrack(id=1, boxes=[(ms, (0.22, 0.45, 0.09, 0.2)) for ms in range(0, 10000, 500)]),
+              S.FaceTrack(id=2, boxes=[(ms, (0.78, 0.45, 0.09, 0.2)) for ms in range(0, 10000, 500)])]
+    turns = [S.Turn(0, 10000, 2, 0.9)]
+    base = dict(width=1920, height=1080, out_w=1080, out_h=1920, in_ms=0, out_ms=10000,
+                tracks=tracks, turns=turns, layout="auto")
+    speaker = P.plan(P.Inputs(**base, focus="speaker"))
+    reaction = P.plan(P.Inputs(**base, focus="reaction"))
+    assert [x.kind for x in speaker] == ["fill"], "one person holds the floor: follow them"
+    assert [x.kind for x in reaction] == ["split"], "a reaction needs both faces on screen"
 
 
 # --- holding still --------------------------------------------------------

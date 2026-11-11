@@ -65,6 +65,40 @@ def _claim(s: Session) -> Export | None:
     return None
 
 
+def render_for(project: Project, source: Path, out: Path, *, resolution: str = "1080p",
+               preview: bool = False, overrides: dict | None = None) -> Render:
+    """The render a project describes, with the editor's unsaved tweaks laid over it.
+
+    Every path to a picture of a clip — export, preview, the editor's framing
+    call — comes through here, so a setting cannot be honoured by one and
+    ignored by another.
+    """
+    o = overrides or {}
+    options = {**(project.caption_options or {}), **(o.get("caption_options") or {})}
+    framing = {**(project.framing or {}), **(o.get("framing") or {})}
+    title = {**(project.title or {}), **(o.get("title") or {})} if (project.title or o.get("title")) else None
+    size = options.get("size", 1.0)
+    try:
+        size = float(size)
+    except (TypeError, ValueError):
+        size = 1.0
+    return Render(
+        source=source, out=out, in_ms=int(o.get("in_ms", project.in_ms)), out_ms=int(o.get("out_ms", project.out_ms)),
+        aspect=o.get("aspect") or project.aspect, layout=o.get("layout") or project.layout,
+        framing_mode=framing.get("mode", "auto"), focus=framing.get("focus", "auto"),
+        zoom=framing.get("zoom", "auto"),
+        words=list(o.get("captions") if o.get("captions") is not None else (project.captions or [])),
+        caption_style_id=o.get("caption_style_id") or project.caption_style_id,
+        captions_enabled=options.get("enabled", True),
+        caption_position=options.get("position"), caption_size=size,
+        caption_max_words=options.get("max_words"),
+        censored=options.get("censored_words") or [],
+        title=title, watermark=project.watermark or None,
+        resolution=resolution, preview=preview, loudnorm=not preview,
+        finish_ass=(options.get("finish_ass") or {}).get("preview" if preview else resolution),
+    )
+
+
 def _render(s: Session, row: Export) -> Asset:
     project = s.get(Project, row.project_id)
     if not project:
@@ -76,21 +110,7 @@ def _render(s: Session, row: Export) -> Asset:
     source = storage.local_path(source_asset.mezzanine_key or source_asset.storage_key)
     key = f"exports/{row.id}.mp4"
     out = storage.open_write(key)
-    options = project.caption_options or {}
-    render = Render(
-        source=source, out=out, in_ms=project.in_ms, out_ms=project.out_ms,
-        aspect=project.aspect, layout=project.layout,
-        framing_mode=(project.framing or {}).get("mode", "auto"),
-        focus=(project.framing or {}).get("focus", "auto"),
-        words=list(project.captions or []),
-        caption_style_id=project.caption_style_id,
-        captions_enabled=options.get("enabled", True),
-        censored=options.get("censored_words") or [],
-        title=project.title or None,
-        watermark=project.watermark or None,
-        resolution=row.resolution,
-        finish_ass=(options.get("finish_ass") or {}).get(row.resolution),
-    )
+    render = render_for(project, source, out, resolution=row.resolution)
     workdir = settings().data_dir / "work" / row.id
     try:
         run_render(render, workdir)
@@ -114,31 +134,29 @@ def _render(s: Session, row: Export) -> Asset:
     return asset
 
 
-def preview(s: Session, project: Project) -> str:
-    """A small, fast render so the app can show the clip before it is exported."""
+def preview(s: Session, project: Project, overrides: dict | None = None) -> str:
+    """A small, fast render so the app can show the clip before it is exported.
+
+    With `overrides` (settings the editor is trying but has not saved) the
+    result is a one-off under its own key and is not remembered as the
+    project's preview.
+    """
     source_asset = s.get(Asset, project.asset_id)
     if not source_asset:
         raise RuntimeError("the source for that clip no longer exists")
-    key = f"previews/{project.id}.mp4"
+    tag = f"_{new_id('try')[-10:]}" if overrides else ""
+    key = f"previews/{project.id}{tag}.mp4"
     out = storage.open_write(key)
-    options = project.caption_options or {}
-    render = Render(
-        source=storage.local_path(source_asset.mezzanine_key or source_asset.storage_key),
-        out=out, in_ms=project.in_ms, out_ms=project.out_ms, aspect=project.aspect,
-        layout=project.layout, framing_mode=(project.framing or {}).get("mode", "auto"),
-        focus=(project.framing or {}).get("focus", "auto"),
-        words=list(project.captions or []), caption_style_id=project.caption_style_id,
-        captions_enabled=options.get("enabled", True), title=project.title or None,
-        watermark=project.watermark or None, preview=True, loudnorm=False,
-        finish_ass=(options.get("finish_ass") or {}).get("preview"),
-    )
-    workdir = settings().data_dir / "work" / f"prev_{project.id}"
+    render = render_for(project, storage.local_path(source_asset.mezzanine_key or source_asset.storage_key),
+                        out, preview=True, overrides=overrides)
+    workdir = settings().data_dir / "work" / f"prev_{project.id}{tag}"
     try:
         run_render(render, workdir)
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
     storage.put_file(out, key, "video/mp4")
-    project.preview_key = key
-    s.add(project)
-    s.commit()
+    if not overrides:
+        project.preview_key = key
+        s.add(project)
+        s.commit()
     return storage.public_url(key)

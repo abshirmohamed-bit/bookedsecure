@@ -129,6 +129,12 @@ class Settings(BaseSettings):
     # removed and fetched again if a later render needs them.
     local_cache_days: float = 2.0
 
+    # Titles and handles are drawn by ffmpeg's drawtext, which asks fontconfig
+    # for a face by name. Point this at a .ttf to name the file instead: on a
+    # machine without a fontconfig setup (Windows builds, for one) the lookup
+    # crashes ffmpeg outright. Leave empty in the container, which has fonts.
+    font_file: str = ""
+
     # test/dev
     engine_mock: bool = False
     # Local development only: start even with the well-known default secrets.

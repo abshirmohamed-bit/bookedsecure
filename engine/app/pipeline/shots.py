@@ -1,0 +1,574 @@
+"""The edit: what every shot of a clip looks like.
+
+A clip used to get one layout from its first frame to its last. Real footage
+does not hold still like that. A news segment cuts from a two-shot to a
+close-up to a screenshot of a web page; an interview goes wide, then tight.
+One answer for the whole clip is wrong for most of it: the screenshot is cut
+to a sliver nobody can read, the wide shot leaves the speaker a speck, the
+two-shot is centred on the gap between two people.
+
+So the plan is made shot by shot, the way an editor cuts a vertical version:
+
+- A shot of someone talking is a crop on them (director.py decides where),
+  pushed in when they are small in the frame, with room above their head.
+- Two people who share a shot and both talk are stacked, one cell each.
+  Three or four, when the clip is about all of them, get a grid.
+- A shot with nobody in it, whose detail runs right across the frame
+  (screenshots, slides, graphics, a page of text), is fitted whole over a
+  blurred copy of itself rather than cut down.
+- A small face on top of a wide screen is a webinar or a screen share: the
+  screen goes on top and the person below.
+
+The layout the creator picks is a policy over the same shots: "auto" does all
+of the above, "split" stacks whoever shares a shot, "grid" fits a group,
+"screen" always puts the picture over the person, "pip" insets a second face,
+and the fit/bars/headline layouts show every shot whole.
+
+Everything here is arithmetic over what the analysis pass found (faces per
+shot, cuts, turns, detail profiles), so it is cheap and testable without a
+video. The render (compose.py) and the editor's preview both ask here, so
+what the editor shows is what gets made.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from statistics import median
+
+from . import director
+
+#: Every layout policy the Engine understands. "one-feed" is not a choice a
+#: creator makes: auto reaches it for a composite that is about one side.
+LAYOUTS = ("auto", "full-video", "split", "grid", "screen", "pip", "streamer",
+           "black-box", "title-subtitles")
+ZOOMS = ("off", "auto", "moments")
+#: What the clip is about, which decides who has to be on screen.
+WANTS_EVERYONE = {"reaction", "everyone"}
+
+#: A face this high, as a share of the output height, reads as a medium
+#: close-up on a phone (forehead to chin about a fifth of the frame).
+#: Smaller than this in a wide shot and we push in.
+TARGET_FACE_H = 0.18
+#: Pushing in less than this is not worth the softness it costs.
+MIN_ZOOM = 1.12
+#: How far a crop may be enlarged on its way to the output before it looks
+#: soft. A 4K source has room to push in a long way; a 1080p one is already
+#: enlarged to fill a vertical frame, so it gets a little regardless (MIN_CAP),
+#: because a speck of a speaker is worse than a slightly soft one.
+MAX_UPSCALE = 1.7
+MIN_CAP, MAX_CAP = 1.2, 2.0
+#: A punch-in on a line ("zoom-in moments") goes this much tighter.
+PUNCH = 1.2
+#: Lines shorter than this are not worth a punch-in; shots shorter than
+#: PUNCH_SHOT keep one framing throughout.
+PUNCH_MIN_MS = 2400
+PUNCH_SHOT_MS = 4500
+#: Where a face sits in a pushed-in crop, from the top: room for the head,
+#: and the eyes near the upper third where people look.
+HEADROOM = 0.40
+#: Detail profiles: below this mean edge density there is nothing to cut off.
+DETAIL_FLOOR = 0.015
+#: A shot is shown whole when a crop would lose more than a tenth of its
+#: detail (a line of text off the edge is a line nobody can read)...
+DETAIL_KEEP = 0.9
+#: ...and the shot is mostly plain between its edges, as text, slides,
+#: screenshots and flat graphics are (measured: a slide 0.92, a test card
+#: 0.93, a news studio 0.57). A studio or a street has edges everywhere and
+#: nothing plain, and is cropped like any other picture.
+FLAT_FOR_FIT = 0.75
+#: A face narrower than this share of the frame, over wide content, is a
+#: camera inset on a screen rather than the subject of the shot.
+SMALL_FACE_W = 0.10
+#: Both people have to hold the floor this long in a shot to be stacked.
+BOTH_TALK_MS = 1500
+
+
+@dataclass
+class Box:
+    """A crop in source pixels."""
+    x: int
+    y: int
+    w: int
+    h: int
+
+    def crop(self, name: str = "") -> str:
+        at = f"@{name}" if name else ""
+        return f"crop{at}={self.w}:{self.h}:{self.x}:{self.y}"
+
+    def as_dict(self) -> dict:
+        return {"x": self.x, "y": self.y, "w": self.w, "h": self.h}
+
+
+@dataclass
+class Shot:
+    """One stretch of the clip and how it is composed. Times are source ms."""
+    start_ms: int
+    end_ms: int
+    #: fill | fit | bars | headline | split | grid | screen | pip | feed
+    kind: str
+    #: fill (and a pip's main picture): the crop at its first position...
+    window: Box | None = None
+    #: ...and where it moves to, as (ms, x).
+    pan: list[tuple[int, int]] = field(default_factory=list)
+    #: split and grid: one crop per cell, in reading order.
+    cells: list[Box] = field(default_factory=list)
+    #: screen: the person below the picture; feed: the side of a composite.
+    main: Box | None = None
+    #: pip: the second face, drawn small over the main picture.
+    inset: Box | None = None
+    #: pip: what the main picture is ("fill" follows a person, "fit" shows
+    #: the whole frame).
+    base: str = "fill"
+    zoom: float = 1.0
+    why: str = ""
+
+    @property
+    def length_ms(self) -> int:
+        return self.end_ms - self.start_ms
+
+    def as_dict(self, offset_ms: int = 0) -> dict:
+        return {
+            "start_ms": self.start_ms - offset_ms, "end_ms": self.end_ms - offset_ms,
+            "kind": self.kind, "base": self.base if self.kind == "pip" else None,
+            "zoom": round(self.zoom, 3), "why": self.why,
+            "window": self.window.as_dict() if self.window else None,
+            "pan": [[ms - offset_ms, x] for ms, x in self.pan],
+            "cells": [c.as_dict() for c in self.cells],
+            "main": self.main.as_dict() if self.main else None,
+            "inset": self.inset.as_dict() if self.inset else None,
+        }
+
+
+@dataclass
+class Inputs:
+    """Everything the plan is made from."""
+    width: int                      # source, px
+    height: int
+    out_w: int                      # output frame, px
+    out_h: int
+    in_ms: int
+    out_ms: int
+    tracks: list = field(default_factory=list)      # speaker.FaceTrack
+    turns: list = field(default_factory=list)       # speaker.Turn
+    cuts: list[int] = field(default_factory=list)
+    detail: list = field(default_factory=list)      # (ms, [bins])
+    #: The clip-level track: motion samples when no faces could be read, and
+    #: the composite seam.
+    track: object | None = None
+    layout: str = "auto"
+    focus: str = "auto"
+    zoom: str = "auto"
+    #: Caption words, clip-relative, for zoom-in moments.
+    words: list | None = None
+
+
+# ------------------------------------------------------------------ geometry
+
+def _even(v: float) -> int:
+    v = int(round(v))
+    return max(2, v - v % 2)
+
+
+def full_window(sw: int, sh: int, out_w: int, out_h: int) -> tuple[int, int]:
+    """The largest crop of the output's shape that fits the source."""
+    target = out_w / out_h
+    if sw / sh > target:
+        return _even(sh * target), _even(sh)
+    return _even(sw), _even(sw / target)
+
+
+def _clamp(v: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, v))
+
+
+@dataclass
+class _Face:
+    """One person within one shot, summarised."""
+    id: int
+    x: float
+    y: float
+    w: float
+    h: float
+    presence: float
+
+    @property
+    def left(self) -> float:
+        return self.x - self.w / 2
+
+    @property
+    def right(self) -> float:
+        return self.x + self.w / 2
+
+
+def _faces(cast: list[director.Person]) -> list[_Face]:
+    out = []
+    for p in cast:
+        bs = [b[1] for b in p.boxes]
+        out.append(_Face(p.id, median(b[0] for b in bs), median(b[1] for b in bs),
+                         median(b[2] for b in bs), median(b[3] for b in bs), p.presence))
+    return out
+
+
+def _prominent(faces: list[_Face]) -> list[_Face]:
+    """Largest and most often seen first: the people the shot is about."""
+    return sorted(faces, key=lambda f: (-(f.w * f.presence), abs(f.x - 0.5)))
+
+
+def _talk_time(turns_, start_ms: int, end_ms: int) -> dict[int, int]:
+    held: dict[int, int] = {}
+    for t in turns_ or []:
+        if t.track_id is None:
+            continue
+        a, b = max(start_ms, t.start_ms), min(end_ms, t.end_ms)
+        if b > a:
+            held[t.track_id] = held.get(t.track_id, 0) + (b - a)
+    return held
+
+
+def _zoom_cap(inp: Inputs) -> float:
+    """How far this source can be pushed in before the picture goes soft."""
+    _, fh = full_window(inp.width, inp.height, inp.out_w, inp.out_h)
+    base = inp.out_h / max(1, fh)          # enlargement the output already needs
+    return _clamp(MAX_UPSCALE / base, MIN_CAP, MAX_CAP)
+
+
+def _auto_zoom(faces: list[_Face], inp: Inputs, share: float) -> float:
+    """Push in on a wide shot until the subject reads, never past the cap.
+
+    When everyone in the shot fits the window, the push stops while they
+    still all fit: a wide two-shot should get tighter, not lose a person.
+    """
+    if not faces:
+        return 1.0
+    subject = max(faces, key=lambda f: f.h)
+    want = TARGET_FACE_H / max(subject.h, 1e-3)
+    lo, hi = min(f.left for f in faces), max(f.right for f in faces)
+    if director._fits(lo, hi, share):
+        want = min(want, share * (1 - 2 * director.EDGE_MARGIN) / max(hi - lo, 1e-3))
+    zoom = min(want, _zoom_cap(inp))
+    return round(zoom, 3) if zoom >= MIN_ZOOM else 1.0
+
+
+def _headroom_y(faces: list[_Face], centre: float, win_w: int, win_h: int,
+                sw: int, sh: int) -> int:
+    """Where a crop shorter than the source sits: the face high, not centred."""
+    if win_h >= sh:
+        return 0
+    left = centre - win_w / sw / 2
+    right = centre + win_w / sw / 2
+    inside = [f for f in faces if left <= f.x <= right] or faces
+    if not inside:
+        return (sh - win_h) // 2
+    cy = median(f.y for f in inside)
+    y = cy * sh - HEADROOM * win_h
+    return int(_clamp(round(y), 0, sh - win_h))
+
+
+def _detail(inp: Inputs, start_ms: int, end_ms: int, share: float) -> tuple[bool, float]:
+    """(would a crop cut the content apart, where the content is densest).
+
+    The share of the shot's detail the best crop position keeps: a page of
+    text or a slide keeps about a third of it in a 9:16 window, a person
+    against a soft background nearly all of it.
+    """
+    entries = [e for e in inp.detail if start_ms <= e[0] < end_ms and e[1]]
+    rows = [e[1] for e in entries]
+    if not rows:
+        return False, 0.5
+    flats = [e[2] for e in entries if len(e) > 2]
+    flat = sum(flats) / len(flats) if flats else 1.0
+    n = len(rows[0])
+    avg = [sum(r[i] for r in rows if len(r) == n) / len(rows) for i in range(n)]
+    total = sum(avg)
+    if total <= 0 or total / n < DETAIL_FLOOR:
+        return False, 0.5
+    span = max(1, min(n, round(share * n)))
+    best, best_at = -1.0, 0
+    for i in range(0, n - span + 1):
+        s = sum(avg[i:i + span])
+        if s > best:
+            best, best_at = s, i
+    centre = (best_at + span / 2) / n
+    return best / total < DETAIL_KEEP and flat >= FLAT_FOR_FIT, centre
+
+
+def _in_corner(f: _Face) -> bool:
+    """A camera inset sits in a corner of the screen it is laid over."""
+    return min(f.x, 1 - f.x) < 0.24 and (f.y - f.h / 2 < 0.14 or f.y + f.h / 2 > 0.84)
+
+
+def _cell(face: _Face, aspect: float, face_share: float, inp: Inputs,
+          band: tuple[float, float] = (0.0, 1.0)) -> Box:
+    """A crop of `aspect` around one face, fenced inside `band` (0..1 of width)."""
+    sw, sh = inp.width, inp.height
+    lo, hi = band[0] * sw, band[1] * sw
+    cw = min(hi - lo, float(sw), max(face.w * sw / face_share, 32.0))
+    ch = cw / aspect
+    if ch > sh:
+        ch = float(sh)
+        cw = ch * aspect
+    cw, ch = _even(cw), _even(ch)
+    x = face.x * sw - cw / 2
+    x = _clamp(x, lo, max(lo, hi - cw))
+    x = _clamp(x, 0, sw - cw)
+    y = _clamp(face.y * sh - 0.42 * ch, 0, sh - ch)
+    return Box(int(round(x)), int(round(y)), cw, ch)
+
+
+def _bands(people: list[_Face]) -> list[tuple[float, float]]:
+    """Each person's slice of the width, up to halfway to the next face."""
+    out = []
+    for i, f in enumerate(people):
+        lo = 0.0 if i == 0 else (people[i - 1].right + f.left) / 2
+        hi = 1.0 if i == len(people) - 1 else (f.right + people[i + 1].left) / 2
+        out.append((lo, max(hi, lo + 0.02)))
+    return out
+
+
+# ------------------------------------------------------------------ shot kinds
+
+def _fill(inp: Inputs, a: int, b: int, faces: list[_Face], *, use_turns: bool,
+          zoom: float, why: str) -> Shot:
+    sw, sh = inp.width, inp.height
+    fw, fh = full_window(sw, sh, inp.out_w, inp.out_h)
+    ww, wh = _even(fw / zoom), _even(fh / zoom)
+    share = ww / sw
+    if faces:
+        samples = director.plan_camera(inp.tracks, inp.turns, [], a, b, share,
+                                       use_turns=use_turns)
+    else:
+        samples = [(a, 0.5)]
+    if not samples:
+        samples = [(a, 0.5)]
+    pan = [(ms, int(_clamp(round(c * sw - ww / 2), 0, sw - ww))) for ms, c in samples]
+    centre = median(c for _, c in samples)
+    y = _headroom_y(faces, centre, ww, wh, sw, sh) if wh < sh else 0
+    first = pan[0][1]
+    moves = [(ms, x) for ms, x in pan[1:]]
+    return Shot(a, b, "fill", window=Box(first, y, ww, wh), pan=[(a, first), *moves],
+                zoom=zoom, why=why)
+
+
+def _fill_centred(inp: Inputs, a: int, b: int, centre: float, why: str) -> Shot:
+    sw, sh = inp.width, inp.height
+    ww, wh = full_window(sw, sh, inp.out_w, inp.out_h)
+    x = int(_clamp(round(centre * sw - ww / 2), 0, sw - ww))
+    return Shot(a, b, "fill", window=Box(x, (sh - wh) // 2, ww, wh), pan=[(a, x)], why=why)
+
+
+def _split(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
+    two = sorted(_prominent(faces)[:2], key=lambda f: f.x)
+    portrait = inp.out_h >= inp.out_w
+    aspect = inp.out_w / (inp.out_h / 2) if portrait else (inp.out_w / 2) / inp.out_h
+    cells = [_cell(f, aspect, 0.20, inp, band) for f, band in zip(two, _bands(two))]
+    return Shot(a, b, "split", cells=cells, why=why)
+
+
+def _grid(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
+    people = sorted(_prominent(faces)[:4], key=lambda f: f.x)
+    if len(people) == 3 and inp.out_h >= inp.out_w:
+        aspect, share = inp.out_w / (inp.out_h / 3), 0.18
+    else:
+        people = people[:4]
+        aspect, share = inp.out_w / inp.out_h, 0.34
+    cells = [_cell(f, aspect, share, inp, band) for f, band in zip(people, _bands(people))]
+    return Shot(a, b, "grid", cells=cells, why=why)
+
+
+def screen_split(inp: Inputs) -> tuple[int, int]:
+    """(picture height, person height) for the screen layout, in output px."""
+    top = _even(inp.out_w * inp.height / max(1, inp.width))
+    top = min(top, _even(inp.out_h * 0.5))
+    return top, inp.out_h - top
+
+
+def _screen(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
+    talk = _talk_time(inp.turns, a, b)
+    order = _prominent(faces)
+    subject = max(order, key=lambda f: (talk.get(f.id, 0), f.w * f.presence))
+    _, bottom = screen_split(inp)
+    aspect = inp.out_w / max(2, bottom)
+    main = _cell(subject, aspect, 0.30, inp)
+    return Shot(a, b, "screen", main=main, why=why)
+
+
+def _inset_box(face: _Face, inp: Inputs) -> Box:
+    # Head and shoulders, not a face filling the box edge to edge.
+    return _cell(face, 3 / 4, 0.36, inp)
+
+
+def _pip(inp: Inputs, a: int, b: int, faces: list[_Face], wide: bool, *,
+         use_turns: bool, zoom: float) -> Shot:
+    talk = _talk_time(inp.turns, a, b)
+    order = _prominent(faces)
+    sw = inp.width
+    fw, _ = full_window(inp.width, inp.height, inp.out_w, inp.out_h)
+    lo, hi = min(f.left for f in faces), max(f.right for f in faces)
+    if len(order) >= 2 and not director._fits(lo, hi, fw / sw):
+        main_face = max(order, key=lambda f: (talk.get(f.id, 0), f.w * f.presence))
+        other = next(f for f in order if f.id != main_face.id)
+        shot = _fill(inp, a, b, [main_face], use_turns=use_turns, zoom=zoom,
+                     why="picture-in-picture: the speaker, with the other person inset")
+        # The main picture holds on the speaker for the whole shot; following
+        # turns would put the inset's face in the main picture too.
+        cx = main_face.x
+        x = int(_clamp(round(cx * sw - shot.window.w / 2), 0, sw - shot.window.w))
+        shot.window.x, shot.pan = x, [(a, x)]
+        shot.kind, shot.inset, shot.base = "pip", _inset_box(other, inp), "fill"
+        return shot
+    if len(order) == 1 and order[0].w < SMALL_FACE_W * 1.4 and wide:
+        return Shot(a, b, "pip", base="fit", inset=_inset_box(order[0], inp),
+                    why="picture-in-picture: the whole picture, with the face inset")
+    return _fill(inp, a, b, faces, use_turns=use_turns, zoom=zoom,
+                 why="picture-in-picture needs a second face; following the speaker")
+
+
+# ------------------------------------------------------------------ zoom moments
+
+def _line_ends(inp: Inputs) -> list[int]:
+    """Where sentences end, in source ms. Punch-ins change only on these."""
+    out = []
+    for w in inp.words or []:
+        text = str(w.get("text", "")).strip()
+        if text.endswith((".", "?", "!")):
+            out.append(int(w.get("end_ms", 0)) + inp.in_ms)
+    return out
+
+
+def _moments(a: int, b: int, ends: list[int]) -> list[tuple[int, int]]:
+    """A long shot cut into lines of at least PUNCH_MIN_MS, at sentence ends."""
+    spans: list[tuple[int, int]] = []
+    cursor = a
+    for e in ends:
+        if e - cursor >= PUNCH_MIN_MS and b - e >= PUNCH_MIN_MS:
+            spans.append((cursor, e))
+            cursor = e
+    spans.append((cursor, b))
+    return spans
+
+
+# ------------------------------------------------------------------ the plan
+
+def plan(inp: Inputs) -> list[Shot]:
+    """The shot list for one clip, in source time, covering in_ms..out_ms exactly."""
+    from . import frame as framing
+
+    layout = inp.layout if inp.layout in LAYOUTS else "auto"
+    start, end = inp.in_ms, inp.out_ms
+    if end <= start:
+        return []
+    if layout in {"streamer", "black-box", "title-subtitles"}:
+        kind = {"streamer": "fit", "black-box": "bars", "title-subtitles": "headline"}[layout]
+        return [Shot(start, end, kind, why=f"{layout}: every shot shown whole")]
+
+    use_turns = inp.focus not in WANTS_EVERYONE
+    track = inp.track
+
+    # A composite (two feeds side by side) is decided as a whole: its join
+    # runs through every shot.
+    if track is not None and layout in {"auto", "split"} and framing.seam_of(track) is not None:
+        chosen = framing.plan(track, inp.tracks, inp.turns, inp.out_w, inp.out_h,
+                              inp.focus, inp.cuts)
+        if chosen["layout"] == "one-feed" and chosen.get("feed"):
+            f = chosen["feed"]
+            return [Shot(start, end, "feed", main=Box(f["x"], f["y"], f["w"], f["h"]),
+                         why="a composite carried by one side")]
+        if chosen["cells"]:
+            cells = [Box(c["x"], c["y"], c["w"], c["h"]) for c in chosen["cells"]]
+            return [Shot(start, end, "split", cells=cells, why="a composite: one cell per feed")]
+
+    # With no analysis at all (no detector on this host), the old tracker's
+    # motion samples still aim the crop at whatever is moving. With detail
+    # profiles the shot loop below decides, faces or no faces.
+    if not inp.tracks and not inp.detail:
+        if track is not None and getattr(track, "samples", None) and layout in {"auto", "full-video", "split", "grid", "screen", "pip"}:
+            sw, sh = inp.width, inp.height
+            ww, wh = full_window(sw, sh, inp.out_w, inp.out_h)
+            pan = [(ms, int(_clamp(round(c * sw - ww / 2), 0, sw - ww)))
+                   for ms, c in track.samples if start <= ms < end] or \
+                  [(start, int(_clamp(round(track.samples[0][1] * sw - ww / 2), 0, sw - ww)))]
+            if pan[0][0] != start:
+                pan.insert(0, (start, pan[0][1]))
+            return [Shot(start, end, "fill", window=Box(pan[0][1], (sh - wh) // 2, ww, wh),
+                         pan=pan, why="no faces found: following movement")]
+
+    fw, _ = full_window(inp.width, inp.height, inp.out_w, inp.out_h)
+    share = fw / max(1, inp.width)
+    ends = _line_ends(inp) if inp.zoom == "moments" else []
+    out: list[Shot] = []
+    for a, b in director.shots(inp.cuts, start, end):
+        cast = director.people_in(inp.tracks, a, b)
+        faces = _faces(cast)
+        wide, centre = _detail(inp, a, b, share)
+        if not faces:
+            if layout in {"auto", "screen", "pip", "split", "grid"} and wide:
+                out.append(Shot(a, b, "fit", why="nobody in shot and the picture runs edge to edge: shown whole"))
+            else:
+                out.append(_fill_centred(inp, a, b, centre, "nobody in shot: the busiest part of the picture"))
+            continue
+
+        lo, hi = min(f.left for f in faces), max(f.right for f in faces)
+        fits = director._fits(lo, hi, share)
+        talk = _talk_time(inp.turns, a, b)
+        talkers = [tid for tid, ms in talk.items() if ms >= BOTH_TALK_MS]
+        # With nobody named as the speaker there is no one to follow, and a
+        # crop on the "most prominent" face is a coin toss: show both.
+        unnamed = not talk
+        zoom = _auto_zoom(faces, inp, share) if inp.zoom in {"auto", "moments"} else 1.0
+        small_inset = len(faces) == 1 and faces[0].w < SMALL_FACE_W and wide and _in_corner(faces[0])
+
+        if layout == "screen":
+            out.append(_screen(inp, a, b, faces, "the picture on top, the speaker below"))
+            continue
+        if layout == "pip":
+            out.append(_pip(inp, a, b, faces, wide, use_turns=use_turns, zoom=zoom))
+            continue
+        if layout == "grid" and len(faces) >= 3:
+            out.append(_grid(inp, a, b, faces, "a group: one cell each"))
+            continue
+        if layout in {"split", "grid"} and len(faces) >= 2 and not fits:
+            out.append(_split(inp, a, b, faces, "two people sharing the shot: one cell each"))
+            continue
+        if layout == "auto":
+            if len(faces) >= 2 and not fits:
+                if len(faces) >= 3 and inp.focus == "everyone":
+                    out.append(_grid(inp, a, b, faces, "the whole group, as the clip is about all of them"))
+                    continue
+                if inp.focus in WANTS_EVERYONE or len(talkers) >= 2 or unnamed:
+                    out.append(_split(inp, a, b, faces,
+                                      "both people matter in this shot: one cell each"))
+                    continue
+            if small_inset:
+                out.append(_screen(inp, a, b, faces, "a small face over a wide picture: a screen share"))
+                continue
+
+        why = ("one person: framed on them" if len(faces) == 1 else
+               "everyone fits: framed together" if fits else "following whoever is talking")
+        spans = _moments(a, b, ends) if ends and b - a >= PUNCH_SHOT_MS else [(a, b)]
+        cap = _zoom_cap(inp)
+        for i, (sa, sb) in enumerate(spans):
+            z = zoom
+            if len(spans) > 1 and i % 2 == 1:
+                z = min(max(zoom, 1.0) * PUNCH, cap * 1.15)
+            out.append(_fill(inp, sa, sb, faces, use_turns=use_turns, zoom=z,
+                             why=why + (" (punch-in on the line)" if z > zoom else "")
+                             + (f", pushed in {z:.2f}x" if z > 1 and z == zoom else "")))
+    return _merge(out)
+
+
+def _merge(shots_: list[Shot]) -> list[Shot]:
+    """Neighbouring shots that would look the same render as one."""
+    out: list[Shot] = []
+    for s in shots_:
+        if out and s.kind in {"fit", "bars", "headline"} and out[-1].kind == s.kind:
+            out[-1].end_ms = s.end_ms
+            continue
+        out.append(s)
+    return out
+
+
+def summary(shots_: list[Shot]) -> dict[str, int]:
+    """How much of the clip each kind of shot takes, in ms."""
+    held: dict[str, int] = {}
+    for s in shots_:
+        held[s.kind] = held.get(s.kind, 0) + s.length_ms
+    return held
