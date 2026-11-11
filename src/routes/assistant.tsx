@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { AssistantWorkspace } from "@/components/home/AssistantWorkspace";
+import { CoworkWorkspace } from "@/components/cowork/CoworkWorkspace";
 
 export const Route = createFileRoute("/assistant")({
   head: () => ({
@@ -13,5 +13,5 @@ export const Route = createFileRoute("/assistant")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: () => <AppShell title="Co-Work"><AssistantWorkspace /></AppShell>,
+  component: () => <AppShell title="Co-Work"><CoworkWorkspace routeThreads headline={<>What should we <span className="cowork-accent">work on</span> today?</>} /></AppShell>,
 });

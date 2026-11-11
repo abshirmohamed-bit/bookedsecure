@@ -25,7 +25,7 @@ const ACCOUNTS = [
 ] as const;
 
 /** The connected accounts, each opening its hands-on tools. */
-export function YourChannels() {
+export function YourChannels({ narrow = false }: { narrow?: boolean }) {
   const postsFn = useServerFn(getSocialPosting);
   const youtubeFn = useServerFn(getYouTube);
   const linkedinFn = useServerFn(getLinkedIn);
@@ -40,7 +40,7 @@ export function YourChannels() {
     youtube: youtube.data?.connected,
   };
   return (
-    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+    <div className={`grid grid-cols-2 gap-2.5 ${narrow ? "" : "lg:grid-cols-4"}`}>
       {ACCOUNTS.map((a) => (
         <Link key={a.id} to="/social" search={{ platform: a.id }} aria-label={`Open ${a.label} tools`} className="glass flex min-h-14 items-center gap-2.5 rounded-2xl px-3 py-2 hover:bg-white/70">
           <a.icon className={`size-5 shrink-0 ${a.color}`} aria-hidden="true" />

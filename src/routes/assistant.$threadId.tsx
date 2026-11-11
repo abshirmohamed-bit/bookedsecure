@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
-import { AssistantWorkspace } from "@/components/home/AssistantWorkspace";
+import { CoworkWorkspace } from "@/components/cowork/CoworkWorkspace";
 
 export const Route = createFileRoute("/assistant/$threadId")({
   head: () => ({
@@ -18,5 +18,5 @@ export const Route = createFileRoute("/assistant/$threadId")({
 
 function AssistantThreadPage() {
   const { threadId } = Route.useParams();
-  return <AppShell title="Co-Work"><AssistantWorkspace requestedThreadId={threadId} /></AppShell>;
+  return <AppShell title="Co-Work"><CoworkWorkspace requestedThreadId={threadId} routeThreads headline={<>What should we <span className="cowork-accent">work on</span> today?</>} /></AppShell>;
 }

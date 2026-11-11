@@ -126,6 +126,7 @@ export function OwnerAssistant({
   composerClassName,
   composerApi,
   onStart,
+  wide = false,
 }: {
   threadId: string;
   initialTurns?: OwnerAssistantTurn[];
@@ -147,6 +148,8 @@ export function OwnerAssistant({
   /** Lets a page open the video picker from its own buttons. */
   composerApi?: { current: CoworkComposerApi | null };
   onStart?: () => void;
+  /** Let the conversation use the full width of its column. */
+  wide?: boolean;
 }) {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
@@ -494,7 +497,7 @@ export function OwnerAssistant({
 
         {hasConversation ? (
           <Conversation className="min-h-0 min-w-0 flex-1 overscroll-contain [&>div]:overflow-y-auto">
-            <ConversationContent className={`mx-auto w-full min-w-0 max-w-3xl gap-5 px-4 pb-6 pt-4 sm:px-8 ${homeMode ? "lg:pt-28" : "lg:pt-8"}`}>
+            <ConversationContent className={`mx-auto w-full min-w-0 gap-5 px-4 pb-6 pt-4 ${wide ? "sm:px-6" : "max-w-3xl sm:px-8"} ${homeMode ? "lg:pt-28" : wide ? "lg:pt-5" : "lg:pt-8"}`}>
             {visibleTurns.map((turn) => (
               <Message key={turn.id} from={turn.role === "you" ? "user" : "assistant"}>
                 {turn.role === "you" ? (

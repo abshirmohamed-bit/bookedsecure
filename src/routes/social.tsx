@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { SocialCowork } from "@/components/social/SocialCowork";
+import { CoworkWorkspace } from "@/components/cowork/CoworkWorkspace";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -55,7 +55,7 @@ const PLATFORMS: { id: Platform; label: string; icon: typeof Linkedin; color: st
 function SocialMediaPage() {
   const search = Route.useSearch();
   // Co-Work is the front door; any link to a network or section opens the hands-on tools.
-  if (Object.keys(search).length === 0) return <AppShell title="Social media"><SocialCowork /></AppShell>;
+  if (Object.keys(search).length === 0) return <AppShell title="Social media"><CoworkWorkspace headline={<>What should we <span className="cowork-accent">post</span> today?</>} /></AppShell>;
   return <SocialTools />;
 }
 

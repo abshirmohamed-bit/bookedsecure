@@ -31,7 +31,7 @@ function errorText(error: unknown, fallback: string) {
 function when(value: string) {
   return new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
     .format(new Date(value))
-    .replace(/ /g, " ");
+    .replace(/\u202F/g, " ");
 }
 
 export function BookingRulesSettings() {
