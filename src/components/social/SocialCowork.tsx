@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { OwnerAssistant, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
 import { DoItYourself, SocialResults } from "@/components/social/SocialResults";
+import { EngineDot } from "@/components/social/EngineDot";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -222,7 +223,10 @@ export function SocialCowork() {
         </div>
         <div className="space-y-5 lg:hidden">
           {starters}
-          <SocialResults onAsk={askFromResults} />
+          <div>
+            <div className="-mb-1 flex items-center justify-between"><h2 className="font-heading text-lg font-semibold">Results</h2><EngineDot onAsk={askFromResults} /></div>
+            <SocialResults onAsk={askFromResults} />
+          </div>
           <DoItYourself />
         </div>
       </div>
@@ -299,7 +303,7 @@ export function SocialCowork() {
       </div>
 
       <aside aria-label="Results" className="hidden h-full min-h-0 w-[22rem] shrink-0 overflow-y-auto border-l border-border/60 p-4 lg:block xl:w-96">
-        <h2 className="mb-3 font-heading text-lg font-semibold">Results</h2>
+        <div className="mb-3 flex items-center justify-between"><h2 className="font-heading text-lg font-semibold">Results</h2><EngineDot onAsk={askFromResults} /></div>
         <div className="space-y-5">
           <SocialResults onAsk={askFromResults} />
           <DoItYourself />
@@ -308,7 +312,7 @@ export function SocialCowork() {
 
       <Drawer open={resultsOpen} onOpenChange={setResultsOpen}>
         <DrawerContent className="max-h-[85dvh]">
-          <DrawerTitle className="px-4 pt-3 font-heading text-lg">Results</DrawerTitle>
+          <div className="flex items-center justify-between px-4 pt-2"><DrawerTitle className="font-heading text-lg">Results</DrawerTitle><EngineDot onAsk={askFromResults} /></div>
           <div className="space-y-5 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <SocialResults onAsk={askFromResults} />
             <DoItYourself />

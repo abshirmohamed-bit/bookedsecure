@@ -12,6 +12,19 @@ export const getVideoClips = createServerFn({ method: "POST" })
     return { configured: engineConfigured(), jobs: await listVideoJobs(ctx.businessId) };
   });
 
+/** Whether the video engine is on, idle or off. Only operators see why. */
+export const getEngineState = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { isEngineOperator, readEngineState } = await import("@/lib/engine-control.server");
+    const ctx = await requireAppContext(context.supabase, context.userId);
+    const [reading, canControl] = await Promise.all([readEngineState(), isEngineOperator(ctx.userId)]);
+    if (canControl) return { ...reading, canControl };
+    const detail = reading.state === "on" ? "Ready to cut video." : reading.state === "idle" ? "Asleep until a video needs cutting." : "Video clipping is unavailable right now.";
+    return { state: reading.state, label: reading.state === "off" ? "Off" : reading.label, detail, canControl };
+  });
+
 export const startVideoUpload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({

@@ -4,6 +4,8 @@
  * posted by the owner from the Social media page; nothing here publishes.
  */
 import { tool } from "ai";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { controlEngine, isEngineOperator, readEngineState } from "@/lib/engine-control.server";
 import { z } from "zod";
 import type { AssistantToolContext } from "@/lib/assistant-tools.server";
 import { jobStatusLabel, VIDEO_ASPECTS } from "@/lib/video-clips";
@@ -69,6 +71,33 @@ export function buildVideoTools(ctx: AssistantToolContext) {
           clips: job.clips.map((c) => ({ clipId: c.id, title: c.title, why: c.reason, seconds: c.duration_ms ? Math.round(c.duration_ms / 1000) : null, state: c.status === "READY" ? "ready" : c.status === "EXPORTING" ? "rendering" : c.status === "FAILED" ? "failed" : "not rendered yet" })),
         })),
       })),
+    }),
+
+    video_engine_status: tool({
+      description: "Whether the video engine is on, idle (asleep, and wakes by itself when a video needs cutting) or off (needs attention).",
+      inputSchema: z.object({}),
+      execute: async () => run(null, async () => {
+        const reading = await readEngineState();
+        return (await isEngineOperator(ctx.userId)) ? reading : { state: reading.state, label: reading.label };
+      }),
+    }),
+
+    control_video_engine: tool({
+      description: "Start, stop or restart the video engine, which every business shares. Only for people allowed to run it. Stopping or restarting needs the person's clear yes. If it reports jobs in progress, tell them what would be interrupted and pass force true only if they then say to go ahead. Stopping is a sleep: it wakes by itself when a video needs cutting.",
+      inputSchema: z.object({ action: z.enum(["start", "stop", "restart"]), force: z.boolean().default(false) }),
+      execute: async ({ action, force }) => {
+        if (!(await isEngineOperator(ctx.userId))) return fail("Only the people who run BookedSecure can control the video engine. Clipping a video wakes it by itself.");
+        try {
+          const result = await controlEngine(action, force);
+          if (!result.ok) return fail(result.message);
+          ctx.record(result.message);
+          await supabaseAdmin.from("audit_events").insert({ business_id: ctx.businessId, user_id: ctx.userId, event_type: "assistant_engine_control", entity_type: "business", entity_id: ctx.businessId, metadata: { action, force } })
+            .then(() => undefined, () => undefined);
+          return { ok: true as const, message: result.message };
+        } catch (error) {
+          return fail(error instanceof Error ? error.message : "The engine couldn't be changed.");
+        }
+      },
     }),
 
     render_video_clip: tool({
