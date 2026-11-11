@@ -13,7 +13,7 @@
   "mcp": {
     "server": {
       "name": "bookedsecure",
-      "version": "0.12.0",
+      "version": "0.13.0",
       "title": "BookedSecure"
     },
     "tools": [
@@ -223,6 +223,7 @@
               "enum": [
                 "new",
                 "previous_lead",
+                "prospect",
                 "contacted",
                 "waiting_for_customer",
                 "customer_replied",
@@ -1170,6 +1171,7 @@
                   "enum": [
                     "new",
                     "previous_lead",
+                    "prospect",
                     "contacted",
                     "waiting_for_customer",
                     "customer_replied",
@@ -1476,6 +1478,7 @@
               "enum": [
                 "new",
                 "previous_lead",
+                "prospect",
                 "contacted",
                 "waiting_for_customer",
                 "customer_replied",
@@ -1497,6 +1500,7 @@
                     "enum": [
                       "new",
                       "previous_lead",
+                      "prospect",
                       "contacted",
                       "waiting_for_customer",
                       "customer_replied",
@@ -3160,6 +3164,128 @@
           "type": "object",
           "properties": {},
           "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "suggest_lead_searches",
+        "title": "Suggest who to find",
+        "description": "Suggest Lead finder searches: which kinds of businesses this business should reach and where, from its own business profile, the owner's words when they say who they want, or an existing customer to find more like (likeCustomerId, a lead id from list_leads). Returns 3-4 searches (what, where, criteria, why). Nothing is searched or sent.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "string",
+              "maxLength": 500,
+              "description": "The owner's own words about who they want to reach, e.g. 'warehouses near Auburn with 50+ staff'."
+            },
+            "likeCustomerId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "A customer lead id to find more businesses like them."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "find_businesses",
+        "title": "Find businesses (Lead finder)",
+        "description": "Run a Lead finder search for the owner: find businesses of a type in an Australian area (web search and OpenStreetMap), read their websites, judge whether each one fits, and keep the email address each publishes on its own site. Uses one of the business's 20 monthly searches and takes up to a minute, so only run it when the owner asked to find businesses; for a vague request call suggest_lead_searches first and ask which. Nothing is sent. Results also appear on the Lead finder page.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "what": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 120,
+              "description": "The kind of business, e.g. 'warehouses' or 'security companies'."
+            },
+            "where": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 80,
+              "description": "An Australian suburb, city or region, e.g. 'Auburn NSW'."
+            },
+            "criteria": {
+              "type": "string",
+              "maxLength": 400,
+              "description": "Who exactly fits, e.g. 50+ staff on site."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          "required": [
+            "what",
+            "where"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "lead_finder_results",
+        "title": "Lead finder results",
+        "description": "The latest Lead finder search and its businesses: fit (good, maybe, unknown), why, the email they publish and its check, phone, website, and whether each was already added to customers. Read-only.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "add_found_businesses_to_customers",
+        "title": "Add found businesses to customers",
+        "description": "Add chosen Lead finder businesses (ids from find_businesses or lead_finder_results) to the owner's customers as prospects, so an email campaign with audience lead_finder can reach them. Only ones with a usable published email are added. Nothing is sent.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 1,
+              "maxItems": 50
+            }
+          },
+          "required": [
+            "ids"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "outputSchema": null
       }
