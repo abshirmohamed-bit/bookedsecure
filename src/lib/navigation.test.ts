@@ -17,7 +17,7 @@ describe("sidebar structure", () => {
   it("lists each page once and puts counts only on pages with something waiting", () => {
     const paths = NAV_ITEMS.map((entry) => entry.to);
     expect(new Set(paths).size).toBe(paths.length);
-    expect(NAV_ITEMS.filter((entry) => entry.badge).map((entry) => entry.to)).toEqual(["/leads", "/social", "/campaigns/replies"]);
+    expect(NAV_ITEMS.filter((entry) => entry.badge).map((entry) => entry.to)).toEqual(["/assistant", "/leads", "/campaigns/replies"]);
   });
 });
 

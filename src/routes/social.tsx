@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
-import { CoworkWorkspace } from "@/components/cowork/CoworkWorkspace";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Facebook, Instagram, Linkedin, Youtube, ExternalLink, MessageCircle, RefreshCw, Send, Sparkles } from "lucide-react";
@@ -42,7 +41,9 @@ export const Route = createFileRoute("/social")({
     ...(typeof search["clip"] === "string" && /^[0-9a-f-]{36}$/i.test(search["clip"]) ? { clip: search["clip"] } : {}),
     ...(typeof search["clipTitle"] === "string" ? { clipTitle: search["clipTitle"].slice(0, 100) } : {}),
   }),
-  component: SocialMediaPage,
+  // Co-Work (/assistant) is the one front door; only links to a network or section open the hands-on tools here.
+  beforeLoad: ({ search }) => { if (Object.keys(search).length === 0) throw redirect({ to: "/assistant", replace: true }); },
+  component: SocialTools,
 });
 
 const PLATFORMS: { id: Platform; label: string; icon: typeof Linkedin; color: string }[] = [
@@ -51,13 +52,6 @@ const PLATFORMS: { id: Platform; label: string; icon: typeof Linkedin; color: st
   { id: "linkedin", label: "LinkedIn", icon: Linkedin, color: "text-[#0a66c2]" },
   { id: "youtube", label: "YouTube", icon: Youtube, color: "text-[#ff0000]" },
 ];
-
-function SocialMediaPage() {
-  const search = Route.useSearch();
-  // Co-Work is the front door; any link to a network or section opens the hands-on tools.
-  if (Object.keys(search).length === 0) return <AppShell title="Social media"><CoworkWorkspace headline={<>What should we <span className="cowork-accent">post</span> today?</>} /></AppShell>;
-  return <SocialTools />;
-}
 
 function SocialTools() {
   const search = Route.useSearch();
@@ -75,7 +69,7 @@ function SocialTools() {
     <AppShell title="Social media">
       <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
         <header className="space-y-3">
-          <Link to="/social" className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to Co-Work</Link>
+          <Link to="/assistant" className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to Co-Work</Link>
           <div>
             <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Social media</h1>
             <p className="text-sm text-muted-foreground">Post to your pages and answer comments and messages. Nothing is posted or sent until you approve it.</p>

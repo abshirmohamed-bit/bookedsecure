@@ -67,14 +67,13 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: null,
     items: [
       { to: "/dashboard", label: "Home", icon: "home" },
-      { to: "/assistant", label: "Co-Work", icon: "assistant" },
+      { to: "/assistant", label: "Co-Work", icon: "assistant", badge: "social", contextPaths: ["/social", "/linkedin"] },
     ],
   },
   {
     label: "Inbox",
     items: [
       { to: "/leads", label: "Leads", icon: "leads", badge: "leads", contextPaths: ["/import"] },
-      { to: "/social", label: "Social media", icon: "social", badge: "social", contextPaths: ["/linkedin"] },
       { to: "/unfinished", label: "Unfinished quotes", icon: "unfinished" },
     ],
   },
