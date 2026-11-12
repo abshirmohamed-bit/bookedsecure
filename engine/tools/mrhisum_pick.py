@@ -55,7 +55,7 @@ def peakiness(score) -> float:
 
 
 #: Titles that say the video is a song, not something to clip.
-SONG = re.compile(r"(song|songs|lyrics?|official (music )?video|audio|remix|bhajan|karaoke|mp3|ft\.|feat\.|album|instrumental|cover)", re.I)
+SONG = re.compile(r"\b(song|songs|lyrics?|official (music )?video|audio|remix|bhajan|karaoke|mp3|ft\.|feat\.|album|instrumental|cover)\b", re.I)
 
 
 def english_title(title: str) -> bool:
