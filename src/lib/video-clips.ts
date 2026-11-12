@@ -34,8 +34,8 @@ export function transcriptText(lines: readonly TranscriptLine[], maxChars = 1500
   return full.length > maxChars ? { text: full.slice(0, maxChars), cut: true } : { text: full, cut: false };
 }
 
-/** Clips rendered without being asked, so the best ones are ready to watch. */
-export const AUTO_RENDER_COUNT = 3;
+/** Every clip renders without being asked, best first, so all of them arrive ready to watch and post. */
+export const AUTO_RENDER_COUNT = Number.POSITIVE_INFINITY;
 
 export const ACTIVE_JOB_STATUSES = ["INGESTING", "IMPORTING", "QUEUED", "PROCESSING"] as const;
 export type VideoJobStatus = "UPLOADING" | "WAITING" | "COMPLETED" | "FAILED" | (typeof ACTIVE_JOB_STATUSES)[number];

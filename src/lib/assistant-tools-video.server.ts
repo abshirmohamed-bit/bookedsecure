@@ -88,7 +88,7 @@ export function buildVideoTools(ctx: AssistantToolContext) {
     }),
 
     clip_uploaded_video: tool({
-      description: "Cut a video the owner attached on the Social media page into short clips with captions. Use the attached video id from the request. They own a video they uploaded, so don't ask about rights. The best clips render automatically and appear in Studio and Results.",
+      description: "Cut a video the owner attached on the Social media page into short clips with captions. Use the attached video id from the request. They own a video they uploaded, so don't ask about rights. Every clip renders automatically and appears in Studio and Results.",
       inputSchema: z.object({ videoId: z.string().uuid().describe("The attached video id from the request."), ...OPTIONS }),
       execute: async ({ videoId, ...options }) => {
         if (!engineConfigured()) return fail(NOT_ON);

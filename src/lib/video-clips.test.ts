@@ -14,9 +14,13 @@ describe("links the Engine may fetch", () => {
 });
 
 describe("which clips render by themselves", () => {
-  it("takes the best three, highest score first", () => {
+  it("takes every clip, highest score first", () => {
     const clips = [{ id: "a", score: 10 }, { id: "b", score: 90 }, { id: "c", score: null }, { id: "d", score: 50 }, { id: "e", score: 70 }];
-    expect(clipsToRender(clips).map((c) => c.id)).toEqual(["b", "e", "d"]);
+    expect(clipsToRender(clips).map((c) => c.id)).toEqual(["b", "e", "d", "a", "c"]);
+  });
+  it("can still be limited", () => {
+    const clips = [{ id: "a", score: 10 }, { id: "b", score: 90 }];
+    expect(clipsToRender(clips, 1).map((c) => c.id)).toEqual(["b"]);
   });
   it("does not change the list it was given", () => {
     const clips = [{ id: "a", score: 1 }, { id: "b", score: 2 }];
