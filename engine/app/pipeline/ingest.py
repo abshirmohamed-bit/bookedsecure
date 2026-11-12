@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 from pathlib import Path
 
@@ -27,6 +28,26 @@ IMPORT_HOSTS = ("youtube.com", "youtu.be", "rumble.com", "vimeo.com", "twitch.tv
                 "x.com", "twitter.com", "tiktok.com", "instagram.com", "drive.google.com",
                 "dropbox.com", "zoom.us")
 
+
+
+def link_format(max_height: int | None = None) -> str:
+    """yt-dlp's format choice for a linked video, capped at `max_height`.
+
+    Widening fallbacks, kept from Lovable's fix: YouTube offers a server a
+    thinner format list than a browser, so the capped choices come first and
+    an uncapped one is only the last resort for a video with nothing smaller.
+    """
+    h = max_height or max_link_height()
+    return (f"bestvideo[height<={h}]+bestaudio/best[height<={h}]/"
+            f"bv*[height<={h}]+ba/b[height<={h}]/bv*+ba/b")
+
+
+def max_link_height() -> int:
+    try:
+        h = int((os.environ.get("YTDLP_MAX_HEIGHT") or "").strip() or 1080)
+    except ValueError:
+        h = 1080
+    return min(max(h, 360), 2160)
 
 def kind_for(content_type: str) -> str:
     if content_type in VIDEO_TYPES:
@@ -155,7 +176,8 @@ def _download(url: str, dest: Path) -> None:
 
 
 def _ytdlp(url: str, dest: Path) -> None:
-    """Best quality up to 2160p so a 4K source stays 4K."""
+    """Best quality up to YTDLP_MAX_HEIGHT (1080p unless set): clips are 1080x1920,
+    and every byte of a refused download goes through the paid proxy."""
     import subprocess
 
     exe = shutil.which("yt-dlp")
@@ -168,11 +190,7 @@ def _ytdlp(url: str, dest: Path) -> None:
     for client, via_proxy in ytdlp_opts.attempts():
         cmd = [exe, "--no-playlist", "--quiet", "--no-warnings",
                *ytdlp_opts.cli_args(client, via_proxy),
-               # Widening fallbacks, kept from Lovable's fix: YouTube offers a
-               # server a thinner format list than a browser, and the strict
-               # selector alone fails on videos that are perfectly downloadable.
-               "-f", ("bestvideo[height<=2160]+bestaudio/best[height<=2160]/"
-                      "bv*+ba/b[height<=2160]/b"),
+               "-f", link_format(),
                "--merge-output-format", "mp4", "-o", str(dest), "--", url]
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
         if proc.returncode == 0 and dest.exists():
