@@ -4,6 +4,11 @@
  */
 export type SocialPlatform = 'facebook' | 'instagram';
 
+/** Home's combined Facebook/Instagram card opens a network that actually has work waiting. */
+export function socialReviewSearch(platform: SocialPlatform | null | undefined) {
+  return { view: 'comments' as const, ...(platform ? { platform } : {}) };
+}
+
 export type IncomingComment = {
   platform: SocialPlatform;
   commentId: string;

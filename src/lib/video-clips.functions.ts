@@ -153,11 +153,13 @@ export const getVideoClipPlan = createServerFn({ method: "POST" })
   });
 
 /** The edits the editor can make to one clip; shared by preview and save. */
-const CLIP_EDITS = {
+export const CLIP_EDITS = {
   styleId: z.string().trim().min(1).max(60).optional(),
   captionsOn: z.boolean().optional(),
   captionPosition: z.enum(CAPTION_POSITIONS).nullable().optional(),
   captionSize: z.number().min(CAPTION_SIZE.min).max(CAPTION_SIZE.max).optional(),
+  /** A dragged caption position, 0 (top) to 1 (bottom); null goes back to the preset. */
+  captionY: z.number().min(0).max(1).nullable().optional(),
   layout: z.enum(CLIP_LAYOUT_IDS).optional(),
   zoom: z.enum(CLIP_ZOOM_IDS).optional(),
   aspect: z.enum(VIDEO_ASPECTS).optional(),

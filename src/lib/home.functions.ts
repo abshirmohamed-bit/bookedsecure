@@ -18,15 +18,18 @@ async function waitingCounts(businessId: string) {
       .eq("conversation_status", "needs_attention"),
     supabaseAdmin
       .from("social_comments")
-      .select("id", { count: "exact", head: true })
+      // One row tells Home which network Review should open; the exact count stays cheap.
+      .select("platform", { count: "exact" })
       .eq("business_id", businessId)
       .eq("status", "pending_review")
-      .eq("needs_response", true),
+      .eq("needs_response", true)
+      .limit(1),
   ]);
   if (leads.error) throw new Error("Lead counts could not be loaded.");
   const { unreadReplyCount } = await import("@/lib/email-inbound.server");
   // Social and reply tables may not exist yet on a workspace; count them as zero.
-  return { leads: leads.count ?? 0, social: comments.error ? 0 : (comments.count ?? 0), campaigns: await unreadReplyCount(businessId) };
+  const socialPlatform = comments.data?.[0]?.platform === "instagram" ? "instagram" as const : comments.data?.[0]?.platform === "facebook" ? "facebook" as const : null;
+  return { leads: leads.count ?? 0, social: comments.error ? 0 : (comments.count ?? 0), socialPlatform, campaigns: await unreadReplyCount(businessId) };
 }
 
 /** Sidebar badges. Small and cheap so it can refresh every couple of minutes. */

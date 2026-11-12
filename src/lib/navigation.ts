@@ -181,3 +181,24 @@ export function accountMenuReducer(open: boolean, event: AccountMenuEvent): bool
       return open;
   }
 }
+
+/** Push cleanup is best-effort: a network or expired-session failure must never trap someone signed in. */
+export async function signOutWithPushCleanup(options: {
+  token: string | null;
+  removeDevice: (token: string) => Promise<unknown>;
+  clearToken: () => void;
+  signOut: () => Promise<unknown>;
+  onSignedOut: () => void;
+  onPushError: () => void;
+}): Promise<void> {
+  if (options.token) {
+    try {
+      await options.removeDevice(options.token);
+      options.clearToken();
+    } catch {
+      options.onPushError();
+    }
+  }
+  await options.signOut();
+  options.onSignedOut();
+}
