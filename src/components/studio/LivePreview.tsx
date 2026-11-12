@@ -83,6 +83,7 @@ export function LivePreview({
   const [muted, setMuted] = useState(true);
   const [failed, setFailed] = useState(false);
   const [dragY, setDragY] = useState<number | null>(null);
+  const [buffering, setBuffering] = useState(false);
   const wasPlaying = useRef(false);
   /** The picture, animated when the composition changes the way the Engine transitions it. */
   const picture = useRef<HTMLDivElement>(null);
@@ -202,6 +203,12 @@ export function LivePreview({
     boxShadow: `0 ${frame.w * LOOK.shadowDrop}px ${frame.w * LOOK.shadowBlur * 2}px rgba(0,0,0,${LOOK.shadowAlpha})`,
   });
 
+  // A new layout fades in (the video itself keeps playing).
+  useEffect(() => {
+    const el = picture.current;
+    if (el && typeof el.animate === "function") el.animate([{ opacity: 0.4 }, { opacity: 1 }], { duration: 200, easing: "ease-out" });
+  }, [layout]);
+
   // A change of composition plays the Engine's 6-frame transition; camera cuts stay cuts.
   const shotIndex = shot && plan ? plan.shots.indexOf(shot) : -1;
   useEffect(() => {
@@ -250,6 +257,13 @@ export function LivePreview({
         e.currentTarget.currentTime = Math.max(0, (start - offsetMs) / 1000);
       }}
       onError={() => setFailed(true)}
+      // The button follows the video itself (a stall, the end of the file, the browser pausing it).
+      onPlay={() => setPlaying(true)}
+      onPause={() => setPlaying(false)}
+      onEnded={(e) => { e.currentTarget.currentTime = Math.max(0, (start - offsetMs) / 1000); void e.currentTarget.play().catch(() => setPlaying(false)); }}
+      onWaiting={() => setBuffering(true)}
+      onPlaying={() => setBuffering(false)}
+      onCanPlay={() => setBuffering(false)}
       className={glassBox ? "absolute inset-0 size-full object-cover" : style ? `absolute max-w-none ${moving ? "" : "transition-[left,top,width,height] duration-150 ease-out"}` : layout === "title-subtitles" ? "absolute inset-x-0 top-1/2 w-full -translate-y-1/2 object-contain" : "absolute inset-0 size-full object-contain"}
       style={glassBox ? undefined : style ?? undefined}
     />
@@ -263,11 +277,16 @@ export function LivePreview({
           style={{ filter: `blur(24px) saturate(${LOOK.ambientSaturation}) brightness(${cinema ? LOOK.cinemaBrightness : LOOK.ambientBrightness})` }} />
       ) : null}
       {cinema ? <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%)" }} /> : null}
-      <div key={layout} ref={picture} className="absolute inset-0 animate-in fade-in duration-200">
-        {failed ? (poster ? <img src={poster} alt="" className="size-full object-cover" /> : null)
-          : glassBox ? <div className="absolute overflow-hidden" style={cardStyle(glassBox)}>{videoEl}</div>
-            : cards ? <div className="absolute overflow-hidden" style={cardStyle(cards[0]!.box)}>{videoEl}</div>
-              : split ? <div className="absolute inset-x-0 top-0 h-1/2 overflow-hidden">{videoEl}</div> : videoEl}
+      <div ref={picture} className="absolute inset-0">
+        {failed && poster ? <img src={poster} alt="" className="absolute inset-0 size-full object-cover" /> : null}
+        {/* One wrapper whose shape changes with the shot, so the video element is never
+            recreated (a recreated video starts paused, and playback stopped at the first
+            change of layout). */}
+        <div className={failed ? "hidden" : "absolute overflow-hidden"}
+          style={glassBox ? cardStyle(glassBox) : cards ? cardStyle(cards[0]!.box)
+            : split ? { left: 0, top: 0, width: "100%", height: "50%" } : { left: 0, top: 0, width: "100%", height: "100%" }}>
+          {videoEl}
+        </div>
         {/* the other pictures of the composition: muted copies kept in step with the main video */}
         {[...(cards ? cards.slice(1) : split && !failed && frame.w && source.w ? [{ box: { x: 0, y: frame.h / 2, w: frame.w, h: frame.h / 2 }, crop: split[1]! }] : []), ...(bubble ? [bubble] : [])].map((c, i) => (
           <div key={`twin-${i}`} className={cards || bubble ? "absolute overflow-hidden" : "absolute overflow-hidden border-t-2 border-white/70"}
@@ -315,6 +334,7 @@ export function LivePreview({
       ) : null}
 
       <div className="absolute inset-x-2 bottom-2 flex items-center gap-1.5">
+        {buffering && playing ? <span className="mr-1 size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" role="status" aria-label="Loading the video" /> : null}
         <button type="button" onClick={toggle} aria-label={playing ? "Pause preview" : "Play preview"} className="grid size-9 place-items-center rounded-full bg-black/55 text-white backdrop-blur transition hover:scale-105 hover:bg-black/70 active:scale-95">
           {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
         </button>

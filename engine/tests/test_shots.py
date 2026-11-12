@@ -123,9 +123,18 @@ def test_a_cut_starts_a_new_shot_with_its_own_framing():
     assert plan[0].window.x < plan[1].window.x
 
 
-def test_a_shot_with_nobody_in_it_and_detail_everywhere_is_shown_whole():
+def test_a_shot_with_nobody_in_it_and_detail_everywhere_is_the_screen_with_a_close_up():
+    """A screen recording: the whole picture on top, a close-up of the busy part below."""
     plan = P.plan(inputs(tracks=[person(1, 0.5, end=5000)], cuts=[5000], detail=flat_detail(5000, 10000)))
-    assert [s.kind for s in plan] == ["fill", "fit"]
+    assert [s.kind for s in plan] == ["fill", "screen"]
+    zoom = plan[1].main
+    assert zoom is not None and zoom.h == int(1080 * P.ZOOM_HEIGHT) // 2 * 2
+    assert 0 <= zoom.x and zoom.x + zoom.w <= 1920 and 0 <= zoom.y and zoom.y + zoom.h <= 1080
+
+
+def test_the_blurred_background_layout_still_shows_a_screen_whole():
+    plan = P.plan(inputs(layout="streamer", detail=flat_detail()))
+    assert [s.kind for s in plan] == ["fit"]
 
 
 def test_a_shot_with_nobody_in_it_and_nothing_to_cut_off_is_centred_on_the_busy_part():

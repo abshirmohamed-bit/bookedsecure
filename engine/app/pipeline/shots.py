@@ -398,6 +398,35 @@ def _grid(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
     return Shot(a, b, "grid", cells=cells, why=why)
 
 
+#: A screen + zoom close-up shows this share of the source's height.
+ZOOM_HEIGHT = 0.6
+
+
+def _activity_zoom(inp: Inputs, a: int, b: int, centre: float) -> "Box | None":
+    """The close-up for a faceless shot of a wide picture shown on a tall frame:
+    a crop of the bottom card's shape, ZOOM_HEIGHT of the picture tall, on the
+    densest columns and the busier half. None when the frame isn't tall or the
+    source isn't wide (then the whole picture already fills the frame)."""
+    sw, sh = inp.width, inp.height
+    if not sw or not sh or inp.out_h <= inp.out_w or sw <= sh:
+        return None
+    entries = [e for e in inp.detail if a <= e[0] < b and e[1]]
+    if not entries:
+        return None
+    top, bottom = screen_split(inp)
+    aspect = inp.out_w / max(1, bottom)                       # the bottom card's shape
+    ch = _even(sh * ZOOM_HEIGHT)
+    cw = _even(min(sw, ch * aspect))
+    bands = [(e[3], e[4]) for e in entries if len(e) > 4]
+    top_busy = sum(t for t, _ in bands) / len(bands) if bands else 0.5
+    bottom_busy = sum(bm for _, bm in bands) / len(bands) if bands else 0.5
+    # Lean towards the busier band, never off the picture.
+    cy = 0.5 + 0.18 * max(-1.0, min(1.0, (bottom_busy - top_busy) * 4))
+    x = int(_clamp(round(centre * sw - cw / 2), 0, sw - cw))
+    y = int(_clamp(round(cy * sh - ch / 2), 0, sh - ch))
+    return Box(x, y, cw, ch)
+
+
 def screen_split(inp: Inputs) -> tuple[int, int]:
     """(picture height, person height) for the screen layout, in output px."""
     top = _even(inp.out_w * inp.height / max(1, inp.width))
@@ -549,7 +578,13 @@ def plan(inp: Inputs) -> list[Shot]:
         faces = _faces(cast)
         wide, centre = _detail(inp, a, b, share)
         if not faces:
-            if layout in {"auto", "screen", "pip", "split", "grid"} and wide:
+            zoom_box = _activity_zoom(inp, a, b, centre) if wide and layout in {"auto", "screen", "pip", "split", "grid"} else None
+            if zoom_box is not None:
+                # Screen + zoom: the whole picture on top for context, a close-up of
+                # where the content is below, so a screen recording reads on a phone.
+                out.append(Shot(a, b, "screen", main=zoom_box,
+                                why="nobody in shot: the whole screen, with a close-up of the busy part"))
+            elif layout in {"auto", "screen", "pip", "split", "grid"} and wide:
                 out.append(Shot(a, b, "fit", why="nobody in shot and the picture runs edge to edge: shown whole"))
             else:
                 out.append(_fill_centred(inp, a, b, centre, "nobody in shot: the busiest part of the picture"))
