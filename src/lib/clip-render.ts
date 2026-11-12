@@ -6,6 +6,7 @@
  * failure) saves through the Engine instead.
  */
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
+import * as MP4Box from "mp4box";
 import { cropAt, shotAt, transitionAt, transitionLook, type MotionSample } from "@/lib/clip-motion";
 import { duoCards, glassCard, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
 import { groupCaptionLines, type CaptionLine, type CaptionWord, type VideoAspect } from "@/lib/video-clips";
@@ -40,6 +41,11 @@ type Win = typeof globalThis & {
   MediaStreamTrackProcessor?: new (init: { track: MediaStreamTrack }) => { readable: ReadableStream<AudioData> };
 };
 
+/** A picture to draw from: the playing video, or a frame decoded straight from the file. */
+type Pic = HTMLVideoElement | VideoFrame;
+const pw = (v: Pic) => ("videoWidth" in v ? v.videoWidth : v.displayWidth);
+const ph = (v: Pic) => ("videoHeight" in v ? v.videoHeight : v.displayHeight);
+
 /** Whether this browser can make the video itself. */
 export function canRenderInBrowser(): boolean {
   if (typeof window === "undefined") return false;
@@ -55,7 +61,7 @@ function centreCrop(src: { w: number; h: number }, ratio: number): PlanBox {
 }
 
 /** Draws `box` of the source (in plan pixels) to cover the destination rectangle. */
-function drawCover(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, k: number, box: PlanBox, dx: number, dy: number, dw: number, dh: number) {
+function drawCover(ctx: CanvasRenderingContext2D, video: Pic, k: number, box: PlanBox, dx: number, dy: number, dw: number, dh: number) {
   const target = dw / dh;
   let { x, y, w, h } = box;
   if (w / h > target) { const nw = h * target; x += (w - nw) / 2; w = nw; } else { const nh = w / target; y += (h - nh) / 2; h = nh; }
@@ -65,14 +71,14 @@ function drawCover(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, k: nu
 let ambientCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
 
 /** The blurred, richer copy of the whole picture behind a card (drawn small, then scaled up: cheap). */
-function drawAmbient(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, W: number, H: number, brightness: number = LOOK.ambientBrightness) {
+function drawAmbient(ctx: CanvasRenderingContext2D, video: Pic, W: number, H: number, brightness: number = LOOK.ambientBrightness) {
   const w = Math.max(2, Math.round(W / 4)), h = Math.max(2, Math.round(H / 4));
   if (!ambientCanvas || ambientCanvas.width !== w || ambientCanvas.height !== h) {
     ambientCanvas = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w, h) : Object.assign(document.createElement("canvas"), { width: w, height: h });
   }
   const a = ambientCanvas.getContext("2d") as CanvasRenderingContext2D | null;
   if (!a) return;
-  const vw = video.videoWidth, vh = video.videoHeight;
+  const vw = pw(video), vh = ph(video);
   const s = Math.max(w / vw, h / vh);
   a.filter = `blur(${Math.max(2, (LOOK.ambientBlur * W) / 4)}px) saturate(${LOOK.ambientSaturation}) brightness(${brightness})`;
   a.drawImage(video, (w - vw * s) / 2, (h - vh * s) / 2, vw * s, vh * s);
@@ -100,8 +106,8 @@ function drawCard(ctx: CanvasRenderingContext2D, box: { x: number; y: number; w:
   ctx.restore();
 }
 
-function drawContain(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, W: number, H: number) {
-  const vw = video.videoWidth, vh = video.videoHeight;
+function drawContain(ctx: CanvasRenderingContext2D, video: Pic, W: number, H: number) {
+  const vw = pw(video), vh = ph(video);
   const s = Math.min(W / vw, H / vh);
   const w = vw * s, h = vh * s;
   ctx.fillStyle = "#000";
@@ -112,7 +118,7 @@ function drawContain(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, W: 
 let layer: OffscreenCanvas | HTMLCanvasElement | null = null;
 
 /** One composed frame: the shot's picture for this moment, mid-transition when the composition is changing. */
-function drawPicture(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input: RenderInput, rel: number, W: number, H: number) {
+function drawPicture(ctx: CanvasRenderingContext2D, video: Pic, input: RenderInput, rel: number, W: number, H: number) {
   const shots = input.plan?.shots ?? [];
   const change = transitionAt(shots, rel);
   if (!change) return drawShot(ctx, video, input, shotAt(shots, rel), rel, W, H);
@@ -149,16 +155,16 @@ function drawPicture(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, inp
 }
 
 /** One shot's composition at this moment. */
-function drawShot(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input: RenderInput, shot: RenderShot | null, rel: number, W: number, H: number) {
+function drawShot(ctx: CanvasRenderingContext2D, video: Pic, input: RenderInput, shot: RenderShot | null, rel: number, W: number, H: number) {
   const plan = input.plan;
-  const src = plan?.source && plan.source.w > 0 ? plan.source : { w: video.videoWidth, h: video.videoHeight };
-  const k = video.videoWidth / src.w;
+  const src = plan?.source && plan.source.w > 0 ? plan.source : { w: pw(video), h: ph(video) };
+  const k = pw(video) / src.w;
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, W, H);
   if (shot?.kind === "fit" || shot?.kind === "headline") {
     // Ambient glass: the whole picture as a rounded card over a blur of itself.
     drawAmbient(ctx, video, W, H);
-    const card = glassCard(W, H, video.videoWidth, video.videoHeight);
+    const card = glassCard(W, H, pw(video), ph(video));
     drawCard(ctx, card, W, () => ctx.drawImage(video, card.x, card.y, card.w, card.h));
     return;
   }
@@ -170,7 +176,7 @@ function drawShot(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input:
     g.addColorStop(1, "rgba(0,0,0,0.55)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
-    const vw = video.videoWidth, vh = video.videoHeight, sc = Math.min(W / vw, H / vh);
+    const vw = pw(video), vh = ph(video), sc = Math.min(W / vw, H / vh);
     ctx.drawImage(video, (W - vw * sc) / 2, (H - vh * sc) / 2, vw * sc, vh * sc);
     return;
   }
@@ -326,7 +332,27 @@ function waitFor(el: HTMLMediaElement, event: string, timeoutMs = 30_000): Promi
 }
 
 /** Renders the clip; `onProgress` gets 0..1. Resolves with the MP4 and its size. */
-export async function renderClipInBrowser(input: RenderInput, onProgress: (p: number) => void, signal?: AbortSignal): Promise<{ blob: Blob; width: number; height: number; durationMs: number }> {
+type Rendered = { blob: Blob; width: number; height: number; durationMs: number };
+
+/**
+ * Make the clip's MP4 here. First the fast way: read the source file
+ * directly, decode its frames as fast as the computer allows and copy its
+ * sound packets as they are (an edit never changes the sound), which takes a
+ * fraction of the clip's length and doesn't need the tab in front. If the
+ * file or the browser can't do that, play it through once in real time.
+ */
+export async function renderClipInBrowser(input: RenderInput, onProgress: (p: number) => void, signal?: AbortSignal): Promise<Rendered> {
+  try {
+    return await renderClipFast(input, onProgress, signal);
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    console.warn("Fast render unavailable, playing it through instead:", e);
+    onProgress(0);
+    return renderClipRealtime(input, onProgress, signal);
+  }
+}
+
+async function renderClipRealtime(input: RenderInput, onProgress: (p: number) => void, signal?: AbortSignal): Promise<Rendered> {
   const { w: W, h: H } = OUTPUT[input.aspect];
   const fps = 30;
   const bitrate = Math.min(8_000_000, Math.max(2_500_000, Math.floor((45 * 8_000_000) / Math.max(10, (input.endMs - input.startMs) / 1000))));
@@ -447,6 +473,210 @@ export async function renderClipInBrowser(input: RenderInput, onProgress: (p: nu
   video.load();
   if (failure) throw failure;
   if (frames < 10) throw new Error("Too few frames were made; the video may not have played.");
+  muxer.finalize();
+  onProgress(1);
+  return { blob: new Blob([target.buffer], { type: "video/mp4" }), width: W, height: H, durationMs };
+}
+
+
+// ---------------------------------------------------------------- fast path
+
+/** Bytes [start, end) of the source, read with an HTTP range request. */
+async function fetchRange(url: string, start: number, end: number, signal?: AbortSignal): Promise<{ buf: ArrayBuffer; total: number | null }> {
+  const r = await fetch(url, { headers: { Range: `bytes=${start}-${end - 1}` }, signal: signal ?? null });
+  // Past the end of the file: nothing more to read.
+  if (r.status === 416) return { buf: new ArrayBuffer(0), total: start };
+  if (r.status !== 206 && r.status !== 200) throw new Error(`The source couldn't be read (${r.status}).`);
+  const total = Number((r.headers.get("content-range") ?? "").split("/")[1]) || null;
+  let buf = await r.arrayBuffer();
+  if (r.status === 200) buf = buf.slice(start, end);
+  return { buf, total };
+}
+
+/** The file's track table, reading only as far as the moov box (skipping the media data). */
+async function readMoov(url: string, signal?: AbortSignal) {
+  const file = MP4Box.createFile();
+  let info: MP4Box.MP4Info | null = null;
+  let error: string | null = null;
+  file.onReady = (i) => { info = i; };
+  file.onError = (e) => { error = e; };
+  let next = 0;
+  let total: number | null = null;
+  for (let guard = 0; guard < 40 && !info && !error; guard++) {
+    const size = 2 * 1024 * 1024;
+    const end: number = total ? Math.min(total, next + size) : next + size;
+    if (total !== null && next >= total) break;
+    const got = await fetchRange(url, next, end, signal);
+    // Content-Range is often not exposed across origins: a short read means the end of the file.
+    total = total ?? got.total ?? (got.buf.byteLength < end - next ? next + got.buf.byteLength : null);
+    if (!got.buf.byteLength) break;
+    const chunk = got.buf as MP4Box.MP4ArrayBuffer;
+    chunk.fileStart = next;
+    const want = file.appendBuffer(chunk);
+    next = want > next ? want : next + got.buf.byteLength;
+  }
+  file.flush();
+  if (error) throw new Error(`The source file couldn't be read: ${error}`);
+  if (!info) throw new Error("The source file's index wasn't found.");
+  return { file, info: info as MP4Box.MP4Info };
+}
+
+/** The codec configuration box of a track's sample entry, as WebCodecs wants it. */
+function trackDescription(file: MP4Box.MP4File, id: number): Uint8Array | undefined {
+  const trak = file.getTrackById(id);
+  for (const entry of trak?.mdia?.minf?.stbl?.stsd?.entries ?? []) {
+    const box = entry.avcC ?? entry.hvcC ?? entry.vpcC ?? entry.av1C;
+    if (box) {
+      const stream = new MP4Box.DataStream(undefined, 0, MP4Box.DataStream.BIG_ENDIAN);
+      box.write(stream);
+      return new Uint8Array(stream.buffer, 8); // without the box header
+    }
+  }
+  return undefined;
+}
+
+function audioSpecificConfig(file: MP4Box.MP4File, id: number): Uint8Array | undefined {
+  const entry = file.getTrackById(id)?.mdia?.minf?.stbl?.stsd?.entries?.[0];
+  const data = entry?.esds?.esd?.descs?.[0]?.descs?.[0]?.data;
+  return data ? new Uint8Array(data) : undefined;
+}
+
+async function renderClipFast(input: RenderInput, onProgress: (p: number) => void, signal?: AbortSignal): Promise<Rendered> {
+  if (typeof VideoDecoder === "undefined" || typeof VideoEncoder === "undefined") throw new Error("WebCodecs isn't available.");
+  const { w: W, h: H } = OUTPUT[input.aspect];
+  const fps = 30;
+  const bitrate = Math.min(8_000_000, Math.max(2_500_000, Math.floor((45 * 8_000_000) / Math.max(10, (input.endMs - input.startMs) / 1000))));
+  let codec = VIDEO_CODECS[0]!;
+  for (const c of VIDEO_CODECS) {
+    if ((await VideoEncoder.isConfigSupported({ codec: c, width: W, height: H, bitrate, framerate: fps }).catch(() => null))?.supported) { codec = c; break; }
+  }
+
+  const { file, info } = await readMoov(input.src, signal);
+  const vt = info.videoTracks[0];
+  const at = info.audioTracks[0];
+  if (!vt) throw new Error("The source has no video track.");
+  const vTrak = file.getTrackById(vt.id);
+  const vSamples: MP4Box.MP4Sample[] = vTrak?.samples ?? [];
+  if (!vSamples.length) throw new Error("The source's frames aren't listed.");
+  const description = trackDescription(file, vt.id);
+  const decoderConfig: VideoDecoderConfig = {
+    codec: vt.codec, hardwareAcceleration: "prefer-hardware",
+    ...(vt.video ? { codedWidth: vt.video.width, codedHeight: vt.video.height } : {}),
+    ...(description ? { description } : {}),
+  };
+  if (!(await VideoDecoder.isConfigSupported(decoderConfig).catch(() => null))?.supported) throw new Error(`This browser can't decode ${vt.codec}.`);
+
+  // Source-time window of the clip, in microseconds.
+  const startUs = (input.startMs - input.offsetMs) * 1000;
+  const endUs = (input.endMs - input.offsetMs) * 1000;
+  const usOf = (s: MP4Box.MP4Sample) => (s.cts * 1_000_000) / s.timescale;
+  // Decoding has to start at the keyframe at or before the clip's start.
+  let first = vSamples.findIndex((s) => usOf(s) >= startUs);
+  if (first < 0) throw new Error("The clip is past the end of the source.");
+  while (first > 0 && !vSamples[first]!.is_sync) first--;
+  let last = vSamples.length - 1;
+  for (let i = first; i < vSamples.length; i++) { if (usOf(vSamples[i]!) > endUs + 200_000) { last = i; break; } }
+  const vRange = vSamples.slice(first, last + 1);
+
+  // Sound: AAC packets copied as they are.
+  const aSamples: MP4Box.MP4Sample[] = at ? (file.getTrackById(at.id)?.samples ?? []).filter((s: MP4Box.MP4Sample) => usOf(s) >= startUs && usOf(s) < endUs) : [];
+  const asc = at ? audioSpecificConfig(file, at.id) : undefined;
+  const audioOk = Boolean(at && at.codec.startsWith("mp4a") && asc && aSamples.length);
+  if (at && !audioOk) throw new Error("The source's sound can't be copied as it is.");
+
+  // One read covers both tracks' bytes for the clip.
+  const all = [...vRange, ...aSamples];
+  const lo = Math.min(...all.map((s) => s.offset));
+  const hi = Math.max(...all.map((s) => s.offset + s.size));
+  if (hi - lo > 600 * 1024 * 1024) throw new Error("The clip's part of the file is too big to read here.");
+  const bytes = new Uint8Array(hi - lo);
+  const piece = 8 * 1024 * 1024;
+  for (let at0 = lo; at0 < hi; at0 += piece) {
+    const got = await fetchRange(input.src, at0, Math.min(hi, at0 + piece), signal);
+    bytes.set(new Uint8Array(got.buf), at0 - lo);
+    onProgress(0.3 * Math.min(1, (at0 + piece - lo) / (hi - lo)));
+  }
+  const slice = (s: MP4Box.MP4Sample) => bytes.subarray(s.offset - lo, s.offset - lo + s.size);
+
+  const target = new ArrayBufferTarget();
+  const muxer = new Muxer({
+    target, fastStart: "in-memory", firstTimestampBehavior: "offset",
+    video: { codec: "avc", width: W, height: H, frameRate: fps },
+    ...(audioOk && at?.audio ? { audio: { codec: "aac" as const, numberOfChannels: at.audio.channel_count, sampleRate: at.audio.sample_rate } } : {}),
+  });
+  let failure: Error | null = null;
+  const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failure = e; } });
+  // The encoder is the slow part: its "realtime" mode on the GPU runs about twice
+  // as fast as "quality" at the same bitrate, with no visible difference here.
+  const fastCfg: VideoEncoderConfig = { codec, width: W, height: H, bitrate, framerate: fps, latencyMode: "realtime", hardwareAcceleration: "prefer-hardware" };
+  const encCfg = (await VideoEncoder.isConfigSupported(fastCfg).catch(() => null))?.supported
+    ? fastCfg : { codec, width: W, height: H, bitrate, framerate: fps, latencyMode: "quality" as const };
+  encoder.configure(encCfg);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d", { alpha: false })!;
+  const lines = groupCaptionLines(input.words);
+  const poster = Boolean(input.plan?.shots.length) && input.plan!.shots.every((s) => s.kind === "headline");
+  const durationMs = input.endMs - input.startMs;
+  const minGapUs = 1_000_000 / fps - 1_000;
+  let frames = 0;
+  let lastOut = -Infinity;
+
+  const decoder = new VideoDecoder({
+    output: (frame) => {
+      try {
+        const t = frame.timestamp;
+        if (failure || t < startUs || t >= endUs || t - lastOut < minGapUs) return;
+        const abs = input.offsetMs + t / 1000;
+        drawPicture(ctx, frame, input, abs - input.planStartMs, W, H);
+        drawCaptions(ctx, lines, input, abs - input.startMs, W, H);
+        drawHeadline(ctx, input, W, H);
+        if (poster) {
+          const bh = Math.max(4, H * LOOK.progress.height);
+          ctx.fillStyle = `rgba(255,255,255,${LOOK.progress.alpha})`;
+          ctx.fillRect(0, H - bh - H * LOOK.progress.lift, (W * (abs - input.startMs)) / Math.max(1, durationMs), bh);
+        }
+        const out = new VideoFrame(canvas, { timestamp: Math.round(t - startUs) });
+        encoder.encode(out, { keyFrame: frames % (fps * 2) === 0 });
+        out.close();
+        frames++;
+        lastOut = t;
+        onProgress(0.3 + 0.68 * Math.min(1, (t - startUs) / Math.max(1, endUs - startUs)));
+      } catch (e) {
+        failure = e instanceof Error ? e : new Error(String(e));
+      } finally {
+        frame.close();
+      }
+    },
+    error: (e) => { failure = e; },
+  });
+  decoder.configure(decoderConfig);
+
+  const breathe = () => new Promise<void>((r) => setTimeout(r, 0));
+  for (const s of vRange) {
+    if (signal?.aborted) { decoder.close(); encoder.close(); throw new Error("Stopped."); }
+    if (failure) break;
+    while (decoder.decodeQueueSize > 12 || encoder.encodeQueueSize > 12) await breathe();
+    decoder.decode(new EncodedVideoChunk({ type: s.is_sync ? "key" : "delta", timestamp: usOf(s), duration: (s.duration * 1_000_000) / s.timescale, data: slice(s) }));
+  }
+  await decoder.flush().catch((e) => { failure = failure ?? e; });
+  decoder.close();
+  await encoder.flush().catch((e) => { failure = failure ?? e; });
+  encoder.close();
+  if (failure) throw failure;
+  if (frames < 10) throw new Error("Too few frames came out of the source.");
+
+  if (audioOk && at?.audio && asc) {
+    const decoderConfigA = { codec: "mp4a.40.2", sampleRate: at.audio.sample_rate, numberOfChannels: at.audio.channel_count, description: asc };
+    aSamples.forEach((s, i) => {
+      muxer.addAudioChunk(
+        new EncodedAudioChunk({ type: "key", timestamp: Math.round(usOf(s) - startUs), duration: Math.round((s.duration * 1_000_000) / s.timescale), data: slice(s) }),
+        i === 0 ? { decoderConfig: decoderConfigA } : undefined,
+      );
+    });
+  }
   muxer.finalize();
   onProgress(1);
   return { blob: new Blob([target.buffer], { type: "video/mp4" }), width: W, height: H, durationMs };

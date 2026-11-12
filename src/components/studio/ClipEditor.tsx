@@ -586,7 +586,7 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
                   </div>
                 ) : null}
                 <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
-                  {makingHere !== null ? "Making it here in your browser. Keep this tab open and in front until it's done." : making ? "The video is being made. You can save more changes once it's finished." : changes.length ? `Changing ${changes.join(", ")}.` : "Make a change to save it."}
+                  {makingHere !== null ? "Making it here in your browser, faster than the clip plays. Keep this tab open until it's done." : making ? "The video is being made. You can save more changes once it's finished." : changes.length ? `Changing ${changes.join(", ")}.` : "Make a change to save it."}
                 </p>
               </div>
             ) : null}
