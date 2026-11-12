@@ -281,3 +281,14 @@ def test_the_catalog_lists_every_layout_and_zoom(api):
     assert {z["id"] for z in body["zoom"]} == set(P.ZOOMS)
     assert body["caption_styles"] and body["caption_positions"] and body["title_styles"]
     assert {a["id"] for a in body["aspects"]} == set(compose.ASPECTS)
+
+
+def test_picture_in_picture_main_shot_cuts_no_one_in_half():
+    from app.pipeline.shots import _Face, _clear_of_others
+    speaker = _Face(1, 0.55, 0.4, 0.06, 0.12, 1.0)
+    other = _Face(2, 0.38, 0.4, 0.06, 0.12, 1.0)
+    window = 0.32
+    c = _clear_of_others(0.55, speaker, [other], window)
+    wl, wr = c - window / 2, c + window / 2
+    assert other.right <= wl or other.left >= wr or (other.left >= wl and other.right <= wr)
+    assert wl < speaker.left and speaker.right < wr

@@ -420,6 +420,31 @@ def _inset_box(face: _Face, inp: Inputs) -> Box:
     return _cell(face, 3 / 4, 0.36, inp)
 
 
+def _clear_of_others(c: float, subject: _Face, others: list[_Face], window: float) -> float:
+    """Shift a window centred at `c` so no other face is cut by its edge (director's
+    sliver rule, for a held window): step off that face or take it in whole,
+    whichever is the smaller move that keeps the subject well inside."""
+    m = window * director.EDGE_MARGIN
+    lo, hi = subject.left, subject.right
+    for _ in range(3):
+        moved = False
+        for o in others:
+            wl, wr = c - window / 2, c + window / 2
+            if o.right <= wl or o.left >= wr or (o.left >= wl and o.right <= wr):
+                continue
+            pad = director.OTHER_MARGIN
+            options = [o.left - pad - window / 2, o.right + pad + window / 2,
+                       o.right + pad - window / 2, o.left - pad + window / 2]
+            ok = [x for x in options if x - window / 2 >= -1e-9 and x + window / 2 <= 1 + 1e-9
+                  and lo >= x - window / 2 + m / 2 and hi <= x + window / 2 - m / 2]
+            if ok:
+                c = min(ok, key=lambda x: abs(x - c))
+                moved = True
+        if not moved:
+            break
+    return c
+
+
 def _pip(inp: Inputs, a: int, b: int, faces: list[_Face], wide: bool, *,
          use_turns: bool, zoom: float) -> Shot:
     talk = _talk_time(inp.turns, a, b)
@@ -434,7 +459,7 @@ def _pip(inp: Inputs, a: int, b: int, faces: list[_Face], wide: bool, *,
                      why="picture-in-picture: the speaker, with the other person inset")
         # The main picture holds on the speaker for the whole shot; following
         # turns would put the inset's face in the main picture too.
-        cx = main_face.x
+        cx = _clear_of_others(main_face.x, main_face, [f for f in order if f.id != main_face.id], shot.window.w / sw)
         x = int(_clamp(round(cx * sw - shot.window.w / 2), 0, sw - shot.window.w))
         shot.window.x, shot.pan = x, [(a, x)]
         shot.kind, shot.inset, shot.base = "pip", _inset_box(other, inp), "fill"
