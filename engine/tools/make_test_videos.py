@@ -14,6 +14,15 @@ and the joined file is then stream-copied together, so the joins are clean.
 
 Writes training_sample_1.mp4 ... and a .json beside each one listing exactly
 which parts of the movie it used.
+
+Benchmark mode cuts chosen scenes instead of random ones, in the order given,
+so the same test file can be rebuilt and compared run after run:
+
+    python make_test_videos.py video.mp4 --scenes "3:00-4:00, 7:15-8:20, 11:30-14:35" --name benchmark_5min
+
+Scenes are trimmed evenly (from their ends) to fit TARGET_SECONDS when they
+add up to more; add --keep-length to use them whole. Writes benchmark_5min.mp4
+and benchmark_5min_cuts.json (source time -> time in the compiled file).
 """
 from __future__ import annotations
 
@@ -155,6 +164,69 @@ def make_video(movie: Path, number: int, out_dir: Path, duration: float, has_aud
     return out
 
 
+def parse_time(text: str) -> float:
+    """'1:02:03', '7:15', '95' or '95.5' -> seconds."""
+    parts = [float(p) for p in text.strip().split(":")]
+    seconds = 0.0
+    for p in parts:
+        seconds = seconds * 60 + p
+    return seconds
+
+
+def parse_scenes(text: str, duration: float) -> list[tuple[float, float]]:
+    scenes = []
+    for item in text.split(","):
+        if not item.strip():
+            continue
+        a, _, b = item.partition("-")
+        start, end = parse_time(a), parse_time(b)
+        if not (0 <= start < end <= duration + 0.5):
+            sys.exit(f"Scene {item.strip()} is outside the video (0:00-{fmt(duration)}).")
+        scenes.append((start, min(end, duration)))
+    if not scenes:
+        sys.exit("No scenes given.")
+    return scenes
+
+
+def fit_scenes(scenes: list[tuple[float, float]], target: float) -> list[tuple[float, float]]:
+    """Trim every scene by the same share, keeping each one's middle, so they add up to `target`."""
+    total = sum(b - a for a, b in scenes)
+    if total <= target:
+        return scenes
+    keep = target / total
+    out = []
+    for a, b in scenes:
+        length = (b - a) * keep
+        mid = (a + b) / 2
+        out.append((round(mid - length / 2, 3), round(mid + length / 2, 3)))
+    return out
+
+
+def make_benchmark(movie: Path, scenes: list[tuple[float, float]], out_dir: Path, name: str,
+                   has_audio: bool, height: int) -> Path:
+    out = out_dir / f"{name}.mp4"
+    with tempfile.TemporaryDirectory(prefix="bench-") as tmp:
+        work = Path(tmp)
+        parts = []
+        for k, (a, b) in enumerate(scenes, 1):
+            part = work / f"part{k:02d}.mp4"
+            print(f"  scene {k:2d}/{len(scenes)}: {fmt(a)}-{fmt(b)} ({b - a:.1f}s)")
+            cut(movie, a, b - a, part, has_audio, height)
+            parts.append(part)
+        join(parts, out, work)
+    made, _, _ = probe(out)
+    at = 0.0
+    cuts = []
+    for k, (a, b) in enumerate(scenes, 1):
+        cuts.append({"order": k, "source_start_s": a, "source_end_s": b, "source": f"{fmt(a)}-{fmt(b)}",
+                     "compiled_start_s": round(at, 3), "compiled_end_s": round(at + b - a, 3)})
+        at += b - a
+    (out_dir / f"{name}_cuts.json").write_text(json.dumps(
+        {"source": movie.name, "length_s": round(made, 3), "scenes": cuts}, indent=2), encoding="utf-8")
+    print(f"  -> {out} ({made:.2f}s, {len(scenes)} scenes)")
+    return out
+
+
 def fmt(seconds: float) -> str:
     s = int(seconds)
     return f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
@@ -166,6 +238,9 @@ def main() -> None:
     ap.add_argument("--videos", type=int, default=NUM_VIDEOS)
     ap.add_argument("--out", default=OUTPUT_DIR)
     ap.add_argument("--seed", type=int, default=SEED)
+    ap.add_argument("--scenes", help='benchmark mode: fixed scenes, e.g. "3:00-4:00, 7:15-8:20"')
+    ap.add_argument("--name", default="benchmark_5min", help="benchmark mode: output file name (no extension)")
+    ap.add_argument("--keep-length", action="store_true", help="benchmark mode: don't trim scenes to TARGET_SECONDS")
     args = ap.parse_args()
     movie = Path(args.movie)
     if not movie.is_file():
@@ -173,6 +248,12 @@ def main() -> None:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     duration, has_audio, height = probe(movie)
+    if args.scenes:
+        scenes = parse_scenes(args.scenes, duration)
+        if not args.keep_length:
+            scenes = fit_scenes(scenes, TARGET_SECONDS)
+        make_benchmark(movie, scenes, out_dir, args.name, has_audio, height)
+        return
     print(f"{movie.name}: {fmt(duration)} long; using {fmt(SKIP_START_S)} to {fmt(duration - SKIP_END_S)}")
     rng = random.Random(args.seed)
     for n in range(1, args.videos + 1):
