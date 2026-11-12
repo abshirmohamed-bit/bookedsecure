@@ -383,10 +383,17 @@ def _split(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
 def _grid(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
     people = sorted(_prominent(faces)[:4], key=lambda f: f.x)
     if len(people) == 3 and inp.out_h >= inp.out_w:
-        aspect, share = inp.out_w / (inp.out_h / 3), 0.18
-    else:
-        people = people[:4]
-        aspect, share = inp.out_w / inp.out_h, 0.34
+        # Spotlight: whoever talks most here gets the big card on top, the
+        # other two share the bottom (looks.spotlight_cards), left to right.
+        talk = _talk_time(inp.turns, a, b)
+        lead = max(people, key=lambda f: (talk.get(f.id, 0), f.w * f.presence))
+        rest = [f for f in people if f.id != lead.id]
+        bands = dict(zip([f.id for f in people], _bands(people)))
+        top = _cell(lead, inp.out_w / (inp.out_h * 0.56), 0.26, inp, bands[lead.id])
+        below = [_cell(f, (inp.out_w / 2) / (inp.out_h * 0.44), 0.30, inp, bands[f.id]) for f in rest]
+        return Shot(a, b, "grid", cells=[top, *below], main=top, why=why + ", the one talking in the spotlight")
+    people = people[:4]
+    aspect, share = inp.out_w / inp.out_h, 0.34
     cells = [_cell(f, aspect, share, inp, band) for f, band in zip(people, _bands(people))]
     return Shot(a, b, "grid", cells=cells, why=why)
 

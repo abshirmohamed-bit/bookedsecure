@@ -7,7 +7,7 @@
  */
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import { cropAt, shotAt, transitionAt, transitionLook, type MotionSample } from "@/lib/clip-motion";
-import { duoCards, glassCard, LOOK, pipBox } from "@/lib/clip-looks";
+import { duoCards, glassCard, LOOK, pipBox, quadCards, spotlightCards } from "@/lib/clip-looks";
 import { groupCaptionLines, type CaptionLine, type CaptionWord, type VideoAspect } from "@/lib/video-clips";
 
 export type PlanBox = { x: number; y: number; w: number; h: number };
@@ -188,8 +188,14 @@ function drawShot(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input:
     drawCover(ctx, video, k, shot.cells[1]!, 0, H / 2, W, H / 2);
     return;
   }
-  if (shot?.kind === "grid" && shot.cells.length >= 4) {
-    shot.cells.slice(0, 4).forEach((c, i) => drawCover(ctx, video, k, c, (i % 2) * (W / 2), Math.floor(i / 2) * (H / 2), W / 2, H / 2));
+  if (shot?.kind === "grid" && (shot.cells.length >= 4 || (shot.cells.length === 3 && H >= W))) {
+    // Spotlight (3: the one talking on top) or a 2 x 2 (4) of rounded cards.
+    drawAmbient(ctx, video, W, H);
+    const spots = shot.cells.length === 3 ? spotlightCards(W, H) : quadCards(W, H);
+    shot.cells.slice(0, spots.length).forEach((c, i) => {
+      const b = spots[i]!;
+      drawCard(ctx, b, W, () => drawCover(ctx, video, k, c, b.x, b.y, b.w, b.h));
+    });
     return;
   }
   const main = (shot ? (cropAt(shot, rel) ?? shot.main ?? shot.cells[0] ?? null) : null) ?? centreCrop(src, W / H);

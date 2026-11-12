@@ -35,6 +35,24 @@ CINEMA_BRIGHTNESS = -0.32
 VIGNETTE = "PI/5"
 
 
+def spotlight_cards(w: int, h: int) -> list[tuple[int, int, int, int]]:
+    """Three people, portrait: (x, y, w, h) of a big card on top for the
+    speaker and two cards below for the others."""
+    m, g = even(w * DUO_MARGIN), even(w * DUO_GAP)
+    inner_w, inner_h = w - 2 * m, h - 2 * m - g
+    top_h = even(inner_h * 0.56)
+    bot_h = even(inner_h - top_h)
+    half = even((inner_w - g) / 2)
+    return [(m, m, even(inner_w), top_h), (m, m + top_h + g, half, bot_h), (m + half + g, m + top_h + g, half, bot_h)]
+
+
+def quad_cards(w: int, h: int) -> list[tuple[int, int, int, int]]:
+    """Four people: (x, y, w, h) of a 2 x 2 of cards with a gap."""
+    m, g = even(w * DUO_MARGIN), even(w * DUO_GAP)
+    cw, ch = even((w - 2 * m - g) / 2), even((h - 2 * m - g) / 2)
+    return [(m + c * (cw + g), m + r * (ch + g), cw, ch) for r in range(2) for c in range(2)]
+
+
 def even(v: float) -> int:
     i = int(round(v))
     return i - i % 2

@@ -42,3 +42,18 @@ export function pipBox(W: number, H: number): Box {
   const w = W * LOOK.pip.width, h = w / LOOK.pip.aspect;
   return { x: W - w - W * LOOK.pip.right, y: H * LOOK.pip.top, w, h };
 }
+
+/** Three people (portrait): a big card on top for the one talking, two below. Mirrors looks.spotlight_cards. */
+export function spotlightCards(W: number, H: number): Box[] {
+  const m = W * LOOK.duoMargin, g = W * LOOK.duoGap;
+  const iw = W - 2 * m, ih = H - 2 * m - g;
+  const top = ih * 0.56, bot = ih - top, half = (iw - g) / 2;
+  return [{ x: m, y: m, w: iw, h: top }, { x: m, y: m + top + g, w: half, h: bot }, { x: m + half + g, y: m + top + g, w: half, h: bot }];
+}
+
+/** Four people: a 2 x 2 of cards. Mirrors looks.quad_cards. */
+export function quadCards(W: number, H: number): Box[] {
+  const m = W * LOOK.duoMargin, g = W * LOOK.duoGap;
+  const w = (W - 2 * m - g) / 2, h = (H - 2 * m - g) / 2;
+  return [0, 1, 2, 3].map((i) => ({ x: m + (i % 2) * (w + g), y: m + Math.floor(i / 2) * (h + g), w, h }));
+}

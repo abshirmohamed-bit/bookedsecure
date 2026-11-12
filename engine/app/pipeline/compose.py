@@ -647,6 +647,20 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
                        out_w=w, workdir=workdir, name=f"d{i}b", frames=frames)
             lines.append(f"[{s}c1]setsar=1[{out}]")
             return lines, 1
+        if shot.kind == "grid" and ((k == 3 and portrait) or k == 4):
+            # Spotlight (3) or a 2 x 2 (4) of rounded cards over the blurred frame.
+            spots = looks.spotlight_cards(w, h) if k == 3 else looks.quad_cards(w, h)
+            lines.append(f"[{s}]{head},split={k + 1}" + "".join(f"[{s}p{j}]" for j in range(k)) + f"[{s}a]")
+            lines.append(looks.ambient(f"{s}a", f"{s}bg", w, h))
+            base = f"{s}bg"
+            for j, (box, (x, y, bw, bh)) in enumerate(zip(cells, spots)):
+                lines.append(f"[{s}p{j}]{box.crop()},scale={bw}:{bh}:force_original_aspect_ratio=increase:flags=lanczos,"
+                             f"crop={bw}:{bh},setsar=1[{s}k{j}]")
+                looks.card(lines, base=base, picture=f"{s}k{j}", out=f"{s}g{j}", x=x, y=y, w=bw, h=bh,
+                           out_w=w, workdir=workdir, name=f"q{i}{j}", frames=frames)
+                base = f"{s}g{j}"
+            lines.append(f"[{base}]setsar=1[{out}]")
+            return lines, 1
         lines.append(f"[{s}]{head},split={k}" + "".join(f"[{s}p{j}]" for j in range(k)))
         for j, box in enumerate(cells):
             lines.append(f"[{s}p{j}]{box.crop()},{_scale(cw, ch)},setsar=1[{s}k{j}]")
