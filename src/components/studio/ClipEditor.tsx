@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Captions, Crop, Download, Eye, Info, Loader2, Minus, Plus, Scissors, Send, Sparkles, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Captions, Crop, Download, Info, Loader2, Minus, Plus, Scissors, Send, Sparkles, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Portal } from "@/components/Portal";
 import type { Clip, Job } from "@/components/social/SocialResults";
 import { Button } from "@/components/ui/button";
 import { saveAssistantDraft } from "@/lib/assistant-draft";
+import { LivePreview } from "@/components/studio/LivePreview";
 import { CAPTION_POSITIONS, CAPTION_SIZE, type CaptionPosition, CLIP_LAYOUT_IDS, CLIP_ZOOM_IDS, type ClipLayout, type ClipZoom, groupCaptionLines, MAX_CLIP_MS, MIN_CLIP_MS, SHOT_KINDS, TITLE_POSITIONS, TITLE_STYLE_IDS, type TitlePosition, type TitleStyle, VIDEO_ASPECTS, type VideoAspect } from "@/lib/video-clips";
-import { getVideoClipEditor, getVideoClipPlan, previewVideoClipEdits, renameVideoClip, renderVideoClip, saveVideoClipEdits } from "@/lib/video-clips.functions";
+import { getVideoClipEditor, getVideoClipPlan, renameVideoClip, renderVideoClip, saveVideoClipEdits } from "@/lib/video-clips.functions";
 
 type Tab = "details" | "captions" | "framing" | "trim";
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
@@ -103,7 +104,6 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
   const renderFn = useServerFn(renderVideoClip);
   const editorFn = useServerFn(getVideoClipEditor);
   const planFn = useServerFn(getVideoClipPlan);
-  const previewFn = useServerFn(previewVideoClipEdits);
   const saveFn = useServerFn(saveVideoClipEdits);
   const [tab, setTab] = useState<Tab>("details");
   const [title, setTitle] = useState(clip.title ?? "");
@@ -116,8 +116,7 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
 
   // Reading the project wakes the Engine, so only once an editing tab is opened
   // (or the headline group needs it on Details).
-  const [wantEditor, setWantEditor] = useState(false);
-  useEffect(() => { if (tab !== "details") setWantEditor(true); }, [tab]);
+  const [wantEditor, setWantEditor] = useState(true);
   const editor = useQuery({
     queryKey: ["video-clip-editor", clip.id],
     queryFn: () => editorFn({ data: { clipId: clip.id } }),
@@ -139,9 +138,10 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
   const [aspect, setAspect] = useState<VideoAspect | null>(null);
   const [headline, setHeadline] = useState<{ text?: string; enabled?: boolean; style?: TitleStyle; position?: TitlePosition }>({});
   const [lineTexts, setLineTexts] = useState<Record<number, string>>({});
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Live preview of the edits, or the video as it was last made.
+  const [showMade, setShowMade] = useState(false);
   useEffect(() => {
-    setStyleId(null); setCaptionsOn(null); setCaptionPosition(undefined); setCaptionSize(null); setLayout(null); setZoom(null); setAspect(null); setHeadline({}); setLineTexts({}); setPreviewUrl(null);
+    setStyleId(null); setCaptionsOn(null); setCaptionPosition(undefined); setCaptionSize(null); setLayout(null); setZoom(null); setAspect(null); setHeadline({}); setLineTexts({});
   }, [editor.dataUpdatedAt]);
 
   const baseStart = settings?.inMs ?? clip.start_ms ?? 0;
@@ -192,7 +192,7 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
   const plan = useQuery({
     queryKey: ["video-clip-plan", clip.id, current.layout, current.zoom, current.aspect],
     queryFn: () => planFn({ data: { clipId: clip.id, layout: current.layout, zoom: current.zoom, aspect: current.aspect } }),
-    enabled: tab === "framing" && Boolean(settings),
+    enabled: Boolean(settings),
     staleTime: 10 * 60_000,
     refetchOnWindowFocus: false,
     retry: false,
@@ -207,11 +207,6 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
     mutationFn: () => renderFn({ data: { clipId: clip.id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["video-clips"] }),
     onError: (e) => toast.error(e instanceof Error ? e.message : "That clip couldn't be made."),
-  });
-  const preview = useMutation({
-    mutationFn: () => previewFn({ data: { clipId: clip.id, ...edits } }),
-    onSuccess: (r) => setPreviewUrl(r.url),
-    onError: (e) => toast.error(e instanceof Error ? e.message : "The preview couldn't be made."),
   });
   const save = useMutation({
     mutationFn: () => saveFn({ data: { clipId: clip.id, ...edits, ...(lineEdits.length ? { lineEdits } : {}) } }),
@@ -234,7 +229,8 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
   const stylePosition = current.captionPosition ?? styleDef?.defaults.position ?? "middle";
   const sampleLine = lines.find((l) => l.text)?.text ?? "This is how it looks";
   const source = settings?.trimTo ?? job.duration_ms ?? null;
-  const shownVideo = previewUrl ?? (ready ? clip.video_url : null);
+  const live = Boolean(settings?.sourceUrl) && !(showMade && ready);
+  const shownVideo = ready ? clip.video_url : null;
 
   return (
     <Portal>
@@ -257,29 +253,30 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
           {/* Preview and timeline */}
           <div className="flex min-w-0 flex-1 flex-col items-center gap-4 p-4 lg:overflow-y-auto lg:p-6">
             <div className={`relative w-full max-w-[min(22rem,100%)] overflow-hidden rounded-3xl bg-black shadow-xl ${RATIO[current.aspect]} ${current.aspect === "16:9" ? "max-w-[min(40rem,100%)]" : current.aspect === "9:16" ? "lg:max-w-[min(22rem,calc((100dvh-16rem)*9/16))]" : ""}`}>
-              {shownVideo ? (
-                <video key={shownVideo} src={shownVideo} controls playsInline autoPlay={Boolean(previewUrl)} muted={Boolean(previewUrl)} poster={previewUrl ? undefined : (clip.thumbnail_url ?? undefined)} className="size-full object-contain" />
+              {live && settings?.sourceUrl ? (
+                <LivePreview
+                  src={settings.sourceUrl} offsetMs={settings.sourceOffsetMs} start={start} end={end} clipStart={baseStart}
+                  aspect={current.aspect} plan={plan.data ?? null} lines={lines} lineTexts={lineTexts}
+                  captions={{ on: current.captionsOn, className: look(current.styleId).className, highlight: Boolean(look(current.styleId).highlight), position: stylePosition, size: current.captionSize }}
+                  headline={{ on: current.headlineEnabled, text: current.headlineText, position: current.headlinePosition }}
+                  poster={clip.thumbnail_url ?? undefined}
+                />
+              ) : shownVideo ? (
+                <video key={shownVideo} src={shownVideo} controls playsInline poster={clip.thumbnail_url ?? undefined} className="size-full object-contain" />
               ) : clip.thumbnail_url ? <img src={clip.thumbnail_url} alt="" className="size-full object-cover" /> : null}
-              {previewUrl ? (
-                <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-2 rounded-xl bg-black/60 px-3 py-1.5 text-xs text-white">
-                  <span className="inline-flex items-center gap-1.5"><Eye className="size-3.5" aria-hidden="true" />Preview of your changes</span>
-                  <button type="button" onClick={() => setPreviewUrl(null)} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-white/15"><X className="size-3.5" aria-hidden="true" />Current video</button>
-                </div>
-              ) : null}
-              {tab === "captions" && current.captionsOn && !previewUrl ? (
-                <div className={`pointer-events-none absolute inset-x-4 flex justify-center text-center ${stylePosition === "top" ? "top-[14%]" : stylePosition === "lower" ? "bottom-[10%]" : "top-1/2 -translate-y-1/2"}`}>
-                  <span className={look(current.styleId).className} style={{ fontSize: `${1.3 * current.captionSize}rem`, lineHeight: 1.15 }}>
-                    {look(current.styleId).highlight ? (() => { const [first, ...rest] = sampleLine.split(" "); return <><span className="text-[#FFD60A]">{first}</span>{rest.length ? ` ${rest.join(" ")}` : ""}</>; })() : sampleLine}
-                  </span>
-                </div>
-              ) : null}
-              {!ready && !previewUrl ? (
+              {!live && !ready ? (
                 <div className="absolute inset-x-3 bottom-3 rounded-xl bg-black/60 p-2.5 text-center text-xs text-white">
-                  {making ? <span className="inline-flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />Making the video…</span> : clip.status === "FAILED" ? (clip.error ?? "This clip couldn't be made.") : "Not made into a video yet."}
+                  {making ? <span className="inline-flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />Making the video…</span> : clip.status === "FAILED" ? (clip.error ?? "This clip couldn't be made.") : settings ? "Not made into a video yet." : <span className="inline-flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />Loading the clip…</span>}
                 </div>
               ) : null}
             </div>
 
+            {settings?.sourceUrl && ready ? (
+              <div className="glass inline-flex rounded-full p-1 text-xs font-medium" role="group" aria-label="What the preview shows">
+                <button type="button" onClick={() => setShowMade(false)} aria-pressed={!showMade} className={`min-h-9 rounded-full px-3 ${!showMade ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Live preview</button>
+                <button type="button" onClick={() => setShowMade(true)} aria-pressed={showMade} className={`min-h-9 rounded-full px-3 ${showMade ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Made video</button>
+              </div>
+            ) : null}
             <Timeline start={start} end={end} baseStart={clip.start_ms ?? baseStart} baseEnd={clip.end_ms ?? baseEnd} source={source}
               onChange={(r) => { setRange(r); if (tab !== "trim") setTab("trim"); }} />
           </div>
@@ -467,15 +464,12 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
             {tab !== "details" || (settings && changes.length) ? (
               <div className="shrink-0 border-t border-border/60 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 <div className="flex gap-2">
-                  <Button variant="outline" className="min-h-11 shrink-0" disabled={!changes.length || preview.isPending || save.isPending || !settings || lineEdits.length === changes.length} onClick={() => preview.mutate()} title="A quick half-size preview with these changes; nothing is saved">
-                    {preview.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}Preview
-                  </Button>
                   <Button className="min-h-11 flex-1" disabled={!changes.length || save.isPending || making || !settings} onClick={() => save.mutate()}>
                     {save.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}Save and re-make video
                   </Button>
                 </div>
                 <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
-                  {preview.isPending ? "The Engine is cutting a quick preview; it takes a little while." : making ? "The video is being made. You can save more changes once it's finished." : changes.length ? `Changing ${changes.join(", ")}.` : "Make a change to save it."}
+                  {making ? "The video is being made. You can save more changes once it's finished." : changes.length ? `Changing ${changes.join(", ")}.` : "Make a change to save it."}
                 </p>
               </div>
             ) : null}

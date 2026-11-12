@@ -441,6 +441,9 @@ def _project_payload(p: Project, s=None) -> dict:
         # `source_offset_ms` in the original and is `source_length_ms` long.
         "source_offset_ms": offset,
         "source_length_ms": round((source.length_s if source else 0) * 1000),
+        # The clip's own source video, so an editor can preview edits live.
+        "source_url": storage.public_url(source.mezzanine_key or source.storage_key)
+        if source and (source.mezzanine_key or source.storage_key) else "",
         "id": p.id, "asset_id": p.asset_id, "job_id": p.job_id or None, "index": p.index,
         "in_ms": p.in_ms, "out_ms": p.out_ms, "duration_ms": p.out_ms - p.in_ms,
         "aspect": p.aspect, "layout": p.layout, "framing": p.framing,

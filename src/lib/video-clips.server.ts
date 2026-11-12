@@ -160,6 +160,8 @@ type EngineProject = {
   in_ms: number; out_ms: number; aspect: string; layout: string; caption_style_id: string;
   /** Where the clip's own source starts in the original (a fetched section of a long video), and how long it is. */
   offset: number; sourceEndMs: number | null;
+  /** The clip's own source video (a section of a long video, or the whole video), for live previews. */
+  sourceUrl: string | null;
   caption_options: Record<string, unknown> | null; captions: CaptionWord[] | null;
   framing: Record<string, unknown> | null; title: Record<string, unknown> | null;
 };
@@ -228,14 +230,17 @@ async function ownClip(businessId: string, clipId: string): Promise<ClipRow> {
 }
 
 async function engineProject(clip: ClipRow): Promise<EngineProject> {
-  type Raw = Omit<EngineProject, "offset" | "sourceEndMs"> & { source_offset_ms?: number; source_length_ms?: number };
+  type Raw = Omit<EngineProject, "offset" | "sourceEndMs" | "sourceUrl"> & { source_offset_ms?: number; source_length_ms?: number; source_url?: string };
   const r = await engineClient<Raw>("GET", `/v1/projects/${encodeURIComponent(clip.engine_project_id)}`);
   if (!r.ok) throw new Error(r.error.code === "NOT_FOUND" ? "The Engine no longer has this clip." : r.error.message);
   // A clip of a long video is cut from a fetched section; everything here works
   // on the original video's timeline, and toEngine() takes the offset back off.
   const offset = Math.max(0, Math.round(r.data.source_offset_ms ?? 0));
   const length = r.data.source_length_ms ?? 0;
-  return { ...r.data, in_ms: r.data.in_ms + offset, out_ms: r.data.out_ms + offset, offset, sourceEndMs: offset && length ? offset + length : null };
+  return {
+    ...r.data, in_ms: r.data.in_ms + offset, out_ms: r.data.out_ms + offset, offset,
+    sourceEndMs: offset && length ? offset + length : null, sourceUrl: r.data.source_url || null,
+  };
 }
 
 /** A trim on the original timeline, as the Engine's section-relative times. */
@@ -258,6 +263,8 @@ export type ClipSettings = {
   layout: string; zoom: string; aspect: string; focus: string; inMs: number; outMs: number;
   /** The latest a trim can end: the end of the fetched section for a long video, else null (the whole video). */
   trimTo: number | null;
+  /** For the live preview: the source video, and where its time 0 sits on the original timeline. */
+  sourceUrl: string | null; sourceOffsetMs: number;
   headline: { text: string; enabled: boolean; style: string; position: string };
 };
 
@@ -274,6 +281,7 @@ function settingsOf(project: EngineProject): ClipSettings {
     layout: project.layout, zoom: typeof framing["zoom"] === "string" ? (framing["zoom"] as string) : "auto",
     aspect: project.aspect, focus: typeof framing["focus"] === "string" ? (framing["focus"] as string) : "auto",
     inMs: project.in_ms, outMs: project.out_ms, trimTo: project.sourceEndMs,
+    sourceUrl: project.sourceUrl, sourceOffsetMs: project.offset,
     headline: {
       text: typeof title["text"] === "string" ? (title["text"] as string) : "", enabled: title["enabled"] !== false,
       style: typeof title["style"] === "string" ? (title["style"] as string) : "bold_band",
@@ -296,8 +304,10 @@ export type ShotPlan = {
   layout: string; zoom: string; aspect: string; people: number;
   source: { w: number; h: number }; output: { w: number; h: number };
   cuts: number[]; summary: Record<string, number>;
-  shots: { start_ms: number; end_ms: number; kind: string; zoom: number; why: string; base: string | null }[];
+  shots: { start_ms: number; end_ms: number; kind: string; zoom: number; why: string; base: string | null; window: PlanBox | null; pan: [number, number][]; cells: PlanBox[]; main: PlanBox | null; inset: PlanBox | null }[];
 };
+/** A crop of the source, in source pixels. */
+export type PlanBox = { x: number; y: number; w: number; h: number };
 
 /**
  * How the Engine will cut this clip into shots and compose each one, for the
@@ -317,7 +327,10 @@ export async function clipPlan(businessId: string, clipId: string, tryOut: { lay
   return {
     layout: d.layout, zoom: d.zoom, aspect: d.aspect, people: d.people ?? 0, source: d.source, output: d.output,
     cuts: d.cuts ?? [], summary: d.summary ?? {},
-    shots: (d.shots ?? []).map((s) => ({ start_ms: s.start_ms, end_ms: s.end_ms, kind: s.kind, zoom: s.zoom, why: s.why, base: s.base ?? null })),
+    shots: (d.shots ?? []).map((s) => ({
+      start_ms: s.start_ms, end_ms: s.end_ms, kind: s.kind, zoom: s.zoom, why: s.why, base: s.base ?? null,
+      window: s.window ?? null, pan: s.pan ?? [], cells: s.cells ?? [], main: s.main ?? null, inset: s.inset ?? null,
+    })),
   };
 }
 
