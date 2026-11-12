@@ -54,6 +54,11 @@ CUT_MIN_DIFF = 18.0
 #: And this many times the recent normal. Both have to hold: a dark clip
 #: changes by little in absolute terms, a busy one changes a lot all the time.
 CUT_FACTOR = 4.0
+#: Dark footage changes by little in grey levels even across a cut, so a cut
+#: is also a jump in the picture's brightness histogram (Bhattacharyya
+#: distance, 0 same .. 1 nothing shared), well past what the shot usually does.
+CUT_HIST_MIN = 0.35
+CUT_HIST_FACTOR = 3.5
 
 
 @dataclass
@@ -225,7 +230,9 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
         last_box: dict[int, tuple] = {}
         cuts: list[int] = []
         recent: list[float] = []
+        recent_h: list[float] = []
         previous = None
+        previous_hist = None
         since = in_ms
         index = -1
         while True:
@@ -237,20 +244,29 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
             grey = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
 
             cut_now = False
+            hist = cv2.calcHist([grey], [0], None, [32], [0, 256])
+            cv2.normalize(hist, hist)
             if previous is not None and previous.shape == grey.shape:
                 change = float(np.mean(np.abs(grey.astype("float32")
                                               - previous.astype("float32"))))
                 usual = float(np.median(recent)) if recent else change
-                if change > max(CUT_MIN_DIFF, CUT_FACTOR * usual) and recent:
+                jump = float(cv2.compareHist(previous_hist, hist, cv2.HISTCMP_BHATTACHARYYA))
+                usual_h = float(np.median(recent_h)) if recent_h else jump
+                by_level = change > max(CUT_MIN_DIFF, CUT_FACTOR * usual)
+                by_hist = jump > max(CUT_HIST_MIN, CUT_HIST_FACTOR * usual_h) and change > CUT_MIN_DIFF / 3
+                if (by_level or by_hist) and recent:
                     cut_now = True
                     cuts.append(ms)
                     since = ms              # nobody from the old shot carries over
                     last_patch.clear()      # and no mouth is measured across it
                     last_box.clear()
                 recent.append(change)
+                recent_h.append(jump)
                 if len(recent) > 25:
                     recent.pop(0)
+                    recent_h.pop(0)
             previous = grey
+            previous_hist = hist
 
             # Also on the first frame of every new shot, so a shot is never
             # framed from a detection made half a second into it.
