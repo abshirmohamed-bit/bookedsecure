@@ -14,6 +14,7 @@ describe("browser clip rendering", () => {
       target: new ArrayBufferTarget(),
       video: { codec: "avc", width: 1920, height: 1080, frameRate: 30 },
       fastStart: "in-memory",
+      firstTimestampBehavior: "offset",
     });
     expect(() => muxer.addVideoChunkRaw(new Uint8Array([0, 0, 0, 1]), "key", timing.timestamp, timing.duration!)).not.toThrow();
   });
