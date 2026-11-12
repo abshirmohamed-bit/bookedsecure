@@ -4,7 +4,7 @@ from app.pipeline.ingest import link_format, max_link_height
 def test_caps_at_1080_by_default(monkeypatch):
     monkeypatch.delenv("YTDLP_MAX_HEIGHT", raising=False)
     assert max_link_height() == 1080
-    assert link_format().startswith("bestvideo[height<=1080]+bestaudio")
+    assert link_format().startswith("bv*[height<=1080][vcodec^=avc1][protocol^=http]+ba[ext=m4a]")
 
 
 def test_env_sets_the_cap_within_bounds(monkeypatch):
@@ -20,6 +20,7 @@ def test_uncapped_choice_is_only_the_last_resort():
     choices = link_format(1080).split("/")
     assert choices[-2:] == ["bv*+ba", "b"]
     assert all("height<=1080" in c for c in choices[:-2])
+    assert all("protocol^=http" in c for c in choices[:3])
 
 
 def test_a_refused_stream_counts_as_blocked():

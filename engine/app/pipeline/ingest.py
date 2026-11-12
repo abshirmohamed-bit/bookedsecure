@@ -33,12 +33,16 @@ IMPORT_HOSTS = ("youtube.com", "youtu.be", "rumble.com", "vimeo.com", "twitch.tv
 def link_format(max_height: int | None = None) -> str:
     """yt-dlp's format choice for a linked video, capped at `max_height`.
 
-    Widening fallbacks, kept from Lovable's fix: YouTube offers a server a
-    thinner format list than a browser, so the capped choices come first and
-    an uncapped one is only the last resort for a video with nothing smaller.
+    Plain H.264 files come first: YouTube's "Premium" 1080p is an HLS stream
+    of about 3x the size for no visible gain in a clip, and every byte goes
+    through the paid proxy. Widening fallbacks, kept from Lovable's fix:
+    YouTube offers a server a thinner format list than a browser, so the
+    capped choices come first and an uncapped one is only the last resort.
     """
     h = max_height or max_link_height()
-    return (f"bestvideo[height<={h}]+bestaudio/best[height<={h}]/"
+    plain = "[protocol^=http]"  # a plain file, not YouTube's HLS "Premium" stream (several times the size)
+    return (f"bv*[height<={h}][vcodec^=avc1]{plain}+ba[ext=m4a]/"   # H.264: the smallest to decode, cut and re-encode
+            f"bv*[height<={h}]{plain}+ba/b[height<={h}]{plain}/"
             f"bv*[height<={h}]+ba/b[height<={h}]/bv*+ba/b")
 
 
