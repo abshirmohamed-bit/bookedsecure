@@ -454,7 +454,7 @@ async function renderClipRealtime(input: RenderInput, onProgress: (p: number) =>
           ctx.fillStyle = `rgba(255,255,255,${LOOK.progress.alpha})`;
           ctx.fillRect(0, H - bh - H * LOOK.progress.lift, (W * (abs - input.startMs)) / Math.max(1, endAbs - input.startMs), bh);
         }
-        const frame = new VideoFrame(canvas, { timestamp: ts });
+        const frame = new VideoFrame(canvas, videoFrameTiming(ts, fps));
         videoEncoder.encode(frame, { keyFrame: frames % (fps * 2) === 0 });
         recording = true;
         frame.close();

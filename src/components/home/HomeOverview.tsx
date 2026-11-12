@@ -212,7 +212,7 @@ function TodayCard({
       icon: MessagesSquare,
       text: `${data.waiting.social} Facebook or Instagram ${data.waiting.social === 1 ? "comment needs" : "comments need"} a reply`,
       to: "/social",
-      search: { view: "comments" },
+      search: socialReviewSearch(data.waiting.socialPlatform),
       label: "Review",
     });
   }
