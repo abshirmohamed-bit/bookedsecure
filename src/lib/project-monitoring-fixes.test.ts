@@ -7,9 +7,15 @@ import { signOutWithPushCleanup } from "@/lib/navigation";
 import { CLIP_EDITS } from "@/lib/video-clips.functions";
 
 describe("browser clip rendering", () => {
-  it("gives every 30 fps frame a non-negative duration for the MP4 muxer", () => {
-    expect(videoFrameTiming(1234.4, 30)).toEqual({ timestamp: 1234, duration: 33_333 });
-    expect(videoFrameTiming(0, 30).duration).toBeGreaterThan(0);
+  it("gives every 30 fps frame a non-negative duration accepted by the MP4 muxer", () => {
+    const timing = videoFrameTiming(1234.4, 30);
+    expect(timing).toEqual({ timestamp: 1234, duration: 33_333 });
+    const muxer = new Muxer({
+      target: new ArrayBufferTarget(),
+      video: { codec: "avc", width: 1920, height: 1080, frameRate: 30 },
+      fastStart: "in-memory",
+    });
+    expect(() => muxer.addVideoChunkRaw(new Uint8Array([0, 0, 0, 1]), "key", timing.timestamp, timing.duration!)).not.toThrow();
   });
 });
 
