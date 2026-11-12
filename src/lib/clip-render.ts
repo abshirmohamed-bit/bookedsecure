@@ -47,7 +47,7 @@ const pw = (v: Pic) => ("videoWidth" in v ? v.videoWidth : v.displayWidth);
 const ph = (v: Pic) => ("videoHeight" in v ? v.videoHeight : v.displayHeight);
 
 /** WebCodecs and the MP4 muxer both need a real duration for every output frame. */
-export function videoFrameTiming(timestamp: number, fps: number): VideoFrameInit {
+export function videoFrameTiming(timestamp: number, fps: number): { timestamp: number; duration: number } {
   return { timestamp: Math.round(timestamp), duration: Math.round(1_000_000 / fps) };
 }
 
