@@ -1,5 +1,6 @@
 import { ArrowRight, Eraser, Globe2, History, MessageSquarePlus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export type CoworkThread = { id: string; title: string; isDefault: boolean; updatedAt: string };
@@ -40,6 +41,8 @@ export function CoworkHistory({
   onWebsiteSetup?: (() => void) | undefined;
 }) {
   const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const keepOpen = (e: Event) => { if (confirming) e.preventDefault(); };
   const close = (fn: () => void) => () => { setOpen(false); fn(); };
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -48,19 +51,20 @@ export function CoworkHistory({
           <History className="size-[18px]" aria-hidden="true" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={6} className="z-[70] flex max-h-[min(70dvh,32rem)] w-[min(20rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-white/70 bg-popover p-0 shadow-[inset_0_1px_0_white,0_24px_60px_-20px_oklch(0.25_0.1_258/0.45)]">
+      <PopoverContent align="end" sideOffset={6} onInteractOutside={keepOpen} onFocusOutside={keepOpen} className="z-[70] flex max-h-[min(70dvh,32rem)] w-[min(20rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-2xl border border-white/70 bg-popover p-0 shadow-[inset_0_1px_0_white,0_24px_60px_-20px_oklch(0.25_0.1_258/0.45)]">
         <div className="flex shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-3">
           <p className="text-sm font-semibold">Conversations</p>
-          <button
-            type="button"
-            title="Clear this chat"
-            aria-label="Clear this chat"
-            disabled={!canClear || busy}
-            onClick={() => { if (window.confirm("Clear every message in this chat?")) { setOpen(false); onClear(); } }}
-            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-white/80 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-          >
-            <Eraser className="size-3.5" aria-hidden="true" /> Clear
-          </button>
+          <ConfirmAction title="Clear this chat?" description="Every message in this conversation will be removed." confirmLabel="Clear" onOpenChange={setConfirming} onConfirm={() => { setOpen(false); onClear(); }}>
+            <button
+              type="button"
+              title="Clear this chat"
+              aria-label="Clear this chat"
+              disabled={!canClear || busy}
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-white/80 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+            >
+              <Eraser className="size-3.5" aria-hidden="true" /> Clear
+            </button>
+          </ConfirmAction>
         </div>
         <div className="shrink-0 px-2 pb-2">
           <button type="button" disabled={busy} onClick={close(onCreate)} className="flex min-h-10 w-full items-center gap-2 rounded-xl bg-white/70 px-3 text-sm font-medium text-primary shadow-sm hover:bg-white disabled:opacity-50">
@@ -78,14 +82,15 @@ export function CoworkHistory({
                   <span className="shrink-0 text-[11px] text-muted-foreground">{when(thread.updatedAt)}</span>
                 </button>
                 {!thread.isDefault ? (
-                  <button
-                    type="button"
-                    aria-label={`Delete ${thread.title}`}
-                    onClick={() => window.confirm("Delete this conversation?") && onDelete(thread.id)}
-                    className="mr-1 grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-white hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
-                  >
-                    <Trash2 className="size-3.5" aria-hidden="true" />
-                  </button>
+                  <ConfirmAction title="Delete this conversation?" description={`"${thread.title}" will be deleted.`} onOpenChange={setConfirming} onConfirm={() => onDelete(thread.id)}>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${thread.title}`}
+                      className="mr-1 grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-white hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                    </button>
+                  </ConfirmAction>
                 ) : null}
               </li>
             );

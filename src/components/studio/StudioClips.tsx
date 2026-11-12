@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Clapperboard, Film, Loader2, Play, Search, Trash2 } from "lucide-react";
@@ -112,16 +113,17 @@ function VideoGroup({ job, clips, onOpen }: { job: Job; clips: Clip[]; onOpen: (
           </p>
         </div>
         {moving ? <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden="true" /> : null}
-        <button
-          type="button"
-          disabled={remove.isPending}
-          aria-label={`Delete ${job.source_name} and its clips`}
-          title="Delete this video and its clips"
-          onClick={() => { if (window.confirm(`Delete "${job.source_name}" and every clip made from it? This can't be undone.`)) remove.mutate(job.id); }}
-          className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-        >
-          <Trash2 className="size-4" aria-hidden="true" />
-        </button>
+        <ConfirmAction title="Delete this video?" description={`"${job.source_name}" and every clip made from it will be deleted. This can't be undone.`} onConfirm={() => remove.mutate(job.id)}>
+          <button
+            type="button"
+            disabled={remove.isPending}
+            aria-label={`Delete ${job.source_name} and its clips`}
+            title="Delete this video and its clips"
+            className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+          >
+            {remove.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Trash2 className="size-4" aria-hidden="true" />}
+          </button>
+        </ConfirmAction>
       </header>
       {moving ? (
         <div className="mt-3 h-1 overflow-hidden rounded-full bg-primary/10" role="progressbar" aria-valuenow={job.progress} aria-valuemin={0} aria-valuemax={100}>

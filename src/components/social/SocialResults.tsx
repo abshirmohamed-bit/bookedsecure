@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ConfirmAction } from "@/components/ConfirmAction";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, Download, Facebook, Film, Instagram, Linkedin, Loader2, MessageCircle, PenLine, Play, Send, Sparkles, Trash2, TriangleAlert, X, Youtube } from "lucide-react";
@@ -140,14 +141,15 @@ export function useDeleteVideoJobs() {
 function ClearAllClips({ count }: { count: number }) {
   const remove = useDeleteVideoJobs();
   return (
-    <button
-      type="button"
-      disabled={remove.isPending}
-      onClick={() => { if (window.confirm(`Delete all ${count} videos and every clip made from them? This can't be undone.`)) remove.mutate(undefined); }}
-      className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-    >
-      <Trash2 className="size-3.5" aria-hidden="true" />{remove.isPending ? "Deleting…" : "Delete all clips"}
-    </button>
+    <ConfirmAction title="Delete all clips?" description={`All ${count} videos and every clip made from them will be deleted. This can't be undone.`} confirmLabel="Delete all" onConfirm={() => remove.mutate(undefined)}>
+      <button
+        type="button"
+        disabled={remove.isPending}
+        className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+      >
+        <Trash2 className="size-3.5" aria-hidden="true" />{remove.isPending ? "Deleting…" : "Delete all clips"}
+      </button>
+    </ConfirmAction>
   );
 }
 
@@ -167,16 +169,17 @@ function JobCard({ job, onAsk, wide }: { job: Job; onAsk: (text: string) => void
           </p>
         </div>
         {moving ? <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden="true" /> : null}
-        <button
-          type="button"
-          disabled={remove.isPending}
-          aria-label={`Delete ${job.source_name} and its clips`}
-          title="Delete this video and its clips"
-          onClick={() => { if (window.confirm(`Delete "${job.source_name}" and every clip made from it? This can't be undone.`)) remove.mutate(job.id); }}
-          className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-        >
-          {remove.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Trash2 className="size-4" aria-hidden="true" />}
-        </button>
+        <ConfirmAction title="Delete this video?" description={`"${job.source_name}" and every clip made from it will be deleted. This can't be undone.`} onConfirm={() => remove.mutate(job.id)}>
+          <button
+            type="button"
+            disabled={remove.isPending}
+            aria-label={`Delete ${job.source_name} and its clips`}
+            title="Delete this video and its clips"
+            className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+          >
+            {remove.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Trash2 className="size-4" aria-hidden="true" />}
+          </button>
+        </ConfirmAction>
       </div>
       {moving ? (
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-primary/10" role="progressbar" aria-valuenow={job.progress} aria-valuemin={0} aria-valuemax={100}>
