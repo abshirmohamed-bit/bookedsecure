@@ -141,6 +141,8 @@ def test_a_render_with_moves_and_transitions_has_the_planned_length(tmp_path):
                                        50 if i == 1 else 0, 100 if i == 0 else 0)
         chain += lines
     chain += compose.join_shots(plan)
+    from app.pipeline import looks
+    chain[1:1] = looks.emit_stills(tmp_path, 190)
     out = tmp_path / "out.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-filter_complex", ";".join(chain),
                     "-map", "[base]", "-c:v", "libx264", "-preset", "ultrafast", str(out)],
@@ -188,7 +190,8 @@ def test_every_look_renders_its_full_length(tmp_path):
         wd = tmp_path / shot.kind
         wd.mkdir()
         lines, _ = compose._shot_graph(shot, 0, inp, 540, 960, wd)
-        graph = ";".join(["[0:v]fps=30,split=1[s0]", *lines]).replace("[v0]", "[base]")
+        from app.pipeline import looks
+        graph = ";".join(["[0:v]fps=30,split=1[s0]", *looks.emit_stills(wd, 92), *lines]).replace("[v0]", "[base]")
         out = wd / "o.mp4"
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-filter_complex", graph, "-map", "[base]",
                         "-c:v", "libx264", "-preset", "ultrafast", str(out)], check=True, cwd=wd, timeout=120)

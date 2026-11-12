@@ -13,6 +13,7 @@ the same numbers (LOOK in lib/clip-looks.ts mirrors CARD below).
 """
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 #: Corner radius, as a share of the output width.
@@ -109,6 +110,35 @@ def still(name: str, frames: int) -> str:
     return f"movie={name},loop=loop={max(0, frames - 1)}:size=1:start=0,setpts=N/(30*TB)"
 
 
+#: Stills each render asks for, by work folder: {png: (pixel format, [labels])}.
+#: Every card of every shot used to load and loop its own copy of the same
+#: mask and shadow; a clip with many shots held hundreds of them at once and
+#: ran Fly's 4 GB machine out of memory. Now each PNG is read once, converted
+#: once, and split to every card that uses it (the copies share one picture).
+_STILLS: dict[str, dict[str, tuple[str, list[str]]]] = {}
+_STILLS_LOCK = threading.Lock()
+
+
+def _still_label(workdir: Path, png: str, fmt: str) -> str:
+    with _STILLS_LOCK:
+        want = _STILLS.setdefault(str(workdir), {})
+        f, labels = want.setdefault(png, (fmt, []))
+        label = f"st{abs(hash(png)) % 100000}_{len(labels)}"
+        labels.append(label)
+        return label
+
+
+def emit_stills(workdir: Path, frames: int) -> list[str]:
+    """The graph lines feeding every still asked for in this work folder, then forgets them."""
+    with _STILLS_LOCK:
+        want = _STILLS.pop(str(workdir), {})
+    out = []
+    for png, (fmt, labels) in want.items():
+        tail = f"split={len(labels)}" + "".join(f"[{lb}]" for lb in labels) if len(labels) > 1 else f"null[{labels[0]}]"
+        out.append(f"movie={png},format={fmt},loop=loop={max(0, frames - 1)}:size=1:start=0,setpts=N/(30*TB),{tail}")
+    return out
+
+
 def ambient(label_in: str, label_out: str, w: int, h: int, brightness: float = AMBIENT_BRIGHTNESS) -> str:
     """The blurred, richer copy of the picture that fills the frame behind a card."""
     return (f"[{label_in}]scale={w // 4}:{h // 4}:force_original_aspect_ratio=increase,crop={w // 4}:{h // 4},"
@@ -119,12 +149,13 @@ def ambient(label_in: str, label_out: str, w: int, h: int, brightness: float = A
 def card(lines: list[str], *, base: str, picture: str, out: str, x: int, y: int, w: int, h: int,
          out_w: int, workdir: Path, name: str, frames: int) -> None:
     """Lay `picture` (already w x h) over `base` as a rounded card with a soft shadow, into `out`."""
-    mask = card_mask(workdir, f"{name}_mask", w, h, out_w)
-    shadow, pad = card_shadow(workdir, f"{name}_shadow", w, h, out_w)
+    # Named by size, so every card of one size shares one mask and one shadow.
+    mask = card_mask(workdir, f"mask_{w}x{h}", w, h, out_w)
+    shadow, pad = card_shadow(workdir, f"shadow_{w}x{h}", w, h, out_w)
     drop = int(out_w * SHADOW_DROP)
-    lines.append(f"{still(mask, frames)},format=gray[{name}m]")
-    lines.append(f"{still(shadow, frames)},format=rgba[{name}s]")
+    m_in, s_in = _still_label(workdir, mask, "gray"), _still_label(workdir, shadow, "rgba")
     lines.append(f"[{picture}]format=yuva420p[{name}p]")
-    lines.append(f"[{name}p][{name}m]alphamerge[{name}c]")
-    lines.append(f"[{base}][{name}s]overlay={x - pad}:{y - pad + drop}:eof_action=pass[{name}b]")
+    # The shared stills run the whole clip; this shot's card stops with its picture.
+    lines.append(f"[{name}p][{m_in}]alphamerge=shortest=1[{name}c]")
+    lines.append(f"[{base}][{s_in}]overlay={x - pad}:{y - pad + drop}:eof_action=pass:shortest=1[{name}b]")
     lines.append(f"[{name}b][{name}c]overlay={x}:{y}:eof_action=pass,format=yuv420p[{out}]")

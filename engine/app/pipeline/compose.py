@@ -746,6 +746,8 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     # drops those frames: the picture ended up to 0.37 s short of the sound,
     # running ahead of it by the end of the clip.
     chain.append("[joined]setpts=N/(30*TB)[base]")
+    # The cards' masks and shadows, each read once for the whole render.
+    chain[1:1] = looks.emit_stills(workdir, int((render.out_ms - render.in_ms) * 30 / 1000) + 8)
 
     # The headline layout keeps its picture in the middle band: the title
     # goes in the black above it, centred in that band.

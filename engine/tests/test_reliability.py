@@ -150,3 +150,9 @@ def test_a_working_ai_reports_nothing(monkeypatch):
     report: dict = {}
     finder.find(SENTENCES, count=1, target_ms=30000, report=report)
     assert "note" not in report
+
+
+def test_an_export_that_runs_out_of_memory_is_queued_again():
+    from app.pipeline import exports
+    assert exports._out_of_memory(RuntimeError("ffmpeg failed: Error while filtering: Cannot allocate memory"))
+    assert not exports._out_of_memory(RuntimeError("ffmpeg failed: Invalid argument"))

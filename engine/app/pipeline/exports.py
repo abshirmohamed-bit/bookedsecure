@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 import shutil
+import threading
+import time
 from pathlib import Path
 
 from sqlalchemy import update
@@ -16,6 +18,20 @@ from ..models import Asset, Export, Project
 from .compose import Render, run as run_render
 
 log = logging.getLogger("engine.exports")
+
+#: Exports render one at a time. A 1080 x 1920 render of a busy clip can take
+#: over 1 GB; two at once beside the face analysis ran Fly's 4 GB machine out
+#: of memory, and on two CPUs a second render only competes for the same cores.
+_RENDER = threading.Semaphore(1)
+#: Exports retried after running out of memory, by id (this process only).
+_MEMORY_RETRIES: dict[str, int] = {}
+MEMORY_RETRIES = 2
+MEMORY_RETRY_WAIT_S = 15
+
+
+def _out_of_memory(e: Exception) -> bool:
+    text = str(e).lower()
+    return isinstance(e, MemoryError) or "cannot allocate memory" in text or "out of memory" in text
 
 
 def create(session: Session, project: Project, resolution: str = "1080p") -> Export:
@@ -32,7 +48,8 @@ def advance_one() -> bool:
         if not row:
             return False
         try:
-            asset = _render(s, row)
+            with _RENDER:
+                asset = _render(s, row)
             row.status = "completed"
             row.progress = 100
             row.asset_id = asset.id
@@ -43,6 +60,17 @@ def advance_one() -> bool:
             webhooks.emit("export.completed", {
                 "export_id": row.id, "project_id": row.project_id, "asset": asset_payload(asset)})
         except Exception as e:
+            tries = _MEMORY_RETRIES.get(row.id, 0)
+            if _out_of_memory(e) and tries < MEMORY_RETRIES:
+                # Passing: memory frees up as other work finishes. Back in the queue.
+                _MEMORY_RETRIES[row.id] = tries + 1
+                log.warning("export %s ran out of memory, retrying (%d)", row.id, tries + 1)
+                time.sleep(MEMORY_RETRY_WAIT_S)
+                row.status = "queued"
+                row.progress = 0
+                s.add(row)
+                s.commit()
+                return True
             # Logged in full: the stored error is cut to 500 characters.
             log.exception("export %s of project %s failed", row.id, row.project_id)
             row.status = "failed"
