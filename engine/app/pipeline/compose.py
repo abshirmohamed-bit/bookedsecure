@@ -17,7 +17,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .. import media
-from . import camera
+from . import camera, looks
 from . import frame as framing
 from . import shots as shotplan
 from .caption import BY_ID, Style, build_ass
@@ -558,6 +558,8 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
     """
     t0 = shot.start_ms - pad_in
     t_end = shot.end_ms + pad_out
+    # Frames in this shot's stream (stills used by its looks run exactly as long).
+    frames = int((t_end - t0) * 30 / 1000) + 2
     head = (f"trim=start={_seconds(t0 - inputs.in_ms)}:end={_seconds(shot.end_ms + pad_out - inputs.in_ms)},"
             "setpts=PTS-STARTPTS")
     s = f"s{i}"
@@ -576,10 +578,20 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         lines.append(f"[{label_in}]{pan}{name}={win.w}:{win.h}:{win.x}:{win.y},{_scale(w, h)},setsar=1[{label_out}]")
 
     def fit(label_in: str, label_out: str, copies_from: str | None = None) -> None:
+        # Ambient glass: the whole picture as a rounded card with a soft shadow,
+        # floating over a blurred, slightly richer copy of itself.
+        sw, sh = max(1, inputs.width), max(1, inputs.height)
+        fw = looks.even(w * looks.GLASS_WIDTH)
+        fh = looks.even(fw * sh / sw)
+        if fh > h * looks.GLASS_WIDTH:
+            fh = looks.even(h * looks.GLASS_WIDTH)
+            fw = looks.even(fh * sw / sh)
         lines.append(f"[{label_in}]split=2[{label_out}a][{label_out}b]")
-        lines.append(f"[{label_out}a]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},boxblur=24:2[{label_out}bg]")
-        lines.append(f"[{label_out}b]{_fit_chain(w, h)}[{label_out}fg]")
-        lines.append(f"[{label_out}bg][{label_out}fg]overlay=(W-w)/2:(H-h)/2,setsar=1[{label_out}]")
+        lines.append(looks.ambient(f"{label_out}a", f"{label_out}bg", w, h))
+        lines.append(f"[{label_out}b]scale={fw}:{fh}:flags=lanczos,setsar=1[{label_out}fg]")
+        looks.card(lines, base=f"{label_out}bg", picture=f"{label_out}fg", out=f"{label_out}x",
+                   x=(w - fw) // 2, y=(h - fh) // 2, w=fw, h=fh, out_w=w, workdir=workdir, name=f"g{i}{label_out}", frames=frames)
+        lines.append(f"[{label_out}x]setsar=1[{label_out}]")
 
     if shot.kind == "fill":
         lines.append(f"[{s}]{head}[{s}t]")
@@ -590,7 +602,11 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         fit(f"{s}t", out)
         return lines, 1
     if shot.kind in {"bars", "headline"}:
-        lines.append(f"[{s}]{head},{_fit_chain(w, h)},pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1[{out}]")
+        lines.append(f"[{s}]{head},split=2[{s}a][{s}b]")
+        lines.append(looks.ambient(f"{s}a", f"{s}bg0", w, h, brightness=looks.CINEMA_BRIGHTNESS))
+        lines.append(f"[{s}bg0]vignette=angle={looks.VIGNETTE}[{s}bg]")
+        lines.append(f"[{s}b]{_fit_chain(w, h)}[{s}fg]")
+        lines.append(f"[{s}bg][{s}fg]overlay=(W-w)/2:(H-h)/2,setsar=1[{out}]")
         return lines, 1
     if shot.kind == "feed":
         box = shot.main
@@ -607,6 +623,21 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
             cw, ch = w, h // k - (h // k) % 2
         else:
             cw, ch = w // k - (w // k) % 2, h
+        if k == 2 and portrait:
+            m, gap = looks.even(w * looks.DUO_MARGIN), looks.even(w * looks.DUO_GAP)
+            cw2 = looks.even(w - 2 * m)
+            ch2 = looks.even((h - 2 * m - gap) / 2)
+            lines.append(f"[{s}]{head},split=3[{s}p0][{s}p1][{s}a]")
+            lines.append(looks.ambient(f"{s}a", f"{s}bg", w, h))
+            for j, box in enumerate(cells[:2]):
+                lines.append(f"[{s}p{j}]{box.crop()},scale={cw2}:{ch2}:force_original_aspect_ratio=increase:flags=lanczos,"
+                             f"crop={cw2}:{ch2},setsar=1[{s}k{j}]")
+            looks.card(lines, base=f"{s}bg", picture=f"{s}k0", out=f"{s}c0", x=m, y=m, w=cw2, h=ch2,
+                       out_w=w, workdir=workdir, name=f"d{i}a", frames=frames)
+            looks.card(lines, base=f"{s}c0", picture=f"{s}k1", out=f"{s}c1", x=m, y=m + ch2 + gap, w=cw2, h=ch2,
+                       out_w=w, workdir=workdir, name=f"d{i}b", frames=frames)
+            lines.append(f"[{s}c1]setsar=1[{out}]")
+            return lines, 1
         lines.append(f"[{s}]{head},split={k}" + "".join(f"[{s}p{j}]" for j in range(k)))
         for j, box in enumerate(cells):
             lines.append(f"[{s}p{j}]{box.crop()},{_scale(cw, ch)},setsar=1[{s}k{j}]")
@@ -639,9 +670,10 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
             fit(f"{s}m", f"{s}base")
         else:
             fill(f"{s}m", f"{s}base")
-        edge = max(2, int(w * 0.006))
-        lines.append(f"[{s}q]{inset.crop()},{_scale(iw, ih)},pad={iw + 2 * edge}:{ih + 2 * edge}:{edge}:{edge}:white,setsar=1[{s}in]")
-        lines.append(f"[{s}base][{s}in]overlay=W-w-{int(w * 0.04)}:{int(h * 0.18)},setsar=1[{out}]")
+        lines.append(f"[{s}q]{inset.crop()},{_scale(iw, ih)},setsar=1[{s}in]")
+        looks.card(lines, base=f"{s}base", picture=f"{s}in", out=f"{s}pp", x=w - iw - int(w * 0.04), y=int(h * 0.18),
+                   w=iw, h=ih, out_w=w, workdir=workdir, name=f"b{i}", frames=frames)
+        lines.append(f"[{s}pp]setsar=1[{out}]")
         return lines, 1
     raise ValueError(f"unknown shot kind {shot.kind}")
 

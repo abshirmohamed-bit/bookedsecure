@@ -7,6 +7,7 @@
  */
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import { cropAt, shotAt, transitionAt, transitionLook, type MotionSample } from "@/lib/clip-motion";
+import { duoCards, glassCard, LOOK, pipBox } from "@/lib/clip-looks";
 import { groupCaptionLines, type CaptionLine, type CaptionWord, type VideoAspect } from "@/lib/video-clips";
 
 export type PlanBox = { x: number; y: number; w: number; h: number };
@@ -59,6 +60,44 @@ function drawCover(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, k: nu
   let { x, y, w, h } = box;
   if (w / h > target) { const nw = h * target; x += (w - nw) / 2; w = nw; } else { const nh = w / target; y += (h - nh) / 2; h = nh; }
   ctx.drawImage(video, x * k, y * k, w * k, h * k, dx, dy, dw, dh);
+}
+
+let ambientCanvas: OffscreenCanvas | HTMLCanvasElement | null = null;
+
+/** The blurred, richer copy of the whole picture behind a card (drawn small, then scaled up: cheap). */
+function drawAmbient(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, W: number, H: number, brightness: number = LOOK.ambientBrightness) {
+  const w = Math.max(2, Math.round(W / 4)), h = Math.max(2, Math.round(H / 4));
+  if (!ambientCanvas || ambientCanvas.width !== w || ambientCanvas.height !== h) {
+    ambientCanvas = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(w, h) : Object.assign(document.createElement("canvas"), { width: w, height: h });
+  }
+  const a = ambientCanvas.getContext("2d") as CanvasRenderingContext2D | null;
+  if (!a) return;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const s = Math.max(w / vw, h / vh);
+  a.filter = `blur(${Math.max(2, (LOOK.ambientBlur * W) / 4)}px) saturate(${LOOK.ambientSaturation}) brightness(${brightness})`;
+  a.drawImage(video, (w - vw * s) / 2, (h - vh * s) / 2, vw * s, vh * s);
+  a.filter = "none";
+  ctx.drawImage(ambientCanvas as CanvasImageSource, 0, 0, W, H);
+}
+
+/** Draw `paint` inside a rounded card at `box`, with the looks' soft shadow under it. */
+function drawCard(ctx: CanvasRenderingContext2D, box: { x: number; y: number; w: number; h: number }, W: number, paint: () => void) {
+  const r = W * LOOK.radius;
+  ctx.save();
+  ctx.shadowColor = `rgba(0,0,0,${LOOK.shadowAlpha})`;
+  ctx.shadowBlur = W * LOOK.shadowBlur;
+  ctx.shadowOffsetY = W * LOOK.shadowDrop;
+  ctx.beginPath();
+  ctx.roundRect(box.x, box.y, box.w, box.h, r);
+  ctx.fillStyle = "#000";
+  ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(box.x, box.y, box.w, box.h, r);
+  ctx.clip();
+  paint();
+  ctx.restore();
 }
 
 function drawContain(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, W: number, H: number) {
@@ -116,8 +155,35 @@ function drawShot(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input:
   const k = video.videoWidth / src.w;
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, W, H);
+  if (shot?.kind === "fit") {
+    // Ambient glass: the whole picture as a rounded card over a blur of itself.
+    drawAmbient(ctx, video, W, H);
+    const card = glassCard(W, H, video.videoWidth, video.videoHeight);
+    drawCard(ctx, card, W, () => ctx.drawImage(video, card.x, card.y, card.w, card.h));
+    return;
+  }
+  if (shot?.kind === "bars" || shot?.kind === "headline") {
+    // Cinema: bars made of the picture itself, darkened, with a soft vignette.
+    drawAmbient(ctx, video, W, H, LOOK.cinemaBrightness);
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.hypot(W, H) / 2);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, "rgba(0,0,0,0.55)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    const vw = video.videoWidth, vh = video.videoHeight, sc = Math.min(W / vw, H / vh);
+    ctx.drawImage(video, (W - vw * sc) / 2, (H - vh * sc) / 2, vw * sc, vh * sc);
+    return;
+  }
   if (shot && CONTAIN.has(shot.kind)) return drawContain(ctx, video, W, H);
   if (shot?.kind === "split" && shot.cells.length >= 2) {
+    if (H >= W) {
+      // Duo cards: two people as two rounded cards with a gap.
+      drawAmbient(ctx, video, W, H);
+      const [a, b] = duoCards(W, H);
+      drawCard(ctx, a, W, () => drawCover(ctx, video, k, shot.cells[0]!, a.x, a.y, a.w, a.h));
+      drawCard(ctx, b, W, () => drawCover(ctx, video, k, shot.cells[1]!, b.x, b.y, b.w, b.h));
+      return;
+    }
     drawCover(ctx, video, k, shot.cells[0]!, 0, 0, W, H / 2);
     drawCover(ctx, video, k, shot.cells[1]!, 0, H / 2, W, H / 2);
     return;
@@ -129,11 +195,10 @@ function drawShot(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input:
   const main = (shot ? (cropAt(shot, rel) ?? shot.main ?? shot.cells[0] ?? null) : null) ?? centreCrop(src, W / H);
   drawCover(ctx, video, k, main, 0, 0, W, H);
   if (shot?.kind === "pip" && shot.inset) {
-    const iw = W * 0.34, ih = iw * (shot.inset.h / shot.inset.w);
-    const ix = W - iw - W * 0.04, iy = H * 0.06;
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(ix - 6, iy - 6, iw + 12, ih + 12);
-    drawCover(ctx, video, k, shot.inset, ix, iy, iw, ih);
+    // Reaction bubble: a rounded card with a soft shadow.
+    const bubble = pipBox(W, H);
+    const inset = shot.inset;
+    drawCard(ctx, bubble, W, () => drawCover(ctx, video, k, inset, bubble.x, bubble.y, bubble.w, bubble.h));
   }
 }
 

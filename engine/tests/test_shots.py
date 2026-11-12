@@ -238,7 +238,7 @@ def test_a_fit_shot_is_the_picture_over_a_blur_of_itself(tmp_path, monkeypatch):
     monkeypatch.setattr(compose.framing, "analyse", lambda *a, **k: (t, [], [], [], flat_detail()))
     r = compose.Render(out=tmp_path / "o.mp4", source=tmp_path / "in.mp4", in_ms=0, out_ms=10000, layout="auto")
     graph = compose.graph_of(compose.build(r, tmp_path / "w")[0])
-    assert "boxblur" in graph and "overlay=(W-w)/2:(H-h)/2" in graph
+    assert "boxblur" in graph and "alphamerge" in graph
 
 
 def test_a_pan_is_written_in_shot_time(tmp_path, monkeypatch):

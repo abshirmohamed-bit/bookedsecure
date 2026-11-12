@@ -2,6 +2,7 @@ import { GripHorizontal, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import type { PlanBox, ShotPlan } from "@/lib/video-clips.server";
 import { cropAt, shotAt, TRANSITION_MS } from "@/lib/clip-motion";
+import { duoCards, glassCard, LOOK } from "@/lib/clip-looks";
 import type { CaptionLine, ClipLayout, VideoAspect } from "@/lib/video-clips";
 
 const ASPECT: Record<VideoAspect, number> = { "9:16": 9 / 16, "1:1": 1, "4:5": 4 / 5, "16:9": 16 / 9 };
@@ -171,7 +172,17 @@ export function LivePreview({
     const fromPlan = shot ? (cropAt(shot, rel) ?? shot.main ?? shot.cells[0] ?? null) : null;
     return fromPlan ?? centreCrop(source, aspect);
   }, [source, contain, split, shot, rel, aspect]);
-  const half = { w: frame.w, h: frame.h / 2 };
+  // The finishing looks (lib/clip-looks, the Engine's looks.py): ambient glass
+  // for whole-picture shots, cinema bars, duo cards for two people.
+  const glass = !failed && (layout === "streamer" || (!whole && shot?.kind === "fit"));
+  const cinema = !failed && (layout === "black-box" || layout === "title-subtitles" || (!whole && (shot?.kind === "bars" || shot?.kind === "headline")));
+  const duo = split && frame.h >= frame.w && frame.w ? duoCards(frame.w, frame.h) : null;
+  const half = duo ? { w: duo[0].w, h: duo[0].h } : { w: frame.w, h: frame.h / 2 };
+  const glassBox = glass && frame.w && natural.w ? glassCard(frame.w, frame.h, natural.w, natural.h) : null;
+  const cardStyle = (b: { x: number; y: number; w: number; h: number }) => ({
+    left: b.x, top: b.y, width: b.w, height: b.h, borderRadius: frame.w * LOOK.radius,
+    boxShadow: `0 ${frame.w * LOOK.shadowDrop}px ${frame.w * LOOK.shadowBlur * 2}px rgba(0,0,0,${LOOK.shadowAlpha})`,
+  });
 
   // A change of composition plays the Engine's 6-frame transition; camera cuts stay cuts.
   const shotIndex = shot && plan ? plan.shots.indexOf(shot) : -1;
@@ -220,20 +231,25 @@ export function LivePreview({
         e.currentTarget.currentTime = Math.max(0, (start - offsetMs) / 1000);
       }}
       onError={() => setFailed(true)}
-      className={style ? `absolute max-w-none ${moving ? "" : "transition-[left,top,width,height] duration-150 ease-out"}` : layout === "title-subtitles" ? "absolute inset-x-0 top-1/2 w-full -translate-y-1/2 object-contain" : "absolute inset-0 size-full object-contain"}
-      style={style ?? undefined}
+      className={glassBox ? "absolute inset-0 size-full object-cover" : style ? `absolute max-w-none ${moving ? "" : "transition-[left,top,width,height] duration-150 ease-out"}` : layout === "title-subtitles" ? "absolute inset-x-0 top-1/2 w-full -translate-y-1/2 object-contain" : "absolute inset-0 size-full object-contain"}
+      style={glassBox ? undefined : style ?? undefined}
     />
   );
 
   return (
     <div ref={box} className="absolute inset-0 overflow-hidden bg-black">
       {/* the picture-only layouts, drawn here without waiting for the Engine */}
-      {layout === "streamer" && poster ? <img src={poster} alt="" aria-hidden="true" className="absolute inset-0 size-full scale-110 object-cover opacity-80 blur-xl" /> : null}
+      {(glass || cinema || duo) && poster ? (
+        <img src={poster} alt="" aria-hidden="true" className="absolute inset-0 size-full scale-110 object-cover blur-xl"
+          style={{ filter: `blur(24px) saturate(${LOOK.ambientSaturation}) brightness(${cinema ? LOOK.cinemaBrightness : LOOK.ambientBrightness})` }} />
+      ) : null}
+      {cinema ? <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%)" }} /> : null}
       <div key={layout} ref={picture} className="absolute inset-0 animate-in fade-in duration-200">
         {failed ? (poster ? <img src={poster} alt="" className="size-full object-cover" /> : null)
-          : split ? <div className="absolute inset-x-0 top-0 h-1/2 overflow-hidden">{videoEl}</div> : videoEl}
+          : glassBox ? <div className="absolute overflow-hidden" style={cardStyle(glassBox)}>{videoEl}</div>
+            : split ? <div className={duo ? "absolute overflow-hidden" : "absolute inset-x-0 top-0 h-1/2 overflow-hidden"} style={duo ? cardStyle(duo[0]) : undefined}>{videoEl}</div> : videoEl}
         {split && !failed && frame.w && source.w ? (
-          <div className="absolute inset-x-0 bottom-0 h-1/2 overflow-hidden border-t-2 border-white/70">
+          <div className={duo ? "absolute overflow-hidden" : "absolute inset-x-0 bottom-0 h-1/2 overflow-hidden border-t-2 border-white/70"} style={duo ? cardStyle(duo[1]) : undefined}>
             <video ref={twin} src={src} muted playsInline preload="auto" aria-hidden="true" className="absolute max-w-none"
               style={coverStyle(split[1]!, source, half)}
               onLoadedMetadata={(e) => { e.currentTarget.currentTime = video.current?.currentTime ?? Math.max(0, (start - offsetMs) / 1000); }} />

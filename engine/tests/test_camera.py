@@ -172,3 +172,27 @@ def test_the_camera_ramp_follows_the_path_within_a_third_of_a_pixel():
         return eval(expr.replace("in", str(n)).replace("clip", "_clip"), {"_clip": lambda v, a, b: max(a, min(b, v))})
     assert max(abs(ev(k + 1) - v) for k, v in enumerate(values)) < 0.35
     assert expr.count("clip") < 30
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_every_look_renders_its_full_length(tmp_path):
+    """Cards, duo cards, cinema bars and the bubble use stills; each must end with its shot."""
+    from app.pipeline import compose
+    src = tmp_path / "src.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30:duration=3",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(src)], check=True)
+    inp = Inputs(width=1280, height=720, out_w=540, out_h=960, in_ms=0, out_ms=3000)
+    for shot in (Shot(0, 3000, "fit"), Shot(0, 3000, "bars"),
+                 Shot(0, 3000, "split", cells=[Box(0, 0, 640, 720), Box(640, 0, 640, 720)]),
+                 Shot(0, 3000, "pip", window=Box(400, 0, 404, 720), inset=Box(900, 100, 200, 260))):
+        wd = tmp_path / shot.kind
+        wd.mkdir()
+        lines, _ = compose._shot_graph(shot, 0, inp, 540, 960, wd)
+        graph = ";".join(["[0:v]fps=30,split=1[s0]", *lines]).replace("[v0]", "[base]")
+        out = wd / "o.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-filter_complex", graph, "-map", "[base]",
+                        "-c:v", "libx264", "-preset", "ultrafast", str(out)], check=True, cwd=wd, timeout=120)
+        frames = int(subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries",
+                                     "stream=nb_read_frames", "-of", "csv=p=0", str(out)],
+                                    capture_output=True, text=True, check=True).stdout.strip())
+        assert abs(frames - 90) <= 2, (shot.kind, frames)

@@ -168,7 +168,7 @@ def test_the_blurred_layout_shows_the_whole_picture_over_a_blur(tmp_path):
                        in_ms=0, out_ms=2000, layout="streamer", framing_mode="center")
     graph = compose.graph_of(compose.build(r, tmp_path / "w")[0])
     assert "boxblur" in graph and "overlay" in graph
-    assert "force_original_aspect_ratio=decrease" in graph, "the picture itself is fitted whole"
+    assert "alphamerge" in graph, "the whole picture is a rounded card over the blur"
 
 
 def test_two_faces_are_held_together_when_they_fit():
@@ -307,7 +307,7 @@ def test_auto_layout_builds_a_stack_for_two_people(tmp_path, monkeypatch):
                        in_ms=0, out_ms=2000, layout="auto")
     args, _ = compose.build(r, tmp_path / "w")
     graph = " ".join(args)
-    assert "vstack=inputs=2" in graph
+    assert "alphamerge" in graph and graph.count("overlay=") >= 4, "two people are two cards"
     assert graph.count("crop=") >= 2
 
 
@@ -423,7 +423,7 @@ def test_a_composite_with_a_back_and_forth_stays_split(tmp_path, monkeypatch):
     monkeypatch.setattr(compose.framing, "follow_speaker", lambda tr, *a, **k: tr)
     r = compose.Render(out=tmp_path / "o.mp4", source=tmp_path / "in.mp4",
                        in_ms=0, out_ms=10000, layout="auto")
-    assert "vstack=inputs=2" in " ".join(compose.build(r, tmp_path / "w")[0])
+    assert "alphamerge" in " ".join(compose.build(r, tmp_path / "w")[0])
 
 
 # --- what the clip was chosen for -----------------------------------------
@@ -463,7 +463,7 @@ def test_a_reaction_clip_renders_as_a_stack(tmp_path, monkeypatch):
     monkeypatch.setattr(compose.framing, "speech", lambda *a, **k: (tracks, turns, []))
     r = compose.Render(out=tmp_path / "o.mp4", source=tmp_path / "in.mp4",
                        in_ms=0, out_ms=10000, layout="auto", focus="reaction")
-    assert "vstack=inputs=2" in " ".join(compose.build(r, tmp_path / "w")[0])
+    assert "alphamerge" in " ".join(compose.build(r, tmp_path / "w")[0])
 
 
 def test_a_reaction_clip_does_not_chase_the_talker():

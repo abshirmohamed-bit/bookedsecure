@@ -131,7 +131,10 @@ def face_scores(src: Path, start: float, out: Path, length: float, faces) -> tup
         of = [f for f in faces(o) if f[2] > w * 0.06]
         if any(f[0] < 2 or f[0] + f[2] > w - 2 for f in of):
             half += 1
-        sf = [f for f in faces(srcs[k]) if f[2] > srcs[k].shape[1] * 0.03]
+        # Faces a 9:16 crop can hold and is meant to: not specks in the background,
+        # not close-ups wider than the crop itself (they can only be shown in part).
+        sw = srcs[k].shape[1]
+        sf = [f for f in faces(srcs[k]) if sw * 0.04 < f[2] < sw * 0.22]
         if sf:
             with_face += 1
             kept += bool(of)
