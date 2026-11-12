@@ -171,7 +171,7 @@ def test_the_camera_ramp_follows_the_path_within_a_third_of_a_pixel():
     values = [300 + 200 * camera.ease_in_out(k / 40) for k in range(41)] + [500.0] * 20
     expr = _ramp(values, 1)
     def ev(n):
-        return eval(expr.replace("in", str(n)).replace("clip", "_clip"), {"_clip": lambda v, a, b: max(a, min(b, v))})
+        return eval(expr.replace("in", str(n)).replace("clip", "_clip").replace("+-", "-"), {"_clip": lambda v, a, b: max(a, min(b, v))})
     assert max(abs(ev(k + 1) - v) for k, v in enumerate(values)) < 0.35
     assert expr.count("clip") < 30
 
@@ -221,3 +221,16 @@ def test_a_long_re_aim_between_people_is_a_cut_like_an_editor_would_make():
     assert at(3999) == 300 and at(4001) == 1300          # 1000 px > 0.6 x 608: cut
     near = camera.centre_path([(0, 300.0), (4000, 500.0)], cuts=[], window_w=608)
     assert 300 < near(4000 + camera.REACT_MS + 200) < 500  # 200 px: glide
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_a_long_camera_move_renders(tmp_path):
+    """A long, wandering camera path made an expression ffmpeg refused ("Cannot allocate memory")."""
+    import math as m
+    from app.pipeline.compose import _ramp
+    values = [300 + 120 * m.sin(k / 7) + 40 * m.sin(k / 2.3) for k in range(1800)]
+    expr = _ramp(values, 1)
+    assert expr.count("clip") < 1800        # far fewer than one per frame, even on a jittery path
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=2",
+                    "-vf", f"perspective=x0='{expr}':y0=0:x1=600:y1=0:x2=0:y2=360:x3=600:y3=360:eval=frame",
+                    "-f", "null", "-"], check=True, timeout=120)

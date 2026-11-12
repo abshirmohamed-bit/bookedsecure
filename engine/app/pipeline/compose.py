@@ -494,21 +494,34 @@ def _knots(values: list[float], tolerance: float = 0.3) -> list[int]:
     return knots
 
 
+#: Bends allowed in one camera expression: past this the tolerance loosens.
+MAX_KNOTS = 150
+
+
 def _ramp(values: list[float], first_frame: int) -> str:
     """An ffmpeg expression of the frame number `in` that follows `values`
     (one per frame, starting at frame `first_frame`).
 
-    Written as a flat sum of clipped ramps, v0 + sum(slope * clip(in - n, 0, len)),
-    so a long, detailed path doesn't nest hundreds of ifs.
+    A sum of clipped ramps, v0 + sum(slope * clip(in - n, 0, len)), grouped
+    as a balanced tree: ffmpeg's evaluator gives up on deep expressions (it
+    reports "Cannot allocate memory"), and a flat chain is as deep as it is
+    long, so a long camera move used to fail the whole render.
     """
-    knots = _knots(values)
+    tolerance = 0.3
+    knots = _knots(values, tolerance)
+    while len(knots) > MAX_KNOTS and tolerance < 8:
+        tolerance *= 1.6
+        knots = _knots(values, tolerance)
     terms = [f"{values[0]:.2f}"]
     for a, b in zip(knots, knots[1:]):
         slope = (values[b] - values[a]) / (b - a)
         if abs(slope) < 1e-4:
             continue
-        terms.append(f"{slope:+.4f}*clip(in-{first_frame + a},0,{b - a})")
-    return "".join(terms)
+        terms.append(f"{slope:.4f}*clip(in-{first_frame + a},0,{b - a})")
+    while len(terms) > 1:
+        terms = [f"({terms[i]}+{terms[i + 1]})" if i + 1 < len(terms) else terms[i]
+                 for i in range(0, len(terms), 2)]
+    return terms[0]
 
 
 def camera_chain(shot: shotplan.Shot, t0: int, t_end: int, sw: int, sh: int) -> str:
