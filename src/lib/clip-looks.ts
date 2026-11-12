@@ -14,7 +14,7 @@ export const LOOK = {
   ambientBlur: 40 / 1080,
   ambientSaturation: 1.35,
   ambientBrightness: 0.98,
-  cinemaBrightness: 0.68,
+  cinemaBrightness: 0.8,
   glassWidth: 0.92,
   duoMargin: 0.035,
   duoGap: 0.025,
@@ -56,4 +56,11 @@ export function quadCards(W: number, H: number): Box[] {
   const m = W * LOOK.duoMargin, g = W * LOOK.duoGap;
   const w = (W - 2 * m - g) / 2, h = (H - 2 * m - g) / 2;
   return [0, 1, 2, 3].map((i) => ({ x: m + (i % 2) * (w + g), y: m + Math.floor(i / 2) * (h + g), w, h }));
+}
+
+/** Presenter mode: the screen card on top (to `top` px, the Engine's screen_split) and the speaker card below. */
+export function presenterCards(W: number, H: number, top: number): [Box, Box] {
+  const m = W * LOOK.duoMargin, g = W * LOOK.duoGap;
+  const w = W - 2 * m, th = top - m - g / 2, bh = H - top - m - g / 2;
+  return [{ x: m, y: m, w, h: th }, { x: m, y: m + th + g, w, h: bh }];
 }

@@ -31,7 +31,7 @@ GLASS_WIDTH = 0.92
 DUO_MARGIN = 0.035
 DUO_GAP = 0.025
 #: Cinema bars: how dark the blurred bars are, and the vignette angle.
-CINEMA_BRIGHTNESS = -0.32
+CINEMA_BRIGHTNESS = -0.2
 VIGNETTE = "PI/5"
 
 

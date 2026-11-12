@@ -196,3 +196,18 @@ def test_every_look_renders_its_full_length(tmp_path):
                                      "stream=nb_read_frames", "-of", "csv=p=0", str(out)],
                                     capture_output=True, text=True, check=True).stdout.strip())
         assert abs(frames - 90) <= 2, (shot.kind, frames)
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="needs ffmpeg")
+def test_a_huge_graph_goes_to_ffmpeg_as_a_file(tmp_path):
+    """A long clip with many moving shots can't fit on a command line."""
+    from app.pipeline import compose
+    big = "[0:v]" + ",".join(["null"] * 3000) + "[base]"
+    args = compose._graph_args(big, tmp_path)
+    assert args[0] == "-/filter_complex"
+    assert compose.graph_of(args) == big
+    src = tmp_path / "src.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=30:duration=1",
+                    "-c:v", "libx264", str(src)], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), *args, "-map", "[base]", "-f", "null", "-"],
+                   check=True, timeout=120)

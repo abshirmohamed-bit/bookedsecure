@@ -7,7 +7,7 @@
  */
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import { cropAt, shotAt, transitionAt, transitionLook, type MotionSample } from "@/lib/clip-motion";
-import { duoCards, glassCard, LOOK, pipBox, quadCards, spotlightCards } from "@/lib/clip-looks";
+import { duoCards, glassCard, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
 import { groupCaptionLines, type CaptionLine, type CaptionWord, type VideoAspect } from "@/lib/video-clips";
 
 export type PlanBox = { x: number; y: number; w: number; h: number };
@@ -172,6 +172,16 @@ function drawShot(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input:
     ctx.fillRect(0, 0, W, H);
     const vw = video.videoWidth, vh = video.videoHeight, sc = Math.min(W / vw, H / vh);
     ctx.drawImage(video, (W - vw * sc) / 2, (H - vh * sc) / 2, vw * sc, vh * sc);
+    return;
+  }
+  if (shot?.kind === "screen" && shot.main && H >= W) {
+    // Presenter: the screen on top, the speaker below, both as rounded cards.
+    const top = Math.min(H * 0.5, (W * src.h) / Math.max(1, src.w));
+    const [scr, spk] = presenterCards(W, H, top);
+    const main = shot.main;
+    drawAmbient(ctx, video, W, H);
+    drawCard(ctx, scr, W, () => drawCover(ctx, video, k, { x: 0, y: 0, w: src.w, h: src.h }, scr.x, scr.y, scr.w, scr.h));
+    drawCard(ctx, spk, W, () => drawCover(ctx, video, k, main, spk.x, spk.y, spk.w, spk.h));
     return;
   }
   if (shot && CONTAIN.has(shot.kind)) return drawContain(ctx, video, W, H);

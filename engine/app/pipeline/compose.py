@@ -676,10 +676,20 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         top, bottom = shotplan.screen_split(inputs)
         box = shot.main
         assert box is not None
-        lines.append(f"[{s}]{head},split=2[{s}a][{s}b]")
-        lines.append(f"[{s}a]scale={w}:{top}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{top},setsar=1[{s}sc]")
-        lines.append(f"[{s}b]{box.crop()},{_scale(w, bottom)},setsar=1[{s}pe]")
-        lines.append(f"[{s}sc][{s}pe]vstack=inputs=2,{_scale(w, h)},setsar=1[{out}]")
+        # Presenter: the screen and the speaker as two rounded cards over the blur.
+        m, g = looks.even(w * looks.DUO_MARGIN), looks.even(w * looks.DUO_GAP)
+        cw = looks.even(w - 2 * m)
+        th = looks.even(top - m - g / 2)
+        bh = looks.even(h - top - m - g / 2)
+        lines.append(f"[{s}]{head},split=3[{s}a][{s}b][{s}c]")
+        lines.append(looks.ambient(f"{s}c", f"{s}bg", w, h))
+        lines.append(f"[{s}a]scale={cw}:{th}:force_original_aspect_ratio=increase:flags=lanczos,crop={cw}:{th},setsar=1[{s}sc]")
+        lines.append(f"[{s}b]{box.crop()},scale={cw}:{bh}:force_original_aspect_ratio=increase:flags=lanczos,crop={cw}:{bh},setsar=1[{s}pe]")
+        looks.card(lines, base=f"{s}bg", picture=f"{s}sc", out=f"{s}t", x=m, y=m, w=cw, h=th,
+                   out_w=w, workdir=workdir, name=f"p{i}a", frames=frames)
+        looks.card(lines, base=f"{s}t", picture=f"{s}pe", out=f"{s}u", x=m, y=m + th + g, w=cw, h=bh,
+                   out_w=w, workdir=workdir, name=f"p{i}b", frames=frames)
+        lines.append(f"[{s}u]setsar=1[{out}]")
         return lines, 1
     if shot.kind == "pip":
         inset = shot.inset
@@ -751,7 +761,7 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     last = _overlays(render, workdir, chain, w, h, title_top=title_top, place=place)
 
     args = ["-ss", f"{render.in_ms / 1000:.3f}", "-t", f"{dur_s:.3f}", "-i", str(render.source),
-            "-filter_complex", ";".join(chain), "-map", f"[{last}]", "-map", "0:a?"]
+            *_graph_args(";".join(chain), workdir), "-map", f"[{last}]", "-map", "0:a?"]
     if render.loudnorm:
         args += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"]
     args += _encode_args(render)
@@ -826,11 +836,29 @@ def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int,
     return last
 
 
+#: Graphs longer than this go to ffmpeg as a file: a long clip with many
+#: moving shots can exceed a command line (Windows stops at 32 K characters,
+#: Linux at 128 K per argument).
+GRAPH_FILE_OVER = 6000
+
+
+def _graph_args(graph: str, workdir: Path) -> list[str]:
+    if len(graph) <= GRAPH_FILE_OVER:
+        return ["-filter_complex", graph]
+    path = workdir / "graph.txt"
+    path.write_text(graph, encoding="utf-8")
+    # "-/option file" reads the option's value from a file (ffmpeg 7+). The
+    # path is a plain argument, not part of a graph, so it needs no escaping.
+    return ["-/filter_complex", str(path.resolve())]
+
+
 def graph_of(args: list[str]) -> str:
     """The filter graph inside a built argument list, for tests and logs."""
     for flag in ("-filter_complex", "-vf"):
         if flag in args:
             return args[args.index(flag) + 1]
+    if "-/filter_complex" in args:
+        return Path(args[args.index("-/filter_complex") + 1]).read_text(encoding="utf-8")
     return ""
 
 
