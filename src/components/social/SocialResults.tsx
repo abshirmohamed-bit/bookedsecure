@@ -165,7 +165,7 @@ function JobCard({ job, onAsk, wide }: { job: Job; onAsk: (text: string) => void
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{job.source_name}</p>
           <p className={`text-xs ${job.status === "FAILED" ? "text-destructive" : "text-muted-foreground"}`}>
-            {job.status === "FAILED" ? (job.error ?? jobStatusLabel(job)) : jobStatusLabel(job)}
+            {job.status === "FAILED" ? (job.error ?? jobStatusLabel(job)) : jobStatusLabel(job)}{moving && job.progress > 0 ? ` · ${Math.round(job.progress)}%` : ""}
           </p>
         </div>
         {moving ? <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden="true" /> : null}

@@ -188,7 +188,59 @@ def _download(url: str, dest: Path) -> None:
 _ROUTES: dict[str, tuple[str, bool]] = {}
 
 
-def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_routes: int | None = None) -> None:
+def _run_with_progress(cmd: list[str], timeout: int, on_progress) -> "subprocess.CompletedProcess":
+    """subprocess.run, but reading yt-dlp's progress lines as they come.
+
+    A merged download is two files, the picture then the sound; the picture
+    is most of the bytes, so it counts for 90% of the bar.
+    """
+    import re
+    import subprocess
+    import threading
+
+    pct_re = re.compile(r"\[download\]\s+([\d.]+)%")
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True, bufsize=1)
+    state = {"file": 0, "last": 0.0}
+    out: list[str] = []
+
+    def read() -> None:
+        for line in proc.stdout:  # type: ignore[union-attr]
+            out.append(line)
+            m = pct_re.search(line)
+            if not m:
+                continue
+            p = float(m.group(1)) / 100
+            if p + 0.2 < state["last"]:
+                state["file"] += 1      # the next file (the sound) started
+            state["last"] = p
+            overall = 0.9 * p if state["file"] == 0 else min(1.0, 0.9 + 0.1 * p)
+            try:
+                on_progress(overall)
+            except Exception:  # noqa: BLE001 - progress is a nicety, never a failure
+                pass
+
+    errs: list[str] = []
+
+    def read_err() -> None:
+        errs.append(proc.stderr.read())  # type: ignore[union-attr]
+
+    readers = [threading.Thread(target=read, daemon=True), threading.Thread(target=read_err, daemon=True)]
+    for r in readers:
+        r.start()
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        raise
+    for r in readers:
+        r.join(timeout=5)
+    return subprocess.CompletedProcess(cmd, proc.returncode, "".join(out), "".join(errs))
+
+
+def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_routes: int | None = None,
+              on_progress=None) -> None:
     """yt-dlp with every route tried in turn, the one that last worked first.
 
     A run that goes past `timeout` is stopped and counts as failed; it is
@@ -211,10 +263,11 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
         routes = routes[:max_routes]
     last = ""
     for client, via_proxy in routes:
-        cmd = [exe, "--no-playlist", "--quiet", "--no-warnings",
+        cmd = [exe, "--no-playlist", "--quiet", "--no-warnings", *(["--newline", "--progress"] if on_progress else []),
                *ytdlp_opts.cli_args(client, via_proxy), *args, "-o", str(dest), "--", url]
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            proc = (_run_with_progress(cmd, timeout, on_progress) if on_progress
+                    else subprocess.run(cmd, capture_output=True, text=True, timeout=timeout))
         except subprocess.TimeoutExpired:
             log.warning("yt-dlp took over %ss for %s as %s%s; stopping it", timeout, url, client, " via proxy" if via_proxy else "")
             raise EngineError("VALIDATION_ERROR", f"Downloading from that link stalled for over {timeout // 60} minutes.") from None
@@ -240,15 +293,15 @@ def _route_lacks_format(stderr: str) -> bool:
     return "requested format is not available" in (stderr or "").lower()
 
 
-def _ytdlp(url: str, dest: Path) -> None:
+def _ytdlp(url: str, dest: Path, on_progress=None) -> None:
     """Best quality up to YTDLP_MAX_HEIGHT (1080p unless set): clips are 1080x1920,
     and every byte of a refused download goes through the paid proxy."""
-    run_ytdlp(url, dest, ["-f", link_format(), "--merge-output-format", "mp4"])
+    run_ytdlp(url, dest, ["-f", link_format(), "--merge-output-format", "mp4"], on_progress=on_progress)
 
 
-def download_whole(url: str, dest: Path) -> None:
+def download_whole(url: str, dest: Path, on_progress=None) -> None:
     """The whole linked video, for when sections can't be fetched on their own."""
-    _ytdlp(url, dest)
+    _ytdlp(url, dest, on_progress)
 
 
 #: How long one section may take, and how many routes it tries, before the

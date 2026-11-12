@@ -36,6 +36,11 @@ class JobFailed(RuntimeError):
 
 
 STAGE_PROGRESS = {"transcribing": 15, "finding": 40, "fetching": 50, "cutting": 60, "framing": 80, "finalizing": 95}
+#: A lean source's fetching stage is most of its wait, so it gets most of the
+#: bar, moving with the download itself.
+FETCH_FROM, FETCH_TO = 35, 82
+#: Section downloads that fail before the rest are skipped for one whole download.
+SECTION_FAILURES_BEFORE_WHOLE = 2
 
 
 def create(session: Session, asset: Asset, params: dict) -> Job:
@@ -149,7 +154,7 @@ def _step(s: Session, job: Job) -> None:
             return
         job.params = {**params, "_moments": [m.__dict__ for m in moments]}
         job.stage = "fetching" if asset.lean else "cutting"
-        job.progress = STAGE_PROGRESS[job.stage]
+        job.progress = FETCH_FROM if asset.lean else STAGE_PROGRESS[job.stage]
         s.add(job)
         s.commit()
         return
@@ -391,6 +396,32 @@ def clips_payload(s: Session, job_id: str, full: bool = False) -> list[dict]:
     return [project_summary(p, full=full, offset_ms=source_offset(s, p)) for p in projects]
 
 
+def _progress_reporter(job_id: str, lo: int, hi: int):
+    """A callback that moves the job's progress between lo and hi (0..1 in).
+
+    It writes through its own session, so download threads can call it, and
+    only when the whole-number percentage changes.
+    """
+    last = {"value": -1}
+
+    def report(fraction: float) -> None:
+        value = int(lo + (hi - lo) * max(0.0, min(1.0, fraction)))
+        if value <= last["value"]:
+            return
+        last["value"] = value
+        try:
+            with db_session() as s:
+                row = s.get(Job, job_id)
+                if row and row.status == "processing" and row.progress < value:
+                    row.progress = value
+                    s.add(row)
+                    s.commit()
+        except Exception:  # noqa: BLE001 - progress is a nicety, never a failure
+            pass
+
+    return report
+
+
 def source_offset(s: Session, p: Project) -> int:
     """Where a clip's own source starts in the original video (0 unless a section)."""
     own = s.get(Asset, p.asset_id)
@@ -424,16 +455,30 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
         row.storage_key = f"sources/{row.id}/download.mp4"
         rows.append((sec, row))
 
+    report = _progress_reporter(job.id, FETCH_FROM, FETCH_TO)
+    lock = threading.Lock()
+    tally = {"done": 0, "failed": 0}
+    give_up = threading.Event()
+
     def fetch(item: tuple) -> tuple:
         sec, row = item
         dest = storage.open_write(row.storage_key)
+        if give_up.is_set():
+            return sec, row, dest, RuntimeError("skipped: sections were failing")
         try:
             ingest.fetch_section(asset.source_url, dest, sec.start_ms, sec.end_ms)
             if not lean.has_video(dest):
                 raise RuntimeError("the section came without a picture")
+            with lock:
+                tally["done"] += 1
+            report(tally["done"] / max(1, len(rows)))
             return sec, row, dest, None
         except Exception as e:  # noqa: BLE001 - every failure is retried from one whole download below
             dest.unlink(missing_ok=True)
+            with lock:
+                tally["failed"] += 1
+                if tally["failed"] >= SECTION_FAILURES_BEFORE_WHOLE:
+                    give_up.set()
             return sec, row, dest, e
 
     workers = max(1, min(settings().section_downloads, len(rows)))
@@ -449,12 +494,12 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
     if failed:
         log.warning("%d of %d sections of %s failed (%s); cutting them from one whole download",
                     len(failed), len(results), asset.source_url, failed[0][3])
-        job.progress = 55     # visibly moving: the whole download is the slow part
-        s.add(job)
-        s.commit()
         whole = storage.open_write(f"sources/{asset.id}/download.mp4")
         if not lean.has_video(whole):
-            ingest.download_whole(asset.source_url, whole)
+            # The bar carries on from where the sections left it, to the end of the stage.
+            done_share = (len(results) - len(failed)) / max(1, len(results))
+            moving = _progress_reporter(job.id, FETCH_FROM + round((FETCH_TO - FETCH_FROM) * done_share), FETCH_TO)
+            ingest.download_whole(asset.source_url, whole, moving)
         for sec, _row, dest, _err in failed:
             lean.cut_copy(whole, dest, sec.start_ms, sec.end_ms)
     fetched = [(sec, row, dest, lean.measure_offset(full_audio, dest, sec.start_ms)) for sec, row, dest, _err in results]

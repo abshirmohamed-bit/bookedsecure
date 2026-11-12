@@ -164,7 +164,7 @@ def test_sections_that_fail_are_cut_from_one_whole_download(api, long_talk, tmp_
     def refused(url, dest, start_ms, end_ms):
         raise RuntimeError("ERROR: ffmpeg exited with code 8")
 
-    def whole(url, dest):
+    def whole(url, dest, on_progress=None):
         whole_downloads.append(url)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(long_talk.read_bytes())
@@ -211,3 +211,41 @@ def test_an_existing_database_gains_the_new_columns(tmp_path):
     with eng.connect() as conn:
         cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(assets)")}
     assert {"lean", "parent_id", "offset_ms"} <= cols
+
+
+def test_download_progress_is_read_as_it_comes(tmp_path):
+    import sys
+    from app.pipeline.ingest import _run_with_progress
+
+    script = tmp_path / "fake_ytdlp.py"
+    script.write_text(
+        "import sys\n"
+        "for p in (10, 50, 100, 20, 100):\n"
+        "    print(f'[download]  {p}.0% of 10.00MiB', flush=True)\n"
+    )
+    seen = []
+    proc = _run_with_progress([sys.executable, str(script)], 60, seen.append)
+    assert proc.returncode == 0
+    # the picture counts for 90% of the bar, the sound for the rest
+    assert [round(x, 3) for x in seen[:3]] == [0.09, 0.45, 0.9]
+    assert seen[-1] == 1.0
+
+
+def test_progress_only_moves_forward(api):
+    from app.db import session
+    from app.ids import new_id
+    from app.models import Asset, Job
+    from app.pipeline.jobs import _progress_reporter
+
+    with session() as s:
+        a = Asset(id=new_id("ast"), name="p", status="ready")
+        j = Job(id=new_id("job"), asset_id=a.id, status="processing", stage="fetching", progress=35)
+        s.add(a)
+        s.add(j)
+        s.commit()
+        job_id = j.id
+    report = _progress_reporter(job_id, 35, 82)
+    report(0.5)
+    report(0.2)          # a later, smaller reading never moves it back
+    with session() as s:
+        assert s.get(Job, job_id).progress == 58

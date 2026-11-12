@@ -107,7 +107,7 @@ function VideoGroup({ job, clips, onOpen }: { job: Job; clips: Clip[]; onOpen: (
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold">{job.source_name}</h2>
           <p className={`text-xs ${job.status === "FAILED" ? "text-destructive" : "text-muted-foreground"}`}>
-            {job.status === "FAILED" ? (job.error ?? jobStatusLabel(job)) : jobStatusLabel(job)}
+            {job.status === "FAILED" ? (job.error ?? jobStatusLabel(job)) : jobStatusLabel(job)}{moving && job.progress > 0 ? ` · ${Math.round(job.progress)}%` : ""}
             {job.duration_ms ? ` · ${seconds(job.duration_ms)} long` : ""}
             {job.clips.length ? ` · ${job.clips.length} clip${job.clips.length === 1 ? "" : "s"}` : ""}
           </p>
