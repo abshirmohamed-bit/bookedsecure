@@ -33,6 +33,10 @@ GLIDE_MIN_MS, GLIDE_MAX_MS = 380, 750
 REACT_MS = 90
 #: A change this close to a camera cut is part of the cut: no glide.
 CUT_SNAP_MS = 140
+#: A re-aim further than this share of the crop's width is cut to, the way an
+#: editor cuts between two people sitting apart, rather than panned across
+#: empty space between them. Shorter moves glide.
+CUT_OVER_SHARE = 0.6
 #: Samples this close together are a tracked path, smoothed rather than glided.
 TRACK_STEP_MS = 160
 #: The smoothing time constant for tracked paths.
@@ -107,7 +111,7 @@ def centre_path(samples: list[tuple[int, float]], cuts: list[int], window_w: flo
     for ms, target in samples[1:]:
         if abs(target - target_now) < 1:
             continue
-        if any(abs(ms - c) <= CUT_SNAP_MS for c in cuts):
+        if any(abs(ms - c) <= CUT_SNAP_MS for c in cuts) or abs(target - target_now) > window_w * CUT_OVER_SHARE:
             moves.append((ms, 0, target, target))
         else:
             start = ms + REACT_MS

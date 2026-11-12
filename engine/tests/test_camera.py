@@ -24,12 +24,12 @@ def test_easing_starts_and_lands_softly():
 
 
 def test_a_new_subject_mid_shot_is_glided_to_not_jumped():
-    at = camera.centre_path([(0, 500.0), (4000, 1200.0)], cuts=[], window_w=608)
+    at = camera.centre_path([(0, 500.0), (4000, 800.0)], cuts=[], window_w=608)
     assert at(3999) == 500
     assert at(4000 + camera.REACT_MS) == 500                    # reacts a beat later
     mid = at(4000 + camera.REACT_MS + camera.GLIDE_MAX_MS / 2)
-    assert 500 < mid < 1200
-    assert at(6000) == 1200
+    assert 500 < mid < 800
+    assert at(6000) == 800
     # no frame-to-frame step bigger than a smooth glide allows
     xs = [at(t) for t in range(3900, 5200, 33)]
     assert max(abs(b - a) for a, b in zip(xs, xs[1:])) < 120
@@ -41,10 +41,10 @@ def test_a_real_camera_cut_stays_a_cut():
 
 
 def test_a_move_that_starts_before_the_last_landed_has_no_kink():
-    at = camera.centre_path([(0, 0.0), (1000, 600.0), (1300, 100.0)], cuts=[], window_w=608)
+    at = camera.centre_path([(0, 0.0), (1000, 300.0), (1300, 50.0)], cuts=[], window_w=608)
     xs = [at(t) for t in range(900, 3000, 33)]
     assert max(abs(b - a) for a, b in zip(xs, xs[1:])) < 120
-    assert at(3000) == 100
+    assert at(3000) == 50
 
 
 def test_long_shots_breathe_and_alternate_direction():
@@ -211,3 +211,10 @@ def test_a_huge_graph_goes_to_ffmpeg_as_a_file(tmp_path):
                     "-c:v", "libx264", str(src)], check=True)
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), *args, "-map", "[base]", "-f", "null", "-"],
                    check=True, timeout=120)
+
+
+def test_a_long_re_aim_between_people_is_a_cut_like_an_editor_would_make():
+    at = camera.centre_path([(0, 300.0), (4000, 1300.0)], cuts=[], window_w=608)
+    assert at(3999) == 300 and at(4001) == 1300          # 1000 px > 0.6 x 608: cut
+    near = camera.centre_path([(0, 300.0), (4000, 500.0)], cuts=[], window_w=608)
+    assert 300 < near(4000 + camera.REACT_MS + 200) < 500  # 200 px: glide

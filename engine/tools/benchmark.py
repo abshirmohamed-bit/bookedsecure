@@ -150,6 +150,8 @@ def max_jump(plan, cuts: list[int]) -> float:
             if any(abs(b[0] - c) <= camera.CUT_SNAP_MS + 40 for c in cuts):
                 continue
             d = abs((b[1] + b[3] / 2) - (a[1] + a[3] / 2)) / max(1.0, a[3])
+            if d >= camera.CUT_OVER_SHARE * 0.9:
+                continue                      # a deliberate cut between people, not a jitter
             worst = max(worst, d)
     return worst
 
