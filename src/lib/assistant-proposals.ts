@@ -36,6 +36,15 @@ export type VideoLinkProposal = {
   summary: string;
 };
 
+/** Several video links looked up at once: the owner picks, ticks the rights once and clips them all. */
+export type VideoLinksProposal = {
+  kind: "video_links";
+  videos: { url: string; title: string; channel: string; durationMs: number; thumbnailUrl: string }[];
+  /** Links that couldn't be read, as pasted. */
+  missed: string[];
+  summary: string;
+};
+
 /** Connected assistants request existing work; the owner starts it in Co-Work. */
 export type AssistantRequestProposal = {
   kind: 'assistant_request';

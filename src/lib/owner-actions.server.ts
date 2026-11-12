@@ -40,7 +40,7 @@ export type StatusProposal = {
 
 import type { AddonLinkProposal } from "@/lib/catalog-actions.server";
 import type { LeadUpdateProposal } from "@/lib/owner-lead-actions.server";
-import type { SendTextProposal, ImportProposal, AssistantRequestProposal, VideoLinkProposal } from "@/lib/assistant-proposals";
+import type { SendTextProposal, ImportProposal, AssistantRequestProposal, VideoLinkProposal, VideoLinksProposal } from "@/lib/assistant-proposals";
 
 export type OwnerProposal =
   | CampaignProposal
@@ -50,7 +50,8 @@ export type OwnerProposal =
   | SendTextProposal
   | ImportProposal
   | AssistantRequestProposal
-  | VideoLinkProposal;
+  | VideoLinkProposal
+  | VideoLinksProposal;
 
 
 /** How many leads a status change would touch right now. */

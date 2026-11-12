@@ -87,6 +87,36 @@ export function buildVideoTools(ctx: AssistantToolContext) {
       },
     }),
 
+    look_up_video_links: tool({
+      description: "Call this instead of look_up_video_link when the owner pastes two or more video links (up to 10). Reads each one's title, channel and length without downloading anything and shows ONE card listing them all, where the owner ticks once that they own them or have permission and clips them together. Tell them the card is there; don't clip them yourself.",
+      inputSchema: z.object({ urls: z.array(z.string().url().max(2000)).min(2).max(10) }),
+      execute: async ({ urls }) => {
+        if (!engineConfigured()) return fail(NOT_ON);
+        return run(null, async () => {
+          const unique = [...new Set(urls)];
+          const videos: { url: string; title: string; channel: string; durationMs: number; thumbnailUrl: string }[] = [];
+          const missed: string[] = [];
+          // Two at a time: each lookup is a metadata read on the shared Engine.
+          for (let i = 0; i < unique.length; i += 2) {
+            const batch = await Promise.allSettled(unique.slice(i, i + 2).map((url) => lookUpVideoLink(url, { transcript: false })));
+            batch.forEach((r, k) => {
+              const url = unique[i + k]!;
+              if (r.status === "fulfilled") videos.push({ url, title: r.value.title, channel: r.value.channel, durationMs: r.value.duration_ms, thumbnailUrl: r.value.thumbnail_url });
+              else missed.push(url);
+            });
+          }
+          if (videos.length) {
+            ctx.propose({ kind: "video_links", videos, missed, summary: `${videos.length} videos ready to clip` });
+          }
+          return {
+            found: videos.map((v) => ({ title: v.title, channel: v.channel, minutes: Math.round(v.durationMs / 60000) })),
+            couldNotRead: missed,
+            card: videos.length ? "The owner now sees one card listing these videos. Clipping starts when they tick that they own them or have permission and press Clip." : null,
+          };
+        });
+      },
+    }),
+
     clip_uploaded_video: tool({
       description: "Cut a video the owner attached on the Social media page into short clips with captions. Use the attached video id from the request. They own a video they uploaded, so don't ask about rights. Every clip renders automatically and appears in Studio and Results.",
       inputSchema: z.object({ videoId: z.string().uuid().describe("The attached video id from the request."), ...OPTIONS }),

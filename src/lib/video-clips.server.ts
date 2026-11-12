@@ -93,9 +93,9 @@ export type VideoLinkDetails = {
 };
 
 /** Read a pasted link's details and captions. Nothing is downloaded or stored. */
-export async function lookUpVideoLink(url: string): Promise<VideoLinkDetails> {
+export async function lookUpVideoLink(url: string, opts: { transcript?: boolean } = {}): Promise<VideoLinkDetails> {
   if (!isPublicVideoLink(url)) throw new Error("That needs to be a normal public https link to a video.");
-  const r = await engineClient<VideoLinkDetails>("POST", "/v1/analyze", { url, transcript: true }, { timeoutMs: 120_000 });
+  const r = await engineClient<VideoLinkDetails>("POST", "/v1/analyze", { url, transcript: opts.transcript ?? true }, { timeoutMs: 120_000 });
   if (!r.ok) throw new Error(r.error.message);
   return r.data;
 }
