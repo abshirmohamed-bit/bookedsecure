@@ -387,7 +387,10 @@ async function renderClipRealtime(input: RenderInput, onProgress: (p: number) =>
     audio: { codec: "aac", numberOfChannels: 2, sampleRate },
   });
   let failure: Error | null = null;
-  const videoEncoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failure = e; } });
+  const videoEncoder = new VideoEncoder({ output: (chunk, meta) => {
+    try { muxer.addVideoChunk(chunk, meta); }
+    catch (e) { failure = e instanceof Error ? e : new Error(String(e)); }
+  }, error: (e) => { failure = e; } });
   videoEncoder.configure({ codec, width: W, height: H, bitrate, framerate: fps, latencyMode: "quality" });
   const audioEncoder = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: (e) => { failure = e; } });
   audioEncoder.configure({ codec: "mp4a.40.2", sampleRate, numberOfChannels: 2, bitrate: 128_000 });
@@ -610,7 +613,10 @@ async function renderClipFast(input: RenderInput, onProgress: (p: number) => voi
     ...(audioOk && at?.audio ? { audio: { codec: "aac" as const, numberOfChannels: at.audio.channel_count, sampleRate: at.audio.sample_rate } } : {}),
   });
   let failure: Error | null = null;
-  const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failure = e; } });
+  const encoder = new VideoEncoder({ output: (chunk, meta) => {
+    try { muxer.addVideoChunk(chunk, meta); }
+    catch (e) { failure = e instanceof Error ? e : new Error(String(e)); }
+  }, error: (e) => { failure = e; } });
   // The encoder is the slow part: its "realtime" mode on the GPU runs about twice
   // as fast as "quality" at the same bitrate, with no visible difference here.
   const fastCfg: VideoEncoderConfig = { codec, width: W, height: H, bitrate, framerate: fps, latencyMode: "realtime", hardwareAcceleration: "prefer-hardware" };

@@ -20,6 +20,7 @@ import { getOnboardingProgress } from "@/lib/onboarding.functions";
 import { onboardingProgressLabel } from "@/lib/onboarding";
 import { LEAD_STATUS_LABELS, formatCurrency, type LeadStatus } from "@/lib/domain";
 import { saveAssistantDraft } from "@/lib/assistant-draft";
+import { socialReviewSearch } from "@/lib/meta-social";
 import { cn } from "@/lib/utils";
 import { HomeAssistant } from "@/components/home/HomeAssistant";
 import {

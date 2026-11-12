@@ -13,6 +13,7 @@ import {
   ROLE_LABELS,
   accountInitials,
   accountMenuReducer,
+  signOutWithPushCleanup,
 } from "@/lib/navigation";
 
 /**
