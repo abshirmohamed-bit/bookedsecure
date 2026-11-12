@@ -16,6 +16,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .. import media
+from . import camera
 from . import frame as framing
 from . import shots as shotplan
 from .caption import BY_ID, Style, build_ass
@@ -426,7 +427,15 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
         tracks=tracks, turns=turns_, cuts=cuts, detail=detail, track=track,
         layout=render.layout, focus=render.focus, zoom=render.zoom, words=render.words,
     )
-    return shotplan.plan(inputs), inputs
+    plan = shotplan.plan(inputs)
+    try:
+        camera.apply(plan, inputs, source)
+    except Exception:
+        # Without the camera moves the shots still hold their framing.
+        log.exception("camera moves failed; holding each shot still")
+        for shot in plan:
+            shot.motion, shot.transition = [], None
+    return plan, inputs
 
 
 # ------------------------------------------------------------------ per-shot graphs
@@ -435,11 +444,22 @@ def _seconds(ms: int) -> str:
     return f"{max(0, ms) / 1000:.3f}"
 
 
-def _pan_file(shot: shotplan.Shot, name: str, workdir: Path) -> str:
-    """The crop's x over the shot, as a sendcmd script in shot time."""
+def _pan_file(shot: shotplan.Shot, name: str, workdir: Path, starts_ms: int | None = None) -> str:
+    """The crop over the shot, as a sendcmd script in shot time.
+
+    With camera motion it moves every frame (x, y and size: glides, the
+    breathing zoom, punch-ins); otherwise it steps x along the pan.
+    """
+    t0 = shot.start_ms if starts_ms is None else starts_ms
     lines = []
-    for ms, x in shot.pan:
-        lines.append(f"{max(0.0, (ms - shot.start_ms) / 1000):.3f} {name} x {x};")
+    if shot.motion:
+        for ms, x, y, cw, ch in shot.motion:
+            if ms < t0:
+                continue
+            lines.append(f"{(ms - t0) / 1000:.3f} {name} x {x}, {name} y {y}, {name} w {cw}, {name} h {ch};")
+    else:
+        for ms, x in shot.pan:
+            lines.append(f"{max(0.0, (ms - t0) / 1000):.3f} {name} x {x};")
     path = workdir / f"{name.replace('@', '_')}.cmd"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path.name
@@ -453,10 +473,20 @@ def _fit_chain(w: int, h: int) -> str:
     return f"scale={w}:{h}:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos"
 
 
+def _moving(shot: shotplan.Shot) -> bool:
+    return len({m[1:] for m in shot.motion}) > 1
+
+
 def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h: int,
-                workdir: Path) -> tuple[list[str], int]:
-    """Filter graph lines turning [s{i}] into [v{i}]. Returns (lines, copies of [s{i}] used)."""
-    head = f"trim=start={_seconds(shot.start_ms - inputs.in_ms)}:end={_seconds(shot.end_ms - inputs.in_ms)},setpts=PTS-STARTPTS"
+                workdir: Path, pad_in: int = 0, pad_out: int = 0) -> tuple[list[str], int]:
+    """Filter graph lines turning [s{i}] into [v{i}]. Returns (lines, copies of [s{i}] used).
+
+    pad_in/pad_out run the shot that many ms past its edges, for a
+    transition to overlap into.
+    """
+    t0 = shot.start_ms - pad_in
+    head = (f"trim=start={_seconds(t0 - inputs.in_ms)}:end={_seconds(shot.end_ms + pad_out - inputs.in_ms)},"
+            "setpts=PTS-STARTPTS")
     s = f"s{i}"
     out = f"v{i}"
     lines: list[str] = []
@@ -465,7 +495,13 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         win = shot.window
         assert win is not None
         name = f"crop@c{i}"
-        pan = f"sendcmd=f={_pan_file(shot, name, workdir)}," if len(shot.pan) > 1 else ""
+        if _moving(shot):
+            first = next((m for m in shot.motion if m[0] >= t0), shot.motion[0])
+            _ms, x, y, cw, ch = first
+            cmd = f"sendcmd=f={_pan_file(shot, name, workdir, t0)},"
+            lines.append(f"[{label_in}]{cmd}{name}={cw}:{ch}:{x}:{y}:exact=1,{_scale(w, h)},setsar=1[{label_out}]")
+            return
+        pan = f"sendcmd=f={_pan_file(shot, name, workdir, t0)}," if len(shot.pan) > 1 else ""
         lines.append(f"[{label_in}]{pan}{name}={win.w}:{win.h}:{win.x}:{win.y},{_scale(w, h)},setsar=1[{label_out}]")
 
     def fit(label_in: str, label_out: str, copies_from: str | None = None) -> None:
@@ -553,13 +589,16 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     chain: list[str] = []
     n = len(plan)
     chain.append(f"[0:v]fps=30,split={n}" + "".join(f"[s{i}]" for i in range(n)))
+    half = camera.TRANSITION_MS // 2
     for i, shot in enumerate(plan):
-        lines, _ = _shot_graph(shot, i, inputs, w, h, workdir)
+        pad_in = half if shot.transition else 0
+        pad_out = half if i + 1 < n and plan[i + 1].transition else 0
+        lines, _ = _shot_graph(shot, i, inputs, w, h, workdir, pad_in, pad_out)
         chain.extend(lines)
     if n == 1:
         chain[-1] = chain[-1].rsplit("[v0]", 1)[0] + "[base]"
     else:
-        chain.append("".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[base]")
+        chain.extend(join_shots(plan))
 
     # The headline layout keeps its picture in the middle band: the title
     # goes in the black above it, centred in that band.
@@ -587,6 +626,39 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     args += _encode_args(render)
     args.append(str(render.out))
     return args, workdir
+
+
+def join_shots(plan: list[shotplan.Shot]) -> list[str]:
+    """Join [v0]..[vN] into [base]: straight cuts where the camera cut, a
+    6-frame transition where only the composition changed.
+
+    A transition overlaps the two shots by TRANSITION_MS, and each side was
+    run TRANSITION_MS/2 past its edge, so the clip keeps its exact length
+    and the change lands where the plan put it.
+    """
+    n = len(plan)
+    if not any(s.transition for s in plan[1:]):
+        return ["".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[base]"]
+    d = camera.TRANSITION_MS
+    half = d // 2
+    lines = [f"[v{i}]fps=30,settb=AVTB,format=yuv420p[n{i}]" for i in range(n)]
+    def trimmed(i: int) -> int:
+        return (plan[i].length_ms + (half if plan[i].transition and i else 0)
+                + (half if i + 1 < n and plan[i + 1].transition else 0))
+
+    acc = "n0"
+    length = trimmed(0)          # the joined picture so far, ms
+    for i in range(1, n):
+        out = "base" if i == n - 1 else f"j{i}"
+        if plan[i].transition:
+            lines.append(f"[{acc}][n{i}]xfade=transition={plan[i].transition}:duration={d / 1000:.3f}:"
+                         f"offset={max(0, length - d) / 1000:.3f}[{out}]")
+            length += trimmed(i) - d
+        else:
+            lines.append(f"[{acc}][n{i}]concat=n=2:v=1:a=0[{out}]")
+            length += trimmed(i)
+        acc = out
+    return lines
 
 
 def _captions_ass(render: Render, w: int, h: int) -> str:

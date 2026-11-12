@@ -1,6 +1,7 @@
 import { GripHorizontal, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import type { PlanBox, ShotPlan } from "@/lib/video-clips.server";
+import { cropAt, shotAt, TRANSITION_MS } from "@/lib/clip-motion";
 import type { CaptionLine, ClipLayout, VideoAspect } from "@/lib/video-clips";
 
 const ASPECT: Record<VideoAspect, number> = { "9:16": 9 / 16, "1:1": 1, "4:5": 4 / 5, "16:9": 16 / 9 };
@@ -9,20 +10,16 @@ const WHOLE_PICTURE: readonly ClipLayout[] = ["streamer", "black-box", "title-su
 /** Where the preset caption positions sit, as a share of the frame from the top. */
 export const PRESET_Y: Record<string, number> = { top: 0.2, middle: 0.5, lower: 0.82 };
 
-/** Where a fill shot's crop is at `ms`: its window, slid along its pan. */
-export function cropAt(shot: ShotPlan["shots"][number], ms: number): PlanBox | null {
-  const win = shot.window;
-  if (!win) return null;
-  const pan = shot.pan;
-  if (!pan.length) return win;
-  if (ms <= pan[0]![0]) return { ...win, x: pan[0]![1] };
-  for (let i = 1; i < pan.length; i++) {
-    const [t1, x1] = pan[i]!;
-    const [t0, x0] = pan[i - 1]!;
-    if (ms <= t1) return { ...win, x: x0 + ((x1 - x0) * (ms - t0)) / Math.max(1, t1 - t0) };
-  }
-  return { ...win, x: pan[pan.length - 1]![1] };
-}
+export { cropAt };
+
+/** The preview's take on each Engine transition, played on the incoming picture. */
+const TRANSITION_FRAMES: Record<string, Keyframe[]> = {
+  fade: [{ opacity: 0.25 }, { opacity: 1 }],
+  zoomin: [{ transform: "scale(1.14)", opacity: 0.35 }, { transform: "scale(1)", opacity: 1 }],
+  smoothup: [{ transform: "translateY(22%)", opacity: 0.4 }, { transform: "translateY(0)", opacity: 1 }],
+  circleopen: [{ clipPath: "circle(8% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)" }],
+  circleclose: [{ clipPath: "circle(75% at 50% 50%)", opacity: 0.5 }, { clipPath: "circle(75% at 50% 50%)", opacity: 1 }],
+};
 
 /** A centred crop of the source in the output's shape, for before the shot plan arrives. */
 export function centreCrop(src: { w: number; h: number }, aspect: VideoAspect): PlanBox {
@@ -86,6 +83,9 @@ export function LivePreview({
   const [failed, setFailed] = useState(false);
   const [dragY, setDragY] = useState<number | null>(null);
   const wasPlaying = useRef(false);
+  /** The picture, animated when the composition changes the way the Engine transitions it. */
+  const picture = useRef<HTMLDivElement>(null);
+  const lastShot = useRef<number>(-1);
 
   useEffect(() => {
     const el = box.current;
@@ -162,7 +162,8 @@ export function LivePreview({
   const rel = now - clipStart;
   const source = plan?.source && plan.source.w > 0 ? plan.source : natural;
   const whole = WHOLE_PICTURE.includes(layout);
-  const shot = whole ? null : (plan?.shots.find((s) => rel >= s.start_ms && rel < s.end_ms) ?? plan?.shots[plan.shots.length - 1] ?? null);
+  const shot = whole ? null : shotAt(plan?.shots ?? [], rel);
+  const moving = Boolean(shot?.motion?.length);
   const contain = whole || (shot ? ["fit", "bars", "screen", "feed"].includes(shot.kind) : false);
   const split = !whole && shot?.kind === "split" && shot.cells.length >= 2 ? shot.cells.slice(0, 2) : null;
   const crop = useMemo(() => {
@@ -171,6 +172,16 @@ export function LivePreview({
     return fromPlan ?? centreCrop(source, aspect);
   }, [source, contain, split, shot, rel, aspect]);
   const half = { w: frame.w, h: frame.h / 2 };
+
+  // A change of composition plays the Engine's 6-frame transition; camera cuts stay cuts.
+  const shotIndex = shot && plan ? plan.shots.indexOf(shot) : -1;
+  useEffect(() => {
+    const prev = lastShot.current;
+    lastShot.current = shotIndex;
+    const el = picture.current;
+    if (!el || !playing || shotIndex !== prev + 1 || !shot?.transition || typeof el.animate !== "function") return;
+    el.animate(TRANSITION_FRAMES[shot.transition] ?? TRANSITION_FRAMES["fade"]!, { duration: TRANSITION_MS, easing: "cubic-bezier(.65,0,.35,1)" });
+  }, [shotIndex]);
   const style = split && frame.w && source.w ? coverStyle(split[0]!, source, half) : crop && frame.w ? coverStyle(crop, source, frame) : null;
 
   const line = lines.find((l) => rel >= l.start_ms && rel <= l.end_ms + 150);
@@ -209,7 +220,7 @@ export function LivePreview({
         e.currentTarget.currentTime = Math.max(0, (start - offsetMs) / 1000);
       }}
       onError={() => setFailed(true)}
-      className={style ? "absolute max-w-none transition-[left,top,width,height] duration-150 ease-out" : layout === "title-subtitles" ? "absolute inset-x-0 top-1/2 w-full -translate-y-1/2 object-contain" : "absolute inset-0 size-full object-contain"}
+      className={style ? `absolute max-w-none ${moving ? "" : "transition-[left,top,width,height] duration-150 ease-out"}` : layout === "title-subtitles" ? "absolute inset-x-0 top-1/2 w-full -translate-y-1/2 object-contain" : "absolute inset-0 size-full object-contain"}
       style={style ?? undefined}
     />
   );
@@ -218,7 +229,7 @@ export function LivePreview({
     <div ref={box} className="absolute inset-0 overflow-hidden bg-black">
       {/* the picture-only layouts, drawn here without waiting for the Engine */}
       {layout === "streamer" && poster ? <img src={poster} alt="" aria-hidden="true" className="absolute inset-0 size-full scale-110 object-cover opacity-80 blur-xl" /> : null}
-      <div key={layout} className="absolute inset-0 animate-in fade-in duration-200">
+      <div key={layout} ref={picture} className="absolute inset-0 animate-in fade-in duration-200">
         {failed ? (poster ? <img src={poster} alt="" className="size-full object-cover" /> : null)
           : split ? <div className="absolute inset-x-0 top-0 h-1/2 overflow-hidden">{videoEl}</div> : videoEl}
         {split && !failed && frame.w && source.w ? (

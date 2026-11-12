@@ -120,6 +120,11 @@ class Shot:
     base: str = "fill"
     zoom: float = 1.0
     why: str = ""
+    #: Per-frame crops (source ms, x, y, w, h) from camera.apply: glides,
+    #: breathing zoom and punch-ins. Empty: the crop holds `window`/`pan`.
+    motion: list[tuple[int, int, int, int, int]] = field(default_factory=list)
+    #: How this shot comes in (an ffmpeg xfade name), None for a straight cut.
+    transition: str | None = None
 
     @property
     def length_ms(self) -> int:
@@ -135,7 +140,19 @@ class Shot:
             "cells": [c.as_dict() for c in self.cells],
             "main": self.main.as_dict() if self.main else None,
             "inset": self.inset.as_dict() if self.inset else None,
+            "transition": self.transition,
+            "motion": [[m[0] - offset_ms, *m[1:]] for m in _thin(self.motion)],
         }
+
+
+def _thin(motion: list, every: int = 3) -> list:
+    """Every `every`th frame of a motion path, for the editor (it interpolates)."""
+    if not motion:
+        return []
+    kept = motion[::every]
+    if kept[-1] != motion[-1]:
+        kept.append(motion[-1])
+    return kept
 
 
 @dataclass

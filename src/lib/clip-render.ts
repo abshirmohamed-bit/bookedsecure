@@ -6,10 +6,11 @@
  * failure) saves through the Engine instead.
  */
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
+import { cropAt, shotAt, transitionAt, transitionLook, type MotionSample } from "@/lib/clip-motion";
 import { groupCaptionLines, type CaptionLine, type CaptionWord, type VideoAspect } from "@/lib/video-clips";
 
 export type PlanBox = { x: number; y: number; w: number; h: number };
-export type RenderShot = { start_ms: number; end_ms: number; kind: string; window: PlanBox | null; pan: [number, number][]; cells: PlanBox[]; main: PlanBox | null; inset: PlanBox | null };
+export type RenderShot = { start_ms: number; end_ms: number; kind: string; window: PlanBox | null; pan: [number, number][]; cells: PlanBox[]; main: PlanBox | null; inset: PlanBox | null; motion?: MotionSample[]; transition?: string | null };
 export type RenderPlan = { source: { w: number; h: number }; shots: RenderShot[] } | null;
 
 export type RenderInput = {
@@ -46,21 +47,6 @@ export function canRenderInBrowser(): boolean {
     && typeof AudioContext !== "undefined";
 }
 
-/** The crop of a fill shot at `ms`: its window slid along its pan. */
-function cropAt(shot: RenderShot, ms: number): PlanBox | null {
-  const win = shot.window;
-  if (!win) return null;
-  const pan = shot.pan;
-  if (!pan.length) return win;
-  if (ms <= pan[0]![0]) return { ...win, x: pan[0]![1] };
-  for (let i = 1; i < pan.length; i++) {
-    const [t1, x1] = pan[i]!;
-    const [t0, x0] = pan[i - 1]!;
-    if (ms <= t1) return { ...win, x: x0 + ((x1 - x0) * (ms - t0)) / Math.max(1, t1 - t0) };
-  }
-  return { ...win, x: pan[pan.length - 1]![1] };
-}
-
 function centreCrop(src: { w: number; h: number }, ratio: number): PlanBox {
   const w = Math.min(src.w, src.h * ratio);
   const h = Math.min(src.h, w / ratio);
@@ -84,13 +70,50 @@ function drawContain(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, W: 
   ctx.drawImage(video, (W - w) / 2, (H - h) / 2, w, h);
 }
 
-/** One composed frame: the shot's picture for this moment. */
+let layer: OffscreenCanvas | HTMLCanvasElement | null = null;
+
+/** One composed frame: the shot's picture for this moment, mid-transition when the composition is changing. */
 function drawPicture(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input: RenderInput, rel: number, W: number, H: number) {
+  const shots = input.plan?.shots ?? [];
+  const change = transitionAt(shots, rel);
+  if (!change) return drawShot(ctx, video, input, shotAt(shots, rel), rel, W, H);
+  // The outgoing picture (as the Engine's xfade sees it: still moving), then the incoming one over it.
+  const look = transitionLook(change.name, change.p);
+  ctx.save();
+  if (look.fromScale !== 1) {
+    ctx.translate(W / 2, H * 0.4);
+    ctx.scale(look.fromScale, look.fromScale);
+    ctx.translate(-W / 2, -H * 0.4);
+  }
+  drawShot(ctx, video, input, change.from, rel, W, H);
+  ctx.restore();
+  if (!layer || layer.width !== W || layer.height !== H) {
+    layer = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(W, H) : Object.assign(document.createElement("canvas"), { width: W, height: H });
+  }
+  const lctx = layer.getContext("2d") as CanvasRenderingContext2D | null;
+  if (!lctx) return drawShot(ctx, video, input, change.to, rel, W, H);
+  drawShot(lctx, video, input, change.to, rel, W, H);
+  ctx.save();
+  if (look.circle !== null) {
+    const r = Math.hypot(W, H) / 2 * look.circle;
+    ctx.beginPath();
+    if (look.circleOut) {
+      // The outgoing picture shrinks away inside a circle; the new one shows around it.
+      ctx.rect(0, 0, W, H);
+      ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2, true);
+    } else ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2);
+    ctx.clip("evenodd");
+  }
+  ctx.globalAlpha = look.alpha;
+  ctx.drawImage(layer as CanvasImageSource, 0, look.slide * H);
+  ctx.restore();
+}
+
+/** One shot's composition at this moment. */
+function drawShot(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input: RenderInput, shot: RenderShot | null, rel: number, W: number, H: number) {
   const plan = input.plan;
   const src = plan?.source && plan.source.w > 0 ? plan.source : { w: video.videoWidth, h: video.videoHeight };
   const k = video.videoWidth / src.w;
-  const shot = plan?.shots.find((s) => rel >= s.start_ms && rel < s.end_ms)
-    ?? (plan?.shots.length ? (rel < plan.shots[0]!.start_ms ? plan.shots[0]! : plan.shots[plan.shots.length - 1]!) : null);
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, W, H);
   if (shot && CONTAIN.has(shot.kind)) return drawContain(ctx, video, W, H);
