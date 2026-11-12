@@ -20,6 +20,7 @@ import { getOnboardingProgress } from "@/lib/onboarding.functions";
 import { onboardingProgressLabel } from "@/lib/onboarding";
 import { LEAD_STATUS_LABELS, formatCurrency, type LeadStatus } from "@/lib/domain";
 import { saveAssistantDraft } from "@/lib/assistant-draft";
+import { socialReviewSearch } from "@/lib/meta-social";
 import { cn } from "@/lib/utils";
 import { HomeAssistant } from "@/components/home/HomeAssistant";
 import {
@@ -211,7 +212,7 @@ function TodayCard({
       icon: MessagesSquare,
       text: `${data.waiting.social} Facebook or Instagram ${data.waiting.social === 1 ? "comment needs" : "comments need"} a reply`,
       to: "/social",
-      search: { view: "comments" },
+      search: socialReviewSearch(data.waiting.socialPlatform),
       label: "Review",
     });
   }

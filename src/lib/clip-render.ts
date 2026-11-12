@@ -46,6 +46,11 @@ type Pic = HTMLVideoElement | VideoFrame;
 const pw = (v: Pic) => ("videoWidth" in v ? v.videoWidth : v.displayWidth);
 const ph = (v: Pic) => ("videoHeight" in v ? v.videoHeight : v.displayHeight);
 
+/** WebCodecs and the MP4 muxer both need a real duration for every output frame. */
+export function videoFrameTiming(timestamp: number, fps: number): { timestamp: number; duration: number } {
+  return { timestamp: Math.round(timestamp), duration: Math.round(1_000_000 / fps) };
+}
+
 /** Whether this browser can make the video itself. */
 export function canRenderInBrowser(): boolean {
   if (typeof window === "undefined") return false;
@@ -382,7 +387,10 @@ async function renderClipRealtime(input: RenderInput, onProgress: (p: number) =>
     audio: { codec: "aac", numberOfChannels: 2, sampleRate },
   });
   let failure: Error | null = null;
-  const videoEncoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failure = e; } });
+  const videoEncoder = new VideoEncoder({ output: (chunk, meta) => {
+    try { muxer.addVideoChunk(chunk, meta); }
+    catch (e) { failure = e instanceof Error ? e : new Error(String(e)); }
+  }, error: (e) => { failure = e; } });
   videoEncoder.configure({ codec, width: W, height: H, bitrate, framerate: fps, latencyMode: "quality" });
   const audioEncoder = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: (e) => { failure = e; } });
   audioEncoder.configure({ codec: "mp4a.40.2", sampleRate, numberOfChannels: 2, bitrate: 128_000 });
@@ -446,7 +454,7 @@ async function renderClipRealtime(input: RenderInput, onProgress: (p: number) =>
           ctx.fillStyle = `rgba(255,255,255,${LOOK.progress.alpha})`;
           ctx.fillRect(0, H - bh - H * LOOK.progress.lift, (W * (abs - input.startMs)) / Math.max(1, endAbs - input.startMs), bh);
         }
-        const frame = new VideoFrame(canvas, { timestamp: ts });
+        const frame = new VideoFrame(canvas, videoFrameTiming(ts, fps));
         videoEncoder.encode(frame, { keyFrame: frames % (fps * 2) === 0 });
         recording = true;
         frame.close();
@@ -605,7 +613,10 @@ async function renderClipFast(input: RenderInput, onProgress: (p: number) => voi
     ...(audioOk && at?.audio ? { audio: { codec: "aac" as const, numberOfChannels: at.audio.channel_count, sampleRate: at.audio.sample_rate } } : {}),
   });
   let failure: Error | null = null;
-  const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failure = e; } });
+  const encoder = new VideoEncoder({ output: (chunk, meta) => {
+    try { muxer.addVideoChunk(chunk, meta); }
+    catch (e) { failure = e instanceof Error ? e : new Error(String(e)); }
+  }, error: (e) => { failure = e; } });
   // The encoder is the slow part: its "realtime" mode on the GPU runs about twice
   // as fast as "quality" at the same bitrate, with no visible difference here.
   const fastCfg: VideoEncoderConfig = { codec, width: W, height: H, bitrate, framerate: fps, latencyMode: "realtime", hardwareAcceleration: "prefer-hardware" };
@@ -638,7 +649,7 @@ async function renderClipFast(input: RenderInput, onProgress: (p: number) => voi
           ctx.fillStyle = `rgba(255,255,255,${LOOK.progress.alpha})`;
           ctx.fillRect(0, H - bh - H * LOOK.progress.lift, (W * (abs - input.startMs)) / Math.max(1, durationMs), bh);
         }
-        const out = new VideoFrame(canvas, { timestamp: Math.round(t - startUs) });
+        const out = new VideoFrame(canvas, videoFrameTiming(t - startUs, fps));
         encoder.encode(out, { keyFrame: frames % (fps * 2) === 0 });
         out.close();
         frames++;

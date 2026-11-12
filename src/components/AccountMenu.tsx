@@ -13,6 +13,7 @@ import {
   ROLE_LABELS,
   accountInitials,
   accountMenuReducer,
+  signOutWithPushCleanup,
 } from "@/lib/navigation";
 
 /**
@@ -162,17 +163,16 @@ export function AccountMenu({
                 role="menuitem"
                 onClick={async () => {
                   dispatch({ type: "select_item" });
-                  const token = localStorage.getItem('bookedsecure:push-token');
-                  if (token) {
-                    try {
-                      await removeDevice({ data: { token } });
-                      localStorage.removeItem('bookedsecure:push-token');
-                    } catch {
-                      toast.error('Could not disconnect device alerts. Try signing out again.');
-                      return;
-                    }
-                  }
-                  await supabase.auth.signOut(); onSignOut();
+                  let pushCleanupFailed = false;
+                  await signOutWithPushCleanup({
+                    token: localStorage.getItem('bookedsecure:push-token'),
+                    removeDevice: (token) => removeDevice({ data: { token } }),
+                    clearToken: () => localStorage.removeItem('bookedsecure:push-token'),
+                    signOut: () => supabase.auth.signOut(),
+                    onSignedOut: onSignOut,
+                    onPushError: () => { pushCleanupFailed = true; },
+                  });
+                  if (pushCleanupFailed) toast.error('Signed out, but this device could not be disconnected from alerts.');
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground focus-visible:outline-none"
               >

@@ -1,5 +1,12 @@
 # Roadmap: Facebook → Make lead import completion
 
+## Project monitoring fixes
+- [x] Give browser-rendered video frames valid durations and surface muxing failures.
+- [x] Preserve dragged caption positions through preview and save validation.
+- [x] Open Home's social review link on a network that has comments waiting.
+- [x] Let sign-out finish when push-device cleanup fails.
+- [x] Run 40 focused regression checks and verify the preview build; sandbox Chromium cannot decode H.264 or encode AAC for a full real-video render.
+
 ## ChatGPT customer-tools audit
 - [x] Read-only diagnosis: live MCP repeatedly returned 401 invalid_token before list_leads/query_leads executed; OAuth discovery, signing keys, account grant, tenant RLS and data reads passed.
 - [x] Verified Prashant (not Preshant) through base-lead and inbox reads, one message and no bookings; 53 focused tests passed without mutations or SMS.
