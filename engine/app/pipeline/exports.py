@@ -1,6 +1,7 @@
 """Rendering an approved clip to a finished file."""
 from __future__ import annotations
 
+import logging
 import shutil
 from pathlib import Path
 
@@ -13,6 +14,8 @@ from ..db import session as db_session
 from ..ids import new_id
 from ..models import Asset, Export, Project
 from .compose import Render, run as run_render
+
+log = logging.getLogger("engine.exports")
 
 
 def create(session: Session, project: Project, resolution: str = "1080p") -> Export:
@@ -40,6 +43,8 @@ def advance_one() -> bool:
             webhooks.emit("export.completed", {
                 "export_id": row.id, "project_id": row.project_id, "asset": asset_payload(asset)})
         except Exception as e:
+            # Logged in full: the stored error is cut to 500 characters.
+            log.exception("export %s of project %s failed", row.id, row.project_id)
             row.status = "failed"
             row.error = str(e)[:500]
             s.add(row)

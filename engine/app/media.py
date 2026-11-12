@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import subprocess
 import threading
@@ -10,6 +11,8 @@ from pathlib import Path
 
 from .errors import EngineError
 from .config import settings
+
+log = logging.getLogger("engine.media")
 
 _slots: threading.BoundedSemaphore | None = None
 _slots_lock = threading.Lock()
@@ -38,7 +41,9 @@ def _bin(name: str) -> str:
 def run(args: list[str], timeout: int = 3600, cwd: Path | None = None) -> subprocess.CompletedProcess:
     proc = subprocess.run(args, capture_output=True, text=True, timeout=timeout, cwd=str(cwd) if cwd else None)
     if proc.returncode != 0:
-        tail = (proc.stderr or "").strip().splitlines()[-4:]
+        lines = (proc.stderr or "").strip().splitlines()
+        log.error("ffmpeg exited %s: %s", proc.returncode, " | ".join(lines[-30:]))
+        tail = lines[-4:]
         raise EngineError("VALIDATION_ERROR", "ffmpeg failed: " + " / ".join(tail))
     return proc
 
