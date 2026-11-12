@@ -124,6 +124,14 @@ class Settings(BaseSettings):
     # ffmpeg processes at once, across every worker. Each one already uses
     # all the threads it is allowed (PROCESSING_THREADS).
     ffmpeg_slots: int = 2
+    # Links at least this long import lean: the audio first, then only the
+    # video around each chosen moment. 0 turns lean imports off.
+    lean_min_seconds: int = 600
+    # Video kept either side of a moment, so a trim in the editor has room.
+    section_pad_ms: int = 10000
+    # Moments fetched at once. Each is its own connection through the proxy.
+    section_downloads: int = 3
+
     retention_days: int = 30
     # With object storage, the volume is only a cache: older local copies are
     # removed and fetched again if a later render needs them.

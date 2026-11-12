@@ -155,6 +155,9 @@ def _import_url(session: Session, asset: Asset, url: str) -> Asset:
         if not asset.rights_confirmed:
             raise EngineError("RIGHTS_REQUIRED", "Confirm you own this footage or have the rights to clip it.")
         if not downloaded:
+            lean = _lean_import(session, asset, url)
+            if lean is not None:
+                return lean
             _ytdlp(url, dest)
     else:
         if not downloaded:
@@ -179,9 +182,14 @@ def _download(url: str, dest: Path) -> None:
                 f.write(chunk)
 
 
-def _ytdlp(url: str, dest: Path) -> None:
-    """Best quality up to YTDLP_MAX_HEIGHT (1080p unless set): clips are 1080x1920,
-    and every byte of a refused download goes through the paid proxy."""
+#: The yt-dlp route (player client, through the proxy?) that last worked for a
+#: link. A section of the same video then goes that way first instead of
+#: being refused four times again.
+_ROUTES: dict[str, tuple[str, bool]] = {}
+
+
+def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800) -> None:
+    """yt-dlp with every route tried in turn, the one that last worked first."""
     import subprocess
 
     exe = shutil.which("yt-dlp")
@@ -190,14 +198,17 @@ def _ytdlp(url: str, dest: Path) -> None:
     from . import ytdlp_opts
 
     dest.parent.mkdir(parents=True, exist_ok=True)
+    routes = ytdlp_opts.attempts()
+    known = _ROUTES.get(url)
+    if known in routes:
+        routes = [known] + [r for r in routes if r != known]
     last = ""
-    for client, via_proxy in ytdlp_opts.attempts():
+    for client, via_proxy in routes:
         cmd = [exe, "--no-playlist", "--quiet", "--no-warnings",
-               *ytdlp_opts.cli_args(client, via_proxy),
-               "-f", link_format(),
-               "--merge-output-format", "mp4", "-o", str(dest), "--", url]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+               *ytdlp_opts.cli_args(client, via_proxy), *args, "-o", str(dest), "--", url]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         if proc.returncode == 0 and dest.exists():
+            _ROUTES[url] = (client, via_proxy)
             if via_proxy:
                 log.info("fetched %s through the proxy after a refusal", url)
             return
@@ -210,6 +221,63 @@ def _ytdlp(url: str, dest: Path) -> None:
         if not ytdlp_opts.looks_blocked(last):
             break
     raise EngineError("VALIDATION_ERROR", _download_error(last))
+
+
+def _ytdlp(url: str, dest: Path) -> None:
+    """Best quality up to YTDLP_MAX_HEIGHT (1080p unless set): clips are 1080x1920,
+    and every byte of a refused download goes through the paid proxy."""
+    run_ytdlp(url, dest, ["-f", link_format(), "--merge-output-format", "mp4"])
+
+
+def fetch_section(url: str, dest: Path, start_ms: int, end_ms: int) -> None:
+    """Only [start_ms, end_ms) of a link's video, at the same quality as a full import."""
+    run_ytdlp(url, dest, ["-f", link_format(), "--merge-output-format", "mp4",
+                          "--download-sections", f"*{start_ms / 1000:.3f}-{end_ms / 1000:.3f}"],
+              timeout=900)
+
+
+def _lean_import(session: Session, asset: Asset, url: str) -> Asset | None:
+    """A long link's audio and thumbnail only; the video comes per moment later.
+
+    Returns None for a short video, which imports whole as before: its audio
+    was a few megabytes, and one download is simpler than several.
+    """
+    from . import lean
+
+    if not settings().lean_min_seconds:
+        return None
+    audio = storage.open_write(f"sources/{asset.id}/audio.m4a")
+    if not audio.exists() or lean.audio_duration(audio) <= 0:
+        run_ytdlp(url, audio, ["-f", lean.AUDIO_FORMAT, "--write-thumbnail", "--convert-thumbnails", "jpg"])
+    duration = lean.audio_duration(audio)
+    if not lean.is_long(duration):
+        audio.unlink(missing_ok=True)
+        return None
+    cfg = settings()
+    if duration > cfg.max_source_seconds:
+        raise EngineError("VALIDATION_ERROR", f"That video is longer than the {cfg.max_source_seconds // 3600}h limit.")
+    audio_key = f"sources/{asset.id}/audio.m4a"
+    storage.put_file(audio, audio_key, "audio/mp4")
+    thumb = next((p for p in sorted(audio.parent.glob("audio*.jpg"))), None)
+    if thumb:
+        thumb_key = f"thumbs/{asset.id}.jpg"
+        dest = storage.open_write(thumb_key)
+        if thumb.resolve() != dest.resolve():
+            shutil.copy2(thumb, dest)
+        storage.put_file(dest, thumb_key, "image/jpeg")
+        asset.thumb_key = thumb_key
+    asset.storage_key = audio_key
+    asset.mezzanine_key = audio_key   # transcription and loudness read the audio
+    asset.source_url = url
+    asset.lean = True
+    asset.length_s = round(duration, 3)
+    asset.size_bytes = audio.stat().st_size
+    asset.status = "ready"
+    session.add(asset)
+    session.commit()
+    log.info("lean import of %s: %.0f min of audio, %d MB", url, duration / 60, asset.size_bytes // 1_000_000)
+    webhooks.emit("asset.imported", asset_event(asset))
+    return asset
 
 
 def _download_error(stderr: str) -> str:

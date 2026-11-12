@@ -220,7 +220,7 @@ def get_project(project_id: str) -> dict:
         p = s.get(Project, project_id)
         if not p or p.deleted_at:
             raise EngineError("NOT_FOUND", "No clip with that id.")
-        return ok(_project_payload(p))
+        return ok(_project_payload(p, s))
 
 
 class PatchBody(BaseModel):
@@ -256,6 +256,10 @@ def patch_project(project_id: str, body: PatchBody) -> dict:
             new_out = data.get("out_ms", p.out_ms)
             if new_out <= new_in:
                 raise EngineError("VALIDATION_ERROR", "The clip has to end after it starts.")
+            own = s.get(Asset, p.asset_id)
+            length_ms = round((own.length_s if own else 0) * 1000)
+            if new_in < 0 or (length_ms and new_out > length_ms):
+                raise EngineError("VALIDATION_ERROR", "A clip can't run past the video it was cut from.")
             if (new_in, new_out) != (p.in_ms, p.out_ms):
                 # the words move with the clip
                 from ..models import Transcript as T
@@ -273,7 +277,7 @@ def patch_project(project_id: str, body: PatchBody) -> dict:
         s.add(p)
         s.commit()
         s.refresh(p)
-        return ok(_project_payload(p))
+        return ok(_project_payload(p, s))
 
 
 @router.delete("/v1/projects/{project_id}")
@@ -429,8 +433,14 @@ def _subtitles(words: list[dict], fmt: str) -> str:
     return "\n".join(out)
 
 
-def _project_payload(p: Project) -> dict:
+def _project_payload(p: Project, s=None) -> dict:
+    source = s.get(Asset, p.asset_id) if s is not None else None
+    offset = source.offset_ms if source and source.parent_id else 0
     return {
+        # The clip's own source: a fetched section of a long video starts at
+        # `source_offset_ms` in the original and is `source_length_ms` long.
+        "source_offset_ms": offset,
+        "source_length_ms": round((source.length_s if source else 0) * 1000),
         "id": p.id, "asset_id": p.asset_id, "job_id": p.job_id or None, "index": p.index,
         "in_ms": p.in_ms, "out_ms": p.out_ms, "duration_ms": p.out_ms - p.in_ms,
         "aspect": p.aspect, "layout": p.layout, "framing": p.framing,

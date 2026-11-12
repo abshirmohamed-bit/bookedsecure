@@ -19,7 +19,26 @@ def engine():
         _engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": 30})
         event.listen(_engine, "connect", _pragmas)
         SQLModel.metadata.create_all(_engine)
+        _add_missing_columns(_engine)
     return _engine
+
+
+#: Columns added after a table first shipped. create_all makes new tables
+#: only, so an existing database gains these on boot.
+_ADDED_COLUMNS = {
+    "assets": {"lean": "BOOLEAN NOT NULL DEFAULT 0",
+               "parent_id": "VARCHAR NOT NULL DEFAULT ''",
+               "offset_ms": "INTEGER NOT NULL DEFAULT 0"},
+}
+
+
+def _add_missing_columns(eng) -> None:
+    with eng.begin() as conn:
+        for table, columns in _ADDED_COLUMNS.items():
+            have = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+            for name, ddl in columns.items():
+                if name not in have:
+                    conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
 
 
 def _pragmas(conn, _record) -> None:

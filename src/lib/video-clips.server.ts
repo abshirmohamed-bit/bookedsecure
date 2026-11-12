@@ -156,7 +156,10 @@ export async function renameClip(businessId: string, clipId: string, title: stri
 }
 
 type EngineProject = {
+  /** On the original video's timeline here (engineProject adds `offset`); the Engine's own times are offset-free. */
   in_ms: number; out_ms: number; aspect: string; layout: string; caption_style_id: string;
+  /** Where the clip's own source starts in the original (a fetched section of a long video), and how long it is. */
+  offset: number; sourceEndMs: number | null;
   caption_options: Record<string, unknown> | null; captions: CaptionWord[] | null;
   framing: Record<string, unknown> | null; title: Record<string, unknown> | null;
 };
@@ -225,14 +228,36 @@ async function ownClip(businessId: string, clipId: string): Promise<ClipRow> {
 }
 
 async function engineProject(clip: ClipRow): Promise<EngineProject> {
-  const r = await engineClient<EngineProject>("GET", `/v1/projects/${encodeURIComponent(clip.engine_project_id)}`);
+  type Raw = Omit<EngineProject, "offset" | "sourceEndMs"> & { source_offset_ms?: number; source_length_ms?: number };
+  const r = await engineClient<Raw>("GET", `/v1/projects/${encodeURIComponent(clip.engine_project_id)}`);
   if (!r.ok) throw new Error(r.error.code === "NOT_FOUND" ? "The Engine no longer has this clip." : r.error.message);
-  return r.data;
+  // A clip of a long video is cut from a fetched section; everything here works
+  // on the original video's timeline, and toEngine() takes the offset back off.
+  const offset = Math.max(0, Math.round(r.data.source_offset_ms ?? 0));
+  const length = r.data.source_length_ms ?? 0;
+  return { ...r.data, in_ms: r.data.in_ms + offset, out_ms: r.data.out_ms + offset, offset, sourceEndMs: offset && length ? offset + length : null };
+}
+
+/** A trim on the original timeline, as the Engine's section-relative times. */
+function toEngine(project: EngineProject, inMs: number, outMs: number) {
+  return { in_ms: inMs - project.offset, out_ms: outMs - project.offset };
+}
+
+/** A trim can only use the part of a long video that was fetched for the clip. */
+function checkSection(project: EngineProject, inMs: number, outMs: number): string | null {
+  if (!project.offset && project.sourceEndMs === null) return null;
+  const from = project.offset;
+  const to = project.sourceEndMs ?? Number.POSITIVE_INFINITY;
+  if (inMs >= from && outMs <= to) return null;
+  const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+  return `This clip can be trimmed between ${clock(from)} and ${Number.isFinite(to) ? clock(to) : "the end"} of the original video.`;
 }
 
 export type ClipSettings = {
   styleId: string; captionsOn: boolean; captionPosition: CaptionPosition | null; captionSize: number;
   layout: string; zoom: string; aspect: string; focus: string; inMs: number; outMs: number;
+  /** The latest a trim can end: the end of the fetched section for a long video, else null (the whole video). */
+  trimTo: number | null;
   headline: { text: string; enabled: boolean; style: string; position: string };
 };
 
@@ -248,7 +273,7 @@ function settingsOf(project: EngineProject): ClipSettings {
     captionSize: Number.isFinite(size) && size > 0 ? size : 1,
     layout: project.layout, zoom: typeof framing["zoom"] === "string" ? (framing["zoom"] as string) : "auto",
     aspect: project.aspect, focus: typeof framing["focus"] === "string" ? (framing["focus"] as string) : "auto",
-    inMs: project.in_ms, outMs: project.out_ms,
+    inMs: project.in_ms, outMs: project.out_ms, trimTo: project.sourceEndMs,
     headline: {
       text: typeof title["text"] === "string" ? (title["text"] as string) : "", enabled: title["enabled"] !== false,
       style: typeof title["style"] === "string" ? (title["style"] as string) : "bold_band",
@@ -350,10 +375,9 @@ export async function previewClipEdits(businessId: string, clipId: string, edits
   if (edits.inMs !== undefined || edits.outMs !== undefined) {
     const inMs = Math.round(edits.inMs ?? project.in_ms);
     const outMs = Math.round(edits.outMs ?? project.out_ms);
-    const problem = checkTrim(inMs, outMs, null);
+    const problem = checkTrim(inMs, outMs, null) ?? checkSection(project, inMs, outMs);
     if (problem) throw new Error(problem);
-    patch["in_ms"] = inMs;
-    patch["out_ms"] = outMs;
+    Object.assign(patch, toEngine(project, inMs, outMs));
   }
   const r = await engineClient<{ preview_url: string }>("POST", `/v1/projects/${encodeURIComponent(clip.engine_project_id)}/preview`, patch, { timeoutMs: 180_000 });
   if (!r.ok) throw new Error(r.error.message);
@@ -389,7 +413,7 @@ export async function saveClipEdits(businessId: string, clipId: string, edits: C
     const outMs = Math.round(edits.outMs ?? project.out_ms);
     const trimmed = inMs !== project.in_ms || outMs !== project.out_ms;
     if (trimmed) {
-      const problem = checkTrim(inMs, outMs, job?.duration_ms ?? null);
+      const problem = checkTrim(inMs, outMs, job?.duration_ms ?? null) ?? checkSection(project, inMs, outMs);
       if (problem) throw new Error(problem);
       changed.push("trim");
     }
@@ -408,7 +432,7 @@ export async function saveClipEdits(businessId: string, clipId: string, edits: C
     if (trimmed) {
       // The Engine re-cuts the words from the transcript on a trim; put the
       // corrected ones (this save's or an earlier one's) back over the top.
-      const r = await engineClient<EngineProject>("PATCH", path, { ...patch, in_ms: inMs, out_ms: outMs });
+      const r = await engineClient<EngineProject>("PATCH", path, { ...patch, ...toEngine(project, inMs, outMs) });
       if (!r.ok) throw new Error(r.error.message);
       const merged = mergeTrimmedWords(words, project.in_ms, project.out_ms, r.data.captions ?? [], inMs, outMs);
       const w = await engineClient("PATCH", path, { captions: merged });
@@ -534,7 +558,9 @@ async function jobCompleted(job: JobRow, clips: EngineClip[], note: string | nul
   const rows = clips.filter((c) => typeof c["project_id"] === "string").map((c, i) => ({
     business_id: job.business_id, job_id: job.id, engine_project_id: c["project_id"] as string, position: num(c["index"]) ?? i + 1,
     title: text(c["title"]), reason: text(c["reason"]), score: typeof c["score"] === "number" ? c["score"] : null,
-    start_ms: num(c["start_ms"]), end_ms: num(c["end_ms"]), duration_ms: num(c["duration_ms"]), thumbnail_url: text(c["thumbnail_url"]),
+    // source_*: where the clip sits in the original (it differs for a long video's fetched sections)
+    start_ms: num(c["source_start_ms"] ?? c["start_ms"]), end_ms: num(c["source_end_ms"] ?? c["end_ms"]),
+    duration_ms: num(c["duration_ms"]), thumbnail_url: text(c["thumbnail_url"]),
   }));
   // Unique per job and project, so a webhook racing a poll can't duplicate clips.
   if (rows.length) {

@@ -233,7 +233,7 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
   const styleDef = catalog?.captionStyles.find((s) => s.id === current.styleId);
   const stylePosition = current.captionPosition ?? styleDef?.defaults.position ?? "middle";
   const sampleLine = lines.find((l) => l.text)?.text ?? "This is how it looks";
-  const source = job.duration_ms ?? null;
+  const source = settings?.trimTo ?? job.duration_ms ?? null;
   const shownVideo = previewUrl ?? (ready ? clip.video_url : null);
 
   return (

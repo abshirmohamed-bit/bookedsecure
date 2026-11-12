@@ -1,8 +1,9 @@
 """The AutoClip state machine.
 
-queued -> transcribing -> finding -> (awaiting_confirmation) -> cutting ->
-framing -> finalizing -> completed, one stage per worker pass so progress is
-real rather than a spinner.
+queued -> transcribing -> finding -> (awaiting_confirmation) -> [fetching] ->
+cutting -> framing -> finalizing -> completed, one stage per worker pass so
+progress is real rather than a spinner. Fetching runs only for a lean source
+(a long link imported as audio): it downloads the video of each chosen moment.
 """
 from __future__ import annotations
 
@@ -34,7 +35,7 @@ class JobFailed(RuntimeError):
     """This job can't succeed however often it is tried."""
 
 
-STAGE_PROGRESS = {"transcribing": 15, "finding": 40, "cutting": 60, "framing": 80, "finalizing": 95}
+STAGE_PROGRESS = {"transcribing": 15, "finding": 40, "fetching": 50, "cutting": 60, "framing": 80, "finalizing": 95}
 
 
 def create(session: Session, asset: Asset, params: dict) -> Job:
@@ -147,6 +148,14 @@ def _step(s: Session, job: Job) -> None:
         if moments is None:          # paused, waiting for a count
             return
         job.params = {**params, "_moments": [m.__dict__ for m in moments]}
+        job.stage = "fetching" if asset.lean else "cutting"
+        job.progress = STAGE_PROGRESS[job.stage]
+        s.add(job)
+        s.commit()
+        return
+
+    if job.stage == "fetching":
+        _fetch_sections(s, job, asset)
         job.stage = "cutting"
         job.progress = STAGE_PROGRESS["cutting"]
         s.add(job)
@@ -322,11 +331,19 @@ def _cut(s: Session, job: Job, asset: Asset, params: dict) -> None:
     moments = [finder.Moment(**m) for m in (job.params or {}).get("_moments", [])]
     transcript = s.exec(select(Transcript).where(Transcript.asset_id == asset.id)).first()
     words = list(transcript.words) if transcript else []
+    sections = (job.params or {}).get("_sections") or {}
     formats = params.get("formats") or ["full-video"]
     for i, m in enumerate(moments, start=1):
+        # A lean source's clip lives on its own section, timed from the section's start.
+        source_id, shift, clip_words = asset.id, 0, words
+        section = s.get(Asset, sections.get(str(i - 1), "")) if sections else None
+        if section:
+            source_id, shift = section.id, section.offset_ms
+            section_words = s.exec(select(Transcript).where(Transcript.asset_id == section.id)).first()
+            clip_words = list(section_words.words) if section_words else []
         project = Project(
-            id=new_id("prj"), asset_id=asset.id, job_id=job.id, index=i,
-            in_ms=m.start_ms, out_ms=m.end_ms,
+            id=new_id("prj"), asset_id=source_id, job_id=job.id, index=i,
+            in_ms=max(0, m.start_ms - shift), out_ms=m.end_ms - shift,
             aspect=params.get("aspect", "9:16"), layout=formats[0],
             caption_style_id=params.get("caption_style_id") or "bold_white",
             caption_options={"enabled": params.get("edit_level", "full") != "clips",
@@ -339,7 +356,7 @@ def _cut(s: Session, job: Job, asset: Asset, params: dict) -> None:
             title={"text": m.title, "style": params.get("title_style") or "bold_band",
                    "enabled": params.get("title_enabled", True),
                    "auto": bool(params.get("headline_top_n", 0) and i <= int(params.get("headline_top_n", 0)))},
-            captions=slice_words(words, m.start_ms, m.end_ms),
+            captions=slice_words(clip_words, max(0, m.start_ms - shift), m.end_ms - shift),
         )
         s.add(project)
     s.commit()
@@ -347,9 +364,10 @@ def _cut(s: Session, job: Job, asset: Asset, params: dict) -> None:
 
 def _frame(s: Session, job: Job, asset: Asset) -> None:
     """One thumbnail per clip, plus the faces the tracker saw."""
-    source = storage.local_path(asset.mezzanine_key)
     projects = s.exec(select(Project).where(Project.job_id == job.id)).all()
     for p in projects:
+        own = asset if p.asset_id == asset.id else (s.get(Asset, p.asset_id) or asset)
+        source = storage.local_path(own.mezzanine_key)
         mid_s = (p.in_ms + (p.out_ms - p.in_ms) / 2) / 1000
         key = f"thumbs/{p.id}.jpg"
         try:
@@ -370,10 +388,74 @@ def _source_name(s: Session, job: Job) -> str:
 
 def clips_payload(s: Session, job_id: str, full: bool = False) -> list[dict]:
     projects = s.exec(select(Project).where(Project.job_id == job_id).order_by(Project.index)).all()
-    return [project_summary(p, full=full) for p in projects]
+    return [project_summary(p, full=full, offset_ms=source_offset(s, p)) for p in projects]
 
 
-def project_summary(p: Project, full: bool = False) -> dict:
+def source_offset(s: Session, p: Project) -> int:
+    """Where a clip's own source starts in the original video (0 unless a section)."""
+    own = s.get(Asset, p.asset_id)
+    return own.offset_ms if own and own.parent_id else 0
+
+
+def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
+    """The video around each chosen moment, as one section asset per clip.
+
+    Downloads run side by side; each section is then placed exactly by its
+    audio and gets its own slice of the transcript, so the cutting stage and
+    everything after it (previews, trims, renders) work on it like any source.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from . import ingest, lean
+
+    params = job.params or {}
+    if params.get("_sections"):
+        return
+    moments = [finder.Moment(**m) for m in params.get("_moments", [])]
+    length_ms = round(asset.length_s * 1000)
+    plan = lean.plan_sections([(m.start_ms, m.end_ms) for m in moments], length_ms)
+    full_audio = storage.local_path(asset.storage_key)
+    base = asset.name or "video"
+    rows = []
+    for sec in plan:
+        row = Asset(id=new_id("ast"), name=f"{base} (clip {sec.index + 1})", type="video",
+                    category="section", status="importing", source_url=asset.source_url,
+                    rights_confirmed=True, parent_id=asset.id, offset_ms=sec.start_ms)
+        row.storage_key = f"sources/{row.id}/download.mp4"
+        rows.append((sec, row))
+
+    def fetch(item: tuple) -> tuple:
+        sec, row = item
+        dest = storage.open_write(row.storage_key)
+        ingest.fetch_section(asset.source_url, dest, sec.start_ms, sec.end_ms)
+        return sec, row, dest, lean.measure_offset(full_audio, dest, sec.start_ms)
+
+    workers = max(1, min(settings().section_downloads, len(rows)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        fetched = list(pool.map(fetch, rows))
+
+    transcript = s.exec(select(Transcript).where(Transcript.asset_id == asset.id)).first()
+    words = list(transcript.words) if transcript else []
+    sentences = list(transcript.sentences) if transcript else []
+    mapping: dict[str, str] = {}
+    for sec, row, dest, offset in fetched:
+        row.offset_ms = offset
+        s.add(row)
+        s.commit()
+        ingest.ingest_video(s, row, dest)
+        end_ms = offset + round(row.length_s * 1000)
+        s.add(Transcript(id=new_id("trn"), asset_id=row.id, status="ready",
+                         language=transcript.language if transcript else "",
+                         model=transcript.model if transcript else "",
+                         words=lean.rebase(words, offset, offset, end_ms),
+                         sentences=lean.rebase(sentences, offset, offset, end_ms)))
+        mapping[str(sec.index)] = row.id
+    job.params = {**params, "_sections": mapping}
+    s.add(job)
+    s.commit()
+
+
+def project_summary(p: Project, full: bool = False, offset_ms: int = 0) -> dict:
     """What a finished clip looks like to the app.
 
     `full` adds everything needed to open the clip in the editor without any
@@ -388,6 +470,9 @@ def project_summary(p: Project, full: bool = False) -> dict:
     out = {
         "project_id": p.id, "index": p.index, "title": (p.title or {}).get("text", ""),
         "start_ms": p.in_ms, "end_ms": p.out_ms, "duration_ms": p.out_ms - p.in_ms,
+        # Where the clip sits in the original video; differs from start_ms
+        # only when the clip was made from a fetched section.
+        "source_start_ms": p.in_ms + offset_ms, "source_end_ms": p.out_ms + offset_ms,
         "thumbnail_url": storage.public_url(p.thumb_key) if p.thumb_key else "",
         "score": p.score, "grades": p.grades, "scene_analysis": p.scene_analysis,
         "reason": p.reason, "alternate_of": p.alternate_of or None,

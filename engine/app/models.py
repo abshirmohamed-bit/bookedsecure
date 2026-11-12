@@ -33,6 +33,11 @@ class Asset(SQLModel, table=True):
     error: str = ""
     created_at: datetime = Field(default_factory=utcnow)
     deleted_at: Optional[datetime] = None
+    # Long links import lean: only the audio, then just each chosen moment's
+    # video (a "section" asset) once the moments are picked.
+    lean: bool = False
+    parent_id: str = ""           # a section's source asset
+    offset_ms: int = 0            # where a section starts in its source
 
 
 class ImportTask(SQLModel, table=True):

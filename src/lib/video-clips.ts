@@ -59,6 +59,7 @@ export function jobStatusLabel(job: { status: string; stage?: string | null }): 
   const stage = (job.stage ?? "").toLowerCase();
   if (stage === "transcribing") return "Listening to your video";
   if (stage === "finding") return "Finding the best moments";
+  if (stage === "fetching") return "Getting the best moments in HD";
   if (stage === "framing") return "Framing the shots";
   if (stage === "building" || stage === "finalizing") return "Cutting your clips";
   return "Working on it";
