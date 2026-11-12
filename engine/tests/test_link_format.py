@@ -20,3 +20,12 @@ def test_uncapped_choice_is_only_the_last_resort():
     choices = link_format(1080).split("/")
     assert choices[-2:] == ["bv*+ba", "b"]
     assert all("height<=1080" in c for c in choices[:-2])
+
+
+def test_a_refused_stream_counts_as_blocked():
+    from app.pipeline.ytdlp_opts import looks_blocked
+    assert looks_blocked("ERROR: The downloaded file is empty")
+    assert looks_blocked("ERROR: unable to download video data: HTTP Error 403: Forbidden")
+    assert looks_blocked("HTTP Error 429: Too Many Requests")
+    assert not looks_blocked("ERROR: [youtube] abc: Private video")
+    assert not looks_blocked("ERROR: [youtube] abc: This video is unavailable")

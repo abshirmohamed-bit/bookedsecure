@@ -181,7 +181,7 @@ def _ytdlp(url: str, want_transcript: bool = False) -> UrlInfo:
         caption_lang, track = pick_caption_track(raw)
         if track:
             try:
-                lines = _fetch_json3(track, ytdlp_opts.proxy() if used_proxy else "")
+                lines = fetch_captions(track, used_proxy)
             except Exception as e:  # captions are a bonus; the read still stands
                 log.warning("captions for %s could not be read: %s", url, e)
                 caption_lang = ""
@@ -243,6 +243,25 @@ def parse_json3(data: dict) -> list[dict]:
         if len(out) >= MAX_CAPTION_LINES:
             break
     return out
+
+
+def fetch_captions(track_url: str, used_proxy: bool) -> list[dict]:
+    """The caption track, through the same way in as the video's details.
+
+    YouTube rate-limits caption requests from a server's own address (429)
+    even when it still answers the details, so a direct refusal is retried
+    once through the proxy when there is one.
+    """
+    from . import ytdlp_opts
+
+    proxy = ytdlp_opts.proxy()
+    if used_proxy or not proxy:
+        return _fetch_json3(track_url, proxy if used_proxy else "")
+    try:
+        return _fetch_json3(track_url, "")
+    except Exception as e:  # noqa: BLE001 - any refusal is worth the one proxied try
+        log.info("captions refused directly (%s); trying the proxy", e)
+        return _fetch_json3(track_url, proxy)
 
 
 def _fetch_json3(track_url: str, proxy: str = "") -> list[dict]:

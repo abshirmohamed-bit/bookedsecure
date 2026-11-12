@@ -40,7 +40,11 @@ COOKIE_FILE = Path(os.environ.get("YTDLP_COOKIES", "/data/cookies.txt"))
 PLAYER_CLIENTS = ("default", "tv", "web_safari", "mweb")
 
 #: The errors worth trying another client for.
-BLOCKED_SIGNS = ("not a bot", "sign in to confirm", "login_required", "cookies")
+BLOCKED_SIGNS = ("not a bot", "sign in to confirm", "login_required", "cookies",
+                 # YouTube's other refusal: it lists the formats, then refuses
+                 # this address the video data itself (an IP-bound stream URL).
+                 "http error 403", "forbidden", "downloaded file is empty",
+                 "http error 429", "too many requests")
 
 
 def proxy() -> str:
