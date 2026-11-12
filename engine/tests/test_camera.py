@@ -96,8 +96,7 @@ def test_fill_motion_stays_inside_the_source_and_even():
     camera.apply([shot], _inp(out_ms=9000))
     assert shot.motion
     for _ms, x, y, w, h in shot.motion:
-        assert 0 <= x <= 1920 - w and 0 <= y <= 1080 - h
-        assert w % 2 == 0 and h % 2 == 0 and x % 2 == 0 and y % 2 == 0
+        assert 0 <= x <= 1920 - w + 0.01 and 0 <= y <= 1080 - h + 0.01
     # opens on the hook (a little tight) then settles
     assert shot.motion[3][3] < 608 and shot.motion[60][3] > shot.motion[3][3]
 
@@ -105,7 +104,7 @@ def test_fill_motion_stays_inside_the_source_and_even():
 def test_zoom_off_holds_the_size():
     shot = Shot(0, 9000, "fill", window=Box(600, 0, 608, 1080), pan=[(0, 600)])
     camera.apply([shot], _inp(out_ms=9000, zoom="off"))
-    assert {m[3] for m in shot.motion} == {608}
+    assert {m[3] for m in shot.motion} == {608.0}
 
 
 def test_transitions_keep_the_clip_exactly_as_long():
@@ -152,3 +151,24 @@ def test_a_render_with_moves_and_transitions_has_the_planned_length(tmp_path):
     w, h, frames = (int(v) for v in probe.split(","))
     assert (w, h) == (540, 960)
     assert abs(frames - 180) <= 2
+
+
+def test_a_moving_camera_never_changes_the_picture_size_mid_stream():
+    """ffmpeg 7's scale filter drops the rest of a stream when its input size keeps changing."""
+    from app.pipeline import compose
+    shot = Shot(0, 6000, "fill", window=Box(600, 0, 608, 1080), pan=[(0, 600), (3000, 1100)])
+    camera.apply([shot], _inp(out_ms=6000))
+    chain = compose.camera_chain(shot, 0, 6000, 1920, 1080)
+    assert "sendcmd" not in chain and chain.startswith("crop=")
+    assert "perspective=" in chain and "eval=frame" in chain
+
+
+def test_the_camera_ramp_follows_the_path_within_a_third_of_a_pixel():
+    from app.pipeline.compose import _ramp
+    import math as m
+    values = [300 + 200 * camera.ease_in_out(k / 40) for k in range(41)] + [500.0] * 20
+    expr = _ramp(values, 1)
+    def ev(n):
+        return eval(expr.replace("in", str(n)).replace("clip", "_clip"), {"_clip": lambda v, a, b: max(a, min(b, v))})
+    assert max(abs(ev(k + 1) - v) for k, v in enumerate(values)) < 0.35
+    assert expr.count("clip") < 30

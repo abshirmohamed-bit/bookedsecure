@@ -12,6 +12,7 @@ these fields one-to-one.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -465,6 +466,77 @@ def _pan_file(shot: shotplan.Shot, name: str, workdir: Path, starts_ms: int | No
     return path.name
 
 
+def _knots(values: list[float], tolerance: float = 0.3) -> list[int]:
+    """Frame indexes where a piecewise-linear line through `values` must bend
+    to stay within `tolerance` px of every frame (greedy, from the left)."""
+    n = len(values)
+    if n <= 2:
+        return list(range(n))
+    knots = [0]
+    a = 0
+    b = 2
+    while b < n:
+        # Can a straight line a..b stay within tolerance of every frame between?
+        va, vb = values[a], values[b]
+        ok = all(abs(va + (vb - va) * (k - a) / (b - a) - values[k]) <= tolerance for k in range(a + 1, b))
+        if ok:
+            b += 1
+            continue
+        a = b - 1
+        knots.append(a)
+        b = a + 2
+    knots.append(n - 1)
+    return knots
+
+
+def _ramp(values: list[float], first_frame: int) -> str:
+    """An ffmpeg expression of the frame number `in` that follows `values`
+    (one per frame, starting at frame `first_frame`).
+
+    Written as a flat sum of clipped ramps, v0 + sum(slope * clip(in - n, 0, len)),
+    so a long, detailed path doesn't nest hundreds of ifs.
+    """
+    knots = _knots(values)
+    terms = [f"{values[0]:.2f}"]
+    for a, b in zip(knots, knots[1:]):
+        slope = (values[b] - values[a]) / (b - a)
+        if abs(slope) < 1e-4:
+            continue
+        terms.append(f"{slope:+.4f}*clip(in-{first_frame + a},0,{b - a})")
+    return "".join(terms)
+
+
+def camera_chain(shot: shotplan.Shot, t0: int, t_end: int, sw: int, sh: int) -> str:
+    """The filters that move the camera over a fill shot, frame by frame.
+
+    A fixed crop around everywhere the camera goes, then `perspective`,
+    re-evaluated every frame, maps that frame's crop onto the picture with
+    sub-pixel sampling. The picture's size never changes mid-stream, which
+    matters: ffmpeg 7's scale filter drops the rest of a stream when the
+    size of its input keeps changing.
+    """
+    frames = [m for m in shot.motion if t0 <= m[0] < t_end] or shot.motion[:1]
+    bx = max(0, int(min(m[1] for m in frames)))
+    by = max(0, int(min(m[2] for m in frames)))
+    bx2 = min(sw, int(math.ceil(max(m[1] + m[3] for m in frames))))
+    by2 = min(sh, int(math.ceil(max(m[2] + m[4] for m in frames))))
+    bw, bh = bx2 - bx, by2 - by
+    # Even sizes for the chroma planes; grow rather than cut into the picture.
+    if bw % 2:
+        bw, bx = (bw + 1, bx) if bx + bw + 1 <= sw else (bw + 1, bx - 1) if bx else (bw - 1, bx)
+    if bh % 2:
+        bh, by = (bh + 1, by) if by + bh + 1 <= sh else (bh + 1, by - 1) if by else (bh - 1, by)
+    # `in` counts this filter's frames from 1; one value per output frame of the shot.
+    left = [m[1] - bx for m in frames]
+    top = [m[2] - by for m in frames]
+    right = [m[1] + m[3] - bx for m in frames]
+    bottom = [m[2] + m[4] - by for m in frames]
+    X, Y, R, B = (_ramp(v, 1) for v in (left, top, right, bottom))
+    return (f"crop={bw}:{bh}:{bx}:{by},"
+            f"perspective=x0='{X}':y0='{Y}':x1='{R}':y1='{Y}':x2='{X}':y2='{B}':x3='{R}':y3='{B}'"
+            ":interpolation=linear:eval=frame")
+
+
 def _scale(w: int, h: int) -> str:
     return f"scale={w}:{h}:flags=lanczos"
 
@@ -485,6 +557,7 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
     transition to overlap into.
     """
     t0 = shot.start_ms - pad_in
+    t_end = shot.end_ms + pad_out
     head = (f"trim=start={_seconds(t0 - inputs.in_ms)}:end={_seconds(shot.end_ms + pad_out - inputs.in_ms)},"
             "setpts=PTS-STARTPTS")
     s = f"s{i}"
@@ -496,10 +569,8 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         assert win is not None
         name = f"crop@c{i}"
         if _moving(shot):
-            first = next((m for m in shot.motion if m[0] >= t0), shot.motion[0])
-            _ms, x, y, cw, ch = first
-            cmd = f"sendcmd=f={_pan_file(shot, name, workdir, t0)},"
-            lines.append(f"[{label_in}]{cmd}{name}={cw}:{ch}:{x}:{y}:exact=1,{_scale(w, h)},setsar=1[{label_out}]")
+            lines.append(f"[{label_in}]{camera_chain(shot, t0, t_end, inputs.width, inputs.height)},"
+                         f"{_scale(w, h)},setsar=1[{label_out}]")
             return
         pan = f"sendcmd=f={_pan_file(shot, name, workdir, t0)}," if len(shot.pan) > 1 else ""
         lines.append(f"[{label_in}]{pan}{name}={win.w}:{win.h}:{win.x}:{win.y},{_scale(w, h)},setsar=1[{label_out}]")

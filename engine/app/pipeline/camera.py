@@ -313,8 +313,12 @@ def apply(shots_: list, inp, source: Path | None = None) -> list:
     return shots_
 
 
-def _fill_motion(shot, inp, cuts, punches, shot_rel, index, *, hook: bool, zoom_on: bool) -> list[tuple[int, int, int, int, int]]:
-    """Per-frame crops (source ms, x, y, w, h) for a shot that frames a person."""
+def _fill_motion(shot, inp, cuts, punches, shot_rel, index, *, hook: bool, zoom_on: bool) -> list[tuple]:
+    """Per-frame crops (source ms, x, y, w, h) for a shot that frames a person.
+
+    Positions and sizes are sub-pixel (two decimals): the renderer samples
+    between pixels, so a slow push-in glides instead of stepping a pixel at a time.
+    """
     win = shot.window
     if win is None:
         return []
@@ -326,20 +330,18 @@ def _fill_motion(shot, inp, cuts, punches, shot_rel, index, *, hook: bool, zoom_
     # Run a transition's worth past each end, so a cross-fade has real frames to show.
     a, b = shot.start_ms - TRANSITION_MS // 2, shot.end_ms + TRANSITION_MS // 2
     step = 1000 / FPS
-    out: list[tuple[int, int, int, int, int]] = []
+    out: list[tuple] = []
     ms = float(a)
     shot_punches = [p for p in punches if shot_rel[0] <= p.ms < shot_rel[1]]
     while ms < b:
         z = zoom_at(ms - inp.in_ms, shot_rel, index, shot_punches, hook, breathe=zoom_on) if zoom_on else 1.0
-        w = max(2, int(ww / z) // 2 * 2)
-        h = max(2, int(wh / z) // 2 * 2)
+        w = min(float(sw), ww / z)
+        h = min(float(sh), wh / z)
         cx = cx_at(min(max(ms, shot.start_ms), shot.end_ms))
-        x = int(round(cx - w / 2))
         # Zoom pivots on the eye line, so the face stays where it was.
-        y = int(round(eye_y - (eye_y - win.y) * (h / wh)))
-        x = max(0, min(sw - w, x))
-        y = max(0, min(sh - h, y))
-        out.append((int(round(ms)), x - x % 2, y - y % 2, w, h))
+        x = max(0.0, min(sw - w, cx - w / 2))
+        y = max(0.0, min(sh - h, eye_y - (eye_y - win.y) * (h / wh)))
+        out.append((int(round(ms)), round(x, 2), round(y, 2), round(w, 2), round(h, 2)))
         ms += step
     return out
 

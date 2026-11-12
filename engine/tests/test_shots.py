@@ -227,7 +227,8 @@ def test_the_graph_cuts_the_clip_into_its_shots_and_joins_them(tmp_path, monkeyp
     assert "split=2[s0][s1]" in graph
     assert "trim=start=0.000:end=5.000" in graph and "trim=start=5.000:end=10.000" in graph
     assert "concat=n=2:v=1:a=0[base]" in graph
-    assert graph.count("crop@c") == 2
+    # each fill shot is either a held crop or the moving camera
+    assert graph.count("crop@c") + graph.count("perspective=") == 2
 
 
 def test_a_fit_shot_is_the_picture_over_a_blur_of_itself(tmp_path, monkeypatch):
@@ -248,10 +249,10 @@ def test_a_pan_is_written_in_shot_time(tmp_path, monkeypatch):
     monkeypatch.setattr(compose.framing, "analyse", lambda *a, **k: (t, [mover], [], [], []))
     r = compose.Render(out=tmp_path / "o.mp4", source=tmp_path / "in.mp4", in_ms=20000, out_ms=30000, layout="auto")
     args, _ = compose.build(r, tmp_path / "w")
-    cmd = (tmp_path / "w" / "crop_c0.cmd").read_text()
-    first = cmd.splitlines()[0]
-    assert first.startswith("0.000 crop@c0 x "), first
-    assert "sendcmd=f=crop_c0.cmd" in compose.graph_of(args)
+    graph = compose.graph_of(args)
+    # the camera follows the mover frame by frame, counted from the shot's own first frame
+    assert "perspective=x0='" in graph and "eval=frame" in graph
+    assert "clip(in-1," in graph
 
 
 def test_caption_position_and_size_are_honoured(tmp_path):
