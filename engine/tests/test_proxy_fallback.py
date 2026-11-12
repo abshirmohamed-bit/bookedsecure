@@ -31,7 +31,7 @@ def test_direct_is_tried_on_every_client_before_the_proxy(with_proxy):
     got = ytdlp_opts.attempts()
     half = len(ytdlp_opts.PLAYER_CLIENTS)
     assert [p for _, p in got[:half]] == [False] * half, "free traffic first"
-    assert [p for _, p in got[half:]] == [True] * half, "metered traffic last"
+    assert [p for _, p in got[half:]] == [True] * (len(got) - half), "metered traffic last"
     assert [c for c, _ in got[:half]] == list(ytdlp_opts.PLAYER_CLIENTS)
 
 
@@ -104,3 +104,11 @@ def test_with_no_proxy_configured_a_refusal_still_reports_plainly(monkeypatch, t
         ingest._ytdlp("https://youtu.be/blocked", tmp_path / "v.mp4")
     assert "not a bot" in str(e.value)
     assert not any(seen)
+
+
+def test_the_proxy_is_tried_again_from_fresh_addresses(with_proxy, monkeypatch):
+    monkeypatch.delenv("YTDLP_PROXY_ROUNDS", raising=False)
+    proxied = [r for r in ytdlp_opts.attempts() if r[1]]
+    assert len(proxied) == 3 * len(ytdlp_opts.PLAYER_CLIENTS)
+    monkeypatch.setenv("YTDLP_PROXY_ROUNDS", "1")
+    assert len([r for r in ytdlp_opts.attempts() if r[1]]) == len(ytdlp_opts.PLAYER_CLIENTS)

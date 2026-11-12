@@ -68,12 +68,24 @@ def attempts() -> list[tuple[str, bool]]:
     and a refusal transfers almost nothing — the gigabytes are only spent on
     the attempt that actually succeeds.
     """
+    # A rotating residential proxy leaves from a new address on every
+    # connection, and YouTube flags some of them: going round the clients
+    # again tries fresh addresses for the price of a refusal (a few KB).
+    proxied = [(c, True) for c in PLAYER_CLIENTS] * proxy_rounds()
     if proxy() and proxy_first():
-        return [(c, True) for c in PLAYER_CLIENTS]
+        return proxied
     direct = [(c, False) for c in PLAYER_CLIENTS]
     if not proxy():
         return direct
-    return direct + [(c, True) for c in PLAYER_CLIENTS]
+    return direct + proxied
+
+
+def proxy_rounds() -> int:
+    """How many times to go round the clients through the proxy (YTDLP_PROXY_ROUNDS, 1-6, default 3)."""
+    try:
+        return min(6, max(1, int((os.environ.get("YTDLP_PROXY_ROUNDS") or "3").strip())))
+    except ValueError:
+        return 3
 
 
 def js_runtime() -> str:
