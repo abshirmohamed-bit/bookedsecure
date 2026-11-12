@@ -31,6 +31,10 @@ GLASS_WIDTH = 0.92
 DUO_MARGIN = 0.035
 DUO_GAP = 0.025
 #: Cinema bars: how dark the blurred bars are, and the vignette angle.
+#: Podcast poster progress bar: height and lift from the bottom (share of height), colour.
+PROGRESS_HEIGHT = 0.006
+PROGRESS_LIFT = 0.025
+PROGRESS_COLOUR = "white@0.9"
 CINEMA_BRIGHTNESS = -0.2
 VIGNETTE = "PI/5"
 

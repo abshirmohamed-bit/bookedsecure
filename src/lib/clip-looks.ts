@@ -19,6 +19,8 @@ export const LOOK = {
   duoMargin: 0.035,
   duoGap: 0.025,
   pip: { width: 0.3, aspect: 0.75, right: 0.04, top: 0.18 },
+  /** Podcast poster's progress bar: height and lift from the bottom (share of the height). */
+  progress: { height: 0.006, lift: 0.025, alpha: 0.9 },
 } as const;
 
 type Box = { x: number; y: number; w: number; h: number };

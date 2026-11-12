@@ -610,6 +610,12 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         lines.append(f"[{s}]{head}[{s}t]")
         fit(f"{s}t", out)
         return lines, 1
+    if shot.kind == "headline":
+        # Podcast poster: the picture as a rounded card over the blur, with the
+        # headline above it (drawn later) and a progress bar along the bottom.
+        lines.append(f"[{s}]{head}[{s}t]")
+        fit(f"{s}t", out)
+        return lines, 1
     if shot.kind in {"bars", "headline"}:
         lines.append(f"[{s}]{head},split=2[{s}a][{s}b]")
         lines.append(looks.ambient(f"{s}a", f"{s}bg0", w, h, brightness=looks.CINEMA_BRIGHTNESS))
@@ -745,7 +751,7 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     # goes in the black above it, centred in that band.
     title_top: int | None = None
     if plan and plan[0].kind == "headline" and inputs.width and inputs.height:
-        fit_h = min(h, int(w * inputs.height / inputs.width))
+        fit_h = min(h, int(w * looks.GLASS_WIDTH * inputs.height / inputs.width))
         band = (h - fit_h) // 2
         lines_, size = title_lines(((render.title or {}).get("text") or "").upper(), w, h)
         block = len(lines_) * int(size * 1.18) if lines_ else 0
@@ -828,6 +834,13 @@ def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int,
         ass.write_text(_captions_ass(render, w, h), encoding="utf-8")
         chain.append(f"[{last}]subtitles={ass.name}[cap]")
         last = "cap"
+    if render.layout == "title-subtitles":
+        # A thin bar that fills across the bottom as the clip plays.
+        bar_h = max(4, looks.even(h * looks.PROGRESS_HEIGHT))
+        dur = max(0.1, render.total_ms / 1000)
+        chain.append(f"color=c={looks.PROGRESS_COLOUR}:s={w}x{bar_h}:r=30:d={dur:.3f}[pbar]")
+        chain.append(f"[{last}][pbar]overlay=x='-W+W*t/{dur:.3f}':y=H-h-{int(h * looks.PROGRESS_LIFT)}:eof_action=pass[prog]")
+        last = "prog"
     for name, f in (("title", _title_filter(render.title or {}, w, h, workdir, top=title_top, place=place)),
                     ("mark", _watermark_filter(render.watermark or {}, w, h, workdir))):
         if f:

@@ -155,14 +155,14 @@ function drawShot(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, input:
   const k = video.videoWidth / src.w;
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, W, H);
-  if (shot?.kind === "fit") {
+  if (shot?.kind === "fit" || shot?.kind === "headline") {
     // Ambient glass: the whole picture as a rounded card over a blur of itself.
     drawAmbient(ctx, video, W, H);
     const card = glassCard(W, H, video.videoWidth, video.videoHeight);
     drawCard(ctx, card, W, () => ctx.drawImage(video, card.x, card.y, card.w, card.h));
     return;
   }
-  if (shot?.kind === "bars" || shot?.kind === "headline") {
+  if (shot?.kind === "bars") {
     // Cinema: bars made of the picture itself, darkened, with a soft vignette.
     drawAmbient(ctx, video, W, H, LOOK.cinemaBrightness);
     const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.hypot(W, H) / 2);
@@ -389,6 +389,7 @@ export async function renderClipInBrowser(input: RenderInput, onProgress: (p: nu
   const lines = groupCaptionLines(input.words);
   const startS = Math.max(0, (input.startMs - input.offsetMs) / 1000);
   const endAbs = input.endMs;
+  const poster = Boolean(input.plan?.shots.length) && input.plan!.shots.every((s) => s.kind === "headline");
   video.currentTime = startS;
   await waitFor(video, "seeked");
 
@@ -413,6 +414,12 @@ export async function renderClipInBrowser(input: RenderInput, onProgress: (p: nu
         drawPicture(ctx, video, input, abs - input.planStartMs, W, H);
         drawCaptions(ctx, lines, input, abs - input.startMs, W, H);
         drawHeadline(ctx, input, W, H);
+        if (poster) {
+          // Podcast poster: a bar that fills across the bottom as the clip plays.
+          const bh = Math.max(4, H * LOOK.progress.height);
+          ctx.fillStyle = `rgba(255,255,255,${LOOK.progress.alpha})`;
+          ctx.fillRect(0, H - bh - H * LOOK.progress.lift, (W * (abs - input.startMs)) / Math.max(1, endAbs - input.startMs), bh);
+        }
         const frame = new VideoFrame(canvas, { timestamp: ts });
         videoEncoder.encode(frame, { keyFrame: frames % (fps * 2) === 0 });
         recording = true;

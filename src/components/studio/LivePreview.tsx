@@ -174,8 +174,8 @@ export function LivePreview({
   }, [source, contain, split, shot, rel, aspect]);
   // The finishing looks (lib/clip-looks, the Engine's looks.py): ambient glass
   // for whole-picture shots, cinema bars, duo cards for two people.
-  const glass = !failed && (layout === "streamer" || (!whole && shot?.kind === "fit"));
-  const cinema = !failed && (layout === "black-box" || layout === "title-subtitles" || (!whole && (shot?.kind === "bars" || shot?.kind === "headline")));
+  const glass = !failed && (layout === "streamer" || layout === "title-subtitles" || (!whole && (shot?.kind === "fit" || shot?.kind === "headline")));
+  const cinema = !failed && (layout === "black-box" || (!whole && shot?.kind === "bars"));
   const duo = split && frame.h >= frame.w && frame.w ? duoCards(frame.w, frame.h) : null;
   const half = duo ? { w: duo[0].w, h: duo[0].h } : { w: frame.w, h: frame.h / 2 };
   // Every multi-picture composition as cards, the same shapes as the Engine and
@@ -279,6 +279,10 @@ export function LivePreview({
         ))}
       </div>
 
+      {layout === "title-subtitles" && end > start ? (
+        <div aria-hidden="true" className="pointer-events-none absolute left-0"
+          style={{ bottom: `${LOOK.progress.lift * 100}%`, height: Math.max(3, frame.h * LOOK.progress.height), width: `${Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100))}%`, background: `rgba(255,255,255,${LOOK.progress.alpha})` }} />
+      ) : null}
       {headline.on && headline.text.trim() ? (
         <div className={`pointer-events-none absolute inset-x-3 flex justify-center ${headlineTop ? "top-[7%]" : "bottom-[7%]"}`}>
           <span className="max-w-full rounded-lg bg-white px-3 py-1.5 text-center text-[0.95rem] font-black leading-tight text-black shadow-lg">{headline.text}</span>
