@@ -175,7 +175,10 @@ def run_one(src: Path, a: float, b: float, layout: str, out_dir: Path, faces) ->
     row["kinds"] = sorted({s.kind for s in plan})
     row["transitions"] = sum(1 for s in plan if s.transition)
     row["av_gap_s"] = round(abs(v - au), 3)
-    row["extra_black_s"] = round(max(0.0, detect_seconds(out, "blackdetect=d=0.2:pix_th=0.08")
+    # Letterboxed layouts are mostly bars by design: a frame is black only if
+    # nearly all of it is, picture included.
+    pic = ":pic_th=0.995" if layout in {"streamer", "black-box", "title-subtitles"} else ""
+    row["extra_black_s"] = round(max(0.0, detect_seconds(out, f"blackdetect=d=0.2:pix_th=0.08{pic}")
                                      - detect_seconds(src, "blackdetect=d=0.2:pix_th=0.08", a, length)), 2)
     # In whole-picture layouts the moving picture is a card over a soft blur, so the
     # frame as a whole changes less; judge freezes on the picture, not the frame.
