@@ -215,12 +215,18 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800) -> Non
         last = (proc.stderr or "").strip()
         log.warning("yt-dlp could not fetch %s as %s%s: %s", url, client,
                     " via proxy" if via_proxy else "", last[-300:])
-        # Only a refusal is worth another address or another client. Anything
-        # else — a private video, a dead link — fails the same way every time,
-        # and retrying it through metered bandwidth buys nothing.
-        if not ytdlp_opts.looks_blocked(last):
+        # Only a refusal is worth another address or another client, and so is
+        # a client that doesn't offer the format asked for (the "tv" client has
+        # no audio-only one, say). Anything else, such as a private video or a
+        # dead link, fails the same way every time, and retrying it through
+        # metered bandwidth buys nothing.
+        if not (ytdlp_opts.looks_blocked(last) or _route_lacks_format(last)):
             break
     raise EngineError("VALIDATION_ERROR", _download_error(last))
+
+
+def _route_lacks_format(stderr: str) -> bool:
+    return "requested format is not available" in (stderr or "").lower()
 
 
 def _ytdlp(url: str, dest: Path) -> None:

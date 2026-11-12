@@ -8,6 +8,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { engineClient, engineConfigured } from "@/lib/engine.server";
+import { browserUploadsReady, clipVideoKey, publicUrlFor, signedUploadUrl, uploadedSize } from "@/lib/clip-upload.server";
 import { ACTIVE_JOB_STATUSES, applyLineEdits, applyWordFixes, CAPTION_POSITIONS, CAPTION_SIZE, type CaptionLineEdit, type CaptionPosition, type CaptionWord, checkTrim, CLIP_LAYOUTS, CLIP_ZOOMS, type ClipJobOptions, type ClipLayout, type ClipZoom, clipsToRender, FALLBACK_CAPTION_STYLES, isPublicVideoLink, mergeTrimmedWords, readJobOptions, TITLE_STYLES, type TitlePosition, type TitleStyle, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect } from "@/lib/video-clips";
 
 type JobRow = Database["public"]["Tables"]["video_clip_jobs"]["Row"];
@@ -295,7 +296,7 @@ export async function clipEditorData(businessId: string, clipId: string) {
   const clip = await ownClip(businessId, clipId);
   const [project, catalog] = await Promise.all([engineProject(clip), engineCatalog()]);
   return {
-    catalog, settings: settingsOf(project),
+    catalog, settings: settingsOf(project), browserUploads: browserUploadsReady(),
     words: (project.captions ?? []).map((w) => ({ text: String(w.text ?? ""), start_ms: Math.round(w.start_ms), end_ms: Math.round(w.end_ms) })),
   };
 }
@@ -404,7 +405,13 @@ export async function previewClipEdits(businessId: string, clipId: string, edits
  * so a late poll of it can't mark the new video ready. A failure before the
  * Engine took the change puts the clip back as it was.
  */
-export async function saveClipEdits(businessId: string, clipId: string, edits: ClipEdits) {
+/**
+ * Saves the edits to the clip. Then either asks the Engine to make the video
+ * again, or (`browser`) hands back everything the browser needs to make it
+ * itself, plus a signed link to upload the result to; finishBrowserClip()
+ * then puts that video on the clip.
+ */
+export async function saveClipEdits(businessId: string, clipId: string, edits: ClipEdits, opts: { browser?: boolean } = {}) {
   const clip = await ownClip(businessId, clipId);
   if (clip.status === "EXPORTING") throw new Error("This clip is still being made. Save again once it's finished.");
   const { data: job } = await supabaseAdmin.from("video_clip_jobs").select("duration_ms").eq("id", clip.job_id).eq("business_id", businessId).maybeSingle();
@@ -461,13 +468,55 @@ export async function saveClipEdits(businessId: string, clipId: string, edits: C
   }
 
   // The project has the change now: from here a failure is the video's, not the edit's.
-  const r = await engineClient<{ id: string }>("POST", `${path}/export`, { resolution: "1080p" });
   const times = { start_ms: range.inMs, end_ms: range.outMs, duration_ms: range.outMs - range.inMs, updated_at: now() };
+  if (opts.browser && browserUploadsReady()) {
+    // Stays EXPORTING with no Engine export until the browser's video arrives;
+    // advanceBusiness hands it to the Engine if that never happens.
+    await supabaseAdmin.from("video_clips").update(times).eq("id", clip.id);
+    const saved = await engineProject(clip);
+    const key = clipVideoKey(businessId, clip.id);
+    return {
+      changed, startMs: range.inMs, endMs: range.outMs,
+      render: {
+        key, uploadUrl: await signedUploadUrl(key),
+        settings: settingsOf(saved),
+        words: (saved.captions ?? []).map((w) => ({ text: String(w.text ?? ""), start_ms: Math.round(w.start_ms), end_ms: Math.round(w.end_ms) })),
+      },
+    };
+  }
+  const r = await engineClient<{ id: string }>("POST", `${path}/export`, { resolution: "1080p" });
   await supabaseAdmin.from("video_clips").update(
     r.ok ? { engine_export_id: r.data.id, ...times } : { status: "FAILED", error: `Your changes are saved, but the video couldn't be made: ${r.error.message}`.slice(0, 500), ...times },
   ).eq("id", clip.id);
   if (!r.ok) throw new Error("Your changes are saved, but the video couldn't be made. Press Try again.");
-  return { changed, startMs: range.inMs, endMs: range.outMs };
+  return { changed, startMs: range.inMs, endMs: range.outMs, render: null };
+}
+
+/** Puts a video the browser made (and uploaded to `key`) on the clip. */
+export async function finishBrowserClip(businessId: string, clipId: string, video: { key: string; width: number; height: number; durationMs: number }) {
+  const clip = await ownClip(businessId, clipId);
+  if (!video.key.startsWith(`browser-renders/${businessId}/${clip.id}/`)) throw new Error("That video doesn't belong to this clip.");
+  const size = await uploadedSize(video.key);
+  if (size < 1000) throw new Error("The video didn't upload. Try saving again.");
+  const { data, error } = await supabaseAdmin.from("video_clips").update({
+    status: "READY", video_url: publicUrlFor(video.key), width: video.width, height: video.height,
+    duration_ms: Math.round(video.durationMs), error: null, updated_at: now(),
+  }).eq("id", clip.id).eq("status", "EXPORTING").is("engine_export_id", null).select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("This clip changed while the video was being made. Open it again.");
+  return { url: publicUrlFor(video.key), size };
+}
+
+/** The browser couldn't make the video: the Engine makes it from the saved settings instead. */
+export async function engineFallback(businessId: string, clipId: string) {
+  const clip = await ownClip(businessId, clipId);
+  if (clip.status !== "EXPORTING" || clip.engine_export_id) return { started: false };
+  const r = await engineClient<{ id: string }>("POST", `/v1/projects/${encodeURIComponent(clip.engine_project_id)}/export`, { resolution: "1080p" });
+  await supabaseAdmin.from("video_clips").update(
+    r.ok ? { engine_export_id: r.data.id, updated_at: now() } : { status: "FAILED", error: `The video couldn't be made: ${r.error.message}`.slice(0, 500), updated_at: now() },
+  ).eq("id", clip.id).eq("status", "EXPORTING").is("engine_export_id", null);
+  if (!r.ok) throw new Error("The video couldn't be made. Press Try again.");
+  return { started: true };
 }
 
 async function startRender(clip: ClipRow) {
@@ -487,7 +536,14 @@ async function advanceBusiness(businessId: string) {
   for (const job of jobs ?? []) await advanceJob(job).catch((e: unknown) => console.error("video job", job.id, e));
   const { data: clips } = await supabaseAdmin.from("video_clips").select("*").eq("business_id", businessId).eq("status", "EXPORTING").not("engine_export_id", "is", null).limit(6);
   for (const clip of clips ?? []) await pollExport(clip).catch((e: unknown) => console.error("video export", clip.id, e));
+  // A video the browser was making but never delivered (the tab closed, say): the Engine makes it instead.
+  const { data: abandoned } = await supabaseAdmin.from("video_clips").select("id").eq("business_id", businessId).eq("status", "EXPORTING")
+    .is("engine_export_id", null).lt("updated_at", new Date(Date.now() - BROWSER_RENDER_GRACE_MS).toISOString()).limit(6);
+  for (const clip of abandoned ?? []) await engineFallback(businessId, clip.id).catch((e: unknown) => console.error("video fallback", clip.id, e));
 }
+
+/** How long a browser has to deliver a video it is making before the Engine takes over. */
+const BROWSER_RENDER_GRACE_MS = 20 * 60_000;
 
 /** The safety net for lost webhooks, run by the scheduled follow-ups hook. */
 export async function advanceAllVideoJobs(limit = 10): Promise<number> {

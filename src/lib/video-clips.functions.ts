@@ -186,11 +186,39 @@ export const saveVideoClipEdits = createServerFn({ method: "POST" })
     clipId: z.string().uuid(),
     ...CLIP_EDITS,
     lineEdits: z.array(z.object({ start_ms: z.number().int(), from: z.string().max(400), to: z.string().max(400) })).max(2000).optional(),
+    /** Make the video in this browser instead of on the Engine. */
+    browser: z.boolean().optional(),
   }).parse(input))
   .handler(async ({ context, data }) => {
     const { requireWriteContext } = await import("@/lib/app-context.server");
     const { saveClipEdits } = await import("@/lib/video-clips.server");
     const ctx = await requireWriteContext(context.supabase, context.userId);
-    const { clipId, ...edits } = data;
-    return saveClipEdits(ctx.businessId, clipId, edits);
+    const { clipId, browser, ...edits } = data;
+    return saveClipEdits(ctx.businessId, clipId, edits, { browser: Boolean(browser) });
+  });
+
+/** Puts a video the browser made and uploaded on the clip. */
+export const finishBrowserClipVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    clipId: z.string().uuid(), key: z.string().min(10).max(300),
+    width: z.number().int().min(100).max(4000), height: z.number().int().min(100).max(4000), durationMs: z.number().min(0).max(3_600_000),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { finishBrowserClip } = await import("@/lib/video-clips.server");
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    const { clipId, ...video } = data;
+    return finishBrowserClip(ctx.businessId, clipId, video);
+  });
+
+/** The browser couldn't make the video: the Engine makes it from the saved settings. */
+export const engineMakesClipVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ clipId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { requireWriteContext } = await import("@/lib/app-context.server");
+    const { engineFallback } = await import("@/lib/video-clips.server");
+    const ctx = await requireWriteContext(context.supabase, context.userId);
+    return engineFallback(ctx.businessId, data.clipId);
   });

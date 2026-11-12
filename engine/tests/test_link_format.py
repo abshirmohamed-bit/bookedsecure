@@ -30,3 +30,9 @@ def test_a_refused_stream_counts_as_blocked():
     assert looks_blocked("HTTP Error 429: Too Many Requests")
     assert not looks_blocked("ERROR: [youtube] abc: Private video")
     assert not looks_blocked("ERROR: [youtube] abc: This video is unavailable")
+
+
+def test_a_client_without_the_format_is_worth_another_route():
+    from app.pipeline.ingest import _route_lacks_format
+    assert _route_lacks_format("ERROR: [youtube] abc: Requested format is not available. Use --list-formats")
+    assert not _route_lacks_format("ERROR: [youtube] abc: Private video")

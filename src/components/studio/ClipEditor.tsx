@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { saveAssistantDraft } from "@/lib/assistant-draft";
 import { LivePreview } from "@/components/studio/LivePreview";
 import { CAPTION_POSITIONS, CAPTION_SIZE, type CaptionPosition, CLIP_LAYOUT_IDS, CLIP_ZOOM_IDS, type ClipLayout, type ClipZoom, groupCaptionLines, MAX_CLIP_MS, MIN_CLIP_MS, SHOT_KINDS, TITLE_POSITIONS, TITLE_STYLE_IDS, type TitlePosition, type TitleStyle, VIDEO_ASPECTS, type VideoAspect } from "@/lib/video-clips";
-import { getVideoClipEditor, getVideoClipPlan, renameVideoClip, renderVideoClip, saveVideoClipEdits } from "@/lib/video-clips.functions";
+import { engineMakesClipVideo, finishBrowserClipVideo, getVideoClipEditor, getVideoClipPlan, renameVideoClip, renderVideoClip, saveVideoClipEdits } from "@/lib/video-clips.functions";
+import { canRenderInBrowser, renderClipInBrowser } from "@/lib/clip-render";
 
 type Tab = "details" | "captions" | "framing" | "trim";
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
@@ -105,6 +106,19 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
   const editorFn = useServerFn(getVideoClipEditor);
   const planFn = useServerFn(getVideoClipPlan);
   const saveFn = useServerFn(saveVideoClipEdits);
+  const finishFn = useServerFn(finishBrowserClipVideo);
+  const fallbackFn = useServerFn(engineMakesClipVideo);
+  // Making the video here: progress 0..1 while it renders, null otherwise.
+  const [makingHere, setMakingHere] = useState<number | null>(null);
+  const [canHere, setCanHere] = useState(false);
+  useEffect(() => setCanHere(canRenderInBrowser()), []);
+  const busyHere = makingHere !== null;
+  useEffect(() => {
+    if (!busyHere) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [busyHere]);
   const [tab, setTab] = useState<Tab>("details");
   const [title, setTitle] = useState(clip.title ?? "");
   useEffect(() => setTitle(clip.title ?? ""), [clip.id, clip.title]);
@@ -208,10 +222,38 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
     onSuccess: () => qc.invalidateQueries({ queryKey: ["video-clips"] }),
     onError: (e) => toast.error(e instanceof Error ? e.message : "That clip couldn't be made."),
   });
+  const here = canHere && Boolean(editor.data?.browserUploads) && Boolean(settings?.sourceUrl);
   const save = useMutation({
-    mutationFn: () => saveFn({ data: { clipId: clip.id, ...edits, ...(lineEdits.length ? { lineEdits } : {}) } }),
-    onSuccess: async () => {
-      toast.success("Saved. Making the video again; it takes a minute or two.");
+    mutationFn: async (): Promise<{ where: "browser" | "engine"; reason?: string }> => {
+      const r = await saveFn({ data: { clipId: clip.id, ...edits, ...(lineEdits.length ? { lineEdits } : {}), ...(here ? { browser: true } : {}) } });
+      if (!r.render) return { where: "engine" };
+      const saved = r.render.settings;
+      try {
+        setMakingHere(0);
+        if (!saved.sourceUrl) throw new Error("The clip's source video isn't available.");
+        const styleDefault = catalog?.captionStyles.find((x) => x.id === saved.styleId)?.defaults.position ?? "middle";
+        const out = await renderClipInBrowser({
+          src: saved.sourceUrl, offsetMs: saved.sourceOffsetMs, startMs: saved.inMs, endMs: saved.outMs,
+          aspect: isAspect(saved.aspect) ? saved.aspect : "9:16",
+          plan: plan.data ? { source: plan.data.source, shots: plan.data.shots } : null, planStartMs: baseStart,
+          words: r.render.words,
+          captions: { on: saved.captionsOn, styleId: saved.styleId, position: saved.captionPosition ?? styleDefault, size: saved.captionSize },
+          headline: { on: saved.headline.enabled, text: saved.headline.text, position: saved.headline.position },
+        }, setMakingHere);
+        const put = await fetch(r.render.uploadUrl, { method: "PUT", headers: { "Content-Type": "video/mp4" }, body: out.blob });
+        if (!put.ok) throw new Error(`The upload was refused (${put.status}).`);
+        await finishFn({ data: { clipId: clip.id, key: r.render.key, width: out.width, height: out.height, durationMs: out.durationMs } });
+        return { where: "browser" };
+      } catch (error) {
+        await fallbackFn({ data: { clipId: clip.id } }).catch(() => undefined);
+        return { where: "engine", reason: error instanceof Error ? error.message : String(error) };
+      } finally {
+        setMakingHere(null);
+      }
+    },
+    onSuccess: async (r) => {
+      if (r.where === "browser") toast.success("Saved, and the new video is ready.");
+      else toast.success(r.reason ? `Saved. This browser couldn't make the video (${r.reason}), so the Engine is making it; it takes a minute or two.` : "Saved. Making the video again; it takes a minute or two.");
       await Promise.all([qc.invalidateQueries({ queryKey: ["video-clips"] }), qc.invalidateQueries({ queryKey: ["video-clip-editor", clip.id] })]);
     },
     onError: async (e) => {
@@ -465,11 +507,16 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
               <div className="shrink-0 border-t border-border/60 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 <div className="flex gap-2">
                   <Button className="min-h-11 flex-1" disabled={!changes.length || save.isPending || making || !settings} onClick={() => save.mutate()}>
-                    {save.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}Save and re-make video
+                    {save.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}{makingHere !== null ? `Making the video… ${Math.round(makingHere * 100)}%` : "Save and make video"}
                   </Button>
                 </div>
+                {makingHere !== null ? (
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-primary/10" role="progressbar" aria-valuenow={Math.round(makingHere * 100)} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${Math.max(3, makingHere * 100)}%` }} />
+                  </div>
+                ) : null}
                 <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
-                  {making ? "The video is being made. You can save more changes once it's finished." : changes.length ? `Changing ${changes.join(", ")}.` : "Make a change to save it."}
+                  {makingHere !== null ? "Making it here in your browser. Keep this tab open and in front until it's done." : making ? "The video is being made. You can save more changes once it's finished." : changes.length ? `Changing ${changes.join(", ")}.` : "Make a change to save it."}
                 </p>
               </div>
             ) : null}
