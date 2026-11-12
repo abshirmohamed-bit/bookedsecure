@@ -449,6 +449,9 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
     if failed:
         log.warning("%d of %d sections of %s failed (%s); cutting them from one whole download",
                     len(failed), len(results), asset.source_url, failed[0][3])
+        job.progress = 55     # visibly moving: the whole download is the slow part
+        s.add(job)
+        s.commit()
         whole = storage.open_write(f"sources/{asset.id}/download.mp4")
         if not lean.has_video(whole):
             ingest.download_whole(asset.source_url, whole)

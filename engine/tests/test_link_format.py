@@ -36,3 +36,22 @@ def test_a_client_without_the_format_is_worth_another_route():
     from app.pipeline.ingest import _route_lacks_format
     assert _route_lacks_format("ERROR: [youtube] abc: Requested format is not available. Use --list-formats")
     assert not _route_lacks_format("ERROR: [youtube] abc: Private video")
+
+
+def test_a_stalled_download_is_stopped_not_retried(monkeypatch, tmp_path):
+    import subprocess
+    import pytest
+    from app.errors import EngineError
+    from app.pipeline import ingest
+
+    calls = []
+
+    def stalls(cmd, **kw):
+        calls.append(cmd)
+        raise subprocess.TimeoutExpired(cmd, kw.get("timeout"))
+
+    monkeypatch.setattr(ingest.shutil, "which", lambda name: "/usr/bin/yt-dlp")
+    monkeypatch.setattr(subprocess, "run", stalls)
+    with pytest.raises(EngineError, match="stalled"):
+        ingest.fetch_section("https://www.youtube.com/watch?v=x", tmp_path / "s.mp4", 0, 10_000)
+    assert len(calls) == 1

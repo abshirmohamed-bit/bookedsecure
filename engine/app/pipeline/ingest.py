@@ -188,8 +188,13 @@ def _download(url: str, dest: Path) -> None:
 _ROUTES: dict[str, tuple[str, bool]] = {}
 
 
-def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800) -> None:
-    """yt-dlp with every route tried in turn, the one that last worked first."""
+def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_routes: int | None = None) -> None:
+    """yt-dlp with every route tried in turn, the one that last worked first.
+
+    A run that goes past `timeout` is stopped and counts as failed; it is
+    never retried on another route, because a stalled transfer stalls the
+    same way again. `max_routes` caps how many routes are tried at all.
+    """
     import subprocess
 
     exe = shutil.which("yt-dlp")
@@ -202,11 +207,17 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800) -> Non
     known = _ROUTES.get(url)
     if known in routes:
         routes = [known] + [r for r in routes if r != known]
+    if max_routes:
+        routes = routes[:max_routes]
     last = ""
     for client, via_proxy in routes:
         cmd = [exe, "--no-playlist", "--quiet", "--no-warnings",
                *ytdlp_opts.cli_args(client, via_proxy), *args, "-o", str(dest), "--", url]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            log.warning("yt-dlp took over %ss for %s as %s%s; stopping it", timeout, url, client, " via proxy" if via_proxy else "")
+            raise EngineError("VALIDATION_ERROR", f"Downloading from that link stalled for over {timeout // 60} minutes.") from None
         if proc.returncode == 0 and dest.exists():
             _ROUTES[url] = (client, via_proxy)
             if via_proxy:
@@ -240,11 +251,19 @@ def download_whole(url: str, dest: Path) -> None:
     _ytdlp(url, dest)
 
 
+#: How long one section may take, and how many routes it tries, before the
+#: job falls back to one whole download.
+SECTION_TIMEOUT_S = 120
+SECTION_ROUTES = 2
+
+
 def fetch_section(url: str, dest: Path, start_ms: int, end_ms: int) -> None:
     """Only [start_ms, end_ms) of a link's video, at the same quality as a full import."""
     run_ytdlp(url, dest, ["-f", link_format(), "--merge-output-format", "mp4",
                           "--download-sections", f"*{start_ms / 1000:.3f}-{end_ms / 1000:.3f}"],
-              timeout=900)
+              # A section is seconds of video: one that takes minutes has
+              # stalled, and the whole-download fallback is quicker than waiting.
+              timeout=SECTION_TIMEOUT_S, max_routes=SECTION_ROUTES)
 
 
 def _lean_import(session: Session, asset: Asset, url: str) -> Asset | None:
