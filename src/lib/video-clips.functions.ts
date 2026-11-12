@@ -10,6 +10,8 @@ const JOB_DEFAULTS = z.object({
   captionStyleId: z.string().trim().min(1).max(60).optional(),
   captionPosition: z.enum(CAPTION_POSITIONS).optional(),
   captionSize: z.number().min(CAPTION_SIZE.min).max(CAPTION_SIZE.max).optional(),
+  /** A dragged caption position, 0 (top) to 1 (bottom); null goes back to the preset. */
+  captionY: z.number().min(0).max(1).nullable().optional(),
   titleEnabled: z.boolean().optional(),
   titleStyle: z.enum(TITLE_STYLE_IDS).optional(),
 }).strict();

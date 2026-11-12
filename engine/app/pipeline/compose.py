@@ -65,6 +65,7 @@ class Render:
     #: Overrides of the style's own placement: top | middle | lower, a size
     #: multiplier, and words per line. None keeps what the style says.
     caption_position: str | None = None
+    caption_y: float | None = None          # a dragged position (0 top .. 1 bottom); wins over caption_position
     caption_size: float = 1.0
     caption_max_words: int | None = None
     censored: list[str] | None = None
@@ -591,7 +592,7 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
 def _captions_ass(render: Render, w: int, h: int) -> str:
     style = BY_ID.get(render.caption_style_id, BY_ID["bold_white"])
     return build_ass(render.words or [], style, w, h, censored=render.censored,
-                     position=render.caption_position, size_scale=render.caption_size,
+                     position=render.caption_position, size_scale=render.caption_size, y=render.caption_y,
                      max_words=render.caption_max_words)
 
 

@@ -90,7 +90,7 @@ def render_for(project: Project, source: Path, out: Path, *, resolution: str = "
         words=list(o.get("captions") if o.get("captions") is not None else (project.captions or [])),
         caption_style_id=o.get("caption_style_id") or project.caption_style_id,
         captions_enabled=options.get("enabled", True),
-        caption_position=options.get("position"), caption_size=size,
+        caption_position=options.get("position"), caption_size=size, caption_y=options.get("y"),
         caption_max_words=options.get("max_words"),
         censored=options.get("censored_words") or [],
         title=title, watermark=project.watermark or None,

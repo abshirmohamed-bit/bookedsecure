@@ -55,3 +55,20 @@ def test_the_summary_route_needs_the_key(api):
     assert TestClient(app).get("/v1/proxy/health").status_code == 401
     body = api.get("/v1/proxy/health").json()
     assert {"bot_check_failures", "proxy_speed_mb_s", "long_links_clipped", "proxy_mode"} <= set(body)
+
+
+def test_a_dragged_caption_position_places_the_line():
+    from app.pipeline.caption import BY_ID, build_ass, free_y
+
+    words = [{"text": "hello", "start_ms": 0, "end_ms": 500}, {"text": "there", "start_ms": 500, "end_ms": 900}]
+    style = BY_ID["bold_white"]
+    def margin(ass):
+        line = next(l for l in ass.splitlines() if l.startswith("Style:"))
+        return int(line.split(",")[-2])
+    top = margin(build_ass(words, style, 1080, 1920, y=0.2))
+    low = margin(build_ass(words, style, 1080, 1920, y=0.8))
+    preset = margin(build_ass(words, style, 1080, 1920, position="lower"))
+    assert top > low                     # higher on screen = further from the bottom edge
+    assert abs(low - 1920 * 0.2) < 200   # around a fifth up from the bottom
+    assert preset != top
+    assert free_y("nope") is None and free_y(2) == 0.95 and free_y(-1) == 0.05

@@ -23,7 +23,8 @@ export type RenderInput = {
   plan: RenderPlan; planStartMs: number;
   /** Caption words, timed from startMs. */
   words: CaptionWord[];
-  captions: { on: boolean; styleId: string; position: string; size: number };
+  /** `y`: a dragged position, the line's centre as a share of the height from the top (wins over `position`). */
+  captions: { on: boolean; styleId: string; position: string; size: number; y?: number | null };
   headline: { on: boolean; text: string; position: string };
 };
 
@@ -155,7 +156,9 @@ function drawCaptions(ctx: CanvasRenderingContext2D, lines: CaptionLine[], input
   const rows = wrap(ctx, words, W * 0.86).slice(0, 3);
   const lh = px * 1.18;
   const block = rows.length * lh;
-  const centre = input.captions.position === "top" ? H * 0.2 : input.captions.position === "lower" ? H * 0.82 : H * 0.5;
+  const freeY = input.captions.y;
+  const centre = typeof freeY === "number" && Number.isFinite(freeY) ? H * Math.min(0.95, Math.max(0.05, freeY))
+    : input.captions.position === "top" ? H * 0.2 : input.captions.position === "lower" ? H * 0.82 : H * 0.5;
   let y = centre - block / 2 + lh / 2;
   let index = 0;
   for (const row of rows) {

@@ -264,6 +264,8 @@ export type ClipSettings = {
   layout: string; zoom: string; aspect: string; focus: string; inMs: number; outMs: number;
   /** The latest a trim can end: the end of the fetched section for a long video, else null (the whole video). */
   trimTo: number | null;
+  /** A dragged caption position, 0 (top) to 1 (bottom), or null for the preset. */
+  captionY: number | null;
   /** For the live preview: the source video, and where its time 0 sits on the original timeline. */
   sourceUrl: string | null; sourceOffsetMs: number;
   headline: { text: string; enabled: boolean; style: string; position: string };
@@ -279,6 +281,7 @@ function settingsOf(project: EngineProject): ClipSettings {
     styleId: project.caption_style_id, captionsOn: options["enabled"] !== false,
     captionPosition: (CAPTION_POSITIONS as readonly unknown[]).includes(position) ? (position as CaptionPosition) : null,
     captionSize: Number.isFinite(size) && size > 0 ? size : 1,
+    captionY: typeof options["y"] === "number" && Number.isFinite(options["y"]) ? (options["y"] as number) : null,
     layout: project.layout, zoom: typeof framing["zoom"] === "string" ? (framing["zoom"] as string) : "auto",
     aspect: project.aspect, focus: typeof framing["focus"] === "string" ? (framing["focus"] as string) : "auto",
     inMs: project.in_ms, outMs: project.out_ms, trimTo: project.sourceEndMs,
@@ -337,7 +340,7 @@ export async function clipPlan(businessId: string, clipId: string, tryOut: { lay
 
 export type ClipEdits = {
   styleId?: string | undefined; captionsOn?: boolean | undefined; captionPosition?: CaptionPosition | null | undefined;
-  captionSize?: number | undefined; layout?: ClipLayout | undefined; zoom?: ClipZoom | undefined; aspect?: VideoAspect | undefined;
+  captionSize?: number | undefined; captionY?: number | null | undefined; layout?: ClipLayout | undefined; zoom?: ClipZoom | undefined; aspect?: VideoAspect | undefined;
   headlineText?: string | undefined; headlineEnabled?: boolean | undefined; headlineStyle?: TitleStyle | undefined; headlinePosition?: TitlePosition | undefined;
   /** Source-video times. */
   inMs?: number | undefined; outMs?: number | undefined;
@@ -359,6 +362,11 @@ async function engineChanges(project: EngineProject, edits: ClipEdits): Promise<
   const current = project.caption_options ?? {};
   if (edits.captionsOn !== undefined && edits.captionsOn !== (current["enabled"] !== false)) { options["enabled"] = edits.captionsOn; changed.push(edits.captionsOn ? "captions on" : "captions off"); }
   if (edits.captionPosition !== undefined && (edits.captionPosition ?? null) !== (current["position"] ?? null)) { options["position"] = edits.captionPosition; changed.push("caption position"); }
+  if (edits.captionY !== undefined) {
+    const y = edits.captionY === null ? null : Math.round(Math.min(1, Math.max(0, edits.captionY)) * 1000) / 1000;
+    const was = typeof current["y"] === "number" ? (current["y"] as number) : null;
+    if (y !== was) { options["y"] = y; if (!changed.includes("caption position")) changed.push("caption position"); }
+  }
   if (edits.captionSize !== undefined) {
     const size = Math.round(Math.min(CAPTION_SIZE.max, Math.max(CAPTION_SIZE.min, edits.captionSize)) * 100) / 100;
     if (size !== (Number(current["size"]) || 1)) { options["size"] = size; changed.push("caption size"); }

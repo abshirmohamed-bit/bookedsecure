@@ -48,6 +48,13 @@ def _check_edit(data: dict) -> None:
             raise EngineError("VALIDATION_ERROR", "caption_options.size must be a number.")
         if not 0.5 <= size <= 2.0:
             raise EngineError("VALIDATION_ERROR", "caption_options.size must be between 0.5 and 2.")
+    if options.get("y") is not None:
+        try:
+            y = float(options["y"])
+        except (TypeError, ValueError):
+            raise EngineError("VALIDATION_ERROR", "caption_options.y must be a number.")
+        if not 0.0 <= y <= 1.0:
+            raise EngineError("VALIDATION_ERROR", "caption_options.y must be between 0 (top) and 1 (bottom).")
     if options.get("max_words") is not None and not (1 <= int(options["max_words"]) <= 8):
         raise EngineError("VALIDATION_ERROR", "caption_options.max_words must be between 1 and 8.")
     title = data.get("title") or {}

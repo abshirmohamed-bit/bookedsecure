@@ -111,10 +111,21 @@ POSITIONS = ("top", "middle", "lower")
 SIZE_RANGE = (0.6, 1.6)
 
 
+def free_y(y: object) -> float | None:
+    """A dragged caption position (0 top .. 1 bottom), kept clear of the very edges."""
+    try:
+        v = float(y)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if v != v:  # NaN
+        return None
+    return min(0.95, max(0.05, v))
+
+
 def build_ass(words: list[dict], style: Style, width: int, height: int, *,
               censored: list[str] | None = None, keyword_highlight: bool = False,
               max_words: int | None = MAX_WORDS_PER_LINE, position: str | None = None,
-              size_scale: float = 1.0) -> str:
+              size_scale: float = 1.0, y: float | None = None) -> str:
     """The whole subtitle file as a string, ready for ffmpeg's subtitles filter.
 
     `position` and `size_scale` override what the style says, so the creator
@@ -131,6 +142,11 @@ def build_ass(words: list[dict], style: Style, width: int, height: int, *,
         margin_v = int(height * 0.42)
     elif where == "top":
         margin_v = int(height * 0.72)
+    fy = free_y(y)
+    if fy is not None:
+        # A dragged position: `y` is where the line's centre sits, from the top.
+        # Bottom-centred lines are placed by their distance from the bottom edge.
+        margin_v = max(0, int(height * (1 - fy) - size / 2))
     max_words = max(1, min(8, int(max_words or MAX_WORDS_PER_LINE)))
 
     back = _ass_colour("000000", int(255 * (1 - style.box_opacity))) if style.box else _ass_colour("000000", 255)
