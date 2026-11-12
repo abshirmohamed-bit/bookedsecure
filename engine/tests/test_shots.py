@@ -225,8 +225,8 @@ def test_the_graph_cuts_the_clip_into_its_shots_and_joins_them(tmp_path, monkeyp
     args, _ = compose.build(r, tmp_path / "w")
     graph = compose.graph_of(args)
     assert "split=2[s0][s1]" in graph
-    assert "trim=start=0.000:end=5.000" in graph and "trim=start=5.000:end=10.000" in graph
-    assert "concat=n=2:v=1:a=0[base]" in graph
+    assert "trim=start_frame=0:end_frame=150" in graph and "trim=start_frame=150:end_frame=300" in graph
+    assert "concat=n=2:v=1:a=0[joined]" in graph and "[joined]setpts=N/(30*TB)[base]" in graph
     # each fill shot is either a held crop or the moving camera
     assert graph.count("crop@c") + graph.count("perspective=") == 2
 

@@ -441,6 +441,11 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
 
 # ------------------------------------------------------------------ per-shot graphs
 
+def _frame(ms: int) -> int:
+    """The 30 fps frame index at `ms` from the start of the render."""
+    return max(0, int(round(ms * 30 / 1000)))
+
+
 def _seconds(ms: int) -> str:
     return f"{max(0, ms) / 1000:.3f}"
 
@@ -560,7 +565,11 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
     t_end = shot.end_ms + pad_out
     # Frames in this shot's stream (stills used by its looks run exactly as long).
     frames = int((t_end - t0) * 30 / 1000) + 2
-    head = (f"trim=start={_seconds(t0 - inputs.in_ms)}:end={_seconds(shot.end_ms + pad_out - inputs.in_ms)},"
+    # Cut on whole frames of the 30 fps stream, not on times: neighbouring shots
+    # then share their boundary frame exactly and no frame is lost between them.
+    # (Cutting by time dropped a frame at some joins; with dozens of shots the
+    # picture ran up to 0.2 s ahead of its sound by the end.)
+    head = (f"trim=start_frame={_frame(t0 - inputs.in_ms)}:end_frame={_frame(shot.end_ms + pad_out - inputs.in_ms)},"
             "setpts=PTS-STARTPTS")
     s = f"s{i}"
     out = f"v{i}"
@@ -699,9 +708,14 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
         lines, _ = _shot_graph(shot, i, inputs, w, h, workdir, pad_in, pad_out)
         chain.extend(lines)
     if n == 1:
-        chain[-1] = chain[-1].rsplit("[v0]", 1)[0] + "[base]"
+        chain[-1] = chain[-1].rsplit("[v0]", 1)[0] + "[joined]"
     else:
-        chain.extend(join_shots(plan))
+        chain.extend(join_shots(plan, out="joined"))
+    # Every frame timed by its index. Joined shots carry the right number of
+    # frames, but a few joins can repeat a timestamp, and the encoder then
+    # drops those frames: the picture ended up to 0.37 s short of the sound,
+    # running ahead of it by the end of the clip.
+    chain.append("[joined]setpts=N/(30*TB)[base]")
 
     # The headline layout keeps its picture in the middle band: the title
     # goes in the black above it, centred in that band.
@@ -731,7 +745,7 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     return args, workdir
 
 
-def join_shots(plan: list[shotplan.Shot]) -> list[str]:
+def join_shots(plan: list[shotplan.Shot], out: str = "base") -> list[str]:
     """Join [v0]..[vN] into [base]: straight cuts where the camera cut, a
     6-frame transition where only the composition changed.
 
@@ -741,7 +755,7 @@ def join_shots(plan: list[shotplan.Shot]) -> list[str]:
     """
     n = len(plan)
     if not any(s.transition for s in plan[1:]):
-        return ["".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[base]"]
+        return ["".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[{out}]"]
     d = camera.TRANSITION_MS
     half = d // 2
     lines = [f"[v{i}]fps=30,settb=AVTB,format=yuv420p[n{i}]" for i in range(n)]
@@ -751,8 +765,9 @@ def join_shots(plan: list[shotplan.Shot]) -> list[str]:
 
     acc = "n0"
     length = trimmed(0)          # the joined picture so far, ms
+    final = out
     for i in range(1, n):
-        out = "base" if i == n - 1 else f"j{i}"
+        out = final if i == n - 1 else f"j{i}"
         if plan[i].transition:
             lines.append(f"[{acc}][n{i}]xfade=transition={plan[i].transition}:duration={d / 1000:.3f}:"
                          f"offset={max(0, length - d) / 1000:.3f}[{out}]")
