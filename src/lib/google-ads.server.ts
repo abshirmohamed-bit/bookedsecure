@@ -6,7 +6,7 @@
  * business, in server-only google_ads_accounts. Platform settings:
  * Google_Console_Client_ID / _Secret (shared with YouTube),
  * GOOGLE_ADS_DEVELOPER_TOKEN (from the Google Ads API Center of a manager
- * account), optional GOOGLE_ADS_LOGIN_CUSTOMER_ID (that manager account, when
+ * account; one token serves every business), optional GOOGLE_ADS_LOGIN_CUSTOMER_ID (the platform manager account, used only for accounts a sign-in can't reach directly or through its own manager; the route is saved per account, when
  * the business's account is reached through it) and GOOGLE_ADS_API_VERSION.
  *
  * Spend syncs per campaign per day: 90 days the first time, then the last 3
@@ -31,7 +31,8 @@ const refreshContext = (b: string) => `google-ads:${b}`;
 const accessContext = (b: string) => `google-ads-access:${b}`;
 const missingTable = (code?: string) => code === "PGRST205" || code === "42P01";
 
-export type GoogleAdsAccountChoice = { id: string; name: string; currency: string | null; manager: boolean };
+/** `via` is the manager account to send as login-customer-id, or null when the sign-in reaches the account directly. */
+export type GoogleAdsAccountChoice = { id: string; name: string; currency: string | null; manager: boolean; via: string | null };
 
 function settings() {
   const yt = readYouTubeConfig();
@@ -92,7 +93,7 @@ async function apiProblem(res: Response): Promise<string> {
   const inner = body?.error?.details?.[0]?.errors?.[0];
   const code = inner?.errorCode ? Object.values(inner.errorCode)[0] : null;
   if (code === "DEVELOPER_TOKEN_NOT_APPROVED") return "The Google Ads developer token is only approved for test accounts. Apply for Basic access in the Google Ads API Center.";
-  if (code === "USER_PERMISSION_DENIED") return "This Google sign-in can't see that Google Ads account. Sign in with a user on the account, or set GOOGLE_ADS_LOGIN_CUSTOMER_ID to its manager account.";
+  if (code === "USER_PERMISSION_DENIED") return "This Google sign-in can't see that Google Ads account. Connect again with a Google login that is a user on that account or on its manager account.";
   if (res.status === 401) return "Google Ads signed you out. Reconnect Google Ads.";
   return (inner?.message ?? body?.error?.message ?? `Google Ads refused the request (${res.status}).`).slice(0, 300);
 }
@@ -114,24 +115,48 @@ async function searchAll(token: string, customerId: string, loginCustomerId: str
   return out;
 }
 
-/** The accounts this sign-in can see, with names, currencies and whether each is a manager. */
+/** One account's name and currency, read through `via` (null = directly). Null when this route can't see it. */
+async function describeAccount(token: string, id: string, via: string | null): Promise<Omit<GoogleAdsAccountChoice, "via"> | null> {
+  try {
+    const rows = await searchAll(token, id, via, "SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.manager FROM customer LIMIT 1");
+    const c = (rows[0] as { customer?: { descriptiveName?: string; currencyCode?: string; manager?: boolean } } | undefined)?.customer;
+    return { id, name: c?.descriptiveName || formatCustomerId(id), currency: c?.currencyCode ?? null, manager: Boolean(c?.manager) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every account this business's own Google sign-in can report on, and the
+ * route to each: directly, through a manager account the sign-in can see
+ * (agencies), or through the platform's own manager account when set. The
+ * developer token is the platform's and is shared by every business; only
+ * the route is per account, so one business's setup never blocks another's.
+ */
 async function listAccounts(token: string): Promise<GoogleAdsAccountChoice[]> {
   const s = settings();
   const res = await googleFetch(`https://googleads.googleapis.com/${s.version}/customers:listAccessibleCustomers`, { method: "GET", headers: apiHeaders(token, null) }, "accounts");
   if (!res.ok) throw new Error(await apiProblem(res));
   const body = (await res.json().catch(() => ({}))) as { resourceNames?: string[] };
   const ids = (body.resourceNames ?? []).map((r) => normaliseCustomerId(r.split("/").pop())).filter((x): x is string => Boolean(x)).slice(0, 20);
-  const out: GoogleAdsAccountChoice[] = [];
+  const out = new Map<string, GoogleAdsAccountChoice>();
   for (const id of ids) {
+    const direct = await describeAccount(token, id, null);
+    const viaPlatform = direct || !s.loginCustomerId || s.loginCustomerId === id ? null : await describeAccount(token, id, s.loginCustomerId);
+    const found = direct ?? viaPlatform;
+    out.set(id, found ? { ...found, via: direct ? null : s.loginCustomerId } : { id, name: formatCustomerId(id), currency: null, manager: false, via: null });
+    if (!found?.manager) continue;
     try {
-      const rows = await searchAll(token, id, s.loginCustomerId, "SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.manager FROM customer LIMIT 1");
-      const c = (rows[0] as { customer?: { descriptiveName?: string; currencyCode?: string; manager?: boolean } } | undefined)?.customer;
-      out.push({ id, name: c?.descriptiveName || formatCustomerId(id), currency: c?.currencyCode ?? null, manager: Boolean(c?.manager) });
-    } catch {
-      out.push({ id, name: formatCustomerId(id), currency: null, manager: false });
-    }
+      const clients = await searchAll(token, id, id, "SELECT customer_client.id, customer_client.descriptive_name, customer_client.currency_code, customer_client.manager FROM customer_client WHERE customer_client.level = 1");
+      for (const row of clients.slice(0, 50)) {
+        const c = (row as { customerClient?: { id?: string | number; descriptiveName?: string; currencyCode?: string; manager?: boolean } }).customerClient;
+        const clientId = normaliseCustomerId(c?.id === undefined ? undefined : String(c.id));
+        if (!clientId || out.has(clientId)) continue;
+        out.set(clientId, { id: clientId, name: c?.descriptiveName || formatCustomerId(clientId), currency: c?.currencyCode ?? null, manager: Boolean(c?.manager), via: id });
+      }
+    } catch { /* a manager whose clients can't be listed still leaves the direct accounts */ }
   }
-  return out;
+  return [...out.values()];
 }
 
 /** Finishes the Google sign-in, stores the token and picks the account to report on. */
@@ -159,7 +184,7 @@ export async function completeGoogleAdsConnect(code: string, state: string): Pro
   const { error } = await supabaseAdmin.from("google_ads_accounts").upsert({
     business_id: who.businessId,
     customer_id: chosen?.id ?? null, customer_name: chosen?.name ?? null, currency: chosen?.currency ?? null,
-    login_customer_id: s.loginCustomerId, available_accounts: accounts as never,
+    login_customer_id: chosen?.via ?? null, available_accounts: accounts as never,
     refresh_token_ciphertext: encryptMetaToken(token.data.refresh_token, refreshContext(who.businessId)),
     access_token_ciphertext: encryptMetaToken(token.data.access_token, accessContext(who.businessId)),
     access_token_expires_at: new Date(now.getTime() + (token.data.expires_in ?? 3600) * 1000).toISOString(),
@@ -238,10 +263,11 @@ export async function sweepGoogleAdSpend(now = new Date()): Promise<{ synced: nu
 
 export async function chooseGoogleAdsAccount(businessId: string, customerId: string) {
   const { data: account } = await supabaseAdmin.from("google_ads_accounts").select("available_accounts").eq("business_id", businessId).maybeSingle();
-  const choices = z.array(z.object({ id: z.string(), name: z.string(), currency: z.string().nullable(), manager: z.boolean() })).catch([]).parse(account?.available_accounts);
+  // Choices saved before routes were recorded have no `via`: those went through the platform manager, if any.
+  const choices = z.array(z.object({ id: z.string(), name: z.string(), currency: z.string().nullable(), manager: z.boolean(), via: z.string().nullable().optional() })).catch([]).parse(account?.available_accounts);
   const pick = choices.find((c) => c.id === customerId);
   if (!pick) throw new Error("That account isn't one this Google sign-in can see.");
-  const { error } = await supabaseAdmin.from("google_ads_accounts").update({ customer_id: pick.id, customer_name: pick.name, currency: pick.currency, last_sync_at: null, last_error: null, updated_at: new Date().toISOString() }).eq("business_id", businessId);
+  const { error } = await supabaseAdmin.from("google_ads_accounts").update({ customer_id: pick.id, customer_name: pick.name, currency: pick.currency, login_customer_id: pick.via === undefined ? settings().loginCustomerId : pick.via, last_sync_at: null, last_error: null, updated_at: new Date().toISOString() }).eq("business_id", businessId);
   if (error) throw new Error("Could not change the Google Ads account.");
   return pick;
 }

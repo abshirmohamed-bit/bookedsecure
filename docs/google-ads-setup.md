@@ -18,7 +18,7 @@ Ads; it never changes campaigns.
 4. **Secrets** (Lovable project secrets):
    - `GOOGLE_ADS_DEVELOPER_TOKEN` — the token from step 3.
    - `GOOGLE_ADS_LOGIN_CUSTOMER_ID` — optional: the manager account id (digits only),
-     needed when a business's ad account is reached through that manager.
+     used only for ad accounts a business's own login can't reach directly.
    - `GOOGLE_ADS_API_VERSION` — optional, defaults to `v23`. Google retires versions about a
      year after release; set the current one if Google reports the version is unsupported.
    - `Google_Console_Client_ID` / `Google_Console_Client_Secret` and
@@ -27,7 +27,11 @@ Ads; it never changes campaigns.
 ## Each business
 
 The owner opens Ad results → **Connect Google Ads**, signs in with a Google user that can
-see the ad account, and picks the account if there is more than one. Figures load at once
+see the ad account, and picks the account if there is more than one. Every business uses the
+one platform developer token; nothing per business is needed in secrets. BookedSecure saves
+the route to each account: directly, through a manager account the owner's login can see
+(agencies: its client accounts are listed too), or through `GOOGLE_ADS_LOGIN_CUSTOMER_ID`
+when that is the only way in. Figures load at once
 (90 days), then refresh hourly from the follow-ups hook (the last 3 days, which Google still
 adjusts). The refresh token is stored encrypted, bound to the business, in the server-only
 `google_ads_accounts` table.
