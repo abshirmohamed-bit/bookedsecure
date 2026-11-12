@@ -238,7 +238,7 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
 
   return (
     <Portal>
-      <div role="dialog" aria-modal="true" aria-label={`Edit ${name}`} className="fixed inset-0 z-[70] flex flex-col bg-background">
+      <div role="dialog" aria-modal="true" aria-label={`Edit ${name}`} className="fixed inset-0 z-[70] flex flex-col bg-[var(--canvas)] [background-image:var(--canvas-gradient)]">
         <header className="flex shrink-0 items-center gap-2 border-b border-border/60 px-3 py-2 sm:px-5">
           <Button variant="ghost" size="sm" className="min-h-10" onClick={onClose}><ArrowLeft className="size-4" aria-hidden="true" />Library</Button>
           <div className="min-w-0 flex-1">
