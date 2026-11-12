@@ -2,7 +2,7 @@ import { GripHorizontal, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import type { PlanBox, ShotPlan } from "@/lib/video-clips.server";
 import { cropAt, shotAt, TRANSITION_MS } from "@/lib/clip-motion";
-import { duoCards, glassCard, LOOK } from "@/lib/clip-looks";
+import { duoCards, glassCard, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
 import type { CaptionLine, ClipLayout, VideoAspect } from "@/lib/video-clips";
 
 const ASPECT: Record<VideoAspect, number> = { "9:16": 9 / 16, "1:1": 1, "4:5": 4 / 5, "16:9": 16 / 9 };
@@ -75,7 +75,7 @@ export function LivePreview({
   const box = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   /** The second person of a split shot: a muted copy kept in step with the first. */
-  const twin = useRef<HTMLVideoElement>(null);
+  const twins = useRef<(HTMLVideoElement | null)[]>([]);
   const [frame, setFrame] = useState({ w: 0, h: 0 });
   const [natural, setNatural] = useState({ w: 0, h: 0 });
   const [now, setNow] = useState(start);
@@ -107,7 +107,7 @@ export function LivePreview({
       const v = video.current;
       const t = seekTarget.current;
       if (v && t !== null && v.readyState >= 1) v.currentTime = Math.max(0, (t - offsetMs) / 1000);
-      if (twin.current && t !== null && twin.current.readyState >= 1) twin.current.currentTime = Math.max(0, (t - offsetMs) / 1000);
+      if (t !== null) for (const w of twins.current) if (w && w.readyState >= 1) w.currentTime = Math.max(0, (t - offsetMs) / 1000);
       if (t !== null) { setNow(t); if (timeRef) timeRef.current = t; }
     });
   };
@@ -138,8 +138,8 @@ export function LivePreview({
       if (v) {
         const t = offsetMs + v.currentTime * 1000;
         if (t >= end || t < start - 1000) v.currentTime = Math.max(0, (start - offsetMs) / 1000);
-        const w = twin.current;
-        if (w) {
+        for (const w of twins.current) {
+          if (!w) continue;
           if (Math.abs(w.currentTime - v.currentTime) > 0.2) w.currentTime = v.currentTime;
           if (w.paused) void w.play().catch(() => undefined);
         }
@@ -157,7 +157,7 @@ export function LivePreview({
     const v = video.current;
     if (!v) return;
     if (v.paused) { void v.play().then(() => setPlaying(true)).catch(() => setPlaying(false)); }
-    else { v.pause(); twin.current?.pause(); setPlaying(false); }
+    else { v.pause(); for (const w of twins.current) w?.pause(); setPlaying(false); }
   };
 
   const rel = now - clipStart;
@@ -165,7 +165,7 @@ export function LivePreview({
   const whole = WHOLE_PICTURE.includes(layout);
   const shot = whole ? null : shotAt(plan?.shots ?? [], rel);
   const moving = Boolean(shot?.motion?.length);
-  const contain = whole || (shot ? ["fit", "bars", "screen", "feed"].includes(shot.kind) : false);
+  const contain = whole || (shot ? ["fit", "bars", "feed"].includes(shot.kind) || (shot.kind === "screen" && !shot.main) : false);
   const split = !whole && shot?.kind === "split" && shot.cells.length >= 2 ? shot.cells.slice(0, 2) : null;
   const crop = useMemo(() => {
     if (!source.w || !source.h || contain || split) return null;
@@ -178,6 +178,24 @@ export function LivePreview({
   const cinema = !failed && (layout === "black-box" || layout === "title-subtitles" || (!whole && (shot?.kind === "bars" || shot?.kind === "headline")));
   const duo = split && frame.h >= frame.w && frame.w ? duoCards(frame.w, frame.h) : null;
   const half = duo ? { w: duo[0].w, h: duo[0].h } : { w: frame.w, h: frame.h / 2 };
+  // Every multi-picture composition as cards, the same shapes as the Engine and
+  // the browser render: duo (2), spotlight (3), 2 x 2 (4) and presenter.
+  type Card = { box: { x: number; y: number; w: number; h: number }; crop: PlanBox };
+  const cards: Card[] | null = (() => {
+    if (whole || failed || !shot || !frame.w || !source.w || frame.h < frame.w) return null;
+    if (duo && split) return duo.map((b, i) => ({ box: b, crop: split[i]! }));
+    if (shot.kind === "grid" && (shot.cells.length === 3 || shot.cells.length >= 4)) {
+      const spots = shot.cells.length === 3 ? spotlightCards(frame.w, frame.h) : quadCards(frame.w, frame.h);
+      return spots.map((b, i) => ({ box: b, crop: shot.cells[i]! }));
+    }
+    if (shot.kind === "screen" && shot.main) {
+      const top = Math.min(frame.h * 0.5, (frame.w * source.h) / source.w);
+      const [scr, spk] = presenterCards(frame.w, frame.h, top);
+      return [{ box: scr, crop: { x: 0, y: 0, w: source.w, h: source.h } }, { box: spk, crop: shot.main }];
+    }
+    return null;
+  })();
+  const bubble: Card | null = !whole && !failed && shot?.kind === "pip" && shot.inset && frame.w ? { box: pipBox(frame.w, frame.h), crop: shot.inset } : null;
   const glassBox = glass && frame.w && natural.w ? glassCard(frame.w, frame.h, natural.w, natural.h) : null;
   const cardStyle = (b: { x: number; y: number; w: number; h: number }) => ({
     left: b.x, top: b.y, width: b.w, height: b.h, borderRadius: frame.w * LOOK.radius,
@@ -193,7 +211,8 @@ export function LivePreview({
     if (!el || !playing || shotIndex !== prev + 1 || !shot?.transition || typeof el.animate !== "function") return;
     el.animate(TRANSITION_FRAMES[shot.transition] ?? TRANSITION_FRAMES["fade"]!, { duration: TRANSITION_MS, easing: "cubic-bezier(.65,0,.35,1)" });
   }, [shotIndex]);
-  const style = split && frame.w && source.w ? coverStyle(split[0]!, source, half) : crop && frame.w ? coverStyle(crop, source, frame) : null;
+  const style = cards ? coverStyle(cards[0]!.crop, source, cards[0]!.box)
+    : split && frame.w && source.w ? coverStyle(split[0]!, source, half) : crop && frame.w ? coverStyle(crop, source, frame) : null;
 
   const line = lines.find((l) => rel >= l.start_ms && rel <= l.end_ms + 150);
   const edited = line ? lineTexts[line.start_ms] : undefined;
@@ -239,7 +258,7 @@ export function LivePreview({
   return (
     <div ref={box} className="absolute inset-0 overflow-hidden bg-black">
       {/* the picture-only layouts, drawn here without waiting for the Engine */}
-      {(glass || cinema || duo) && poster ? (
+      {(glass || cinema || duo || cards) && poster ? (
         <img src={poster} alt="" aria-hidden="true" className="absolute inset-0 size-full scale-110 object-cover blur-xl"
           style={{ filter: `blur(24px) saturate(${LOOK.ambientSaturation}) brightness(${cinema ? LOOK.cinemaBrightness : LOOK.ambientBrightness})` }} />
       ) : null}
@@ -247,14 +266,17 @@ export function LivePreview({
       <div key={layout} ref={picture} className="absolute inset-0 animate-in fade-in duration-200">
         {failed ? (poster ? <img src={poster} alt="" className="size-full object-cover" /> : null)
           : glassBox ? <div className="absolute overflow-hidden" style={cardStyle(glassBox)}>{videoEl}</div>
-            : split ? <div className={duo ? "absolute overflow-hidden" : "absolute inset-x-0 top-0 h-1/2 overflow-hidden"} style={duo ? cardStyle(duo[0]) : undefined}>{videoEl}</div> : videoEl}
-        {split && !failed && frame.w && source.w ? (
-          <div className={duo ? "absolute overflow-hidden" : "absolute inset-x-0 bottom-0 h-1/2 overflow-hidden border-t-2 border-white/70"} style={duo ? cardStyle(duo[1]) : undefined}>
-            <video ref={twin} src={src} muted playsInline preload="auto" aria-hidden="true" className="absolute max-w-none"
-              style={coverStyle(split[1]!, source, half)}
+            : cards ? <div className="absolute overflow-hidden" style={cardStyle(cards[0]!.box)}>{videoEl}</div>
+              : split ? <div className="absolute inset-x-0 top-0 h-1/2 overflow-hidden">{videoEl}</div> : videoEl}
+        {/* the other pictures of the composition: muted copies kept in step with the main video */}
+        {[...(cards ? cards.slice(1) : split && !failed && frame.w && source.w ? [{ box: { x: 0, y: frame.h / 2, w: frame.w, h: frame.h / 2 }, crop: split[1]! }] : []), ...(bubble ? [bubble] : [])].map((c, i) => (
+          <div key={`twin-${i}`} className={cards || bubble ? "absolute overflow-hidden" : "absolute overflow-hidden border-t-2 border-white/70"}
+            style={cards || bubble ? cardStyle(c.box) : { left: c.box.x, top: c.box.y, width: c.box.w, height: c.box.h }}>
+            <video ref={(el) => { twins.current[i] = el; }} src={src} muted playsInline preload="auto" aria-hidden="true" className="absolute max-w-none"
+              style={source.w ? coverStyle(c.crop, source, c.box) : undefined}
               onLoadedMetadata={(e) => { e.currentTarget.currentTime = video.current?.currentTime ?? Math.max(0, (start - offsetMs) / 1000); }} />
           </div>
-        ) : null}
+        ))}
       </div>
 
       {headline.on && headline.text.trim() ? (
