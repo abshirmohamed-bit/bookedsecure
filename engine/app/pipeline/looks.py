@@ -24,7 +24,7 @@ SHADOW_DROP = 0.012
 #: Ambient background: blur strength, colour and darkening.
 AMBIENT_BLUR = 40
 AMBIENT_SATURATION = 1.35
-AMBIENT_BRIGHTNESS = -0.08
+AMBIENT_BRIGHTNESS = -0.02
 #: The card in a blurred-background shot fills this share of the width.
 GLASS_WIDTH = 0.92
 #: Duo cards: margin around and gap between the two cards (share of width).

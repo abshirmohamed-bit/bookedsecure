@@ -89,13 +89,28 @@ def shots(cuts: list[int], start_ms: int, end_ms: int) -> list[tuple[int, int]]:
     return [(a, b) for a, b in zip(edges, edges[1:]) if b > a]
 
 
+#: Detections this close to a shot's edge can belong to the shot on the other
+#: side of the cut (the cut is pinned to the exact frame, detections are a few
+#: frames apart). Someone seen only there is not in this shot.
+EDGE_GUARD_MS = 250
+
+
 def people_in(tracks, start_ms: int, end_ms: int) -> list[Person]:
     """Who is on screen in one shot, flimsy detections left out."""
     found = []
+    edge_only: set = set()
+    long_shot = end_ms - start_ms >= 4 * EDGE_GUARD_MS
     for t in tracks:
         boxes = [b for b in t.boxes if start_ms <= b[0] < end_ms]
-        if boxes:
-            found.append((t.id, boxes))
+        if not boxes:
+            continue
+        if long_shot and all(b[0] < start_ms + EDGE_GUARD_MS or b[0] >= end_ms - EDGE_GUARD_MS for b in boxes):
+            edge_only.add(t.id)
+        found.append((t.id, boxes))
+    # Drop the edge-only ones, but only when someone is properly in the shot
+    # (clip-level fallback tracks are only known at the clip's two ends).
+    if edge_only and any(tid not in edge_only for tid, _ in found):
+        found = [(tid, b) for tid, b in found if tid not in edge_only]
     if not found:
         return []
     most = max(len(b) for _, b in found)

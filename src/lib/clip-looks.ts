@@ -13,7 +13,7 @@ export const LOOK = {
   shadowDrop: 0.012,
   ambientBlur: 40 / 1080,
   ambientSaturation: 1.35,
-  ambientBrightness: 0.92,
+  ambientBrightness: 0.98,
   cinemaBrightness: 0.68,
   glassWidth: 0.92,
   duoMargin: 0.035,

@@ -177,7 +177,10 @@ def run_one(src: Path, a: float, b: float, layout: str, out_dir: Path, faces) ->
     row["av_gap_s"] = round(abs(v - au), 3)
     row["extra_black_s"] = round(max(0.0, detect_seconds(out, "blackdetect=d=0.2:pix_th=0.08")
                                      - detect_seconds(src, "blackdetect=d=0.2:pix_th=0.08", a, length)), 2)
-    row["extra_freeze_s"] = round(max(0.0, detect_seconds(out, "freezedetect=n=0.002:d=0.6")
+    # In whole-picture layouts the moving picture is a card over a soft blur, so the
+    # frame as a whole changes less; judge freezes on the picture, not the frame.
+    n = 0.0006 if layout in {"streamer", "black-box", "title-subtitles"} else 0.002
+    row["extra_freeze_s"] = round(max(0.0, detect_seconds(out, f"freezedetect=n={n}:d=0.6")
                                       - detect_seconds(src, "freezedetect=n=0.002:d=0.6", a, length)), 2)
     half, kept = face_scores(src, a, out, length, faces)
     row["half_face_share"] = round(half, 3)

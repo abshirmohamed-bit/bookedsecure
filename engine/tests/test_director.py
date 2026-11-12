@@ -193,3 +193,15 @@ def test_a_cut_is_pinned_to_its_exact_frame(tmp_path):
 
 def test_refining_falls_back_without_the_copy(tmp_path):
     assert refine_cuts([1600], tmp_path / "missing.gray", 30.0, 0, step_ms=100) == [1600]
+
+
+def test_a_face_seen_only_at_a_cut_belongs_to_the_other_shot():
+    """A detection a frame from the cut is the next shot's face; it mustn't steer this one."""
+    from app.pipeline.director import people_in, plan_camera
+    from app.pipeline.speaker import FaceTrack
+
+    judge = FaceTrack(id=16, boxes=[(199000, (0.693, 0.30, 0.144, 0.24)), (199500, (0.694, 0.30, 0.145, 0.24))])
+    next_shot = FaceTrack(id=17, boxes=[(200000, (0.522, 0.46, 0.311, 0.54))])
+    assert [p.id for p in people_in([judge, next_shot], 198640, 200040)] == [16]
+    (ms, centre), = plan_camera([judge, next_shot], [], [], 198640, 200040, 270 / 640)
+    assert abs(centre - 0.69) < 0.03
