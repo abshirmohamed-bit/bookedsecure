@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import { z } from "zod";
 import { videoFrameTiming } from "@/lib/clip-render";
 import { socialReviewSearch } from "@/lib/meta-social";
