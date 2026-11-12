@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AiProviderCard } from "@/components/admin/AiProviderCard";
-import { getOwnerConsole, setBusinessComplimentaryAccess } from "@/lib/owner-console.functions";
+import { getOwnerConsole, getProxyUpgradeStatus, setBusinessComplimentaryAccess } from "@/lib/owner-console.functions";
 import type { TenantRow } from "@/lib/owner-console.server";
 
 export const Route = createFileRoute("/admin/overview")({
@@ -44,6 +44,31 @@ function OwnerConsolePage() {
   );
 }
 
+/** Whether the video Engine's YouTube proxy is due an ISP plan (docs/engine-proxy-upgrade.md). */
+function ProxyUpgradeLine() {
+  const fetchStatus = useServerFn(getProxyUpgradeStatus);
+  const { data } = useQuery({ queryKey: ["proxy-upgrade-status"], queryFn: () => fetchStatus(), retry: false, staleTime: 5 * 60_000 });
+  if (!data) return null;
+  const due = data.reasons.length > 0;
+  const when = data.at ? new Date(data.at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" }) : null;
+  const h = data.health;
+  return (
+    <section className="panel space-y-1 p-4">
+      <h2 className="text-sm font-semibold">Video Engine YouTube proxy</h2>
+      <p className={`text-sm ${due ? "font-medium text-destructive" : ""}`}>
+        {due ? "Time to upgrade to an ISP proxy plan." : data.source === "none" ? "No reading yet: the Engine hasn't been awake since this check started." : "No upgrade needed."}
+      </p>
+      {due ? <ul className="list-disc pl-5 text-xs text-muted-foreground">{data.reasons.map((r) => <li key={r}>{r}</li>)}</ul> : null}
+      {h ? (
+        <p className="text-xs text-muted-foreground">
+          Last {h.days} days: {h.bot_check_failures} bot-check failures · {h.proxy_speed_mb_s !== null ? `${h.proxy_speed_mb_s.toFixed(2)} MB/s average` : "no timed downloads"} · {h.long_links_clipped} long links · {h.proxy_mode} proxy
+        </p>
+      ) : null}
+      <p className="text-xs text-muted-foreground">{data.source === "live" ? "Live from the Engine." : when ? `From the reminder sent ${when}; the Engine is asleep.` : ""} How to switch: docs/engine-proxy-upgrade.md.</p>
+    </section>
+  );
+}
+
 function ConsoleView() {
   const fetchConsole = useServerFn(getOwnerConsole);
   const { data, isLoading, error } = useQuery({
@@ -77,6 +102,8 @@ function ConsoleView() {
         <Tile label="Cancelled" value={String(summary.subscriptions.canceled)} />
         <Tile label="Credit packs sold" value={money(summary.creditPackRevenueCents)} />
       </section>
+
+      <ProxyUpgradeLine />
 
       <section className="panel space-y-1 p-4">
         <h2 className="text-sm font-semibold">Money with the provider</h2>

@@ -70,6 +70,18 @@ def account() -> dict:
     )
 
 
+@router.get("/v1/proxy/health")
+def proxy_health_summary(days: int = 7) -> dict:
+    """The last week of YouTube downloads through the proxy: refusals, speed, long links.
+
+    Read-only, behind the API key like every route but /v1/health. BookedSecure
+    only asks while the Engine is already awake, so this never wakes it.
+    """
+    from ..pipeline import proxy_health
+
+    return ok(**proxy_health.summary(days=max(1, min(days, 30))))
+
+
 @router.get("/v1/subtitle-styles")
 def subtitle_styles() -> dict:
     return ok(styles=caption_catalog())

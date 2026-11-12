@@ -40,6 +40,19 @@ class Asset(SQLModel, table=True):
     offset_ms: int = 0            # where a section starts in its source
 
 
+class ProxyDownload(SQLModel, table=True):
+    """One yt-dlp try, for judging how the YouTube proxy is doing (pipeline/proxy_health)."""
+    __tablename__ = "proxy_downloads"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    kind: str = ""                # audio | section | whole
+    via_proxy: bool = False
+    mode: str = "direct"          # direct | sticky | rotating | other
+    outcome: str = ""             # ok | blocked | stalled | failed
+    bytes: int = 0
+    seconds: float = 0.0
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+
+
 class ImportTask(SQLModel, table=True):
     __tablename__ = "import_tasks"
     asset_id: str = Field(primary_key=True)

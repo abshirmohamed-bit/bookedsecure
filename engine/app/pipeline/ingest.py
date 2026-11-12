@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import time
 from pathlib import Path
 
 from sqlmodel import Session
@@ -12,6 +13,7 @@ from .. import media, storage, webhooks
 from ..config import settings
 from ..errors import EngineError
 from ..models import Asset, utcnow
+from . import proxy_health
 
 log = logging.getLogger("engine.ingest")
 
@@ -240,7 +242,7 @@ def _run_with_progress(cmd: list[str], timeout: int, on_progress) -> "subprocess
 
 
 def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_routes: int | None = None,
-              on_progress=None) -> None:
+              on_progress=None, kind: str = "whole") -> None:
     """yt-dlp with every route tried in turn, the one that last worked first.
 
     A run that goes past `timeout` is stopped and counts as failed; it is
@@ -265,12 +267,19 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
     for client, via_proxy in routes:
         cmd = [exe, "--no-playlist", "--quiet", "--no-warnings", *(["--newline", "--progress"] if on_progress else []),
                *ytdlp_opts.cli_args(client, via_proxy), *args, "-o", str(dest), "--", url]
+        started = time.time()
+        mode = proxy_health.mode_of(ytdlp_opts.proxy())
         try:
             proc = (_run_with_progress(cmd, timeout, on_progress) if on_progress
                     else subprocess.run(cmd, capture_output=True, text=True, timeout=timeout))
         except subprocess.TimeoutExpired:
+            proxy_health.record(kind=kind, via_proxy=via_proxy, mode=mode, outcome="stalled",
+                                bytes_=_size(dest), seconds=time.time() - started)
             log.warning("yt-dlp took over %ss for %s as %s%s; stopping it", timeout, url, client, " via proxy" if via_proxy else "")
             raise EngineError("VALIDATION_ERROR", f"Downloading from that link stalled for over {timeout // 60} minutes.") from None
+        proxy_health.record(kind=kind, via_proxy=via_proxy, mode=mode,
+                            outcome=proxy_health.outcome_of(0 if proc.returncode == 0 and dest.exists() else (proc.returncode or 1), proc.stderr or ""),
+                            bytes_=_size(dest) if proc.returncode == 0 else 0, seconds=time.time() - started)
         if proc.returncode == 0 and dest.exists():
             _ROUTES[url] = (client, via_proxy)
             if via_proxy:
@@ -287,6 +296,13 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
         if not (ytdlp_opts.looks_blocked(last) or _route_lacks_format(last)):
             break
     raise EngineError("VALIDATION_ERROR", _download_error(last))
+
+
+def _size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
 
 
 def _route_lacks_format(stderr: str) -> bool:
@@ -316,7 +332,7 @@ def fetch_section(url: str, dest: Path, start_ms: int, end_ms: int) -> None:
                           "--download-sections", f"*{start_ms / 1000:.3f}-{end_ms / 1000:.3f}"],
               # A section is seconds of video: one that takes minutes has
               # stalled, and the whole-download fallback is quicker than waiting.
-              timeout=SECTION_TIMEOUT_S, max_routes=SECTION_ROUTES)
+              timeout=SECTION_TIMEOUT_S, max_routes=SECTION_ROUTES, kind="section")
 
 
 def _lean_import(session: Session, asset: Asset, url: str) -> Asset | None:
@@ -331,7 +347,7 @@ def _lean_import(session: Session, asset: Asset, url: str) -> Asset | None:
         return None
     audio = storage.open_write(f"sources/{asset.id}/audio.m4a")
     if not audio.exists() or lean.audio_duration(audio) <= 0:
-        run_ytdlp(url, audio, ["-f", lean.AUDIO_FORMAT, "--write-thumbnail", "--convert-thumbnails", "jpg"])
+        run_ytdlp(url, audio, ["-f", lean.AUDIO_FORMAT, "--write-thumbnail", "--convert-thumbnails", "jpg"], kind="audio")
     duration = lean.audio_duration(audio)
     if not lean.is_long(duration):
         audio.unlink(missing_ok=True)

@@ -73,7 +73,12 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const autoCompleted = await processDueAutoCompletions().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Auto-complete failed",
         }));
-        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, abandonedSwept: swept.swept });
+        // Platform admins hear, at most weekly, when the Engine's YouTube proxy needs an ISP plan (never wakes the Engine).
+        const { checkProxyUpgrade } = await import("@/lib/engine-proxy.server");
+        const proxyUpgrade = await checkProxyUpgrade().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Proxy check failed",
+        }));
+        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, proxyUpgrade, abandonedSwept: swept.swept });
 
 
       },

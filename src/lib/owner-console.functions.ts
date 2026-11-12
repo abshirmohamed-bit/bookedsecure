@@ -22,6 +22,16 @@ export const getOwnerConsole = createServerFn({ method: "GET" })
     return await readOwnerConsole(data?.month ?? monthKey());
   });
 
+/** Platform admin only: whether the video Engine's YouTube proxy is due an ISP plan. */
+export const getProxyUpgradeStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requirePlatformAdmin } = await import("@/lib/pilot.server");
+    await requirePlatformAdmin(context.supabase, context.userId);
+    const { proxyUpgradeStatus } = await import("@/lib/engine-proxy.server");
+    return proxyUpgradeStatus();
+  });
+
 /** Platform admin only: give a business full access at no charge, or take it away. */
 export const setBusinessComplimentaryAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
