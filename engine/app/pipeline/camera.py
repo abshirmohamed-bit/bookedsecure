@@ -189,8 +189,29 @@ def zoom_at(rel_ms: float, shot_rel: tuple[int, int], index: int, punches: list[
     return min(MAX_EXTRA_ZOOM, z)
 
 
+#: Loudness already read, by (source, size, mtime, range): the editor asks for a
+#: clip's plan in every layout, and each would otherwise decode the audio again.
+_LOUD: dict = {}
+
+
 def loudness(source: Path, in_ms: int, out_ms: int, step_ms: int = 100) -> list[float]:
     """RMS loudness per `step_ms` of [in_ms, out_ms), from 8 kHz mono audio. Empty if unreadable."""
+    try:
+        st = Path(source).stat()
+        key = (str(source), st.st_size, int(st.st_mtime), in_ms, out_ms, step_ms)
+    except OSError:
+        key = None
+    if key in _LOUD:
+        return _LOUD[key]
+    env = _read_loudness(source, in_ms, out_ms, step_ms)
+    if key is not None:
+        if len(_LOUD) > 64:
+            _LOUD.pop(next(iter(_LOUD)))
+        _LOUD[key] = env
+    return env
+
+
+def _read_loudness(source: Path, in_ms: int, out_ms: int, step_ms: int) -> list[float]:
     try:
         import numpy as np
 
