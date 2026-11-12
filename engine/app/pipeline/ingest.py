@@ -235,6 +235,11 @@ def _ytdlp(url: str, dest: Path) -> None:
     run_ytdlp(url, dest, ["-f", link_format(), "--merge-output-format", "mp4"])
 
 
+def download_whole(url: str, dest: Path) -> None:
+    """The whole linked video, for when sections can't be fetched on their own."""
+    _ytdlp(url, dest)
+
+
 def fetch_section(url: str, dest: Path, start_ms: int, end_ms: int) -> None:
     """Only [start_ms, end_ms) of a link's video, at the same quality as a full import."""
     run_ytdlp(url, dest, ["-f", link_format(), "--merge-output-format", "mp4",

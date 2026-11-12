@@ -427,12 +427,34 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
     def fetch(item: tuple) -> tuple:
         sec, row = item
         dest = storage.open_write(row.storage_key)
-        ingest.fetch_section(asset.source_url, dest, sec.start_ms, sec.end_ms)
-        return sec, row, dest, lean.measure_offset(full_audio, dest, sec.start_ms)
+        try:
+            ingest.fetch_section(asset.source_url, dest, sec.start_ms, sec.end_ms)
+            if not lean.has_video(dest):
+                raise RuntimeError("the section came without a picture")
+            return sec, row, dest, None
+        except Exception as e:  # noqa: BLE001 - every failure is retried from one whole download below
+            dest.unlink(missing_ok=True)
+            return sec, row, dest, e
 
     workers = max(1, min(settings().section_downloads, len(rows)))
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        fetched = list(pool.map(fetch, rows))
+        results = list(pool.map(fetch, rows))
+
+    # A section download can fail where a whole one works: ffmpeg opens a new
+    # connection per piece, and through a rotating proxy each lands on another
+    # address, which YouTube refuses for a link it gave a different one. One
+    # whole download keeps one connection, so the missing sections are cut
+    # from that instead of failing the job.
+    failed = [r for r in results if r[3] is not None]
+    if failed:
+        log.warning("%d of %d sections of %s failed (%s); cutting them from one whole download",
+                    len(failed), len(results), asset.source_url, failed[0][3])
+        whole = storage.open_write(f"sources/{asset.id}/download.mp4")
+        if not lean.has_video(whole):
+            ingest.download_whole(asset.source_url, whole)
+        for sec, _row, dest, _err in failed:
+            lean.cut_copy(whole, dest, sec.start_ms, sec.end_ms)
+    fetched = [(sec, row, dest, lean.measure_offset(full_audio, dest, sec.start_ms)) for sec, row, dest, _err in results]
 
     transcript = s.exec(select(Transcript).where(Transcript.asset_id == asset.id)).first()
     words = list(transcript.words) if transcript else []

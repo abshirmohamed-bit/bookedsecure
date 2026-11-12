@@ -63,6 +63,23 @@ def audio_duration(path: Path) -> float:
         return 0.0
 
 
+def has_video(path: Path) -> bool:
+    """Whether a downloaded file really has a picture (a refused video stream leaves only sound)."""
+    if not path.exists() or path.stat().st_size < 1000:
+        return False
+    out = media.run([media._bin("ffprobe"), "-v", "quiet", "-select_streams", "v:0", "-show_entries", "stream=codec_type",
+                     "-of", "default=nw=1:nk=1", str(path)], timeout=60).stdout
+    return "video" in out
+
+
+def cut_copy(src: Path, dest: Path, start_ms: int, end_ms: int) -> Path:
+    """[start_ms, end_ms) of a local video without re-encoding, like a section download."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    media.ffmpeg(["-ss", f"{start_ms / 1000:.3f}", "-i", str(src), "-t", f"{max(1, end_ms - start_ms) / 1000:.3f}",
+                  "-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", "-avoid_negative_ts", "make_zero", str(dest)], timeout=600)
+    return dest
+
+
 def _pcm(src: Path, start_s: float, length_s: float) -> "np.ndarray":
     """Mono 8 kHz samples from `start_s`, aligned to the file's own timeline."""
     import numpy as np

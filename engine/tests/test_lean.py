@@ -142,6 +142,58 @@ def test_a_long_link_is_clipped_from_sections_with_exact_captions(api, long_talk
     assert too_far.status_code == 422 or too_far.json().get("error")
 
 
+def test_sections_that_fail_are_cut_from_one_whole_download(api, long_talk, tmp_path, monkeypatch):
+    from app import storage, worker
+    from app.config import settings
+    from app.db import session
+    from app.ids import new_id
+    from app.models import Asset, Project
+    from app.pipeline import ingest
+
+    audio_key = "sources/lean-fallback/audio.m4a"
+    _audio_of(long_talk, storage.open_write(audio_key))
+    with session() as s:
+        asset = Asset(id=new_id("ast"), name="Long talk 2", type="video", status="ready", lean=True,
+                      storage_key=audio_key, mezzanine_key=audio_key, length_s=90.0,
+                      source_url="https://www.youtube.com/watch?v=lean-fallback", rights_confirmed=True)
+        s.add(asset)
+        s.commit()
+        asset_id = asset.id
+    whole_downloads = []
+
+    def refused(url, dest, start_ms, end_ms):
+        raise RuntimeError("ERROR: ffmpeg exited with code 8")
+
+    def whole(url, dest):
+        whole_downloads.append(url)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(long_talk.read_bytes())
+
+    monkeypatch.setattr(ingest, "fetch_section", refused)
+    monkeypatch.setattr(ingest, "download_whole", whole)
+    monkeypatch.setattr(settings(), "section_pad_ms", 3000)
+    job_id = api.post("/v1/autoclip", json={
+        "asset_id": asset_id, "clip_count": 2, "clip_length": 8, "aspect": "9:16", "formats": ["full-video"],
+    }).json()["id"]
+    for _ in range(40):
+        worker.tick()
+        job = api.get(f"/v1/autoclip/{job_id}").json()
+        if job["status"] in {"completed", "failed"}:
+            break
+    assert job["status"] == "completed", job.get("error")
+    assert whole_downloads == ["https://www.youtube.com/watch?v=lean-fallback"]   # once, for every section
+    with session() as s:
+        for clip in job["clips"]:
+            section = s.get(Asset, s.get(Project, clip["project_id"]).asset_id)
+            assert section.parent_id == asset_id and lean.has_video(storage.local_path(section.storage_key))
+
+
+def test_an_audio_only_download_does_not_count_as_a_section(long_talk, tmp_path):
+    sound = _audio_of(long_talk, tmp_path / "sound.m4a")
+    assert not lean.has_video(sound)
+    assert lean.has_video(long_talk)
+
+
 def test_an_existing_database_gains_the_new_columns(tmp_path):
     import sqlite3
 
