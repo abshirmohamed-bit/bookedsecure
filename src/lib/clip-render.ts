@@ -649,7 +649,7 @@ async function renderClipFast(input: RenderInput, onProgress: (p: number) => voi
           ctx.fillStyle = `rgba(255,255,255,${LOOK.progress.alpha})`;
           ctx.fillRect(0, H - bh - H * LOOK.progress.lift, (W * (abs - input.startMs)) / Math.max(1, durationMs), bh);
         }
-        const out = new VideoFrame(canvas, { timestamp: Math.round(t - startUs) });
+        const out = new VideoFrame(canvas, videoFrameTiming(t - startUs, fps));
         encoder.encode(out, { keyFrame: frames % (fps * 2) === 0 });
         out.close();
         frames++;
