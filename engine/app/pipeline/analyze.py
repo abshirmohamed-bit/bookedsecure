@@ -70,6 +70,8 @@ class UrlInfo:
     #: [{start_ms, end_ms, text}] from the video's own captions, when asked for.
     transcript: list[dict] = field(default_factory=list)
     transcript_language: str = ""
+    #: YouTube's "Most replayed" curve, [[start_ms, end_ms, 0..1]], when the site shows one.
+    heatmap: list = field(default_factory=list)
 
     def payload(self) -> dict[str, Any]:
         d = asdict(self)
@@ -126,7 +128,16 @@ def _common(url: str, info: UrlInfo) -> UrlInfo:
     return info
 
 
-def _ytdlp(url: str, want_transcript: bool = False) -> UrlInfo:
+def read_heatmap(url: str) -> tuple[list, int]:
+    """Just the "Most replayed" curve and the length (ms) of a link: a metadata read."""
+    if settings().analyze_provider == "fake":
+        return [], 0
+    raw, _ = _raw_info(url)
+    return list(raw.get("heatmap") or []), int(float(raw.get("duration") or 0) * 1000)
+
+
+def _raw_info(url: str) -> tuple[dict, bool]:
+    """yt-dlp's info for a link (no download), trying each client and the proxy on refusals."""
     try:
         import yt_dlp
     except ImportError as e:  # pragma: no cover - production dependency
@@ -164,6 +175,11 @@ def _ytdlp(url: str, want_transcript: bool = False) -> UrlInfo:
         if not entries:
             raise EngineError("VALIDATION_ERROR", "That playlist is empty.")
         raw = entries[0]
+    return raw, used_proxy
+
+
+def _ytdlp(url: str, want_transcript: bool = False) -> UrlInfo:
+    raw, used_proxy = _raw_info(url)
 
     heights = sorted({int(f["height"]) for f in (raw.get("formats") or [])
                       if f.get("height") and f.get("vcodec") not in (None, "none")})
@@ -204,6 +220,9 @@ def _ytdlp(url: str, want_transcript: bool = False) -> UrlInfo:
     info.description = str(raw.get("description") or "")[:5000]
     info.transcript = lines
     info.transcript_language = caption_lang if lines else ""
+    info.heatmap = [[int(float(h.get("start_time", 0)) * 1000), int(float(h.get("end_time", 0)) * 1000),
+                     round(float(h.get("value", 0)), 4)]
+                    for h in (raw.get("heatmap") or []) if isinstance(h, dict)]
     return info
 
 

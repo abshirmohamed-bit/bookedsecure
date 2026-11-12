@@ -283,8 +283,11 @@ def _find(s: Session, job: Job, asset: Asset, params: dict) -> list[finder.Momen
     if mode in {"energy", "visual"} or (mode == "auto" and not sentences):
         envelope = media.loudness_envelope(storage.local_path(asset.mezzanine_key or asset.storage_key))
 
+    from . import replay
+
+    curve = replay.for_asset(asset) if params.get("use_replay", True) else None
     moments = finder.find(
-        sentences if mode != "visual" else [], count=count, target_ms=target,
+        sentences if mode != "visual" else [], count=count, target_ms=target, replay_curve=curve,
         mode="energy" if mode == "visual" else mode,
         coverage=coverage, genre=params.get("genre", "auto"), prompt=params.get("prompt", ""),
         must_include=params.get("must_include") or [], keep_qa=params.get("keep_qa", True),

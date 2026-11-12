@@ -320,7 +320,7 @@ HOOK_RULES = (
 
 def _claude_prompt(sentences: list[dict], count: int, target_ms: int, *, genre: str,
                    prompt: str, must_include: list[str], coverage: str, keep_qa: bool,
-                   title_brief: str = "") -> str:
+                   title_brief: str = "", viewer_hint: str = "") -> str:
     lines = "\n".join(f"[{mmss(s['start_ms'])}] {s['text']}" for s in sentences)
     want = (
         f"Partition the whole transcript into consecutive self-contained segments of about "
@@ -337,6 +337,8 @@ def _claude_prompt(sentences: list[dict], count: int, target_ms: int, *, genre: 
         extras.append(f"Genre: {genre}. Judge what counts as strong the way that genre's audience would.")
     if keep_qa:
         extras.append("Keep a question and its answer in the same clip.")
+    if viewer_hint:
+        extras.append(viewer_hint)
     if prompt:
         extras.append(f"What the creator is looking for: {prompt}")
     if must_include:
@@ -370,7 +372,7 @@ def _focus(value) -> str:
 
 def ai_find(sentences: list[dict], count: int, target_ms: int, *, genre: str = "auto",
             prompt: str = "", must_include: list[str] | None = None, coverage: str = "best",
-            keep_qa: bool = True, title_brief: str = "", http=None) -> list[Moment]:
+            keep_qa: bool = True, title_brief: str = "", http=None, replay_curve=None) -> list[Moment]:
     """One call per 20-minute window, against whichever provider has a key.
 
     Two request shapes cover essentially everything: the chat-completions API
@@ -389,9 +391,12 @@ def ai_find(sentences: list[dict], count: int, target_ms: int, *, genre: str = "
     found: list[Moment] = []
     try:
         for window in windows:
+            from . import replay
+
+            hint = replay.prompt_hint(replay_curve, window[0]["start_ms"], window[-1]["end_ms"]) if window else ""
             user = _claude_prompt(window, count, target_ms, genre=genre, prompt=prompt,
                                   must_include=must_include or [], coverage=coverage,
-                                  keep_qa=keep_qa, title_brief=title_brief)
+                                  keep_qa=keep_qa, title_brief=title_brief, viewer_hint=hint)
             if kind == "anthropic":
                 r = client.post(
                     f"{base}/v1/messages",
@@ -526,11 +531,13 @@ def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto
          coverage: str = "best", genre: str = "auto", prompt: str = "",
          must_include: list[str] | None = None, keep_qa: bool = True,
          title_brief: str = "", envelope: list[float] | None = None,
-         report: dict | None = None) -> list[Moment]:
+         report: dict | None = None, replay_curve=None) -> list[Moment]:
     """Pick moments with whichever provider is configured, then snap them.
 
     `report` gets a `note` when the AI could not be used, so nobody takes
-    rule-based picks for the real thing.
+    rule-based picks for the real thing. `replay_curve` (replay.Curve), when
+    the video has YouTube "Most replayed" data, steers the picks towards
+    what viewers actually rewatch (see replay.py).
     """
     cfg = settings()
     provider = cfg.resolve_finder()
@@ -542,7 +549,7 @@ def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto
             try:
                 raw = ai_find(sentences, count, target_ms, genre=genre, prompt=prompt,
                               must_include=must_include, coverage=coverage, keep_qa=keep_qa,
-                              title_brief=title_brief)
+                              title_brief=title_brief, replay_curve=replay_curve)
             except Exception as e:
                 log.warning("AI moment finding failed (attempt %d): %s", attempt + 1, e)
             if raw:
@@ -564,10 +571,24 @@ def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto
         if len(spare) > len(snapped):
             snapped = spare
         snapped = _fill_to_count(snapped, sentences, target_ms, count)
+    if replay_curve is not None and sentences:
+        from . import replay
+
+        snapped = replay.cover_peaks(snapped, replay_curve, sentences, target_ms, count,
+                                     lambda a, b, text: Moment(a, b, _title_from(text), 70.0, ""))
+        snapped = replay.rerank(snapped, replay_curve)
+        if len(snapped) > count:
+            keep = sorted(snapped, key=lambda m: -m.score)[:count]
+            snapped = sorted(keep, key=lambda m: m.start_ms)
     return snapped[:count]
 
 
 def suggest_count(duration_ms: int, coverage: str, target_ms: int) -> int:
     if coverage == "whole":
         return max(1, min(60, round(duration_ms / max(1, target_ms))))
+    if duration_ms < 10 * 60_000:
+        # A short video's best is a few moments, not most of it: four one-minute
+        # clips of a five-minute video is no selection at all (the Mr. HiSum
+        # benchmark found such picks no more rewatched than the video on average).
+        return max(2, min(4, -(-duration_ms // 120_000)))
     return max(2, min(20, round(duration_ms / 180_000) + 2))
