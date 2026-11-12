@@ -105,20 +105,72 @@ export type Candidate = {
   weak?: boolean;
 };
 
-/** Directories, marketplaces, social networks and government sites: never the business's own website. */
-const NOT_A_BUSINESS_SITE = /(^|\.)(yellowpages|yelp|truelocal|hotfrog|oneflare|airtasker|hipages|serviceseeking|localsearch|startlocal|word-of-mouth|wordofmouth|productreview|tripadvisor|cylex-australia|cylex|trustpilot|facebook|instagram|linkedin|twitter|x|tiktok|youtube|pinterest|reddit|google|bing|apple|wikipedia|seek|indeed|glassdoor|gumtree|realestate|domain|fresha|timely|zomato|ubereats|doordash|menulog|booking|expedia|mapquest|waze|openstreetmap|whitepages|aussieweb|dlook|brownbook|infobel|nearbuy|hotdoc|healthengine|bark|thumbtack|houzz|finder|canstar|abr|asic|business|realcommercial|commercialrealestate|lease|commercialproperty2sell|propertyguru|onthehouse|allhomes|homely|rent|realestateview|cbre|colliers|jll|knightfrank|savills|cushmanwakefield)\.(com|com\.au|net|net\.au|org|org\.au|co|io|gov\.au)$|\.gov\.au$|\.edu\.au$/i;
+/** Directories, marketplaces, social networks, job and listing sites: never one business's own website. */
+const NOT_A_BUSINESS_SITE = /(^|\.)(yellowpages|yelp|truelocal|hotfrog|oneflare|airtasker|hipages|serviceseeking|localsearch|startlocal|word-of-mouth|wordofmouth|productreview|tripadvisor|cylex-australia|cylex|trustpilot|facebook|instagram|linkedin|twitter|x|tiktok|youtube|pinterest|reddit|google|bing|apple|wikipedia|seek|indeed|glassdoor|gumtree|realestate|domain|fresha|timely|zomato|ubereats|doordash|menulog|booking|expedia|mapquest|waze|openstreetmap|whitepages|aussieweb|dlook|brownbook|infobel|nearbuy|hotdoc|healthengine|bark|thumbtack|houzz|finder|canstar|abr|asic|business|realcommercial|commercialrealestate|lease|commercialproperty2sell|propertyguru|onthehouse|allhomes|homely|rent|realestateview|clutch|crunchbase|zoominfo|ibisworld|dnb|kompass|manta|bizbuysell|seekbusiness)\.(com|com\.au|net|net\.au|org|org\.au|co|io|gov\.au)$/i;
 
-export function isBusinessSite(url: string | null | undefined): boolean {
+/**
+ * Sites that are real organisations but rarely what a local search wants:
+ * commercial property and facility managers, councils and government,
+ * hospitals and universities. For a security, cleaning, vending or facilities
+ * business they are the customers, so they count whenever the request names
+ * them ("property managers", "councils", "hospitals").
+ */
+const INSTITUTION_SITE = /(^|\.)(cbre|colliers|jll|knightfrank|savills|cushmanwakefield|ljhooker|raywhite|mcgrath|belle|harcourts|first|charterkc|vicinity|scentregroup|westfield|stockland|mirvac|dexus|gpt|charterhall|lendlease|goodman|centuria|isprop)\.(com|com\.au|net\.au)$|\.gov\.au$|\.edu\.au$|\.edu$/i;
+const WANTS_INSTITUTIONS = /propert|facilit|strata|real estate|landlord|shopping cent|commercial|council|government|public sector|agenc|hospital|health service|universit|school|college|tafe|campus|education|department|retail cent|mall/i;
+
+/**
+ * `request` is the search, so institutions count when it asks for them; pass
+ * `true` when the site comes from a map listing of that very organisation.
+ */
+export function isBusinessSite(url: string | null | undefined, request?: string | null | true): boolean {
   const host = hostOf(url);
-  return Boolean(host) && !NOT_A_BUSINESS_SITE.test(host!);
+  if (!host || NOT_A_BUSINESS_SITE.test(host)) return false;
+  return !INSTITUTION_SITE.test(host) || request === true || WANTS_INSTITUTIONS.test(request ?? "");
+}
+
+/**
+ * A web result that is a list, ranking, guide or article about businesses
+ * rather than a business ("Car Detailers in Sydney: ranks 201 to 250",
+ * "Top 10 security companies", "Car Care Resource Library").
+ */
+export function looksLikeArticle(title: string | null | undefined, url?: string | null): boolean {
+  const t = (title ?? "").toLowerCase();
+  if (/\b(top|best)\s+\d+\b|\b\d+\s+(best|top|great|leading)\b|\brank(s|ed|ing)?\s+\d+|\brankings?\b|\blist of\b|\bresource (library|centre|center|hub)\b|\bdirectory\b|\bcompare\b|\bvs\.?\s|\bhow to\b|\bwhat is\b|\bguide to\b|\bnear me\b.*\b(find|search)\b/.test(t)) return true;
+  let path = "";
+  try { path = url ? new URL(url).pathname.toLowerCase() : ""; } catch { path = ""; }
+  return /\/(blog|news|articles?|guides?|insights|resources|lists?|rankings?|directory|tag|category)\//.test(`${path}/`);
+}
+
+/** Major centres to search when the area is a whole state or the country, biggest first. */
+const STATE_CENTRES: Array<[RegExp, string[]]> = [
+  [/^(nsw|new south wales)$/, ["Sydney NSW", "Newcastle NSW", "Wollongong NSW", "Central Coast NSW", "Parramatta NSW"]],
+  [/^(vic|victoria)$/, ["Melbourne VIC", "Geelong VIC", "Ballarat VIC", "Bendigo VIC", "Dandenong VIC"]],
+  [/^(qld|queensland)$/, ["Brisbane QLD", "Gold Coast QLD", "Sunshine Coast QLD", "Townsville QLD", "Cairns QLD"]],
+  [/^(wa|western australia)$/, ["Perth WA", "Joondalup WA", "Fremantle WA", "Bunbury WA"]],
+  [/^(sa|south australia)$/, ["Adelaide SA", "Mount Gambier SA", "Whyalla SA"]],
+  [/^(tas|tasmania)$/, ["Hobart TAS", "Launceston TAS", "Devonport TAS"]],
+  [/^(act|canberra region|australian capital territory)$/, ["Canberra ACT"]],
+  [/^(nt|northern territory)$/, ["Darwin NT", "Alice Springs NT"]],
+  [/^(australia|aus|au|nationwide|national|all of australia|across australia|australia wide|australia-wide|all states)$/, ["Sydney NSW", "Melbourne VIC", "Brisbane QLD", "Perth WA", "Adelaide SA", "Canberra ACT", "Gold Coast QLD", "Newcastle NSW", "Hobart TAS", "Darwin NT"]],
+];
+
+/**
+ * The centres to fan out over when `where` is a state or all of Australia, or
+ * null for a normal place. A state's middle is outback, so searching "NSW" as
+ * one place finds nothing; its cities are where the businesses are.
+ */
+export function wideAreaCentres(where: string): string[] | null {
+  const w = where.toLowerCase().replace(/^(all of|across|anywhere in|everywhere in|the whole of|whole of)\s+/, "").replace(/[.,]/g, "").trim();
+  for (const [rx, centres] of STATE_CENTRES) if (rx.test(w)) return centres;
+  return null;
 }
 
 /** Web search results to candidates: one per business website, directories dropped. */
-export function candidatesFromWebSearch(results: Array<{ url?: string | null; title?: string | null; description?: string | null }>): Candidate[] {
+export function candidatesFromWebSearch(results: Array<{ url?: string | null; title?: string | null; description?: string | null }>, request?: string | null): Candidate[] {
   const seen = new Set<string>();
   const out: Candidate[] = [];
   for (const r of results) {
-    if (!r.url || !isBusinessSite(r.url)) continue;
+    if (!r.url || !isBusinessSite(r.url, request) || looksLikeArticle(r.title, r.url)) continue;
     const host = hostOf(r.url)!;
     if (seen.has(host)) continue;
     seen.add(host);
@@ -194,7 +246,7 @@ const OSM_CATEGORY_TAGS: Array<[RegExp, string[]]> = [
   [/^(tyre|tire)/, ["shop=tyres"]],
   [/^(car$|dealership|dealer|vehicle)/, ["shop=car", "shop=car_parts"]],
   [/^(detail|car wash)/, ["amenity=car_wash", "shop=car_repair"]],
-  [/^(real estate|realestate|estate|realtor|property)/, ["office=estate_agent", "office=property_management"]],
+  [/^(real estate|realestate|estate|realtor|propert)/, ["office=estate_agent", "office=property_management"]],
   [/^(accountant|accounting|bookkeep|tax)/, ["office=accountant", "office=tax_advisor"]],
   [/^(lawyer|solicitor|legal|conveyanc)/, ["office=lawyer", "office=notary"]],
   [/^(insur)/, ["office=insurance"]],
@@ -218,7 +270,13 @@ const OSM_CATEGORY_TAGS: Array<[RegExp, string[]]> = [
   [/^(phone|mobile|computer|electronic|repair)/, ["shop=mobile_phone", "shop=computer", "shop=electronics", "craft=electronics_repair"]],
   [/^(church|mosque|temple|synagogue)/, ["amenity=place_of_worship"]],
   [/^(council|government)/, ["office=government"]],
-  [/^(security)/, ["office=security", "office=company"]],
+  [/^(security|guard|patrol)/, ["office=security", "office=company", "shop=security"]],
+  [/^(vending)/, ["amenity=vending_machine", "office=company"]],
+  [/^(propert(y)? manag|facilit|strata|building manag)/, ["office=property_management", "office=estate_agent", "office=company"]],
+  [/^(shopping|mall|retail cent)/, ["shop=mall", "amenity=marketplace"]],
+  [/^(universit|tafe|campus)/, ["amenity=university", "amenity=college"]],
+  [/^(data cent|datacent)/, ["building=data_center", "telecom=data_center"]],
+  [/^(car park|carpark|parking operator)/, ["amenity=parking", "office=company"]],
   [/^(clean)/, ["office=cleaning", "craft=cleaning", "shop=dry_cleaning"]],
 ];
 
@@ -316,7 +374,7 @@ export function candidateFromOsm(el: { type?: string; id?: number; tags?: Record
     address,
     suburb: suburb?.slice(0, 60) ?? null,
     phone: (t["phone"] ?? t["contact:phone"] ?? null)?.slice(0, 30) ?? null,
-    website: website && isBusinessSite(website) ? website.slice(0, 300) : null,
+    website: website && isBusinessSite(website, true) ? website.slice(0, 300) : null,
     rating: null,
     reviewCount: null,
     source: "osm",

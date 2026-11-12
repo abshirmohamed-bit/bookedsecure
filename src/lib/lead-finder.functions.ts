@@ -57,6 +57,16 @@ export const dismissLeadFinderResults = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Reads the websites a search ran out of time for. Doesn't use one of the month's searches. */
+export const checkLeadFinderRemaining = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ searchId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const ctx = await owner(context);
+    const { checkRemaining } = await import("./lead-finder.server");
+    return checkRemaining(ctx.businessId, data.searchId);
+  });
+
 /** Co-Work's suggested searches for this business (nothing is searched yet). */
 export const suggestLeadFinderSearches = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

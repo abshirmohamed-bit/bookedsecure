@@ -16,7 +16,12 @@ outreach, the way Explee does. It needs no Google billing.
 4. **Email:** only addresses shown on the business's own website (home page, then its contact page) or in its map listing are kept. Businesses from the map with no website get a website lookup by name.
    - **ZeroBounce:** emails are checked with ZeroBounce when `ZEROBOUNCE_API_KEY` is set (optional).
    - **Without ZeroBounce:** BookedSecure checks that the domain accepts mail (MX lookup).
-5. **Reach:** **Add to customers** creates leads (nothing is sent) tagged "Lead finder". The campaign audience **Businesses from Lead finder** reaches only them, and they are never mixed into customer audiences.
+5. **B2B buyers:** commercial property and facility managers, shopping centres, councils, hospitals and universities are kept whenever the search names them (they're dropped otherwise, as they rarely match a local search). Lists, rankings and articles ("Top 10…", "ranks 201 to 250") are dropped.
+6. **Whole states and Australia:** "NSW", "all of Victoria" or "Australia" searches the major cities of that area (the middle of a state is outback).
+7. **Contacts and size:** each website read also notes the person it names as in charge (owner, director, operations or facilities manager) and its size as stated (staff, sites, fleet). Needs `docs/lead-finder-contacts.sql`; without it everything else works.
+8. **Check the rest:** websites a search ran out of time for can be read afterwards with "Check them", which doesn't use a search.
+9. **Results:** filters (Good fit, Has email, Has phone, Not checked), sorting, "Select good fits" and a CSV export.
+10. **Reach:** **Add to customers** creates leads (nothing is sent) tagged "Lead finder"; a business with only a phone number is added for calling, and campaigns skip it. The campaign audience **Businesses from Lead finder** reaches only them, and they are never mixed into customer audiences.
 
 The Co-work assistant can do the same in chat:
 - `suggest_lead_searches`
@@ -30,7 +35,7 @@ Limit: 20 searches per business per month (`LEAD_FINDER_MONTHLY_SEARCHES`).
 
 ## Setup
 
-1. **Lovable:** apply `docs/lead-finder.sql` as a migration exactly as written, then publish. Nothing else is required: `FIRECRAWL_API_KEY` and `LOVABLE_API_KEY` are already set.
+1. **Lovable:** apply `docs/lead-finder.sql` as a migration exactly as written, then publish. For contacts and size, also apply `docs/lead-finder-contacts.sql` (optional). Nothing else is required: `FIRECRAWL_API_KEY` and `LOVABLE_API_KEY` are already set.
 2. **Optional:**
    - `ZEROBOUNCE_API_KEY` for full email checks (about US$0.008 per email; 100 free a month).
    - `GOOGLE_PLACES_API_KEY` for Google Maps listings (needs Google billing).
