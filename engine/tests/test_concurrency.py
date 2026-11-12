@@ -139,7 +139,7 @@ def test_each_import_is_downloaded_exactly_once(api, monkeypatch):
 
     tracker = Tracker()
 
-    def fake_import(s, asset, url):
+    def fake_import(s, asset, url, **_):
         tracker.enter(asset.id)
         time.sleep(0.02)
         tracker.leave(asset.id)

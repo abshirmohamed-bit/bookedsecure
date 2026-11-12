@@ -24,12 +24,24 @@ CODES: dict[str, int] = {
 
 
 class EngineError(Exception):
+    #: True when trying again later is likely to work (a dropped connection,
+    #: YouTube's "reload the page" hiccup), so workers requeue instead of failing.
+    transient = False
+
     def __init__(self, code: str, message: str, retry_after: int | None = None):
         self.code = code
         self.message = message
         self.status = CODES.get(code, 400)
         self.retry_after = retry_after
         super().__init__(message)
+
+
+class TransientFetch(EngineError):
+    """A download that failed for a passing reason; the import or job is retried."""
+    transient = True
+
+    def __init__(self, message: str):
+        super().__init__("VALIDATION_ERROR", message)
 
 
 def error_body(code: str, message: str) -> dict:

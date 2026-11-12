@@ -11,7 +11,7 @@ from sqlmodel import Session
 
 from .. import media, storage, webhooks
 from ..config import settings
-from ..errors import EngineError
+from ..errors import EngineError, TransientFetch
 from ..models import Asset, utcnow
 from . import proxy_health
 
@@ -121,15 +121,18 @@ def ingest_video(session: Session, asset: Asset, src: Path) -> Asset:
     return asset
 
 
-def import_url(session: Session, asset: Asset, url: str) -> Asset:
+def import_url(session: Session, asset: Asset, url: str, *, can_retry: bool = False) -> Asset:
     """Direct media URL, or a page the Engine resolves with yt-dlp.
 
     Called by the worker, not by a request handler: this can take minutes.
+    A passing failure with retries left is raised without marking the asset
+    failed, so the worker can queue it again.
     """
     try:
         return _import_url(session, asset, url)
     except Exception as e:
-        mark_failed(session, asset, e)
+        if not (can_retry and getattr(e, "transient", False)):
+            mark_failed(session, asset, e)
         raise
 
 
@@ -293,8 +296,10 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
         # no audio-only one, say). Anything else, such as a private video or a
         # dead link, fails the same way every time, and retrying it through
         # metered bandwidth buys nothing.
-        if not (ytdlp_opts.looks_blocked(last) or _route_lacks_format(last)):
+        if not (ytdlp_opts.looks_blocked(last) or _route_lacks_format(last) or ytdlp_opts.looks_transient(last)):
             break
+    if ytdlp_opts.looks_transient(last):
+        raise TransientFetch(_download_error(last))
     raise EngineError("VALIDATION_ERROR", _download_error(last))
 
 

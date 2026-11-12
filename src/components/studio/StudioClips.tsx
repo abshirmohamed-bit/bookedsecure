@@ -17,7 +17,12 @@ const STATUS: { id: Status; label: string }[] = [
   { id: "waiting", label: "Not made yet" },
 ];
 
-const seconds = (ms: number | null) => (ms === null ? null : `${Math.floor(ms / 60000)}:${String(Math.round(ms / 1000) % 60).padStart(2, "0")}`);
+/** m:ss, rounded as a whole (59.6 s is 1:00, not 0:00). */
+const seconds = (ms: number | null) => {
+  if (ms === null) return null;
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 
 /** Studio's library: every clip of the business, grouped by the video it came from. */
 export function StudioClips({ clipId, videoId }: { clipId?: string | undefined; videoId?: string | undefined }) {

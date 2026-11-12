@@ -54,7 +54,7 @@ def test_import_returns_before_processing_and_recovers(api):
     imports.recover()
     with session() as s:
         assert s.get(ImportTask, asset_id).status == "queued"
-    def ready(s, asset, url):
+    def ready(s, asset, url, **_):
         asset.status = "ready"
         s.add(asset)
         s.commit()

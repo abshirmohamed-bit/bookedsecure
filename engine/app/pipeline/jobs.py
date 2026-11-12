@@ -110,7 +110,8 @@ def _advance(s: Session, job_id: str) -> bool:
     except Exception as e:
         s.rollback()
         attempts = int((job.params or {}).get("_attempts", 0))
-        if not isinstance(e, (JobFailed, EngineError)) and attempts < MAX_JOB_RETRIES:
+        retryable = not isinstance(e, (JobFailed, EngineError)) or getattr(e, "transient", False)
+        if retryable and attempts < MAX_JOB_RETRIES:
             log.warning("job %s failed at %s, retrying: %s", job.id, job.stage, e)
             job.params = {**(job.params or {}), "_attempts": attempts + 1}
             s.add(job)

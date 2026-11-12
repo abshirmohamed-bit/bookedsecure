@@ -667,7 +667,10 @@ async function pollExport(clip: ClipRow) {
 }
 
 async function exportFinished(clipId: string, asset: Record<string, unknown>) {
+  // The finished file's own length is the truth; the finder's estimate can be missing or 0.
+  const seconds = typeof asset["length"] === "number" && asset["length"] > 0 ? asset["length"] : null;
   await supabaseAdmin.from("video_clips").update({
+    ...(seconds ? { duration_ms: Math.round(seconds * 1000) } : {}),
     status: "READY", video_url: text(asset["url"]), width: num(asset["width"]), height: num(asset["height"]),
     ...(typeof asset["thumbnail_url"] === "string" ? { thumbnail_url: asset["thumbnail_url"] } : {}), error: null, updated_at: now(),
   }).eq("id", clipId).eq("status", "EXPORTING");

@@ -47,6 +47,20 @@ BLOCKED_SIGNS = ("not a bot", "sign in to confirm", "login_required", "cookies",
                  "http error 429", "too many requests")
 
 
+#: Failures that pass: YouTube's intermittent "page needs to be reloaded",
+#: dropped or reset connections (often the proxy's), timeouts and 5xx.
+TRANSIENT_SIGNS = ("page needs to be reloaded", "unexpected_eof", "eof occurred in violation",
+                   "connection reset", "connection aborted", "remote end closed", "timed out",
+                   "temporary failure in name resolution", "incompleteread", "incomplete read",
+                   "http error 500", "http error 502", "http error 503", "http error 504",
+                   "unable to download webpage", "tunnel connection failed")
+
+
+def looks_transient(message: str) -> bool:
+    m = (message or "").lower()
+    return any(s in m for s in TRANSIENT_SIGNS)
+
+
 def proxy() -> str:
     return (os.environ.get("YTDLP_PROXY") or "").strip()
 
