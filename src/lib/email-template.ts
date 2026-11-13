@@ -87,6 +87,8 @@ export function renderEmailHtml(brand: EmailBranding, content: EmailContent): st
     .filter(Boolean)
     .join(" &middot; ");
 
+  if (C.layout === "plain") return plainEmail({ C, FONT, name, mark, body, button, details, preheader, unsubscribe, heading: content.heading ?? null });
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -122,6 +124,53 @@ export function renderEmailHtml(brand: EmailBranding, content: EmailContent): st
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
       <tr><td align="center" style="padding:18px 24px 0;font:400 11px/1.6 ${FONT};color:${C.muted};">
         You're receiving this email because you've been in touch with ${name}.${unsubscribe ? `<br><a href="${escapeHtml(unsubscribe)}" style="color:${C.muted};text-decoration:underline;">Unsubscribe from these emails</a>` : ""}
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
+/**
+ * The default look: a clean letter on the reader's own background (no page
+ * colour, no boxed card), so it reads like a professional email from a person.
+ * Logo and name, a short brand-colour rule, the message, then a quiet footer.
+ */
+function plainEmail(p: { C: ReturnType<typeof resolveEmailLook>; FONT: string; name: string; mark: string; body: string; button: string; details: string; preheader: string; unsubscribe: string | null; heading: string | null }): string {
+  const { C, FONT, name } = p;
+  const center = C.logoAlign === "center";
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>${name}</title>
+</head>
+<body style="margin:0;padding:0;-webkit-text-size-adjust:100%;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">${p.preheader}&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td align="${center ? "center" : "left"}" style="padding:28px 20px;">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
+      <tr><td${center ? ' align="center"' : ""} style="padding:0 0 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"${center ? ' align="center"' : ""}><tr>
+          ${C.showLogo ? `<td valign="middle" style="padding-right:12px;">${p.mark}</td>` : ""}
+          <td valign="middle" style="font:600 17px ${FONT};color:${C.ink};">${name}</td>
+        </tr></table>
+      </td></tr>
+      <tr><td${center ? ' align="center"' : ""} style="padding:0 0 26px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"${center ? ' align="center"' : ""}><tr><td width="48" height="3" style="width:48px;height:3px;line-height:3px;font-size:0;background:${C.brand};border-radius:2px;">&nbsp;</td></tr></table></td></tr>
+      <tr><td>
+        ${p.heading ? `<h1 style="margin:0 0 18px;font:600 24px/1.25 ${FONT};color:${C.ink};letter-spacing:-0.01em;">${escapeHtml(p.heading)}</h1>` : ""}
+        ${p.body}
+        ${p.button}
+      </td></tr>
+      <tr><td style="padding:22px 0 0;border-top:1px solid ${C.border};">
+        <p style="margin:0;font:600 13px ${FONT};color:${C.ink};">${name}</p>
+        ${p.details ? `<p style="margin:4px 0 0;font:400 12px/1.5 ${FONT};color:${C.muted};">${p.details}</p>` : ""}
+        ${C.footerNote ? `<p style="margin:8px 0 0;font:400 12px/1.5 ${FONT};color:${C.muted};">${escapeHtml(C.footerNote).replaceAll("\n", "<br>")}</p>` : ""}
+        <p style="margin:14px 0 0;font:400 11px/1.6 ${FONT};color:${C.muted};">You're receiving this email because you've been in touch with ${name}.${p.unsubscribe ? ` <a href="${escapeHtml(p.unsubscribe)}" style="color:${C.muted};text-decoration:underline;">Unsubscribe from these emails</a>` : ""}</p>
       </td></tr>
     </table>
   </td></tr>

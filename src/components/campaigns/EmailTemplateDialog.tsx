@@ -32,8 +32,7 @@ export function EmailTemplatePanel({ signature, onBack }: { signature: string | 
     const brand = { ...state.data.preview, theme: parsed?.theme ?? state.data.theme };
     const sign = signature?.trim() ? `\n\n${signature.trim()}` : "";
     return renderEmailHtml(brand, {
-      bodyText: `Hi Sam,\n\nThanks for getting in touch. This is how your emails will look to customers: campaigns, inbox emails and replies all use this template.${sign}`,
-      cta: { label: "Book a time", url: brand.websiteUrl ?? "https://bookedsecure.com" },
+      bodyText: `Hi there,\n\nThanks for getting in touch. This is how your emails look to the people you write to: inbox emails, replies and campaigns all use this template.${sign}`,
       unsubscribeUrl: "https://bookedsecure.com",
     });
   }, [state.data, parsed, signature]);
@@ -71,14 +70,14 @@ export function EmailTemplatePanel({ signature, onBack }: { signature: string | 
   const canApply = d.canEdit && !d.setupMissing && Boolean(parsed?.theme) && !unchanged && !apply.isPending;
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       <button type="button" onClick={onBack} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
         <ArrowLeft className="size-3.5" /> Your email address
       </button>
       {d.setupMissing && (
         <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-xs">Email templates are waiting for a database update (docs/email-theme.sql). You can try one in the preview now; applying it works once that's done.</p>
       )}
-      <div role="radiogroup" aria-label="Ready-made templates" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+      <div role="radiogroup" aria-label="Ready-made templates" className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         {EMAIL_THEME_PRESETS.map((p) => {
           const look = resolveEmailLook(p.theme);
           const selected = value.trim() === pretty(p.theme);
@@ -90,7 +89,7 @@ export function EmailTemplatePanel({ signature, onBack }: { signature: string | 
               aria-checked={selected}
               title={p.forWho}
               onClick={() => setText(pretty(p.theme))}
-              className={cn("flex w-32 shrink-0 flex-col gap-1.5 rounded-xl border bg-white/60 p-2 text-left transition-colors hover:bg-white/90", selected ? "border-primary ring-2 ring-primary/30" : "border-white/70")}
+              className={cn("flex min-w-0 flex-col gap-1.5 rounded-xl border bg-white/60 p-2 text-left transition-colors hover:bg-white/90", selected ? "border-primary ring-2 ring-primary/30" : "border-white/70")}
             >
               <span className="flex h-9 items-end gap-1 rounded-lg p-1.5" style={{ background: look.page }}>
                 <span className="h-full flex-1" style={{ background: look.card, borderRadius: look.cardRadius === "0" ? 2 : 6 }} />
@@ -120,7 +119,7 @@ export function EmailTemplatePanel({ signature, onBack }: { signature: string | 
             <ul className="space-y-0.5 text-xs text-destructive">{parsed.errors.map((e) => <li key={e}>{e}</li>)}</ul>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Colours are hex like #1e5fc2. Fonts: system, arial, helvetica, verdana, trebuchet, georgia, times. Buttons: rounded, square or pill. Design only: emails keep your text, footer and unsubscribe line.
+              Colours are hex like #1e5fc2. Fonts: system, arial, helvetica, verdana, trebuchet, georgia, times. Buttons: rounded, square or pill. Layout: plain (a clean letter, the default) or card. Design only: emails keep your text, footer and unsubscribe line.
             </p>
           )}
         </div>

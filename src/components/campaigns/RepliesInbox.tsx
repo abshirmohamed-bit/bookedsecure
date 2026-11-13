@@ -237,7 +237,7 @@ function MailboxSettings({ open, onOpenChange, current, suggested, businessName,
   const change = (next: boolean) => { if (!next) setView("address"); onOpenChange(next); };
   return (
     <Dialog open={open} onOpenChange={change}>
-      <DialogContent className={view === "template" ? "max-h-[92dvh] overflow-y-auto sm:max-w-4xl" : "sm:max-w-md"}>
+      <DialogContent className={view === "template" ? "max-h-[92dvh] w-[calc(100vw-1.5rem)] max-w-5xl overflow-y-auto overflow-x-hidden" : "sm:max-w-md"}>
         {view === "template" ? (
           <>
             <DialogTitle>Email template</DialogTitle>

@@ -46,6 +46,7 @@ const schema = z
       .strict()
       .optional(),
     buttons: z.enum(["rounded", "square", "pill"], { errorMap: () => ({ message: "buttons must be rounded, square or pill" }) }).optional(),
+    layout: z.enum(["plain", "card"], { errorMap: () => ({ message: "layout must be plain or card" }) }).optional(),
     corners: z.enum(["rounded", "square"], { errorMap: () => ({ message: "corners must be rounded or square" }) }).optional(),
     footerNote: z.string({ invalid_type_error: "footerNote must be text" }).max(300, "footerNote can be up to 300 characters").optional(),
   })
@@ -57,13 +58,13 @@ export type EmailTheme = z.infer<typeof schema>;
 export type EmailLook = {
   page: string; card: string; border: string; ink: string; body: string; muted: string; footer: string;
   brand: string; buttonText: string; font: string;
-  showLogo: boolean; logoAlign: "left" | "center"; buttonRadius: string; cardRadius: string; footerNote: string | null;
+  layout: "plain" | "card"; showLogo: boolean; logoAlign: "left" | "center"; buttonRadius: string; cardRadius: string; footerNote: string | null;
 };
 
 export const DEFAULT_LOOK: EmailLook = {
   page: "#eef2f8", card: "#ffffff", border: "#dfe6f0", ink: "#16243b", body: "#2b3a52", muted: "#6b7a90", footer: "#f6f8fc",
   brand: "#1e5fc2", buttonText: "#ffffff", font: EMAIL_FONTS.system,
-  showLogo: true, logoAlign: "left", buttonRadius: "10px", cardRadius: "16px", footerNote: null,
+  layout: "plain", showLogo: true, logoAlign: "left", buttonRadius: "10px", cardRadius: "16px", footerNote: null,
 };
 
 export function resolveEmailLook(theme: EmailTheme | null | undefined): EmailLook {
@@ -78,6 +79,7 @@ export function resolveEmailLook(theme: EmailTheme | null | undefined): EmailLoo
     brand: c.brand ?? DEFAULT_LOOK.brand,
     buttonText: c.buttonText ?? DEFAULT_LOOK.buttonText,
     font: EMAIL_FONTS[theme.font ?? "system"],
+    layout: theme.layout ?? "plain",
     showLogo: theme.logo?.show ?? true,
     logoAlign: theme.logo?.align ?? "left",
     buttonRadius: theme.buttons === "square" ? "0" : theme.buttons === "pill" ? "999px" : "10px",
@@ -120,6 +122,7 @@ export function readEmailTheme(value: unknown): EmailTheme | null {
 export const EXAMPLE_EMAIL_THEME: EmailTheme = {
   version: 1,
   colors: { brand: "#1e5fc2", background: "#eef2f8", card: "#ffffff", heading: "#16243b", text: "#2b3a52", buttonText: "#ffffff" },
+  layout: "plain",
   font: "system",
   logo: { show: true, align: "left" },
   buttons: "rounded",
