@@ -1240,6 +1240,7 @@ export type Database = {
           current_period_end: string | null
           current_period_start: string | null
           default_sms_provider: string
+          email_theme: Json | null
           flexible_requests_enabled: boolean
           id: string
           logo_storage_path: string | null
@@ -1298,6 +1299,7 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           default_sms_provider?: string
+          email_theme?: Json | null
           flexible_requests_enabled?: boolean
           id?: string
           logo_storage_path?: string | null
@@ -1356,6 +1358,7 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           default_sms_provider?: string
+          email_theme?: Json | null
           flexible_requests_enabled?: boolean
           id?: string
           logo_storage_path?: string | null
