@@ -23,7 +23,7 @@ export function YouTubeComments({ isOwner }: { isOwner: boolean }) {
   const list = q.data.comments.filter((c) => filter === "all" || !c.answered);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-3">
+    <div className="mx-auto max-w-3xl space-y-3 md:max-w-none">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
           {([["waiting", "Waiting for a reply"], ["all", "All comments"]] as const).map(([id, label]) => (
@@ -40,7 +40,7 @@ export function YouTubeComments({ isOwner }: { isOwner: boolean }) {
       )}
       {list.length === 0 ? (
         <div className="glass p-8 text-center text-sm text-muted-foreground">{filter === "waiting" ? "No comments are waiting for a reply." : "No comments yet."}</div>
-      ) : list.map((c) => <CommentCard key={c.threadId} comment={c} canReply={isOwner && !q.data.needsReconnect} />)}
+      ) : <div className="grid items-start gap-3 xl:grid-cols-2">{list.map((c) => <CommentCard key={c.threadId} comment={c} canReply={isOwner && !q.data.needsReconnect} />)}</div>}
     </div>
   );
 }

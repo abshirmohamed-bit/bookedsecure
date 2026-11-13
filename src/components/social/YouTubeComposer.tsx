@@ -182,7 +182,7 @@ export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle 
   const canUpload = d.isOwner && !problem && !busy;
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)]">
       <section className="glass space-y-3 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-sm">
@@ -293,7 +293,8 @@ export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle 
         {when && <p className="text-right text-[11px] text-muted-foreground">Leave the date empty to publish when the upload finishes.</p>}
       </section>
 
-      <div className="space-y-4">
+      {/* lg: Preview and Recent videos stack beside the form; xl: each gets its own column. */}
+      <div className="space-y-4 xl:contents">
         <section className="glass p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Preview</p>
           <div className="overflow-hidden rounded-xl border border-border bg-card">

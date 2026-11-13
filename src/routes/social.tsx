@@ -69,7 +69,7 @@ function SocialTools() {
 
   return (
     <AppShell title="Social media">
-      <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
+      <div className="mx-auto w-full max-w-6xl space-y-4 p-4 md:max-w-none md:p-6">
         <header className="space-y-3">
           <Link to="/assistant" className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to Co-Work</Link>
           <div>
@@ -155,7 +155,7 @@ function SocialInbox({ platform, view }: { platform: "facebook" | "instagram"; v
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not refresh."),
   });
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4 md:max-w-none">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-muted-foreground">
             {view === "messages" ? "Messages" : "Comments"} from your {platform === "instagram" ? "Instagram account" : "Facebook Page"}, usually with a suggested reply.
@@ -177,7 +177,7 @@ function SocialInbox({ platform, view }: { platform: "facebook" | "instagram"; v
                 Nothing here yet. New comments are checked every few minutes once Facebook is connected in{" "}
                 <Link to="/settings/integrations" className="text-primary underline">Setup → Connections</Link>.
               </div>
-            ) : (q.data ?? []).filter((r) => r.platform === platform).map((r) => <CommentCard key={r.id} row={r} />)}
+            ) : <div className="grid items-start gap-3 xl:grid-cols-2">{(q.data ?? []).filter((r) => r.platform === platform).map((r) => <CommentCard key={r.id} row={r} />)}</div>}
         </>}
     </div>
   );
@@ -192,14 +192,15 @@ function MessagesView({ platform }: { platform: "facebook" | "instagram" }) {
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (q.isError) return <p className="text-sm text-destructive">Could not load messages.</p>;
   if (q.data?.setupMissing) return <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">Messages are waiting for a database update (migration 0026_social_messages).</p>;
-  if (open) return <ThreadView thread={open} onBack={() => setOpen(null)} />;
   const threads = (q.data?.threads ?? []).filter((t) => t.platform === platform);
   if (!threads.length) return <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">No {platform === "instagram" ? "Instagram" : "Facebook"} messages yet. New messages are checked every few minutes.</p>;
+  const openKey = open ? `${open.platform}:${open.participantId}` : null;
   return (
-    <ul className="divide-y divide-border rounded-lg border bg-card">
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+    <ul className={`divide-y divide-border rounded-lg border bg-card ${open ? "hidden lg:block" : ""}`}>
       {threads.map((t) => (
         <li key={`${t.platform}:${t.participantId}`}>
-          <button type="button" className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-secondary/40" onClick={() => setOpen(t)}>
+          <button type="button" aria-current={openKey === `${t.platform}:${t.participantId}` || undefined} className={`flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-secondary/40 ${openKey === `${t.platform}:${t.participantId}` ? "bg-secondary/60" : ""}`} onClick={() => setOpen(t)}>
             <div className="min-w-0">
               <p className="text-sm font-medium">{t.name ?? "Customer"} <span className="font-normal text-muted-foreground">· {t.platform === "instagram" ? "Instagram" : "Messenger"}</span></p>
               <p className="truncate text-sm text-muted-foreground">{t.lastFromCustomer ? "" : "You: "}{t.last}</p>
@@ -212,6 +213,9 @@ function MessagesView({ platform }: { platform: "facebook" | "instagram" }) {
         </li>
       ))}
     </ul>
+    {open ? <div className="min-w-0"><ThreadView key={openKey} thread={open} onBack={() => setOpen(null)} /></div>
+      : <p className="hidden rounded-lg border border-dashed p-6 text-sm text-muted-foreground lg:block">Choose a conversation to read it and reply.</p>}
+    </div>
   );
 }
 
