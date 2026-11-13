@@ -9,6 +9,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { engineClient, engineConfigured } from "@/lib/engine.server";
 import { browserUploadsReady, clipVideoKey, publicUrlFor, signedUploadUrl, uploadedSize } from "@/lib/clip-upload.server";
+import { clipOriginal, type ClipEvent, deletedEvent, editEvents, lookAfter, titleEvent } from "@/lib/clip-learning";
+import { recordClipEvents } from "@/lib/clip-learning.server";
 import { ACTIVE_JOB_STATUSES, applyLineEdits, applyWordFixes, CAPTION_POSITIONS, CAPTION_SIZE, type CaptionLineEdit, type CaptionPosition, type CaptionWord, checkTrim, CLIP_LAYOUTS, CLIP_ZOOMS, type ClipJobOptions, type ClipLayout, type ClipZoom, clipsToRender, FALLBACK_CAPTION_STYLES, isPublicVideoLink, mergeTrimmedWords, readJobOptions, TITLE_STYLES, type TitlePosition, type TitleStyle, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect } from "@/lib/video-clips";
 
 type JobRow = Database["public"]["Tables"]["video_clip_jobs"]["Row"];
@@ -138,11 +140,19 @@ export async function renderClip(businessId: string, clipId: string) {
  * and are ignored. Files already on the Engine stay there until its retention.
  */
 export async function deleteClipJobs(businessId: string, jobId?: string) {
+  // Read first: the clips go with their job, and what the Engine made for each is a lesson.
+  let clipsQ = supabaseAdmin.from("video_clips").select("*").eq("business_id", businessId);
+  if (jobId) clipsQ = clipsQ.eq("job_id", jobId);
+  const { data: clips } = await clipsQ;
   let q = supabaseAdmin.from("video_clip_jobs").delete().eq("business_id", businessId);
   if (jobId) q = q.eq("id", jobId);
   const { data, error } = await q.select("id");
   if (error) throw new Error(error.message);
   if (jobId && !data?.length) throw new Error("That video no longer exists.");
+  const gone = new Set((data ?? []).map((j) => j.id));
+  await recordClipEvents(businessId, ((clips ?? []) as (ClipRow & { original?: unknown })[]).filter((c) => gone.has(c.job_id)).map((c) => ({
+    ...deletedEvent({ title: c.title, status: c.status, original: c.original ?? null }, jobId ? "video" : "all"), clipId: c.id, jobId: c.job_id,
+  })));
   return data?.length ?? 0;
 }
 
@@ -150,9 +160,12 @@ export async function deleteClipJobs(businessId: string, jobId?: string) {
 export async function renameClip(businessId: string, clipId: string, title: string) {
   const clean = title.replace(/\s+/g, " ").trim().slice(0, 100);
   if (!clean) throw new Error("Give the clip a title.");
+  const clip = await ownClip(businessId, clipId);
   const { data, error } = await supabaseAdmin.from("video_clips").update({ title: clean, updated_at: now() }).eq("id", clipId).eq("business_id", businessId).select("id").maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error("That clip no longer exists.");
+  const event = titleEvent(clip.title, clean);
+  if (event) await recordClipEvents(businessId, [{ ...event, clipId: clip.id, jobId: clip.job_id }]);
   return clean;
 }
 
@@ -437,6 +450,7 @@ export async function saveClipEdits(businessId: string, clipId: string, edits: C
   const path = `/v1/projects/${encodeURIComponent(clip.engine_project_id)}`;
   let changed: string[] = [];
   let range: { inMs: number; outMs: number };
+  let learned: ClipEvent[] = [];
   try {
     const project = await engineProject(clip);
     const plan = await engineChanges(project, edits);
@@ -475,10 +489,20 @@ export async function saveClipEdits(businessId: string, clipId: string, edits: C
       if (!r.ok) throw new Error(r.error.message);
     }
     range = { inMs, outMs };
+    // As saved: the style the name resolved to and the clamped caption size, not the raw request.
+    const savedOptions = (patch["caption_options"] ?? {}) as Record<string, unknown>;
+    const before = settingsOf(project);
+    learned = editEvents(before, lookAfter(before, {
+      ...edits,
+      styleId: typeof patch["caption_style_id"] === "string" ? patch["caption_style_id"] : undefined,
+      captionSize: typeof savedOptions["size"] === "number" ? savedOptions["size"] : undefined,
+      captionY: "y" in savedOptions ? (savedOptions["y"] as number | null) : undefined,
+    }, range), changed);
   } catch (error) {
     await restore();
     throw error;
   }
+  await recordClipEvents(businessId, learned.map((e) => ({ ...e, clipId: clip.id, jobId: clip.job_id })));
 
   // The project has the change now: from here a failure is the video's, not the edit's.
   const times = { start_ms: range.inMs, end_ms: range.outMs, duration_ms: range.outMs - range.inMs, updated_at: now() };
@@ -633,6 +657,7 @@ async function pollJob(job: JobRow) {
   }
 }
 
+let warnedOriginal = false;
 const num = (v: unknown) => (typeof v === "number" ? Math.round(v) : null);
 const text = (v: unknown) => (typeof v === "string" ? v : null);
 
@@ -643,10 +668,18 @@ async function jobCompleted(job: JobRow, clips: EngineClip[], note: string | nul
     // source_*: where the clip sits in the original (it differs for a long video's fetched sections)
     start_ms: num(c["source_start_ms"] ?? c["start_ms"]), end_ms: num(c["source_end_ms"] ?? c["end_ms"]),
     duration_ms: num(c["duration_ms"]), thumbnail_url: text(c["thumbnail_url"]),
+    // What the Engine picked, kept unchanged so the owner's later edits can be compared with it.
+    original: clipOriginal(c, job),
   }));
   // Unique per job and project, so a webhook racing a poll can't duplicate clips.
   if (rows.length) {
-    const { error } = await supabaseAdmin.from("video_clips").upsert(rows, { onConflict: "job_id,engine_project_id", ignoreDuplicates: true });
+    const upsert = (values: Record<string, unknown>[]) => supabaseAdmin.from("video_clips").upsert(values as never, { onConflict: "job_id,engine_project_id", ignoreDuplicates: true });
+    let { error } = await upsert(rows);
+    // video_clips.original (docs/clip-learning.sql) may not be applied yet: save the clips without it.
+    if (error && MISSING_COLUMN.has(error.code ?? "")) {
+      if (!warnedOriginal) { warnedOriginal = true; console.warn("video_clips.original is missing: apply docs/clip-learning.sql; clips are saved without the Engine's picks until then"); }
+      ({ error } = await upsert(rows.map(({ original: _dropped, ...rest }) => rest)));
+    }
     if (error) throw new Error(error.message);
   }
   const { data: first } = await supabaseAdmin.from("video_clip_jobs").update({ status: "COMPLETED", stage: null, progress: 100, error: note, updated_at: now() }).eq("id", job.id).neq("status", "COMPLETED").select("id").maybeSingle();

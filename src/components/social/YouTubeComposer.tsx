@@ -43,6 +43,8 @@ export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle 
   const abandon = useServerFn(abandonYouTubeVideoUpload);
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  /** The clip the chosen file came from; cleared when the owner picks another file. */
+  const [fileClipId, setFileClipId] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -91,7 +93,7 @@ export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle 
         const res = await fetch(`/api/video-clips/${clipId}/file`, { headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` } });
         if (!res.ok) throw new Error(await res.text());
         const blob = await res.blob();
-        choose([new File([blob], `${clipTitle || "clip"}.mp4`, { type: "video/mp4" })]);
+        choose([new File([blob], `${clipTitle || "clip"}.mp4`, { type: "video/mp4" })], clipId);
       } catch (e) {
         toast.error(e instanceof Error && e.message ? e.message : "That clip couldn't be loaded.");
       }
@@ -99,13 +101,14 @@ export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clipId]);
 
-  function choose(files: ArrayLike<File> | null) {
+  function choose(files: ArrayLike<File> | null, fromClip: string | null = null) {
     const f = files?.[0];
     if (!f) return;
     const problem = videoProblem({ title: "x", description: "", fileSize: f.size, mimeType: f.type });
     if (problem) { toast.error(problem); return; }
     if (preview) URL.revokeObjectURL(preview);
     setFile(f);
+    setFileClipId(fromClip);
     setPreview(URL.createObjectURL(f));
     if (!title) setTitle(f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, YOUTUBE_TITLE_MAX));
   }
@@ -119,7 +122,7 @@ export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle 
       const plan = await start({ data: {
         title, description, privacy, madeForKids,
         publishAt: when ? new Date(when).toISOString() : null,
-        fileSize: file.size, mimeType: file.type || "application/octet-stream",
+        fileSize: file.size, mimeType: file.type || "application/octet-stream", clipId: fileClipId,
       } });
       setProgress(0);
       try {
@@ -145,7 +148,7 @@ export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle 
     },
     onSuccess: async (r) => {
       toast.success(when ? `Uploaded to ${r.channel}. YouTube will publish it ${fmtWhen(new Date(when).toISOString())}.` : `Uploaded to ${r.channel}. YouTube may take a few minutes to process it.`);
-      setFile(null); setPreview(null); setTitle(""); setDescription(""); setBrief(""); setChips([]); setWhen(""); setMadeForKids(false);
+      setFile(null); setFileClipId(null); setPreview(null); setTitle(""); setDescription(""); setBrief(""); setChips([]); setWhen(""); setMadeForKids(false);
       await qc.invalidateQueries({ queryKey: ["youtube"] });
     },
     onError: async (e) => {
@@ -205,7 +208,7 @@ export function YouTubeComposer({ outcome, why, clearOutcome, clipId, clipTitle 
               <p className="text-[11px] text-muted-foreground">{mb(file.size)}</p>
             </div>
             {!busy && (
-              <button type="button" aria-label="Remove video" onClick={() => { setFile(null); setPreview(null); }} className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:text-destructive">
+              <button type="button" aria-label="Remove video" onClick={() => { setFile(null); setFileClipId(null); setPreview(null); }} className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:text-destructive">
                 <X className="h-4 w-4" />
               </button>
             )}

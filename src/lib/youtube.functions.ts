@@ -67,6 +67,8 @@ export const startYouTubeVideoUpload = createServerFn({ method: "POST" })
     madeForKids: z.boolean(),
     fileSize: z.number().int().positive().max(YOUTUBE_MAX_BYTES),
     mimeType: z.string().max(100),
+    /** Set when the video is one of the business's clips, so its performance can be learned from. */
+    clipId: z.string().uuid().nullable().default(null),
   }).parse(input))
   .handler(async ({ context, data }) => {
     const ctx = await owner(context);

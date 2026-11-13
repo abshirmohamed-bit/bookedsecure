@@ -4,6 +4,8 @@ import { buildYouTubeAuthorizeUrl, chunkRange, isYouTubeUploadUrl, nextByteFrom,
 const state = vi.hoisted(() => ({
   account: null as Record<string, unknown> | null,
   post: { scheduled_for: null } as Record<string, unknown>,
+  clip: null as Record<string, unknown> | null,
+  insertError: null as { code: string; message: string } | null,
   writes: [] as { table: string; op: string; value: unknown }[],
 }));
 
@@ -13,6 +15,8 @@ vi.mock("@/integrations/supabase/client.server", () => {
     const chain: Record<string, unknown> = {};
     const result = () => {
       if (table === "youtube_accounts") return { data: state.account, error: null };
+      if (table === "video_clips") return { data: state.clip, error: null };
+      if (table === "linkedin_posts" && op === "insert" && state.insertError) { const error = state.insertError; state.insertError = null; return { data: null, error }; }
       if (table === "linkedin_posts" && op === "insert") return { data: { id: "33333333-3333-4333-8333-333333333333" }, error: null };
       if (table === "linkedin_posts") return { data: state.post, error: null };
       return { data: null, error: null };
@@ -37,11 +41,15 @@ import { signYouTubeState, signYouTubeTicket, startYouTubeUpload, uploadYouTubeC
 const BIZ = "11111111-1111-4111-8111-111111111111";
 const USER = "22222222-2222-4222-8222-222222222222";
 const POST = "33333333-3333-4333-8333-333333333333";
+const CLIP = "55555555-5555-4555-8555-555555555555";
+const JOB = "66666666-6666-4666-8666-666666666666";
 const SESSION = "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id=abc";
 
 beforeEach(() => {
   state.writes = [];
   state.post = { scheduled_for: null };
+  state.clip = null;
+  state.insertError = null;
   state.account = {
     business_id: BIZ,
     channel_id: "UC123",
@@ -138,6 +146,50 @@ describe("YouTube upload", () => {
     const r = await uploadYouTubeChunk({ ticket, userId: USER, start: YOUTUBE_CHUNK_BYTES, bytes: new ArrayBuffer(10), fetcher: end as unknown as typeof fetch });
     expect(r).toEqual({ done: true, videoId: "vid123", url: "https://www.youtube.com/watch?v=vid123" });
     expect(state.writes.find((w) => w.op === "update")?.value).toMatchObject({ status: "published", post_urn: "vid123" });
+  });
+
+  it("links a post to the clip it came from", async () => {
+    state.clip = { id: CLIP, title: "Engine title" };
+    const fetcher = vi.fn(async () => new Response(null, { status: 200, headers: { Location: SESSION } }));
+    await startYouTubeUpload({ businessId: BIZ, userId: USER, clipId: CLIP, title: "Posted title", description: "", privacy: "public", madeForKids: false, fileSize: 1000, mimeType: "video/mp4", source: "app", fetcher: fetcher as unknown as typeof fetch });
+    expect(state.writes.find((w) => w.op === "insert")?.value).toMatchObject({ video_clip_id: CLIP, payload: { clipId: CLIP } });
+  });
+
+  it("still posts a clip before the link column exists", async () => {
+    state.clip = { id: CLIP, title: "Engine title" };
+    state.insertError = { code: "PGRST204", message: "no column video_clip_id" };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetcher = vi.fn(async () => new Response(null, { status: 200, headers: { Location: SESSION } }));
+    const r = await startYouTubeUpload({ businessId: BIZ, userId: USER, clipId: CLIP, title: "Posted title", description: "", privacy: "public", madeForKids: false, fileSize: 1000, mimeType: "video/mp4", source: "app", fetcher: fetcher as unknown as typeof fetch });
+    warn.mockRestore();
+    expect(r.postId).toBe(POST);
+    const inserts = state.writes.filter((w) => w.table === "linkedin_posts" && w.op === "insert").map((w) => w.value as Record<string, unknown>);
+    expect(inserts[1]).not.toHaveProperty("video_clip_id");
+    expect(inserts[1]).toMatchObject({ payload: { clipId: CLIP } });
+  });
+
+  it("won't link another business's clip", async () => {
+    state.clip = null;
+    await expect(startYouTubeUpload({ businessId: BIZ, userId: USER, clipId: CLIP, title: "x", description: "", privacy: "public", madeForKids: false, fileSize: 1000, mimeType: "video/mp4", source: "app" }))
+      .rejects.toThrow(/clip no longer exists/);
+  });
+
+  it("records that the clip was posted once the video is up", async () => {
+    state.post = { scheduled_for: null, payload: { title: "Posted title", clipId: CLIP } };
+    state.clip = { id: CLIP, title: "Engine title", job_id: JOB };
+    const ticket = signYouTubeTicket({ businessId: BIZ, userId: USER, url: SESSION, postId: POST, size: 10 });
+    const end = vi.fn(async () => Response.json({ id: "vid123" }));
+    await uploadYouTubeChunk({ ticket, userId: USER, start: 0, bytes: new ArrayBuffer(10), fetcher: end as unknown as typeof fetch });
+    const event = state.writes.find((w) => w.table === "video_clip_events")?.value as Record<string, unknown>[] | undefined;
+    expect(event?.[0]).toMatchObject({ business_id: BIZ, clip_id: CLIP, job_id: JOB, kind: "posted", created_by: USER,
+      before: { title: "Engine title" }, after: { platform: "youtube", title: "Posted title", postId: POST } });
+  });
+
+  it("records nothing for a video that wasn't a clip", async () => {
+    const ticket = signYouTubeTicket({ businessId: BIZ, userId: USER, url: SESSION, postId: POST, size: 10 });
+    const end = vi.fn(async () => Response.json({ id: "vid123" }));
+    await uploadYouTubeChunk({ ticket, userId: USER, start: 0, bytes: new ArrayBuffer(10), fetcher: end as unknown as typeof fetch });
+    expect(state.writes.some((w) => w.table === "video_clip_events")).toBe(false);
   });
 
   it("refuses another user's ticket", async () => {

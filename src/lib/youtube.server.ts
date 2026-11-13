@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { decryptMetaToken, encryptMetaToken } from "./meta-oauth.server";
+import { postedEvent } from "./clip-learning";
+import { MISSING_SCHEMA, recordClipEvents } from "./clip-learning.server";
 import {
   YOUTUBE_CALLBACK_PATH,
   buildYouTubeAuthorizeUrl,
@@ -346,12 +348,19 @@ export type YouTubeUploadInput = {
   fileSize: number;
   mimeType: string;
   source: "app" | "assistant" | "mcp";
+  /** The business's own clip this video is, when it was sent over from Studio/Co-Work (clip learning). */
+  clipId?: string | null;
   fetcher?: typeof fetch;
 };
+
+let warnedClipLink = false;
 
 /**
  * Step 1: records the video and asks YouTube for a resumable upload address.
  * Nothing is public until every piece has arrived (and, if scheduled, the time comes).
+ * A clip's post carries its id twice: video_clip_id for joining stats to the
+ * clip, and payload.clipId so it still reaches the "posted" record before
+ * docs/clip-learning.sql is applied.
  */
 export async function startYouTubeUpload(input: YouTubeUploadInput): Promise<{ postId: string; ticket: string; channelTitle: string }> {
   const title = input.title.trim();
@@ -366,10 +375,16 @@ export async function startYouTubeUpload(input: YouTubeUploadInput): Promise<{ p
     if (when > Date.now() + 365 * 86_400_000) throw new Error("Videos can be scheduled up to a year ahead.");
     publishAt = new Date(when).toISOString();
   }
+  let clipId: string | null = null;
+  if (input.clipId) {
+    const { data: clip } = await db().from("video_clips").select("id").eq("id", input.clipId).eq("business_id", input.businessId).maybeSingle();
+    if (!clip) throw new Error("That clip no longer exists.");
+    clipId = (clip as { id: string }).id;
+  }
   const fetcher = input.fetcher ?? fetch;
   const { token, account } = await accessToken(input.businessId, fetcher);
 
-  const { data: row, error: insertError } = await db().from("linkedin_posts").insert({
+  const values: Record<string, unknown> = {
     business_id: input.businessId,
     platform: "youtube",
     author_urn: `youtube:${account.channel_id}`,
@@ -379,9 +394,17 @@ export async function startYouTubeUpload(input: YouTubeUploadInput): Promise<{ p
     source: input.source,
     created_by: input.userId,
     scheduled_for: publishAt,
-    payload: { title, privacy: publishAt ? "public" : input.privacy, madeForKids: input.madeForKids },
+    payload: { title, privacy: publishAt ? "public" : input.privacy, madeForKids: input.madeForKids, ...(clipId ? { clipId } : {}) },
     media: { kind: "video", count: 1, summary: "1 video" },
-  }).select("id").single();
+    ...(clipId ? { video_clip_id: clipId } : {}),
+  };
+  let { data: row, error: insertError } = await db().from("linkedin_posts").insert(values).select("id").single();
+  if (clipId && insertError && MISSING_SCHEMA.has(insertError.code ?? "")) {
+    // linkedin_posts.video_clip_id isn't applied yet (docs/clip-learning.sql): post anyway.
+    if (!warnedClipLink) { warnedClipLink = true; console.warn("linkedin_posts.video_clip_id is missing: apply docs/clip-learning.sql; clip posts are linked by payload.clipId until then"); }
+    const { video_clip_id: _dropped, ...rest } = values;
+    ({ data: row, error: insertError } = await db().from("linkedin_posts").insert(rest).select("id").single());
+  }
   if (insertError || !row) {
     throw new Error(insertError?.code === "23514" || insertError?.code === "42703" || insertError?.code === "PGRST204"
       ? "YouTube posting is waiting for a one-time database update."
@@ -420,6 +443,19 @@ export async function startYouTubeUpload(input: YouTubeUploadInput): Promise<{ p
   };
 }
 
+/** Clip learning: the clip went out (scheduled counts: it is on YouTube and will go public by itself). */
+async function clipPosted(pass: { businessId: string; userId: string; postId: string }, payload: unknown): Promise<void> {
+  const p = (payload && typeof payload === "object" ? payload : {}) as { clipId?: unknown; title?: unknown };
+  if (typeof p.clipId !== "string") return;
+  const { data: clip } = await db().from("video_clips").select("id, title, job_id").eq("id", p.clipId).eq("business_id", pass.businessId).maybeSingle();
+  const c = clip as { id: string; title: string | null; job_id: string } | null;
+  if (!c) return;
+  await recordClipEvents(pass.businessId, [{
+    ...postedEvent({ title: c.title }, { platform: "youtube", title: typeof p.title === "string" ? p.title : "", postId: pass.postId }),
+    clipId: c.id, jobId: c.job_id,
+  }], pass.userId);
+}
+
 async function quotaOrPermission(res: Response): Promise<string> {
   const text = await res.text().catch(() => "");
   if (/quotaExceeded|dailyLimitExceeded|uploadLimitExceeded/i.test(text)) return "YouTube's daily upload limit has been reached. Try again tomorrow.";
@@ -450,8 +486,9 @@ export async function uploadYouTubeChunk(input: { ticket: string; userId: string
     const body = z.object({ id: z.string().min(1) }).safeParse(await res.json().catch(() => null));
     if (!body.success) throw new YouTubeError("YouTube's reply wasn't understood.", "upload_done_shape");
     const url = youtubeVideoUrl(body.data.id);
-    const { data: post } = await db().from("linkedin_posts").select("scheduled_for").eq("id", pass.postId).maybeSingle();
+    const { data: post } = await db().from("linkedin_posts").select("scheduled_for, payload").eq("id", pass.postId).maybeSingle();
     const scheduled = Boolean((post as { scheduled_for?: string | null } | null)?.scheduled_for);
+    await clipPosted(pass, (post as { payload?: unknown } | null)?.payload);
     const now = new Date().toISOString();
     await db().from("linkedin_posts").update({
       status: scheduled ? "scheduled" : "published",
