@@ -4091,6 +4091,51 @@ export type Database = {
         }
         Relationships: []
       }
+      post_insight_snapshots: {
+        Row: {
+          age_hours: number
+          business_id: string
+          id: string
+          metrics: Json
+          platform: string
+          post_id: string
+          taken_at: string
+        }
+        Insert: {
+          age_hours: number
+          business_id: string
+          id?: string
+          metrics: Json
+          platform: string
+          post_id: string
+          taken_at?: string
+        }
+        Update: {
+          age_hours?: number
+          business_id?: string
+          id?: string
+          metrics?: Json
+          platform?: string
+          post_id?: string
+          taken_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_insight_snapshots_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_insight_snapshots_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
