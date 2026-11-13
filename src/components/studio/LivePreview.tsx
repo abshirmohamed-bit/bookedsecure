@@ -77,6 +77,8 @@ export function LivePreview({
   /** The second person of a split shot: a muted copy kept in step with the first. */
   const twins = useRef<(HTMLVideoElement | null)[]>([]);
   const twinSeekAt = useRef<number[]>([]);
+  /** How many of the copies the current shot shows (the rest are parked). */
+  const twinsInUse = useRef(0);
   const [frame, setFrame] = useState({ w: 0, h: 0 });
   const [natural, setNatural] = useState({ w: 0, h: 0 });
   const [now, setNow] = useState(start);
@@ -143,9 +145,21 @@ export function LivePreview({
         const at = performance.now();
         twins.current.forEach((w, i) => {
           if (!w) return;
-          // Re-seek a copy that drifted, but not every frame: a copy still buffering
-          // was re-seeked on each frame and never showed a picture (an empty card).
-          if (Math.abs(w.currentTime - v.currentTime) > 0.25 && at - (twinSeekAt.current[i] ?? 0) > 1500) {
+          const drift = Math.abs(w.currentTime - v.currentTime);
+          if (i >= twinsInUse.current) {
+            // Parked: held paused on the main video's frame, so it is right the moment a
+            // shot needs it. (Left playing invisibly, the browser throttled it and it fell
+            // seconds behind: a split showed the host in one card and the ISS in the other.)
+            if (!w.paused) w.pause();
+            if (drift > 0.2 && at - (twinSeekAt.current[i] ?? 0) > 400) {
+              twinSeekAt.current[i] = at;
+              w.currentTime = v.currentTime;
+            }
+            return;
+          }
+          // In use: kept in step, but not re-seeked every frame (a copy still buffering
+          // was, and never showed a picture).
+          if (drift > 0.12 && at - (twinSeekAt.current[i] ?? 0) > 500) {
             twinSeekAt.current[i] = at;
             w.currentTime = v.currentTime;
           }
@@ -218,6 +232,7 @@ export function LivePreview({
   const picSize = source.w ? source : { w: 16, h: 9 };
   const glassBox = glass && frame.w ? glassCard(frame.w, frame.h, picSize.w, picSize.h) : null;
   const extras: Card[] = [...(cards ? cards.slice(1) : split && !failed && frame.w && source.w ? [{ box: { x: 0, y: frame.h / 2, w: frame.w, h: frame.h / 2 }, crop: split[1]! }] : []), ...(bubble ? [bubble] : [])];
+  twinsInUse.current = extras.length;
   const cardStyle = (b: { x: number; y: number; w: number; h: number }) => ({
     left: b.x, top: b.y, width: b.w, height: b.h, borderRadius: frame.w * LOOK.radius,
     boxShadow: `0 ${frame.w * LOOK.shadowDrop}px ${frame.w * LOOK.shadowBlur * 2}px rgba(0,0,0,${LOOK.shadowAlpha})`,

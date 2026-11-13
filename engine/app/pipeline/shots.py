@@ -498,7 +498,7 @@ def _activity_zoom(inp: Inputs, a: int, b: int, centre: float) -> "Box | None":
 
 
 #: A piece of a shot shorter than this is folded into its neighbour.
-MIN_PIECE_MS = 700
+MIN_PIECE_MS = 1500
 
 
 def screen_split(inp: Inputs) -> tuple[int, int]:

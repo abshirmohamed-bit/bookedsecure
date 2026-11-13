@@ -35,6 +35,7 @@ MOTION_FPS = 10
 #: Mouth region, as a share of the face box: centred horizontally, below the
 #: middle, about half as wide as the face.
 MOUTH = (0.00, 0.22, 0.55, 0.33)      # dx, dy, w, h relative to the face
+UPPER = (0.00, -0.12, 0.70, 0.30)     # eyes and forehead, same terms
 #: A detection joins an existing track if it is no further than this (a share
 #: of frame width) from where that track last was.
 LINK_DISTANCE = 0.10
@@ -69,6 +70,10 @@ class FaceTrack:
     boxes: list[tuple[int, tuple[float, float, float, float]]] = field(default_factory=list)
     #: (ms, how much the mouth region changed since the previous frame)
     motion: list[tuple[int, float]] = field(default_factory=list)
+    #: (ms, how much the eyes-and-forehead region changed): head movement,
+    #: blinking and floating hair, which also move the mouth patch but are not
+    #: talking (see turns()).
+    head: list[tuple[int, float]] = field(default_factory=list)
 
     @property
     def first_ms(self) -> int:
@@ -109,7 +114,7 @@ class Turn:
     reason: str = "speaking"
 
 
-def _mouth_patch(grey, box: tuple[float, float, float, float], size: int = 24):
+def _mouth_patch(grey, box: tuple[float, float, float, float], size: int = 24, region=None):
     """The mouth region of one face, as a small brightness-normalised patch.
 
     Resized to a fixed size so a face near the camera and a face across the
@@ -121,7 +126,7 @@ def _mouth_patch(grey, box: tuple[float, float, float, float], size: int = 24):
 
     fh, fw = grey.shape[:2]
     cx, cy, bw, bh = box
-    dx, dy, mw, mh = MOUTH
+    dx, dy, mw, mh = region or MOUTH
     half_w = mw * bw * fw / 2
     half_h = mh * bh * fh / 2
     x0 = int((cx + dx) * fw - half_w)
@@ -227,6 +232,7 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
         step = max(1, int(round(fps * detect_ms / 1000)))
         tracks: list[FaceTrack] = []
         last_patch: dict[int, object] = {}
+        last_upper: dict[int, object] = {}
         last_box: dict[int, tuple] = {}
         cuts: list[int] = []
         recent: list[float] = []
@@ -259,6 +265,7 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                     cuts.append(ms)
                     since = ms              # nobody from the old shot carries over
                     last_patch.clear()      # and no mouth is measured across it
+                    last_upper.clear()
                     last_box.clear()
                 recent.append(change)
                 recent_h.append(jump)
@@ -289,7 +296,9 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                 patch = _mouth_patch(grey, box)
                 if patch is None:
                     continue
+                upper = _mouth_patch(grey, box, region=UPPER)
                 before = last_patch.get(t.id)
+                before_up = last_upper.get(t.id)
                 # Every re-detection nudges the box, which moves the window we
                 # are cutting the mouth out of. Two patches taken from
                 # different places are not comparable — the difference between
@@ -299,7 +308,10 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                 if before is not None and not moved \
                         and getattr(before, "shape", None) == patch.shape:
                     t.motion.append((ms, float(np.mean(np.abs(patch - before)))))
+                    if upper is not None and getattr(before_up, "shape", None) == upper.shape:
+                        t.head.append((ms, float(np.mean(np.abs(upper - before_up)))))
                 last_patch[t.id] = patch
+                last_upper[t.id] = upper
                 last_box[t.id] = box
         cap.release()
         cuts = refine_cuts(cuts, raw, media.probe(video).fps, in_ms, step_ms=1000 / fps)
@@ -491,8 +503,34 @@ OVERLAP_LEVEL = 0.30
 MIN_MOTION = 3.0
 
 
+def articulation(t: FaceTrack) -> list[tuple[int, float]]:
+    """How much the mouth moved beyond the rest of the face, sample by sample.
+
+    The mouth patch also moves with the head, a smile, a blink or (on the
+    space station) floating hair: a listener who moves a lot read as much
+    "mouth motion" as the person talking. Taking away what the eyes and
+    forehead did at the same moment leaves the talking. Measured on NASA's
+    two-astronaut answers, the one holding the microphone went from barely
+    ahead to 3-25x ahead in every answer. Tracks without the upper-face
+    reading (older caches) use the raw mouth motion.
+    """
+    if not t.head:
+        return list(t.motion)
+    head = dict(t.head)
+    return [(ms, max(0.0, v - head[ms])) for ms, v in t.motion if ms in head]
+
+
+#: With the upper-face reading (articulation()): the window, margin and motion
+#: floor tuned on labelled two-person answers (NASA's ISS Q&A, who holds the
+#: mic): 25% right / 10% wrong / 65% "can't tell" with raw mouth motion and
+#: 600 ms windows became 82% / 3% / 15%.
+ARTIC_WINDOW_MS = 2500
+ARTIC_MIN_MOTION = 0.6
+ARTIC_OVERLAP_LEVEL = 0.5
+
+
 def turns(tracks: list[FaceTrack], rms: list[tuple[int, float]], *,
-          window_ms: int = 600, min_turn_ms: int = MIN_TURN_MS) -> list[Turn]:
+          window_ms: int | None = None, min_turn_ms: int = MIN_TURN_MS) -> list[Turn]:
     """Who is speaking, window by window, merged into turns.
 
     A track scores for a window by how much its mouth moved *while the audio
@@ -509,6 +547,11 @@ def turns(tracks: list[FaceTrack], rms: list[tuple[int, float]], *,
     times, speech = _speech_mask(rms)
     if times is None or speech is None or not tracks:
         return []
+    upper = any(t.head for t in tracks)
+    if window_ms is None:
+        window_ms = ARTIC_WINDOW_MS if upper else 600
+    min_motion = ARTIC_MIN_MOTION if upper else MIN_MOTION
+    overlap_level = ARTIC_OVERLAP_LEVEL if upper else OVERLAP_LEVEL
     span_start = int(times[0])
     span_end = int(times[-1])
     if span_end <= span_start:
@@ -524,17 +567,18 @@ def turns(tracks: list[FaceTrack], rms: list[tuple[int, float]], *,
     quiet = ~speech
     residual = {}
     for t in tracks:
-        if len(t.motion) < 3:
+        series_ = articulation(t)
+        if len(series_) < 3:
             continue
-        m_times = np.array([ms for ms, _ in t.motion])
-        m_values = np.array([v for _, v in t.motion], dtype="float64")
+        m_times = np.array([ms for ms, _ in series_])
+        m_values = np.array([v for _, v in series_], dtype="float64")
         still = np.interp(m_times, times, quiet.astype("float64")) > 0.5
         floor = float(np.median(m_values[still])) if int(still.sum()) >= 3 else 0.0
         residual[t.id] = (m_times, np.maximum(0.0, m_values - floor))
     if not residual:
         return []
     scale = max((float(np.percentile(v, 90)) for _, v in residual.values()), default=0.0)
-    scale = max(scale, MIN_MOTION)
+    scale = max(scale, min_motion)
     series = residual
 
     out: list[Turn] = []
@@ -563,9 +607,9 @@ def turns(tracks: list[FaceTrack], rms: list[tuple[int, float]], *,
         margin = (top - runner) / (top + runner) if (top + runner) > 0 else 0.0
         # Raw for "did anything move", scaled for "who moved most".
         runner_level = runner / scale
-        if top < MIN_MOTION:
+        if top < min_motion:
             out.append(Turn(start, end, None, round(margin, 3), "unseen"))
-        elif runner_level >= OVERLAP_LEVEL:
+        elif runner_level >= overlap_level:
             out.append(Turn(start, end, None, round(margin, 3), "overlap"))
         elif margin < MIN_MARGIN:
             out.append(Turn(start, end, None, round(margin, 3), "overlap"))
