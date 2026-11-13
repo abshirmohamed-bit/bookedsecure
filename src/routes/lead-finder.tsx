@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, CheckSquare, Download, ExternalLink, Globe, Loader2, Mail, MailCheck, MailWarning, Phone, RefreshCw, Ruler, Search, Sparkles, Star, UserPlus, UserRound, X } from "lucide-react";
+import { CheckCircle2, CheckSquare, Download, ExternalLink, EyeOff, Globe, Loader2, Mail, MailCheck, MailWarning, Phone, RefreshCw, Ruler, Search, Sparkles, Star, UserPlus, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -338,13 +338,13 @@ function LeadFinderPage() {
       {picked.length > 0 && (
         <Portal>
           <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" role="region" aria-label="Selected businesses">
-            <div className="glass flex w-full max-w-3xl flex-wrap items-center gap-2 px-3 py-2 shadow-lg">
-              <p className="mr-auto text-sm font-medium">{picked.length} selected</p>
-              <Button size="sm" variant="ghost" disabled={dismissM.isPending} onClick={() => dismissM.mutate()}><X className="h-4 w-4" />Hide</Button>
-              <Button size="sm" className="btn-glow" disabled={addM.isPending || !d?.isOwner} onClick={() => addM.mutate()}>
+            <div className="glass flex w-full max-w-3xl items-center gap-1.5 px-2 py-2 shadow-lg sm:gap-2 sm:px-3">
+              <button type="button" aria-label="Clear selection" onClick={() => setPicked([])} className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground"><X className="h-4 w-4" /></button>
+              <p className="mr-auto min-w-0 truncate text-sm font-medium">{picked.length} selected</p>
+              <Button size="sm" variant="ghost" className="shrink-0" aria-label="Hide selected" disabled={dismissM.isPending} onClick={() => dismissM.mutate()}><EyeOff className="h-4 w-4" /><span className="hidden sm:inline">Hide</span></Button>
+              <Button size="sm" className="btn-glow shrink-0" disabled={addM.isPending || !d?.isOwner} onClick={() => addM.mutate()}>
                 {addM.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}Add to customers
               </Button>
-              <button type="button" aria-label="Clear selection" onClick={() => setPicked([])} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
           </div>
         </Portal>

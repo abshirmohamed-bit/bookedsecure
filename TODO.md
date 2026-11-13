@@ -31,6 +31,6 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 ## UI fixes (13 Nov)
 
 13. ~~Home "waiting for your reply" listed people already answered or booked~~ fixed (lib/needs-reply); ~~Coming up~~ now skips deleted leads; ~~Co-Work hid the ongoing chat behind "Carry on"~~; ~~Social Post and Lead finder layouts~~ redone.
-14. **Lovable Publish** so production gets these and the sidebar's "Inbox" label (it still says "Replies" until published).
-15. **Check on a phone and desktop after publishing:** Social → Facebook → Post, and Lead finder (select a business to see the bottom action bar).
+14. ~~**Lovable Publish** so production gets these and the sidebar's "Inbox" label (it still says "Replies" until published).~~ Published 14 Nov.
+15. ~~Checked on phone and desktop (14 Nov): Social Post and Lead finder fit; Lead finder's selection bar now stays on one line on phones.~~ Publish again so production gets the bar fix.
 16. **Coming up:** if Brandon Vella or Adam Newell still show there after publishing, they have real upcoming jobs saved; say so and we'll look at where those jobs came from.
