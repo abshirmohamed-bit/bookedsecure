@@ -197,7 +197,10 @@ export function LivePreview({
     return null;
   })();
   const bubble: Card | null = !whole && !failed && shot?.kind === "pip" && shot.inset && frame.w ? { box: pipBox(frame.w, frame.h), crop: shot.inset } : null;
-  const glassBox = glass && frame.w && natural.w ? glassCard(frame.w, frame.h, natural.w, natural.h) : null;
+  // The shot plan knows the picture's size before the video file does, so the card
+  // appears at once (it waited ~2 s for the file's metadata); 16:9 until either knows.
+  const picSize = source.w ? source : { w: 16, h: 9 };
+  const glassBox = glass && frame.w ? glassCard(frame.w, frame.h, picSize.w, picSize.h) : null;
   const cardStyle = (b: { x: number; y: number; w: number; h: number }) => ({
     left: b.x, top: b.y, width: b.w, height: b.h, borderRadius: frame.w * LOOK.radius,
     boxShadow: `0 ${frame.w * LOOK.shadowDrop}px ${frame.w * LOOK.shadowBlur * 2}px rgba(0,0,0,${LOOK.shadowAlpha})`,

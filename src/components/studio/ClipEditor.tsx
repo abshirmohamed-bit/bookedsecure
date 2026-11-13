@@ -226,6 +226,9 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
   // Read every other layout's plan in the background (one at a time; the clip's
   // analysis is cached on the Engine), so switching layouts is instant.
   const firstPlan = Boolean(plan.data) && !plan.isPlaceholderData;
+  // Each background read bumps this so the chips redraw: reading the cache alone
+  // doesn't, and their "still reading" dots used to pulse forever.
+  const [, setPlansRead] = useState(0);
   useEffect(() => {
     if (!firstPlan || !catalog) return;
     let cancelled = false;
@@ -237,6 +240,7 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
           queryKey: planKey(l.id), staleTime: 10 * 60_000,
           queryFn: () => planFn({ data: { clipId: clip.id, layout: l.id, zoom: current.zoom, aspect: current.aspect } }),
         }).catch(() => undefined);
+        if (!cancelled) setPlansRead((n) => n + 1);
       }
     })();
     return () => { cancelled = true; };
