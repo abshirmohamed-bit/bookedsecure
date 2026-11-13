@@ -148,8 +148,11 @@ def import_asset(body: ImportBody) -> dict:
     if ingest.needs_rights(body.url) and not body.rights_confirmed:
         raise EngineError("RIGHTS_REQUIRED", "Confirm you own this footage or have the rights to clip it.")
     with session() as s:
+        # The whole video only: a lean run's HD sections carry the same link,
+        # and reusing the newest one handed a new clip job 82 s of a 58-minute video.
         existing = s.exec(select(Asset).where(Asset.source_url == body.url,
-                          Asset.deleted_at == None, Asset.status.in_(["importing", "ready"]))
+                          Asset.deleted_at == None, Asset.status.in_(["importing", "ready"]),  # noqa: E711
+                          Asset.category != "section")
                           .order_by(Asset.created_at.desc())).first()
         if existing:
             return ok(ingest.asset_payload(existing))

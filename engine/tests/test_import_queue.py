@@ -85,3 +85,16 @@ def test_rights_required_before_queue(api):
     assert response.json()["error"]["code"] == "RIGHTS_REQUIRED"
     with session() as s:
         assert not s.exec(select(Asset).where(Asset.source_url == "https://youtu.be/no-rights")).first()
+
+def test_pasting_a_link_again_reuses_the_whole_video_not_one_of_its_sections(api):
+    """Seen live: after a lean run cut 20 HD sections (which carry the same
+    link), pasting the 58-minute video again returned the newest 82 s section,
+    and the new clip job found 2 clips in it instead of ~20 in the video."""
+    url = "https://youtu.be/sections-share-my-link"
+    with session() as s:
+        s.add(Asset(id="ast_whole", source_url=url, status="ready", category="asset"))
+        s.commit()
+        s.add(Asset(id="ast_section", source_url=url, status="ready", category="section",
+                    parent_id="ast_whole", offset_ms=1655304))
+        s.commit()
+    assert api.post("/v1/assets", json={"url": url, "rights_confirmed": True}).json()["id"] == "ast_whole"
