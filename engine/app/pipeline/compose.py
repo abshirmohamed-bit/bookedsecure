@@ -819,7 +819,7 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     top_busy = sorted(b[0] for b in bands)[len(bands) // 2] if bands else 0.0
     bottom_busy = sorted(b[1] for b in bands)[len(bands) // 2] if bands else 0.0
     place = title_place(render.title or {}, head_top, top_busy, bottom_busy)
-    last = _overlays(render, workdir, chain, w, h, title_top=title_top, place=place)
+    last = _overlays(render, workdir, chain, w, h, title_top=title_top, place=place, plan=plan, inputs=inputs)
 
     args = ["-ss", f"{render.in_ms / 1000:.3f}", "-t", f"{dur_s:.3f}", "-i", str(render.source),
             *_graph_args(";".join(chain), workdir), "-map", f"[{last}]", "-map", "0:a?"]
@@ -864,15 +864,22 @@ def join_shots(plan: list[shotplan.Shot], out: str = "base") -> list[str]:
     return lines
 
 
-def _captions_ass(render: Render, w: int, h: int) -> str:
+def _captions_ass(render: Render, w: int, h: int, plan=None, inputs=None) -> str:
     style = BY_ID.get(render.caption_style_id, BY_ID["bold_white"])
+    place_at = None
+    # Placed by the composition unless the creator chose a height (or the top/bottom).
+    if plan and inputs is not None and render.caption_position in {None, "", "middle"}:
+        def place_at(ms: int):
+            t = render.in_ms + ms
+            shot = next((s for s in plan if s.start_ms <= t < s.end_ms), None)
+            return shotplan.caption_y(shot, inputs) if shot is not None else None
     return build_ass(render.words or [], style, w, h, censored=render.censored,
                      position=render.caption_position, size_scale=render.caption_size, y=render.caption_y,
-                     max_words=render.caption_max_words)
+                     max_words=render.caption_max_words, place_at=place_at)
 
 
 def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int,
-              title_top: int | None = None, place: str = "top") -> str:
+              title_top: int | None = None, place: str = "top", plan=None, inputs=None) -> str:
     """Append captions, title and watermark to a filter_complex graph.
 
     Takes the graph ending in [base] and returns the name of the last link, so
@@ -886,7 +893,7 @@ def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int,
         return "finish"
     if render.captions_enabled and render.words:
         ass = workdir / "captions.ass"
-        ass.write_text(_captions_ass(render, w, h), encoding="utf-8")
+        ass.write_text(_captions_ass(render, w, h, plan, inputs), encoding="utf-8")
         chain.append(f"[{last}]subtitles={ass.name}[cap]")
         last = "cap"
     if render.layout == "title-subtitles":

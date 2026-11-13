@@ -125,11 +125,15 @@ def free_y(y: object) -> float | None:
 def build_ass(words: list[dict], style: Style, width: int, height: int, *,
               censored: list[str] | None = None, keyword_highlight: bool = False,
               max_words: int | None = MAX_WORDS_PER_LINE, position: str | None = None,
-              size_scale: float = 1.0, y: float | None = None) -> str:
+              size_scale: float = 1.0, y: float | None = None,
+              place_at=None) -> str:
     """The whole subtitle file as a string, ready for ffmpeg's subtitles filter.
 
     `position` and `size_scale` override what the style says, so the creator
     can put the words where the picture allows without changing the look.
+    `place_at(ms)` may give a line's own centre height (0 top .. 1 bottom) for
+    the composition at that moment (shots.caption_y): on the seam of a split,
+    above an on-screen card. Unused when the creator dragged the captions.
     """
     scale = height / 1920
     factor = max(SIZE_RANGE[0], min(SIZE_RANGE[1], float(size_scale or 1.0)))
@@ -171,7 +175,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if not line.text:
             continue
         rendered = _render_line(line, style, censored_set, keyword_highlight)
-        events.append(f"Dialogue: 0,{_ts(line.start_ms)},{_ts(line.end_ms)},Caption,,0,0,0,,{rendered}")
+        own = 0
+        at = place_at((line.start_ms + line.end_ms) // 2) if place_at is not None and fy is None else None
+        if at is not None:
+            own = max(1, int(height * (1 - at) - size / 2))
+        events.append(f"Dialogue: 0,{_ts(line.start_ms)},{_ts(line.end_ms)},Caption,,0,0,{own},,{rendered}")
     return header + "\n".join(events) + "\n"
 
 

@@ -869,6 +869,30 @@ def _steady(shots_: list[Shot]) -> list[Shot]:
     return out
 
 
+def caption_y(shot: Shot, inp: Inputs) -> "float | None":
+    """Where captions sit for this composition (centre, 0 top .. 1 bottom), or None for the default.
+
+    Two cards: on the seam between them, the usual short-form place, clear of
+    both faces (the default middle sat on the lower person's head). A person
+    over an on-screen card: over their chest, just above the card. Mirrored by
+    captionYFor in lib/clip-looks for the preview and the browser render.
+    """
+    from . import looks
+
+    w, h = inp.out_w, inp.out_h
+    if h < w or not h:
+        return None
+    if shot.kind == "split":
+        return 0.5
+    if shot.kind == "screen" and shot.main is not None:
+        top, _ = screen_split(inp)
+        return top / h
+    if shot.kind == "graphic" and shot.inset is not None:
+        (_, py, _, ph), _ = looks.graphic_cards(w, h, shot.inset.w, shot.inset.h)
+        return (py + ph) / h - 0.06
+    return None
+
+
 def _merge(shots_: list[Shot]) -> list[Shot]:
     """Neighbouring shots that would look the same render as one."""
     out: list[Shot] = []

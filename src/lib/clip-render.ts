@@ -8,7 +8,7 @@
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import * as MP4Box from "mp4box";
 import { cropAt, shotAt, transitionAt, transitionLook, type MotionSample } from "@/lib/clip-motion";
-import { duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
+import { captionYFor, duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
 import { groupCaptionLines, type CaptionLine, type CaptionWord, type VideoAspect } from "@/lib/video-clips";
 
 export type PlanBox = { x: number; y: number; w: number; h: number };
@@ -281,8 +281,12 @@ function drawCaptions(ctx: CanvasRenderingContext2D, lines: CaptionLine[], input
   const lh = px * 1.18;
   const block = rows.length * lh;
   const freeY = input.captions.y;
+  // Undragged middle captions follow the composition, as the Engine places them (shots.caption_y).
+  const planRel = rel + input.startMs - input.planStartMs;
+  const src = input.plan?.source && input.plan.source.w > 0 ? input.plan.source : { w: 16, h: 9 };
+  const placed = input.captions.position === "middle" ? captionYFor(shotAt(input.plan?.shots ?? [], planRel), W, H, src) : null;
   const centre = typeof freeY === "number" && Number.isFinite(freeY) ? H * Math.min(0.95, Math.max(0.05, freeY))
-    : input.captions.position === "top" ? H * 0.2 : input.captions.position === "lower" ? H * 0.82 : H * 0.5;
+    : input.captions.position === "top" ? H * 0.2 : input.captions.position === "lower" ? H * 0.82 : H * (placed ?? 0.5);
   let y = centre - block / 2 + lh / 2;
   let index = 0;
   for (const row of rows) {

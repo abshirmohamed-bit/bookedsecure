@@ -2,7 +2,7 @@ import { GripHorizontal, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import type { PlanBox, ShotPlan } from "@/lib/video-clips.server";
 import { cropAt, shotAt, TRANSITION_MS } from "@/lib/clip-motion";
-import { duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
+import { captionYFor, duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
 import type { CaptionLine, ClipLayout, VideoAspect } from "@/lib/video-clips";
 
 const ASPECT: Record<VideoAspect, number> = { "9:16": 9 / 16, "1:1": 1, "4:5": 4 / 5, "16:9": 16 / 9 };
@@ -245,7 +245,9 @@ export function LivePreview({
   const edited = line ? lineTexts[line.start_ms] : undefined;
   const fontRem = 1.3 * captions.size * (frame.w ? Math.min(1.25, Math.max(0.6, frame.w / 352)) : 1);
   const headlineTop = headline.position !== "bottom";
-  const y = dragY ?? captions.y ?? PRESET_Y[captions.position] ?? 0.5;
+  // Undragged middle captions follow the composition (the seam of two cards, above an on-screen card).
+  const placed = captions.position === "middle" && !whole && frame.w ? captionYFor(shot, frame.w, frame.h, source) : null;
+  const y = dragY ?? captions.y ?? placed ?? PRESET_Y[captions.position] ?? 0.5;
 
   const dragCaption = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!onCaptionY || !box.current) return;

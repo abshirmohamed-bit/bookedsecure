@@ -75,6 +75,25 @@ export function graphicCards(W: number, H: number, gw: number, gh: number): [Box
   return [{ x: m, y: m, w: iw, h: ph }, { x: m + (iw - cw) / 2, y: m + ph + g, w: cw, h: ch }];
 }
 
+/**
+ * Where captions sit for a shot's composition (centre, 0 top .. 1 bottom), or null for the
+ * style's own place: on the seam of two cards, over the person just above an on-screen card.
+ * Mirrors shots.caption_y; used only when the captions weren't dragged or put top/bottom.
+ */
+export function captionYFor(
+  shot: { kind: string; main?: Box | null; inset?: Box | null } | null | undefined,
+  W: number, H: number, src: { w: number; h: number },
+): number | null {
+  if (!shot || !H || H < W) return null;
+  if (shot.kind === "split") return 0.5;
+  if (shot.kind === "screen" && shot.main) return Math.min(H * 0.5, (W * src.h) / Math.max(1, src.w)) / H;
+  if (shot.kind === "graphic" && shot.inset) {
+    const [person] = graphicCards(W, H, shot.inset.w, shot.inset.h);
+    return (person.y + person.h) / H - 0.06;
+  }
+  return null;
+}
+
 /** Presenter mode: the screen card on top (to `top` px, the Engine's screen_split) and the speaker card below. */
 export function presenterCards(W: number, H: number, top: number): [Box, Box] {
   const m = W * LOOK.duoMargin, g = W * LOOK.duoGap;
