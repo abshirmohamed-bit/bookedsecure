@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { campaignSender, PLATFORM_FROM_ADDRESS } from "@/lib/email-campaigns";
 import { loadEmailBranding, sendEmailViaResend } from "@/lib/email-campaigns.server";
 import { renderEmailHtml, renderEmailText } from "@/lib/email-template";
+import { isLeadFinderLead } from "@/lib/lead-source";
 import {
   DEFAULT_PLATFORM_FORWARD_TO,
   htmlToText,
@@ -225,13 +226,14 @@ export async function getReplyThread(businessId: string, recipientId: string) {
     supabaseAdmin.from("email_campaigns").select("id, name, subject, body_text").eq("id", recipient.campaign_id).maybeSingle(),
     supabaseAdmin.from("email_messages").select("id, direction, from_email, from_name, body_text, subject, created_at, status, error, read_at")
       .eq("business_id", businessId).eq("recipient_id", recipientId).order("created_at", { ascending: true }).limit(200),
-    recipient.lead_id ? supabaseAdmin.from("leads").select("id, name").eq("id", recipient.lead_id).maybeSingle() : Promise.resolve({ data: null }),
+    recipient.lead_id ? supabaseAdmin.from("leads").select("id, name, source_metadata").eq("id", recipient.lead_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   if (error) throw new Error("Could not load the conversation.");
   return {
     recipientId,
     leadId: recipient.lead_id,
     customerName: lead?.name ?? null,
+    fromLeadFinder: lead ? isLeadFinderLead(lead) : false,
     customerEmail: recipient.email,
     campaign: campaign ? { id: campaign.id, name: campaign.name, subject: campaign.subject, bodyText: campaign.body_text, sentAt: recipient.sent_at } : null,
     messages: messages ?? [],

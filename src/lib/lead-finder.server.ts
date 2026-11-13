@@ -14,6 +14,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normaliseAuMobile } from "@/lib/domain";
 import {
   candidateFromOsm,
+  outreachFunnel,
+  outreachStage,
   candidatesFromWebSearch,
   mergeCandidates,
   webSearchQuery,
@@ -559,7 +561,7 @@ export async function leadFinderState(businessId: string, searchId?: string | nu
       for (const r of results) {
         if (!r.leadId) continue;
         const st = statusOf.get(r.leadId);
-        r.progress = st === "scheduled" || st === "completed" ? "booked" : st === "customer_replied" || st === "ready_for_quote" || st === "quote_sent" ? "replied" : emailed.has(r.leadId) ? "emailed" : "added";
+        r.progress = outreachStage(st, emailed.has(r.leadId));
       }
     }
   }
@@ -734,4 +736,26 @@ export async function suggestLeadSearches(businessId: string, ownerRequest?: str
     (recent ?? []).length ? `Already searched: ${(recent as Array<{ query: string; area: string }>).map((r) => `${r.query} in ${r.area}`).join("; ")}. Suggest different ones unless asked.` : "",
   ].filter(Boolean).join("\n");
   return readSuggestions(await aiText(businessId, "lead_finder_suggestions", system, prompt));
+}
+
+/**
+ * The Outreach progress strip: businesses found in the last 30 days, and how many
+ * of the Lead finder businesses added in that time were emailed, replied and booked.
+ * Missing tables read as zero, so the strip just stays hidden.
+ */
+export async function outreachProgress(businessId: string) {
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const [{ count: found }, { data: leads }] = await Promise.all([
+    db().from("lead_finder_prospects").select("id", { count: "exact", head: true }).eq("business_id", businessId).gte("created_at", since),
+    supabaseAdmin.from("leads").select("id, status").eq("business_id", businessId).is("deleted_at", null)
+      .not("source_metadata->lead_finder", "is", null).gte("created_at", since).limit(1000),
+  ]);
+  const rows = (leads ?? []) as { id: string; status: string }[];
+  const emailed = new Set<string>();
+  for (let i = 0; i < rows.length; i += 200) {
+    const ids = rows.slice(i, i + 200).map((r) => r.id);
+    const { data } = await supabaseAdmin.from("email_campaign_recipients").select("lead_id").eq("business_id", businessId).in("lead_id", ids).not("sent_at", "is", null);
+    for (const r of data ?? []) emailed.add(r.lead_id as string);
+  }
+  return outreachFunnel(found ?? 0, rows.map((r) => outreachStage(r.status, emailed.has(r.id))));
 }

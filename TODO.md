@@ -34,3 +34,4 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 14. ~~**Lovable Publish** so production gets these and the sidebar's "Inbox" label (it still says "Replies" until published).~~ Published 14 Nov.
 15. ~~Checked on phone and desktop (14 Nov): Social Post and Lead finder fit; Lead finder's selection bar now stays on one line on phones.~~ Publish again so production gets the bar fix.
 16. ~~**Coming up:**~~ checked live 14 Nov: Brandon Vella and Adam Newell no longer show there; Home lists only Brandon as waiting for a reply.
+17. **Lovable Publish** for Outreach (14 Nov): Lead finder, Campaigns and Inbox are now one sidebar item with shared tabs and a Found → Emailed → Replied → Booked strip. After publishing, check the strip's numbers against Lead finder's results.

@@ -495,3 +495,20 @@ export function photonToElement(feature: { properties?: Record<string, unknown> 
   copy("postcode", "addr:postcode");
   return { type, id, tags };
 }
+
+/** How far a Lead finder business has got: booked, replied, emailed or just added. */
+export type OutreachStage = "added" | "emailed" | "replied" | "booked";
+
+export function outreachStage(leadStatus: string | null | undefined, emailed: boolean): OutreachStage {
+  if (leadStatus === "scheduled" || leadStatus === "completed") return "booked";
+  if (leadStatus === "customer_replied" || leadStatus === "ready_for_quote" || leadStatus === "quote_sent") return "replied";
+  return emailed ? "emailed" : "added";
+}
+
+/** Found → Emailed → Replied → Booked: each later step also counts toward the earlier ones. */
+export function outreachFunnel(found: number, stages: OutreachStage[]): { found: number; emailed: number; replied: number; booked: number } {
+  const booked = stages.filter((s) => s === "booked").length;
+  const replied = booked + stages.filter((s) => s === "replied").length;
+  const emailed = replied + stages.filter((s) => s === "emailed").length;
+  return { found: Math.max(found, stages.length), emailed, replied, booked };
+}

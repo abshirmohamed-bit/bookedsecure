@@ -87,11 +87,10 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: "Work",
     items: [
       { to: "/bookings", label: "Bookings", icon: "bookings" },
-      { to: "/lead-finder", label: "Lead finder", icon: "finder" },
-      { to: "/campaigns", label: "Campaigns", icon: "campaigns", excludePaths: ["/campaigns/replies"] },
-      { to: "/campaigns/replies", label: "Inbox", icon: "replies", badge: "campaigns", sub: true },
+      // Outreach: Find businesses, Campaigns and Inbox are tabs of one area (OutreachTabs), so they work as one flow.
+      { to: "/campaigns", label: "Outreach", icon: "campaigns", badge: "campaigns", contextPaths: ["/lead-finder"] },
       { to: "/studio", label: "Studio", icon: "studio" },
-      // The hands-on posting, comments and messages tools, under Studio like Replies under Campaigns.
+      // The hands-on posting, comments and messages tools, under Studio.
       { to: "/social", label: "Social media", icon: "social", sub: true, search: { platform: "facebook" }, contextPaths: ["/linkedin"] },
       { to: "/ads", label: "Ad results", icon: "ads" },
       { to: "/analytics", label: "Business numbers", icon: "results" },
@@ -143,7 +142,9 @@ export function navBreadcrumb(pathname: string): string[] {
   if (matches(pathname, "/profile")) return ["Account", "Your profile"];
   if (matches(pathname, "/notifications")) return ["Account", "Alerts and notifications"];
   if (matches(pathname, "/settings/billing")) return ["Account", "Account access"];
-  if (matches(pathname, "/campaigns/replies")) return ["Campaigns", "Inbox"];
+  if (matches(pathname, "/campaigns/replies")) return ["Outreach", "Inbox"];
+  if (matches(pathname, "/lead-finder")) return ["Outreach", "Find businesses"];
+  if (matches(pathname, "/campaigns")) return ["Outreach", "Campaigns"];
   if (matches(pathname, "/social") || matches(pathname, "/linkedin")) return ["Studio", "Social media"];
   const item = NAV_ITEMS.find((candidate) => isNavItemActive(candidate, pathname));
   if (!item) return [];

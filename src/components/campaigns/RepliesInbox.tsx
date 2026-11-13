@@ -344,8 +344,13 @@ function Thread({ recipientId, onBack }: { recipientId: string; onBack: () => vo
         </button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{t.customerName ?? t.customerEmail}</p>
-          <p className="truncate text-xs text-muted-foreground">{t.customerEmail}</p>
+          <p className="truncate text-xs text-muted-foreground">{t.customerEmail}{t.fromLeadFinder && <span className="sm:hidden"> · Found with Lead finder</span>}</p>
         </div>
+        {t.fromLeadFinder && (
+          <Link to="/lead-finder" className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/15 max-sm:hidden">
+            Found with Lead finder
+          </Link>
+        )}
         {t.leadId && (
           <Link to="/leads/$leadId" params={{ leadId: t.leadId }} className="shrink-0 rounded-full px-3 py-2 text-xs font-medium text-primary hover:bg-white/70">
             Open lead

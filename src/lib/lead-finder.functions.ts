@@ -76,3 +76,12 @@ export const suggestLeadFinderSearches = createServerFn({ method: "POST" })
     const { suggestLeadSearches } = await import("./lead-finder.server");
     return { suggestions: await suggestLeadSearches(ctx.businessId, data.request, data.likeLeadId) };
   });
+
+/** Found → Emailed → Replied → Booked for the Outreach pages' progress strip. */
+export const getOutreachProgress = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = await member(context);
+    const { outreachProgress } = await import("./lead-finder.server");
+    return outreachProgress(ctx.businessId);
+  });

@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, CheckSquare, Download, ExternalLink, EyeOff, Globe, Loader2, Mail, MailCheck, MailWarning, Phone, RefreshCw, Ruler, Search, Sparkles, Star, UserPlus, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { OutreachProgress, OutreachTabs } from "@/components/campaigns/CampaignsTabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Portal } from "@/components/Portal";
@@ -144,13 +145,15 @@ function LeadFinderPage() {
   return (
     <AppShell title="Lead finder">
       <div className={`mx-auto max-w-6xl space-y-4 p-4 md:p-6 ${picked.length ? "pb-28" : ""}`}>
-        <header className="flex flex-wrap items-end justify-between gap-2">
+        <header className="space-y-3 sm:flex sm:items-end sm:justify-between sm:gap-3 sm:space-y-0">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Lead finder</h1>
             <p className="text-sm text-muted-foreground">Find businesses that fit, read their websites, and keep the email they publish. Nothing is sent from here.</p>
           </div>
-          {d && <p className="rounded-full border border-border bg-card/60 px-3 py-1 text-xs tabular-nums text-muted-foreground">{d.usedThisMonth} of {d.monthlyLimit} searches used this month</p>}
+          <OutreachTabs active="finder" />
         </header>
+        <OutreachProgress />
+        {d && <p className="w-fit rounded-full border border-border bg-card/60 px-3 py-1 text-xs tabular-nums text-muted-foreground">{d.usedThisMonth} of {d.monthlyLimit} searches used this month</p>}
 
         {d && !ready && (
           <div className="glass p-4 text-sm text-muted-foreground">

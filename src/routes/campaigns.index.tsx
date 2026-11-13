@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CampaignComposer } from "@/components/campaigns/CampaignComposer";
 import { CAMPAIGN_AUDIENCES, type CampaignAudienceId } from "@/lib/email-campaigns";
-import { CampaignsTabs } from "@/components/campaigns/CampaignsTabs";
+import { OutreachProgress, OutreachTabs } from "@/components/campaigns/CampaignsTabs";
 import { formatDate, plural, SendDialog, StatusPill } from "@/components/campaigns/CampaignParts";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/app.functions";
@@ -165,8 +165,9 @@ function CampaignsPage() {
               <Plus /> New campaign
             </Button>
           </div>
-          <CampaignsTabs active="campaigns" />
+          <OutreachTabs active="campaigns" />
         </header>
+        <OutreachProgress />
 
         <section aria-labelledby="your-campaigns" className="glass overflow-hidden">
           {/* Metrics live in the card header instead of a separate row of tiles. */}
