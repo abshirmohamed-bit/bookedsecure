@@ -470,6 +470,13 @@
       "when": 1794558792494,
       "tag": "0066_post_insight_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1794559386915,
+      "tag": "0067_apply_post_insight_snapshots",
+      "breakpoints": true
     }
   ]
 }
