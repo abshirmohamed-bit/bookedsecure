@@ -2383,6 +2383,8 @@ export type Database = {
           address: string | null
           business_id: string
           category: string | null
+          contact_name: string | null
+          contact_role: string | null
           created_at: string
           email: string | null
           email_status: string
@@ -2396,6 +2398,7 @@ export type Database = {
           rating: number | null
           review_count: number | null
           search_id: string | null
+          size_hint: string | null
           status: string
           suburb: string | null
           summary: string | null
@@ -2406,6 +2409,8 @@ export type Database = {
           address?: string | null
           business_id: string
           category?: string | null
+          contact_name?: string | null
+          contact_role?: string | null
           created_at?: string
           email?: string | null
           email_status?: string
@@ -2419,6 +2424,7 @@ export type Database = {
           rating?: number | null
           review_count?: number | null
           search_id?: string | null
+          size_hint?: string | null
           status?: string
           suburb?: string | null
           summary?: string | null
@@ -2429,6 +2435,8 @@ export type Database = {
           address?: string | null
           business_id?: string
           category?: string | null
+          contact_name?: string | null
+          contact_role?: string | null
           created_at?: string
           email?: string | null
           email_status?: string
@@ -2442,6 +2450,7 @@ export type Database = {
           rating?: number | null
           review_count?: number | null
           search_id?: string | null
+          size_hint?: string | null
           status?: string
           suburb?: string | null
           summary?: string | null
@@ -3188,6 +3197,7 @@ export type Database = {
           scheduled_for: string | null
           source: string
           status: string
+          video_clip_id: string | null
         }
         Insert: {
           approved_at?: string | null
@@ -3212,6 +3222,7 @@ export type Database = {
           scheduled_for?: string | null
           source?: string
           status?: string
+          video_clip_id?: string | null
         }
         Update: {
           approved_at?: string | null
@@ -3236,6 +3247,7 @@ export type Database = {
           scheduled_for?: string | null
           source?: string
           status?: string
+          video_clip_id?: string | null
         }
         Relationships: [
           {
@@ -5376,6 +5388,50 @@ export type Database = {
         }
         Relationships: []
       }
+      video_clip_events: {
+        Row: {
+          after: Json | null
+          before: Json | null
+          business_id: string
+          clip_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          job_id: string | null
+          kind: string
+        }
+        Insert: {
+          after?: Json | null
+          before?: Json | null
+          business_id: string
+          clip_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id?: string | null
+          kind: string
+        }
+        Update: {
+          after?: Json | null
+          before?: Json | null
+          business_id?: string
+          clip_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id?: string | null
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_clip_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_clip_jobs: {
         Row: {
           aspect: string
@@ -5474,6 +5530,7 @@ export type Database = {
           height: number | null
           id: string
           job_id: string
+          original: Json | null
           position: number
           reason: string | null
           score: number | null
@@ -5496,6 +5553,7 @@ export type Database = {
           height?: number | null
           id?: string
           job_id: string
+          original?: Json | null
           position?: number
           reason?: string | null
           score?: number | null
@@ -5518,6 +5576,7 @@ export type Database = {
           height?: number | null
           id?: string
           job_id?: string
+          original?: Json | null
           position?: number
           reason?: string | null
           score?: number | null
