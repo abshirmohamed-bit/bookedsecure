@@ -1,15 +1,5 @@
 # Roadmap: Facebook → Make lead import completion
 
-## Glocast "one tool" plan: what's left
-- [x] Phase 1: booking confirmation email and text on every new booking, with a per-booking switch and send log; tested live.
-- [x] Phase 3: Facebook and Instagram drafts, approval, calendar and post figures; tested live.
-- [x] Google Ads Basic access: design document written (docs/google/google-ads-api-design.pdf).
-- [ ] Google Ads Basic access: owner submits the token application in Google Ads → API Center with the PDF attached; review takes about 2–5 business days.
-- [ ] Google Ads: after approval, set GOOGLE_ADS_DEVELOPER_TOKEN, connect Glocast's account in Ad results, and check the figures against Google Ads.
-- [ ] Competitor ads (to replace Adspirer): decide whether to build a competitor tracker with saved Facebook pages, one-click Meta Ad Library links and notes. Meta's Ad Library API only returns Australian ads that are political or about social issues, so competitors' ordinary ads can't be pulled in automatically.
-- [ ] TikTok scheduling: owner creates a TikTok developer app and applies for the Content Posting API. Until TikTok audits the app, posts can only be private, for up to 5 accounts a day. The build reuses the social planner.
-- [ ] Shared email inbox (to replace Outlook for customer email): only if Glocast asks; Replies already covers campaign replies.
-
 ## Project monitoring fixes
 - [x] Give browser-rendered video frames valid durations and surface muxing failures.
 - [x] Preserve dragged caption positions through preview and save validation.
