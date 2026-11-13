@@ -406,6 +406,18 @@ def _cards(source: Path, render: Render) -> list:
         return []
 
 
+def _texts(source: Path, render: Render) -> list:
+    """On-screen text over the render's range (labels, titles, captions); none if reading fails."""
+    if render.layout in {"streamer", "black-box", "title-subtitles"}:
+        return []
+    try:
+        from . import graphics
+        return graphics.text_boxes(source, render.in_ms, render.out_ms)
+    except Exception:
+        log.exception("text search failed; framing without it")
+        return []
+
+
 def _subtitles(source: Path, render: Render):
     """Where the video's own burned-in subtitles start, if it has them."""
     if render.layout in {"streamer", "black-box", "title-subtitles"}:
@@ -433,10 +445,12 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
     turns_: list = []
     cuts: list[int] = []
     detail: list = []
+    bodies: list = []
     if render.framing_mode not in {"center", "manual"}:
         try:
-            track, tracks, turns_, cuts, detail = framing.analyse(
-                source, in_ms=render.in_ms, out_ms=render.out_ms)
+            found = framing.analyse(source, in_ms=render.in_ms, out_ms=render.out_ms)
+            track, tracks, turns_, cuts, detail = found[:5]
+            bodies = list(found[5]) if len(found) > 5 else []
         except Exception:
             log.exception("shot analysis failed; rendering a centred crop")
     sw = getattr(track, "width", 0) or 0
@@ -449,9 +463,10 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
             sw, sh = w, h
     inputs = shotplan.Inputs(
         width=sw, height=sh, out_w=w, out_h=h, in_ms=render.in_ms, out_ms=render.out_ms,
-        tracks=tracks, turns=turns_, cuts=cuts, detail=detail, track=track,
+        tracks=tracks, turns=turns_, cuts=cuts, detail=detail, track=track, bodies=bodies,
         layout=render.layout, focus=render.focus, zoom=render.zoom, words=render.words,
         cards=_cards(source, render) if render.framing_mode not in {"center", "manual"} else [],
+        texts=_texts(source, render) if render.framing_mode not in {"center", "manual"} else [],
         subtitle_top=_subtitles(source, render) if render.framing_mode not in {"center", "manual"} else None,
     )
     plan = shotplan.plan(inputs)

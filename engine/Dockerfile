@@ -49,6 +49,19 @@ RUN mkdir -p /models && \
     echo "note: face model not fetched; motion tracking will be used"
 ENV FACE_MODEL_PATH=/models/face_detection_yunet.onnx
 
+# People and on-screen text (app/pipeline/subjects.py): whole-body person
+# boxes so someone filmed from behind or walking is still framed, and text
+# boxes so labels, titles and burned-in captions are never sliced. Both are
+# optional; without them the planner works from faces alone.
+RUN curl -fsSL -o /models/object_detection_nanodet.onnx \
+      "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/object_detection_nanodet/object_detection_nanodet_2022nov.onnx" || \
+    echo "note: object model not fetched; people are faces only"
+RUN curl -fsSL -o /models/text_detection_ppocr.onnx \
+      "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/text_detection_ppocr/text_detection_en_ppocrv3_2023may.onnx" || \
+    echo "note: text model not fetched; on-screen text is not read"
+ENV OBJECT_MODEL_PATH=/models/object_detection_nanodet.onnx
+ENV TEXT_MODEL_PATH=/models/text_detection_ppocr.onnx
+
 WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir \

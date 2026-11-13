@@ -181,6 +181,11 @@ class Inputs:
     #: Where burned-in subtitles start (share of the height), if the video has them:
     #: crops end above it (graphics.subtitle_top).
     subtitle_top: float | None = None
+    #: Whole-body person tracks (speaker.FaceTrack, boxes as centre/size shares),
+    #: from the object detector. Empty when it isn't installed.
+    bodies: list = field(default_factory=list)
+    #: On-screen text (graphics.text_boxes): (ms, [(x, y, w, h) shares]).
+    texts: list = field(default_factory=list)
 
 
 # ------------------------------------------------------------------ geometry
@@ -247,17 +252,31 @@ def _talk_time(turns_, start_ms: int, end_ms: int) -> dict[int, int]:
 
 
 def _zoom_cap(inp: Inputs) -> float:
-    """How far this source can be pushed in before the picture goes soft."""
+    """How far this source can be pushed in before the picture goes soft.
+
+    Measured against the full-size output of this shape (1080 wide for a
+    vertical or square clip), not the render's own size: a half-size preview
+    and the editor's framing call must plan the same shot.
+    """
     _, fh = full_window(inp.width, inp.height, inp.out_w, inp.out_h)
-    base = inp.out_h / max(1, fh)          # enlargement the output already needs
+    nominal_h = 1080 if inp.out_w >= inp.out_h else round(1080 * inp.out_h / max(1, inp.out_w))
+    base = nominal_h / max(1, fh)          # enlargement the output already needs
     return _clamp(MAX_UPSCALE / base, MIN_CAP, MAX_CAP)
 
 
-def _auto_zoom(faces: list[_Face], inp: Inputs, share: float) -> float:
+#: A face narrower than this, with no body found around it, is pushed in at
+#: most this far: a speck of a face is not a reason to blow up a wide shot.
+TINY_FACE_W = 0.03
+TINY_FACE_ZOOM = 1.3
+
+
+def _auto_zoom(faces: list[_Face], inp: Inputs, share: float, bodies: list[_Face] | None = None) -> float:
     """Push in on a wide shot until the subject reads, never past the cap.
 
     When everyone in the shot fits the window, the push stops while they
     still all fit: a wide two-shot should get tighter, not lose a person.
+    With body boxes, the push also stops while the subject's body still fits
+    across the window, so a walking person is not cropped to a head.
     """
     if not faces:
         return 1.0
@@ -266,6 +285,11 @@ def _auto_zoom(faces: list[_Face], inp: Inputs, share: float) -> float:
     lo, hi = min(f.left for f in faces), max(f.right for f in faces)
     if director._fits(lo, hi, share):
         want = min(want, share * (1 - 2 * director.EDGE_MARGIN) / max(hi - lo, 1e-3))
+    body = _body_of(subject, bodies or [])
+    if body is not None:
+        want = min(want, share * (1 - director.EDGE_MARGIN) / max(body.w, 1e-3))
+    elif subject.w < TINY_FACE_W and _people_seen(inp):
+        want = min(want, TINY_FACE_ZOOM)
     zoom = min(want, _zoom_cap(inp))
     return round(zoom, 3) if zoom >= MIN_ZOOM else 1.0
 
@@ -349,10 +373,255 @@ def _bands(people: list[_Face]) -> list[tuple[float, float]]:
     return out
 
 
+# ------------------------------------------------------------------ people and text
+
+#: A face this wide is trusted on its own; smaller ones need a body around them
+#: when the person detector ran, or they are a kettle, a painting, a poster.
+TRUSTED_FACE_W = 0.06
+#: A faceless person (filmed from behind, in profile, walking away) is framed
+#: with their body this tall in the window.
+TARGET_BODY_H = 0.82
+#: A title card is big text across the middle of the picture ("DAY 1"): at
+#: least this tall and this wide, centred, or covering this much of the frame.
+#: A name label in a corner is never a title, however bold its lettering.
+TITLE_TEXT_H = 0.14
+TITLE_TEXT_W = 0.30
+TITLE_TEXT_AREA = 0.08
+#: A faceless shot is "about" its activity when the busiest window holds this
+#: many times its fair share of the motion; below it the middle is framed.
+ACTIVITY_LEAD = 1.35
+#: Motion (mean grey-level difference) above which a flat picture is not a
+#: still screen: a screen recording with a cursor stays under it, a hand
+#: drawing on paper does not.
+STILL_SCREEN_MOTION = 2.0
+#: A picture darker than this (mean grey level) is night footage, not a
+#: screen or a slide: it is cropped like any other shot, never shown as one.
+DARK_PICTURE = 60.0
+
+
+def _brightness(inp: Inputs, a: int, b: int) -> "float | None":
+    vals = [e[8] for e in inp.detail if a <= e[0] < b and len(e) > 8]
+    return sum(vals) / len(vals) if vals else None
+
+
+def _people_seen(inp: Inputs) -> bool:
+    return bool(inp.bodies)
+
+
+def _bodies_in(inp: Inputs, a: int, b: int) -> list[_Face]:
+    return _faces(director.people_in(inp.bodies, a, b)) if inp.bodies else []
+
+
+def _body_of(face: _Face, bodies: list[_Face]) -> "_Face | None":
+    """The body box the face sits in: its centre inside the box, in the head's place.
+
+    Several boxes can hold one face (a person in front of another); the one
+    whose top sits where this face's head is wins, so a face is not paired
+    with the body of someone standing behind.
+    """
+    best, best_d = None, 9.0
+    for bd in bodies:
+        left, right = bd.x - bd.w / 2 - 0.02, bd.x + bd.w / 2 + 0.02
+        top, bottom = bd.y - bd.h / 2 - 0.03, bd.y + bd.h / 2
+        if not (left <= face.x <= right and top <= face.y <= bottom):
+            continue
+        if face.w > 0.75 * bd.w + 0.02:
+            continue                    # a face wider than the body is not in it
+        head = top + 0.03 + face.h / 2  # where this face's centre would be at the top of the box
+        d = abs(face.y - head) / max(bd.h, 1e-3) + 0.3 * abs(face.x - bd.x) / max(bd.w, 1e-3)
+        if face.y > top + 0.6 * bd.h + 0.03:
+            continue
+        if d < best_d:
+            best, best_d = bd, d
+    return best
+
+
+def _body_track(face: _Face, inp: Inputs, a: int, b: int):
+    """The body track that carries this face through the shot, if the detector saw one."""
+    if not inp.bodies:
+        return None
+    cast = director.people_in(inp.bodies, a, b)
+    by_id = {p.id: p for p in cast}
+    bd = _body_of(face, _faces(cast))
+    return by_id.get(bd.id) if bd is not None else None
+
+
+def _real_faces(faces: list[_Face], bodies: list[_Face], inp: Inputs) -> list[_Face]:
+    """Faces that belong to a person, when the person detector is there to say.
+
+    A face the size of a thumb with no body around it is a kettle, a poster,
+    a painting of an owl: every one of those has steered a crop.
+    """
+    if not _people_seen(inp):
+        return faces
+    kept = []
+    for f in faces:
+        if f.w >= TRUSTED_FACE_W or _body_of(f, bodies) is not None:
+            kept.append(f)
+    return kept
+
+
+def _texts_in(inp: Inputs, a: int, b: int) -> list[tuple[float, float, float, float]]:
+    if not inp.texts:
+        return []
+    from . import graphics
+
+    return graphics.text_spans(inp.texts, a, b)
+
+
+def _is_title(texts: list[tuple[float, float, float, float]]) -> bool:
+    for x, y, w, h in texts:
+        cx, cy = x + w / 2, y + h / 2
+        centred = 0.25 <= cx <= 0.75 and 0.12 <= cy <= 0.82
+        if w * h >= TITLE_TEXT_AREA or (centred and h >= TITLE_TEXT_H and w >= TITLE_TEXT_W):
+            return True
+    return False
+
+
+def _clear_of_text(shot: Shot, texts: list[tuple[float, float, float, float]], inp: Inputs,
+                   lo: float, hi: float) -> Shot:
+    """Never slice a label: a fill window takes each run of text in whole or leaves it out.
+
+    Sideways first (the smaller move that keeps the subject [lo, hi] inside
+    with its margin); a label that would be cut by the bottom of a pushed-in
+    window opens the window back to full height instead.
+    """
+    if shot.kind != "fill" or shot.window is None or not texts:
+        return shot
+    sw, sh = inp.width, inp.height
+    win = shot.window
+    share = win.w / sw
+    m = share * director.EDGE_MARGIN
+    for t in texts:
+        tl, tr, tt, tb = t[0], t[0] + t[2], t[1], t[1] + t[3]
+        if t[2] > share * (1 - 2 * director.EDGE_MARGIN):
+            continue                    # wider than the window: nothing sideways helps
+        new_pan = []
+        for ms, x in shot.pan or [(shot.start_ms, win.x)]:
+            wl = x / sw
+            wr = wl + share
+            if tr <= wl or tl >= wr or (tl >= wl and tr <= wr):
+                new_pan.append((ms, x))
+                continue
+            c = wl + share / 2
+            options = [tl - 0.005 - share / 2, tr + 0.005 + share / 2, tr + 0.005 - share / 2, tl - 0.005 + share / 2]
+            ok = [o for o in options if o - share / 2 >= -1e-9 and o + share / 2 <= 1 + 1e-9
+                  and lo >= o - share / 2 + m / 2 and hi <= o + share / 2 - m / 2]
+            if ok:
+                c = min(ok, key=lambda o: abs(o - c))
+            new_pan.append((ms, int(_clamp(round(c * sw - win.w / 2), 0, sw - win.w))))
+        shot.pan = new_pan
+        if new_pan:
+            win.x = new_pan[0][1]
+        # Vertical: a pushed-in window must not end across a line of text.
+        if win.h < sh:
+            top, bottom = win.y / sh, (win.y + win.h) / sh
+            if tt < bottom < tb or tt < top < tb:
+                full_w, full_h = full_window(sw, sh, inp.out_w, inp.out_h)
+                cx = win.x + win.w / 2
+                win.w, win.h, win.y = full_w, full_h, 0
+                win.x = int(_clamp(round(cx - full_w / 2), 0, sw - full_w))
+                shot.pan = [(ms, int(_clamp(round(x + (win.w - full_w) / 2), 0, sw - full_w))) for ms, x in shot.pan]
+                shot.zoom = 1.0
+                shot.why += ", opened up for the text on screen"
+    return shot
+
+
+def _activity_profile(inp: Inputs, a: int, b: int):
+    """(columns of motion 0..1, mean motion level, camera shift share) over a shot, or None."""
+    entries = [e for e in inp.detail if a <= e[0] < b and len(e) > 7 and e[5]]
+    if not entries:
+        return None
+    cols = None
+    for e in entries:
+        grid = e[5]
+        col = [sum(row[i] for row in grid) for i in range(len(grid[0]))]
+        cols = col if cols is None else [x + y for x, y in zip(cols, col)]
+    peak = max(cols) or 1.0
+    level = sum(e[7] for e in entries) / len(entries)
+    shift = sum(e[6] for e in entries) / len(entries)
+    return [c / peak for c in cols], level, shift
+
+
+def _activity_centre(inp: Inputs, a: int, b: int, share: float) -> "tuple[float, float] | None":
+    """Where a faceless shot's action is: (centre 0..1, lead over a fair share), or None without data."""
+    prof = _activity_profile(inp, a, b)
+    if prof is None:
+        return None
+    cols, _level, _shift = prof
+    # Motion plus a little of the static detail, so a still product on a plain
+    # table still pulls the window towards itself.
+    rows = [e[1] for e in inp.detail if a <= e[0] < b and e[1]]
+    n = len(cols)
+    edges = [0.0] * n
+    if rows:
+        k = len(rows[0])
+        avg = [sum(r[i] for r in rows if len(r) == k) / len(rows) for i in range(k)]
+        top = max(avg) or 1.0
+        edges = [avg[min(k - 1, int(i * k / n))] / top for i in range(n)]
+    # The window is chosen on motion with a little static detail as the
+    # tie-breaker; how decisive the choice is ("lead") is judged on the motion
+    # alone, so detail spread evenly over the picture cannot water it down.
+    score = [mv + 0.15 * ed for mv, ed in zip(cols, edges)]
+    total_m = sum(cols)
+    if total_m <= 0 or sum(score) <= 0:
+        return None
+    span = max(1, min(n, round(share * n)))
+    best, best_at = -1.0, 0
+    for i in range(0, n - span + 1):
+        s = sum(score[i:i + span])
+        if s > best:
+            best, best_at = s, i
+    lead = (sum(cols[best_at:best_at + span]) / total_m) / (span / n)
+    return (best_at + span / 2) / n, lead
+
+
+def _activity_pan(inp: Inputs, a: int, b: int, share: float) -> list[tuple[int, float]]:
+    """The action's centre over a shot, sample by sample, eased so the window follows a moving hand."""
+    entries = [e for e in inp.detail if a <= e[0] < b and len(e) > 7 and e[5]]
+    out: list[tuple[int, float]] = []
+    held: float | None = None
+    for e in entries:
+        grid = e[5]
+        n = len(grid[0])
+        col = [sum(row[i] for row in grid) for i in range(n)]
+        total = sum(col)
+        if total <= 0:
+            continue
+        c = sum((i + 0.5) / n * v for i, v in enumerate(col)) / total
+        c = _clamp(c, share / 2, 1 - share / 2)
+        if held is None:
+            held = c
+        elif abs(c - held) > 0.08:            # dead zone: a wobble does not move the camera
+            held += 0.5 * (c - held)
+        out.append((e[0], round(held, 4)))
+    return out
+
+
+def _fill_body(inp: Inputs, a: int, b: int, bodies: list[_Face], why: str) -> Shot:
+    """A person with no face to read (from behind, in profile, walking off): framed on their body."""
+    sw, sh = inp.width, inp.height
+    fw, fh = full_window(sw, sh, inp.out_w, inp.out_h)
+    subject = max(bodies, key=lambda f: f.w * f.h * f.presence)
+    want = TARGET_BODY_H * sh / max(subject.h * sh, 1.0) * (fh / sh)
+    zoom = _clamp(want, 1.0, _zoom_cap(inp)) if inp.zoom in {"auto", "moments"} else 1.0
+    if zoom < MIN_ZOOM:
+        zoom = 1.0
+    ww, wh = _even(fw / zoom), _even(fh / zoom)
+    share = ww / sw
+    samples = director.plan_camera(inp.bodies, [], [], a, b, share, use_turns=False) or [(a, subject.x)]
+    pan = [(ms, int(_clamp(round(c * sw - ww / 2), 0, sw - ww))) for ms, c in samples]
+    top = (subject.y - subject.h / 2) * sh
+    y = int(_clamp(round(top - 0.06 * wh), 0, sh - wh)) if wh < sh else 0
+    first = pan[0][1]
+    return Shot(a, b, "fill", window=Box(first, y, ww, wh), pan=[(a, first), *pan[1:]], zoom=zoom,
+                why=why + (f", pushed in {zoom:.2f}x" if zoom > 1 else ""))
+
+
 # ------------------------------------------------------------------ shot kinds
 
 def _fill(inp: Inputs, a: int, b: int, faces: list[_Face], *, use_turns: bool,
-          zoom: float, why: str) -> Shot:
+          zoom: float, why: str, tracks: list | None = None) -> Shot:
     sw, sh = inp.width, inp.height
     fw, fh = full_window(sw, sh, inp.out_w, inp.out_h)
     ww, wh = _even(fw / zoom), _even(fh / zoom)
@@ -362,7 +631,11 @@ def _fill(inp: Inputs, a: int, b: int, faces: list[_Face], *, use_turns: bool,
         zoom *= wh / limit
         ww, wh = _even(fw / zoom), _even(fh / zoom)
     share = ww / sw
-    if faces:
+    if tracks:
+        # A single person whose body was seen: the body carries the crop, a
+        # tiny profile face does not (it is lost whenever they turn or walk).
+        samples = director.plan_camera(tracks, [], [], a, b, share, use_turns=False)
+    elif faces:
         samples = director.plan_camera(inp.tracks, inp.turns, [], a, b, share,
                                        use_turns=use_turns)
     else:
@@ -757,24 +1030,50 @@ def plan(inp: Inputs) -> list[Shot]:
     out: list[Shot] = []
     for a, b, card in _with_cards(inp, _split_on_presence(inp, director.shots(inp.cuts, start, end)), layout):
         cast = director.people_in(inp.tracks, a, b)
-        faces = _faces(cast)
+        bodies = _bodies_in(inp, a, b)
+        faces = _real_faces(_faces(cast), bodies, inp)
+        texts = _texts_in(inp, a, b)
         if card is not None and faces:
             out.append(_graphic(inp, a, b, faces, card))
             continue
+        if _is_title(texts) and layout in {"auto", "full-video", "screen", "pip", "split", "grid"}:
+            # "DAY 1" across the picture: a title card is read whole or not at all.
+            out.append(Shot(a, b, "fit", why="a title on screen: shown whole"))
+            continue
         wide, centre = _detail(inp, a, b, share)
         if not faces:
+            if bodies and layout in {"auto", "full-video", "screen", "pip", "split", "grid"}:
+                shot = _fill_body(inp, a, b, bodies, "a person with no face to read: framed on their body")
+                out.append(_clear_of_text(shot, texts, inp, *_body_span(bodies, shot, inp)))
+                continue
+            act = _activity_profile(inp, a, b)
+            bright = _brightness(inp, a, b)
+            still = (act is None or act[1] < STILL_SCREEN_MOTION) and (bright is None or bright >= DARK_PICTURE)
             if _detail_lead(inp, a, b, share) < FACELESS_LEAD:
                 centre = 0.5            # detail all over: the middle is what was filmed
-            zoom_box = _activity_zoom(inp, a, b, centre) if wide and layout in {"auto", "screen", "pip", "split", "grid"} else None
+            zoom_box = _activity_zoom(inp, a, b, centre) if wide and still and layout in {"auto", "screen", "pip", "split", "grid"} else None
             if zoom_box is not None:
                 # Screen + zoom: the whole picture on top for context, a close-up of
                 # where the content is below, so a screen recording reads on a phone.
                 out.append(Shot(a, b, "screen", main=zoom_box,
                                 why="nobody in shot: the whole screen, with a close-up of the busy part"))
-            elif layout in {"auto", "screen", "pip", "split", "grid"} and wide:
+            elif layout in {"auto", "screen", "pip", "split", "grid"} and wide and still:
                 out.append(Shot(a, b, "fit", why="nobody in shot and the picture runs edge to edge: shown whole"))
             else:
-                out.append(_faceless_fill(inp, a, b, centre, share, out))
+                where = _activity_centre(inp, a, b, share) if act is not None else None
+                if where is not None and where[1] >= ACTIVITY_LEAD:
+                    pan = _activity_pan(inp, a, b, share)
+                    shot = _fill_centred(inp, a, b, where[0], "nobody in shot: framed on the action")
+                    if len(pan) > 1 and max(c for _, c in pan) - min(c for _, c in pan) > 0.06:
+                        sw = inp.width
+                        ww = shot.window.w
+                        shot.pan = [(a, int(_clamp(round(pan[0][1] * sw - ww / 2), 0, sw - ww)))] + \
+                                   [(ms, int(_clamp(round(c * sw - ww / 2), 0, sw - ww))) for ms, c in pan[1:]]
+                        shot.window.x = shot.pan[0][1]
+                        shot.why = "nobody in shot: following the action"
+                    out.append(_clear_of_text(shot, texts, inp, where[0] - 0.05, where[0] + 0.05))
+                else:
+                    out.append(_clear_of_text(_faceless_fill(inp, a, b, centre, share, out), texts, inp, 0.45, 0.55))
             continue
 
         lo, hi = min(f.left for f in faces), max(f.right for f in faces)
@@ -784,7 +1083,7 @@ def plan(inp: Inputs) -> list[Shot]:
         # With nobody named as the speaker there is no one to follow, and a
         # crop on the "most prominent" face is a coin toss: show both.
         unnamed = not talk
-        zoom = _auto_zoom(faces, inp, share) if inp.zoom in {"auto", "moments"} else 1.0
+        zoom = _auto_zoom(faces, inp, share, bodies) if inp.zoom in {"auto", "moments"} else 1.0
         small_inset = len(faces) == 1 and faces[0].w < SMALL_FACE_W and wide and _in_corner(faces[0])
 
         if layout == "screen":
@@ -822,14 +1121,33 @@ def plan(inp: Inputs) -> list[Shot]:
                "everyone fits: framed together" if fits else "following whoever is talking")
         spans = _moments(a, b, ends) if ends and b - a >= PUNCH_SHOT_MS else [(a, b)]
         cap = _zoom_cap(inp)
+        carrier = _body_track(faces[0], inp, a, b) if len(faces) == 1 and faces[0].w < TRUSTED_FACE_W else None
         for i, (sa, sb) in enumerate(spans):
             z = zoom
             if len(spans) > 1 and i % 2 == 1:
                 z = min(max(zoom, 1.0) * PUNCH, cap * 1.15)
-            out.append(_fill(inp, sa, sb, faces, use_turns=use_turns, zoom=z,
-                             why=why + (" (punch-in on the line)" if z > zoom else "")
-                             + (f", pushed in {z:.2f}x" if z > 1 and z == zoom else "")))
+            shot = _fill(inp, sa, sb, faces, use_turns=use_turns, zoom=z, tracks=[carrier] if carrier else None,
+                         why=why + (" (punch-in on the line)" if z > zoom else "")
+                         + (f", pushed in {z:.2f}x" if z > 1 and z == zoom else ""))
+            out.append(_clear_of_text(shot, texts, inp, lo, hi) if fits else _clear_of_text(shot, texts, inp, *_subject_span(faces, shot, inp)))
     return _merge(_steady(out))
+
+
+def _subject_span(faces: list[_Face], shot: Shot, inp: Inputs) -> tuple[float, float]:
+    """The face the window is on (the one nearest its centre): its left and right edge."""
+    if shot.window is None or not faces:
+        return 0.45, 0.55
+    c = (shot.window.x + shot.window.w / 2) / inp.width
+    f = min(faces, key=lambda f: abs(f.x - c))
+    return f.left, f.right
+
+
+def _body_span(bodies: list[_Face], shot: Shot, inp: Inputs) -> tuple[float, float]:
+    if shot.window is None or not bodies:
+        return 0.45, 0.55
+    c = (shot.window.x + shot.window.w / 2) / inp.width
+    f = min(bodies, key=lambda f: abs(f.x - c))
+    return f.left, f.right
 
 
 #: A faceless stretch keeps one look unless a shot of another look lasts this long.

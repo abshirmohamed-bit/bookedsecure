@@ -37,6 +37,14 @@ SAME_CARD = 0.6
 _CACHE: "OrderedDict[tuple, list]" = OrderedDict()
 #: Per range: the top of burned-in subtitles in each frame read (share of height) or None.
 _SUBS: "OrderedDict[tuple, list]" = OrderedDict()
+#: Per range: (ms, [text boxes]) from subjects.detect_text, the same frames as the cards.
+_TEXT: "OrderedDict[tuple, list]" = OrderedDict()
+#: Text has to hold still this long to count as something the crop must respect.
+TEXT_MIN_MS = 900
+#: A "text" box covering this much of the frame, or this tall, is the detector
+#: misreading a busy picture; real titles stay well under it.
+TEXT_MAX_AREA = 0.35
+TEXT_MAX_H = 0.5
 #: Subtitles live in the bottom of the picture, below this share of its height.
 SUB_ZONE = 0.74
 #: Burned-in subtitles count when seen in at least this share of the frames.
@@ -44,8 +52,13 @@ SUB_SHARE = 0.5
 CACHE_MAX = 16
 
 
-def _cards_in(frame) -> list[tuple[float, float, float, float]]:
-    """Card boxes in one BGR frame, as (x, y, w, h) shares of the frame."""
+def _cards_in(frame, text: list | None = None) -> list[tuple[float, float, float, float]]:
+    """Card boxes in one BGR frame, as (x, y, w, h) shares of the frame.
+
+    With the text detector's boxes for the frame, a card has to have words on
+    it: a white balustrade, a lit wall or a fridge door passed the colour and
+    shape tests and had the person laid over "a card" of nothing.
+    """
     import cv2
     import numpy as np
 
@@ -74,11 +87,20 @@ def _cards_in(frame) -> list[tuple[float, float, float, float]]:
         inner = gray[y + bh // 10: y + bh - bh // 10, x + bw // 20: x + bw - bw // 20]
         if inner.size == 0:
             continue
-        text = float((inner < 120).mean())
-        if not (MIN_TEXT <= text <= MAX_TEXT):
+        dark = float((inner < 120).mean())
+        if not (MIN_TEXT <= dark <= MAX_TEXT):
             continue
-        out.append((x / w, y / h, bw / w, bh / h))
+        box = (x / w, y / h, bw / w, bh / h)
+        if text is not None and not any(_inside(t, box) for t in text):
+            continue
+        out.append(box)
     return out
+
+
+def _inside(t, box, slack: float = 0.02) -> bool:
+    """Whether a text box sits (mostly) within a card box."""
+    return (t[0] >= box[0] - slack and t[1] >= box[1] - slack
+            and t[0] + t[2] <= box[0] + box[2] + slack and t[1] + t[3] <= box[1] + box[3] + slack)
 
 
 def _subtitle_top(frame, cards) -> "float | None":
@@ -203,20 +225,76 @@ def sightings(video: Path, in_ms: int, out_ms: int) -> list[tuple[int, list]]:
          "-i", str(video), "-vf", f"fps={RATE},scale={WIDTH}:{h}", "-f", "rawvideo", "-pix_fmt", "bgr24", "-"],
         capture_output=True, check=True).stdout
     size = WIDTH * h * 3
+    from . import subjects
+
+    read_text = subjects.text_available()
     out = []
     subs = []
+    texts = []
     for i in range(len(raw) // size):
         frame = np.frombuffer(raw[i * size:(i + 1) * size], np.uint8).reshape(h, WIDTH, 3)
-        found = _cards_in(frame)
-        out.append((in_ms + int(i * 1000 / RATE), found))
+        ms = in_ms + int(i * 1000 / RATE)
+        words = subjects.detect_text(frame) if read_text else None
+        found = _cards_in(frame, words)
+        out.append((ms, found))
         subs.append(_subtitle_top(frame, found))
+        texts.append((ms, words or []))
     if key is not None:
         _SUBS[key] = subs
         while len(_SUBS) > CACHE_MAX:
             _SUBS.popitem(last=False)
+        _TEXT[key] = texts
+        while len(_TEXT) > CACHE_MAX:
+            _TEXT.popitem(last=False)
         _CACHE[key] = out
         while len(_CACHE) > CACHE_MAX:
             _CACHE.popitem(last=False)
+    return out
+
+
+def text_boxes(video: Path, in_ms: int, out_ms: int) -> list[tuple[int, list]]:
+    """(ms, [text boxes as shares]) every 1/RATE s over the range: labels, titles, burned-in captions."""
+    try:
+        st = video.stat()
+        key = (str(video), st.st_size, int(st.st_mtime), in_ms, out_ms)
+    except OSError:
+        return []
+    if key not in _TEXT:
+        sightings(video, in_ms, out_ms)
+    return list(_TEXT.get(key, []))
+
+
+def text_spans(seen: list[tuple[int, list]], start_ms: int, end_ms: int, *, min_ms: int = TEXT_MIN_MS,
+               ) -> list[tuple[float, float, float, float]]:
+    """The text boxes that hold still through [start, end): a label, a title, a caption line.
+
+    Boxes seen in the same place in enough consecutive frames are merged (the
+    union of their sightings); a flash of text in one frame is ignored.
+    """
+    step = int(1000 / RATE)
+    runs: list[dict] = []
+    for ms, boxes in seen:
+        if not (start_ms <= ms < end_ms):
+            continue
+        for b in boxes:
+            if b[2] * b[3] > TEXT_MAX_AREA or b[3] > TEXT_MAX_H:
+                continue                    # the detector took the whole picture for text
+            for r in runs:
+                if _iou(r["box"], b) >= 0.4 and ms - r["last"] <= 2 * step:
+                    r["box"] = (min(r["box"][0], b[0]), min(r["box"][1], b[1]),
+                                max(r["box"][0] + r["box"][2], b[0] + b[2]) - min(r["box"][0], b[0]),
+                                max(r["box"][1] + r["box"][3], b[1] + b[3]) - min(r["box"][1], b[1]))
+                    r["last"] = ms
+                    r["n"] += 1
+                    break
+            else:
+                runs.append({"box": b, "first": ms, "last": ms, "n": 1})
+    out = []
+    for r in runs:
+        held = r["last"] - r["first"] + step
+        whole_shot = r["first"] - step <= start_ms and r["last"] + step >= end_ms
+        if held >= min_ms or (whole_shot and (r["n"] >= 2 or end_ms - start_ms < step)):
+            out.append(tuple(round(v, 4) for v in r["box"]))
     return out
 
 

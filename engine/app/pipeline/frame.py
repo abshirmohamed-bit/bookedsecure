@@ -588,6 +588,8 @@ def plan(track: Track | None, tracks, turns_, out_w: int, out_h: int,
 _SPEECH: "OrderedDict[tuple, tuple]" = OrderedDict()
 #: The detail profiles read in the same pass, by the same key.
 _DETAIL: "OrderedDict[tuple, list]" = OrderedDict()
+#: Whole-body person tracks from the same pass (subjects.py), by the same key.
+_BODIES: "OrderedDict[tuple, list]" = OrderedDict()
 
 
 def speech(video: Path, *, in_ms: int = 0, out_ms: int | None = None):
@@ -599,17 +601,27 @@ def speech(video: Path, *, in_ms: int = 0, out_ms: int | None = None):
         _SPEECH.move_to_end(key)
         return _SPEECH[key]
     detail: list = []
-    tracks, cuts = sp.face_tracks(video, in_ms=in_ms, out_ms=out_ms, detail=detail)
+    bodies_: list = []
+    tracks, cuts = sp.face_tracks(video, in_ms=in_ms, out_ms=out_ms, detail=detail, bodies=bodies_)
     turns = sp.turns(tracks, sp.energy(video, in_ms=in_ms, out_ms=out_ms)) if tracks else []
     result = (tracks, turns, cuts)
     if key is not None:
         _SPEECH[key] = result
         _DETAIL[key] = detail
+        _BODIES[key] = bodies_
         while len(_SPEECH) > CACHE_MAX:
             _SPEECH.popitem(last=False)
         while len(_DETAIL) > CACHE_MAX:
             _DETAIL.popitem(last=False)
+        while len(_BODIES) > CACHE_MAX:
+            _BODIES.popitem(last=False)
     return result
+
+
+def bodies(video: Path, *, in_ms: int = 0, out_ms: int | None = None) -> list:
+    """The people the speech pass saw whole (body tracks), for the same range."""
+    key = _key(video, "speech", 0, in_ms, out_ms)
+    return list(_BODIES.get(key, [])) if key is not None else []
 
 
 def details(video: Path, *, in_ms: int = 0, out_ms: int | None = None) -> list:
@@ -634,7 +646,7 @@ def _tracks_from_faces(track: Track, start_ms: int, end_ms: int) -> list:
 
 
 def analyse(video: Path, *, in_ms: int = 0, out_ms: int | None = None, mode: str = "auto"):
-    """Everything the shot plan needs: (track, tracks, turns, cuts, detail).
+    """Everything the shot plan needs: (track, tracks, turns, cuts, detail, bodies).
 
     Each part is cached by source and range, so the editor's framing call,
     the preview and the export all pay for one analysis between them.
@@ -646,11 +658,13 @@ def analyse(video: Path, *, in_ms: int = 0, out_ms: int | None = None, mode: str
     turns_: list = []
     cuts: list[int] = []
     detail: list = []
+    bodies_: list = []
     looked = False
     if t.strategy in {"yunet", "haar"}:
         try:
             tracks, turns_, cuts = speech(video, in_ms=in_ms, out_ms=out_ms)
             detail = details(video, in_ms=in_ms, out_ms=out_ms)
+            bodies_ = bodies(video, in_ms=in_ms, out_ms=out_ms)
             looked = bool(detail)       # frames were actually read
         except Exception:
             logging.getLogger("engine.frame").exception("shot analysis failed; using the clip-level faces")
@@ -661,7 +675,7 @@ def analyse(video: Path, *, in_ms: int = 0, out_ms: int | None = None, mode: str
     if not tracks and t.faces and not looked:
         end = out_ms if out_ms is not None else max([s[0] for s in t.samples] + [in_ms]) + 1
         tracks = _tracks_from_faces(t, in_ms, end)
-    return t, tracks, turns_, cuts, detail
+    return t, tracks, turns_, cuts, detail, bodies_
 
 
 def follow_speaker(track: Track, video: Path, *, in_ms: int = 0,

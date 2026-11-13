@@ -36,3 +36,9 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 16. ~~**Coming up:**~~ checked live 14 Nov: Brandon Vella and Adam Newell no longer show there; Home lists only Brandon as waiting for a reply.
 17. **Lovable Publish** for Outreach (14 Nov): Lead finder, Campaigns and Inbox are now one sidebar item with shared tabs and a Found → Emailed → Replied → Booked strip. After publishing, check the strip's numbers against Lead finder's results.
 18. ~~**Lovable:** apply `docs/email-theme.sql` (adds `businesses.email_theme`), then publish.~~ Applied and published 14 Nov. **You:** in Outreach → Inbox → your address → Email template: download the example, change a colour, upload it, check the preview, apply, and send yourself an email to confirm the look.
+
+## Engine layouts 100x (14 Nov)
+
+19. **Deploy phase 1** (cuts, people, text, activity, push-in rails; see AGENTS.md): pull the main checkout, then `fly deploy "C:\Users\Abshir\StartUp\New folder\Guardflow HQ\bookedsecure\engine" -a crayzmundo-engine --remote-only`, and check the two new models landed: `fly ssh console -a crayzmundo-engine -C "ls -la /models"`. Then re-clip "Last To Leave Mansion" and compare the same clips.
+20. **Phase 2 (each layout on the new signals):** wide group shots → cluster/activity instead of the "whole picture" card; split/grid only for comparable real people; screen + speaker only for screens, top card = the screen region; pip inset must be a readable face in a free corner; letterbox bars cropped off the source; house-tour scenes get a slow scan instead of a frozen centre strip; headline avoids on-screen text and faces.
+21. **Phase 3 (proof):** benchmark criteria for "subject in frame by body box" and "no sliced text"; before/after sheets on all four footage types.

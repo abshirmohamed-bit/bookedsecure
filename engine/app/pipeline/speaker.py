@@ -60,6 +60,21 @@ CUT_FACTOR = 4.0
 #: distance, 0 same .. 1 nothing shared), well past what the shot usually does.
 CUT_HIST_MIN = 0.35
 CUT_HIST_FACTOR = 3.5
+#: And a jump in colour content (mean |dHSV| over a small copy), which catches
+#: a cut between two close-ups of similar brightness: 27 is the usual scene
+#: detector threshold, measured here at 57-98 on real cuts and 18-36 in motion.
+CUT_CONTENT_MIN = 27.0
+CUT_CONTENT_FACTOR = 2.5
+#: A cut is confirmed when the next frame changes less than this share of it
+#: (the picture settled), unless the jump was this many times the usual anyway.
+CUT_SETTLE = 0.6
+CUT_SURE_FACTOR = 8.0
+#: Body boxes move further between detections than faces (they are bigger).
+BODY_LINK_DISTANCE = 0.18
+#: The small copy the activity map and camera motion are read from.
+ACT_W, ACT_H = 160, 90
+#: Activity grid handed to the planner: columns x rows.
+ACT_COLS, ACT_ROWS = 32, 9
 
 
 @dataclass
@@ -174,9 +189,65 @@ def detail_profile(grey) -> tuple[list[float], float, float, float]:
     return bins, round(flat, 4), round(top_band, 4), round(bottom_band, 4)
 
 
+def _frame_motion(prev, cur):
+    """(what moved inside the shot, how far the camera moved) between two small grey frames.
+
+    The camera's own move is taken out first (phase correlation gives the
+    whole-frame shift), so a gimbal glide through a house or a handheld sway
+    does not light up the whole picture; what remains is the person, the hand,
+    the foam gun: the thing a faceless shot is about.
+    """
+    import cv2
+    import numpy as np
+
+    if prev is None or prev.shape != cur.shape:
+        return None, 0.0
+    (dx, dy), _ = cv2.phaseCorrelate(prev, cur)
+    if abs(dx) > ACT_W / 3 or abs(dy) > ACT_H / 3:
+        dx, dy = 0.0, 0.0
+    shifted = cv2.warpAffine(prev, np.float32([[1, 0, dx], [0, 1, dy]]), (ACT_W, ACT_H), borderMode=cv2.BORDER_REPLICATE)
+    d = np.abs(cur - shifted)
+    d[d < 8] = 0
+    return d, float(np.hypot(dx, dy))
+
+
+class _Activity:
+    """Motion and camera movement, pooled between two detections."""
+
+    def __init__(self) -> None:
+        self.total = None
+        self.frames = 0
+        self.shift = 0.0
+
+    def add(self, motion, shift: float) -> None:
+        if motion is None:
+            return
+        self.total = motion.copy() if self.total is None else self.total + motion
+        self.frames += 1
+        self.shift += shift
+
+    def take(self) -> tuple[list[list[float]], float, float]:
+        """(ACT_ROWS x ACT_COLS grid of motion, 0..1; camera shift as a share of
+        the width; mean motion in grey levels), then starts over."""
+        import cv2
+
+        if self.total is None or not self.frames:
+            self.__init__()
+            return [], 0.0, 0.0
+        mean = self.total / self.frames
+        grid = cv2.resize(mean, (ACT_COLS, ACT_ROWS), interpolation=cv2.INTER_AREA)
+        peak = float(grid.max())
+        rows = [[round(float(v) / peak, 3) if peak > 0 else 0.0 for v in row] for row in grid]
+        shift = self.shift / self.frames / ACT_W
+        level = float(mean.mean())
+        self.__init__()
+        return rows, round(shift, 4), round(level, 3)
+
+
 def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                 detect_ms: int = DETECT_MS, fps: int = MOTION_FPS,
-                detail: list | None = None,
+                detail: list | None = None, bodies: list | None = None,
+                detect_people: bool = True,
                 ) -> tuple[list[FaceTrack], list[int]]:
     """Follow each person through the clip, measuring their mouth as we go.
 
@@ -200,6 +271,7 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
 
     from .. import media
     from ..config import settings
+    from . import subjects
     from .frame import _detector
 
     name, detect = _detector()
@@ -231,62 +303,50 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
             return [], []
         step = max(1, int(round(fps * detect_ms / 1000)))
         tracks: list[FaceTrack] = []
+        body_tracks: list[FaceTrack] = bodies if bodies is not None else []
         last_patch: dict[int, object] = {}
         last_upper: dict[int, object] = {}
         last_box: dict[int, tuple] = {}
         cuts: list[int] = []
         recent: list[float] = []
         recent_h: list[float] = []
+        recent_c: list[float] = []
         previous = None
         previous_hist = None
+        previous_hsv = None
+        previous_small = None
         since = in_ms
         index = -1
-        while True:
-            ok, bgr = cap.read()
-            if not ok:
-                break
-            index += 1
-            ms = int(index / fps * 1000) + in_ms
-            grey = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+        want_people = detect_people and subjects.objects_available()
+        act = _Activity()
+        pending: dict | None = None
 
-            cut_now = False
-            hist = cv2.calcHist([grey], [0], None, [32], [0, 256])
-            cv2.normalize(hist, hist)
-            if previous is not None and previous.shape == grey.shape:
-                change = float(np.mean(np.abs(grey.astype("float32")
-                                              - previous.astype("float32"))))
-                usual = float(np.median(recent)) if recent else change
-                jump = float(cv2.compareHist(previous_hist, hist, cv2.HISTCMP_BHATTACHARYYA))
-                usual_h = float(np.median(recent_h)) if recent_h else jump
-                by_level = change > max(CUT_MIN_DIFF, CUT_FACTOR * usual)
-                by_hist = jump > max(CUT_HIST_MIN, CUT_HIST_FACTOR * usual_h) and change > CUT_MIN_DIFF / 3
-                if (by_level or by_hist) and recent:
-                    cut_now = True
-                    cuts.append(ms)
-                    since = ms              # nobody from the old shot carries over
-                    last_patch.clear()      # and no mouth is measured across it
-                    last_upper.clear()
-                    last_box.clear()
-                recent.append(change)
-                recent_h.append(jump)
-                if len(recent) > 25:
-                    recent.pop(0)
-                    recent_h.pop(0)
-            previous = grey
-            previous_hist = hist
-
+        def handle(f: dict) -> None:
+            """Everything a frame needs once its cut is decided (one frame late)."""
+            nonlocal since
+            ms, bgr, grey = f["ms"], f["bgr"], f["grey"]
+            if f["cut"]:
+                cuts.append(ms)
+                since = ms                  # nobody from the old shot carries over
+                last_patch.clear()          # and no mouth is measured across it
+                last_upper.clear()
+                last_box.clear()
+            else:
+                act.add(f["motion"], f["shift"])
             # Also on the first frame of every new shot, so a shot is never
             # framed from a detection made half a second into it.
-            if index % step == 0 or cut_now:
+            if f["index"] % step == 0 or f["cut"]:
                 fh, fw = bgr.shape[:2]
                 found = detect(bgr) or []
                 boxes = [((x + w / 2) / fw, (y + h / 2) / fh, w / fw, h / fh)
                          for x, y, w, h in found]
                 _link(tracks, boxes, ms, since=since)
+                if want_people:
+                    seen = [(x + w / 2, y + h / 2, w, h) for x, y, w, h, _s in subjects.people(bgr)]
+                    _link(body_tracks, seen, ms, since=since, distance=BODY_LINK_DISTANCE)
                 if detail is not None:
                     bins, flat, top_band, bottom_band = detail_profile(grey)
-                    detail.append((ms, bins, flat, top_band, bottom_band))
-
+                    detail.append((ms, bins, flat, top_band, bottom_band, *act.take(), round(float(grey.mean()), 1)))
             for t in tracks:
                 if ms - t.last_ms > TRACK_GAP_MS or t.last_ms < since:
                     continue
@@ -301,7 +361,7 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                 before_up = last_upper.get(t.id)
                 # Every re-detection nudges the box, which moves the window we
                 # are cutting the mouth out of. Two patches taken from
-                # different places are not comparable — the difference between
+                # different places are not comparable: the difference between
                 # them is the box moving, not the mouth, and it measures as
                 # large as real speech. Re-seed on those frames instead.
                 moved = last_box.get(t.id) != box
@@ -313,6 +373,64 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                 last_patch[t.id] = patch
                 last_upper[t.id] = upper
                 last_box[t.id] = box
+
+        while True:
+            ok, bgr = cap.read()
+            if not ok:
+                break
+            index += 1
+            ms = int(index / fps * 1000) + in_ms
+            grey = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+            small = cv2.resize(grey, (ACT_W, ACT_H), interpolation=cv2.INTER_AREA).astype("float32")
+            hsv = cv2.cvtColor(cv2.resize(bgr, (ACT_W, ACT_H), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2HSV).astype("float32")
+            hist = cv2.calcHist([grey], [0], None, [32], [0, 256])
+            cv2.normalize(hist, hist)
+
+            candidate = False
+            change = 0.0
+            motion = None
+            shift = 0.0
+            if previous is not None and previous.shape == grey.shape:
+                change = float(np.mean(np.abs(grey.astype("float32") - previous.astype("float32"))))
+                usual = float(np.median(recent)) if recent else change
+                jump = float(cv2.compareHist(previous_hist, hist, cv2.HISTCMP_BHATTACHARYYA))
+                usual_h = float(np.median(recent_h)) if recent_h else jump
+                # Colour content, the way scene detectors measure it: a cut from
+                # one close-up to another of similar brightness moves little in
+                # grey levels but a lot in hue and saturation.
+                content = float(np.mean(np.abs(hsv - previous_hsv)))
+                usual_c = float(np.median(recent_c)) if recent_c else content
+                by_level = change > max(CUT_MIN_DIFF, CUT_FACTOR * usual)
+                by_hist = jump > max(CUT_HIST_MIN, CUT_HIST_FACTOR * usual_h) and change > CUT_MIN_DIFF / 3
+                by_content = content > max(CUT_CONTENT_MIN, CUT_CONTENT_FACTOR * usual_c) and change > CUT_MIN_DIFF / 2
+                candidate = (by_level or by_hist or by_content) and bool(recent)
+                recent.append(change)
+                recent_h.append(jump)
+                recent_c.append(content)
+                if len(recent) > 25:
+                    recent.pop(0)
+                    recent_h.pop(0)
+                    recent_c.pop(0)
+                motion, shift = _frame_motion(previous_small, small)
+            previous = grey
+            previous_hist = hist
+            previous_hsv = hsv
+            previous_small = small
+
+            # A cut is a spike: the next frame settles again. Sustained change
+            # is motion inside the shot (a whip pan, a handheld swing), which
+            # used to register as a run of cuts and reframe the picture every
+            # few frames. So each frame is handled once the next one is seen.
+            if pending is not None:
+                strong = pending["change"] > CUT_SURE_FACTOR * max(CUT_MIN_DIFF, pending["usual"])
+                pending["cut"] = pending["candidate"] and (change < CUT_SETTLE * pending["change"] or strong)
+                handle(pending)
+            pending = {"index": index, "ms": ms, "bgr": bgr, "grey": grey, "candidate": candidate, "change": change,
+                       "usual": float(np.median(recent[:-1])) if len(recent) > 1 else change,
+                       "motion": motion, "shift": shift, "cut": False}
+        if pending is not None:
+            pending["cut"] = pending["candidate"]
+            handle(pending)
         cap.release()
         cuts = refine_cuts(cuts, raw, media.probe(video).fps, in_ms, step_ms=1000 / fps)
     # Someone glimpsed for a moment is not a participant — unless the shot
@@ -379,7 +497,7 @@ def _alone_in_shot(track: FaceTrack, cuts: list[int]) -> bool:
 
 
 def _link(tracks: list[FaceTrack], boxes: list[tuple[float, float, float, float]],
-          ms: int, *, since: int = 0) -> None:
+          ms: int, *, since: int = 0, distance: float = LINK_DISTANCE) -> None:
     """Attach this frame's detections to the people already being followed.
 
     Nearest open track wins, one detection each. A detection that matches
@@ -392,7 +510,7 @@ def _link(tracks: list[FaceTrack], boxes: list[tuple[float, float, float, float]
                    if ms - t.last_ms <= TRACK_GAP_MS and t.last_ms >= since]
     taken: set[int] = set()
     for box in boxes:
-        best, best_d = None, LINK_DISTANCE
+        best, best_d = None, distance
         for t in open_tracks:
             if t.id in taken:
                 continue
