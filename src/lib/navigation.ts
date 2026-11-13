@@ -74,8 +74,6 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     items: [
       { to: "/dashboard", label: "Home", icon: "home" },
       { to: "/assistant", label: "Co-Work", icon: "assistant", badge: "social" },
-      // The hands-on posting, comments and messages tools, under Co-Work like Replies under Campaigns.
-      { to: "/social", label: "Social media", icon: "social", sub: true, search: { platform: "facebook" }, contextPaths: ["/linkedin"] },
     ],
   },
   {
@@ -93,6 +91,8 @@ export const NAV_SECTIONS: readonly NavSection[] = [
       { to: "/campaigns", label: "Campaigns", icon: "campaigns", excludePaths: ["/campaigns/replies"] },
       { to: "/campaigns/replies", label: "Replies", icon: "replies", badge: "campaigns", sub: true },
       { to: "/studio", label: "Studio", icon: "studio" },
+      // The hands-on posting, comments and messages tools, under Studio like Replies under Campaigns.
+      { to: "/social", label: "Social media", icon: "social", sub: true, search: { platform: "facebook" }, contextPaths: ["/linkedin"] },
       { to: "/ads", label: "Ad results", icon: "ads" },
       { to: "/analytics", label: "Business numbers", icon: "results" },
     ],
@@ -144,7 +144,7 @@ export function navBreadcrumb(pathname: string): string[] {
   if (matches(pathname, "/notifications")) return ["Account", "Alerts and notifications"];
   if (matches(pathname, "/settings/billing")) return ["Account", "Account access"];
   if (matches(pathname, "/campaigns/replies")) return ["Campaigns", "Replies"];
-  if (matches(pathname, "/social") || matches(pathname, "/linkedin")) return ["Co-Work", "Social media"];
+  if (matches(pathname, "/social") || matches(pathname, "/linkedin")) return ["Studio", "Social media"];
   const item = NAV_ITEMS.find((candidate) => isNavItemActive(candidate, pathname));
   if (!item) return [];
   const section = NAV_SECTIONS.find((candidate) => candidate.items.includes(item));
