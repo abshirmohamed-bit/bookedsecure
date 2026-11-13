@@ -127,3 +127,16 @@ def test_a_proxy_out_of_data_is_reported_as_such_and_not_retried(with_proxy, mon
         ingest._ytdlp("https://youtu.be/x", tmp_path / "v.mp4")
     assert "run out of data" in str(e.value)
     assert seen.count(True) == 1, "one proxy refusal is enough; the other rounds would say the same"
+
+
+def test_a_section_reaches_the_proxy_even_when_no_route_is_remembered(with_proxy, monkeypatch, tmp_path):
+    # Seen live (2026-11-13, after a deploy): sections get 2 routes, and with nothing
+    # remembered for the link both were direct, so every section was refused without
+    # ever trying the proxy.
+    ingest._ROUTES.clear()
+    seen: list[bool] = []
+    blocked = "ERROR: Sign in to confirm you're not a bot"
+    monkeypatch.setattr(ingest.shutil, "which", lambda _: "/usr/bin/yt-dlp")
+    monkeypatch.setattr(subprocess, "run", _fake_runner([blocked, None], seen))
+    ingest.fetch_section("https://youtu.be/fresh", tmp_path / "s.mp4", 0, 10_000)
+    assert seen == [False, True], "one direct try, then the proxy"

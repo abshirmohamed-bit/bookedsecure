@@ -265,7 +265,17 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
     if known in routes:
         routes = [known] + [r for r in routes if r != known]
     if max_routes:
-        routes = routes[:max_routes]
+        if known not in routes and any(proxied for _, proxied in routes):
+            # Nothing has worked for this link yet in this process (as after every
+            # restart or deploy): keep the cap but spend it on one direct route and
+            # one proxy route. Seen live: after the v99 deploy all 20 sections tried
+            # only "default" and "tv" direct, never reached the proxy, and the job
+            # went straight to downloading the whole hour of video.
+            first_direct = [r for r in routes if not r[1]][:1]
+            first_proxy = [r for r in routes if r[1]][:1]
+            routes = (first_direct + first_proxy)[:max(max_routes, 2)]
+        else:
+            routes = routes[:max_routes]
     last = ""
     proxy_empty = False
     for client, via_proxy in routes:
