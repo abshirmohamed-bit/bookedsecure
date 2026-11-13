@@ -193,63 +193,7 @@ def _download(url: str, dest: Path) -> None:
 _ROUTES: dict[str, tuple[str, bool]] = {}
 
 
-#: A whole download stops after this long with nothing arriving.
-WHOLE_IDLE_S = 180
-
-
-def _grown(dest: Path) -> int:
-    """Bytes written so far for `dest`: yt-dlp writes .part files and per-format pieces beside it."""
-    total = 0
-    try:
-        for f in dest.parent.glob(dest.name + "*"):
-            try:
-                total += f.stat().st_size
-            except OSError:
-                pass
-    except OSError:
-        pass
-    stem = dest.stem
-    try:
-        for f in dest.parent.glob(stem + ".f*"):
-            try:
-                total += f.stat().st_size
-            except OSError:
-                pass
-    except OSError:
-        pass
-    return total
-
-
-def _watch(proc, dest: Path | None, timeout: int, idle: int | None) -> None:
-    """Wait for `proc`; kill it (TimeoutExpired) after `timeout` s in all, or after `idle` s
-    in which `dest` didn't grow at all. A slow download through the proxy keeps
-    going; one that has really stopped is cut off quickly."""
-    import subprocess
-
-    started = last_change = time.time()
-    seen = -1
-    while True:
-        try:
-            proc.wait(timeout=2)
-            return
-        except subprocess.TimeoutExpired:
-            pass
-        now = time.time()
-        if idle and dest is not None:
-            size = _grown(dest)
-            if size != seen:
-                seen, last_change = size, now
-            elif now - last_change > idle:
-                break
-        if now - started > timeout:
-            break
-    proc.kill()
-    proc.wait()
-    raise subprocess.TimeoutExpired(getattr(proc, "args", ""), timeout)
-
-
-def _run_with_progress(cmd: list[str], timeout: int, on_progress, dest: Path | None = None,
-                       idle: int | None = None) -> "subprocess.CompletedProcess":
+def _run_with_progress(cmd: list[str], timeout: int, on_progress) -> "subprocess.CompletedProcess":
     """subprocess.run, but reading yt-dlp's progress lines as they come.
 
     A merged download is two files, the picture then the sound; the picture
@@ -289,14 +233,19 @@ def _run_with_progress(cmd: list[str], timeout: int, on_progress, dest: Path | N
     readers = [threading.Thread(target=read, daemon=True), threading.Thread(target=read_err, daemon=True)]
     for r in readers:
         r.start()
-    _watch(proc, dest, timeout, idle)
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        raise
     for r in readers:
         r.join(timeout=5)
     return subprocess.CompletedProcess(cmd, proc.returncode, "".join(out), "".join(errs))
 
 
 def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_routes: int | None = None,
-              on_progress=None, kind: str = "whole", idle: int | None = None) -> None:
+              on_progress=None, kind: str = "whole") -> None:
     """yt-dlp with every route tried in turn, the one that last worked first.
 
     A run that goes past `timeout` is stopped and counts as failed; it is
@@ -324,17 +273,13 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
         started = time.time()
         mode = proxy_health.mode_of(ytdlp_opts.proxy())
         try:
-            proc = (_run_with_progress(cmd, timeout, on_progress or (lambda _p: None), dest, idle)
-                    if on_progress or idle
+            proc = (_run_with_progress(cmd, timeout, on_progress) if on_progress
                     else subprocess.run(cmd, capture_output=True, text=True, timeout=timeout))
         except subprocess.TimeoutExpired:
             proxy_health.record(kind=kind, via_proxy=via_proxy, mode=mode, outcome="stalled",
                                 bytes_=_size(dest), seconds=time.time() - started)
-            took = time.time() - started
-            log.warning("yt-dlp stopped after %.0fs for %s as %s%s (%s, %d MB so far)", took, url, client,
-                        " via proxy" if via_proxy else "",
-                        "nothing arriving" if took < timeout else "over the time limit", _grown(dest) // 1_000_000)
-            raise EngineError("VALIDATION_ERROR", "Downloading from that link stalled.") from None
+            log.warning("yt-dlp took over %ss for %s as %s%s; stopping it", timeout, url, client, " via proxy" if via_proxy else "")
+            raise EngineError("VALIDATION_ERROR", f"Downloading from that link stalled for over {timeout // 60} minutes.") from None
         proxy_health.record(kind=kind, via_proxy=via_proxy, mode=mode,
                             outcome=proxy_health.outcome_of(0 if proc.returncode == 0 and dest.exists() else (proc.returncode or 1), proc.stderr or ""),
                             bytes_=_size(dest) if proc.returncode == 0 else 0, seconds=time.time() - started)
@@ -369,24 +314,20 @@ def _route_lacks_format(stderr: str) -> bool:
     return "requested format is not available" in (stderr or "").lower()
 
 
-def _ytdlp(url: str, dest: Path, on_progress=None, idle: int | None = None) -> None:
+def _ytdlp(url: str, dest: Path, on_progress=None) -> None:
     """Best quality up to YTDLP_MAX_HEIGHT (1080p unless set): clips are 1080x1920,
     and every byte of a refused download goes through the paid proxy."""
-    run_ytdlp(url, dest, ["-f", link_format(), "--merge-output-format", "mp4"], on_progress=on_progress, idle=idle)
+    run_ytdlp(url, dest, ["-f", link_format(), "--merge-output-format", "mp4"], on_progress=on_progress)
 
 
 def download_whole(url: str, dest: Path, on_progress=None) -> None:
     """The whole linked video, for when sections can't be fetched on their own."""
-    _ytdlp(url, dest, on_progress, idle=WHOLE_IDLE_S)
+    _ytdlp(url, dest, on_progress)
 
 
-#: How long one section may take in all, how long it may go without a byte
-#: arriving, and how many routes it tries, before the job falls back to one
-#: whole download. The old rule (2 minutes in all) stopped sections that were
-#: arriving slowly but surely through the proxy: 16 of 20 on a 58-minute
-#: video, which then cost a whole download that was refused part-way.
-SECTION_TIMEOUT_S = 600
-SECTION_IDLE_S = 60
+#: How long one section may take, and how many routes it tries, before the
+#: job falls back to one whole download.
+SECTION_TIMEOUT_S = 120
 SECTION_ROUTES = 2
 
 
@@ -396,7 +337,7 @@ def fetch_section(url: str, dest: Path, start_ms: int, end_ms: int) -> None:
                           "--download-sections", f"*{start_ms / 1000:.3f}-{end_ms / 1000:.3f}"],
               # A section is seconds of video: one that takes minutes has
               # stalled, and the whole-download fallback is quicker than waiting.
-              timeout=SECTION_TIMEOUT_S, max_routes=SECTION_ROUTES, kind="section", idle=SECTION_IDLE_S)
+              timeout=SECTION_TIMEOUT_S, max_routes=SECTION_ROUTES, kind="section")
 
 
 def _lean_import(session: Session, asset: Asset, url: str) -> Asset | None:
