@@ -484,6 +484,13 @@
       "when": 1794559387915,
       "tag": "0068_email_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1794577671698,
+      "tag": "0069_apply_email_inbox",
+      "breakpoints": true
     }
   ]
 }
