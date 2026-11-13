@@ -302,7 +302,7 @@ def transition_for(prev_kind: str, kind: str, prev_zoom: float, zoom: float) -> 
         return "circleopen"
     if prev_kind == "pip":
         return "circleclose"
-    if kind == "screen" or prev_kind == "screen":
+    if kind in {"screen", "graphic"} or prev_kind in {"screen", "graphic"}:
         return "smoothup"
     return "fade"
 

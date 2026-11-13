@@ -8,7 +8,7 @@
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import * as MP4Box from "mp4box";
 import { cropAt, shotAt, transitionAt, transitionLook, type MotionSample } from "@/lib/clip-motion";
-import { duoCards, glassCard, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
+import { duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
 import { groupCaptionLines, type CaptionLine, type CaptionWord, type VideoAspect } from "@/lib/video-clips";
 
 export type PlanBox = { x: number; y: number; w: number; h: number };
@@ -183,6 +183,15 @@ function drawShot(ctx: CanvasRenderingContext2D, video: Pic, input: RenderInput,
     ctx.fillRect(0, 0, W, H);
     const vw = pw(video), vh = ph(video), sc = Math.min(W / vw, H / vh);
     ctx.drawImage(video, (W - vw * sc) / 2, (H - vh * sc) / 2, vw * sc, vh * sc);
+    return;
+  }
+  if (shot?.kind === "graphic" && shot.main && shot.inset) {
+    // A card on screen: the person on top, the card whole below.
+    const main = shot.main, inset = shot.inset;
+    const [person, card] = graphicCards(W, H, inset.w, inset.h);
+    drawAmbient(ctx, video, W, H);
+    drawCard(ctx, person, W, () => drawCover(ctx, video, k, main, person.x, person.y, person.w, person.h));
+    drawCard(ctx, card, W, () => drawCover(ctx, video, k, inset, card.x, card.y, card.w, card.h));
     return;
   }
   if (shot?.kind === "screen" && shot.main && H >= W) {

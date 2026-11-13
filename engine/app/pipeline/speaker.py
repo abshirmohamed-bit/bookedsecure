@@ -340,9 +340,13 @@ def refine_cuts(cuts: list[int], raw: Path, src_fps: float, in_ms: int,
     diffs = np.abs(np.diff(frames, axis=0)).mean(axis=(1, 2))     # diffs[j]: frame j+1 vs j
     out = []
     for c in cuts:
-        # The cut lies after the proxy frame before `c` and no later than `c`.
+        # The cut lies after the proxy frame before `c`, and usually no later
+        # than `c`; but the start of a dissolve or wipe can trip the proxy a
+        # frame or two before the hard change (NASA's 246.05 s cut was seen at
+        # 245.90 s, three frames of new crops on the old picture), so look two
+        # proxy frames past it as well.
         lo = (c - step_ms - in_ms) * src_fps / 1000 - 1
-        hi = (c - in_ms) * src_fps / 1000 + 1
+        hi = (c + 2 * step_ms - in_ms) * src_fps / 1000 + 1
         js = [j for j in range(max(1, int(lo)), min(len(frames), int(hi) + 2)) if lo <= j <= hi]
         if not js:
             out.append(c)

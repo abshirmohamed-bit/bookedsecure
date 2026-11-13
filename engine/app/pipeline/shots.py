@@ -103,7 +103,7 @@ class Shot:
     """One stretch of the clip and how it is composed. Times are source ms."""
     start_ms: int
     end_ms: int
-    #: fill | fit | bars | headline | split | grid | screen | pip | feed
+    #: fill | fit | bars | headline | split | grid | screen | pip | feed | graphic
     kind: str
     #: fill (and a pip's main picture): the crop at its first position...
     window: Box | None = None
@@ -176,6 +176,8 @@ class Inputs:
     zoom: str = "auto"
     #: Caption words, clip-relative, for zoom-in moments.
     words: list | None = None
+    #: On-screen cards (graphics.sightings): (ms, [(x, y, w, h) shares]).
+    cards: list = field(default_factory=list)
 
 
 # ------------------------------------------------------------------ geometry
@@ -427,6 +429,10 @@ def _activity_zoom(inp: Inputs, a: int, b: int, centre: float) -> "Box | None":
     return Box(x, y, cw, ch)
 
 
+#: A piece of a shot shorter than this is folded into its neighbour.
+MIN_PIECE_MS = 700
+
+
 def screen_split(inp: Inputs) -> tuple[int, int]:
     """(picture height, person height) for the screen layout, in output px."""
     top = _even(inp.out_w * inp.height / max(1, inp.width))
@@ -442,6 +448,76 @@ def _screen(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
     aspect = inp.out_w / max(2, bottom)
     main = _cell(subject, aspect, 0.30, inp)
     return Shot(a, b, "screen", main=main, why=why)
+
+
+def _with_cards(inp: Inputs, shots_, layout: str):
+    """Each camera shot as (from, to, card box or None): split where a card holds still."""
+    from . import graphics
+
+    portrait = inp.out_h >= inp.out_w
+    for a, b in shots_:
+        found = graphics.spans(inp.cards, a, b) if inp.cards and portrait and layout == "auto" else []
+        cursor = a
+        for ca, cb, share in found:
+            if ca - cursor < MIN_PIECE_MS:
+                ca = cursor                 # no sliver of a shot before the card
+            if b - cb < MIN_PIECE_MS:
+                cb = b
+            if ca > cursor:
+                yield cursor, ca, None
+            yield ca, cb, _card_box(share, inp)
+            cursor = cb
+        if cursor < b:
+            yield cursor, b, None
+
+
+def _card_box(share: tuple[float, float, float, float], inp: Inputs) -> Box:
+    """A card's box in source px, with a little room around it."""
+    sw, sh = inp.width, inp.height
+    pad = 0.012
+    x0, y0 = max(0.0, share[0] - pad), max(0.0, share[1] - pad * sw / sh)
+    x1, y1 = min(1.0, share[0] + share[2] + pad), min(1.0, share[1] + share[3] + pad * sw / sh)
+    return Box(int(x0 * sw), int(y0 * sh), _even((x1 - x0) * sw), _even((y1 - y0) * sh))
+
+
+def _graphic(inp: Inputs, a: int, b: int, faces: list[_Face], card: Box) -> Shot:
+    """The person on top and the card they are answering whole below (looks.graphic_cards)."""
+    from . import looks
+
+    talk = _talk_time(inp.turns, a, b)
+    subject = max(_prominent(faces), key=lambda f: (talk.get(f.id, 0), f.w * f.presence))
+    person, _ = looks.graphic_cards(inp.out_w, inp.out_h, card.w, card.h)
+    main = _clear_of_card(_cell(subject, person[2] / max(2, person[3]), 0.30, inp), subject, card, inp)
+    return Shot(a, b, "graphic", main=main, inset=card,
+                why="a card on screen: the person on top, the card whole below")
+
+
+def _clear_of_card(main: Box, face: _Face, card: Box, inp: Inputs) -> Box:
+    """Keep the person's crop off the card, which is shown whole below anyway.
+
+    First slide sideways off it; failing that, end the crop above the card
+    (a tighter shot of the same shape), as long as the face stays well inside.
+    """
+    def overlaps(m: Box) -> bool:
+        return m.x < card.x + card.w and card.x < m.x + m.w and m.y < card.y + card.h and card.y < m.y + m.h
+
+    if not overlaps(main):
+        return main
+    sw, sh = inp.width, inp.height
+    fl, fr = (face.x - face.w) * sw, (face.x + face.w) * sw
+    for x in (card.x + card.w, card.x - main.w):
+        if 0 <= x <= sw - main.w and x <= fl and x + main.w >= fr:
+            return Box(int(x), main.y, main.w, main.h)
+    bottom = card.y
+    top = max(0.0, face.y * sh - face.h * sh * 1.6)
+    h = bottom - top
+    if h < max(face.h * sh * 1.6, sh * 0.3):
+        return main
+    w = h * main.w / max(1, main.h)
+    if w > sw:
+        return main
+    x = _clamp(face.x * sw - w / 2, 0, sw - w)
+    return Box(int(round(x)), int(round(top)), _even(w), _even(h))
 
 
 def _inset_box(face: _Face, inp: Inputs) -> Box:
@@ -573,9 +649,12 @@ def plan(inp: Inputs) -> list[Shot]:
     share = fw / max(1, inp.width)
     ends = _line_ends(inp) if inp.zoom == "moments" else []
     out: list[Shot] = []
-    for a, b in director.shots(inp.cuts, start, end):
+    for a, b, card in _with_cards(inp, director.shots(inp.cuts, start, end), layout):
         cast = director.people_in(inp.tracks, a, b)
         faces = _faces(cast)
+        if card is not None and faces:
+            out.append(_graphic(inp, a, b, faces, card))
+            continue
         wide, centre = _detail(inp, a, b, share)
         if not faces:
             zoom_box = _activity_zoom(inp, a, b, centre) if wide and layout in {"auto", "screen", "pip", "split", "grid"} else None

@@ -21,6 +21,8 @@ export const LOOK = {
   pip: { width: 0.3, aspect: 0.75, right: 0.04, top: 0.18 },
   /** Podcast poster's progress bar: height and lift from the bottom (share of the height). */
   progress: { height: 0.006, lift: 0.025, alpha: 0.9 },
+  /** The on-screen card under a person takes at most this share of the height. */
+  graphicMax: 0.38,
 } as const;
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -58,6 +60,19 @@ export function quadCards(W: number, H: number): Box[] {
   const m = W * LOOK.duoMargin, g = W * LOOK.duoGap;
   const w = (W - 2 * m - g) / 2, h = (H - 2 * m - g) / 2;
   return [0, 1, 2, 3].map((i) => ({ x: m + (i % 2) * (w + g), y: m + Math.floor(i / 2) * (h + g), w, h }));
+}
+
+/**
+ * A card on screen (a tweet, a comment): the person on top and the card (gw x gh source px)
+ * whole below. Mirrors looks.graphic_cards.
+ */
+export function graphicCards(W: number, H: number, gw: number, gh: number): [Box, Box] {
+  const m = W * LOOK.duoMargin, g = W * LOOK.duoGap;
+  const iw = W - 2 * m, ih = H - 2 * m - g;
+  let cw = iw, ch = (cw * gh) / Math.max(1, gw);
+  if (ch > ih * LOOK.graphicMax) { ch = ih * LOOK.graphicMax; cw = (ch * gw) / Math.max(1, gh); }
+  const ph = ih - ch;
+  return [{ x: m, y: m, w: iw, h: ph }, { x: m + (iw - cw) / 2, y: m + ph + g, w: cw, h: ch }];
 }
 
 /** Presenter mode: the screen card on top (to `top` px, the Engine's screen_split) and the speaker card below. */

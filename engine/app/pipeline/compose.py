@@ -394,6 +394,18 @@ def flatten(render: Render, workdir: Path) -> Render:
 
 # ------------------------------------------------------------------ the plan
 
+def _cards(source: Path, render: Render) -> list:
+    """On-screen cards over the render's range; none if reading them fails."""
+    if render.layout not in {"auto", ""}:
+        return []
+    try:
+        from . import graphics
+        return graphics.sightings(source, render.in_ms, render.out_ms)
+    except Exception:
+        log.exception("card search failed; framing without it")
+        return []
+
+
 def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
     """The shot list for this render, from one analysis of its range.
 
@@ -427,6 +439,7 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
         width=sw, height=sh, out_w=w, out_h=h, in_ms=render.in_ms, out_ms=render.out_ms,
         tracks=tracks, turns=turns_, cuts=cuts, detail=detail, track=track,
         layout=render.layout, focus=render.focus, zoom=render.zoom, words=render.words,
+        cards=_cards(source, render) if render.framing_mode not in {"center", "manual"} else [],
     )
     plan = shotplan.plan(inputs)
     try:
@@ -708,6 +721,20 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
                    out_w=w, workdir=workdir, name=f"p{i}a", frames=frames)
         looks.card(lines, base=f"{s}t", picture=f"{s}pe", out=f"{s}u", x=m, y=m + th + g, w=cw, h=bh,
                    out_w=w, workdir=workdir, name=f"p{i}b", frames=frames)
+        lines.append(f"[{s}u]setsar=1[{out}]")
+        return lines, 1
+    if shot.kind == "graphic":
+        box, card = shot.main, shot.inset
+        assert box is not None and card is not None
+        (px, py, pw, ph), (gx, gy, gw, gh) = looks.graphic_cards(w, h, card.w, card.h)
+        lines.append(f"[{s}]{head},split=3[{s}a][{s}b][{s}c]")
+        lines.append(looks.ambient(f"{s}c", f"{s}bg", w, h))
+        lines.append(f"[{s}a]{box.crop()},scale={pw}:{ph}:force_original_aspect_ratio=increase:flags=lanczos,crop={pw}:{ph},setsar=1[{s}pe]")
+        lines.append(f"[{s}b]{card.crop()},scale={gw}:{gh}:flags=lanczos,setsar=1[{s}gr]")
+        looks.card(lines, base=f"{s}bg", picture=f"{s}pe", out=f"{s}t", x=px, y=py, w=pw, h=ph,
+                   out_w=w, workdir=workdir, name=f"g{i}a", frames=frames)
+        looks.card(lines, base=f"{s}t", picture=f"{s}gr", out=f"{s}u", x=gx, y=gy, w=gw, h=gh,
+                   out_w=w, workdir=workdir, name=f"g{i}b", frames=frames)
         lines.append(f"[{s}u]setsar=1[{out}]")
         return lines, 1
     if shot.kind == "pip":

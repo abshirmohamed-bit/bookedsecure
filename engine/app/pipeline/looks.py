@@ -31,6 +31,8 @@ GLASS_WIDTH = 0.92
 #: Duo cards: margin around and gap between the two cards (share of width).
 DUO_MARGIN = 0.035
 DUO_GAP = 0.025
+#: The on-screen card under a person takes at most this share of the height.
+GRAPHIC_MAX = 0.38
 #: Cinema bars: how dark the blurred bars are, and the vignette angle.
 #: Podcast poster progress bar: height and lift from the bottom (share of height), colour.
 PROGRESS_HEIGHT = 0.006
@@ -49,6 +51,24 @@ def spotlight_cards(w: int, h: int) -> list[tuple[int, int, int, int]]:
     bot_h = even(inner_h - top_h)
     half = even((inner_w - g) / 2)
     return [(m, m, even(inner_w), top_h), (m, m + top_h + g, half, bot_h), (m + half + g, m + top_h + g, half, bot_h)]
+
+
+def graphic_cards(w: int, h: int, gw: int, gh: int) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
+    """Person on top, an on-screen card (gw x gh source px) whole below: (x, y, w, h) of each.
+
+    The card keeps its shape at full inner width when it can, and never
+    takes more than GRAPHIC_MAX of the height; the person gets the rest.
+    """
+    m, g = even(w * DUO_MARGIN), even(w * DUO_GAP)
+    inner_w, inner_h = w - 2 * m, h - 2 * m - g
+    cw = inner_w
+    ch = cw * gh / max(1, gw)
+    if ch > inner_h * GRAPHIC_MAX:
+        ch = inner_h * GRAPHIC_MAX
+        cw = ch * gw / max(1, gh)
+    cw, ch = even(cw), even(ch)
+    ph = even(inner_h - ch)
+    return (m, m, even(inner_w), ph), (m + (even(inner_w) - cw) // 2, m + ph + g, cw, ch)
 
 
 def quad_cards(w: int, h: int) -> list[tuple[int, int, int, int]]:

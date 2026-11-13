@@ -2,7 +2,7 @@ import { GripHorizontal, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import type { PlanBox, ShotPlan } from "@/lib/video-clips.server";
 import { cropAt, shotAt, TRANSITION_MS } from "@/lib/clip-motion";
-import { duoCards, glassCard, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
+import { duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
 import type { CaptionLine, ClipLayout, VideoAspect } from "@/lib/video-clips";
 
 const ASPECT: Record<VideoAspect, number> = { "9:16": 9 / 16, "1:1": 1, "4:5": 4 / 5, "16:9": 16 / 9 };
@@ -188,6 +188,10 @@ export function LivePreview({
     if (shot.kind === "grid" && (shot.cells.length === 3 || shot.cells.length >= 4)) {
       const spots = shot.cells.length === 3 ? spotlightCards(frame.w, frame.h) : quadCards(frame.w, frame.h);
       return spots.map((b, i) => ({ box: b, crop: shot.cells[i]! }));
+    }
+    if (shot.kind === "graphic" && shot.main && shot.inset) {
+      const [person, card] = graphicCards(frame.w, frame.h, shot.inset.w, shot.inset.h);
+      return [{ box: person, crop: shot.main }, { box: card, crop: shot.inset }];
     }
     if (shot.kind === "screen" && shot.main) {
       const top = Math.min(frame.h * 0.5, (frame.w * source.h) / source.w);

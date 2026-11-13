@@ -34,6 +34,8 @@ EDGE_MARGIN = 0.12
 #: The same idea for someone else's face we are steering off: the gap
 #: between the window edge and their face.
 OTHER_MARGIN = 0.01
+#: A person's shoulders are about this many face widths across.
+BODY_WIDTH = 2.8
 #: Output spacing while following a subject who moves.
 FOLLOW_STEP_MS = 100
 #: Easing while following: the share of the remaining distance covered per
@@ -67,6 +69,25 @@ class Person:
 
     def right(self, boxes=None) -> float:
         return max(b[1][0] + b[1][2] / 2 for b in (boxes or self.boxes))
+
+    def span(self) -> tuple[float, float]:
+        """Where the face usually is (10th..90th percentile of its edges).
+
+        The extremes include every lean and stray detection over the shot,
+        which made two people standing side by side look too far apart to
+        frame together, so the camera chased whoever it thought was talking
+        and cut the other in half.
+        """
+        ls = sorted(b[1][0] - b[1][2] / 2 for b in self.boxes)
+        rs = sorted(b[1][0] + b[1][2] / 2 for b in self.boxes)
+        k = len(ls) // 10
+        return ls[k], rs[len(rs) - 1 - k]
+
+    def body(self) -> tuple[float, float]:
+        """Their shoulders, not just their face: what a frame edge must not slice."""
+        lo, hi = self.span()
+        half = self.w * BODY_WIDTH / 2
+        return min(lo, self.x - half), max(hi, self.x + half)
 
     def x_at(self, ms: int) -> float:
         """Where this face is at `ms`, interpolated between detections."""
@@ -148,7 +169,7 @@ def _avoid_slivers(c: float, lo: float, hi: float, others: list[Person], window:
     for _ in range(3):
         moved = False
         for o in others:
-            ol, orr = o.left(), o.right()
+            ol, orr = o.body()
             wl, wr = c - window / 2, c + window / 2
             if orr <= wl or ol >= wr or (ol >= wl and orr <= wr):
                 continue                       # outside, or whole: fine
@@ -270,8 +291,8 @@ def plan_camera(tracks, turns_, cuts: list[int], start_ms: int, end_ms: int,
             # composition the shot was made for far more often than not.
             out.append((lead, 0.5))
             continue
-        lo = min(p.left() for p in cast)
-        hi = max(p.right() for p in cast)
+        lo = min(p.span()[0] for p in cast)
+        hi = max(p.span()[1] for p in cast)
         if _fits(lo, hi, window):
             c = _hold(lo, hi, (lo + hi) / 2, window)
             out.append((lead, round(c, 4)))
