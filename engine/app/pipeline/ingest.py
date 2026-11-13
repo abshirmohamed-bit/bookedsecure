@@ -267,7 +267,10 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
     if max_routes:
         routes = routes[:max_routes]
     last = ""
+    proxy_empty = False
     for client, via_proxy in routes:
+        if via_proxy and proxy_empty:
+            continue                    # the proxy has no data left; asking again changes nothing
         cmd = [exe, "--no-playlist", "--quiet", "--no-warnings", *(["--newline", "--progress"] if on_progress else []),
                *ytdlp_opts.cli_args(client, via_proxy), *args, "-o", str(dest), "--", url]
         started = time.time()
@@ -291,6 +294,10 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
         last = (proc.stderr or "").strip()
         log.warning("yt-dlp could not fetch %s as %s%s: %s", url, client,
                     " via proxy" if via_proxy else "", last[-300:])
+        if via_proxy and proxy_out_of_data(last):
+            proxy_empty = True
+            log.error("the YouTube proxy has run out of data (407 TRAFFIC_EXHAUSTED); top it up or change YTDLP_PROXY")
+            continue
         # Only a refusal is worth another address or another client, and so is
         # a client that doesn't offer the format asked for (the "tv" client has
         # no audio-only one, say). Anything else, such as a private video or a
@@ -298,9 +305,23 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
         # metered bandwidth buys nothing.
         if not (ytdlp_opts.looks_blocked(last) or _route_lacks_format(last) or ytdlp_opts.looks_transient(last)):
             break
+    if proxy_empty:
+        # Seen live: the job told the owner "YouTube asks a cloud server to prove it is not a
+        # bot ... set a residential proxy" when the proxy it already has was simply out of data.
+        raise EngineError("VALIDATION_ERROR", PROXY_EMPTY_MESSAGE)
     if ytdlp_opts.looks_transient(last):
         raise TransientFetch(_download_error(last))
     raise EngineError("VALIDATION_ERROR", _download_error(last))
+
+
+PROXY_EMPTY_MESSAGE = ("The Engine's YouTube proxy has run out of data, so YouTube links can't be "
+                       "downloaded right now. Top up the proxy plan (or change YTDLP_PROXY), or upload "
+                       "the video file instead.")
+
+
+def proxy_out_of_data(stderr: str) -> bool:
+    """The proxy provider refusing because the plan's traffic is used up (407 TRAFFIC_EXHAUSTED)."""
+    return "traffic_exhausted" in (stderr or "").lower()
 
 
 def _size(path: Path) -> int:

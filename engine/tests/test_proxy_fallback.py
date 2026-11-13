@@ -112,3 +112,18 @@ def test_the_proxy_is_tried_again_from_fresh_addresses(with_proxy, monkeypatch):
     assert len(proxied) == 3 * len(ytdlp_opts.PLAYER_CLIENTS)
     monkeypatch.setenv("YTDLP_PROXY_ROUNDS", "1")
     assert len([r for r in ytdlp_opts.attempts() if r[1]]) == len(ytdlp_opts.PLAYER_CLIENTS)
+
+
+def test_a_proxy_out_of_data_is_reported_as_such_and_not_retried(with_proxy, monkeypatch, tmp_path):
+    # Seen live (2026-11-13): every proxy try answered 407 TRAFFIC_EXHAUSTED, and the owner
+    # was told to "set a residential proxy" because the last direct try was a bot check.
+    seen: list[bool] = []
+    blocked = "ERROR: Sign in to confirm you're not a bot"
+    empty = "ERROR: [download] Got error: <urlopen error Tunnel connection failed: 407 TRAFFIC_EXHAUSTED>"
+    results = [blocked] * len(ytdlp_opts.PLAYER_CLIENTS) + [empty]
+    monkeypatch.setattr(ingest.shutil, "which", lambda _: "/usr/bin/yt-dlp")
+    monkeypatch.setattr(subprocess, "run", _fake_runner(results, seen))
+    with pytest.raises(EngineError) as e:
+        ingest._ytdlp("https://youtu.be/x", tmp_path / "v.mp4")
+    assert "run out of data" in str(e.value)
+    assert seen.count(True) == 1, "one proxy refusal is enough; the other rounds would say the same"
