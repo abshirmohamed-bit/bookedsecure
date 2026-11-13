@@ -27,6 +27,14 @@ describe("active item", () => {
     expect(isNavItemActive(item("/leads"), "/import")).toBe(true);
     expect(isNavItemActive(item("/dashboard"), "/leads")).toBe(false);
   });
+  it("highlights Social media, not Co-Work, on the hands-on social tools", () => {
+    expect(isNavItemActive(item("/social"), "/social")).toBe(true);
+    expect(isNavItemActive(item("/social"), "/linkedin")).toBe(true);
+    expect(isNavItemActive(item("/assistant"), "/social")).toBe(false);
+    expect(isNavItemActive(item("/assistant"), "/assistant")).toBe(true);
+    expect(item("/social")).toMatchObject({ sub: true, search: { platform: "facebook" } });
+    expect(navBreadcrumb("/social")).toEqual(["Co-Work", "Social media"]);
+  });
   it("does not treat a shared prefix as a match", () => {
     expect(isNavItemActive(item("/settings/team"), "/settings/teamwork")).toBe(false);
   });

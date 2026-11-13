@@ -246,6 +246,7 @@ export function AppShell({ children, title, wide = false }: { children: ReactNod
                   compact={compact}
                   badge={badgeFor(item, counts.data)}
                   sub={Boolean(item.sub)}
+                  search={item.search}
                 />
               ))}
             </NavGroup>
@@ -368,8 +369,10 @@ function SidebarLink({
   compact,
   badge = 0,
   sub = false,
+  search,
 }: {
   to: NavItem["to"] | "/admin/overview";
+  search?: NavItem["search"];
   label: string;
   active: boolean;
   icon: typeof Home;
@@ -381,6 +384,7 @@ function SidebarLink({
   return (
     <Link
       to={to}
+      search={search as never}
       // Our own active rule decides; stop the router also marking parents (Campaigns on /campaigns/replies).
       activeOptions={{ exact: true }}
       aria-current={active ? "page" : undefined}

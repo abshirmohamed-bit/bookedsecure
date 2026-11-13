@@ -62,6 +62,8 @@ export type NavItem = {
   excludePaths?: readonly string[];
   /** Shown indented under the item above it. */
   sub?: boolean;
+  /** Query the link opens with (bare /social redirects to Co-Work, so its sub-item names a platform). */
+  search?: Readonly<Record<string, string>>;
 };
 
 export type NavSection = { label: string | null; items: readonly NavItem[] };
@@ -71,7 +73,9 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: null,
     items: [
       { to: "/dashboard", label: "Home", icon: "home" },
-      { to: "/assistant", label: "Co-Work", icon: "assistant", badge: "social", contextPaths: ["/social", "/linkedin"] },
+      { to: "/assistant", label: "Co-Work", icon: "assistant", badge: "social" },
+      // The hands-on posting, comments and messages tools, under Co-Work like Replies under Campaigns.
+      { to: "/social", label: "Social media", icon: "social", sub: true, search: { platform: "facebook" }, contextPaths: ["/linkedin"] },
     ],
   },
   {
@@ -140,6 +144,7 @@ export function navBreadcrumb(pathname: string): string[] {
   if (matches(pathname, "/notifications")) return ["Account", "Alerts and notifications"];
   if (matches(pathname, "/settings/billing")) return ["Account", "Account access"];
   if (matches(pathname, "/campaigns/replies")) return ["Campaigns", "Replies"];
+  if (matches(pathname, "/social") || matches(pathname, "/linkedin")) return ["Co-Work", "Social media"];
   const item = NAV_ITEMS.find((candidate) => isNavItemActive(candidate, pathname));
   if (!item) return [];
   const section = NAV_SECTIONS.find((candidate) => candidate.items.includes(item));
