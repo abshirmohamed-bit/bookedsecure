@@ -406,6 +406,18 @@ def _cards(source: Path, render: Render) -> list:
         return []
 
 
+def _subtitles(source: Path, render: Render):
+    """Where the video's own burned-in subtitles start, if it has them."""
+    if render.layout in {"streamer", "black-box", "title-subtitles"}:
+        return None
+    try:
+        from . import graphics
+        return graphics.subtitle_top(source, render.in_ms, render.out_ms)
+    except Exception:
+        log.exception("subtitle search failed; framing without it")
+        return None
+
+
 def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
     """The shot list for this render, from one analysis of its range.
 
@@ -440,6 +452,7 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
         tracks=tracks, turns=turns_, cuts=cuts, detail=detail, track=track,
         layout=render.layout, focus=render.focus, zoom=render.zoom, words=render.words,
         cards=_cards(source, render) if render.framing_mode not in {"center", "manual"} else [],
+        subtitle_top=_subtitles(source, render) if render.framing_mode not in {"center", "manual"} else None,
     )
     plan = shotplan.plan(inputs)
     try:

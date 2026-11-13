@@ -76,3 +76,42 @@ def test_a_shot_with_a_card_becomes_person_over_card():
 
 def test_no_cards_no_graphic():
     assert all(s.kind != "graphic" for s in shots.plan(_inputs([])))
+
+
+def test_cuts_closer_than_a_shot_count_once():
+    # Handheld footage trips the cut detector every few frames; a 30 ms shot is not reframed.
+    assert director.shots([1000, 1030, 1300, 5000, 9800], 0, 10000) == [(0, 1000), (1000, 5000), (5000, 10000)]
+
+
+def test_a_faceless_stretch_keeps_one_look():
+    S = shots.Shot
+    w = shots.Box(600, 0, 608, 1080)
+    plan = [S(0, 3000, "fill", window=w, pan=[(0, 600)], why="nobody in shot: the middle of the picture"),
+            S(3000, 3500, "screen", main=shots.Box(0, 0, 900, 600), why="nobody in shot: the whole screen, with a close-up"),
+            S(3500, 4100, "fill", window=shots.Box(10, 0, 608, 1080), pan=[(3500, 10)], why="one person: framed on them"),
+            S(4100, 9000, "fill", window=w, pan=[(4100, 600)], why="nobody in shot: the middle of the picture")]
+    out = shots._steady(plan)
+    assert [s.kind for s in out] == ["fill", "fill", "fill", "fill"]
+    # The blip (a thumb read as a face) and the half-second flip keep the framing before them.
+    assert out[1].window == w and out[2].window == w
+
+
+def test_a_person_fading_in_late_starts_their_own_shot():
+    # A product shot dissolving into an interview has no hard cut; the person appears 6 s in.
+    track = type("T", (), {})()
+    track.id = 1
+    track.boxes = [(ms, (0.5, 0.35, 0.12, 0.3)) for ms in range(6000, 10000, 200)]
+    inp = shots.Inputs(width=1920, height=1080, out_w=1080, out_h=1920, in_ms=0, out_ms=10000,
+                       tracks=[track], cuts=[], detail=[])
+    assert list(shots._split_on_presence(inp, [(0, 10000)])) == [(0, 5850), (5850, 10000)]
+
+
+def test_crops_end_above_burned_in_subtitles():
+    track = type("T", (), {})()
+    track.id = 1
+    track.boxes = [(ms, (0.5, 0.35, 0.12, 0.3)) for ms in range(0, 10000, 200)]
+    inp = shots.Inputs(width=1920, height=1080, out_w=1080, out_h=1920, in_ms=0, out_ms=10000,
+                       tracks=[track], cuts=[], detail=[], subtitle_top=0.8)
+    (s,) = shots.plan(inp)
+    assert s.window.y + s.window.h <= 0.8 * 1080
+    assert abs(s.window.w / s.window.h - 1080 / 1920) < 0.01

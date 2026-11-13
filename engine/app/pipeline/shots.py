@@ -178,6 +178,9 @@ class Inputs:
     words: list | None = None
     #: On-screen cards (graphics.sightings): (ms, [(x, y, w, h) shares]).
     cards: list = field(default_factory=list)
+    #: Where burned-in subtitles start (share of the height), if the video has them:
+    #: crops end above it (graphics.subtitle_top).
+    subtitle_top: float | None = None
 
 
 # ------------------------------------------------------------------ geometry
@@ -325,11 +328,14 @@ def _cell(face: _Face, aspect: float, face_share: float, inp: Inputs,
     if ch > sh:
         ch = float(sh)
         cw = ch * aspect
+    limit = _subtitle_limit(inp)
+    if limit is not None and ch > limit:
+        ch, cw = float(limit), limit * aspect
     cw, ch = _even(cw), _even(ch)
     x = face.x * sw - cw / 2
     x = _clamp(x, lo, max(lo, hi - cw))
     x = _clamp(x, 0, sw - cw)
-    y = _clamp(face.y * sh - 0.42 * ch, 0, sh - ch)
+    y = _clamp(face.y * sh - 0.42 * ch, 0, (limit if limit is not None else sh) - ch)
     return Box(int(round(x)), int(round(y)), cw, ch)
 
 
@@ -350,6 +356,11 @@ def _fill(inp: Inputs, a: int, b: int, faces: list[_Face], *, use_turns: bool,
     sw, sh = inp.width, inp.height
     fw, fh = full_window(sw, sh, inp.out_w, inp.out_h)
     ww, wh = _even(fw / zoom), _even(fh / zoom)
+    limit = _subtitle_limit(inp)
+    if limit is not None and wh > limit:
+        # Push in just enough that the crop ends above the burned-in subtitles.
+        zoom *= wh / limit
+        ww, wh = _even(fw / zoom), _even(fh / zoom)
     share = ww / sw
     if faces:
         samples = director.plan_camera(inp.tracks, inp.turns, [], a, b, share,
@@ -361,17 +372,73 @@ def _fill(inp: Inputs, a: int, b: int, faces: list[_Face], *, use_turns: bool,
     pan = [(ms, int(_clamp(round(c * sw - ww / 2), 0, sw - ww))) for ms, c in samples]
     centre = median(c for _, c in samples)
     y = _headroom_y(faces, centre, ww, wh, sw, sh) if wh < sh else 0
+    if limit is not None:
+        y = int(_clamp(y, 0, limit - wh))
     first = pan[0][1]
     moves = [(ms, x) for ms, x in pan[1:]]
     return Shot(a, b, "fill", window=Box(first, y, ww, wh), pan=[(a, first), *moves],
                 zoom=zoom, why=why)
 
 
+def _faceless_fill(inp: Inputs, a: int, b: int, centre: float, share: float, before: list[Shot]) -> Shot:
+    """A close-up with nobody in it: the middle, unless the content clearly sits elsewhere.
+
+    The busiest strip of a hand-drawing video is the printed form beside the
+    drawing, not the drawing; the middle is what the camera was pointed at far
+    more often. And neighbouring shots of the same thing keep one framing, so
+    a handheld camera doesn't make the crop hop about.
+    """
+    sw = inp.width
+    strong = _detail_lead(inp, a, b, share) >= FACELESS_LEAD
+    aim = centre if strong else 0.5
+    prev = before[-1] if before else None
+    if prev is not None and prev.kind == "fill" and prev.why.startswith("nobody in shot") and prev.window is not None:
+        held = (prev.window.x + prev.window.w / 2) / sw
+        if abs(held - aim) < FACELESS_STICK:
+            aim = held
+    why = "nobody in shot: the busiest part of the picture" if strong else "nobody in shot: the middle of the picture"
+    return _fill_centred(inp, a, b, aim, why)
+
+
+#: How much more detail than its share the busiest strip must hold to be framed instead of the middle.
+FACELESS_LEAD = 2.2
+#: Neighbouring faceless shots aimed closer than this (share of width) keep one framing.
+FACELESS_STICK = 0.2
+
+
+def _detail_lead(inp: Inputs, start_ms: int, end_ms: int, share: float) -> float:
+    """How much of the detail the busiest window-wide strip holds, over its fair share."""
+    rows = [e[1] for e in inp.detail if start_ms <= e[0] < end_ms and e[1]]
+    if not rows:
+        return 0.0
+    n = len(rows[0])
+    avg = [sum(r[i] for r in rows if len(r) == n) / len(rows) for i in range(n)]
+    total = sum(avg)
+    if total <= 0:
+        return 0.0
+    span = max(1, min(n, round(share * n)))
+    best = max(sum(avg[i:i + span]) for i in range(0, n - span + 1))
+    return (best / total) / (span / n)
+
+
 def _fill_centred(inp: Inputs, a: int, b: int, centre: float, why: str) -> Shot:
     sw, sh = inp.width, inp.height
     ww, wh = full_window(sw, sh, inp.out_w, inp.out_h)
+    y = (sh - wh) // 2
+    limit = _subtitle_limit(inp)
+    if limit is not None and y + wh > limit:
+        if wh > limit:
+            ww, wh = _even(ww * limit / wh), _even(limit)
+        y = int(_clamp(y, 0, limit - wh))
     x = int(_clamp(round(centre * sw - ww / 2), 0, sw - ww))
-    return Shot(a, b, "fill", window=Box(x, (sh - wh) // 2, ww, wh), pan=[(a, x)], why=why)
+    return Shot(a, b, "fill", window=Box(x, y, ww, wh), pan=[(a, x)], why=why)
+
+
+def _subtitle_limit(inp: Inputs) -> "int | None":
+    """The lowest source row a crop may reach: above burned-in subtitles, if any."""
+    if inp.subtitle_top is None or not 0.5 < inp.subtitle_top < 1:
+        return None
+    return int(inp.subtitle_top * inp.height)
 
 
 def _split(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
@@ -425,7 +492,8 @@ def _activity_zoom(inp: Inputs, a: int, b: int, centre: float) -> "Box | None":
     # Lean towards the busier band, never off the picture.
     cy = 0.5 + 0.18 * max(-1.0, min(1.0, (bottom_busy - top_busy) * 4))
     x = int(_clamp(round(centre * sw - cw / 2), 0, sw - cw))
-    y = int(_clamp(round(cy * sh - ch / 2), 0, sh - ch))
+    limit = _subtitle_limit(inp)
+    y = int(_clamp(round(cy * sh - ch / 2), 0, (limit if limit is not None and limit >= ch else sh) - ch))
     return Box(x, y, cw, ch)
 
 
@@ -448,6 +516,32 @@ def _screen(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
     aspect = inp.out_w / max(2, bottom)
     main = _cell(subject, aspect, 0.30, inp)
     return Shot(a, b, "screen", main=main, why=why)
+
+
+#: Nobody seen for this long at a shot's start or end is a dissolve the cut
+#: detector missed (a product shot fading into an interview): split there.
+PRESENCE_GAP_MS = 1500
+
+
+def _split_on_presence(inp: Inputs, shots_):
+    """Camera shots, further split where people fade in or out of an otherwise uncut stretch.
+
+    A dissolve changes the picture too gradually to read as a cut, so the
+    shot before it and the shot after it were planned as one: the crop sat
+    where the speaker would appear while the product was still on screen.
+    """
+    for a, b in shots_:
+        seen = sorted(bx[0] for t in inp.tracks for bx in t.boxes if a <= bx[0] < b)
+        if len(seen) < 3:
+            yield a, b
+            continue
+        first, last = seen[0], seen[-1]
+        cut_in = first - 150 if first - a >= PRESENCE_GAP_MS else None
+        cut_out = last + 150 if b - last >= PRESENCE_GAP_MS else None
+        edges = [a] + [c for c in (cut_in, cut_out) if c is not None] + [b]
+        for x, y in zip(edges, edges[1:]):
+            if y > x:
+                yield x, y
 
 
 def _with_cards(inp: Inputs, shots_, layout: str):
@@ -649,7 +743,7 @@ def plan(inp: Inputs) -> list[Shot]:
     share = fw / max(1, inp.width)
     ends = _line_ends(inp) if inp.zoom == "moments" else []
     out: list[Shot] = []
-    for a, b, card in _with_cards(inp, director.shots(inp.cuts, start, end), layout):
+    for a, b, card in _with_cards(inp, _split_on_presence(inp, director.shots(inp.cuts, start, end)), layout):
         cast = director.people_in(inp.tracks, a, b)
         faces = _faces(cast)
         if card is not None and faces:
@@ -657,6 +751,8 @@ def plan(inp: Inputs) -> list[Shot]:
             continue
         wide, centre = _detail(inp, a, b, share)
         if not faces:
+            if _detail_lead(inp, a, b, share) < FACELESS_LEAD:
+                centre = 0.5            # detail all over: the middle is what was filmed
             zoom_box = _activity_zoom(inp, a, b, centre) if wide and layout in {"auto", "screen", "pip", "split", "grid"} else None
             if zoom_box is not None:
                 # Screen + zoom: the whole picture on top for context, a close-up of
@@ -666,7 +762,7 @@ def plan(inp: Inputs) -> list[Shot]:
             elif layout in {"auto", "screen", "pip", "split", "grid"} and wide:
                 out.append(Shot(a, b, "fit", why="nobody in shot and the picture runs edge to edge: shown whole"))
             else:
-                out.append(_fill_centred(inp, a, b, centre, "nobody in shot: the busiest part of the picture"))
+                out.append(_faceless_fill(inp, a, b, centre, share, out))
             continue
 
         lo, hi = min(f.left for f in faces), max(f.right for f in faces)
@@ -715,7 +811,44 @@ def plan(inp: Inputs) -> list[Shot]:
             out.append(_fill(inp, sa, sb, faces, use_turns=use_turns, zoom=z,
                              why=why + (" (punch-in on the line)" if z > zoom else "")
                              + (f", pushed in {z:.2f}x" if z > 1 and z == zoom else "")))
-    return _merge(out)
+    return _merge(_steady(out))
+
+
+#: A faceless stretch keeps one look unless a shot of another look lasts this long.
+STEADY_MS = 2000
+#: A shot this short between two faceless shots is a blip (a thumb read as a face).
+BLIP_MS = 1000
+
+
+def _faceless(s: Shot) -> bool:
+    return s.why.startswith("nobody in shot")
+
+
+def _steady(shots_: list[Shot]) -> list[Shot]:
+    """Stop a faceless stretch flipping between looks.
+
+    Handheld close-ups (a hand drawing, a product turned in the hand) cut
+    often and their detail moves, so shot by shot the plan flipped between a
+    crop and the screen + close-up look every half second, and a thumb read
+    as a face for 0.7 s cut to a close-up of the thumb. A short shot inside a
+    faceless stretch keeps the framing before it.
+    """
+    out: list[Shot] = []
+    for i, s in enumerate(shots_):
+        prev = out[-1] if out else None
+        nxt = shots_[i + 1] if i + 1 < len(shots_) else None
+        if prev is not None and _faceless(prev) and prev.kind in {"fill", "screen", "fit"}:
+            blip = (not _faceless(s) and s.length_ms < BLIP_MS and s.kind == "fill"
+                    and nxt is not None and _faceless(nxt))
+            flip = _faceless(s) and s.kind != prev.kind and s.length_ms < STEADY_MS
+            if blip or flip:
+                out.append(Shot(s.start_ms, s.end_ms, prev.kind, window=prev.window,
+                                pan=[(s.start_ms, prev.pan[-1][1])] if prev.pan else [],
+                                main=prev.main, zoom=prev.zoom,
+                                why=prev.why if _faceless(prev) else s.why))
+                continue
+        out.append(s)
+    return out
 
 
 def _merge(shots_: list[Shot]) -> list[Shot]:

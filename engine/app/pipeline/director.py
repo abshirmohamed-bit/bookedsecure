@@ -104,9 +104,23 @@ class Person:
         return min(self.boxes, key=lambda b: abs(b[0] - ms))[1][2]
 
 
+#: Shots shorter than this are not reframed on their own. Handheld footage
+#: (a hand drawing, a phone walking) trips the cut detector again and again;
+#: reframing on each made the picture jump every few frames, down to
+#: single-frame "shots". A real shot this short is gone before anyone notices
+#: it kept the previous framing.
+MIN_SHOT_MS = 400
+
+
 def shots(cuts: list[int], start_ms: int, end_ms: int) -> list[tuple[int, int]]:
-    """The clip split at its camera cuts."""
-    edges = [start_ms] + sorted(c for c in set(cuts) if start_ms < c < end_ms) + [end_ms]
+    """The clip split at its camera cuts (cuts too close together count once)."""
+    edges = [start_ms]
+    for c in sorted(c for c in set(cuts) if start_ms < c < end_ms):
+        if c - edges[-1] >= MIN_SHOT_MS:
+            edges.append(c)
+    if len(edges) > 1 and end_ms - edges[-1] < MIN_SHOT_MS:
+        edges.pop()
+    edges.append(end_ms)
     return [(a, b) for a, b in zip(edges, edges[1:]) if b > a]
 
 

@@ -35,6 +35,12 @@ MIN_TEXT, MAX_TEXT = 0.012, 0.35
 SAME_CARD = 0.6
 
 _CACHE: "OrderedDict[tuple, list]" = OrderedDict()
+#: Per range: the top of burned-in subtitles in each frame read (share of height) or None.
+_SUBS: "OrderedDict[tuple, list]" = OrderedDict()
+#: Subtitles live in the bottom of the picture, below this share of its height.
+SUB_ZONE = 0.74
+#: Burned-in subtitles count when seen in at least this share of the frames.
+SUB_SHARE = 0.5
 CACHE_MAX = 16
 
 
@@ -75,6 +81,69 @@ def _cards_in(frame) -> list[tuple[float, float, float, float]]:
     return out
 
 
+def _subtitle_top(frame, cards) -> "float | None":
+    """The top of a line of burned-in subtitles near the bottom (share of height), if any.
+
+    Subtitle text is bright, centred and edgy against a darker picture, in a
+    few rows near the bottom. A card found there is a card, not subtitles.
+    """
+    import cv2
+    import numpy as np
+
+    h, w = frame.shape[:2]
+    grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    sat = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)[..., 1]
+    y0 = int(h * SUB_ZONE)
+    x0, x1 = int(w * 0.12), int(w * 0.88)
+    zone = grey[y0:h - 2, x0:x1]
+    # Subtitle text is white (or near it); app icons and products are colourful.
+    bright = (zone >= 200) & (sat[y0:h - 2, x0:x1] <= 50)
+    edges = np.abs(np.diff(zone.astype(np.int16), axis=1)) >= 60
+    rows = (bright.mean(axis=1) >= 0.01) & (bright.mean(axis=1) <= 0.35) & (edges.mean(axis=1) >= 0.03)
+    idx = np.flatnonzero(rows)
+    if len(idx) < max(4, h // 60) or idx[0] <= 2:
+        # (Text running in from above the zone is a picture crossing it, not a subtitle line.)
+        return None
+    # Above a subtitle line the picture is darker than the text (a dark scene, a
+    # shadow or a box behind it); app labels on a bright phone screen are not.
+    above = zone[max(0, idx[0] - 6):max(1, idx[0] - 2)]
+    if above.size == 0 or float(above.mean()) > 120:
+        return None
+    # A subtitle line is centred: its text spreads evenly either side of the middle.
+    cols = np.flatnonzero(bright[idx].any(axis=0))
+    if len(cols) == 0:
+        return None
+    mid = (x1 - x0) / 2
+    if abs((cols[0] + cols[-1]) / 2 - mid) > 0.06 * w:
+        return None
+    top = (y0 + idx[0]) / h
+    for cx, cy, cw, ch in cards:
+        if cy <= top <= cy + ch:
+            return None
+    return float(top)
+
+
+def subtitle_top(video: Path, in_ms: int, out_ms: int) -> "float | None":
+    """Where burned-in subtitles start (share of height), when the video has them, else None.
+
+    Crops end above this so a cropped picture never shows half a subtitle
+    line ("n accurate, spacio"); the Engine draws its own captions.
+    """
+    try:
+        st = video.stat()
+        key = (str(video), st.st_size, int(st.st_mtime), in_ms, out_ms)
+    except OSError:
+        return None
+    if key not in _SUBS:
+        sightings(video, in_ms, out_ms)
+    tops = _SUBS.get(key, [])
+    seen = sorted(t for t in tops if t is not None)
+    if not tops or len(seen) < SUB_SHARE * len(tops):
+        return None
+    # The highest a line usually starts (two-line subtitles start higher).
+    return seen[len(seen) // 10] - 0.01
+
+
 def _iou(a, b) -> float:
     ax2, ay2, bx2, by2 = a[0] + a[2], a[1] + a[3], b[0] + b[2], b[1] + b[3]
     iw = max(0.0, min(ax2, bx2) - max(a[0], b[0]))
@@ -104,10 +173,16 @@ def sightings(video: Path, in_ms: int, out_ms: int) -> list[tuple[int, list]]:
         capture_output=True, check=True).stdout
     size = WIDTH * h * 3
     out = []
+    subs = []
     for i in range(len(raw) // size):
         frame = np.frombuffer(raw[i * size:(i + 1) * size], np.uint8).reshape(h, WIDTH, 3)
-        out.append((in_ms + int(i * 1000 / RATE), _cards_in(frame)))
+        found = _cards_in(frame)
+        out.append((in_ms + int(i * 1000 / RATE), found))
+        subs.append(_subtitle_top(frame, found))
     if key is not None:
+        _SUBS[key] = subs
+        while len(_SUBS) > CACHE_MAX:
+            _SUBS.popitem(last=False)
         _CACHE[key] = out
         while len(_CACHE) > CACHE_MAX:
             _CACHE.popitem(last=False)
