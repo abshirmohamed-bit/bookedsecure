@@ -46,12 +46,32 @@ def test_a_stalled_download_is_stopped_not_retried(monkeypatch, tmp_path):
 
     calls = []
 
-    def stalls(cmd, **kw):
+    def stalls(cmd, timeout, on_progress, dest=None, idle=None):
         calls.append(cmd)
-        raise subprocess.TimeoutExpired(cmd, kw.get("timeout"))
+        assert idle == ingest.SECTION_IDLE_S      # sections are judged by bytes arriving, not total time
+        raise subprocess.TimeoutExpired(cmd, timeout)
 
     monkeypatch.setattr(ingest.shutil, "which", lambda name: "/usr/bin/yt-dlp")
-    monkeypatch.setattr(subprocess, "run", stalls)
+    monkeypatch.setattr(ingest, "_run_with_progress", stalls)
     with pytest.raises(EngineError, match="stalled"):
         ingest.fetch_section("https://www.youtube.com/watch?v=x", tmp_path / "s.mp4", 0, 10_000)
     assert len(calls) == 1
+
+
+def test_the_watchdog_stops_silence_but_not_a_slow_download(tmp_path):
+    import subprocess
+    import sys
+    import pytest
+    from app.pipeline import ingest
+
+    dest = tmp_path / "v.mp4"
+    # Writes a little every 0.5 s for 5 s: slow but alive, so it must finish.
+    slow = subprocess.Popen([sys.executable, "-c",
+        "import time,sys\nfor i in range(10):\n open(sys.argv[1]+'.part','ab').write(b'x'*10)\n time.sleep(0.5)",
+        str(dest)])
+    ingest._watch(slow, dest, timeout=60, idle=3)
+    assert slow.returncode == 0
+    # Writes nothing: stopped once nothing has arrived for the idle time.
+    silent = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    with pytest.raises(subprocess.TimeoutExpired):
+        ingest._watch(silent, tmp_path / "w.mp4", timeout=60, idle=3)
