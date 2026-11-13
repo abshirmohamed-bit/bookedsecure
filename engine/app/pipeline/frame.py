@@ -646,13 +646,19 @@ def analyse(video: Path, *, in_ms: int = 0, out_ms: int | None = None, mode: str
     turns_: list = []
     cuts: list[int] = []
     detail: list = []
+    looked = False
     if t.strategy in {"yunet", "haar"}:
         try:
             tracks, turns_, cuts = speech(video, in_ms=in_ms, out_ms=out_ms)
             detail = details(video, in_ms=in_ms, out_ms=out_ms)
+            looked = bool(detail)       # frames were actually read
         except Exception:
             logging.getLogger("engine.frame").exception("shot analysis failed; using the clip-level faces")
-    if not tracks and t.faces:
+    # The clip-level faces stand in only when the shot analysis could not run.
+    # When it ran and found nobody, trust it: the clip-level pass is coarser and
+    # took a desktop icon in a screen recording for a face, so the crop pushed
+    # in 1.9x on the icon and cut the installer window off.
+    if not tracks and t.faces and not looked:
         end = out_ms if out_ms is not None else max([s[0] for s in t.samples] + [in_ms]) + 1
         tracks = _tracks_from_faces(t, in_ms, end)
     return t, tracks, turns_, cuts, detail
