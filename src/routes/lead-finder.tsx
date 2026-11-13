@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Portal } from "@/components/Portal";
 import { relativeTime } from "@/lib/notifications";
 import { addLeadFinderResults, checkLeadFinderRemaining, dismissLeadFinderResults, getLeadFinder, runLeadFinderSearch, suggestLeadFinderSearches } from "@/lib/lead-finder.functions";
 import { csvForResults, filterResults, RESULT_FILTERS, type ResultFilter, type ResultSort } from "@/lib/lead-finder-view";
@@ -136,13 +136,20 @@ function LeadFinderPage() {
     URL.revokeObjectURL(url);
   };
   const step = [...SEARCH_STEPS].reverse().find((s) => elapsed >= s.from) ?? SEARCH_STEPS[0];
+  const canFind = Boolean(ready && d?.isOwner && !search.isPending && what.trim().length >= 3 && where.trim().length >= 2);
+  const pickSearch = (id: string) => { setSearchId(id); setPicked([]); };
+  const searchLabel = (s: { query: string; area: string; status: string; found: number }) => `${s.query} · ${s.area}`;
+  const searchMeta = (s: { status: string; found: number; createdAt: string }) => `${s.status === "failed" ? "Failed" : `${s.found} found`} · ${relativeTime(s.createdAt)}`;
 
   return (
     <AppShell title="Lead finder">
-      <div className="mx-auto max-w-6xl space-y-4 p-4 md:p-6">
-        <header>
-          <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Lead finder</h1>
-          <p className="text-sm text-muted-foreground">Describe the businesses you want to reach. We find them, read their websites, check they fit, and keep the email they publish. Nothing is sent from here.</p>
+      <div className={`mx-auto max-w-6xl space-y-4 p-4 md:p-6 ${picked.length ? "pb-28" : ""}`}>
+        <header className="flex flex-wrap items-end justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Lead finder</h1>
+            <p className="text-sm text-muted-foreground">Find businesses that fit, read their websites, and keep the email they publish. Nothing is sent from here.</p>
+          </div>
+          {d && <p className="rounded-full border border-border bg-card/60 px-3 py-1 text-xs tabular-nums text-muted-foreground">{d.usedThisMonth} of {d.monthlyLimit} searches used this month</p>}
         </header>
 
         {d && !ready && (
@@ -151,54 +158,47 @@ function LeadFinderPage() {
           </div>
         )}
 
-        <section className="glass space-y-3 p-4">
-          <p className="flex items-center gap-1.5 text-sm font-semibold"><Sparkles className="h-4 w-4 text-primary" /> Ask Co-Work who to look for</p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Textarea rows={1} value={ask} maxLength={500} className="flex-1" placeholder="Optional: e.g. warehouses and gyms around Auburn with 20+ staff. Leave empty and Co-Work suggests from your business profile."
-              onChange={(e) => setAsk(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); suggest.mutate(undefined); } }} />
-            <Button variant="outline" disabled={suggest.isPending} onClick={() => suggest.mutate(undefined)}>
-              {suggest.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />} {ask.trim() ? "Fill the search" : "Suggest searches"}
-            </Button>
-          </div>
-          {suggest.data && suggest.data.suggestions.length > 0 && (
-            <div className="grid gap-2 md:grid-cols-2">
-              {suggest.data.suggestions.map((s) => (
-                <button key={`${s.what}|${s.where}`} type="button" onClick={() => applySuggestion(s)}
-                  className={`rounded-xl border p-3 text-left text-sm hover:border-primary/60 ${what === s.what && where === s.where ? "border-primary bg-primary/5" : "border-border bg-card/60"}`}>
-                  <span className="font-medium">{s.what}</span> <span className="text-muted-foreground">in {s.where}</span>
-                  {s.criteria && <span className="block text-xs text-muted-foreground">{s.criteria}</span>}
-                  {s.why && <span className="block text-[11px] text-primary">{s.why}</span>}
-                </button>
-              ))}
-            </div>
-          )}
-          <p className="text-[11px] text-muted-foreground">{like ? "Suggestions are based on the customer you opened this from. " : ""}Co-Work reads your business profile and fills the search below. You can change anything before pressing Find.</p>
-        </section>
-
-        <section className="glass grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] lg:items-end">
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">What kind of business?</span>
-            <Input value={what} maxLength={120} placeholder="e.g. cleaning companies" onChange={(e) => setWhat(e.target.value)} />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Where?</span>
-            <Input value={where} maxLength={80} placeholder="e.g. Parramatta NSW, NSW or Australia" onChange={(e) => setWhere(e.target.value)} />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Who exactly? (optional)</span>
-            <Textarea rows={1} value={criteria} maxLength={400} placeholder="e.g. office cleaners with their own team, not franchises" onChange={(e) => setCriteria(e.target.value)} />
-          </label>
-          <div className="flex items-end gap-2">
-            <select aria-label="How many" value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="h-10 rounded-md border border-input bg-background px-2 text-sm">
+        {/* One search card: the search itself, with Co-Work's help folded in underneath. */}
+        <section className="glass overflow-hidden p-0">
+          <form
+            className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto_auto] lg:items-center"
+            onSubmit={(e) => { e.preventDefault(); if (canFind) search.mutate(); }}
+          >
+            <Input value={what} maxLength={120} aria-label="What kind of business?" placeholder="What kind of business? e.g. cleaning companies" onChange={(e) => setWhat(e.target.value)} className="h-11" />
+            <Input value={where} maxLength={80} aria-label="Where?" placeholder="Where? e.g. Parramatta NSW, NSW or Australia" onChange={(e) => setWhere(e.target.value)} className="h-11" />
+            <Input value={criteria} maxLength={400} aria-label="Who exactly? (optional)" placeholder="Who exactly? (optional) e.g. own team, not franchises" onChange={(e) => setCriteria(e.target.value)} className="h-11 sm:col-span-2 lg:col-span-1" />
+            <select aria-label="How many" value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="h-11 rounded-md border border-input bg-background px-2 text-sm">
               {[10, 20, 50].map((n) => <option key={n} value={n}>{n} results</option>)}
             </select>
-            <Button disabled={!ready || !d?.isOwner || search.isPending || what.trim().length < 3 || where.trim().length < 2} onClick={() => search.mutate()}>
-              {search.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Search className="mr-1.5 h-4 w-4" />} Find
+            <Button type="submit" className="btn-glow h-11" disabled={!canFind}>
+              {search.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Find
             </Button>
+          </form>
+
+          <div className="space-y-2 border-t border-border bg-primary/[0.04] px-3 py-2.5">
+            <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); suggest.mutate(undefined); }}>
+              <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              <input value={ask} maxLength={500} onChange={(e) => setAsk(e.target.value)} aria-label="Ask Co-Work who to look for"
+                placeholder={like ? "Co-Work is suggesting businesses like this customer…" : "Not sure? Ask Co-Work, e.g. gyms around Auburn with 20+ staff, or leave empty"}
+                className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+              <Button type="submit" size="sm" variant="outline" disabled={suggest.isPending} className="shrink-0">
+                {suggest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                <span className="hidden sm:inline">{ask.trim() ? "Fill the search" : "Suggest"}</span>
+              </Button>
+            </form>
+            {suggest.data && suggest.data.suggestions.length > 0 && (
+              <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]">
+                {suggest.data.suggestions.map((s) => (
+                  <button key={`${s.what}|${s.where}`} type="button" onClick={() => applySuggestion(s)} title={[s.criteria, s.why].filter(Boolean).join(" · ") || undefined}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-left text-xs hover:border-primary/60 ${what === s.what && where === s.where ? "border-primary bg-primary/10 text-primary" : "border-border bg-card/70"}`}>
+                    <span className="font-medium">{s.what}</span> <span className="text-muted-foreground">in {s.where}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <p className="text-[11px] text-muted-foreground lg:col-span-4">
-            {d ? `${d.usedThisMonth} of ${d.monthlyLimit} searches used this month.` : ""}
-            {" "}A state or "Australia" searches its major cities. Only emails a business publishes on its own website are kept. Email them only about their work, and every campaign includes an unsubscribe link, as Australia's Spam Act requires.
+          <p className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
+            A state or "Australia" searches its major cities. Only emails a business publishes on its own website are kept; email them only about their work (every campaign has an unsubscribe link, as the Spam Act requires).
           </p>
         </section>
 
@@ -223,107 +223,132 @@ function LeadFinderPage() {
         )}
 
         {d && d.searches.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {d.searches.map((s) => (
-              <button key={s.id} type="button" onClick={() => { setSearchId(s.id); setPicked([]); }}
-                className={`rounded-full border px-3 py-1 text-xs ${s.id === d.currentSearchId ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
-                {s.query} · {s.area} · {s.status === "failed" ? "failed" : `${s.found} found`} · {relativeTime(s.createdAt)}
-              </button>
-            ))}
-          </div>
-        )}
+          <div className="grid items-start gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+            {/* Past searches: a side list on wide screens, a picker on phones. */}
+            <aside className="lg:sticky lg:top-4">
+              <label className="block lg:hidden">
+                <span className="sr-only">Past searches</span>
+                <select value={d.currentSearchId ?? ""} onChange={(e) => pickSearch(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm">
+                  {d.searches.map((s) => <option key={s.id} value={s.id}>{searchLabel(s)} ({searchMeta(s)})</option>)}
+                </select>
+              </label>
+              <nav aria-label="Past searches" className="glass hidden p-2 lg:block">
+                <p className="px-2 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Past searches</p>
+                <ul className="space-y-0.5">
+                  {d.searches.map((s) => (
+                    <li key={s.id}>
+                      <button type="button" onClick={() => pickSearch(s.id)} aria-current={s.id === d.currentSearchId ? "true" : undefined}
+                        className={`w-full rounded-lg px-2 py-1.5 text-left transition-colors ${s.id === d.currentSearchId ? "bg-primary/10 text-primary" : "hover:bg-card/70"}`}>
+                        <span className="block truncate text-sm font-medium">{searchLabel(s)}</span>
+                        <span className={`block text-[11px] ${s.status === "failed" ? "text-destructive" : "text-muted-foreground"}`}>{searchMeta(s)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </aside>
 
-        {results.length > 0 && (
-          <section className="glass space-y-3 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Show">
-                {RESULT_FILTERS.map((f) => (
-                  <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} onClick={() => setFilter(f.id)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${filter === f.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card/60 text-muted-foreground hover:text-foreground"}`}>
-                    {f.label} <span className="tabular-nums opacity-80">{counts[f.id]}</span>
-                  </button>
-                ))}
+            <section className="glass min-w-0 overflow-hidden p-0">
+              <div className="space-y-2 border-b border-border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="-mx-3 flex min-w-0 gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0" role="tablist" aria-label="Show">
+                    {RESULT_FILTERS.map((f) => (
+                      <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} onClick={() => setFilter(f.id)}
+                        className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${filter === f.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card/60 text-muted-foreground hover:text-foreground"}`}>
+                        {f.label} <span className="tabular-nums opacity-80">{counts[f.id]}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as ResultSort)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
+                    <option value="best">Best match first</option>
+                    <option value="contact">Most contact details first</option>
+                    <option value="name">Name A–Z</option>
+                  </select>
+                </div>
+                {results.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={pickGood}><CheckSquare className="h-3.5 w-3.5" />Select good fits</Button>
+                    <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={exportCsv}><Download className="h-3.5 w-3.5" />CSV</Button>
+                    <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" asChild><Link to="/campaigns" search={{ audience: "lead_finder" }}><Mail className="h-3.5 w-3.5" />Email the ones you added</Link></Button>
+                  </div>
+                )}
+                {unread > 0 && d.currentSearchId && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs">
+                    <span>{unread} weren't read in time, so their fit and email aren't known yet.</span>
+                    <Button size="sm" variant="outline" className="h-8" disabled={checkM.isPending || !d.isOwner} onClick={() => checkM.mutate(d.currentSearchId!)}>
+                      {checkM.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}Check them (free)
+                    </Button>
+                  </div>
+                )}
               </div>
-              <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as ResultSort)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
-                <option value="best">Best match first</option>
-                <option value="contact">Most contact details first</option>
-                <option value="name">Name A–Z</option>
-              </select>
-            </div>
 
-            {unread > 0 && d?.currentSearchId && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
-                <span>{unread} business{unread === 1 ? "" : "es"} weren't read in time, so their fit and email aren't known yet.</span>
-                <Button size="sm" variant="outline" disabled={checkM.isPending || !d.isOwner} onClick={() => checkM.mutate(d.currentSearchId!)}>
-                  {checkM.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}Check them (doesn't use a search)
-                </Button>
-              </div>
-            )}
-
-            <div className="sticky top-2 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card/80 px-3 py-2 backdrop-blur">
-              <p className="text-sm text-muted-foreground">{picked.length ? `${picked.length} selected` : "Select businesses to add to your customers."}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={pickGood}><CheckSquare className="mr-1.5 h-4 w-4" />Select good fits</Button>
-                <Button size="sm" variant="outline" disabled={!picked.length || dismissM.isPending} onClick={() => dismissM.mutate()}><X className="mr-1.5 h-4 w-4" />Hide</Button>
-                <Button size="sm" className="btn-glow" disabled={!picked.length || addM.isPending || !d?.isOwner} onClick={() => addM.mutate()}>
-                  {addM.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <UserPlus className="mr-1.5 h-4 w-4" />}Add to customers
-                </Button>
-                <Button size="sm" variant="outline" onClick={exportCsv}><Download className="mr-1.5 h-4 w-4" />CSV</Button>
-                <Button size="sm" variant="outline" asChild><Link to="/campaigns" search={{ audience: "lead_finder" }}><Mail className="mr-1.5 h-4 w-4" />Email the ones you added</Link></Button>
-              </div>
-            </div>
-
-            {shown.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">None of these match that filter.</p>
-            ) : (
-              <ul className="grid gap-2 md:grid-cols-2">
-                {shown.map((r) => {
-                  const isPicked = picked.includes(r.id);
-                  const added = r.status === "added";
-                  const EmailIcon = r.emailStatus === "valid" ? MailCheck : r.emailStatus === "risky" ? MailWarning : Mail;
-                  return (
-                    <li key={r.id} className={`rounded-xl border p-3 transition-colors ${isPicked ? "border-primary bg-primary/5" : r.fit === "good" ? "border-[#30d158]/40 bg-card/70" : "border-border bg-card/60"} ${added ? "" : "hover:border-primary/50"}`}>
-                      <label className={`flex items-start gap-3 ${added ? "" : "cursor-pointer"}`}>
-                        <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-primary" aria-label={`Select ${r.name}`} checked={isPicked} disabled={added} onChange={() => toggle(r.id)} />
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
+              {results.length === 0 ? (
+                q.isFetching ? null : <p className="p-8 text-center text-sm text-muted-foreground">No businesses to show for this search.</p>
+              ) : shown.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">None of these match that filter.</p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {shown.map((r) => {
+                    const isPicked = picked.includes(r.id);
+                    const added = r.status === "added";
+                    const EmailIcon = r.emailStatus === "valid" ? MailCheck : r.emailStatus === "risky" ? MailWarning : Mail;
+                    const details = [r.category, r.suburb].filter(Boolean).join(" · ");
+                    return (
+                      <li key={r.id} className={`flex items-start gap-3 px-3 py-2.5 transition-colors ${isPicked ? "bg-primary/5" : "hover:bg-card/60"}`}>
+                        <input id={`pick-${r.id}`} type="checkbox" className="mt-1 h-4 w-4 shrink-0 accent-primary" aria-label={`Select ${r.name}`} checked={isPicked} disabled={added} onChange={() => toggle(r.id)} />
+                        <label htmlFor={`pick-${r.id}`} className={`min-w-0 flex-1 ${added ? "" : "cursor-pointer"}`}>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             <p className="text-sm font-semibold leading-tight">{r.name}</p>
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${FIT_STYLE[r.fit]}`}>{FIT_LABEL[r.fit]}</span>
                             {added && (r.leadId
                               ? <Link to="/leads/$leadId" params={{ leadId: r.leadId }} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 text-[11px] text-[#1f8a3b] hover:underline"><CheckCircle2 className="h-3 w-3" />{PROGRESS_LABEL[r.progress ?? "added"]}</Link>
                               : <span className="inline-flex items-center gap-1 text-[11px] text-[#1f8a3b]"><CheckCircle2 className="h-3 w-3" />Added</span>)}
                           </div>
-                          {([r.category, r.suburb].some(Boolean) || r.rating !== null || r.sizeHint) && (
-                            <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
-                              {[r.category, r.suburb].filter(Boolean).join(" · ")}
+                          {(details || r.rating !== null || r.sizeHint || r.contactName) && (
+                            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
+                              {details}
                               {r.rating !== null && <span className="inline-flex items-center gap-0.5"><Star className="h-3 w-3" />{r.rating.toFixed(1)} ({r.reviewCount ?? 0})</span>}
                               {r.sizeHint && <span className="inline-flex items-center gap-0.5 text-foreground"><Ruler className="h-3 w-3" />{r.sizeHint}</span>}
+                              {r.contactName && <span className="inline-flex items-center gap-0.5 font-medium text-foreground"><UserRound className="h-3 w-3 text-primary" />{r.contactName}{r.contactRole ? `, ${r.contactRole}` : ""}</span>}
                             </p>
                           )}
-                          {r.summary && <p className="text-xs leading-relaxed">{r.summary}</p>}
-                          {r.contactName && (
-                            <p className="inline-flex items-center gap-1 text-xs font-medium"><UserRound className="h-3.5 w-3.5 text-primary" />{r.contactName}{r.contactRole ? <span className="font-normal text-muted-foreground">, {r.contactRole}</span> : null}</p>
-                          )}
-                          {r.fitReason && <p className="text-[11px] text-muted-foreground">Why: {r.fitReason}</p>}
+                          {(r.summary || r.fitReason) && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground" title={r.fitReason ?? undefined}>{r.summary ?? `Why: ${r.fitReason}`}</p>}
+                        </label>
+                        <div className="flex shrink-0 flex-col items-end gap-1 text-[11px] sm:flex-row sm:items-center">
+                          {r.email
+                            ? <a href={`mailto:${r.email}`} className="inline-flex max-w-[11rem] items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/15" title={`${r.email} · ${EMAIL_LABEL[r.emailStatus]}`}><EmailIcon className="h-3 w-3 shrink-0" /><span className="truncate">{r.email}</span></a>
+                            : <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground" title="No published email"><Mail className="h-3 w-3" /><span className="hidden sm:inline">No email</span><span className="sm:hidden">—</span></span>}
+                          {r.phone && <a href={`tel:${r.phone.replace(/[^+0-9]/g, "")}`} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 hover:bg-muted/70" title={r.phone}><Phone className="h-3 w-3" /><span className="hidden md:inline">{r.phone}</span></a>}
+                          {r.website && <a href={r.website} target="_blank" rel="noreferrer" aria-label={`${r.name} website`} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-primary hover:bg-muted/70"><Globe className="h-3 w-3" /><ExternalLink className="h-2.5 w-2.5" /></a>}
                         </div>
-                      </label>
-                      <div className="mt-2 flex flex-wrap gap-1.5 pl-7 text-[11px]">
-                        {r.email
-                          ? <a href={`mailto:${r.email}`} className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/15" title={EMAIL_LABEL[r.emailStatus]}><EmailIcon className="h-3 w-3 shrink-0" /><span className="truncate">{r.email}</span></a>
-                          : <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground"><Mail className="h-3 w-3" />No published email</span>}
-                        {r.phone && <a href={`tel:${r.phone.replace(/[^+0-9]/g, "")}`} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 hover:bg-muted/70"><Phone className="h-3 w-3" />{r.phone}</a>}
-                        {r.website && <a href={r.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-primary hover:bg-muted/70"><Globe className="h-3 w-3" />Website <ExternalLink className="h-2.5 w-2.5" /></a>}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            <p className="text-[11px] text-muted-foreground">Added businesses appear in Leads and in the campaign audience "Businesses from Lead finder", never in your customer audiences. Ones with only a phone number are added for calling; campaigns skip them.</p>
-          </section>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {results.length > 0 && (
+                <p className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">Added businesses appear in Leads and in the campaign audience "Businesses from Lead finder", never in your customer audiences. Ones with only a phone number are added for calling; campaigns skip them.</p>
+              )}
+            </section>
+          </div>
         )}
-        {d && results.length === 0 && d.searches.length > 0 && !q.isFetching && <div className="glass p-8 text-center text-sm text-muted-foreground">No businesses to show for this search.</div>}
       </div>
+
+      {/* Actions for the selection, only while something is selected. */}
+      {picked.length > 0 && (
+        <Portal>
+          <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" role="region" aria-label="Selected businesses">
+            <div className="glass flex w-full max-w-3xl flex-wrap items-center gap-2 px-3 py-2 shadow-lg">
+              <p className="mr-auto text-sm font-medium">{picked.length} selected</p>
+              <Button size="sm" variant="ghost" disabled={dismissM.isPending} onClick={() => dismissM.mutate()}><X className="h-4 w-4" />Hide</Button>
+              <Button size="sm" className="btn-glow" disabled={addM.isPending || !d?.isOwner} onClick={() => addM.mutate()}>
+                {addM.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}Add to customers
+              </Button>
+              <button type="button" aria-label="Clear selection" onClick={() => setPicked([])} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground"><X className="h-4 w-4" /></button>
+            </div>
+          </div>
+        </Portal>
+      )}
     </AppShell>
   );
 }

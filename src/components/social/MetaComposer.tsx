@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarClock, ExternalLink, ImagePlus, Loader2, Send, Sparkles, Wand2, X } from "lucide-react";
+import { Bookmark, CalendarClock, ExternalLink, Globe, Heart, ImagePlus, Loader2, MessageCircle, MoreHorizontal, Send, Share2, Sparkles, ThumbsUp, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,6 +54,7 @@ export function MetaComposer({ platform }: { platform: Platform }) {
   const [chips, setChips] = useState<string[]>([]);
   const [pictures, setPictures] = useState<Picture[]>([]);
   const [when, setWhen] = useState("");
+  const [mode, setMode] = useState<"now" | "later">("now");
   const schedule = useServerFn(scheduleSocialPost);
   const cancel = useServerFn(cancelSocialPost);
   const saveDraftFn = useServerFn(saveSocialDraft);
@@ -76,7 +77,7 @@ export function MetaComposer({ platform }: { platform: Platform }) {
     },
   });
 
-  const reset = () => { setText(""); setBrief(""); setChips([]); setPictures([]); setWhen(""); };
+  const reset = () => { setText(""); setBrief(""); setChips([]); setPictures([]); setWhen(""); setMode("now"); };
   const scheduleM = useMutation({
     mutationFn: () => schedule({ data: { platform, text, imagePaths: pictures.map((p) => p.path!).filter(Boolean), when: new Date(when).toISOString() } }),
     onSuccess: async (r) => {
@@ -143,36 +144,58 @@ export function MetaComposer({ platform }: { platform: Platform }) {
   const canPost = d.isOwner && ready && !missingPicture && (text.trim().length > 0 || pictures.length > 0) && text.length <= LIMIT[platform];
   const postsAs = platform === "instagram" ? `@${d.instagram?.username ?? "instagram"}` : d.pageName ?? "your Page";
 
+  const imagePaths = pictures.map((p) => p.preview);
+  const preview = <PostPreview platform={platform} postsAs={postsAs} text={text} pictures={imagePaths} />;
+  const hasContent = text.trim().length > 0 || pictures.length > 0;
+
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <section className="glass space-y-3 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm">Posting as <span className="font-semibold">{postsAs}</span></p>
-          <Link to="/settings/integrations" className="text-xs text-muted-foreground hover:text-foreground">Reconnect Facebook</Link>
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] xl:gap-6">
+      <section className="glass overflow-hidden p-0">
+        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+          <Avatar name={postsAs} />
+          <p className="min-w-0 flex-1 truncate text-sm">Posting as <span className="font-semibold">{postsAs}</span></p>
+          <Link to="/settings/integrations" className="shrink-0 text-xs text-muted-foreground hover:text-foreground">Reconnect</Link>
         </div>
 
-        <div className="space-y-2 rounded-lg border border-border bg-card/60 p-3">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-primary"><Sparkles className="h-3.5 w-3.5" /> Let AI write it</p>
-          <Textarea rows={2} value={brief} maxLength={2000} placeholder="What's the post about? e.g. a ceramic coating we finished on a black Mazda" onChange={(e) => setBrief(e.target.value)} />
-          <div className="flex flex-wrap gap-1.5">
+        {/* AI assist sits inside the composer: describe it, pick a tone, and it fills the text below. */}
+        <div className="space-y-2 border-b border-border bg-primary/[0.04] px-4 py-3">
+          <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); draft.mutate(); }}>
+            <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+            <input
+              value={brief}
+              maxLength={2000}
+              onChange={(e) => setBrief(e.target.value)}
+              placeholder="Tell AI what it's about, e.g. a ceramic coating on a black Mazda"
+              aria-label="What the post is about"
+              className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <Button type="submit" size="sm" variant="outline" disabled={draft.isPending} className="shrink-0" aria-label={text.trim() ? "Rewrite with AI" : "Write with AI"}>
+              {draft.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              <span className="hidden sm:inline">{text.trim() ? "Rewrite" : "Write it"}</span>
+            </Button>
+          </form>
+          <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">
             {CHIPS.map((chip) => (
-              <button key={chip} type="button" onClick={() => setChips((c) => (c.includes(chip) ? c.filter((x) => x !== chip) : [...c, chip]))}
-                className={`rounded-full border px-2.5 py-1 text-xs ${chips.includes(chip) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
+              <button key={chip} type="button" aria-pressed={chips.includes(chip)} onClick={() => setChips((c) => (c.includes(chip) ? c.filter((x) => x !== chip) : [...c, chip]))}
+                className={`shrink-0 rounded-full border px-2.5 py-1 text-xs ${chips.includes(chip) ? "border-primary bg-primary/10 text-primary" : "border-border bg-card/60 text-muted-foreground hover:text-foreground"}`}>
                 {chip}
               </button>
             ))}
           </div>
-          <Button size="sm" variant="outline" disabled={draft.isPending} onClick={() => draft.mutate()}>
-            {draft.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Wand2 className="mr-1.5 h-4 w-4" />} Write {platform === "instagram" ? "caption" : "post"}
-          </Button>
         </div>
 
-        <div>
-          <Textarea rows={7} value={text} placeholder={platform === "instagram" ? "Caption" : "What would you like to share?"} onChange={(e) => setText(e.target.value)} />
-          <p className={`mt-1 text-right text-[11px] ${text.length > LIMIT[platform] ? "text-destructive" : "text-muted-foreground"}`}>{text.length} / {LIMIT[platform]}</p>
+        <div className="px-4 pt-3">
+          <Textarea
+            rows={8}
+            value={text}
+            aria-label={platform === "instagram" ? "Caption" : "Post text"}
+            placeholder={platform === "instagram" ? "Write a caption…" : "What would you like to share?"}
+            onChange={(e) => setText(e.target.value)}
+            className="min-h-44 resize-y border-0 bg-transparent px-0 text-[15px] shadow-none focus-visible:ring-0"
+          />
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
           {pictures.map((p) => (
             <div key={p.id} className="relative h-16 w-16 overflow-hidden rounded-lg border border-border">
               <img src={p.preview} alt="" className={`h-full w-full object-cover ${p.path ? "" : "opacity-50"}`} />
@@ -186,61 +209,74 @@ export function MetaComposer({ platform }: { platform: Platform }) {
           ))}
           {pictures.length < 10 && (
             <button type="button" onClick={() => fileRef.current?.click()}
-              className="grid h-16 w-16 place-items-center rounded-lg border border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary" aria-label="Add pictures">
-              <ImagePlus className="h-5 w-5" />
+              className="inline-flex h-16 items-center gap-2 rounded-lg border border-dashed border-border px-3 text-xs text-muted-foreground hover:border-primary/50 hover:text-primary">
+              <ImagePlus className="h-5 w-5" /> {pictures.length ? "Add more" : "Add pictures"}
             </button>
           )}
           <input ref={fileRef} type="file" accept="image/*" multiple className="sr-only" onChange={(e) => { void addFiles(e.target.files); e.target.value = ""; }} />
+          <span className={`ml-auto self-end text-[11px] tabular-nums ${text.length > LIMIT[platform] ? "text-destructive" : "text-muted-foreground"}`}>{text.length} / {LIMIT[platform]}</span>
         </div>
-        {missingPicture && <p className="text-xs text-muted-foreground">Instagram posts need at least one picture (up to 10).</p>}
+        {missingPicture && <p className="px-4 pb-3 text-xs text-muted-foreground">Instagram posts need at least one picture (up to 10).</p>}
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {!d.isOwner && <p className="mr-auto text-xs text-muted-foreground">The owner approves posts before they go out.</p>}
-          <Button variant="ghost" disabled={!ready || (!text.trim() && pictures.length === 0) || draftM.isPending} onClick={() => draftM.mutate(false)}>Save draft</Button>
-          {!d.isOwner && (
-            <Button disabled={!ready || missingPicture || (!text.trim() && pictures.length === 0) || draftM.isPending} onClick={() => draftM.mutate(true)}>
-              {draftM.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />} Send for approval
-            </Button>
-          )}
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CalendarClock className="h-4 w-4" />
-            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="Schedule for"
-              className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground" />
-          </label>
-          {!d.isOwner ? null : when ? (
-            <Button disabled={!canPost || scheduleM.isPending} onClick={() => scheduleM.mutate()}>
-              {scheduleM.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CalendarClock className="mr-1.5 h-4 w-4" />} Schedule
-            </Button>
-          ) : (
-            <Button disabled={!canPost || post.isPending} onClick={() => post.mutate()}>
-              {post.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />} Post to {name}
-            </Button>
-          )}
+        {/* When and how it goes out, in one place. */}
+        <div className="space-y-3 border-t border-border bg-card/40 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div role="radiogroup" aria-label="When to post" className="inline-flex rounded-lg border border-border bg-card p-0.5">
+              {(["now", "later"] as const).map((m) => (
+                <button key={m} type="button" role="radio" aria-checked={mode === m}
+                  onClick={() => { setMode(m); if (m === "now") setWhen(""); }}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 text-xs font-medium ${mode === m ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  {m === "now" ? <Send className="h-3.5 w-3.5" /> : <CalendarClock className="h-3.5 w-3.5" />}
+                  {m === "now" ? (d.isOwner ? "Post now" : "No date") : "Pick a time"}
+                </button>
+              ))}
+            </div>
+            {mode === "later" && (
+              <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="Schedule for"
+                className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm text-foreground sm:flex-none" />
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {!d.isOwner && <p className="w-full text-xs text-muted-foreground sm:mr-auto sm:w-auto">The owner approves posts before they go out.</p>}
+            <Button variant="ghost" className="sm:ml-auto" disabled={!ready || !hasContent || draftM.isPending} onClick={() => draftM.mutate(false)}>Save draft</Button>
+            {!d.isOwner ? (
+              <Button className="btn-glow flex-1 sm:flex-none" disabled={!ready || missingPicture || !hasContent || draftM.isPending} onClick={() => draftM.mutate(true)}>
+                {draftM.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send for approval
+              </Button>
+            ) : when ? (
+              <Button className="btn-glow flex-1 sm:flex-none" disabled={!canPost || scheduleM.isPending} onClick={() => scheduleM.mutate()}>
+                {scheduleM.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />} Schedule
+              </Button>
+            ) : (
+              <Button className="btn-glow flex-1 sm:flex-none" disabled={!canPost || post.isPending || mode === "later"} onClick={() => post.mutate()}>
+                {post.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Post to {name}
+              </Button>
+            )}
+          </div>
         </div>
-        {when && <p className="text-right text-[11px] text-muted-foreground">Leave the date empty to post now.</p>}
       </section>
 
-      <div className="space-y-4">
-        <section className="glass p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Preview</p>
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <p className="px-3 py-2 text-sm font-semibold">{postsAs}</p>
-            {platform === "facebook" && text && <p className="whitespace-pre-wrap px-3 pb-2 text-sm">{text}</p>}
-            {pictures[0] && <img src={pictures[0].preview} alt="" className="aspect-square w-full object-cover" />}
-            {pictures.length > 1 && <p className="px-3 pt-1 text-[11px] text-muted-foreground">+{pictures.length - 1} more picture{pictures.length > 2 ? "s" : ""}</p>}
-            {platform === "instagram" && text && <p className="whitespace-pre-wrap px-3 py-2 text-sm"><span className="font-semibold">{postsAs} </span>{text}</p>}
-            {!text && pictures.length === 0 && <p className="px-3 pb-6 text-sm text-muted-foreground">Your post will appear here.</p>}
-          </div>
+      <div className="space-y-4 lg:sticky lg:top-4">
+        {/* Phones: the preview folds away under the composer. */}
+        <details className="glass group p-3 lg:hidden">
+          <summary className="cursor-pointer list-none text-sm font-medium text-primary">
+            <span className="group-open:hidden">Show preview</span><span className="hidden group-open:inline">Hide preview</span>
+          </summary>
+          <div className="mt-3">{preview}</div>
+        </details>
+        <section className="hidden lg:block">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">How it will look on {name}</p>
+          {preview}
         </section>
 
         {d.posts.length > 0 && (
           <section className="glass p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recent posts</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recent posts</p>
             <ul className="divide-y divide-border">
               {d.posts.map((post) => (
                 <li key={post.id} className="flex items-start gap-3 py-2">
                   <div className="min-w-0 flex-1">
-                    <p className="line-clamp-2 text-sm">{post.bodyText}</p>
+                    <p className="line-clamp-1 text-sm">{post.bodyText}</p>
                     <p className="text-[11px] text-muted-foreground">
                       {post.status === "scheduled" && post.scheduledFor
                         ? <span className="font-medium text-primary">Scheduled for {new Date(post.scheduledFor).toLocaleString("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</span>
@@ -260,6 +296,77 @@ export function MetaComposer({ platform }: { platform: Platform }) {
             </ul>
           </section>
         )}
+      </div>
+    </div>
+  );
+}
+
+function Avatar({ name, ring = false }: { name: string; ring?: boolean }) {
+  const letter = name.replace(/^@/, "").trim()[0]?.toUpperCase() ?? "?";
+  return (
+    <span aria-hidden="true" className={`grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[oklch(0.45_0.15_258)] to-[oklch(0.62_0.15_245)] text-sm font-semibold text-white ${ring ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-card" : ""}`}>
+      {letter}
+    </span>
+  );
+}
+
+/** A close likeness of the real Facebook or Instagram post, so the owner sees what customers will see. */
+function PostPreview({ platform, postsAs, text, pictures }: { platform: Platform; postsAs: string; text: string; pictures: string[] }) {
+  const handle = postsAs.replace(/^@/, "");
+  if (platform === "instagram") {
+    return (
+      <div className="overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-sm">
+        <div className="flex items-center gap-2.5 px-3 py-2.5">
+          <Avatar name={postsAs} ring />
+          <p className="text-sm font-semibold">{handle}</p>
+          <MoreHorizontal className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        </div>
+        {pictures[0] ? (
+          <div className="relative">
+            <img src={pictures[0]} alt="" className="aspect-square w-full object-cover" />
+            {pictures.length > 1 && <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white">1/{pictures.length}</span>}
+          </div>
+        ) : (
+          <div className="grid aspect-square w-full place-items-center bg-secondary/60 text-xs text-muted-foreground">Your picture</div>
+        )}
+        <div className="flex items-center gap-3.5 px-3 pt-2.5">
+          <Heart className="h-5 w-5" aria-hidden="true" /><MessageCircle className="h-5 w-5" aria-hidden="true" /><Send className="h-5 w-5" aria-hidden="true" />
+          <Bookmark className="ml-auto h-5 w-5" aria-hidden="true" />
+        </div>
+        <p className="line-clamp-4 whitespace-pre-wrap px-3 pb-3 pt-1.5 text-sm">
+          {text ? <><span className="font-semibold">{handle} </span>{text}</> : <span className="text-muted-foreground">Your caption will appear here.</span>}
+        </p>
+      </div>
+    );
+  }
+  const shown = pictures.slice(0, 4);
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-sm">
+      <div className="flex items-center gap-2.5 px-3 pt-3">
+        <Avatar name={postsAs} />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{postsAs}</p>
+          <p className="flex items-center gap-1 text-[11px] text-muted-foreground">Just now · <Globe className="h-3 w-3" aria-hidden="true" /></p>
+        </div>
+        <MoreHorizontal className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      </div>
+      <p className="line-clamp-6 whitespace-pre-wrap px-3 py-2.5 text-sm">
+        {text || (shown.length ? null : <span className="text-muted-foreground">Your post will appear here.</span>)}
+      </p>
+      {shown.length > 0 && (
+        <div className={`grid gap-0.5 ${shown.length > 1 ? "grid-cols-2" : ""}`}>
+          {shown.map((src, i) => (
+            <div key={i} className={`relative ${shown.length === 3 && i === 0 ? "col-span-2" : ""}`}>
+              <img src={src} alt="" className={`w-full object-cover ${shown.length === 1 ? "max-h-96" : "aspect-square"}`} />
+              {i === 3 && pictures.length > 4 && <span className="absolute inset-0 grid place-items-center bg-black/50 text-xl font-semibold text-white">+{pictures.length - 4}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="mx-3 mt-1 flex justify-around border-t border-border py-1.5 text-xs font-medium text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 py-1"><ThumbsUp className="h-4 w-4" aria-hidden="true" />Like</span>
+        <span className="inline-flex items-center gap-1.5 py-1"><MessageCircle className="h-4 w-4" aria-hidden="true" />Comment</span>
+        <span className="inline-flex items-center gap-1.5 py-1"><Share2 className="h-4 w-4" aria-hidden="true" />Share</span>
       </div>
     </div>
   );

@@ -62,7 +62,8 @@ export function CoworkWorkspace({
   const conversation = useQuery({ queryKey: ["assistant-conversation", threadId], enabled: Boolean(threadId), queryFn: () => getConversation({ data: { threadId: threadId as string } }) });
   const session = useQuery({ queryKey: ["session"], queryFn: () => fetchSession() });
 
-  const [chatting, setChatting] = useState(Boolean(requestedThreadId));
+  // null = not chosen yet: an ongoing conversation opens on screen by itself.
+  const [chatChoice, setChatting] = useState<boolean | null>(requestedThreadId ? true : null);
   const [resultsOpen, setResultsOpen] = useState(false);
   const [resultsWide, setResultsWide] = useState(false);
   const [websiteSetup, setWebsiteSetup] = useState(false);
@@ -113,6 +114,7 @@ export function CoworkWorkspace({
     ...(message.proposals.length ? { proposals: message.proposals as NonNullable<OwnerAssistantTurn["proposals"]> } : {}),
     ...(message.done ? { done: message.done } : {}),
   })), [conversation.data]);
+  const chatting = chatChoice ?? turns.length > 0;
 
   if (home.isError || conversation.isError) {
     return <div className="grid h-full place-items-center p-6 text-center text-sm text-muted-foreground">Co-Work couldn't be opened here. Refresh the page to try again.</div>;

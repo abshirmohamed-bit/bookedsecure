@@ -71,12 +71,14 @@ function SocialTools() {
     <AppShell title="Social media">
       <div className="mx-auto w-full max-w-6xl space-y-4 p-4 md:max-w-none md:p-6">
         <header className="space-y-3">
-          <Link to="/assistant" className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to Co-Work</Link>
-          <div>
-            <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Social media</h1>
-            <p className="text-sm text-muted-foreground">Post to your pages and answer comments and messages. Nothing is posted or sent until you approve it.</p>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0">
+              <Link to="/assistant" className="inline-flex min-h-8 items-center gap-1 text-xs font-medium text-primary"><ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />Co-Work</Link>
+              <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">Social media</h1>
+              <p className="text-sm text-muted-foreground">Nothing is posted or sent until you approve it.</p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div role="tablist" aria-label="Network" className="inline-flex max-w-full overflow-x-auto rounded-xl border border-border bg-card p-1">
               {PLATFORMS.map((p) => (
                 <button
@@ -91,7 +93,7 @@ function SocialTools() {
               ))}
             </div>
             {platform !== "linkedin" && (
-              <div role="tablist" aria-label="Section" className="inline-flex rounded-xl border border-border bg-card p-1">
+              <div role="tablist" aria-label="Section" className="inline-flex max-w-full overflow-x-auto rounded-xl border border-border bg-card p-1">
                 {(platform === "youtube"
                   ? ([["post", "Upload"], ["insights", "Insights"], ["comments", "Comments"]] as const)
                   : ([["post", "Post"], ["calendar", "Calendar"], ["comments", "Comments"], ["messages", "Messages"]] as const)).map(([id, label]) => (

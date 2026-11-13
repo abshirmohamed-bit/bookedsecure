@@ -1102,6 +1102,15 @@ export async function sendSms(input: {
     leadUpdate["status"] = "waiting_for_customer";
   await supabaseAdmin.from("leads").update(leadUpdate as never).eq("id", lead.id);
 
+  // The owner has answered: the conversation no longer waits on them.
+  if (input.kind === "manual" || input.kind === "approved_reply") {
+    await supabaseAdmin
+      .from("conversations")
+      .update({ status: "open" })
+      .eq("lead_id", lead.id)
+      .eq("status", "needs_attention");
+  }
+
   await scheduleNextFollowUp({ businessId: input.businessId, leadId: lead.id, business });
 
   await audit({

@@ -26,3 +26,10 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 10. **Lovable:** apply `docs/email-inbox.sql` as a migration, regenerate types, then publish. Until then the Inbox only shows campaign replies.
 11. **Inbox, first live test:** choose Glocast's address in Campaigns → Inbox. Then send it an email with an attachment from another mailbox, reply from BookedSecure, and check that the answer threads in the other mailbox. To keep one inbox, set up forwarding from info@glocast.com.au to the new address.
 12. **Inbox, later:** a spam filter (Resend passes on everything it receives); Co-Work and ChatGPT tools for the inbox; rich-text writing.
+
+## UI fixes (13 Nov)
+
+13. ~~Home "waiting for your reply" listed people already answered or booked~~ fixed (lib/needs-reply); ~~Coming up~~ now skips deleted leads; ~~Co-Work hid the ongoing chat behind "Carry on"~~; ~~Social Post and Lead finder layouts~~ redone.
+14. **Lovable Publish** so production gets these and the sidebar's "Inbox" label (it still says "Replies" until published).
+15. **Check on a phone and desktop after publishing:** Social → Facebook → Post, and Lead finder (select a business to see the bottom action bar).
+16. **Coming up:** if Brandon Vella or Adam Newell still show there after publishing, they have real upcoming jobs saved; say so and we'll look at where those jobs came from.

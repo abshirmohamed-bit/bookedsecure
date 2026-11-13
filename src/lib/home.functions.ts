@@ -1,21 +1,32 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { humanizeAnswer } from "@/lib/lead-sync";
+import { NEEDS_REPLY_COLUMNS, needsReply } from "@/lib/needs-reply";
 
 /**
  * What is waiting for the owner: leads whose conversation needs a person, and
  * Facebook/Instagram comments with a reply waiting for approval. Tenant-scoped
  * exact counts; read errors are thrown rather than shown as zero.
  */
-async function waitingCounts(businessId: string) {
+/** Leads really waiting for a reply (see needs-reply), most recent first. Bounded read. */
+async function waitingLeadRows(businessId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("lead_inbox_rows")
+    .select(NEEDS_REPLY_COLUMNS)
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .eq("conversation_status", "needs_attention")
+    .order("conversation_last_message_at", { ascending: false, nullsFirst: false })
+    .limit(500);
+  if (error) throw new Error("Lead counts could not be loaded.");
+  return (data ?? []).filter(needsReply);
+}
+
+async function waitingCounts(businessId: string, rows?: Awaited<ReturnType<typeof waitingLeadRows>>) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const [leads, comments] = await Promise.all([
-    supabaseAdmin
-      .from("lead_inbox_rows")
-      .select("id", { count: "exact", head: true })
-      .eq("business_id", businessId)
-      .is("deleted_at", null)
-      .eq("conversation_status", "needs_attention"),
+    rows ?? waitingLeadRows(businessId),
     supabaseAdmin
       .from("social_comments")
       // One row tells Home which network Review should open; the exact count stays cheap.
@@ -25,11 +36,10 @@ async function waitingCounts(businessId: string) {
       .eq("needs_response", true)
       .limit(1),
   ]);
-  if (leads.error) throw new Error("Lead counts could not be loaded.");
   const { unreadReplyCount } = await import("@/lib/email-inbound.server");
   // Social and reply tables may not exist yet on a workspace; count them as zero.
   const socialPlatform = comments.data?.[0]?.platform === "instagram" ? "instagram" as const : comments.data?.[0]?.platform === "facebook" ? "facebook" as const : null;
-  return { leads: leads.count ?? 0, social: comments.error ? 0 : (comments.count ?? 0), socialPlatform, campaigns: await unreadReplyCount(businessId) };
+  return { leads: leads.length, social: comments.error ? 0 : (comments.count ?? 0), socialPlatform, campaigns: await unreadReplyCount(businessId) };
 }
 
 /** Sidebar badges. Small and cheap so it can refresh every couple of minutes. */
@@ -52,20 +62,13 @@ export const getHomeSummary = createServerFn({ method: "GET" })
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000).toISOString();
 
-    const [waiting, waitingList, week, latest, upcoming, business] = await Promise.all([
-      waitingCounts(app.businessId),
-      supabaseAdmin
-        .from("lead_inbox_rows")
-        .select("id, name")
-        .eq("business_id", app.businessId)
-        .is("deleted_at", null)
-        .eq("conversation_status", "needs_attention")
-        .order("conversation_last_message_at", { ascending: false, nullsFirst: false })
-        .limit(5),
+    const waitingList = await waitingLeadRows(app.businessId);
+    const [waiting, week, latest, upcoming, business] = await Promise.all([
+      waitingCounts(app.businessId, waitingList),
       computeMetrics(app.businessId, { from: weekAgo }),
       supabaseAdmin
         .from("lead_inbox_rows")
-        .select("id, name, service_intent, vehicle_type, suburb, status, conversation_status, created_at")
+        .select("id, name, service_intent, vehicle_type, suburb, status, conversation_status, last_reply_at, last_outbound_sms_at, created_at")
         .eq("business_id", app.businessId)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
@@ -77,11 +80,10 @@ export const getHomeSummary = createServerFn({ method: "GET" })
         .eq("completion_status", "scheduled")
         .gte("scheduled_at", now.toISOString())
         .order("scheduled_at", { ascending: true })
-        .limit(4),
+        .limit(8),
       supabaseAdmin.from("businesses").select("name").eq("id", app.businessId).single(),
     ]);
     if (latest.error) throw new Error("Latest leads could not be loaded.");
-    if (waitingList.error) throw new Error("Leads waiting for a reply could not be loaded.");
     if (upcoming.error) throw new Error("Upcoming bookings could not be loaded.");
 
     const jobs = upcoming.data ?? [];
@@ -92,6 +94,7 @@ export const getHomeSummary = createServerFn({ method: "GET" })
         .from("leads")
         .select("id, name")
         .eq("business_id", app.businessId)
+        .is("deleted_at", null)
         .in("id", leadIds);
       if (error) throw new Error("Upcoming bookings could not be loaded.");
       for (const row of data ?? []) names.set(row.id, row.name);
@@ -102,7 +105,7 @@ export const getHomeSummary = createServerFn({ method: "GET" })
       businessName: business.data?.name ?? null,
       waiting,
       /** Up to five leads waiting for a reply, most recent first, so Reply opens the right conversation. */
-      waitingLeads: (waitingList.data ?? []).map((lead) => ({ id: lead.id!, name: lead.name })),
+      waitingLeads: waitingList.slice(0, 5).map((lead) => ({ id: lead.id!, name: lead.name })),
       week: {
         enquiries: week.funnel.enquiries,
         withinFiveMinutes: week.withinFiveMinutes,
@@ -116,10 +119,11 @@ export const getHomeSummary = createServerFn({ method: "GET" })
         service: lead.service_intent ? humanizeAnswer(lead.service_intent) : (lead.vehicle_type ?? null),
         suburb: lead.suburb,
         status: lead.status,
-        needsReply: lead.conversation_status === "needs_attention",
+        needsReply: needsReply(lead),
         createdAt: lead.created_at,
       })),
-      nextBookings: jobs.map((job) => ({
+      // Only real upcoming bookings of leads that still exist.
+      nextBookings: jobs.filter((job) => names.has(job.lead_id)).slice(0, 4).map((job) => ({
         id: job.id,
         leadId: job.lead_id,
         name: names.get(job.lead_id) ?? null,

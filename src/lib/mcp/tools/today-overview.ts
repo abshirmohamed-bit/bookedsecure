@@ -1,3 +1,4 @@
+import { needsReply } from '@/lib/needs-reply';
 import { defineTool, ToolError } from '@lovable.dev/mcp-js';
 import { callerContext, jsonResult } from '../supabase';
 
@@ -12,9 +13,9 @@ export default defineTool({
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000).toISOString();
     const [waiting, waitingCount, comments, upcoming, newLeads, booked] = await Promise.all([
-      client.from('lead_inbox_rows').select('id, name, service_intent, conversation_last_message_at')
+      client.from('lead_inbox_rows').select('id, name, service_intent, conversation_last_message_at, status, conversation_status, last_reply_at, last_outbound_sms_at')
         .eq('business_id', businessId).is('deleted_at', null).eq('conversation_status', 'needs_attention')
-        .order('conversation_last_message_at', { ascending: false, nullsFirst: false }).limit(5),
+        .order('conversation_last_message_at', { ascending: false, nullsFirst: false }).limit(500),
       client.from('lead_inbox_rows').select('id', { count: 'exact', head: true })
         .eq('business_id', businessId).is('deleted_at', null).eq('conversation_status', 'needs_attention'),
       client.from('social_comments').select('id', { count: 'exact', head: true })
@@ -29,6 +30,7 @@ export default defineTool({
     ]);
     if (waiting.error || waitingCount.error || upcoming.error || newLeads.error || booked.error) throw new ToolError('Today’s overview could not be read.');
 
+    const waitingRows = (waiting.data ?? []).filter(needsReply);
     const jobs = upcoming.data ?? [];
     const names = new Map<string, string | null>();
     if (jobs.length) {
@@ -49,8 +51,8 @@ export default defineTool({
     return jsonResult({
       as_of: now.toISOString(),
       leads_waiting_for_reply: {
-        count: waitingCount.count ?? 0,
-        latest: (waiting.data ?? []).map((l) => ({ lead_id: l.id, name: l.name, service: l.service_intent, last_message_at: l.conversation_last_message_at })),
+        count: waitingRows.length,
+        latest: waitingRows.slice(0, 5).map((l) => ({ lead_id: l.id, name: l.name, service: l.service_intent, last_message_at: l.conversation_last_message_at })),
       },
       social_comments_waiting: comments.error ? null : (comments.count ?? 0),
       social_dms_waiting: dmsAwaiting,

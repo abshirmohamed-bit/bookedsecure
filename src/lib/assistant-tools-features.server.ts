@@ -7,6 +7,7 @@
  * Every read is scoped to ctx.businessId. Nothing here posts a public reply,
  * sends a DM: replies are saved as drafts and the owner approves them in the app.
  */
+import { needsReply } from "@/lib/needs-reply";
 import { tool } from "ai";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -99,9 +100,9 @@ export function buildFeatureTools(ctx: AssistantToolContext) {
         const now = new Date();
         const weekAgo = new Date(now.getTime() - 7 * DAY).toISOString();
         const [waiting, waitingCount, comments, upcoming, newLeads, booked] = await Promise.all([
-          supabaseAdmin.from("lead_inbox_rows").select("id, name, service_intent, conversation_last_message_at")
+          supabaseAdmin.from("lead_inbox_rows").select("id, name, service_intent, conversation_last_message_at, status, conversation_status, last_reply_at, last_outbound_sms_at")
             .eq("business_id", businessId).is("deleted_at", null).eq("conversation_status", "needs_attention")
-            .order("conversation_last_message_at", { ascending: false, nullsFirst: false }).limit(10),
+            .order("conversation_last_message_at", { ascending: false, nullsFirst: false }).limit(500),
           supabaseAdmin.from("lead_inbox_rows").select("id", { count: "exact", head: true })
             .eq("business_id", businessId).is("deleted_at", null).eq("conversation_status", "needs_attention"),
           supabaseAdmin.from("social_comments").select("id", { count: "exact", head: true })
@@ -117,6 +118,7 @@ export function buildFeatureTools(ctx: AssistantToolContext) {
         if (waiting.error || waitingCount.error || upcoming.error || newLeads.error || booked.error) {
           return fail("Today's overview could not be read. Try again shortly.");
         }
+        const waitingRows = (waiting.data ?? []).filter(needsReply);
         const jobs = upcoming.data ?? [];
         const names = new Map<string, string | null>();
         if (jobs.length) {
@@ -133,8 +135,8 @@ export function buildFeatureTools(ctx: AssistantToolContext) {
         return {
           ok: true,
           leadsWaitingForReply: {
-            count: waitingCount.count ?? 0,
-            people: (waiting.data ?? []).map((l) => ({ leadId: l.id, name: l.name, service: l.service_intent, lastMessageAt: local(l.conversation_last_message_at) })),
+            count: waitingRows.length,
+            people: waitingRows.slice(0, 10).map((l) => ({ leadId: l.id, name: l.name, service: l.service_intent, lastMessageAt: local(l.conversation_last_message_at) })),
           },
           socialCommentsWaiting: comments.error ? "unknown" : (comments.count ?? 0),
           socialDmsWaiting: dmsWaiting ?? "unknown",

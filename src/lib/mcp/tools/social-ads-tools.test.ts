@@ -97,7 +97,7 @@ describe('Facebook ad performance', () => {
 describe('today overview', () => {
   it('reports DMs as unknown, not zero, when they cannot be read', async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { message: 'function does not exist' } });
-    mocks.results['lead_inbox_rows'] = { data: [{ id: 'l1', name: 'George', service_intent: 'Full detail', conversation_last_message_at: null }], error: null, count: 1 };
+    mocks.results['lead_inbox_rows'] = { data: [{ id: 'l1', name: 'George', service_intent: 'Full detail', conversation_last_message_at: null, conversation_status: 'needs_attention', status: 'customer_replied' }], error: null, count: 1 };
     const result = await asTool(today).handler({}, {}) as { social_dms_waiting: number | null; leads_waiting_for_reply: { latest: unknown[] } };
     expect(result.social_dms_waiting).toBeNull();
     expect(result.leads_waiting_for_reply.latest).toHaveLength(1);
