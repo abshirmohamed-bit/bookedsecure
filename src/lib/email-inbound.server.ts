@@ -5,6 +5,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { campaignSender, PLATFORM_FROM_ADDRESS } from "@/lib/email-campaigns";
+import { loadEmailBranding, sendEmailViaResend } from "@/lib/email-campaigns.server";
 import { renderEmailHtml, renderEmailText } from "@/lib/email-template";
 import {
   DEFAULT_PLATFORM_FORWARD_TO,
@@ -18,25 +19,10 @@ import {
   verifyResendWebhook,
 } from "@/lib/email-inbound";
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
 
 /** Replies are captured only once the inbound webhook secret is configured. */
 export function inboundRepliesEnabled(): boolean {
   return Boolean(process.env["RESEND_WEBHOOK_SECRET"]);
-}
-
-async function resendSend(payload: Record<string, unknown>): Promise<{ id: string | null }> {
-  const lovableKey = process.env["LOVABLE_API_KEY"];
-  const resendKey = process.env["RESEND_API_KEY"];
-  if (!lovableKey || !resendKey) throw new Error("Email sending is not configured.");
-  const response = await fetch(`${GATEWAY_URL}/emails`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": resendKey },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) throw new Error(`Email provider rejected the send (${response.status}).`);
-  const parsed = (await response.json().catch(() => null)) as { id?: string } | null;
-  return { id: parsed?.id ?? null };
 }
 
 type ReceivedEmail = import("@/lib/email-inbox.server").ReceivedEmail;
@@ -50,20 +36,6 @@ async function fetchReceivedEmail(id: string): Promise<ReceivedEmail> {
   });
   if (!response.ok) throw new Error(`Could not read the received email (${response.status}).`);
   return (await response.json()) as ReceivedEmail;
-}
-
-async function loadBusiness(businessId: string) {
-  const { data } = await supabaseAdmin.from("businesses").select("name, logo_storage_path, logo_url, website_url, service_area, abn").eq("id", businessId).maybeSingle();
-  const origin = process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.com";
-  return {
-    businessName: (data?.name as string | null) ?? "your business",
-    branding: {
-      logoUrl: data?.logo_storage_path ? `${origin}/api/public/tenant-logo/${businessId}` : typeof data?.logo_url === "string" && data.logo_url.startsWith("https://") ? data.logo_url : null,
-      websiteUrl: (data?.website_url as string | null) ?? null,
-      serviceArea: (data?.service_area as string | null) ?? null,
-      abn: (data?.abn as string | null) ?? null,
-    },
-  };
 }
 
 async function ownerAddress(campaignFrom: string, createdBy: string | null): Promise<string | null> {
@@ -117,11 +89,11 @@ async function forwardPlatformMail(email: ReceivedEmail, mailbox: string) {
   const sender = parseAddress(email.from);
   const header = `From: ${email.from}\nTo: ${mailbox}\n\n`;
   const text = `${header}${email.text?.trim() ? email.text : htmlToText(email.html ?? "")}`.slice(0, 100_000);
-  await resendSend({
+  await sendEmailViaResend({
     from: `BookedSecure inbox <${PLATFORM_FROM_ADDRESS}>`,
     to: [to],
     subject: `[${mailbox}] ${email.subject ?? "(no subject)"}`.slice(0, 200),
-    reply_to: sender.email,
+    replyTo: sender.email,
     text,
     ...(email.html ? { html: `<p style="font:13px sans-serif;color:#555">From: ${escapeHtml(email.from)}<br>To: ${escapeHtml(mailbox)}</p><hr>${email.html}` } : {}),
   });
@@ -187,14 +159,14 @@ export async function storeInboundReply(emailId: string, hintedTo: string[] = []
   if (campaign) {
     const to = await ownerAddress(campaign.from_address as string, campaign.created_by as string | null);
     if (to) {
-      const { businessName } = await loadBusiness(recipient.business_id);
+      const { businessName } = await loadEmailBranding(recipient.business_id);
       const who = sender.name ? `${sender.name} (${sender.email})` : sender.email;
       const note = `${who} replied to your campaign "${campaign.subject}":\n\n${text}\n\nReply from BookedSecure (Campaigns, Replies), or reply to this email to answer them directly.`;
-      await resendSend({
+      await sendEmailViaResend({
         from: `BookedSecure <${PLATFORM_FROM_ADDRESS}>`,
         to: [to],
         subject: `Reply from ${sender.name ?? sender.email}: ${email.subject ?? campaign.subject}`.slice(0, 200),
-        reply_to: sender.email,
+        replyTo: sender.email,
         html: renderEmailHtml({ businessName }, { bodyText: note, heading: "New reply to your campaign" }),
         text: renderEmailText({ businessName }, { bodyText: note }),
       }).catch((e) => console.error("[email-inbound] owner copy failed", e));
@@ -293,14 +265,17 @@ export async function replyToThread(input: { businessId: string; recipientId: st
   const { data: lastHeader } = lastIn
     ? await supabaseAdmin.from("email_messages").select("message_id, subject").eq("id", lastIn.id).maybeSingle()
     : { data: null };
-  const { businessName, branding } = await loadBusiness(input.businessId);
+  const { mailboxSender } = await import("@/lib/email-inbox.server");
+  const [{ businessName, branding }, own] = await Promise.all([loadEmailBranding(input.businessId), mailboxSender(input.businessId)]);
+  // From the business's own address when it has one; Reply-To keeps the reply+<id> routing either way.
+  const fromAddress = own?.address ?? PLATFORM_FROM_ADDRESS;
   const baseSubject = (lastHeader?.subject ?? thread.campaign?.subject ?? "Your enquiry").replace(/^(re:\s*)+/i, "");
   const subject = `Re: ${baseSubject}`.slice(0, 200);
-  const result = await resendSend({
-    from: `${businessName} <${PLATFORM_FROM_ADDRESS}>`,
+  const result = await sendEmailViaResend({
+    from: own?.from ?? `${businessName} <${PLATFORM_FROM_ADDRESS}>`,
     to: [thread.customerEmail],
     subject,
-    reply_to: replyToHeader(input.recipientId, businessName),
+    replyTo: replyToHeader(input.recipientId, businessName),
     html: renderEmailHtml({ businessName, ...branding }, { bodyText: body }),
     text: renderEmailText({ businessName, ...branding }, { bodyText: body }),
     ...(lastHeader?.message_id ? { headers: { "In-Reply-To": lastHeader.message_id, References: lastHeader.message_id } } : {}),
@@ -312,7 +287,7 @@ export async function replyToThread(input: { businessId: string; recipientId: st
     recipient_id: input.recipientId,
     lead_id: recipient?.lead_id ?? null,
     direction: "out",
-    from_email: PLATFORM_FROM_ADDRESS,
+    from_email: fromAddress,
     from_name: businessName,
     to_email: thread.customerEmail,
     subject,

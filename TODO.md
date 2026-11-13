@@ -25,7 +25,8 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 9. ~~**Shared email inbox (to replace Outlook):**~~ Built 13 Nov as Campaigns → Inbox: each business gets `<name>@bookedsecure.com`, which already receives through Resend, so no DNS change is needed.
 10. **Lovable:** apply `docs/email-inbox.sql` as a migration, regenerate types, then publish. Until then the Inbox only shows campaign replies.
 11. **Inbox, first live test:** choose Glocast's address in Campaigns → Inbox. Then send it an email with an attachment from another mailbox, reply from BookedSecure, and check that the answer threads in the other mailbox. To keep one inbox, set up forwarding from info@glocast.com.au to the new address.
-12. **Inbox, later:** a spam filter (Resend passes on everything it receives); Co-Work and ChatGPT tools for the inbox; rich-text writing.
+12. ~~**Inbox overlaps cleaned up (14 Nov):**~~ lead page emails, campaign-reply answers and reply-to defaults now use the business's address; shared branding and sender code. Check in the live test (item 11) that a lead-page email lands in Inbox → Sent.
+12a. **Inbox, later:** a spam filter (Resend passes on everything it receives); Co-Work and ChatGPT tools for the inbox; rich-text writing.
 
 ## UI fixes (13 Nov)
 

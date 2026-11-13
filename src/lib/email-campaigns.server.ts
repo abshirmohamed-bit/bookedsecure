@@ -43,7 +43,8 @@ export async function sendEmailViaResend(input: {
   from: string;
   to: string | string[];
   subject: string;
-  html: string;
+  /** At least one of html and text. */
+  html?: string;
   text?: string;
   replyTo?: string | null;
   cc?: string[];
@@ -68,7 +69,7 @@ export async function sendEmailViaResend(input: {
       from: input.from,
       to: Array.isArray(input.to) ? input.to : [input.to],
       subject: input.subject,
-      html: input.html,
+      ...(input.html ? { html: input.html } : {}),
       ...(input.text ? { text: input.text } : {}),
       ...(input.replyTo ? { reply_to: input.replyTo } : {}),
       ...(input.cc?.length ? { cc: input.cc } : {}),
@@ -87,13 +88,17 @@ export async function sendEmailViaResend(input: {
   return { id: parsed?.id ?? null };
 }
 
-type Branding = { businessName: string; branding: { logoUrl: string | null; websiteUrl: string | null; serviceArea: string | null; abn: string | null } };
+export type EmailBranding = {
+  businessName: string;
+  timeZone: string;
+  branding: { logoUrl: string | null; websiteUrl: string | null; serviceArea: string | null; abn: string | null };
+};
 
-/** Name, logo and footer details for the email template. */
-async function loadBranding(businessId: string): Promise<Branding> {
+/** Name, time zone, logo and footer details for the email template. The one loader for every business email. */
+export async function loadEmailBranding(businessId: string): Promise<EmailBranding> {
   const { data } = await supabaseAdmin
     .from("businesses")
-    .select("name, logo_storage_path, logo_url, website_url, service_area, abn")
+    .select("name, timezone, logo_storage_path, logo_url, website_url, service_area, abn")
     .eq("id", businessId)
     .maybeSingle();
   const logoUrl = data?.logo_storage_path
@@ -103,6 +108,7 @@ async function loadBranding(businessId: string): Promise<Branding> {
       : null;
   return {
     businessName: (data?.name as string | null) ?? "your business",
+    timeZone: (data?.timezone as string | null) ?? "Australia/Sydney",
     branding: {
       logoUrl,
       websiteUrl: (data?.website_url as string | null) ?? null,
@@ -115,11 +121,17 @@ async function loadBranding(businessId: string): Promise<Branding> {
 /**
  * Where a customer's reply goes. Once inbound replies are set up (the Resend
  * webhook secret exists), each recipient gets their own reply+<id> address so
- * replies appear in Campaigns → Replies (with a copy to the owner); until then
- * replies go straight to the owner.
+ * replies appear in Campaigns → Inbox (with a copy to the owner); until then
+ * replies go to the business's inbox address or the owner.
  */
 function replyToFor(recipientId: string, ownerReplyTo: string | null, businessName: string): string | null {
   return process.env["RESEND_WEBHOOK_SECRET"] ? replyToHeader(recipientId, businessName) : ownerReplyTo;
+}
+
+/** Where replies go without inbound reply routing: the business's inbox address, else the creator's login email. */
+async function fallbackReplyTo(businessId: string, userId: string | null | undefined): Promise<string | null> {
+  const { mailboxSender } = await import("@/lib/email-inbox.server");
+  return (await mailboxSender(businessId))?.address ?? (await creatorEmail(userId));
 }
 
 /** The campaign creator's login email: where customer replies go by default. */
@@ -502,9 +514,9 @@ export async function sendEmailCampaign(input: { businessId: string; campaignId:
   if (campaign.status === "sent") throw new Error("This campaign has already been sent.");
   if (campaign.status === "cancelled") throw new Error("This campaign was cancelled.");
 
-  const { businessName, branding } = await loadBranding(input.businessId);
+  const { businessName, branding } = await loadEmailBranding(input.businessId);
   const unsubscribed = await loadUnsubscribed(input.businessId);
-  const sender = campaignSender(campaign.from_address as string, await creatorEmail(campaign.created_by as string | null));
+  const sender = campaignSender(campaign.from_address as string, await fallbackReplyTo(input.businessId, campaign.created_by as string | null));
 
   const { data: recipients } = await supabaseAdmin
     .from("email_campaign_recipients")
@@ -750,7 +762,7 @@ export async function processDueEmailCampaigns(now: Date = new Date()) {
     .filter((r) => r.email_campaigns && followUpDue(r.sent_at, r.email_campaigns.follow_up_delay_days, now))
     .slice(0, 100);
   const unsubscribedBy = new Map<string, Set<string>>();
-  const brandings = new Map<string, Branding>();
+  const brandings = new Map<string, EmailBranding>();
 
   for (const row of due) {
     const campaign = row.email_campaigns!;
@@ -800,10 +812,10 @@ export async function processDueEmailCampaigns(now: Date = new Date()) {
       continue;
     }
     if (!brandings.has(row.business_id)) {
-      brandings.set(row.business_id, await loadBranding(row.business_id));
+      brandings.set(row.business_id, await loadEmailBranding(row.business_id));
     }
     const { businessName, branding } = brandings.get(row.business_id)!;
-    const sender = campaignSender(campaign.from_address, await creatorEmail(campaign.created_by));
+    const sender = campaignSender(campaign.from_address, await fallbackReplyTo(row.business_id, campaign.created_by));
     try {
       await sendEmailViaResend({
         from: `${businessName} <${sender.from}>`,

@@ -136,6 +136,16 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
     const app = await requireAppContext(context.supabase, context.userId);
     requireOwner(app);
     await assertLeadOwnership(app.businessId, data.leadId);
+    // With its own address, the business writes from the Inbox: the email threads there and replies come back to it.
+    const { mailboxSender, sendInboxEmail } = await import("@/lib/email-inbox.server");
+    const own = await mailboxSender(app.businessId);
+    if (own) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: lead } = await supabaseAdmin.from("leads").select("email").eq("id", data.leadId).eq("business_id", app.businessId).maybeSingle();
+      if (!lead?.email) throw new Error("This customer has no email address.");
+      const result = await sendInboxEmail({ businessId: app.businessId, mode: "new", to: [lead.email], subject: data.subject, bodyText: data.bodyText, leadId: data.leadId });
+      return { sent: result.sent ? 1 : 0, duplicate: result.duplicate ?? false, fromDeliverable: true, from: own.address, threadId: result.threadId };
+    }
     const created = await create({
       businessId: app.businessId,
       userId: app.userId,
@@ -146,7 +156,7 @@ export const sendLeadEmail = createServerFn({ method: "POST" })
       leadIds: [data.leadId],
     });
     const result = await send({ businessId: app.businessId, campaignId: created.campaignId });
-    return { ...result, fromDeliverable: created.fromDeliverable };
+    return { ...result, duplicate: false, fromDeliverable: created.fromDeliverable, from: null as string | null, threadId: null as string | null };
   });
 
 const campaignIdInput = (input: unknown) => z.object({ campaignId: z.string().uuid() }).parse(input);

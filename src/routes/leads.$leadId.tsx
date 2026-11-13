@@ -663,10 +663,7 @@ function LeadEmailHistory({ leadId }: { leadId: string }) {
   const day = (iso: string) => new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
   return (
     <div className="mt-3 space-y-1.5 border-t border-border pt-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium">Emails</p>
-        <Link to="/campaigns/replies" search={{ compose: leadId }} className="shrink-0 text-xs font-medium text-primary hover:underline">Write from Inbox</Link>
-      </div>
+      <p className="text-xs font-medium">Emails</p>
       {threads.map((t) => (
         <div key={t.id} className="flex items-start justify-between gap-2 text-xs">
           <Link to="/campaigns/replies" search={{ conversation: t.id }} className={`min-w-0 flex-1 truncate hover:text-primary ${t.unread ? "font-semibold" : ""}`}>{t.subject}</Link>
@@ -696,6 +693,7 @@ function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | nul
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
+  const [historyKey, setHistoryKey] = useState(0);
 
   const likeLink = (
     <Link to="/lead-finder" search={{ like: leadId }} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">
@@ -710,11 +708,12 @@ function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | nul
     try {
       const { sendLeadEmail } = await import("@/lib/email-campaigns.functions");
       const result = await sendLeadEmail({ data: { leadId, subject, bodyText: body } });
-      if (result.sent > 0) {
-        toast.success(`Email sent to ${email}.`);
+      if (result.sent > 0 || result.duplicate) {
+        toast.success(result.duplicate ? "That email was already sent." : result.from ? `Email sent to ${email} from ${result.from}.` : `Email sent to ${email}.`);
         setOpen(false);
         setSubject("");
         setBody("");
+        setHistoryKey((k) => k + 1);
       } else {
         toast.error("The email could not be sent.");
       }
@@ -732,7 +731,7 @@ function LeadEmailPanel({ leadId, email }: { leadId: string; email: string | nul
 
   return (
     <>
-    <LeadEmailHistory leadId={leadId} />
+    <LeadEmailHistory key={historyKey} leadId={leadId} />
     {likeLink}
     <div className="mt-3 border-t border-border pt-3">
       {!open ? (

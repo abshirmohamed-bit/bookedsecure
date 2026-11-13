@@ -114,6 +114,12 @@ export function bookingEmailValues(f: Facts): BookingEmailValues {
   };
 }
 
+/** Where customers' replies go when the owner set no reply-to: the business's inbox address, else the owner's login email. */
+async function defaultReplyTo(businessId: string): Promise<string | null> {
+  const { mailboxSender } = await import("@/lib/email-inbox.server");
+  return (await mailboxSender(businessId))?.address ?? (await ownerEmail(businessId));
+}
+
 async function ownerEmail(businessId: string): Promise<string | null> {
   const { data: owners } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "owner");
   const ids = (owners ?? []).map((r) => r.user_id as string);
@@ -206,7 +212,7 @@ export async function sendBookingConfirmationEmail(businessId: string, jobId: st
     return out(existing?.status ?? "skipped", existing?.status === "sent" ? "Already sent." : "Already being sent.");
   }
   try {
-    const replyTo = settings.replyTo || (await ownerEmail(businessId));
+    const replyTo = settings.replyTo || (await defaultReplyTo(businessId));
     const sent = await deliverRenderedEmail({ to: email, businessName: f.business.name, settings, values, replyTo });
     await supabaseAdmin.from("booking_confirmations").update({ status: "sent", reason: null, subject: sent.subject, provider_message_id: sent.id, updated_at: now() })
       .eq("job_id", jobId).eq("channel", "email").eq("status", "sending");
@@ -384,6 +390,8 @@ export async function sendTestBookingEmail(businessId: string, to: string, setti
   const { sampleBookingEmailValues } = await import("@/lib/booking-email");
   const phone = (resolveTenantCallbackNumber(business) ?? business.phone_number ?? "").replace(/^\+61/, "0");
   const values = sampleBookingEmailValues(business.name, phone);
-  await deliverRenderedEmail({ to, businessName: business.name, settings, values, replyTo: settings.replyTo || to });
+  const { mailboxSender } = await import("@/lib/email-inbox.server");
+  const replyTo = settings.replyTo || (await mailboxSender(businessId))?.address || to;
+  await deliverRenderedEmail({ to, businessName: business.name, settings, values, replyTo });
   return { sentTo: to };
 }

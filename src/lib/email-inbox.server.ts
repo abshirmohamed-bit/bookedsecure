@@ -57,20 +57,6 @@ function appOrigin(): string {
   return process.env["PUBLIC_APP_URL"] ?? "https://bookedsecure.com";
 }
 
-async function loadBusiness(businessId: string) {
-  const { data } = await supabaseAdmin.from("businesses").select("name, timezone, logo_storage_path, logo_url, website_url, service_area, abn").eq("id", businessId).maybeSingle();
-  return {
-    businessName: (data?.name as string | null) ?? "Your business",
-    timeZone: (data?.timezone as string | null) ?? "Australia/Sydney",
-    branding: {
-      logoUrl: data?.logo_storage_path ? `${appOrigin()}/api/public/tenant-logo/${businessId}` : typeof data?.logo_url === "string" && data.logo_url.startsWith("https://") ? data.logo_url : null,
-      websiteUrl: (data?.website_url as string | null) ?? null,
-      serviceArea: (data?.service_area as string | null) ?? null,
-      abn: (data?.abn as string | null) ?? null,
-    },
-  };
-}
-
 /* ---------- The business's address ---------- */
 
 export type Mailbox = { localPart: string; address: string; displayName: string | null; signature: string | null };
@@ -116,6 +102,22 @@ export async function saveMailbox(businessId: string, input: { localPart: string
 /** Resend accepts `Name <email>` only without quotes, so characters that need quoting are dropped. */
 function cleanDisplayName(name: string): string {
   return name.replace(/["\\<>,;:@()[\]\r\n]/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
+}
+
+/**
+ * The business's own address as a sender ("Name <name@bookedsecure.com>"), or
+ * null when it has none or the inbox schema isn't applied yet. Never throws, so
+ * other email paths can prefer it and quietly keep their old sender.
+ */
+export async function mailboxSender(businessId: string): Promise<{ address: string; from: string } | null> {
+  try {
+    const { mailbox, businessName } = await getMailbox(businessId);
+    if (!mailbox) return null;
+    const name = cleanDisplayName(mailbox.displayName ?? businessName) || mailbox.localPart;
+    return { address: mailbox.address, from: `${name} <${mailbox.address}>` };
+  } catch {
+    return null;
+  }
 }
 
 async function requireMailbox(businessId: string): Promise<Mailbox> {
@@ -649,7 +651,8 @@ export async function sendInboxEmail(input: SendInput): Promise<{ sent: boolean;
     .find((r) => r.thread_id && r.body_text.startsWith(body) && (r.to_emails ?? []).join(",") === to.emails.join(","));
   if (dup) return { sent: false, duplicate: true, threadId: dup.thread_id! };
 
-  const { businessName, branding, timeZone } = await loadBusiness(input.businessId);
+  const { loadEmailBranding } = await import("@/lib/email-campaigns.server");
+  const { businessName, branding, timeZone } = await loadEmailBranding(input.businessId);
   const fromName = cleanDisplayName(mailbox.displayName ?? businessName) || mailbox.localPart;
   const signature = mailbox.signature?.trim();
   const ownText = signature ? `${body}\n\n${signature}` : body;
