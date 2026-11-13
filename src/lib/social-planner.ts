@@ -22,6 +22,8 @@ export type PostInsights = {
   likes: number | null; comments: number | null; shares: number | null; saves: number | null;
   /** Likes/reactions + comments + shares + saves. */
   engagements: number | null;
+  /** YouTube Analytics, when the owner allowed it: minutes watched, and the average view in seconds and as a share of the video. */
+  watchMinutes?: number | null; averageViewSeconds?: number | null; averageViewPercent?: number | null;
 };
 
 export type PlannerPost = {

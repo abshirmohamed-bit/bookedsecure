@@ -13,6 +13,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { loadMetaAccount } from "./meta-direct.server";
 import { graph, metaAuthor, metaPostProblem, type MetaPlatform, ownImagePath, publishMetaPost } from "./meta-publish.server";
 import { facebookInsights, instagramInsights, plannerAt, type PlannerPost, type PlannerStatus, type PostInsights } from "./social-planner";
+import { snapshotOf, statsDue } from "./post-stats";
+import { recordPostSnapshots } from "./post-stats.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = () => supabaseAdmin as any;
@@ -163,8 +165,8 @@ export async function discardDraft(businessId: string, postId: string) {
 
 /** Reads the latest figures for one published Facebook or Instagram post and stores them. */
 export async function refreshPostInsights(businessId: string, postId: string, fetcher: typeof fetch = fetch): Promise<PostInsights> {
-  const { data } = await db().from("linkedin_posts").select("id, platform, status, post_urn").eq("id", postId).eq("business_id", businessId).maybeSingle();
-  const post = data as { platform: string; status: string; post_urn: string | null } | null;
+  const { data } = await db().from("linkedin_posts").select("id, platform, status, post_urn, published_at").eq("id", postId).eq("business_id", businessId).maybeSingle();
+  const post = data as { platform: string; status: string; post_urn: string | null; published_at: string | null } | null;
   if (!post || post.status !== "published" || !post.post_urn) throw new Error("Figures are only available once a post is published.");
   if (post.platform !== "facebook" && post.platform !== "instagram") throw new Error("Figures are read for Facebook and Instagram posts.");
   const account = await loadMetaAccount(businessId);
@@ -186,19 +188,27 @@ export async function refreshPostInsights(businessId: string, postId: string, fe
     }
     insights = instagramInsights(media, metrics);
   }
-  await db().from("linkedin_posts").update({ insights, insights_at: new Date().toISOString() }).eq("id", postId).eq("business_id", businessId);
+  const now = new Date();
+  await db().from("linkedin_posts").update({ insights, insights_at: now.toISOString() }).eq("id", postId).eq("business_id", businessId);
+  // Clip learning: the figures' history, with the post's age (post-stats).
+  await recordPostSnapshots(businessId, [snapshotOf({ id: postId, platform: post.platform, postedAt: post.published_at }, insights, now)]);
   return insights;
 }
 
-/** From the follow-ups hook: posts published in the last 30 days get fresh figures every six hours. */
+/**
+ * From the follow-ups hook: posts published in the last 30 days get fresh
+ * figures every six hours in their first week, then once a day (statsDue).
+ */
 export async function sweepPostInsights(limit = 15): Promise<{ refreshed: number }> {
   const since = new Date(Date.now() - INSIGHTS_FOR_DAYS * 86400_000).toISOString();
   const stale = new Date(Date.now() - INSIGHTS_EVERY_MS).toISOString();
-  const { data, error } = await db().from("linkedin_posts").select("id, business_id").eq("status", "published").in("platform", ["facebook", "instagram"])
-    .not("post_urn", "is", null).gte("published_at", since).or(`insights_at.is.null,insights_at.lt.${stale}`).order("published_at", { ascending: false }).limit(limit);
+  const { data, error } = await db().from("linkedin_posts").select("id, business_id, published_at, insights_at").eq("status", "published").in("platform", ["facebook", "instagram"])
+    .not("post_urn", "is", null).gte("published_at", since).or(`insights_at.is.null,insights_at.lt.${stale}`).order("published_at", { ascending: false }).limit(limit * 4);
   if (error) return { refreshed: 0 };
   let refreshed = 0;
-  for (const row of (data ?? []) as Array<{ id: string; business_id: string }>) {
+  const due = ((data ?? []) as Array<{ id: string; business_id: string; published_at: string | null; insights_at: string | null }>)
+    .filter((row) => statsDue(row.published_at, row.insights_at)).slice(0, limit);
+  for (const row of due) {
     try { await refreshPostInsights(row.business_id, row.id); refreshed++; } catch {
       // Mark it read so one broken post doesn't hold the queue.
       await db().from("linkedin_posts").update({ insights_at: new Date().toISOString() }).eq("id", row.id);

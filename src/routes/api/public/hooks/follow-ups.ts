@@ -69,6 +69,11 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const postInsights = await sweepPostInsights().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Post insights failed",
         }));
+        // Clip learning: posted YouTube videos' views, likes, comments and watch time, with history.
+        const { sweepYouTubePostStats } = await import("@/lib/post-stats.server");
+        const youtubeStats = await sweepYouTubePostStats().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "YouTube stats failed",
+        }));
         const { processDueAutoCompletions } = await import("@/lib/job-autocomplete.server");
         const autoCompleted = await processDueAutoCompletions().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Auto-complete failed",
@@ -78,7 +83,7 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const proxyUpgrade = await checkProxyUpgrade().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Proxy check failed",
         }));
-        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, proxyUpgrade, abandonedSwept: swept.swept });
+        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, youtubeStats, proxyUpgrade, abandonedSwept: swept.swept });
 
 
       },
