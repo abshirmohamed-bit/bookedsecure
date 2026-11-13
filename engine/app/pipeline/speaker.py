@@ -305,7 +305,11 @@ def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
         cuts = refine_cuts(cuts, raw, media.probe(video).fps, in_ms, step_ms=1000 / fps)
     # Someone glimpsed for a moment is not a participant — unless the shot
     # they are in is that short too.
-    return [t for t in tracks if len(t.boxes) >= 2 or _alone_in_shot(t, cuts)], cuts
+    # The clip's own start and end bound its first and last shots, so a person
+    # seen once in a short opening shot (often the frame a paused editor shows)
+    # counts, rather than leaving that shot "with nobody in it".
+    edges = sorted({in_ms, *cuts, *([out_ms] if out_ms is not None else [])})
+    return [t for t in tracks if len(t.boxes) >= 2 or _alone_in_shot(t, edges)], cuts
 
 
 #: The full-rate grey copy used to pin cuts: tiny, because a cut changes the

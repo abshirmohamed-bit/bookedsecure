@@ -263,3 +263,11 @@ def test_linking_still_continues_a_track_when_there_was_no_cut():
     for ms in (0, 500, 1000):
         S._link(tracks, [(0.3, 0.5, 0.1, 0.25)], ms, since=0)
     assert len(tracks) == 1
+
+
+def test_a_person_seen_once_in_a_clips_short_opening_shot_counts():
+    """The clip's start bounds its first shot: one sighting there is a person, not nobody."""
+    from app.pipeline.speaker import FaceTrack, _alone_in_shot
+    host = FaceTrack(id=1, boxes=[(93000, (0.48, 0.3, 0.13, 0.24))])
+    assert not _alone_in_shot(host, [93200, 99290])              # no edge before: dropped (the old bug)
+    assert _alone_in_shot(host, [93000, 93200, 99290])            # with the clip's start as an edge: kept
