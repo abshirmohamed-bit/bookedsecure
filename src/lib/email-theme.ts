@@ -128,6 +128,20 @@ export const EXAMPLE_EMAIL_THEME: EmailTheme = {
 };
 
 /**
+ * Ready-made looks owners pick with one tap in the Email template dialog.
+ * Design only: no footer wording, so nothing is claimed on a business's behalf.
+ */
+export const EMAIL_THEME_PRESETS: readonly { id: string; label: string; forWho: string; theme: EmailTheme }[] = [
+  { id: "classic", label: "BookedSecure", forWho: "The default look", theme: EXAMPLE_EMAIL_THEME },
+  { id: "corporate", label: "Corporate", forWho: "Accounting, legal, finance, consulting", theme: { version: 1, colors: { brand: "#0b2a5b", background: "#f2f4f7", card: "#ffffff", heading: "#0b1f3a", text: "#2f3b4c", buttonText: "#ffffff" }, font: "georgia", logo: { show: true, align: "left" }, buttons: "square", corners: "square" } },
+  { id: "trades", label: "Trades", forWho: "Plumbing, electrical, cleaning, detailing", theme: { version: 1, colors: { brand: "#e8590c", background: "#f4f1ec", card: "#ffffff", heading: "#1c1c1c", text: "#3a3a3a", buttonText: "#ffffff" }, font: "arial", logo: { show: true, align: "left" }, buttons: "rounded", corners: "rounded" } },
+  { id: "wellness", label: "Wellness", forWho: "Clinics, physio, dental, beauty", theme: { version: 1, colors: { brand: "#0f8b8d", background: "#eef7f6", card: "#ffffff", heading: "#123c3d", text: "#36514f", buttonText: "#ffffff" }, font: "helvetica", logo: { show: true, align: "center" }, buttons: "pill", corners: "rounded" } },
+  { id: "luxury", label: "Luxury", forWho: "Real estate, events, premium services", theme: { version: 1, colors: { brand: "#c9a227", background: "#f5f3ee", card: "#ffffff", heading: "#111111", text: "#3d3a33", buttonText: "#111111" }, font: "times", logo: { show: true, align: "center" }, buttons: "square", corners: "square" } },
+  { id: "modern", label: "Modern", forWho: "Tech, agencies, marketing, design", theme: { version: 1, colors: { brand: "#2563eb", background: "#f1f5fb", card: "#ffffff", heading: "#0f172a", text: "#334155", buttonText: "#ffffff" }, font: "system", logo: { show: true, align: "left" }, buttons: "pill", corners: "rounded" } },
+  { id: "fresh", label: "Fresh blue", forWho: "Mobile and local services", theme: { version: 1, colors: { brand: "#1e5fc2", background: "#eaf2fb", card: "#ffffff", heading: "#0e2a4f", text: "#2b3a52", buttonText: "#ffffff" }, font: "trebuchet", logo: { show: true, align: "left" }, buttons: "pill", corners: "rounded" } },
+];
+
+/**
  * The built-in booking confirmation is its own HTML; when the business still
  * uses it unchanged, its header colour, page colour and font follow the theme.
  * Custom booking HTML is the owner's own design and is never touched.

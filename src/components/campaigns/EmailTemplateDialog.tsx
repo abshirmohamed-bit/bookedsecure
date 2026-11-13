@@ -5,8 +5,9 @@ import { ArrowLeft, Download, Loader2, RotateCcw, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { getEmailTheme, saveEmailThemeFn } from "@/lib/email-inbox.functions";
-import { EXAMPLE_EMAIL_THEME, parseEmailTheme } from "@/lib/email-theme";
+import { EMAIL_THEME_PRESETS, EXAMPLE_EMAIL_THEME, parseEmailTheme, resolveEmailLook } from "@/lib/email-theme";
 import { renderEmailHtml } from "@/lib/email-template";
 
 const pretty = (value: unknown) => JSON.stringify(value, null, 2);
@@ -77,6 +78,30 @@ export function EmailTemplatePanel({ signature, onBack }: { signature: string | 
       {d.setupMissing && (
         <p className="rounded-xl border border-warning/40 bg-warning/10 p-2.5 text-xs">Email templates are waiting for a database update (docs/email-theme.sql). You can try one in the preview now; applying it works once that's done.</p>
       )}
+      <div role="radiogroup" aria-label="Ready-made templates" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {EMAIL_THEME_PRESETS.map((p) => {
+          const look = resolveEmailLook(p.theme);
+          const selected = value.trim() === pretty(p.theme);
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              title={p.forWho}
+              onClick={() => setText(pretty(p.theme))}
+              className={cn("flex w-32 shrink-0 flex-col gap-1.5 rounded-xl border bg-white/60 p-2 text-left transition-colors hover:bg-white/90", selected ? "border-primary ring-2 ring-primary/30" : "border-white/70")}
+            >
+              <span className="flex h-9 items-end gap-1 rounded-lg p-1.5" style={{ background: look.page }}>
+                <span className="h-full flex-1" style={{ background: look.card, borderRadius: look.cardRadius === "0" ? 2 : 6 }} />
+                <span className="h-3 w-6" style={{ background: look.brand, borderRadius: look.buttonRadius === "0" ? 1 : 999 }} />
+              </span>
+              <span className="text-xs font-medium leading-tight">{p.label}</span>
+              <span className="line-clamp-2 text-[10px] leading-tight text-muted-foreground">{p.forWho}</span>
+            </button>
+          );
+        })}
+      </div>
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap gap-2">

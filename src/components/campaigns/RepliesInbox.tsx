@@ -241,7 +241,7 @@ function MailboxSettings({ open, onOpenChange, current, suggested, businessName,
         {view === "template" ? (
           <>
             <DialogTitle>Email template</DialogTitle>
-            <DialogDescription>Upload or paste a template file, check the preview, then apply it to every email your business sends.</DialogDescription>
+            <DialogDescription>Pick a ready-made look or upload your own template file, check the preview, then apply it to every email your business sends.</DialogDescription>
             <EmailTemplatePanel signature={current?.signature ?? null} onBack={() => setView("address")} />
           </>
         ) : (

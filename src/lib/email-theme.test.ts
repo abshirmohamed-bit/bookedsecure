@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_EMAIL_THEME, parseEmailTheme, readEmailTheme, resolveEmailLook, themeDefaultBookingHtml } from "@/lib/email-theme";
+import { EMAIL_THEME_PRESETS, EXAMPLE_EMAIL_THEME, parseEmailTheme, readEmailTheme, resolveEmailLook, themeDefaultBookingHtml } from "@/lib/email-theme";
 import { renderEmailHtml } from "@/lib/email-template";
 import { DEFAULT_BOOKING_EMAIL_HTML } from "@/lib/booking-email";
 
 describe("email theme", () => {
   it("accepts the example file", () => {
     expect(parseEmailTheme(JSON.stringify(EXAMPLE_EMAIL_THEME)).errors).toEqual([]);
+  });
+  it("ships only valid presets", () => {
+    for (const p of EMAIL_THEME_PRESETS) expect(parseEmailTheme(JSON.stringify(p.theme)).errors).toEqual([]);
   });
   it("explains mistakes in plain words", () => {
     expect(parseEmailTheme("{nope").errors[0]).toMatch(/valid JSON/);
