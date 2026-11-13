@@ -127,3 +127,15 @@ def test_a_stage_of_tiny_people_is_shown_whole():
     inp = shots.Inputs(width=1920, height=1080, out_w=1080, out_h=1920, in_ms=0, out_ms=6000,
                        tracks=tracks, cuts=[], detail=[])
     assert [s.kind for s in shots.plan(inp)] == ["fit"]
+
+
+def test_a_listener_whose_whole_head_moves_is_not_the_speaker():
+    from app.pipeline import speaker as sp
+    talker = sp.FaceTrack(1, boxes=[(0, (0.3, 0.3, 0.05, 0.1))])
+    mover = sp.FaceTrack(2, boxes=[(0, (0.7, 0.3, 0.05, 0.1))])
+    for ms in range(0, 8000, 100):
+        talker.motion.append((ms, 9.0)); talker.head.append((ms, 1.0))      # the mouth moves, the head doesn't
+        mover.motion.append((ms, 10.0)); mover.head.append((ms, 9.5))       # hair and head move everything
+    rms = [(ms, 900.0 if ms % 2000 < 1700 else 10.0) for ms in range(0, 8000, 100)]
+    named = {t.track_id for t in sp.turns([talker, mover], rms) if t.track_id is not None}
+    assert named == {1}
