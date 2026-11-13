@@ -115,3 +115,15 @@ def test_crops_end_above_burned_in_subtitles():
     (s,) = shots.plan(inp)
     assert s.window.y + s.window.h <= 0.8 * 1080
     assert abs(s.window.w / s.window.h - 1080 / 1920) < 0.01
+
+
+def test_a_stage_of_tiny_people_is_shown_whole():
+    tracks = []
+    for i, x in enumerate((0.15, 0.35, 0.55, 0.75, 0.9)):
+        t = type("T", (), {})()
+        t.id = i + 1
+        t.boxes = [(ms, (x, 0.3, 0.025, 0.05)) for ms in range(0, 6000, 200)]
+        tracks.append(t)
+    inp = shots.Inputs(width=1920, height=1080, out_w=1080, out_h=1920, in_ms=0, out_ms=6000,
+                       tracks=tracks, cuts=[], detail=[])
+    assert [s.kind for s in shots.plan(inp)] == ["fit"]

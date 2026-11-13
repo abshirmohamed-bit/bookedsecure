@@ -544,6 +544,18 @@ def _split_on_presence(inp: Inputs, shots_):
                 yield x, y
 
 
+#: A split cell may enlarge its crop this much at most before it looks like mush.
+MAX_CELL_UPSCALE = 2.6
+
+
+def _too_small_to_split(faces: list[_Face], inp: Inputs) -> bool:
+    """Would the two cells of a split have to enlarge their faces past what stays sharp?"""
+    two = _prominent(faces)[:2]
+    cell_w = inp.out_w if inp.out_h >= inp.out_w else inp.out_w / 2
+    crop_w = min(f.w * inp.width / 0.20 for f in two)       # _split's face share
+    return cell_w / max(1.0, crop_w) > MAX_CELL_UPSCALE
+
+
 def _with_cards(inp: Inputs, shots_, layout: str):
     """Each camera shot as (from, to, card box or None): split where a card holds still."""
     from . import graphics
@@ -786,6 +798,12 @@ def plan(inp: Inputs) -> list[Shot]:
             continue
         if layout in {"split", "grid"} and len(faces) >= 2 and not fits:
             out.append(_split(inp, a, b, faces, "two people sharing the shot: one cell each"))
+            continue
+        if (layout == "auto" and len(faces) >= 3 and not fits and _too_small_to_split(faces, inp)
+                and (len(faces) >= 4 or not talk)):
+            # A stage of tiny people: cells would blow two faces up into mush and
+            # miss what the group is doing. Show the whole picture.
+            out.append(Shot(a, b, "fit", why="a wide group shot, faces too small to split: shown whole"))
             continue
         if layout == "auto":
             if len(faces) >= 2 and not fits:
