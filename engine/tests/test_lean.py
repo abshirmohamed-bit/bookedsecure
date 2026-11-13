@@ -249,3 +249,56 @@ def test_progress_only_moves_forward(api):
     report(0.2)          # a later, smaller reading never moves it back
     with session() as s:
         assert s.get(Job, job_id).progress == 58
+
+
+def test_a_retried_job_keeps_the_sections_it_already_downloaded(api, long_talk, tmp_path, monkeypatch):
+    """Seen live (2026-11-13): a job retried after the whole-download fallback failed, and
+    the retry downloaded all 20 sections again, including the 4 that had arrived."""
+    from app import storage, worker
+    from app.config import settings
+    from app.db import session
+    from app.errors import EngineError
+    from app.ids import new_id
+    from app.models import Asset
+    from app.pipeline import ingest
+
+    audio_key = "sources/lean-retry/audio.m4a"
+    _audio_of(long_talk, storage.open_write(audio_key))
+    with session() as s:
+        asset = Asset(id=new_id("ast"), name="Long talk 3", type="video", status="ready", lean=True,
+                      storage_key=audio_key, mezzanine_key=audio_key, length_s=90.0,
+                      source_url="https://www.youtube.com/watch?v=lean-retry", rights_confirmed=True)
+        s.add(asset)
+        s.commit()
+        asset_id = asset.id
+    asked: list[tuple[int, int]] = []
+    tries = {"whole": 0}
+
+    def first_ok_rest_fail(url, dest, start_ms, end_ms):
+        asked.append((start_ms, end_ms))
+        if len({a for a in asked}) == 1 and asked.count(asked[0]) == 1 and (start_ms, end_ms) == asked[0]:
+            _cut_like_a_stream(long_talk, dest, start_ms, end_ms)
+            return
+        raise RuntimeError("ERROR: ffmpeg exited with code 8")
+
+    def whole(url, dest, on_progress=None):
+        tries["whole"] += 1
+        if tries["whole"] == 1:
+            raise ingest.TransientFetch("refused part-way")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(long_talk.read_bytes())
+
+    monkeypatch.setattr(ingest, "fetch_section", first_ok_rest_fail)
+    monkeypatch.setattr(ingest, "download_whole", whole)
+    monkeypatch.setattr(settings(), "section_pad_ms", 3000)
+    job_id = api.post("/v1/autoclip", json={
+        "asset_id": asset_id, "clip_count": 2, "clip_length": 8, "aspect": "9:16", "formats": ["full-video"],
+    }).json()["id"]
+    for _ in range(60):
+        worker.tick()
+        job = api.get(f"/v1/autoclip/{job_id}").json()
+        if job["status"] in {"completed", "failed"}:
+            break
+    assert job["status"] == "completed", job.get("error")
+    assert tries["whole"] == 2, "the first try's fallback failed, so the job was retried"
+    assert asked.count(asked[0]) == 1, "the section that arrived on the first try is not downloaded again"

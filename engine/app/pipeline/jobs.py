@@ -456,7 +456,10 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
         row = Asset(id=new_id("ast"), name=f"{base} (clip {sec.index + 1})", type="video",
                     category="section", status="importing", source_url=asset.source_url,
                     rights_confirmed=True, parent_id=asset.id, offset_ms=sec.start_ms)
-        row.storage_key = f"sources/{row.id}/download.mp4"
+        # Named by the section, not the new row, so a retried job finds what an
+        # earlier try already downloaded (seen live: a retry re-fetched all 20,
+        # including the 4 that had arrived).
+        row.storage_key = f"sources/{asset.id}/sections/{sec.start_ms}-{sec.end_ms}.mp4"
         rows.append((sec, row))
 
     report = _progress_reporter(job.id, FETCH_FROM, FETCH_TO)
@@ -467,6 +470,11 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
     def fetch(item: tuple) -> tuple:
         sec, row = item
         dest = storage.open_write(row.storage_key)
+        if lean.has_video(dest):
+            with lock:
+                tally["done"] += 1
+            report(tally["done"] / max(1, len(rows)))
+            return sec, row, dest, None
         if give_up.is_set():
             return sec, row, dest, RuntimeError("skipped: sections were failing")
         try:
