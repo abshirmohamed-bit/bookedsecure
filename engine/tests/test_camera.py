@@ -234,3 +234,28 @@ def test_a_long_camera_move_renders(tmp_path):
     subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=2",
                     "-vf", f"perspective=x0='{expr}':y0=0:x1=600:y1=0:x2=0:y2=360:x3=600:y3=360:eval=frame",
                     "-f", "null", "-"], check=True, timeout=120)
+
+
+def test_a_card_still_is_never_split_across_shots(tmp_path):
+    """Seen on Fly: a 73 s, 25-shot clip whose card shadow was one source
+    split 16 ways passed 2.8 GB in 20 s and was killed. split pushes every
+    frame to all outputs while the shots are joined one after another, so
+    the frames for later shots' cards wait in memory. Each card gets its own
+    source, as long as its own shot."""
+    import re
+    from app.pipeline import compose, looks
+    inp = Inputs(width=1920, height=1080, out_w=1080, out_h=1920, in_ms=0, out_ms=24000)
+    plan = [Shot(k * 3000, (k + 1) * 3000, "fit") for k in range(8)]
+    lines: list[str] = []
+    for i, shot in enumerate(plan):
+        lines += compose._shot_graph(shot, i, inp, 1080, 1920, tmp_path)[0]
+    stills = looks.emit_stills(tmp_path, 24000 * 30 // 1000 + 8)
+    assert stills, "fit shots draw cards"
+    assert not any("split=" in s for s in stills)
+    # One source per card use, each feeding exactly one label...
+    used = re.findall(r"\[(st\d+_\d+)\]", ";".join(lines))
+    fed = [re.findall(r"\[(st\d+_\d+)\]$", s)[0] for s in stills]
+    assert sorted(used) == sorted(fed) and len(set(fed)) == len(fed)
+    # ...looped for its own shot (3 s = 90 frames, plus the shot's margin), not the whole clip.
+    loops = {int(re.search(r"loop=loop=(\d+)", s).group(1)) for s in stills}
+    assert loops and max(loops) < 100

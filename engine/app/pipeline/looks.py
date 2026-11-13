@@ -130,33 +130,39 @@ def still(name: str, frames: int) -> str:
     return f"movie={name},loop=loop={max(0, frames - 1)}:size=1:start=0,setpts=N/(30*TB)"
 
 
-#: Stills each render asks for, by work folder: {png: (pixel format, [labels])}.
-#: Every card of every shot used to load and loop its own copy of the same
-#: mask and shadow; a clip with many shots held hundreds of them at once and
-#: ran Fly's 4 GB machine out of memory. Now each PNG is read once, converted
-#: once, and split to every card that uses it (the copies share one picture).
-_STILLS: dict[str, dict[str, tuple[str, list[str]]]] = {}
+#: Stills each render asks for, by work folder: [(label, png, pixel format, frames)].
+#:
+#: Every card gets its own source, looped for its own shot only. Never one
+#: source `split` to every card that uses it: split pushes each frame to all
+#: of its outputs at once, while the shots are joined one after another, so
+#: the frames meant for every later shot's card pile up in memory until that
+#: shot starts. A 73 s, 25-shot clip with one shadow split 16 ways passed
+#: 2.8 GB in 20 s and was killed on Fly's 4 GB machine; with a source per
+#: card the same render peaked at 1.24 GB. A source is pulled only as fast as
+#: its card is drawn, and a PNG costs next to nothing to read again.
+_STILLS: dict[str, list[tuple[str, str, str, int | None]]] = {}
 _STILLS_LOCK = threading.Lock()
 
 
-def _still_label(workdir: Path, png: str, fmt: str) -> str:
+def _still_label(workdir: Path, png: str, fmt: str, frames: int | None = None) -> str:
     with _STILLS_LOCK:
-        want = _STILLS.setdefault(str(workdir), {})
-        f, labels = want.setdefault(png, (fmt, []))
-        label = f"st{abs(hash(png)) % 100000}_{len(labels)}"
-        labels.append(label)
+        want = _STILLS.setdefault(str(workdir), [])
+        label = f"st{abs(hash(png)) % 100000}_{len(want)}"
+        want.append((label, png, fmt, frames))
         return label
 
 
 def emit_stills(workdir: Path, frames: int) -> list[str]:
-    """The graph lines feeding every still asked for in this work folder, then forgets them."""
+    """The graph lines feeding every still asked for in this work folder, then forgets them.
+
+    `frames` is the whole render's length, used for a still whose card did
+    not say how long its shot runs.
+    """
     with _STILLS_LOCK:
-        want = _STILLS.pop(str(workdir), {})
-    out = []
-    for png, (fmt, labels) in want.items():
-        tail = f"split={len(labels)}" + "".join(f"[{lb}]" for lb in labels) if len(labels) > 1 else f"null[{labels[0]}]"
-        out.append(f"movie={png},format={fmt},loop=loop={max(0, frames - 1)}:size=1:start=0,setpts=N/(30*TB),{tail}")
-    return out
+        want = _STILLS.pop(str(workdir), [])
+    return [f"movie={png},format={fmt},loop=loop={max(0, (own or frames) - 1)}:size=1:start=0,"
+            f"setpts=N/(30*TB)[{label}]"
+            for label, png, fmt, own in want]
 
 
 def ambient(label_in: str, label_out: str, w: int, h: int, brightness: float = AMBIENT_BRIGHTNESS) -> str:
@@ -173,9 +179,9 @@ def card(lines: list[str], *, base: str, picture: str, out: str, x: int, y: int,
     mask = card_mask(workdir, f"mask_{w}x{h}", w, h, out_w)
     shadow, pad = card_shadow(workdir, f"shadow_{w}x{h}", w, h, out_w)
     drop = int(out_w * SHADOW_DROP)
-    m_in, s_in = _still_label(workdir, mask, "gray"), _still_label(workdir, shadow, "rgba")
+    m_in, s_in = _still_label(workdir, mask, "gray", frames), _still_label(workdir, shadow, "rgba", frames)
     lines.append(f"[{picture}]format=yuva420p[{name}p]")
-    # The shared stills run the whole clip; this shot's card stops with its picture.
+    # Each still runs as long as this shot (a frame or two over); the card stops with its picture.
     lines.append(f"[{name}p][{m_in}]alphamerge=shortest=1[{name}c]")
     lines.append(f"[{base}][{s_in}]overlay={x - pad}:{y - pad + drop}:eof_action=pass:shortest=1[{name}b]")
     lines.append(f"[{name}b][{name}c]overlay={x}:{y}:eof_action=pass,format=yuv420p[{out}]")
