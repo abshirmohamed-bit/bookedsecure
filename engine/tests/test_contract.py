@@ -108,3 +108,11 @@ def test_health_names_the_build_that_is_answering():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+
+
+def test_channel_notes_are_truncated_not_refused():
+    """App-generated, not typed by a person, so a long value is capped quietly."""
+    from app.routers.clips import AutoClipBody
+
+    body = AutoClipBody(asset_id="ast_x", channel_notes="x" * 5000)
+    assert len(body.validated()["channel_notes"]) == 1500

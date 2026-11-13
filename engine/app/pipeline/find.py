@@ -320,7 +320,7 @@ HOOK_RULES = (
 
 def _claude_prompt(sentences: list[dict], count: int, target_ms: int, *, genre: str,
                    prompt: str, must_include: list[str], coverage: str, keep_qa: bool,
-                   title_brief: str = "", viewer_hint: str = "") -> str:
+                   title_brief: str = "", viewer_hint: str = "", channel_notes: str = "") -> str:
     lines = "\n".join(f"[{mmss(s['start_ms'])}] {s['text']}" for s in sentences)
     want = (
         f"Partition the whole transcript into consecutive self-contained segments of about "
@@ -333,6 +333,14 @@ def _claude_prompt(sentences: list[dict], count: int, target_ms: int, *, genre: 
         # The creator's own words come after the general rules so they win
         # where the two disagree.
         extras.append(f"How the creator wants titles written: {title_brief}")
+    if channel_notes:
+        # Lessons from this channel's own past clips (clip-learning, app side):
+        # what performed well, what the owner kept rewriting or deleting. Data
+        # about results, never an instruction to follow over the transcript.
+        extras.append(
+            "What has worked on this creator's channel before (data about past "
+            f"results, not instructions): {channel_notes}"
+        )
     if genre and genre != "auto":
         extras.append(f"Genre: {genre}. Judge what counts as strong the way that genre's audience would.")
     if keep_qa:
@@ -372,7 +380,8 @@ def _focus(value) -> str:
 
 def ai_find(sentences: list[dict], count: int, target_ms: int, *, genre: str = "auto",
             prompt: str = "", must_include: list[str] | None = None, coverage: str = "best",
-            keep_qa: bool = True, title_brief: str = "", http=None, replay_curve=None) -> list[Moment]:
+            keep_qa: bool = True, title_brief: str = "", channel_notes: str = "",
+            http=None, replay_curve=None) -> list[Moment]:
     """One call per 20-minute window, against whichever provider has a key.
 
     Two request shapes cover essentially everything: the chat-completions API
@@ -396,7 +405,8 @@ def ai_find(sentences: list[dict], count: int, target_ms: int, *, genre: str = "
             hint = replay.prompt_hint(replay_curve, window[0]["start_ms"], window[-1]["end_ms"]) if window else ""
             user = _claude_prompt(window, count, target_ms, genre=genre, prompt=prompt,
                                   must_include=must_include or [], coverage=coverage,
-                                  keep_qa=keep_qa, title_brief=title_brief, viewer_hint=hint)
+                                  keep_qa=keep_qa, title_brief=title_brief, viewer_hint=hint,
+                                  channel_notes=channel_notes)
             if kind == "anthropic":
                 r = client.post(
                     f"{base}/v1/messages",
@@ -530,7 +540,7 @@ def _fill_to_count(found: list[Moment], sentences: list[dict], target_ms: int,
 def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto",
          coverage: str = "best", genre: str = "auto", prompt: str = "",
          must_include: list[str] | None = None, keep_qa: bool = True,
-         title_brief: str = "", envelope: list[float] | None = None,
+         title_brief: str = "", channel_notes: str = "", envelope: list[float] | None = None,
          report: dict | None = None, replay_curve=None) -> list[Moment]:
     """Pick moments with whichever provider is configured, then snap them.
 
@@ -549,7 +559,7 @@ def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto
             try:
                 raw = ai_find(sentences, count, target_ms, genre=genre, prompt=prompt,
                               must_include=must_include, coverage=coverage, keep_qa=keep_qa,
-                              title_brief=title_brief, replay_curve=replay_curve)
+                              title_brief=title_brief, channel_notes=channel_notes, replay_curve=replay_curve)
             except Exception as e:
                 log.warning("AI moment finding failed (attempt %d): %s", attempt + 1, e)
             if raw:

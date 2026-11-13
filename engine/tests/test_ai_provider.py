@@ -186,3 +186,22 @@ def test_a_title_brief_reaches_the_model_and_comes_last():
                           keep_qa=True, title_brief="always phrase it as a question")
     assert "always phrase it as a question" in text
     assert text.index("half second") < text.index("always phrase it as a question")
+
+
+def test_channel_notes_reach_the_model_as_data_not_instructions():
+    """Past performance on this channel is a lesson, never an order to obey."""
+    from app.pipeline.find import _claude_prompt
+
+    text = _claude_prompt([{"start_ms": 0, "end_ms": 1000, "text": "hi"}], 3, 20000,
+                          genre="auto", prompt="", must_include=[], coverage="best",
+                          keep_qa=True, channel_notes="Best hooks ask a question. Avoid long intros.")
+    assert "Best hooks ask a question. Avoid long intros." in text
+    assert "not instructions" in text.lower()
+
+
+def test_no_channel_notes_adds_nothing():
+    from app.pipeline.find import _claude_prompt
+
+    text = _claude_prompt([{"start_ms": 0, "end_ms": 1000, "text": "hi"}], 3, 20000,
+                          genre="auto", prompt="", must_include=[], coverage="best", keep_qa=True)
+    assert "channel" not in text.lower()

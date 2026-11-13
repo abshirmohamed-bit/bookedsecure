@@ -11,6 +11,7 @@ import { engineClient, engineConfigured } from "@/lib/engine.server";
 import { browserUploadsReady, clipVideoKey, publicUrlFor, signedUploadUrl, uploadedSize } from "@/lib/clip-upload.server";
 import { clipOriginal, type ClipEvent, deletedEvent, editEvents, lookAfter, titleEvent } from "@/lib/clip-learning";
 import { recordClipEvents } from "@/lib/clip-learning.server";
+import { channelLessons } from "@/lib/channel-lessons.server";
 import { ACTIVE_JOB_STATUSES, applyLineEdits, applyWordFixes, CAPTION_POSITIONS, CAPTION_SIZE, type CaptionLineEdit, type CaptionPosition, type CaptionWord, checkTrim, CLIP_LAYOUTS, CLIP_ZOOMS, type ClipJobOptions, type ClipLayout, type ClipZoom, clipsToRender, FALLBACK_CAPTION_STYLES, isPublicVideoLink, mergeTrimmedWords, readJobOptions, TITLE_STYLES, type TitlePosition, type TitleStyle, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect } from "@/lib/video-clips";
 
 type JobRow = Database["public"]["Tables"]["video_clip_jobs"]["Row"];
@@ -632,12 +633,15 @@ async function submit(job: JobRow) {
   const { data: claimed } = await supabaseAdmin.from("video_clip_jobs").update({ status: "PROCESSING", stage: "TRANSCRIBING", progress: 5, updated_at: now() }).eq("id", job.id).eq("status", "QUEUED").select("id").maybeSingle();
   if (!claimed) return;
   const o = readJobOptions(job.options);
+  // Clip learning step 3: what has worked on this channel before, as data for the finder (never an instruction).
+  const notes = await channelLessons(job.business_id).catch((e: unknown) => { console.error("channel lessons", e); return null; });
   const r = await engineClient<{ id: string }>("POST", "/v1/autoclip", {
     asset_id: job.engine_asset_id, coverage: "best", clip_count: job.clip_count ?? "auto", clip_length: "auto", genre: "auto", mode: "auto",
     prompt: job.instructions ?? "", confirm_count: false, edit_level: "full", aspect: job.aspect, formats: [o.layout ?? "auto"], framing: "auto",
     zoom: o.zoom ?? "auto", caption_style_id: o.captionStyleId ?? "bold_white",
     ...(o.captionPosition ? { caption_position: o.captionPosition } : {}), ...(o.captionSize ? { caption_size: o.captionSize } : {}),
     title_enabled: o.titleEnabled ?? true, title_style: o.titleStyle ?? "bold_band",
+    ...(notes ? { channel_notes: notes } : {}),
   });
   if (r.ok) { await supabaseAdmin.from("video_clip_jobs").update({ engine_job_id: r.data.id, updated_at: now() }).eq("id", job.id); return; }
   if (isTemporaryEngineError(r.error.code)) {

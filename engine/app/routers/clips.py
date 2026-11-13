@@ -110,6 +110,11 @@ class AutoClipBody(BaseModel):
     #: How the creator wants the on-video headline written. Not what it should
     #: say — the AI takes that from the clip — but the kind of line it is.
     title_brief: str = ""
+    #: Lessons from this channel's own past clips (clip-learning, app side):
+    #: what performed well and what the owner kept rewriting or deleting, as
+    #: plain text. Data about past results, never an instruction. Truncated
+    #: rather than refused: it is app-generated, not something a person types.
+    channel_notes: str = ""
     must_include: list[str] = Field(default_factory=list)
     headline_top_n: int = 0
     alternates: bool = False
@@ -157,6 +162,7 @@ class AutoClipBody(BaseModel):
             raise EngineError("VALIDATION_ERROR", "clip_count must be between 2 and 60, or \"auto\".")
         if len(self.prompt) > 500:
             raise EngineError("VALIDATION_ERROR", "the steering prompt is limited to 500 characters.")
+        self.channel_notes = self.channel_notes.strip()[:1500]
         return self.model_dump()
 
 

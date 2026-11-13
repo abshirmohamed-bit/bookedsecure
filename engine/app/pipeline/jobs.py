@@ -291,7 +291,8 @@ def _find(s: Session, job: Job, asset: Asset, params: dict) -> list[finder.Momen
         mode="energy" if mode == "visual" else mode,
         coverage=coverage, genre=params.get("genre", "auto"), prompt=params.get("prompt", ""),
         must_include=params.get("must_include") or [], keep_qa=params.get("keep_qa", True),
-        title_brief=params.get("title_brief", ""), envelope=envelope, report=report,
+        title_brief=params.get("title_brief", ""), channel_notes=params.get("channel_notes", ""),
+        envelope=envelope, report=report,
     )
     if report.get("note"):
         job.params = {**(job.params or {}), "finder_note": report["note"]}
