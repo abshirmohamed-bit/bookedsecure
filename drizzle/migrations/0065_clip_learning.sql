@@ -1,5 +1,5 @@
 -- Clip learning, step 1: what the Engine made, and what the owner changed.
--- Same as docs/clip-learning.sql (the copy Lovable applies).
+-- Lovable: please apply this as one migration (same as drizzle/migrations/0065_clip_learning.sql).
 -- Nothing is removed. Clipping and posting keep working before it is applied;
 -- the app starts recording once these exist.
 
