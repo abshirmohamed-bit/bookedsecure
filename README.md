@@ -1,5 +1,8 @@
 # BookedSecure
 
+> 📋 **To-do list:** see [`TODO.md`](TODO.md) for everything that's still open.
+
+
 # SMS Lead Recovery Micro-App MVP
 
 ## 1. Product Summary

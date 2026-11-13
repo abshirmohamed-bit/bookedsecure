@@ -9,6 +9,9 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
+> [!NOTE]
+> **Open to-dos live in [`TODO.md`](TODO.md).** Read it at the start of a session, and add or tick off items there when work is planned or finished.
+
 - Enforce deleted-lead slot release and reject booking writes to deleted leads in database triggers, preserving historical job rows; this covers all entry points and concurrent requests.
 - Schedule owner-entered jobs through a tenant-scoped atomic database function and propagate failures before reporting success; the job and lead state must commit together.
 - External assistants use OAuth-protected MCP in src/lib/mcp with one tool per file and the generated TanStack transport; never expose browser-session tokens or use admin clients in MCP tools.

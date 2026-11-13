@@ -83,25 +83,9 @@
 
 Earlier today: Facebook and Instagram posting, one Social media page, website booking API, assistants managing availability, Approved services redesign.
 
-## Your to-do list (morning)
+## To-do list
 
-1. **Lovable:** apply `docs/scheduled-posts.sql` from the repo as a migration, regenerate types, then publish.
-2. **Glocast:** Automations → Ask for a review → paste the Google review link → turn on. Then paste the quote chat code into the GoDaddy site in place of the inquiry form.
-3. **SiteVend and GuardFlow:** create their BookedSecure accounts. Then for each:
-   - **Services:** add "Free site assessment" or "Demo call" with a length, and set availability.
-   - **API key:** create an "Add leads" key and point the website forms at `POST /api/public/v1/leads`.
-   - **Facebook and LinkedIn:** connect them.
-4. **Delete the two test posts** on Glocast's Facebook and Instagram if you haven't yet.
-
-### Added 13 Nov: Glocast's "one tool" plan
-
-Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested live.
-
-5. **Google Ads Basic access:** Google Ads (manager account) → Tools → API Center → apply for Basic access, choose reporting only, and attach `docs/google/google-ads-api-design.pdf`. Review takes about 2–5 business days.
-6. **Google Ads, after approval:** set `GOOGLE_ADS_DEVELOPER_TOKEN` in Lovable secrets, then connect Glocast's account in Ad results and check the figures against Google Ads.
-7. **Competitor ads (to replace Adspirer):** decide whether to build the competitor tracker: saved Facebook pages, one-click Meta Ad Library links and notes. Meta's Ad Library API only returns Australian ads that are political or about social issues, so competitors' ordinary ads can't be pulled in automatically.
-8. **TikTok scheduling:** create a TikTok developer app for BookedSecure and apply for the Content Posting API. Until TikTok audits the app, posts can only be private, for up to 5 accounts a day.
-9. **Shared email inbox (to replace Outlook):** only if Glocast asks; Replies already covers campaign replies.
+Moved to [`TODO.md`](../TODO.md) at the top of the repo.
 
 ## Sources
 - Review links and repeat customers for detailers: [Auto Detailing Marketing Guide 2026](https://www.enrichlabs.ai/blog/auto-detailing-marketing-complete-guide-2026), [Customer retention for auto detailing](https://smart-website-pro.pages.dev/customer-retention-for-auto-detailing), [Mobile detailing trends 2026](https://neardetailer.pages.dev/blog/mobile-detailing-trends-2026/)
