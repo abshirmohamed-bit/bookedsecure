@@ -60,7 +60,7 @@ def _cards_in(frame) -> list[tuple[float, float, float, float]]:
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     out = []
     for c in contours:
-        x, y, bw, bh = cv2.boundingRect(c)
+        x, y, bw, bh = _solid_core(light, *cv2.boundingRect(c))
         area = bw * bh / (w * h)
         if not (MIN_AREA <= area <= MAX_AREA) or bw < MIN_WIDTH * w:
             continue
@@ -144,6 +144,37 @@ def subtitle_top(video: Path, in_ms: int, out_ms: int) -> "float | None":
     return seen[len(seen) // 10] - 0.01
 
 
+def _solid_core(mask, x: int, y: int, w: int, h: int) -> tuple[int, int, int, int]:
+    """The box trimmed to the rows and columns that are mostly card.
+
+    White text just beside a card (a channel label, a lower third) can join it
+    after the text-closing step, widening the box so a sliver of the label
+    ("Interna…") was shown with the card.
+    """
+    import numpy as np
+
+    roi = mask[y:y + h, x:x + w] > 0
+    if roi.size == 0:
+        return x, y, w, h
+
+    def run(fill) -> tuple[int, int]:
+        good = fill >= 0.6
+        best, start, at = (0, 0), None, 0
+        for i, g in enumerate(list(good) + [False]):
+            if g and start is None:
+                start = i
+            elif not g and start is not None:
+                if i - start > best[1] - best[0]:
+                    best = (start, i)
+                start = None
+            at = i
+        return best if best[1] > best[0] else (0, len(fill))
+
+    c0, c1 = run(roi.mean(axis=0))
+    r0, r1 = run(roi[:, c0:c1].mean(axis=1))
+    return x + c0, y + r0, c1 - c0, r1 - r0
+
+
 def _iou(a, b) -> float:
     ax2, ay2, bx2, by2 = a[0] + a[2], a[1] + a[3], b[0] + b[2], b[1] + b[3]
     iw = max(0.0, min(ax2, bx2) - max(a[0], b[0]))
@@ -206,7 +237,17 @@ def spans(seen: list[tuple[int, list]], start_ms: int, end_ms: int, *, min_ms: i
             ys = [b[1] for _, b in run]
             x2 = [b[0] + b[2] for _, b in run]
             y2 = [b[1] + b[3] for _, b in run]
-            box = (min(xs), min(ys), max(x2) - min(xs), max(y2) - min(ys))
+            # Nearly the union (a card that slides in is shown whole), but one odd
+            # sighting merged with a nearby label must not widen it.
+            def lo(v):
+                v = sorted(v)
+                return v[len(v) // 5]
+
+            def hi(v):
+                v = sorted(v)
+                return v[len(v) - 1 - len(v) // 5]
+
+            box = (lo(xs), lo(ys), hi(x2) - lo(xs), hi(y2) - lo(ys))
             a = max(start_ms, run[0][0] - step // 2)
             b = min(end_ms, run[-1][0] + step // 2)
             if run[0][0] - step <= start_ms:
