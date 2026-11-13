@@ -76,6 +76,7 @@ export function LivePreview({
   const video = useRef<HTMLVideoElement>(null);
   /** The second person of a split shot: a muted copy kept in step with the first. */
   const twins = useRef<(HTMLVideoElement | null)[]>([]);
+  const twinSeekAt = useRef<number[]>([]);
   const [frame, setFrame] = useState({ w: 0, h: 0 });
   const [natural, setNatural] = useState({ w: 0, h: 0 });
   const [now, setNow] = useState(start);
@@ -139,11 +140,17 @@ export function LivePreview({
       if (v) {
         const t = offsetMs + v.currentTime * 1000;
         if (t >= end || t < start - 1000) v.currentTime = Math.max(0, (start - offsetMs) / 1000);
-        for (const w of twins.current) {
-          if (!w) continue;
-          if (Math.abs(w.currentTime - v.currentTime) > 0.2) w.currentTime = v.currentTime;
+        const at = performance.now();
+        twins.current.forEach((w, i) => {
+          if (!w) return;
+          // Re-seek a copy that drifted, but not every frame: a copy still buffering
+          // was re-seeked on each frame and never showed a picture (an empty card).
+          if (Math.abs(w.currentTime - v.currentTime) > 0.25 && at - (twinSeekAt.current[i] ?? 0) > 1500) {
+            twinSeekAt.current[i] = at;
+            w.currentTime = v.currentTime;
+          }
           if (w.paused) void w.play().catch(() => undefined);
-        }
+        });
         const shown = Math.min(Math.max(t, start), end);
         setNow(shown);
         if (timeRef) timeRef.current = shown;
@@ -200,11 +207,17 @@ export function LivePreview({
     }
     return null;
   })();
+  // How many extra pictures any shot of this plan needs, so their copies can stay ready.
+  const slots = whole ? 0 : Math.max(0, ...(plan?.shots ?? []).map((s) =>
+    s.kind === "grid" ? Math.min(3, Math.max(0, s.cells.length - 1))
+      : s.kind === "split" ? 1
+      : (s.kind === "screen" && s.main) || (s.kind === "graphic" && s.main && s.inset) || (s.kind === "pip" && s.inset) ? 1 : 0));
   const bubble: Card | null = !whole && !failed && shot?.kind === "pip" && shot.inset && frame.w ? { box: pipBox(frame.w, frame.h), crop: shot.inset } : null;
   // The shot plan knows the picture's size before the video file does, so the card
   // appears at once (it waited ~2 s for the file's metadata); 16:9 until either knows.
   const picSize = source.w ? source : { w: 16, h: 9 };
   const glassBox = glass && frame.w ? glassCard(frame.w, frame.h, picSize.w, picSize.h) : null;
+  const extras: Card[] = [...(cards ? cards.slice(1) : split && !failed && frame.w && source.w ? [{ box: { x: 0, y: frame.h / 2, w: frame.w, h: frame.h / 2 }, crop: split[1]! }] : []), ...(bubble ? [bubble] : [])];
   const cardStyle = (b: { x: number; y: number; w: number; h: number }) => ({
     left: b.x, top: b.y, width: b.w, height: b.h, borderRadius: frame.w * LOOK.radius,
     boxShadow: `0 ${frame.w * LOOK.shadowDrop}px ${frame.w * LOOK.shadowBlur * 2}px rgba(0,0,0,${LOOK.shadowAlpha})`,
@@ -294,15 +307,22 @@ export function LivePreview({
             : split ? { left: 0, top: 0, width: "100%", height: "50%" } : { left: 0, top: 0, width: "100%", height: "100%" }}>
           {videoEl}
         </div>
-        {/* the other pictures of the composition: muted copies kept in step with the main video */}
-        {[...(cards ? cards.slice(1) : split && !failed && frame.w && source.w ? [{ box: { x: 0, y: frame.h / 2, w: frame.w, h: frame.h / 2 }, crop: split[1]! }] : []), ...(bubble ? [bubble] : [])].map((c, i) => (
-          <div key={`twin-${i}`} className={cards || bubble ? "absolute overflow-hidden" : "absolute overflow-hidden border-t-2 border-white/70"}
-            style={cards || bubble ? cardStyle(c.box) : { left: c.box.x, top: c.box.y, width: c.box.w, height: c.box.h }}>
-            <video ref={(el) => { twins.current[i] = el; }} src={src} muted playsInline preload="auto" aria-hidden="true" className="absolute max-w-none"
-              style={source.w ? coverStyle(c.crop, source, c.box) : undefined}
-              onLoadedMetadata={(e) => { e.currentTarget.currentTime = video.current?.currentTime ?? Math.max(0, (start - offsetMs) / 1000); }} />
-          </div>
-        ))}
+        {/* the other pictures of the composition: muted copies kept in step with the main video.
+            They stay mounted (and playing) for the whole clip, parked invisibly when a shot
+            doesn't use them: a copy made at the switch had to load and seek first, and its
+            card sat empty over the blur for seconds. */}
+        {Array.from({ length: slots }, (_, i) => {
+          const c = extras[i];
+          return (
+            <div key={`twin-${i}`} className={c && !cards && !bubble ? "absolute overflow-hidden border-t-2 border-white/70" : "absolute overflow-hidden"}
+              style={!c ? { left: 0, top: 0, width: 2, height: 2, opacity: 0, pointerEvents: "none" }
+                : cards || bubble ? cardStyle(c.box) : { left: c.box.x, top: c.box.y, width: c.box.w, height: c.box.h }}>
+              <video ref={(el) => { twins.current[i] = el; }} src={src} muted playsInline preload="auto" aria-hidden="true" className="absolute max-w-none"
+                style={c && source.w ? coverStyle(c.crop, source, c.box) : undefined}
+                onLoadedMetadata={(e) => { e.currentTarget.currentTime = video.current?.currentTime ?? Math.max(0, (start - offsetMs) / 1000); }} />
+            </div>
+          );
+        })}
       </div>
 
       {layout === "title-subtitles" && end > start ? (
