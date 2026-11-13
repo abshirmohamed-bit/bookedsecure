@@ -180,10 +180,14 @@ export async function bookingEmailSettings(businessId: string): Promise<BookingE
 }
 
 /** Renders and sends one email from settings and values. Returns the provider id. */
-export async function deliverRenderedEmail(input: { to: string; businessName: string; settings: BookingEmailSettings; values: BookingEmailValues; replyTo: string | null }) {
-  const { sendEmailViaResend } = await import("@/lib/email-campaigns.server");
+export async function deliverRenderedEmail(input: { businessId: string; to: string; businessName: string; settings: BookingEmailSettings; values: BookingEmailValues; replyTo: string | null }) {
+  const { sendEmailViaResend, loadEmailBranding } = await import("@/lib/email-campaigns.server");
+  const { DEFAULT_BOOKING_EMAIL_HTML } = await import("@/lib/booking-email");
+  const { themeDefaultBookingHtml } = await import("@/lib/email-theme");
+  const { branding } = await loadEmailBranding(input.businessId);
   const subject = fillBookingEmail(input.settings.subject, input.values, "text").slice(0, 250);
-  const html = fillBookingEmail(input.settings.html, input.values, "html");
+  // The built-in confirmation follows the business's email template; custom HTML is left as written.
+  const html = fillBookingEmail(themeDefaultBookingHtml(input.settings.html, DEFAULT_BOOKING_EMAIL_HTML, branding.theme), input.values, "html");
   const text = htmlToText(html);
   const fromName = input.businessName.replace(/[<>"\r\n]/g, "").trim() || "Bookings";
   const sent = await sendEmailViaResend({ from: `${fromName} <${BOOKING_FROM_ADDRESS}>`, to: input.to, subject, html, text, replyTo: input.replyTo });
@@ -213,7 +217,7 @@ export async function sendBookingConfirmationEmail(businessId: string, jobId: st
   }
   try {
     const replyTo = settings.replyTo || (await defaultReplyTo(businessId));
-    const sent = await deliverRenderedEmail({ to: email, businessName: f.business.name, settings, values, replyTo });
+    const sent = await deliverRenderedEmail({ businessId, to: email, businessName: f.business.name, settings, values, replyTo });
     await supabaseAdmin.from("booking_confirmations").update({ status: "sent", reason: null, subject: sent.subject, provider_message_id: sent.id, updated_at: now() })
       .eq("job_id", jobId).eq("channel", "email").eq("status", "sending");
     return out("sent", `Emailed ${email}.`);
@@ -392,6 +396,6 @@ export async function sendTestBookingEmail(businessId: string, to: string, setti
   const values = sampleBookingEmailValues(business.name, phone);
   const { mailboxSender } = await import("@/lib/email-inbox.server");
   const replyTo = settings.replyTo || (await mailboxSender(businessId))?.address || to;
-  await deliverRenderedEmail({ to, businessName: business.name, settings, values, replyTo });
+  await deliverRenderedEmail({ businessId, to, businessName: business.name, settings, values, replyTo });
   return { sentTo: to };
 }

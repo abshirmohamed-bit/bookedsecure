@@ -148,3 +148,25 @@ export const getLeadInboxThreads = createServerFn({ method: "GET" })
     const app = await requireAppContext(context.supabase, context.userId);
     return leadInboxThreads(app.businessId, data.leadId);
   });
+
+/** The business's email template, for the Email template dialog. */
+export const getEmailTheme = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const { getEmailThemeState } = await import("@/lib/email-inbox.server");
+    const app = await requireAppContext(context.supabase, context.userId);
+    return { ...(await getEmailThemeState(app.businessId)), canEdit: app.role !== "staff" };
+  });
+
+/** Applies an email template to every business email (null goes back to the BookedSecure look). Owners only. */
+export const saveEmailThemeFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ theme: z.record(z.unknown()).nullable() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { requireWriteContext, requireOwner } = await import("@/lib/app-context.server");
+    const { saveEmailTheme } = await import("@/lib/email-inbox.server");
+    const app = await requireWriteContext(context.supabase, context.userId);
+    requireOwner(app);
+    return saveEmailTheme(app.businessId, data.theme);
+  });

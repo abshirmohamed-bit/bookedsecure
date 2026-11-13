@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, AtSign, Inbox, Loader2, Mail, Paperclip, PenSquare, Search, Send, Settings2, X } from "lucide-react";
+import { ArrowLeft, AtSign, Inbox, Loader2, Mail, Palette, Paperclip, PenSquare, Search, Send, Settings2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -16,6 +16,7 @@ import { getInboxList, getInboxMailbox, saveInboxMailbox } from "@/lib/email-inb
 import { INBOX_DOMAIN, INBOX_FOLDERS, localPartProblem, normaliseLocalPart, type InboxFolder } from "@/lib/email-inbox";
 import { InboxComposer, type ComposeRequest } from "@/components/campaigns/InboxComposer";
 import { MailThread } from "@/components/campaigns/MailThread";
+import { EmailTemplatePanel } from "@/components/campaigns/EmailTemplateDialog";
 
 export type InboxSearch = { thread?: string; conversation?: string; campaign?: string; folder?: InboxFolder; compose?: string };
 
@@ -232,17 +233,32 @@ function MailboxSettings({ open, onOpenChange, current, suggested, businessName,
   businessName: string;
   canEdit: boolean;
 }) {
+  const [view, setView] = useState<"address" | "template">("address");
+  const change = (next: boolean) => { if (!next) setView("address"); onOpenChange(next); };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogTitle>Your email address</DialogTitle>
-        <DialogDescription>
-          {current ? `Email to ${current.address} arrives in this inbox, and what you send comes from it.` : `Choose the address customers see. It ends in @${INBOX_DOMAIN}.`}
-        </DialogDescription>
-        {canEdit ? (
-          <MailboxForm suggested={suggested} current={current} businessName={businessName} onSaved={() => onOpenChange(false)} />
+    <Dialog open={open} onOpenChange={change}>
+      <DialogContent className={view === "template" ? "max-h-[92dvh] overflow-y-auto sm:max-w-4xl" : "sm:max-w-md"}>
+        {view === "template" ? (
+          <>
+            <DialogTitle>Email template</DialogTitle>
+            <DialogDescription>Upload or paste a template file, check the preview, then apply it to every email your business sends.</DialogDescription>
+            <EmailTemplatePanel signature={current?.signature ?? null} onBack={() => setView("address")} />
+          </>
         ) : (
-          <p className="text-sm text-muted-foreground">Only the business owner can change this.</p>
+          <>
+            <DialogTitle>Your email address</DialogTitle>
+            <DialogDescription>
+              {current ? `Email to ${current.address} arrives in this inbox, and what you send comes from it.` : `Choose the address customers see. It ends in @${INBOX_DOMAIN}.`}
+            </DialogDescription>
+            {canEdit ? (
+              <MailboxForm suggested={suggested} current={current} businessName={businessName} onSaved={() => change(false)} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Only the business owner can change this.</p>
+            )}
+            <Button type="button" variant="outline" className="w-full" onClick={() => setView("template")}>
+              <Palette className="size-4" /> Email template
+            </Button>
+          </>
         )}
       </DialogContent>
     </Dialog>

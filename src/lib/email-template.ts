@@ -6,7 +6,10 @@
  * 600px card on a soft background (so it reads as a designed message rather
  * than text floating in a wide window), a hidden preview line, and a plain
  * text twin for spam filters and text-only clients. All owner text is escaped.
+ * A business's own look (lib/email-theme: colours, font, logo, buttons,
+ * footer line) is applied through `theme`; it never adds HTML.
  */
+import { resolveEmailLook, type EmailTheme } from "@/lib/email-theme";
 
 export type EmailBranding = {
   businessName: string;
@@ -15,6 +18,8 @@ export type EmailBranding = {
   websiteUrl?: string | null;
   serviceArea?: string | null;
   abn?: string | null;
+  /** The business's email template (businesses.email_theme). */
+  theme?: EmailTheme | null;
 };
 
 export type EmailContent = {
@@ -29,19 +34,6 @@ export type EmailContent = {
   /** Preview text shown next to the subject in the inbox. Defaults to the first line. */
   preheader?: string | null;
 };
-
-const C = {
-  page: "#eef2f8",
-  card: "#ffffff",
-  border: "#dfe6f0",
-  ink: "#16243b",
-  body: "#2b3a52",
-  muted: "#6b7a90",
-  brand: "#1e5fc2",
-  brandDeep: "#0e3e7e",
-  footer: "#f6f8fc",
-};
-const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 export function escapeHtml(text: string): string {
   return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -67,8 +59,10 @@ function initials(name: string): string {
 }
 
 export function renderEmailHtml(brand: EmailBranding, content: EmailContent): string {
+  const C = resolveEmailLook(brand.theme);
+  const FONT = C.font;
   const name = escapeHtml(brand.businessName);
-  const logo = safeUrl(brand.logoUrl);
+  const logo = C.showLogo ? safeUrl(brand.logoUrl) : null;
   const website = safeUrl(brand.websiteUrl);
   const cta = content.cta ? { label: escapeHtml(content.cta.label), url: safeUrl(content.cta.url) } : null;
   const blocks = paragraphs(content.bodyText);
@@ -77,15 +71,15 @@ export function renderEmailHtml(brand: EmailBranding, content: EmailContent): st
 
   const mark = logo
     ? `<img src="${escapeHtml(logo)}" width="40" height="40" alt="${name}" style="display:block;width:40px;height:40px;border-radius:10px;object-fit:contain;border:0;">`
-    : `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;border-radius:10px;background:${C.brand};background-image:linear-gradient(135deg,#3b8de0,${C.brandDeep});color:#ffffff;font:600 15px ${FONT};">${escapeHtml(initials(brand.businessName))}</td></tr></table>`;
+    : `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="40" height="40" align="center" valign="middle" style="width:40px;height:40px;border-radius:10px;background:${C.brand};color:${C.buttonText};font:600 15px ${FONT};">${escapeHtml(initials(brand.businessName))}</td></tr></table>`;
 
   const body = blocks
     .map((block) => `<p style="margin:0 0 16px;font:400 16px/1.65 ${FONT};color:${C.body};">${escapeHtml(block).replaceAll("\n", "<br>")}</p>`)
     .join("\n");
 
   const button = cta?.url
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 8px;"><tr><td align="center" bgcolor="${C.brand}" style="border-radius:10px;background:${C.brand};">
-         <a href="${escapeHtml(cta.url)}" style="display:inline-block;padding:13px 26px;font:600 15px ${FONT};color:#ffffff;text-decoration:none;border-radius:10px;">${cta.label}</a>
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 8px;"><tr><td align="center" bgcolor="${C.brand}" style="border-radius:${C.buttonRadius};background:${C.brand};">
+         <a href="${escapeHtml(cta.url)}" style="display:inline-block;padding:13px 26px;font:600 15px ${FONT};color:${C.buttonText};text-decoration:none;border-radius:${C.buttonRadius};">${cta.label}</a>
        </td></tr></table>`
     : "";
 
@@ -106,10 +100,10 @@ export function renderEmailHtml(brand: EmailBranding, content: EmailContent): st
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">${preheader}&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.page};">
   <tr><td align="center" style="padding:32px 12px;">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:${C.card};border:1px solid ${C.border};border-radius:16px;overflow:hidden;">
-      <tr><td style="padding:22px 32px;border-bottom:1px solid ${C.border};">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-          <td valign="middle" style="padding-right:12px;">${mark}</td>
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:${C.card};border:1px solid ${C.border};border-radius:${C.cardRadius};overflow:hidden;">
+      <tr><td${C.logoAlign === "center" ? ' align="center"' : ""} style="padding:22px 32px;border-bottom:1px solid ${C.border};">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"${C.logoAlign === "center" ? ' align="center"' : ""}><tr>
+          ${C.showLogo ? `<td valign="middle" style="padding-right:12px;">${mark}</td>` : ""}
           <td valign="middle" style="font:600 17px ${FONT};color:${C.ink};">${name}</td>
         </tr></table>
       </td></tr>
@@ -121,6 +115,7 @@ export function renderEmailHtml(brand: EmailBranding, content: EmailContent): st
       <tr><td style="padding:20px 32px 24px;background:${C.footer};border-top:1px solid ${C.border};">
         <p style="margin:0;font:600 13px ${FONT};color:${C.ink};">${name}</p>
         ${details ? `<p style="margin:4px 0 0;font:400 12px/1.5 ${FONT};color:${C.muted};">${details}</p>` : ""}
+        ${C.footerNote ? `<p style="margin:8px 0 0;font:400 12px/1.5 ${FONT};color:${C.muted};">${escapeHtml(C.footerNote).replaceAll("\n", "<br>")}</p>` : ""}
         <p style="margin:12px 0 0;font:400 12px/1.5 ${FONT};color:${C.muted};">Reply to this email to get in touch with ${name}.</p>
       </td></tr>
     </table>
@@ -144,6 +139,7 @@ export function renderEmailText(brand: EmailBranding, content: EmailContent): st
     content.cta && safeUrl(content.cta.url) ? `${content.cta.label}: ${safeUrl(content.cta.url)}` : null,
     "--",
     [brand.businessName, brand.serviceArea, website, brand.abn ? `ABN ${brand.abn}` : null].filter(Boolean).join(" · "),
+    resolveEmailLook(brand.theme).footerNote,
     content.unsubscribeUrl ? `Unsubscribe: ${content.unsubscribeUrl}` : null,
   ]
     .filter(Boolean)

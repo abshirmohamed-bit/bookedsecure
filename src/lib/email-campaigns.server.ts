@@ -10,6 +10,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { replyToHeader } from "@/lib/email-inbound";
+import { readEmailTheme, type EmailTheme } from "@/lib/email-theme";
 import { LEAD_FINDER_UTM_SOURCE,
   bookedRecipients,
   buildEmailHtml,
@@ -91,29 +92,36 @@ export async function sendEmailViaResend(input: {
 export type EmailBranding = {
   businessName: string;
   timeZone: string;
-  branding: { logoUrl: string | null; websiteUrl: string | null; serviceArea: string | null; abn: string | null };
+  branding: { logoUrl: string | null; websiteUrl: string | null; serviceArea: string | null; abn: string | null; theme: EmailTheme | null };
 };
 
-/** Name, time zone, logo and footer details for the email template. The one loader for every business email. */
+const BRANDING_COLUMNS = "name, timezone, logo_storage_path, logo_url, website_url, service_area, abn";
+/** False once we know businesses.email_theme doesn't exist yet (docs/email-theme.sql not applied). */
+let themeColumn: boolean | null = null;
+
+/** Name, time zone, logo, footer details and email template for every business email. The one loader. */
 export async function loadEmailBranding(businessId: string): Promise<EmailBranding> {
-  const { data } = await supabaseAdmin
-    .from("businesses")
-    .select("name, timezone, logo_storage_path, logo_url, website_url, service_area, abn")
-    .eq("id", businessId)
-    .maybeSingle();
-  const logoUrl = data?.logo_storage_path
+  const read = (cols: string) => supabaseAdmin.from("businesses").select(cols).eq("id", businessId).maybeSingle();
+  let result = themeColumn === false ? await read(BRANDING_COLUMNS) : await read(`${BRANDING_COLUMNS}, email_theme`);
+  if (result.error && themeColumn !== false && (result.error.code === "42703" || result.error.code === "PGRST204")) {
+    themeColumn = false;
+    result = await read(BRANDING_COLUMNS);
+  } else if (!result.error && themeColumn === null) themeColumn = true;
+  const data = result.data as unknown as Record<string, unknown> | null;
+  const logoUrl = data?.["logo_storage_path"]
     ? `${appOrigin()}/api/public/tenant-logo/${businessId}`
-    : typeof data?.logo_url === "string" && /^https:\/\//.test(data.logo_url)
-      ? data.logo_url
+    : typeof data?.["logo_url"] === "string" && /^https:\/\//.test(data["logo_url"])
+      ? data["logo_url"]
       : null;
   return {
-    businessName: (data?.name as string | null) ?? "your business",
-    timeZone: (data?.timezone as string | null) ?? "Australia/Sydney",
+    businessName: (data?.["name"] as string | null) ?? "your business",
+    timeZone: (data?.["timezone"] as string | null) ?? "Australia/Sydney",
     branding: {
       logoUrl,
-      websiteUrl: (data?.website_url as string | null) ?? null,
-      serviceArea: (data?.service_area as string | null) ?? null,
-      abn: (data?.abn as string | null) ?? null,
+      websiteUrl: (data?.["website_url"] as string | null) ?? null,
+      serviceArea: (data?.["service_area"] as string | null) ?? null,
+      abn: (data?.["abn"] as string | null) ?? null,
+      theme: readEmailTheme(data?.["email_theme"]),
     },
   };
 }

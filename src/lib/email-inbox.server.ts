@@ -739,3 +739,31 @@ export async function sendInboxEmail(input: SendInput): Promise<{ sent: boolean;
   await refreshThread(threadId);
   return { sent: true, threadId };
 }
+
+/* ---------- Email template (businesses.email_theme) ---------- */
+
+/** The saved template plus what the preview needs (name, logo, footer, signature). */
+export async function getEmailThemeState(businessId: string) {
+  const { loadEmailBranding } = await import("@/lib/email-campaigns.server");
+  const probe = await supabaseAdmin.from("businesses").select("email_theme" as "id").eq("id", businessId).maybeSingle();
+  const setupMissing = Boolean(probe.error && (probe.error.code === "42703" || probe.error.code === "PGRST204"));
+  const { businessName, branding } = await loadEmailBranding(businessId);
+  return { setupMissing, theme: branding.theme, preview: { businessName, ...branding, theme: null } };
+}
+
+/** Saves (or with null, removes) the business's email template. */
+export async function saveEmailTheme(businessId: string, input: unknown) {
+  const { parseEmailTheme } = await import("@/lib/email-theme");
+  let theme: Record<string, unknown> | null = null;
+  if (input !== null) {
+    const parsed = parseEmailTheme(input);
+    if (!parsed.theme) throw new Error(parsed.errors.join(" "));
+    theme = parsed.theme as Record<string, unknown>;
+  }
+  const { error } = await supabaseAdmin.from("businesses").update({ email_theme: theme } as never).eq("id", businessId);
+  if (error) {
+    if (error.code === "42703" || error.code === "PGRST204") throw new Error("Email templates are waiting for a database update (docs/email-theme.sql).");
+    throw new Error("The email template could not be saved.");
+  }
+  return { saved: true };
+}
