@@ -71,6 +71,13 @@ describe("email reply notifications", () => {
     expect(group).toMatchObject({ title: "Jess", subtitle: "Email replies", countLabel: "2 emails", action: "Reply", category: "messages" });
     expect(group!.link).toEqual({ to: "/campaigns/replies", search: { thread: id } });
   });
+
+  it("open an inbox email in its conversation", () => {
+    const row = { id: "n1", lead_id: null, kind: "email_reply", title: "Email from Sam", body: "Quote: hi", metadata: { thread_id: id, recipient_id: null }, created_at: "2026-11-10T01:00:00Z", read_at: null };
+    const [group] = buildFeed([row]);
+    expect(group).toMatchObject({ title: "Sam", subtitle: "Email" });
+    expect(group!.link).toEqual({ to: "/campaigns/replies", search: { conversation: id } });
+  });
 });
 
 describe("BookedSecure's own mailboxes", () => {

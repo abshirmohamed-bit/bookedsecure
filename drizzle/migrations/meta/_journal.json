@@ -477,6 +477,13 @@
       "when": 1794559386915,
       "tag": "0067_apply_post_insight_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1794559387915,
+      "tag": "0068_email_inbox",
+      "breakpoints": true
     }
   ]
 }

@@ -648,24 +648,36 @@ function ActivityPanel({
   );
 }
 
-/** Campaign emails this customer got, and whether they replied (opens the thread in Replies). */
+/** Emails with this customer: inbox conversations and the campaign emails they got (opens them in the Inbox). */
 function LeadEmailHistory({ leadId }: { leadId: string }) {
   const [rows, setRows] = useState<Array<{ recipientId: string; campaignId: string; subject: string; status: string; sentAt: string | null; followUpSentAt: string | null; replies: number }> | null>(null);
+  const [threads, setThreads] = useState<Array<{ id: string; subject: string; lastAt: string; unread: number; messages: number }>>([]);
   useEffect(() => {
     let live = true;
     void import("@/lib/email-campaigns.functions").then(({ getLeadEmailHistory }) => getLeadEmailHistory({ data: { leadId } }))
       .then((r) => { if (live) setRows(r); }).catch(() => { if (live) setRows([]); });
+    void import("@/lib/email-inbox.functions").then(({ getLeadInboxThreads }) => getLeadInboxThreads({ data: { leadId } }))
+      .then((r) => { if (live) setThreads(r); }).catch(() => undefined);
     return () => { live = false; };
   }, [leadId]);
-  if (!rows || rows.length === 0) return null;
+  const day = (iso: string) => new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
   return (
     <div className="mt-3 space-y-1.5 border-t border-border pt-3">
-      <p className="text-xs font-medium">Campaign emails</p>
-      {rows.map((r) => (
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium">Emails</p>
+        <Link to="/campaigns/replies" search={{ compose: leadId }} className="shrink-0 text-xs font-medium text-primary hover:underline">Write from Inbox</Link>
+      </div>
+      {threads.map((t) => (
+        <div key={t.id} className="flex items-start justify-between gap-2 text-xs">
+          <Link to="/campaigns/replies" search={{ conversation: t.id }} className={`min-w-0 flex-1 truncate hover:text-primary ${t.unread ? "font-semibold" : ""}`}>{t.subject}</Link>
+          <span className="shrink-0 text-muted-foreground">{day(t.lastAt)}{t.messages > 1 ? ` · ${t.messages}` : ""}</span>
+        </div>
+      ))}
+      {(rows ?? []).map((r) => (
         <div key={r.recipientId} className="flex items-start justify-between gap-2 text-xs">
           <Link to="/campaigns/$campaignId" params={{ campaignId: r.campaignId }} className="min-w-0 flex-1 truncate hover:text-primary">{r.subject}</Link>
           <span className="shrink-0 text-muted-foreground">
-            {r.sentAt ? new Date(r.sentAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : r.status}
+            {r.sentAt ? day(r.sentAt) : r.status}
             {r.followUpSentAt ? " · follow-up sent" : ""}
           </span>
           {r.replies > 0 && (

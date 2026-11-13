@@ -41,11 +41,16 @@ export function unsubscribeUrl(businessId: string, email: string): string {
 /** BookedSecure's one email sender (the Lovable Resend connector). Campaigns, replies and booking confirmations all go through it. */
 export async function sendEmailViaResend(input: {
   from: string;
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   text?: string;
   replyTo?: string | null;
+  cc?: string[];
+  bcc?: string[];
+  /** Files Resend fetches from a (signed) URL while sending. */
+  attachments?: { filename: string; path: string; content_type?: string }[];
+  headers?: Record<string, string>;
 }): Promise<{ id: string | null }> {
   const lovableKey = process.env["LOVABLE_API_KEY"];
   if (!lovableKey) throw new Error("LOVABLE_API_KEY is not configured");
@@ -61,11 +66,15 @@ export async function sendEmailViaResend(input: {
     },
     body: JSON.stringify({
       from: input.from,
-      to: [input.to],
+      to: Array.isArray(input.to) ? input.to : [input.to],
       subject: input.subject,
       html: input.html,
       ...(input.text ? { text: input.text } : {}),
       ...(input.replyTo ? { reply_to: input.replyTo } : {}),
+      ...(input.cc?.length ? { cc: input.cc } : {}),
+      ...(input.bcc?.length ? { bcc: input.bcc } : {}),
+      ...(input.attachments?.length ? { attachments: input.attachments } : {}),
+      ...(input.headers && Object.keys(input.headers).length ? { headers: input.headers } : {}),
     }),
   });
 

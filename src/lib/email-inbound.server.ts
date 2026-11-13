@@ -39,16 +39,7 @@ async function resendSend(payload: Record<string, unknown>): Promise<{ id: strin
   return { id: parsed?.id ?? null };
 }
 
-type ReceivedEmail = {
-  id: string;
-  from: string;
-  to: string[];
-  subject: string | null;
-  text: string | null;
-  html: string | null;
-  message_id: string | null;
-  headers?: Record<string, string> | null;
-};
+type ReceivedEmail = import("@/lib/email-inbox.server").ReceivedEmail;
 
 /** Full content of a received email (the webhook only carries metadata). */
 async function fetchReceivedEmail(id: string): Promise<ReceivedEmail> {
@@ -149,7 +140,11 @@ export async function storeInboundReply(emailId: string, hintedTo: string[] = []
   if (!recipientId) {
     const mailbox = platformMailboxFrom([...(email.to ?? []), ...hintedTo]);
     if (mailbox) return forwardPlatformMail(email, mailbox);
-    return { stored: false, reason: "not a campaign reply" };
+    // Mail to a business's own address (<name>@bookedsecure.com) goes to its inbox.
+    const { storeMailboxEmail } = await import("@/lib/email-inbox.server");
+    const result = await storeMailboxEmail(email, hintedTo);
+    if (result.stored > 0) return { stored: true, reason: "inbox", count: result.stored };
+    return { stored: false, reason: result.reason ?? "not a campaign reply" };
   }
 
   const { data: recipient } = await supabaseAdmin.from("email_campaign_recipients")
