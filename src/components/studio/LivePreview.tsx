@@ -151,17 +151,24 @@ export function LivePreview({
             // shot needs it. (Left playing invisibly, the browser throttled it and it fell
             // seconds behind: a split showed the host in one card and the ISS in the other.)
             if (!w.paused) w.pause();
+            if (w.playbackRate !== 1) w.playbackRate = 1;
             if (drift > 0.2 && at - (twinSeekAt.current[i] ?? 0) > 400) {
               twinSeekAt.current[i] = at;
               w.currentTime = v.currentTime;
             }
             return;
           }
-          // In use: kept in step, but not re-seeked every frame (a copy still buffering
-          // was, and never showed a picture).
-          if (drift > 0.12 && at - (twinSeekAt.current[i] ?? 0) > 500) {
+          // In use: kept in step by playing a little faster or slower. Seeking to catch
+          // up never caught up: a seek takes about as long as the gap it closes, so the
+          // copy landed ~0.46 s behind every time. Only a big gap is seeked, aimed ahead.
+          const ahead = w.currentTime - v.currentTime;
+          if (drift > 1 && at - (twinSeekAt.current[i] ?? 0) > 1000) {
             twinSeekAt.current[i] = at;
-            w.currentTime = v.currentTime;
+            w.currentTime = v.currentTime + 0.4;
+            w.playbackRate = 1;
+          } else {
+            const rate = drift < 0.03 ? 1 : Math.min(1.5, Math.max(0.6, 1 - ahead * 1.6));
+            if (Math.abs(w.playbackRate - rate) > 0.02) w.playbackRate = rate;
           }
           if (w.paused) void w.play().catch(() => undefined);
         });
