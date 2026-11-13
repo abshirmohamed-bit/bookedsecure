@@ -1816,11 +1816,50 @@ export type Database = {
           },
         ]
       }
+      email_mailboxes: {
+        Row: {
+          business_id: string
+          created_at: string
+          display_name: string | null
+          local_part: string
+          signature: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          display_name?: string | null
+          local_part: string
+          signature?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          display_name?: string | null
+          local_part?: string
+          signature?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_mailboxes_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_messages: {
         Row: {
+          attachments: Json
+          bcc_emails: string[]
+          body_html: string | null
           body_text: string
           business_id: string
           campaign_id: string | null
+          cc_emails: string[]
           created_at: string
           direction: string
           error: string | null
@@ -1833,14 +1872,21 @@ export type Database = {
           provider_id: string | null
           read_at: string | null
           recipient_id: string | null
+          references_header: string | null
           status: string
           subject: string | null
+          thread_id: string | null
           to_email: string
+          to_emails: string[]
         }
         Insert: {
+          attachments?: Json
+          bcc_emails?: string[]
+          body_html?: string | null
           body_text?: string
           business_id: string
           campaign_id?: string | null
+          cc_emails?: string[]
           created_at?: string
           direction: string
           error?: string | null
@@ -1853,14 +1899,21 @@ export type Database = {
           provider_id?: string | null
           read_at?: string | null
           recipient_id?: string | null
+          references_header?: string | null
           status?: string
           subject?: string | null
+          thread_id?: string | null
           to_email: string
+          to_emails?: string[]
         }
         Update: {
+          attachments?: Json
+          bcc_emails?: string[]
+          body_html?: string | null
           body_text?: string
           business_id?: string
           campaign_id?: string | null
+          cc_emails?: string[]
           created_at?: string
           direction?: string
           error?: string | null
@@ -1873,9 +1926,12 @@ export type Database = {
           provider_id?: string | null
           read_at?: string | null
           recipient_id?: string | null
+          references_header?: string | null
           status?: string
           subject?: string | null
+          thread_id?: string | null
           to_email?: string
+          to_emails?: string[]
         }
         Relationships: [
           {
@@ -1911,6 +1967,92 @@ export type Database = {
             columns: ["recipient_id"]
             isOneToOne: false
             referencedRelation: "email_campaign_recipients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "email_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_threads: {
+        Row: {
+          archived_at: string | null
+          business_id: string
+          created_at: string
+          has_attachments: boolean
+          has_inbound: boolean
+          has_outbound: boolean
+          id: string
+          last_direction: string
+          last_from: string | null
+          last_message_at: string
+          last_snippet: string
+          lead_id: string | null
+          message_count: number
+          participants: string[]
+          subject: string
+          unread_count: number
+        }
+        Insert: {
+          archived_at?: string | null
+          business_id: string
+          created_at?: string
+          has_attachments?: boolean
+          has_inbound?: boolean
+          has_outbound?: boolean
+          id?: string
+          last_direction?: string
+          last_from?: string | null
+          last_message_at?: string
+          last_snippet?: string
+          lead_id?: string | null
+          message_count?: number
+          participants?: string[]
+          subject?: string
+          unread_count?: number
+        }
+        Update: {
+          archived_at?: string | null
+          business_id?: string
+          created_at?: string
+          has_attachments?: boolean
+          has_inbound?: boolean
+          has_outbound?: boolean
+          id?: string
+          last_direction?: string
+          last_from?: string | null
+          last_message_at?: string
+          last_snippet?: string
+          lead_id?: string | null
+          message_count?: number
+          participants?: string[]
+          subject?: string
+          unread_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_threads_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_threads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_threads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
