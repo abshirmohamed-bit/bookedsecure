@@ -209,6 +209,8 @@ export function buildAssistantSystemPrompt(input: {
   hasAttachment?: boolean;
   /** A file uploaded earlier in this conversation that is still available. */
   rememberedFilename?: string | null;
+  /** What Co-Work remembers and the skills it saved (lib/cowork-memory memoryPromptLines). */
+  memoryLines?: string[];
 }): string {
   const who = input.businessName?.trim() || "this business";
   const isOwner = input.role !== "staff";
@@ -268,6 +270,7 @@ export function buildAssistantSystemPrompt(input: {
       ? `- The file "${input.rememberedFilename}" was uploaded earlier in this conversation and is still available to you: the owner does not need to upload it again. Use it with preview_import when they refer to that file or those contacts. Never import it unless they ask.`
       : "",
     "- Reply in plain Australian English. Keep it short: a few sentences for actions, a compact list of lines when reporting figures or several people. No em dashes.",
+    ...(input.memoryLines ?? []),
   ]
     .filter(Boolean)
     .join("\n");

@@ -54,6 +54,10 @@ export async function runAssistantAgent(input: {
     .maybeSingle();
   const timeZone = assistantTimeZone(business?.timezone ?? null);
   const local = nowInZone(timeZone);
+  // What Co-Work remembers about this business and the skills it saved (never blocks a turn).
+  const { promptKnowledge } = await import("@/lib/cowork-memory.server");
+  const { memoryPromptLines } = await import("@/lib/cowork-memory");
+  const knowledge = await promptKnowledge(input.businessId);
 
   const executed: string[] = [];
   const proposals: OwnerProposal[] = [];
@@ -102,6 +106,7 @@ export async function runAssistantAgent(input: {
       ...(input.attachment && input.attachmentRemembered
         ? { rememberedFilename: input.attachment.filename }
         : {}),
+      memoryLines: memoryPromptLines(knowledge.memories, knowledge.skills),
     }),
     messages,
     tools,

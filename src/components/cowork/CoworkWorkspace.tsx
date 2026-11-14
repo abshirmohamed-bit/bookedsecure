@@ -5,6 +5,7 @@ import { ArrowLeft, Clapperboard, History, Loader2, Maximize2, MessageCircle, Pe
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { CoworkHistory } from "@/components/cowork/CoworkHistory";
+import { CoworkKnows } from "@/components/cowork/CoworkKnows";
 import { OwnerAssistant, type CoworkComposerApi, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
 import { Portal } from "@/components/Portal";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
@@ -125,6 +126,8 @@ export function CoworkWorkspace({
 
   const busy = createThread.isPending || clearThread.isPending || removeThread.isPending;
   const history = (
+    <span className="flex shrink-0 items-center">
+    <CoworkKnows />
     <CoworkHistory
       threads={conversation.data.threads}
       activeId={threadId}
@@ -136,6 +139,7 @@ export function CoworkWorkspace({
       onDelete={(id) => removeThread.mutate(id)}
       onWebsiteSetup={session.data?.role === "owner" ? () => setWebsiteSetup(true) : undefined}
     />
+    </span>
   );
 
   const starters = (narrow: boolean) => (

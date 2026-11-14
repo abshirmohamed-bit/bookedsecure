@@ -43,3 +43,10 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 20. ~~**Phase 2 (each layout on the new signals)**~~ built 14 Nov (see AGENTS.md); **deploy it** the same way as item 19, then re-clip and compare.
 21. **Phase 3 (proof):** ~~benchmark criteria for "subject in frame by body box" and "no sliced text"~~ built 14 Nov (engine/app/pipeline/checks.py, in tools/benchmark.py). **Still to do on the PC with the footage:** before/after sheets on all four footage types, and `python tools/benchmark.py <video> --scenes "…" --expect split,screen,…` with the layout each scene should get.
 22. **Style review (14 Nov):** after cutting, the Engine revisits every clip and gives it the layout that suits what it shows (split screen for two people talking, screen + speaker for slides, the whole picture for wide scenes…), keeps any layout you asked for and notes clips that can't take it; Co-Work can tell you clip by clip (video_clip_styles) and switch them after your yes (apply_clip_styles); Studio shows it under the layout chips. **Deploy the Engine** (as item 19) and **Lovable Publish**, then re-clip "Last To Leave Mansion" with no layout chosen and ask Co-Work "which look did each clip get?". Clips made before this: ask Co-Work to "recheck the looks" of a video.
+
+## Hermes plan: Co-Work and the Engine learn (14 Nov)
+
+22. **Lovable:** apply `docs/cowork-memory.sql` (Co-Work's memories, skills and review marks), then publish. Then test: tell Co-Work "remember we don't detail boats", ask "what do you remember?", open the brain button beside the history, and after a longer task wait ~15 minutes for the review to mark what it learned as New.
+23. **Phase 2:** routines (scheduled tasks) for Co-Work, and the Engine watching a YouTube channel to clip new uploads.
+24. **Phase 3:** talk to Co-Work by SMS from the owner's own number, by email, then Telegram (WhatsApp needs Meta approval).
+25. **Phase 4:** the Engine learns each business's style per kind of video (recipes from kept and changed looks).

@@ -83,7 +83,12 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const proxyUpgrade = await checkProxyUpgrade().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Proxy check failed",
         }));
-        return Response.json({ ...result, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, youtubeStats, proxyUpgrade, abandonedSwept: swept.swept });
+        // Co-Work's learning loop: conversations that went quiet are reviewed for lasting facts and skills.
+        const { sweepCoworkReviews } = await import("@/lib/cowork-memory.server");
+        const coworkLearning = await sweepCoworkReviews().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Co-Work review failed",
+        }));
+        return Response.json({ ...result, coworkLearning, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, youtubeStats, proxyUpgrade, abandonedSwept: swept.swept });
 
 
       },
