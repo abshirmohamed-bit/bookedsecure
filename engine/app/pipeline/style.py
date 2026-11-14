@@ -203,6 +203,9 @@ def profile(inp: P.Inputs) -> Profile:
     pr.switches_per_min = switches / minutes
     pr.cuts_per_min = len([c for c in inp.cuts if start < c < end]) / minutes
     pr.speech = _speech_share(inp.words or [], length)
+    if getattr(inp, "voiced", None) is not None:
+        # Words over music are lyrics or the transcriber guessing: only voiced time counts.
+        pr.speech = min(pr.speech, float(inp.voiced))
     return pr
 
 

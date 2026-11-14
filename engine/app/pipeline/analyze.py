@@ -165,7 +165,7 @@ def read_heatmap(url: str) -> tuple[list, int]:
     return list(raw.get("heatmap") or []), int(float(raw.get("duration") or 0) * 1000)
 
 
-def _raw_info(url: str) -> tuple[dict, bool]:
+def _raw_info(url: str) -> tuple[dict, str]:
     """yt-dlp's info for a link (no download), trying each client and the proxy on refusals."""
     try:
         import yt_dlp
@@ -178,7 +178,9 @@ def _raw_info(url: str) -> tuple[dict, bool]:
     # worth retrying as another before telling the user it cannot be read.
     raw = None
     last = ""
-    used_proxy = False
+    used_proxy = ""
+    from . import proxy_pool
+
     for client, via_proxy in ytdlp_opts.attempts():
         # format=None keeps yt-dlp from doing format selection at all on a
         # metadata read, which is where a thin server-side list bites.
@@ -188,9 +190,13 @@ def _raw_info(url: str) -> tuple[dict, bool]:
             with yt_dlp.YoutubeDL(opts) as y:
                 raw = y.extract_info(url, download=False)
             used_proxy = via_proxy
+            proxy_pool.report(via_proxy, "ok")
             break
         except Exception as e:
             last = str(e)
+            if via_proxy:
+                proxy_pool.report(via_proxy, "exhausted" if "traffic_exhausted" in last.lower()
+                                  else "blocked" if ytdlp_opts.looks_blocked(last) else "failed")
             if not ytdlp_opts.looks_blocked(last):
                 raise EngineError("IMPORT_FAILED", _friendly(last)) from e
             log.warning("yt-dlp was refused for %s as %s%s: %s", url, client,
@@ -294,7 +300,7 @@ def parse_json3(data: dict) -> list[dict]:
     return out
 
 
-def fetch_captions(track_url: str, used_proxy: bool) -> list[dict]:
+def fetch_captions(track_url: str, used_proxy: "str | bool") -> list[dict]:
     """The caption track, through the same way in as the video's details.
 
     YouTube rate-limits caption requests from a server's own address (429)
@@ -303,7 +309,7 @@ def fetch_captions(track_url: str, used_proxy: bool) -> list[dict]:
     """
     from . import ytdlp_opts
 
-    proxy = ytdlp_opts.proxy()
+    proxy = used_proxy if isinstance(used_proxy, str) and used_proxy else ytdlp_opts.proxy()
     if used_proxy or not proxy:
         return _fetch_json3(track_url, proxy if used_proxy else "")
     try:

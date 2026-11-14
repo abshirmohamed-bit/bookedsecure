@@ -62,6 +62,15 @@ RUN curl -fsSL -o /models/text_detection_ppocr.onnx \
 ENV OBJECT_MODEL_PATH=/models/object_detection_nanodet.onnx
 ENV TEXT_MODEL_PATH=/models/text_detection_ppocr.onnx
 
+# Voice activity (app/pipeline/vad.py): tells a voice from music, so the
+# speech pass, finder and style review aren't fooled by a loud soundtrack.
+# Optional; without it speech is told from loudness. Runs on onnxruntime,
+# which faster-whisper already installs.
+RUN curl -fsSL -o /models/silero_vad.onnx \
+      "https://github.com/snakers4/silero-vad/raw/v5.1.2/src/silero_vad/data/silero_vad.onnx" || \
+    echo "note: voice model not fetched; speech is told from loudness"
+ENV SILERO_MODEL_PATH=/models/silero_vad.onnx
+
 WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir \

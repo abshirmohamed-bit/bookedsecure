@@ -309,6 +309,23 @@ def transition_for(prev_kind: str, kind: str, prev_zoom: float, zoom: float) -> 
 
 # ------------------------------------------------------------------ putting it on the shots
 
+def _spoken_words(inp, source: Path) -> list:
+    """The clip's words that a voice really said (none over music), clip-relative as given."""
+    from . import vad
+
+    words = list(inp.words or [])
+    voiced = getattr(inp, "voiced", None)
+    if voiced is None or not words:
+        return words
+    if voiced < vad.MUSIC_SHARE:
+        return []
+    voice = vad.spans(vad.voiced(source, in_ms=inp.in_ms, out_ms=inp.out_ms))
+    if not voice:
+        return words
+    return [w for w in words if vad.covered(voice, inp.in_ms + int(w.get("start_ms", 0)),
+                                            inp.in_ms + int(w.get("end_ms", 0))) >= 0.5]
+
+
 def apply(shots_: list, inp, source: Path | None = None) -> list:
     """Give every shot its per-frame motion and its transition in. Returns the same list."""
     if not shots_:
@@ -321,7 +338,7 @@ def apply(shots_: list, inp, source: Path | None = None) -> list:
     punches: list[Punch] = []
     if punch_on and source is not None:
         env = loudness(source, in_ms, out_ms)
-        punches = punch_moments(list(inp.words or []), env, out_ms - in_ms, rel)
+        punches = punch_moments(_spoken_words(inp, source), env, out_ms - in_ms, rel)
     cuts = list(getattr(inp, "cuts", []) or [])
     fill_index = 0
     for i, shot in enumerate(shots_):

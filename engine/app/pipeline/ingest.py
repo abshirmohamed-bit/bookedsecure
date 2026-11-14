@@ -229,7 +229,7 @@ def _download(url: str, dest: Path) -> None:
 #: The yt-dlp route (player client, through the proxy?) that last worked for a
 #: link. A section of the same video then goes that way first instead of
 #: being refused four times again.
-_ROUTES: dict[str, tuple[str, bool]] = {}
+_ROUTES: dict[str, tuple[str, str]] = {}
 
 
 def _run_with_progress(cmd: list[str], timeout: int, on_progress) -> "subprocess.CompletedProcess":
@@ -316,25 +316,32 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
         else:
             routes = routes[:max_routes]
     last = ""
-    proxy_empty = False
+    from . import proxy_pool
+
+    empty: set[str] = set()
     for client, via_proxy in routes:
-        if via_proxy and proxy_empty:
-            continue                    # the proxy has no data left; asking again changes nothing
+        if via_proxy and via_proxy in empty:
+            continue                    # that proxy has no data left; asking again changes nothing
         cmd = [exe, "--no-playlist", "--quiet", "--no-warnings", *(["--newline", "--progress"] if on_progress else []),
                *ytdlp_opts.cli_args(client, via_proxy), *args, "-o", str(dest), "--", url]
         started = time.time()
-        mode = proxy_health.mode_of(ytdlp_opts.proxy())
+        mode = proxy_health.mode_of(via_proxy)
         try:
             proc = (_run_with_progress(cmd, timeout, on_progress) if on_progress
                     else subprocess.run(cmd, capture_output=True, text=True, timeout=timeout))
         except subprocess.TimeoutExpired:
-            proxy_health.record(kind=kind, via_proxy=via_proxy, mode=mode, outcome="stalled",
+            proxy_health.record(kind=kind, via_proxy=bool(via_proxy), mode=mode, outcome="stalled",
                                 bytes_=_size(dest), seconds=time.time() - started)
+            proxy_pool.report(via_proxy, "stalled")
             log.warning("yt-dlp took over %ss for %s as %s%s; stopping it", timeout, url, client, " via proxy" if via_proxy else "")
             raise EngineError("VALIDATION_ERROR", f"Downloading from that link stalled for over {timeout // 60} minutes.") from None
-        proxy_health.record(kind=kind, via_proxy=via_proxy, mode=mode,
-                            outcome=proxy_health.outcome_of(0 if proc.returncode == 0 and dest.exists() else (proc.returncode or 1), proc.stderr or ""),
-                            bytes_=_size(dest) if proc.returncode == 0 else 0, seconds=time.time() - started)
+        outcome = proxy_health.outcome_of(0 if proc.returncode == 0 and dest.exists() else (proc.returncode or 1), proc.stderr or "")
+        took = time.time() - started
+        got = _size(dest) if proc.returncode == 0 else 0
+        proxy_health.record(kind=kind, via_proxy=bool(via_proxy), mode=mode, outcome=outcome, bytes_=got, seconds=took)
+        if via_proxy:
+            proxy_pool.report(via_proxy, "exhausted" if proxy_out_of_data(proc.stderr or "") else outcome,
+                              bytes_=got, seconds=took)
         if proc.returncode == 0 and dest.exists():
             _ROUTES[url] = (client, via_proxy)
             if via_proxy:
@@ -344,8 +351,9 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
         log.warning("yt-dlp could not fetch %s as %s%s: %s", url, client,
                     " via proxy" if via_proxy else "", last[-300:])
         if via_proxy and proxy_out_of_data(last):
-            proxy_empty = True
-            log.error("the YouTube proxy has run out of data (407 TRAFFIC_EXHAUSTED); top it up or change YTDLP_PROXY")
+            empty.add(via_proxy)
+            log.error("YouTube proxy %s has run out of data (407 TRAFFIC_EXHAUSTED); moving to the next one",
+                      proxy_pool.label(via_proxy))
             continue
         # Only a refusal is worth another address or another client, and so is
         # a client that doesn't offer the format asked for (the "tv" client has
@@ -354,7 +362,7 @@ def run_ytdlp(url: str, dest: Path, args: list[str], timeout: int = 1800, max_ro
         # metered bandwidth buys nothing.
         if not (ytdlp_opts.looks_blocked(last) or _route_lacks_format(last) or ytdlp_opts.looks_transient(last)):
             break
-    if proxy_empty:
+    if empty and not any(p and p not in empty for _, p in routes):
         # Seen live: the job told the owner "YouTube asks a cloud server to prove it is not a
         # bot ... set a residential proxy" when the proxy it already has was simply out of data.
         raise EngineError("VALIDATION_ERROR", PROXY_EMPTY_MESSAGE)

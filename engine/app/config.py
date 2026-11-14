@@ -121,6 +121,11 @@ class Settings(BaseSettings):
     import_workers: int = 2
     job_workers: int = 2
     concurrent_renders: int = 2
+    # Memory a 1080p render may take, and what the Engine and its analysis
+    # need besides (render_gate): a 4 GB machine renders one at a time, an
+    # 8 GB one two. Raise CONCURRENT_RENDERS with a bigger machine.
+    render_memory_mb: int = 1500
+    render_base_mb: int = 1800
     # ffmpeg processes at once, across every worker. Each one already uses
     # all the threads it is allowed (PROCESSING_THREADS).
     ffmpeg_slots: int = 2

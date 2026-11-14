@@ -71,8 +71,13 @@ def summary(days: int = 7, now: datetime | None = None) -> dict:
     speed = (sum(r.bytes for r in timed) / sum(r.seconds for r in timed) / 1_000_000) if timed else None
     bot_failures = sum(1 for a in failed_assets if BOT_CHECK.search(a.error or "")) \
         + sum(1 for j in failed_jobs if BOT_CHECK.search(j.error or ""))
+    from . import proxy_pool
     from .ytdlp_opts import proxy
+    pool = proxy_pool.status(now)
     return {
+        "proxies": pool,
+        "proxy_count": len(pool),
+        "proxies_benched": sum(1 for p in pool if p["state"] == "benched"),
         "days": days,
         "proxy_mode": mode_of(proxy()),
         "bot_check_failures": bot_failures,

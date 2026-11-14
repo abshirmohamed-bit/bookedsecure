@@ -24,14 +24,14 @@ def with_proxy(monkeypatch):
 
 def test_without_a_proxy_nothing_changes(monkeypatch):
     monkeypatch.delenv("YTDLP_PROXY", raising=False)
-    assert ytdlp_opts.attempts() == [(c, False) for c in ytdlp_opts.PLAYER_CLIENTS]
+    assert ytdlp_opts.attempts() == [(c, "") for c in ytdlp_opts.PLAYER_CLIENTS]
 
 
 def test_direct_is_tried_on_every_client_before_the_proxy(with_proxy):
     got = ytdlp_opts.attempts()
     half = len(ytdlp_opts.PLAYER_CLIENTS)
-    assert [p for _, p in got[:half]] == [False] * half, "free traffic first"
-    assert [p for _, p in got[half:]] == [True] * (len(got) - half), "metered traffic last"
+    assert [bool(p) for _, p in got[:half]] == [False] * half, "free traffic first"
+    assert [p for _, p in got[half:]] == [PROXY] * (len(got) - half), "metered traffic last"
     assert [c for c, _ in got[:half]] == list(ytdlp_opts.PLAYER_CLIENTS)
 
 

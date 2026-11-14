@@ -260,6 +260,32 @@ def _target_ms(params: dict, asset: Asset) -> int:
     return 60_000
 
 
+def _spoken_sentences(asset: Asset, sentences: list[dict], start_ms: int, end_ms: int) -> "tuple[list[dict], str | None]":
+    """Only sentences someone said: Whisper also writes words over music.
+
+    With the voice model, a sentence needs a voice under a quarter of it; a
+    soundtrack that is almost all music hands the finder no sentences, so it
+    picks from the sound and picture instead. Without the model, unchanged.
+    """
+    from . import vad
+
+    try:
+        path = storage.local_path(asset.mezzanine_key or asset.storage_key)
+        probs = vad.voiced(path, in_ms=start_ms, out_ms=end_ms)
+    except Exception:  # noqa: BLE001 - advice only
+        log.warning("voice activity for the finder failed; using the whole transcript", exc_info=True)
+        return sentences, None
+    if probs is None:
+        return sentences, None
+    voice = vad.spans(probs)
+    if vad.covered(voice, start_ms, end_ms) < vad.MUSIC_SHARE:
+        return [], "The soundtrack is mostly music, not talking, so the moments were picked from the sound and picture."
+    kept = vad.keep_spoken(sentences, voice)
+    if len(kept) < len(sentences):
+        log.info("finder: %d of %d sentences had no voice under them", len(sentences) - len(kept), len(sentences))
+    return kept, None
+
+
 def _find(s: Session, job: Job, asset: Asset, params: dict) -> list[finder.Moment] | None:
     transcript = s.exec(select(Transcript).where(Transcript.asset_id == asset.id)).first()
     sentences = list(transcript.sentences) if transcript else []
@@ -294,6 +320,9 @@ def _find(s: Session, job: Job, asset: Asset, params: dict) -> list[finder.Momen
     envelope: list[float] = []
     report: dict = {}
     mode = params.get("mode", "auto")
+    music_note = None
+    if mode == "auto" and sentences:
+        sentences, music_note = _spoken_sentences(asset, sentences, start_ms, end_ms)
     if mode in {"energy", "visual"} or (mode == "auto" and not sentences):
         envelope = media.loudness_envelope(storage.local_path(asset.mezzanine_key or asset.storage_key))
 
@@ -308,6 +337,8 @@ def _find(s: Session, job: Job, asset: Asset, params: dict) -> list[finder.Momen
         title_brief=params.get("title_brief", ""), channel_notes=params.get("channel_notes", ""),
         envelope=envelope, report=report,
     )
+    if music_note and not report.get("note"):
+        report["note"] = music_note
     if report.get("note"):
         job.params = {**(job.params or {}), "finder_note": report["note"]}
     # Sparse speech can yield sentences but no viable speech-sized clip. Auto

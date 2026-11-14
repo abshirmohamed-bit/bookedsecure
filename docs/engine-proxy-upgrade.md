@@ -30,7 +30,27 @@ bytes, seconds; `engine/app/pipeline/proxy_health.py`) and serves the week's
 summary at `GET /v1/proxy/health` (API key required). BookedSecure's follow-ups
 hook reads it only when Fly says the Engine is already running, with
 `wake: false`, so a sleeping Engine is never woken for this
-(`src/lib/engine-proxy(.server).ts`). Nothing switches proxies on its own.
+(`src/lib/engine-proxy(.server).ts`).
+
+## Several proxies, switched automatically
+
+The Engine can hold more than one proxy: `YTDLP_PROXY` is the first, and
+`YTDLP_PROXIES` adds more (separated by commas), e.g. the 2-5 addresses of an
+ISP plan, or a second provider kept as a spare. Downloads use the healthiest
+first (`engine/app/pipeline/proxy_pool.py`):
+
+- a proxy YouTube refuses 3 times in a row is benched for 30 minutes (doubling
+  each time it happens again, up to a day) and the others take over;
+- a proxy whose plan is out of data (407 TRAFFIC_EXHAUSTED) is benched for 6
+  hours and the next one is tried straight away;
+- a download that works clears the record, and faster proxies go first;
+- a benched proxy is still tried last, never refused outright.
+
+The control room lists each proxy (host and port only) as in use or benched,
+with its successes, refusals and speed. The reminder also fires when every
+proxy is benched. To add a spare: Fly, crayzmundo-engine, Secrets, set
+`YTDLP_PROXIES` to `http://USER:PASS@HOST:PORT,http://USER:PASS@HOST2:PORT`,
+then Deploy Secrets.
 
 ## How to switch
 

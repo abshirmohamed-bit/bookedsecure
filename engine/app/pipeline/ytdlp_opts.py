@@ -62,7 +62,18 @@ def looks_transient(message: str) -> bool:
 
 
 def proxy() -> str:
-    return (os.environ.get("YTDLP_PROXY") or "").strip()
+    """The proxy to use now: the healthiest of the pool (proxy_pool), or "" when there is none."""
+    from . import proxy_pool
+
+    best = proxy_pool.ordered()
+    return best[0] if best else ""
+
+
+def _proxy_url(use_proxy: "bool | str") -> str:
+    """A route's proxy: a URL as given, True for the healthiest one, False for none."""
+    if isinstance(use_proxy, str):
+        return use_proxy
+    return proxy() if use_proxy else ""
 
 
 def proxy_first() -> bool:
@@ -74,22 +85,27 @@ def proxy_first() -> bool:
     return (os.environ.get("YTDLP_PROXY_ALWAYS") or "").strip().lower() in {"1", "true", "yes"}
 
 
-def attempts() -> list[tuple[str, bool]]:
-    """Every (player client, through the proxy?) to try, in order.
+def attempts() -> list[tuple[str, str]]:
+    """Every (player client, proxy URL or "" for direct) to try, in order.
 
     Direct first, for every client, because that traffic is free and usually
-    works. Only once YouTube has refused all of them does the proxy get used,
+    works. Only once YouTube has refused all of them does a proxy get used,
     and a refusal transfers almost nothing — the gigabytes are only spent on
-    the attempt that actually succeeds.
+    the attempt that actually succeeds. With several proxies (proxy_pool)
+    each round goes through them healthiest first, so a refused or empty one
+    hands over to the next without anyone changing a secret.
     """
+    from . import proxy_pool
+
+    pool = proxy_pool.ordered()
     # A rotating residential proxy leaves from a new address on every
     # connection, and YouTube flags some of them: going round the clients
     # again tries fresh addresses for the price of a refusal (a few KB).
-    proxied = [(c, True) for c in PLAYER_CLIENTS] * proxy_rounds()
-    if proxy() and proxy_first():
+    proxied = [(c, p) for _ in range(proxy_rounds()) for p in pool for c in PLAYER_CLIENTS]
+    if pool and proxy_first():
         return proxied
-    direct = [(c, False) for c in PLAYER_CLIENTS]
-    if not proxy():
+    direct = [(c, "") for c in PLAYER_CLIENTS]
+    if not pool:
         return direct
     return direct + proxied
 
@@ -116,7 +132,7 @@ def _pot_arg() -> str:
     return f"youtubepot-bgutilscript:server_home={BGUTIL_HOME}"
 
 
-def api_opts(player_client: str = "default", use_proxy: bool = False) -> dict:
+def api_opts(player_client: str = "default", use_proxy: "bool | str" = False) -> dict:
     """Options for the Python API, used by the link reader."""
     opts: dict = {
         "quiet": True,
@@ -139,14 +155,15 @@ def api_opts(player_client: str = "default", use_proxy: bool = False) -> dict:
     }
     if player_client != "default":
         opts["extractor_args"]["youtube"] = {"player_client": [player_client]}
-    if use_proxy and proxy():
-        opts["proxy"] = proxy()
+    url = _proxy_url(use_proxy)
+    if url:
+        opts["proxy"] = url
     if COOKIE_FILE.exists():
         opts["cookiefile"] = str(COOKIE_FILE)
     return opts
 
 
-def cli_args(player_client: str = "default", use_proxy: bool = False) -> list[str]:
+def cli_args(player_client: str = "default", use_proxy: "bool | str" = False) -> list[str]:
     """The same settings as flags, for the download subprocess."""
     args = [
         "--force-ipv4",
@@ -157,8 +174,9 @@ def cli_args(player_client: str = "default", use_proxy: bool = False) -> list[st
     ]
     if player_client != "default":
         args += ["--extractor-args", f"youtube:player_client={player_client}"]
-    if use_proxy and proxy():
-        args += ["--proxy", proxy()]
+    url = _proxy_url(use_proxy)
+    if url:
+        args += ["--proxy", url]
     if COOKIE_FILE.exists():
         args += ["--cookies", str(COOKIE_FILE)]
     return args

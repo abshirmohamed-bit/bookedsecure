@@ -64,6 +64,17 @@ function ProxyUpgradeLine() {
           Last {h.days} days: {h.bot_check_failures} bot-check failures · {h.proxy_speed_mb_s !== null ? `${h.proxy_speed_mb_s.toFixed(2)} MB/s average` : "no timed downloads"} · {h.long_links_clipped} long links · {h.proxy_mode} proxy
         </p>
       ) : null}
+      {h && h.proxies.length ? (
+        <ul className="space-y-0.5 text-xs text-muted-foreground">
+          {h.proxies.map((p) => (
+            <li key={p.label}>
+              <span className={p.state === "benched" ? "font-medium text-destructive" : "font-medium text-foreground"}>{p.label}</span>
+              {p.state === "benched" ? ` benched${p.reason ? ` (${p.reason})` : ""}${p.benchedUntil ? ` until ${new Date(p.benchedUntil).toLocaleString("en-AU", { hour: "numeric", minute: "2-digit", day: "numeric", month: "short" })}` : ""}` : " in use"}
+              {` · ${p.ok} worked, ${p.refused} refused${p.speedMbS !== null ? ` · ${p.speedMbS.toFixed(2)} MB/s` : ""}`}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <p className="text-xs text-muted-foreground">{data.source === "live" ? "Live from the Engine." : when ? `From the reminder sent ${when}; the Engine is asleep.` : ""} How to switch: docs/engine-proxy-upgrade.md.</p>
     </section>
   );

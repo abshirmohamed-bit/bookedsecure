@@ -66,3 +66,17 @@ def uploaded_asset(api, sample_video) -> str:
             headers={"content-type": "video/mp4"})
     asset = api.post(f"/v1/uploads/{start['id']}/complete").json()
     return asset["id"]
+
+
+@pytest.fixture(autouse=True)
+def _no_voice_model(monkeypatch):
+    """The suite's audio is synthetic tones standing in for talk, which the voice
+    model rightly hears as no voice. Tests of vad.py turn it on themselves."""
+    from app.pipeline import vad, proxy_pool
+
+    monkeypatch.setattr(vad, "_SESSION", None)
+    monkeypatch.setattr(vad, "_TRIED", True)
+    vad._CACHE.clear()
+    # Proxy health is per test too: a refusal in one test must not bench a proxy in the next.
+    state = Path(tempfile.mkdtemp()) / "proxy_state.json"
+    monkeypatch.setattr(proxy_pool, "_path", lambda: state)

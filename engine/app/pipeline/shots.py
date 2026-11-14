@@ -193,6 +193,8 @@ class Inputs:
     bodies: list = field(default_factory=list)
     #: On-screen text (graphics.text_boxes): (ms, [(x, y, w, h) shares]).
     texts: list = field(default_factory=list)
+    #: Share of the clip with a voice (vad.share), None when it can't be told.
+    voiced: float | None = None
 
 
 # ------------------------------------------------------------------ geometry

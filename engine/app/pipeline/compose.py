@@ -485,6 +485,7 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
         texts=_texts(source, render) if render.framing_mode not in {"center", "manual"} else [],
         subtitle_top=_subtitles(source, render) if render.framing_mode not in {"center", "manual"} else None,
         active=_letterbox(source, render),
+        voiced=_voiced(source, render) if render.framing_mode not in {"center", "manual"} else None,
     )
     plan = shotplan.plan(inputs)
     try:
@@ -495,6 +496,17 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
         for shot in plan:
             shot.motion, shot.transition = [], None
     return plan, inputs
+
+
+def _voiced(source, render) -> "float | None":
+    """Share of the clip with a voice heard (vad), or None without the voice model."""
+    from . import vad
+
+    try:
+        return vad.share(vad.voiced(source, in_ms=render.in_ms, out_ms=render.out_ms), render.in_ms, render.out_ms)
+    except Exception:  # noqa: BLE001 - advice only
+        log.exception("voice activity failed; working from loudness")
+        return None
 
 
 # ------------------------------------------------------------------ per-shot graphs

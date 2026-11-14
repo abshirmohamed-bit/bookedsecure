@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import shutil
-import threading
 import time
 from pathlib import Path
 
@@ -15,14 +14,13 @@ from ..config import settings
 from ..db import session as db_session
 from ..ids import new_id
 from ..models import Asset, Export, Project
+from . import render_gate
 from .compose import Render, run as run_render
 
 log = logging.getLogger("engine.exports")
 
-#: Exports render one at a time. A 1080 x 1920 render of a busy clip can take
-#: over 1 GB; two at once beside the face analysis ran Fly's 4 GB machine out
-#: of memory, and on two CPUs a second render only competes for the same cores.
-_RENDER = threading.Semaphore(1)
+#: Exports render as many at once as the machine has memory for (render_gate):
+#: one on the 4 GB machine, more on a bigger one.
 #: Exports retried after running out of memory, by id (this process only).
 _MEMORY_RETRIES: dict[str, int] = {}
 MEMORY_RETRIES = 2
@@ -48,8 +46,12 @@ def advance_one() -> bool:
         if not row:
             return False
         try:
-            with _RENDER:
+            w = render_gate.weight(row.resolution)
+            render_gate.GATE.acquire(w)
+            try:
                 asset = _render(s, row)
+            finally:
+                render_gate.GATE.release(w)
             row.status = "completed"
             row.progress = 100
             row.asset_id = asset.id

@@ -648,7 +648,8 @@ ARTIC_OVERLAP_LEVEL = 0.5
 
 
 def turns(tracks: list[FaceTrack], rms: list[tuple[int, float]], *,
-          window_ms: int | None = None, min_turn_ms: int = MIN_TURN_MS) -> list[Turn]:
+          window_ms: int | None = None, min_turn_ms: int = MIN_TURN_MS,
+          voice: "list[tuple[int, int]] | None" = None) -> list[Turn]:
     """Who is speaking, window by window, merged into turns.
 
     A track scores for a window by how much its mouth moved *while the audio
@@ -665,6 +666,14 @@ def turns(tracks: list[FaceTrack], rms: list[tuple[int, float]], *,
     times, speech = _speech_mask(rms)
     if times is None or speech is None or not tracks:
         return []
+    if voice is not None:
+        # Loud is not the same as talking, either way round: music is loud
+        # (a music-only real-estate clip read 62% "speech", 1% voice) and a
+        # quiet talker isn't (an NDIS interview read 41%, 92% voice). With the
+        # voice model's spans (vad.spans), talking is where a voice is heard.
+        from . import vad
+
+        speech = vad.mask(voice, times)
     upper = any(t.head for t in tracks)
     if window_ms is None:
         window_ms = ARTIC_WINDOW_MS if upper else 600

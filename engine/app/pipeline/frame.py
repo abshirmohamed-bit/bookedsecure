@@ -603,7 +603,13 @@ def speech(video: Path, *, in_ms: int = 0, out_ms: int | None = None):
     detail: list = []
     bodies_: list = []
     tracks, cuts = sp.face_tracks(video, in_ms=in_ms, out_ms=out_ms, detail=detail, bodies=bodies_)
-    turns = sp.turns(tracks, sp.energy(video, in_ms=in_ms, out_ms=out_ms)) if tracks else []
+    turns: list = []
+    if tracks:
+        from . import vad
+
+        probs = vad.voiced(video, in_ms=in_ms, out_ms=out_ms)
+        voice = vad.spans(probs) if probs is not None else None
+        turns = sp.turns(tracks, sp.energy(video, in_ms=in_ms, out_ms=out_ms), voice=voice)
     result = (tracks, turns, cuts)
     if key is not None:
         _SPEECH[key] = result

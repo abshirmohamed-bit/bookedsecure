@@ -16,6 +16,13 @@ export type ProxyHealth = {
   proxy_tries: number;
   proxy_refusals: number;
   proxy_bytes: number;
+  /** Each proxy in the Engine's pool (engine/app/pipeline/proxy_pool.py), healthiest first; host:port only. */
+  proxies: ProxyStatus[];
+};
+
+export type ProxyStatus = {
+  label: string; state: "ok" | "benched"; benchedUntil: string | null; reason: string | null;
+  speedMbS: number | null; ok: number; refused: number;
 };
 
 export const UPGRADE_RULES = {
@@ -37,6 +44,9 @@ export function upgradeReasons(h: ProxyHealth): string[] {
   }
   if (h.proxy_speed_mb_s !== null && h.speed_samples >= UPGRADE_RULES.minSpeedSamples && h.proxy_speed_mb_s < UPGRADE_RULES.minSpeedMbS) {
     out.push(`Downloads through the proxy averaged ${h.proxy_speed_mb_s.toFixed(2)} MB/s, under ${UPGRADE_RULES.minSpeedMbS} MB/s.`);
+  }
+  if (h.proxies.length && h.proxies.every((p) => p.state === "benched")) {
+    out.push(`Every proxy (${h.proxies.length}) is benched for being refused or out of data, so YouTube downloads are only getting through on second tries.`);
   }
   if (h.long_links_clipped >= UPGRADE_RULES.longLinks) {
     out.push(`${h.long_links_clipped} long YouTube links were clipped in the last ${h.days} days, the volume that gets residential addresses flagged.`);
@@ -77,5 +87,18 @@ export function readProxyHealth(raw: unknown): ProxyHealth | null {
     proxy_tries: n(r["proxy_tries"]),
     proxy_refusals: n(r["proxy_refusals"]),
     proxy_bytes: n(r["proxy_bytes"]),
+    proxies: (Array.isArray(r["proxies"]) ? r["proxies"] : []).flatMap((x): ProxyStatus[] => {
+      if (!x || typeof x !== "object") return [];
+      const p = x as Record<string, unknown>;
+      if (typeof p["label"] !== "string") return [];
+      const speed = p["speed_mb_s"];
+      return [{
+        label: p["label"].slice(0, 80), state: p["state"] === "benched" ? "benched" : "ok",
+        benchedUntil: typeof p["benched_until"] === "string" ? p["benched_until"] : null,
+        reason: typeof p["reason"] === "string" ? p["reason"].slice(0, 80) : null,
+        speedMbS: typeof speed === "number" && Number.isFinite(speed) ? speed : null,
+        ok: n(p["ok"]), refused: n(p["refused"]),
+      }];
+    }).slice(0, 20),
   };
 }
