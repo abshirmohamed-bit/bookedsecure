@@ -295,3 +295,15 @@ def test_a_frame_without_bars_has_no_letterbox(tmp_path):
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
                     "-i", "testsrc2=s=1280x720:r=25:d=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(clip)], check=True)
     assert graphics.letterbox(clip, 0, 2000) is None
+
+
+def test_a_small_corner_face_in_a_busy_room_is_not_a_screen_share():
+    """White walls are flat like a screen; a room where people move is not a webcam over a screen."""
+    cam = person(1, 0.9, y=0.88, w=0.06, h=0.1)
+    flat_moving = activity(0.5, level=12.0)
+    flat_moving = [(e[0], [0.08] * DETAIL_BINS, 0.9, 0.1, 0.1, e[5], 0.0, 12.0, 160.0) for e in flat_moving]
+    plan = P.plan(inputs(tracks=[cam], detail=flat_moving))
+    assert plan[0].kind != "screen"
+    flat_still = [(e[0], [0.08] * DETAIL_BINS, 0.9, 0.1, 0.1, e[5], 0.0, 0.5, 160.0) for e in activity(0.5)]
+    still = P.plan(inputs(tracks=[cam], detail=flat_still))
+    assert still[0].kind == "screen", "a webcam over a still screen keeps the screen layout"

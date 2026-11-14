@@ -480,6 +480,12 @@ def _real_faces(faces: list[_Face], bodies: list[_Face], inp: Inputs) -> list[_F
     return kept
 
 
+def bodies_beyond(face: _Face, bodies: list[_Face]) -> bool:
+    """Whether people other than this face's own body are in shot (then it is a room, not a webcam)."""
+    own = _body_of(face, bodies)
+    return any(bd is not own for bd in bodies)
+
+
 def _texts_in(inp: Inputs, a: int, b: int) -> list[tuple[float, float, float, float]]:
     if not inp.texts:
         return []
@@ -1287,7 +1293,14 @@ def plan(inp: Inputs) -> list[Shot]:
         # crop on the "most prominent" face is a coin toss: show both.
         unnamed = not talk
         zoom = _auto_zoom(faces, inp, share, bodies) if inp.zoom in {"auto", "moments"} else 1.0
-        small_inset = len(faces) == 1 and faces[0].w < SMALL_FACE_W and wide and _in_corner(faces[0])
+        # A webcam over a screen: a small, readable face in a corner of a flat
+        # picture that holds still. White walls are flat too, so a room where
+        # people move about (or a dark one) is not a screen share.
+        act = _activity_profile(inp, a, b)
+        bright = _brightness(inp, a, b)
+        still_picture = (act is None or act[1] < STILL_SCREEN_MOTION) and (bright is None or bright >= DARK_PICTURE)
+        small_inset = (len(faces) == 1 and SPEAKER_MIN_W <= faces[0].w < SMALL_FACE_W and wide
+                       and _in_corner(faces[0]) and still_picture and not bodies_beyond(faces[0], bodies))
 
         comparable = _comparable(faces, inp)
         pair = comparable[:2]
