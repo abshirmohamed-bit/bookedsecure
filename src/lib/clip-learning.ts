@@ -22,6 +22,11 @@ export type ClipOriginal = {
   headline: { text: string; style: string } | null;
   /** What is said first: the opening sentence, up to HOOK_WORDS words. */
   hookLine: string | null;
+  /** What kind of clip the Engine's style review saw (style.py vibe: conversation, talking_head, screen…). */
+  vibe?: string | null;
+  /** Where the captions sat and how big they were. */
+  captionPosition?: string | null;
+  captionSize?: number | null;
 };
 
 const HOOK_WORDS = 14;
@@ -54,6 +59,9 @@ export function clipOriginal(clip: Record<string, unknown>, job: { aspect: strin
   const gradeEntries = grades ? Object.entries(grades).filter(([, v]) => typeof v === "string").slice(0, 8) : [];
   const captions = Array.isArray(finish["captions"]) ? (finish["captions"] as { text?: unknown }[]) : [];
   const headline = str(finish["title_text"], 120);
+  const style = obj(clip["style"]);
+  const captionOptions = obj(finish["caption_options"]) ?? {};
+  const size = captionOptions["size"];
   return {
     title: str(clip["title"], 120),
     startMs: int(clip["source_start_ms"] ?? clip["start_ms"]),
@@ -70,6 +78,9 @@ export function clipOriginal(clip: Record<string, unknown>, job: { aspect: strin
     aspect: str(finish["aspect"], 10) ?? job.aspect,
     headline: headline ? { text: headline, style: str(finish["title_style"], 30) ?? asked.titleStyle ?? "bold_band" } : null,
     hookLine: hookLine(captions),
+    vibe: style ? str(style["vibe"], 30) : null,
+    captionPosition: str(captionOptions["position"], 20) ?? asked.captionPosition ?? null,
+    captionSize: typeof size === "number" && Number.isFinite(size) ? Math.round(size * 100) / 100 : (asked.captionSize ?? null),
   };
 }
 

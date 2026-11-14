@@ -138,6 +138,10 @@ class AutoClipBody(BaseModel):
     #: Revisit each clip after cutting and give it the layout that suits it
     #: (style.py). A layout in `formats`, or named in `prompt`, is kept.
     style_review: bool = True
+    #: The layout this business usually ends up with for each vibe (the app's
+    #: style recipes, learned from kept, changed and posted clips). Used by the
+    #: style review when a clip can take it; a layout in `formats` still wins.
+    style_recipes: dict[str, str] = Field(default_factory=dict)
 
     def validated(self) -> dict:
         if self.zoom not in ZOOMS:
@@ -167,6 +171,8 @@ class AutoClipBody(BaseModel):
         if len(self.prompt) > 500:
             raise EngineError("VALIDATION_ERROR", "the steering prompt is limited to 500 characters.")
         self.channel_notes = self.channel_notes.strip()[:1500]
+        # App-generated advice: unknown vibes or layouts are dropped, not refused.
+        self.style_recipes = style.learned_layouts(self.style_recipes)
         return self.model_dump()
 
 
@@ -430,12 +436,14 @@ def review_project(project_id: str, body: ReviewBody | None = None) -> dict:
         old = (p.framing or {}).get("review") or {}
         if trying:
             requested, where = trying, "request"
-        elif p.layout in {"auto", ""} or (old.get("picked_by") == "engine" and old.get("layout") == p.layout):
+        elif p.layout in {"auto", ""} or (old.get("picked_by") in {"engine", "learned"} and old.get("layout") == p.layout):
             requested, where = None, None
         else:
             requested, where = p.layout, old.get("request_source") or "studio"
         path = storage.local_path(source.mezzanine_key or source.storage_key)
-        review = style.review_project(p, path, requested=requested, request_source=where)
+        # A look learned for this business stays learned when the clip is checked again.
+        learned = {old["vibe"]: old["learned"]} if old.get("vibe") and old.get("learned") else None
+        review = style.review_project(p, path, requested=requested, request_source=where, learned=learned)
         review["index"] = p.index
         if not trying:
             p.framing = {**(p.framing or {}), "review": review}

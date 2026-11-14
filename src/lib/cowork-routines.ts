@@ -50,7 +50,7 @@ export const ROUTINE_TOOLS: ReadonlySet<string> = new Set([
   "performance_metrics", "query_leads", "quote_funnel", "read_settings", "read_social_conversation",
   "search_past_chats", "suggest_lead_searches", "today_overview", "unfinished_prospects", "use_skill",
   "video_clip_plan", "video_clip_settings", "video_clip_styles", "video_clips_status", "video_engine_catalog",
-  "video_engine_status", "youtube_channel_insights", "youtube_comments", "youtube_title_ideas",
+  "video_engine_status", "video_style_recipes", "youtube_channel_insights", "youtube_comments", "youtube_title_ideas",
   // preparing (drafts and Confirm cards; nothing goes out)
   "write_campaign_email", "write_linkedin_post", "prepare_social_reply", "draft_email_campaign",
   "send_text", "draft_campaign", "preview_linkedin_post", "preview_email_campaign_send", "preview_email_reply",

@@ -53,7 +53,7 @@ const fail = (message: string) => ({ ok: false as const, message });
 const pct = (x: number | null) => (x === null ? null : `${Math.round(x * 100)}%`);
 /** One clip's style review, in the words Co-Work passes on. */
 const lookOf = (s: ClipStyle | null) => s && ({
-  whatItShows: s.vibeLabel, detail: s.described, look: s.name, chosenBy: s.pickedBy === "owner" ? "the owner" : "the Engine",
+  whatItShows: s.vibeLabel, detail: s.described, look: s.name, chosenBy: s.pickedBy === "owner" ? "the owner" : s.pickedBy === "learned" ? "the Engine, from the look this business usually picks for clips like this" : "the Engine",
   why: s.why, appliesTo: pct(s.fit), note: s.note,
   engineSuggests: s.suggested !== s.layout ? s.suggestedName : null,
   otherGoodLooks: s.alternatives.map((a) => `${a.name} (${pct(a.fit)}): ${a.why}`),
@@ -261,6 +261,22 @@ export function buildVideoTools(ctx: AssistantToolContext) {
             hint: rows.length && !reviewed.length && !recheck ? "These clips were made before the Engine reviewed looks: call again with recheck true." : null,
           };
         });
+      },
+    }),
+
+    video_style_recipes: tool({
+      description: "What the Engine has learned about this business's own editing style from the clips the owner changed, posted or deleted: the layout they usually end up with for each kind of clip (two people talking, one person to camera, screen recordings, action…) and their usual captions, caption position and size, zoom and headline style. New videos get these automatically: the learned layout goes first for a clip it suits, and the house style fills any setting the owner didn't pick for that video (their own choices always win). Use it when the owner asks what the Engine knows about their style, why new clips look the way they do, or how to make it learn (changing or posting a few clips of a kind teaches it).",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const { styleRecipes } = await import("@/lib/style-recipes.server");
+        const { describeRecipes } = await import("@/lib/style-recipes");
+        const r = await styleRecipes(ctx.businessId);
+        if (!r) return fail("The clip history couldn't be read just now.");
+        const learned = describeRecipes(r);
+        return {
+          ok: true as const, learned, clipsLearnedFrom: r.clipsUsed,
+          note: learned.length ? "Applied to every new video unless the owner picks a look for that video." : "Nothing is clear yet: the Engine learns once the owner has changed, posted or deleted a few clips of the same kind the same way.",
+        };
       },
     }),
 

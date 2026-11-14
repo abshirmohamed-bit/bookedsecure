@@ -226,3 +226,15 @@ export const engineMakesClipVideo = createServerFn({ method: "POST" })
     const ctx = await requireWriteContext(context.supabase, context.userId);
     return engineFallback(ctx.businessId, data.clipId);
   });
+
+/** What the Engine has learned about this business's editing style (lib/style-recipes), in plain lines. */
+export const getStyleRecipes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireAppContext } = await import("@/lib/app-context.server");
+    const ctx = await requireAppContext(context.supabase, context.userId);
+    const { styleRecipes } = await import("@/lib/style-recipes.server");
+    const { describeRecipes } = await import("@/lib/style-recipes");
+    const r = await styleRecipes(ctx.businessId);
+    return { lines: r ? describeRecipes(r) : [], clipsUsed: r?.clipsUsed ?? 0 };
+  });

@@ -617,7 +617,7 @@ function StyleNote({ style, layout, onUse }: { style: ClipStyle; layout: string;
         <span>
           <span className="font-semibold text-foreground">{style.vibeLabel || "This clip"}</span>
           {style.stale ? " — edited since the Engine looked at it." : style.layout === layout
-            ? <> — {style.name}{style.pickedBy === "owner" ? " (your choice)" : ""}{style.why ? `: ${style.why}` : ""}{style.fit < 0.99 ? ` (${Math.round(style.fit * 100)}% of the clip)` : ""}.</>
+            ? <> — {style.name}{style.pickedBy === "owner" ? " (your choice)" : style.pickedBy === "learned" ? " (your usual look for clips like this)" : ""}{style.why ? `: ${style.why}` : ""}{style.fit < 0.99 ? ` (${Math.round(style.fit * 100)}% of the clip)` : ""}.</>
             : <> — the Engine suggests {style.suggestedName}.</>}
         </span>
       </p>

@@ -155,3 +155,31 @@ def test_the_review_reports_its_checks():
     r = style.review(inp)
     assert r["checks"]["subject_in_frame"] == 1.0
     assert r["checks"]["text_sliced"] is None
+
+
+def test_a_learned_layout_goes_first_when_the_clip_can_take_it():
+    inp = inputs(tracks=[person(1, 0.2), person(2, 0.8)], turns=back_and_forth(), words=words())
+    r = style.review(inp, learned={"conversation": "pip"})
+    assert r["layout"] == "pip" and r["picked_by"] == "learned" and r["learned"] == "pip"
+    assert "usually pick" in r["why"]
+    # The same look the Engine would pick anyway keeps its own reason.
+    r = style.review(inp, learned={"conversation": "split"})
+    assert r["layout"] == "split" and r["picked_by"] == "learned" and "own half" in r["why"]
+
+
+def test_a_learned_layout_the_clip_cannot_take_is_explained_not_forced():
+    inp = inputs(tracks=[person(1, 0.5)], turns=[Turn(0, 10000, 1, 0.9)], words=words())
+    r = style.review(inp, learned={"talking_head": "split"})
+    assert r["layout"] == "full-video" and r["picked_by"] == "engine"
+    assert r["note"] and "usually pick Split screen" in r["note"]
+
+
+def test_the_owners_layout_beats_a_learned_one():
+    inp = inputs(tracks=[person(1, 0.2), person(2, 0.8)], turns=back_and_forth(), words=words())
+    r = style.review(inp, requested="full-video", learned={"conversation": "pip"})
+    assert r["layout"] == "full-video" and r["picked_by"] == "owner"
+
+
+def test_learned_layouts_keep_only_known_vibes_and_layouts():
+    assert style.learned_layouts({"conversation": "split", "nope": "split", "screen": "spinning", "wide": 3}) == {"conversation": "split"}
+    assert style.learned_layouts("split") == {}

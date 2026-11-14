@@ -308,12 +308,23 @@ def _describe(pr: Profile) -> str:
     return ", ".join(parts[:5])
 
 
+def learned_layouts(raw: object) -> dict[str, str]:
+    """A business's learned layout per vibe (from the app's style recipes), valid entries only."""
+    if not isinstance(raw, dict):
+        return {}
+    return {v: l for v, l in raw.items() if v in VIBES and isinstance(l, str) and l in NAMES}
+
+
 def review(inp: P.Inputs, *, requested: "str | None" = None, request_source: "str | None" = None,
-           has_title: bool = True, plan_auto: "list[P.Shot] | None" = None) -> dict:
+           has_title: bool = True, plan_auto: "list[P.Shot] | None" = None,
+           learned: "dict[str, str] | None" = None) -> dict:
     """The review of one clip: its vibe, the layout it should use, and how well each fits.
 
     `inp` is the plan's inputs for the clip (any layout; it is replaced per
     candidate). `requested` is a layout the owner chose or named; it is kept.
+    `learned` is the layout this business usually ends up with for each vibe
+    (style recipes): it goes first when this clip can take it, otherwise the
+    Engine's own pick stands and the note says why.
     """
     pr = profile(inp)
     vibe = vibe_of(pr, inp.focus, has_title)
@@ -340,9 +351,18 @@ def review(inp: P.Inputs, *, requested: "str | None" = None, request_source: "st
         why = f"{NAMES[ranked[0]]} would only apply to {_pct(fits.get(ranked[0], 0))}% of it, so " + GENERIC_WHY["auto"]
 
     layout, picked_by, note = suggested, "engine", None
+    usual = (learned or {}).get(vibe)
+    usual_fits = bool(usual) and (usual == "auto" or usual in WHOLE_PICTURE or fits.get(usual, 0) >= MIN_FIT)         and not (usual == "title-subtitles" and not has_title)
+    if usual and usual_fits:
+        if usual != suggested:
+            why = f"it's the look you usually pick for clips like this ({label.lower()})"
+        suggested, layout, picked_by = usual, usual, "learned"
+    elif usual and usual in NAMES:
+        note = (f"You usually pick {NAMES[usual]} for clips like this, but it needs {NEEDS.get(usual, 'a different picture')}"
+                f" and only {_pct(fits.get(usual, 0))}% of this one has that, so it got {NAMES[suggested]}.")
     want = requested if requested in NAMES else None
     if want and want != "auto":
-        layout, picked_by = want, "owner"
+        layout, picked_by, note = want, "owner", None
         f = fits.get(want, 1.0)
         if want in NEEDS and f < MIN_FIT:
             fallback = "the rest follows the speaker" if want != "full-video" else "the rest shows the picture as it is"
@@ -369,8 +389,9 @@ def review(inp: P.Inputs, *, requested: "str | None" = None, request_source: "st
         "version": VERSION,
         "vibe": vibe, "vibe_label": label, "described": _describe(pr),
         "layout": layout, "name": NAMES[layout], "picked_by": picked_by,
-        "suggested": suggested, "why": why if picked_by == "engine" else WHY.get((vibe, layout), GENERIC_WHY.get(layout, "")),
+        "suggested": suggested, "why": why if picked_by != "owner" else WHY.get((vibe, layout), GENERIC_WHY.get(layout, "")),
         "requested": want, "request_source": request_source if want else None,
+        "learned": usual if usual in NAMES else None,
         "fit": fits.get(layout, 1.0), "note": note,
         "alternatives": alternatives, "fits": fits,
         "checks": {"subject_in_frame": None if subject is None else round(subject, 3),
@@ -393,14 +414,15 @@ def for_render(render, **kw) -> dict:
 
 
 def review_project(project, source_path, *, requested: "str | None" = None,
-                   request_source: "str | None" = None) -> dict:
+                   request_source: "str | None" = None, learned: "dict[str, str] | None" = None) -> dict:
     """Review a stored clip (models.Project) cut from the file at `source_path`."""
     from . import exports
 
     render = exports.render_for(project, source_path, source_path.with_suffix(".review.mp4"))
     title = (project.title or {})
     has_title = bool(str(title.get("text") or "").strip()) and title.get("enabled", True) is not False
-    return for_render(render, requested=requested, request_source=request_source, has_title=has_title)
+    return for_render(render, requested=requested, request_source=request_source, has_title=has_title,
+                      learned=learned)
 
 
 def requested_for_job(params: dict) -> "tuple[str | None, str | None]":

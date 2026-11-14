@@ -123,7 +123,11 @@ export const CLIP_ZOOMS = [
  */
 export type ClipStyle = {
   vibe: string; vibeLabel: string; described: string;
-  layout: string; name: string; pickedBy: "engine" | "owner";
+  layout: string; name: string;
+  /** owner: they chose or named it; learned: the look this business usually picks for clips like this (style recipes). */
+  pickedBy: "engine" | "owner" | "learned";
+  /** The layout this business usually picks for this kind of clip, when one is learned. */
+  learned: string | null;
   suggested: string; suggestedName: string; why: string;
   requested: string | null; requestSource: string | null;
   /** 0..1: share of the clip that gets the layout's look. */
@@ -134,7 +138,7 @@ export type ClipStyle = {
   stale: boolean;
 };
 
-const layoutName = (id: string) => CLIP_LAYOUTS.find((l) => l.id === id)?.label ?? id;
+export const layoutName = (id: string) => CLIP_LAYOUTS.find((l) => l.id === id)?.label ?? id;
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 const share = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null);
 
@@ -147,7 +151,8 @@ export function readClipStyle(raw: unknown): ClipStyle | null {
   const checks = (r["checks"] && typeof r["checks"] === "object" ? r["checks"] : {}) as Record<string, unknown>;
   return {
     vibe: str(r["vibe"]), vibeLabel: str(r["vibe_label"]), described: str(r["described"]),
-    layout, name: str(r["name"]) || layoutName(layout), pickedBy: r["picked_by"] === "owner" ? "owner" : "engine",
+    layout, name: str(r["name"]) || layoutName(layout), pickedBy: r["picked_by"] === "owner" ? "owner" : r["picked_by"] === "learned" ? "learned" : "engine",
+    learned: str(r["learned"]) || null,
     suggested, suggestedName: layoutName(suggested), why: str(r["why"]),
     requested: str(r["requested"]) || null, requestSource: str(r["request_source"]) || null,
     fit: share(r["fit"]) ?? 1, note: str(r["note"]) || null,

@@ -722,13 +722,20 @@ async function submit(job: JobRow) {
   const o = readJobOptions(job.options);
   // Clip learning step 3: what has worked on this channel before, as data for the finder (never an instruction).
   const notes = await channelLessons(job.business_id).catch((e: unknown) => { console.error("channel lessons", e); return null; });
+  // Clip learning step 4: the looks this business ends up with. The video's own choices (o) always win.
+  const { styleRecipes } = await import("@/lib/style-recipes.server");
+  const recipes = await styleRecipes(job.business_id);
+  const house = recipes?.house ?? {};
+  const captionPosition = o.captionPosition ?? house.captionPosition;
+  const captionSize = o.captionSize ?? house.captionSize;
   const r = await engineClient<{ id: string }>("POST", "/v1/autoclip", {
     asset_id: job.engine_asset_id, coverage: "best", clip_count: job.clip_count ?? "auto", clip_length: "auto", genre: "auto", mode: "auto",
     prompt: job.instructions ?? "", confirm_count: false, edit_level: "full", aspect: job.aspect, formats: [o.layout ?? "auto"], framing: "auto",
-    zoom: o.zoom ?? "auto", caption_style_id: o.captionStyleId ?? "bold_white",
-    ...(o.captionPosition ? { caption_position: o.captionPosition } : {}), ...(o.captionSize ? { caption_size: o.captionSize } : {}),
-    title_enabled: o.titleEnabled ?? true, title_style: o.titleStyle ?? "bold_band",
+    zoom: o.zoom ?? house.zoom ?? "auto", caption_style_id: o.captionStyleId ?? house.captionStyleId ?? "bold_white",
+    ...(captionPosition ? { caption_position: captionPosition } : {}), ...(captionSize ? { caption_size: captionSize } : {}),
+    title_enabled: o.titleEnabled ?? true, title_style: o.titleStyle ?? house.titleStyle ?? "bold_band",
     ...(notes ? { channel_notes: notes } : {}),
+    ...(recipes && Object.keys(recipes.layouts).length ? { style_recipes: recipes.layouts } : {}),
   });
   if (r.ok) { await supabaseAdmin.from("video_clip_jobs").update({ engine_job_id: r.data.id, updated_at: now() }).eq("id", job.id); return; }
   if (isTemporaryEngineError(r.error.code)) {

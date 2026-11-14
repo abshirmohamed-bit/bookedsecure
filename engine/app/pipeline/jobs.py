@@ -416,6 +416,7 @@ def _style(s: Session, job: Job, asset: Asset) -> None:
     if params.get("style_review") is False:
         return
     requested, source = style.requested_for_job(params)
+    learned = style.learned_layouts(params.get("style_recipes"))
     projects = s.exec(select(Project).where(Project.job_id == job.id).order_by(Project.index)).all()
     report = _progress_reporter(job.id, STAGE_PROGRESS["styling"], STAGE_PROGRESS["finalizing"] - 1)
     for i, p in enumerate(projects):
@@ -424,7 +425,7 @@ def _style(s: Session, job: Job, asset: Asset) -> None:
         own = asset if p.asset_id == asset.id else (s.get(Asset, p.asset_id) or asset)
         try:
             path = storage.local_path(own.mezzanine_key or own.storage_key)
-            review = style.review_project(p, path, requested=requested, request_source=source)
+            review = style.review_project(p, path, requested=requested, request_source=source, learned=learned)
             review["index"] = p.index
         except Exception:  # noqa: BLE001 - a review is advice; the clip stands without it
             log.exception("style review of %s failed; keeping its layout", p.id)
@@ -662,5 +663,5 @@ def style_brief(review: dict | None) -> dict | None:
     if not review or review.get("failed"):
         return None
     keys = ("vibe", "vibe_label", "described", "layout", "name", "picked_by", "suggested", "why",
-            "requested", "request_source", "fit", "note", "alternatives", "checks", "stale")
+            "requested", "request_source", "learned", "fit", "note", "alternatives", "checks", "stale")
     return {k: review.get(k) for k in keys}

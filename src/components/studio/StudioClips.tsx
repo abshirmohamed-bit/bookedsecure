@@ -2,13 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Clapperboard, Film, Loader2, Play, Search, Trash2 } from "lucide-react";
+import { Clapperboard, Film, Loader2, Play, Search, Sparkles, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ClipEditor } from "@/components/studio/ClipEditor";
 import { useDeleteVideoJobs, type Clip, type Job } from "@/components/social/SocialResults";
 import { Button } from "@/components/ui/button";
 import { isActiveJob, jobStatusLabel } from "@/lib/video-clips";
-import { getVideoClips } from "@/lib/video-clips.functions";
+import { getStyleRecipes, getVideoClips } from "@/lib/video-clips.functions";
 
 type Status = "all" | "ready" | "waiting";
 const STATUS: { id: Status; label: string }[] = [
@@ -73,6 +73,7 @@ export function StudioClips({ clipId, videoId }: { clipId?: string | undefined; 
 
   return (
     <div className="space-y-5">
+      <LearnedStyle />
       <div className="glass flex flex-wrap items-center gap-2 rounded-2xl p-2">
         <label className="relative min-w-[12rem] flex-1">
           <span className="sr-only">Search clips</span>
@@ -155,5 +156,33 @@ function VideoGroup({ job, clips, onOpen }: { job: Job; clips: Clip[]; onOpen: (
         </ul>
       ) : job.status === "COMPLETED" ? <p className="mt-3 text-xs text-muted-foreground">No clips came out of this video.</p> : null}
     </section>
+  );
+}
+
+/**
+ * What the Engine has learned from the owner's own edits (style recipes):
+ * the look they pick for each kind of clip and their usual captions. Shown
+ * only once something is learned; new videos get it unless the owner picks.
+ */
+function LearnedStyle() {
+  const load = useServerFn(getStyleRecipes);
+  const q = useQuery({ queryKey: ["style-recipes"], queryFn: () => load(), staleTime: 5 * 60_000 });
+  const [open, setOpen] = useState(false);
+  const lines = q.data?.lines ?? [];
+  if (!lines.length) return null;
+  return (
+    <div className="glass rounded-2xl px-3 py-2 text-xs">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-center gap-2 text-left">
+        <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate"><span className="font-semibold">The Engine learned your style</span> <span className="text-muted-foreground">from {q.data?.clipsUsed ?? 0} clips you changed, posted or deleted</span></span>
+        <span className="shrink-0 font-medium text-primary">{open ? "Hide" : "See"}</span>
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1 border-t border-white/60 pt-2 text-foreground/80">
+          {lines.map((l) => <p key={l}>{l}</p>)}
+          <p className="text-muted-foreground">New videos use this unless you pick a look for that video. Change or post a few more clips to teach it more.</p>
+        </div>
+      )}
+    </div>
   );
 }
