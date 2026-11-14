@@ -9,7 +9,7 @@ import type { Clip, Job } from "@/components/social/SocialResults";
 import { Button } from "@/components/ui/button";
 import { saveAssistantDraft } from "@/lib/assistant-draft";
 import { LivePreview } from "@/components/studio/LivePreview";
-import { CAPTION_POSITIONS, CAPTION_SIZE, type CaptionPosition, type ClipStyle, CLIP_LAYOUT_IDS, CLIP_ZOOM_IDS, type ClipLayout, type ClipZoom, groupCaptionLines, MAX_CLIP_MS, MIN_CLIP_MS, SHOT_KINDS, TITLE_POSITIONS, TITLE_STYLE_IDS, type TitlePosition, type TitleStyle, VIDEO_ASPECTS, type VideoAspect } from "@/lib/video-clips";
+import { CAPTION_POSITIONS, CAPTION_SIZE, type CaptionPosition, type ClipStyle, CLIP_LAYOUT_IDS, CLIP_ZOOM_IDS, type ClipLayout, type ClipZoom, groupCaptionLines, MAX_CLIP_MS, MIN_CLIP_MS, SHOT_KINDS, TITLE_POSITIONS, TITLE_STYLE_IDS, type TitlePosition, type TitleStyle, VIDEO_ASPECTS, type VideoAspect, layoutLookKinds } from "@/lib/video-clips";
 import { engineMakesClipVideo, finishBrowserClipVideo, getVideoClipEditor, getVideoClipPlan, renameVideoClip, renderVideoClip, saveVideoClipEdits } from "@/lib/video-clips.functions";
 import { canRenderInBrowser, renderClipInBrowser } from "@/lib/clip-render";
 
@@ -160,6 +160,18 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
   const [lineTexts, setLineTexts] = useState<Record<number, string>>({});
   // Live preview of the edits, or the video as it was last made.
   const [showMade, setShowMade] = useState(false);
+  /** After a save: the video that was there before, until the new one arrives. */
+  const [awaiting, setAwaiting] = useState<{ was: string | null } | null>(null);
+  useEffect(() => {
+    if (!awaiting) return;
+    if (clip.status === "READY" && clip.video_url && clip.video_url !== awaiting.was) {
+      setAwaiting(null);
+      setShowMade(true);
+      toast.success("Your new video is ready: showing it now.");
+    } else if (clip.status === "FAILED") {
+      setAwaiting(null);
+    }
+  }, [awaiting, clip.status, clip.video_url]);
   useEffect(() => {
     setStyleId(null); setCaptionsOn(null); setCaptionPosition(undefined); setCaptionSize(null); setCaptionY(undefined); setLayout(null); setZoom(null); setAspect(null); setHeadline({}); setLineTexts({});
   }, [editor.dataUpdatedAt]);
@@ -223,6 +235,22 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
     placeholderData: (previous) => previous,
   });
   const planReady = (layoutId: ClipLayout) => ["streamer", "black-box", "title-subtitles"].includes(layoutId) || Boolean(qc.getQueryData(planKey(layoutId)));
+  /**
+   * Whether a layout changes this clip at all: its plan (read for every layout
+   * in the background) has to contain the shots that carry its look. On one
+   * person talking to camera, Split screen, Group grid, Screen + speaker and
+   * Picture-in-picture all keep following the speaker, and picking one looked
+   * like the click did nothing. null while its plan is still being read.
+   */
+  const changesClip = (layoutId: string): boolean | null => {
+    const kinds = layoutLookKinds(layoutId);
+    if (!kinds) return true;
+    const p = qc.getQueryData(planKey(layoutId as ClipLayout)) as { shots?: { kind: string }[] } | undefined;
+    if (!p?.shots) return null;
+    return p.shots.some((s) => kinds.includes(s.kind));
+  };
+  const needsOf = (layoutId: string) => catalog?.layouts.find((l) => l.id === layoutId)?.needs ?? null;
+  const nameOf = (layoutId: string) => catalog?.layouts.find((l) => l.id === layoutId)?.name ?? layoutId;
   // Read every other layout's plan in the background (one at a time; the clip's
   // analysis is cached on the Engine), so switching layouts is instant.
   const firstPlan = Boolean(plan.data) && !plan.isPlaceholderData;
@@ -258,6 +286,7 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
   });
   const here = canHere && Boolean(editor.data?.browserUploads) && Boolean(settings?.sourceUrl);
   const save = useMutation({
+    onMutate: () => { setAwaiting({ was: clip.video_url ?? null }); setShowMade(false); },
     mutationFn: async (): Promise<{ where: "browser" | "engine"; reason?: string }> => {
       const r = await saveFn({ data: { clipId: clip.id, ...edits, ...(lineEdits.length ? { lineEdits } : {}), ...(here ? { browser: true } : {}) } });
       if (!r.render) return { where: "engine" };
@@ -293,10 +322,11 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
     },
     onSuccess: async (r) => {
       if (r.where === "browser") toast.success("Saved, and the new video is ready.");
-      else toast.success(r.reason ? `Saved. This browser couldn't make the video (${r.reason}), so the Engine is making it; it takes a minute or two.` : "Saved. Making the video again; it takes a minute or two.");
+      else toast.success(r.reason ? `Saved. This browser couldn't make the video (${r.reason}), so the Engine is making it; it shows here when it's ready.` : "Saved. Making the video again; it shows here when it's ready.");
       await Promise.all([qc.invalidateQueries({ queryKey: ["video-clips"] }), qc.invalidateQueries({ queryKey: ["video-clip-editor", clip.id] })]);
     },
     onError: async (e) => {
+      setAwaiting(null);
       toast.error(e instanceof Error ? e.message : "Those changes couldn't be saved.");
       await qc.invalidateQueries({ queryKey: ["video-clips"] });
     },
@@ -389,13 +419,19 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
             {settings && catalog ? (
               <div className="flex w-full max-w-2xl gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]" role="radiogroup" aria-label="Layout">
                 {catalog.layouts.filter((l) => isLayout(l.id)).map((l) => (
-                  <button key={l.id} type="button" role="radio" aria-checked={current.layout === l.id} title={l.hint ?? undefined}
+                  <button key={l.id} type="button" role="radio" aria-checked={current.layout === l.id}
+                    title={changesClip(l.id) === false ? `Looks the same as Follow the speaker on this clip${l.needs ? `: needs ${l.needs}` : ""}` : l.hint ?? undefined}
                     onClick={() => setLayout(l.id as ClipLayout)}
-                    className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition hover:-translate-y-0.5 active:scale-95 ${current.layout === l.id ? "border-primary bg-primary text-primary-foreground shadow-md" : "border-white/70 bg-white/60 text-foreground/80 hover:bg-white"}`}>
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition hover:-translate-y-0.5 active:scale-95 ${current.layout === l.id ? "border-primary bg-primary text-primary-foreground shadow-md" : changesClip(l.id) === false ? "border-dashed border-white/70 bg-white/30 text-foreground/45 hover:bg-white/60" : "border-white/70 bg-white/60 text-foreground/80 hover:bg-white"}`}>
                     {l.name}{planReady(l.id as ClipLayout) ? null : <span className="ml-1 inline-block size-1.5 animate-pulse rounded-full bg-current opacity-50 align-middle" aria-label="Reading" />}
                   </button>
                 ))}
               </div>
+            ) : null}
+            {changesClip(current.layout) === false ? (
+              <p role="status" className="w-full max-w-2xl rounded-xl border border-amber-300/70 bg-amber-50/80 px-3 py-2 text-[11px] leading-snug text-amber-900">
+                {nameOf(current.layout)} needs {needsOf(current.layout) ?? "something this clip doesn't have"}. This clip doesn't have that, so it keeps following the speaker and looks the same.
+              </p>
             ) : null}
             {settings?.style ? <StyleNote style={settings.style} layout={current.layout} onUse={(l) => setLayout(l)} /> : null}
 
@@ -531,7 +567,9 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
                           className={`flex min-h-14 flex-col items-start justify-center gap-0.5 rounded-xl border px-2.5 py-1.5 text-left transition hover:-translate-y-0.5 active:scale-95 ${current.layout === l.id ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-white/50 hover:bg-white/80"}`}>
                           <span className="text-[12px] font-semibold leading-tight">{l.name}</span>
                           {l.hint ? <span className="line-clamp-2 text-[10px] leading-snug text-muted-foreground">{l.hint}</span> : null}
-                          {l.needs ? <span className="text-[9px] font-medium text-amber-700">needs {l.needs}</span> : null}
+                          {changesClip(l.id) === false
+                            ? <span className="text-[9px] font-medium text-amber-700">Looks the same on this clip{l.needs ? `: needs ${l.needs}` : ""}</span>
+                            : l.needs ? <span className="text-[9px] font-medium text-amber-700">needs {l.needs}</span> : null}
                         </button>
                       ))}
                     </div>

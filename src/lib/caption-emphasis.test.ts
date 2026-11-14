@@ -36,3 +36,13 @@ describe("captions off the face", () => {
     expect(captionYFor({ kind: "fill" }, 1080, 1920, { w: 1920, h: 1080 })).toBeNull();
   });
 });
+
+describe("which layouts change a clip", () => {
+  it("knows the shots that carry each look", async () => {
+    const { layoutLookKinds } = await import("@/lib/video-clips");
+    expect(layoutLookKinds("split")).toEqual(["split"]);
+    expect(layoutLookKinds("screen")).toEqual(["screen", "graphic"]);
+    expect(layoutLookKinds("full-video")).toBeNull();
+    expect(layoutLookKinds("streamer")).toBeNull();
+  });
+});

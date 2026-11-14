@@ -347,3 +347,14 @@ export const FALLBACK_CAPTION_STYLES: { id: string; name: string; font: string; 
   { id: "clean_caps", name: "Clean caps", font: "Anton", defaults: { size: 64, position: "middle", animation: "none" } },
   { id: "podcast_bar", name: "Podcast bar", font: "Montserrat", defaults: { size: 46, position: "lower", animation: "none" } },
 ];
+
+/** The shot kinds that carry a layout's look (engine style.SIGNATURE); null for layouts that always apply. */
+export function layoutLookKinds(layoutId: string): string[] | null {
+  switch (layoutId) {
+    case "split": return ["split"];
+    case "grid": return ["grid"];
+    case "screen": return ["screen", "graphic"];
+    case "pip": return ["pip"];
+    default: return null;
+  }
+}
