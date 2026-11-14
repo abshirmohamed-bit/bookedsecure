@@ -4,7 +4,7 @@
 - [x] Verify memories, email theme, inbox, clip-learning history and lead contact fields already exist.
 - [x] Apply missing routines and server-only gateway storage; retain plain user UUIDs and explicit grants.
 - [x] Refresh generated types; run focused checks and security scan before requesting publishing.
-- [ ] One-minute gateway delivery blocked by public-key authentication and permanent queue polling in the supplied SQL; existing 10-minute follow-ups remains the fallback, and protected enqueue-driven processing is a separate change.
+- [ ] Protected instant gateway delivery: app secret COWORK_GATEWAY_SECRET generated; matching Vault storage is blocked because tools cannot copy the hidden value, and applying docs/cowork-gateways-trigger.sql was refused with "Agent access to secrets is not allowed." Existing 10-minute processing remains unchanged.
 
 ## Project monitoring fixes
 - [x] Give browser-rendered video frames valid durations and surface muxing failures.
