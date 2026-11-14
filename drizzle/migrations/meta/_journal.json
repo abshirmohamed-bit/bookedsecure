@@ -519,6 +519,13 @@
       "when": 1794647059979,
       "tag": "0073_apply_missing_cowork_gateway_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794647122887,
+      "tag": "0074_restrict_cowork_storage_grants",
+      "breakpoints": true
     }
   ]
 }
