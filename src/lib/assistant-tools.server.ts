@@ -24,6 +24,7 @@ import { buildCampaignTools } from "@/lib/assistant-tools-campaigns.server";
 import { buildLinkedInTools } from "@/lib/assistant-tools-linkedin.server";
 import { buildVideoTools } from "@/lib/assistant-tools-video.server";
 import { buildMemoryTools } from "@/lib/assistant-tools-memory.server";
+import { buildRoutineTools } from "@/lib/assistant-tools-routines.server";
 import { executeSharedAction, prepareAssistantText, customerInput, serviceInput, addonInput, textInput } from "@/lib/assistant-shared-actions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -434,5 +435,6 @@ export function buildAssistantTools(ctx: AssistantToolContext) {
     ...buildVideoTools(ctx),
     ...buildLeadFinderTools(ctx),
     ...buildMemoryTools(ctx),
+    ...buildRoutineTools(ctx),
   };
 }

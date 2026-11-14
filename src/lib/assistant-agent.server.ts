@@ -39,6 +39,8 @@ export async function runAssistantAgent(input: {
   attachment?: { filename: string; content: string } | null;
   /** The attached file was uploaded in an earlier message and is being reused. */
   attachmentRemembered?: boolean;
+  /** A scheduled routine (lib/cowork-routines): only reading and preparing tools, nobody watching. */
+  routine?: boolean;
 }): Promise<AssistantAgentResult> {
   const campaignContext = campaignContextAvailable(input);
   if (campaignNeedsClarification(input.question, campaignContext)) {
@@ -61,7 +63,7 @@ export async function runAssistantAgent(input: {
 
   const executed: string[] = [];
   const proposals: OwnerProposal[] = [];
-  const tools = buildAssistantTools({
+  const allTools = buildAssistantTools({
     client: input.client,
     businessId: input.businessId,
     userId: input.userId,
@@ -74,6 +76,8 @@ export async function runAssistantAgent(input: {
     record: (summary) => executed.push(summary),
     propose: (proposal) => proposals.push(proposal),
   });
+  const { routineTools } = await import("@/lib/cowork-routines");
+  const tools = (input.routine ? routineTools(allTools) : allTools) as typeof allTools;
 
   const question = input.attachment
     ? `${input.question}\n\n[${

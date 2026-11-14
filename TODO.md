@@ -47,6 +47,7 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 ## Hermes plan: Co-Work and the Engine learn (14 Nov)
 
 22. ~~**Lovable:** apply `docs/cowork-memory.sql` (Co-Work's memories, skills and review marks), then publish.~~ Applied and publishing requested 14 Nov. **You:** tell Co-Work "remember we don't detail boats", ask "what do you remember?", open the brain button beside the history, and after a longer task wait ~15 minutes for the review to mark what it learned as New.
-23. **Phase 2:** routines (scheduled tasks) for Co-Work, and the Engine watching a YouTube channel to clip new uploads.
+23. ~~**Phase 2:** routines (scheduled tasks) for Co-Work, and the Engine watching a YouTube channel to clip new uploads.~~ Built 14 Nov.
+23a. **Lovable:** apply `docs/cowork-routines.sql` (Co-Work routines and the channel watch), then publish. Then test: ask Co-Work "every weekday at 7am tell me today's bookings", open Routines (alarm clock beside the history) and press Run now; the report arrives in the bell within ~10 minutes. Turn on "Clip new YouTube uploads" with the rights tick; the next upload over 2 minutes appears in Studio within the hour.
 24. **Phase 3:** talk to Co-Work by SMS from the owner's own number, by email, then Telegram (WhatsApp needs Meta approval).
 25. **Phase 4:** the Engine learns each business's style per kind of video (recipes from kept and changed looks).

@@ -88,7 +88,12 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const coworkLearning = await sweepCoworkReviews().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Co-Work review failed",
         }));
-        return Response.json({ ...result, coworkLearning, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, youtubeStats, proxyUpgrade, abandonedSwept: swept.swept });
+        // Co-Work routines and the YouTube channel watch.
+        const { sweepRoutines } = await import("@/lib/cowork-routines.server");
+        const routines = await sweepRoutines().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Routines failed",
+        }));
+        return Response.json({ ...result, routines, coworkLearning, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, youtubeStats, proxyUpgrade, abandonedSwept: swept.swept });
 
 
       },

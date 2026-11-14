@@ -44,6 +44,7 @@ const CATEGORY_BY_KIND: Record<string, FeedCategory> = {
   low_credits: "account",
   trial_ending: "account",
   assistant_change: "account",
+  cowork_routine: "account",
 };
 
 export function categoryOf(kind: string): FeedCategory {
@@ -65,7 +66,9 @@ export type FeedLink =
   | { to: "/bookings" }
   | { to: "/settings/billing" }
   | { to: "/settings/messaging" }
-  | { to: "/assistant" };
+  | { to: "/assistant" }
+  | { to: "/assistant/$threadId"; params: { threadId: string } }
+  | { to: "/studio" };
 
 export type FeedGroup = {
   key: string;
@@ -252,6 +255,8 @@ function describe(rows: FeedRow[]): Omit<FeedGroup, "key" | "ids" | "unreadIds" 
         ? { to: "/leads/$leadId", params: { leadId: latest.lead_id } }
         : kind === "assistant_change"
           ? { to: "/assistant" }
+          : kind === "cowork_routine"
+            ? (str(meta(latest)["thread_id"]) ? { to: "/assistant/$threadId", params: { threadId: str(meta(latest)["thread_id"])! } } : { to: "/studio" })
           : latest.lead_id
             ? { to: "/leads/$leadId", params: { leadId: latest.lead_id } }
             : null;
