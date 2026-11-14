@@ -1609,6 +1609,156 @@ export type Database = {
           },
         ]
       }
+      cowork_memories: {
+        Row: {
+          business_id: string
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          last_used_at: string | null
+          origin: string
+          source_thread_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          last_used_at?: string | null
+          origin?: string
+          source_thread_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          last_used_at?: string | null
+          origin?: string
+          source_thread_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cowork_memories_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cowork_memories_source_thread_id_fkey"
+            columns: ["source_thread_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cowork_reviews: {
+        Row: {
+          business_id: string
+          reviewed_through: string
+          thread_id: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          reviewed_through: string
+          thread_id: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          reviewed_through?: string
+          thread_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cowork_reviews_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cowork_reviews_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: true
+            referencedRelation: "assistant_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cowork_skills: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_used_at: string | null
+          name: string
+          origin: string
+          source_thread_id: string | null
+          steps: string
+          updated_at: string
+          uses: number
+          when_to_use: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_used_at?: string | null
+          name: string
+          origin?: string
+          source_thread_id?: string | null
+          steps: string
+          updated_at?: string
+          uses?: number
+          when_to_use: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          origin?: string
+          source_thread_id?: string | null
+          steps?: string
+          updated_at?: string
+          uses?: number
+          when_to_use?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cowork_skills_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cowork_skills_source_thread_id_fkey"
+            columns: ["source_thread_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_topups: {
         Row: {
           amount_cents: number
