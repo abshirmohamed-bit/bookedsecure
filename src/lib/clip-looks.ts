@@ -87,10 +87,12 @@ export function graphicCards(W: number, H: number, gw: number, gh: number): [Box
  * Mirrors shots.caption_y; used only when the captions weren't dragged or put top/bottom.
  */
 export function captionYFor(
-  shot: { kind: string; main?: Box | null; inset?: Box | null } | null | undefined,
+  shot: { kind: string; main?: Box | null; inset?: Box | null; caption_y?: number | null } | null | undefined,
   W: number, H: number, src: { w: number; h: number },
 ): number | null {
   if (!shot || !H || H < W) return null;
+  // The Engine moved the line off the face in this shot (shots.place_captions).
+  if (typeof shot.caption_y === "number" && Number.isFinite(shot.caption_y)) return shot.caption_y;
   if (shot.kind === "split") return 0.5;
   if (shot.kind === "screen" && shot.main) return Math.min(H * 0.5, (W * src.h) / Math.max(1, src.w)) / H;
   if (shot.kind === "graphic" && shot.inset) {
@@ -105,4 +107,11 @@ export function presenterCards(W: number, H: number, top: number): [Box, Box] {
   const m = W * LOOK.duoMargin, g = W * LOOK.duoGap;
   const w = W - 2 * m, th = top - m - g / 2, bh = H - top - m - g / 2;
   return [{ x: m, y: m, w, h: th }, { x: m, y: m + th + g, w, h: bh }];
+}
+
+/** 1 while the headline shows, fading to 0 over its last 300 ms when it shows for the opening only. */
+export function headlineAlpha(untilMs: number | null, rel: number): number {
+  if (!untilMs) return 1;
+  if (rel >= untilMs) return 0;
+  return Math.min(1, Math.max(0, (untilMs - rel) / 300));
 }

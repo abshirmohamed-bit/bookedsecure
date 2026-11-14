@@ -6,6 +6,7 @@ a custom builder over the same renderer.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 MAX_WORDS_PER_LINE = 4
@@ -94,6 +95,12 @@ def _ass_colour(rgb: str, alpha: int = 0) -> str:
     return f"&H{alpha:02X}{b}{g}{r}"
 
 
+def _tag_colour(rgb: str) -> str:
+    """A colour for an override tag (\\1c): &HBBGGRR&."""
+    rgb = rgb.lstrip("#")
+    return f"&H{rgb[4:6]}{rgb[2:4]}{rgb[0:2]}&"
+
+
 def _ts(ms: int) -> str:
     ms = max(0, ms)
     h, rem = divmod(ms, 3_600_000)
@@ -122,8 +129,34 @@ def free_y(y: object) -> float | None:
     return min(0.95, max(0.05, v))
 
 
+def emphasised(word: str, emphasis: "set[str] | None") -> bool:
+    """Whether a caption word is one of the clip's key words (same word, or the same root of 5+ letters)."""
+    if not emphasis:
+        return False
+    bare = re.sub(r"[^\w']", "", word).lower()
+    if not bare:
+        return False
+    for k in emphasis:
+        if bare == k or (len(k) >= 5 and bare.startswith(k)) or (len(bare) >= 5 and k.startswith(bare) and len(k) - len(bare) <= 2):
+            return True
+    return False
+
+
+def emphasis_set(raw: object) -> set[str]:
+    """The clip's key words (caption_options.emphasis), cleaned, at most three."""
+    if not isinstance(raw, list):
+        return set()
+    out = set()
+    for w in raw[:3]:
+        bare = re.sub(r"[^\w']", "", str(w)).lower()
+        if len(bare) > 1:
+            out.add(bare)
+    return out
+
+
 def build_ass(words: list[dict], style: Style, width: int, height: int, *,
               censored: list[str] | None = None, keyword_highlight: bool = False,
+              emphasis: "list[str] | None" = None,
               max_words: int | None = MAX_WORDS_PER_LINE, position: str | None = None,
               size_scale: float = 1.0, y: float | None = None,
               place_at=None) -> str:
@@ -170,11 +203,12 @@ Style: Caption,{style.font},{size},{_ass_colour(style.fill)},{_ass_colour(style.
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     censored_set = {c.lower().strip() for c in (censored or []) if c.strip()}
+    keys = emphasis_set(emphasis)
     events: list[str] = []
     for line in group_lines(words, max_words=max_words):
         if not line.text:
             continue
-        rendered = _render_line(line, style, censored_set, keyword_highlight)
+        rendered = _render_line(line, style, censored_set, keyword_highlight, keys)
         own = 0
         at = place_at((line.start_ms + line.end_ms) // 2) if place_at is not None and fy is None else None
         if at is not None:
@@ -188,15 +222,25 @@ def _mask(word: str) -> str:
     return bare[0] + "*" * max(1, len(bare) - 1) if bare else bare
 
 
-def _render_line(line: Line, style: Style, censored: set[str], keyword_highlight: bool) -> str:
+#: The colour a key word takes when the style's own highlight is its fill colour.
+EMPHASIS_COLOUR = "FFD60A"
+
+
+def _render_line(line: Line, style: Style, censored: set[str], keyword_highlight: bool,
+                 emphasis: "set[str] | None" = None) -> str:
     parts: list[str] = []
+    accent = style.highlight if style.highlight and style.highlight.upper() != style.fill.upper() else EMPHASIS_COLOUR
     for i, w in enumerate(line.words):
         text = w["text"].strip()
+        key = emphasised(text, emphasis) and text.lower().strip(".,!?;:") not in censored
         if text.lower().strip(".,!?;:") in censored:
             text = _mask(text)
         if style.upper:
             text = text.upper()
         text = _escape(text)
+        if key and style.animation != "karaoke":
+            # The clip's key word in the accent colour, like an editor's pull quote.
+            text = f"{{\\1c{_tag_colour(accent)}}}{text}{{\\1c{_tag_colour(style.fill)}}}"
         if style.animation == "karaoke":
             # \k is in centiseconds; the active word takes the secondary colour
             cs = max(1, (w["end_ms"] - w["start_ms"]) // 10)

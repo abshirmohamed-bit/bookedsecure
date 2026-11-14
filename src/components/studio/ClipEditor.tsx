@@ -271,8 +271,12 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
           aspect: isAspect(saved.aspect) ? saved.aspect : "9:16",
           plan: plan.data ? { source: plan.data.source, shots: plan.data.shots, active: plan.data.active ?? null } : null, planStartMs: baseStart,
           words: r.render.words,
-          captions: { on: saved.captionsOn, styleId: saved.styleId, position: saved.captionPosition ?? styleDefault, size: saved.captionSize, y: saved.captionY },
-          headline: { on: saved.headline.enabled, text: saved.headline.text, position: saved.headline.position },
+          captions: { on: saved.captionsOn, styleId: saved.styleId, position: saved.captionPosition ?? styleDefault, size: saved.captionSize, y: saved.captionY, emphasis: saved.emphasis ?? [] },
+          headline: {
+            on: saved.headline.enabled, text: saved.headline.text,
+            position: saved.headline.position === "auto" ? plan.data?.headline?.place ?? "top" : saved.headline.position,
+            untilMs: saved.headline.position === "auto" ? plan.data?.headline?.until_ms ?? null : null,
+          },
         }, setMakingHere);
         const put = await fetch(r.render.uploadUrl, { method: "PUT", headers: { "Content-Type": "video/mp4" }, body: out.blob });
         if (!put.ok) throw new Error(`The upload was refused (${put.status}).`);
@@ -345,8 +349,12 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
                 <LivePreview
                   src={settings.sourceUrl} offsetMs={settings.sourceOffsetMs} start={start} end={end} clipStart={baseStart}
                   aspect={current.aspect} layout={current.layout} plan={plan.data ?? null} lines={lines} lineTexts={lineTexts}
-                  captions={{ on: current.captionsOn, className: look(current.styleId).className, highlight: Boolean(look(current.styleId).highlight), position: stylePosition, size: current.captionSize, y: current.captionY }}
-                  headline={{ on: current.headlineEnabled, text: current.headlineText, position: current.headlinePosition }}
+                  captions={{ on: current.captionsOn, className: look(current.styleId).className, highlight: Boolean(look(current.styleId).highlight), position: stylePosition, size: current.captionSize, y: current.captionY, emphasis: settings?.emphasis ?? [] }}
+                  headline={{
+                    on: current.headlineEnabled, text: current.headlineText,
+                    position: current.headlinePosition === "auto" ? plan.data?.headline?.place ?? "top" : current.headlinePosition,
+                    untilMs: current.headlinePosition === "auto" ? plan.data?.headline?.until_ms ?? null : null,
+                  }}
                   poster={clip.thumbnail_url ?? undefined} scrubMs={scrub} timeRef={timeRef}
                   onCaptionY={(y) => { setCaptionY(y); if (tab !== "captions") setTab("captions"); }}
                 />

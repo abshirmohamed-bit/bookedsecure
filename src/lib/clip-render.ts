@@ -5,6 +5,8 @@
  * muxed into an MP4. Desktop Chrome and Edge can; anything else (or any
  * failure) saves through the Engine instead.
  */
+import { headlineAlpha } from "@/lib/clip-looks";
+import { EMPHASIS_COLOUR, emphasisSet, isEmphasised } from "@/lib/caption-emphasis";
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import * as MP4Box from "mp4box";
 import { cropAt, shotAt, transitionAt, transitionLook, type MotionSample } from "@/lib/clip-motion";
@@ -27,8 +29,9 @@ export type RenderInput = {
   /** Caption words, timed from startMs. */
   words: CaptionWord[];
   /** `y`: a dragged position, the line's centre as a share of the height from the top (wins over `position`). */
-  captions: { on: boolean; styleId: string; position: string; size: number; y?: number | null };
-  headline: { on: boolean; text: string; position: string };
+  captions: { on: boolean; styleId: string; position: string; size: number; y?: number | null; emphasis?: string[] };
+  /** `untilMs`: the headline shows for the opening only (the Engine's headline plan), then fades. */
+  headline: { on: boolean; text: string; position: string; untilMs?: number | null };
 };
 
 const OUTPUT: Record<VideoAspect, { w: number; h: number }> = {
@@ -281,6 +284,7 @@ function drawCaptions(ctx: CanvasRenderingContext2D, lines: CaptionLine[], input
   const line = lines.find((l) => rel >= l.start_ms && rel <= l.end_ms + 150);
   if (!line) return;
   const p = paintFor(input.captions.styleId);
+  const keys = emphasisSet(input.captions.emphasis);
   const px = Math.round(Math.min(W, H * 0.5625) * 0.068 * input.captions.size);
   ctx.font = `${p.weight ?? 900} ${px}px ${p.family ?? "Inter, 'Segoe UI', system-ui, sans-serif"}`;
   ctx.textBaseline = "middle";
@@ -313,7 +317,7 @@ function drawCaptions(ctx: CanvasRenderingContext2D, lines: CaptionLine[], input
       const on = p.highlight && w && rel >= w.start_ms && rel < w.end_ms;
       if (p.stroke) { ctx.lineWidth = px * 0.14; ctx.strokeStyle = p.stroke; ctx.lineJoin = "round"; ctx.strokeText(word, x, y); }
       if (p.shadow) { ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = px * 0.2; }
-      ctx.fillStyle = on ? p.highlight! : p.fill;
+      ctx.fillStyle = on ? p.highlight! : isEmphasised(word, keys) ? (p.highlight && p.highlight !== p.fill ? p.highlight : EMPHASIS_COLOUR) : p.fill;
       ctx.fillText(word, x, y);
       ctx.shadowBlur = 0;
       x += ctx.measureText(`${word} `).width;
@@ -323,13 +327,21 @@ function drawCaptions(ctx: CanvasRenderingContext2D, lines: CaptionLine[], input
   }
 }
 
-function drawHeadline(ctx: CanvasRenderingContext2D, input: RenderInput, W: number, H: number) {
+function drawHeadline(ctx: CanvasRenderingContext2D, input: RenderInput, W: number, H: number, rel = 0) {
   const text = input.headline.text.trim();
   if (!input.headline.on || !text) return;
+  const alpha = headlineAlpha(input.headline.untilMs ?? null, rel);
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  try { paintHeadline(ctx, input, text, W, H); } finally { ctx.restore(); }
+}
+
+function paintHeadline(ctx: CanvasRenderingContext2D, input: RenderInput, text: string, W: number, H: number) {
   const px = Math.round(Math.min(W, H * 0.5625) * 0.05);
   ctx.font = `800 ${px}px Inter, 'Segoe UI', system-ui, sans-serif`;
   ctx.textBaseline = "middle";
-  const rows = wrap(ctx, text.split(/\s+/), W * 0.8).slice(0, 2);
+  const rows = wrap(ctx, text.replace(/\s*([\u2014\u2013])\s*/g, "$1 ").split(/\s+/), W * 0.8).slice(0, 2);
   const lh = px * 1.2;
   const pad = px * 0.5;
   const width = Math.max(...rows.map((r) => ctx.measureText(r.join(" ")).width)) + pad * 2;
@@ -341,7 +353,7 @@ function drawHeadline(ctx: CanvasRenderingContext2D, input: RenderInput, W: numb
   ctx.fill();
   ctx.fillStyle = "#000";
   rows.forEach((r, i) => {
-    const t = r.join(" ");
+    const t = r.join(" ").replace(/([—–]) /g, "$1");
     ctx.fillText(t, (W - ctx.measureText(t).width) / 2, top + pad / 2 + lh * (i + 0.5));
   });
 }
@@ -468,7 +480,7 @@ async function renderClipRealtime(input: RenderInput, onProgress: (p: number) =>
       if (ts >= 0 && ts > lastTs) {
         drawPicture(ctx, video, input, abs - input.planStartMs, W, H);
         drawCaptions(ctx, lines, input, abs - input.startMs, W, H);
-        drawHeadline(ctx, input, W, H);
+        drawHeadline(ctx, input, W, H, abs - input.startMs);
         if (poster) {
           // Podcast poster: a bar that fills across the bottom as the clip plays.
           const bh = Math.max(4, H * LOOK.progress.height);
@@ -664,7 +676,7 @@ async function renderClipFast(input: RenderInput, onProgress: (p: number) => voi
         const abs = input.offsetMs + t / 1000;
         drawPicture(ctx, frame, input, abs - input.planStartMs, W, H);
         drawCaptions(ctx, lines, input, abs - input.startMs, W, H);
-        drawHeadline(ctx, input, W, H);
+        drawHeadline(ctx, input, W, H, abs - input.startMs);
         if (poster) {
           const bh = Math.max(4, H * LOOK.progress.height);
           ctx.fillStyle = `rgba(255,255,255,${LOOK.progress.alpha})`;

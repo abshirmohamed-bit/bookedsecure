@@ -58,6 +58,10 @@ def _check_edit(data: dict) -> None:
             raise EngineError("VALIDATION_ERROR", "caption_options.y must be between 0 (top) and 1 (bottom).")
     if options.get("max_words") is not None and not (1 <= int(options["max_words"]) <= 8):
         raise EngineError("VALIDATION_ERROR", "caption_options.max_words must be between 1 and 8.")
+    emphasis = options.get("emphasis")
+    if emphasis is not None and (not isinstance(emphasis, list) or len(emphasis) > 3
+                                 or not all(isinstance(w, str) and 0 < len(w) <= 24 for w in emphasis)):
+        raise EngineError("VALIDATION_ERROR", "caption_options.emphasis must be up to 3 words.")
     title = data.get("title") or {}
     if title.get("style") is not None and title["style"] not in TITLE_STYLES:
         raise EngineError("VALIDATION_ERROR", f"title.style must be one of {list(TITLE_STYLES)}.")
@@ -398,6 +402,7 @@ def project_framing(project_id: str, aspect: str = "", layout: str = "", zoom: s
                   active=compose.shotplan.active_box(inputs).as_dict() if inputs.active else None,
                   faces=faces, people=len(inputs.tracks), cuts=[c - p.in_ms for c in inputs.cuts],
                   shots=[sh.as_dict(p.in_ms) for sh in plan],
+                  headline=compose.headline_plan(render, plan, inputs),
                   summary={k: v for k, v in sorted(compose.shotplan.summary(plan).items(), key=lambda kv: -kv[1])})
 
 

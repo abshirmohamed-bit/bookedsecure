@@ -280,6 +280,8 @@ export type ClipSettings = {
   trimTo: number | null;
   /** A dragged caption position, 0 (top) to 1 (bottom), or null for the preset. */
   captionY: number | null;
+  /** The clip's key words, coloured in its captions (caption_options.emphasis, from the Engine's finder). */
+  emphasis: string[];
   /** For the live preview: the source video, and where its time 0 sits on the original timeline. */
   sourceUrl: string | null; sourceOffsetMs: number;
   headline: { text: string; enabled: boolean; style: string; position: string };
@@ -298,6 +300,7 @@ function settingsOf(project: EngineProject): ClipSettings {
     captionPosition: (CAPTION_POSITIONS as readonly unknown[]).includes(position) ? (position as CaptionPosition) : null,
     captionSize: Number.isFinite(size) && size > 0 ? size : 1,
     captionY: typeof options["y"] === "number" && Number.isFinite(options["y"]) ? (options["y"] as number) : null,
+    emphasis: Array.isArray(options["emphasis"]) ? (options["emphasis"] as unknown[]).filter((w): w is string => typeof w === "string").slice(0, 3) : [],
     layout: project.layout, zoom: typeof framing["zoom"] === "string" ? (framing["zoom"] as string) : "auto",
     aspect: project.aspect, focus: typeof framing["focus"] === "string" ? (framing["focus"] as string) : "auto",
     inMs: project.in_ms, outMs: project.out_ms, trimTo: project.sourceEndMs,
@@ -402,6 +405,8 @@ export async function applyClipStyles(businessId: string, jobId: string, clipIds
 
 export type ShotPlan = {
   layout: string; zoom: string; aspect: string; people: number;
+  /** Where the Engine puts the headline and, when it would sit on a head, for how long (the opening only). */
+  headline?: { place: "top" | "bottom"; until_ms: number | null } | null;
   /** The real picture inside the source's black bars (letterbox/pillarbox), when it has any. */
   active?: PlanBox | null;
   source: { w: number; h: number }; output: { w: number; h: number };
@@ -412,7 +417,9 @@ export type ShotPlan = {
     /** How the shot comes in (an ffmpeg xfade name); null for a straight cut. */
     transition: string | null;
     /** pip: which side the bubble sits on, away from the speaker's face. */
-    side?: "left" | "right" | null }[];
+    side?: "left" | "right" | null;
+    /** Where captions sit in this shot when the Engine moved them off the face (0 top .. 1 bottom). */
+    caption_y?: number | null }[];
 };
 /** A crop of the source, in source pixels. */
 export type PlanBox = { x: number; y: number; w: number; h: number };

@@ -1,3 +1,5 @@
+import { headlineAlpha } from "@/lib/clip-looks";
+import { emphasisSet, isEmphasised } from "@/lib/caption-emphasis";
 import { GripHorizontal, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import type { PlanBox, ShotPlan } from "@/lib/video-clips.server";
@@ -62,8 +64,8 @@ export function LivePreview({
   plan: ShotPlan | null;
   lines: CaptionLine[];
   lineTexts: Record<number, string>;
-  captions: { on: boolean; className: string; highlight: boolean; position: string; size: number; y: number | null };
-  headline: { on: boolean; text: string; position: string };
+  captions: { on: boolean; className: string; highlight: boolean; position: string; size: number; y: number | null; emphasis?: string[] };
+  headline: { on: boolean; text: string; position: string; untilMs?: number | null };
   poster?: string | undefined;
   /** While a trim handle is dragged: show this moment instead of playing. */
   scrubMs?: number | null | undefined;
@@ -267,6 +269,7 @@ export function LivePreview({
 
   const line = lines.find((l) => rel >= l.start_ms && rel <= l.end_ms + 150);
   const edited = line ? lineTexts[line.start_ms] : undefined;
+  const keys = emphasisSet(captions.emphasis);
   const fontRem = 1.3 * captions.size * (frame.w ? Math.min(1.25, Math.max(0.6, frame.w / 352)) : 1);
   const headlineTop = headline.position !== "bottom";
   // Undragged middle captions follow the composition (the seam of two cards, above an on-screen card).
@@ -355,8 +358,9 @@ export function LivePreview({
         <div aria-hidden="true" className="pointer-events-none absolute left-0"
           style={{ bottom: `${LOOK.progress.lift * 100}%`, height: Math.max(3, frame.h * LOOK.progress.height), width: `${Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100))}%`, background: `rgba(255,255,255,${LOOK.progress.alpha})` }} />
       ) : null}
-      {headline.on && headline.text.trim() ? (
-        <div className={`pointer-events-none absolute inset-x-3 flex justify-center ${headlineTop ? "top-[7%]" : "bottom-[7%]"}`}>
+      {headline.on && headline.text.trim() && headlineAlpha(headline.untilMs ?? null, rel) > 0 ? (
+        <div className={`pointer-events-none absolute inset-x-3 flex justify-center ${headlineTop ? "top-[7%]" : "bottom-[7%]"}`}
+          style={{ opacity: headlineAlpha(headline.untilMs ?? null, rel) }}>
           <span className="max-w-full rounded-lg bg-white px-3 py-1.5 text-center text-[0.95rem] font-black leading-tight text-black shadow-lg">{headline.text}</span>
         </div>
       ) : null}
@@ -371,10 +375,10 @@ export function LivePreview({
           <span className={`relative rounded-md px-1 ring-white/70 ${dragY !== null ? "ring-2" : "group-hover/cap:ring-1"}`}>
             <span className={captions.className} style={{ fontSize: `${fontRem}rem`, lineHeight: 1.15 }}>
               {!line ? <span className="opacity-60">Captions</span>
-                : edited !== undefined || !captions.highlight
+                : edited !== undefined || (!captions.highlight && !keys.size)
                   ? (edited ?? line.text)
                   : line.words.map((w, i) => (
-                    <span key={i} className={rel >= w.start_ms && rel < w.end_ms ? "text-[#FFD60A]" : undefined}>{i ? " " : ""}{w.text.trim()}</span>
+                    <span key={i} className={(captions.highlight && rel >= w.start_ms && rel < w.end_ms) || isEmphasised(w.text, keys) ? "text-[#FFD60A]" : undefined}>{i ? " " : ""}{w.text.trim()}</span>
                   ))}
             </span>
             {onCaptionY ? (

@@ -12,6 +12,7 @@ these fields one-to-one.
 from __future__ import annotations
 
 import logging
+import re
 import math
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -71,6 +72,8 @@ class Render:
     caption_size: float = 1.0
     caption_max_words: int | None = None
     censored: list[str] | None = None
+    #: The clip's key words (caption_options.emphasis), coloured in its captions.
+    emphasis: list[str] | None = None
     title: dict | None = None               # {text, style, enabled}
     watermark: dict | None = None           # {text, position, opacity}
     broll: Path | None = None
@@ -168,8 +171,12 @@ def _font_option(workdir: Path | None = None) -> str:
 
 
 def wrap_title(text: str, max_chars: int, max_lines: int = 2) -> list[str]:
-    """Break a headline into at most `max_lines`, never mid-word."""
-    words = text.split()
+    """Break a headline into at most `max_lines`, never mid-word.
+
+    A dash between words ("HOUSE—THEN") is a place to break, kept at the end
+    of its line: as one long word it ran off both sides of the frame.
+    """
+    words = re.sub(r"\s*([\u2014\u2013])\s*", r"\1 ", text).split()
     lines: list[str] = []
     current = ""
     for word in words:
@@ -189,7 +196,20 @@ def wrap_title(text: str, max_chars: int, max_lines: int = 2) -> list[str]:
     used = sum(len(l.split()) for l in lines)
     if used < len(words):
         lines[-1] = lines[-1][: max(0, max_chars - 1)].rstrip() + "…"
-    return lines
+    # A dash that didn't end its line joins its words again ("HOUSE—THEN").
+    return [re.sub(r"([—–]) ", r"\1", l) for l in lines]
+
+
+#: Average advance of a heavy sans, in ems: mixed case, and all capitals
+#: (wider: a capitals headline sized at the mixed-case rate overflowed).
+ADVANCE = 0.52
+ADVANCE_CAPS = 0.62
+
+
+def _advance(text: str) -> float:
+    letters = [c for c in text if c.isalpha()]
+    caps = sum(1 for c in letters if c.isupper())
+    return ADVANCE_CAPS if letters and caps / len(letters) > 0.6 else ADVANCE
 
 
 def title_lines(text: str, w: int, h: int) -> tuple[list[str], int]:
@@ -203,8 +223,9 @@ def title_lines(text: str, w: int, h: int) -> tuple[list[str], int]:
     base = max(20, int(h * 0.034))
     usable = w * 0.84
     best: tuple[list[str], int] | None = None
+    adv = _advance(text)
     for max_lines, size in ((2, base), (3, int(base * 0.9)), (3, int(base * 0.8))):
-        max_chars = max(10, int(usable / (0.52 * size)))
+        max_chars = max(10, int(usable / (adv * size)))
         lines = wrap_title(text, max_chars, max_lines)
         if not lines:
             return [], size
@@ -215,7 +236,7 @@ def title_lines(text: str, w: int, h: int) -> tuple[list[str], int]:
             break
     lines, size = best or ([], base)
     longest = max((len(l) for l in lines), default=1)
-    size = max(16, int(min(size, usable / (0.52 * max(1, longest)))))
+    size = max(16, int(min(size, usable / (adv * max(1, longest)))))
     return lines, size
 
 
@@ -248,8 +269,46 @@ def title_place(title: dict, head_top: float | None, top_busy: float = 0.0,
     return "top"
 
 
+#: A headline that would sit on someone's head is shown for the opening
+#: seconds only (the hook), then fades, unless the owner chose its place.
+HOOK_TITLE_MS = 4000
+HOOK_FADE_MS = 300
+#: Captions centred lower than this would run into a bottom headline.
+CAPTIONS_CLEAR_OF_BOTTOM_TITLE = 0.64
+
+
+def headline_plan(render, plan, inputs) -> dict:
+    """{"place": "top"|"bottom", "until_ms": ms or None}: where this clip's headline goes and how long it stays.
+
+    The browser preview and render read this from the framing payload, so all
+    three agree. On a seated interview every close-up has the head at the top
+    of the frame; a headline held there the whole clip sat on foreheads.
+    """
+    title = render.title or {}
+    head_top, top_text, bottom_text = _output_bands(plan, inputs) if plan and inputs is not None else (None, 0.0, 0.0)
+    if head_top is None and inputs is not None:
+        tops = [b[1][1] - b[1][3] / 2 for t in inputs.tracks for b in t.boxes]
+        head_top = sorted(tops)[len(tops) // 2] if tops else None
+    bands = [(e[3], e[4]) for e in (inputs.detail if inputs is not None else []) if len(e) > 4]
+    top_busy = sorted(b[0] for b in bands)[len(bands) // 2] if bands else 0.0
+    bottom_busy = sorted(b[1] for b in bands)[len(bands) // 2] if bands else 0.0
+    place = title_place(title, head_top, top_busy, bottom_busy, top_text, bottom_text)
+    auto = title.get("position", "auto") == "auto"
+    # Captions moved under a chin (shots.place_captions) sit where a bottom
+    # headline would: the headline goes up top for the opening instead.
+    low_captions = any(getattr(s, "caption_at", None) is not None and s.caption_at > CAPTIONS_CLEAR_OF_BOTTOM_TITLE
+                       for s in (plan or []))
+    if auto and place == "bottom" and low_captions:
+        place = "top"
+    until = None
+    if (auto and place == "top" and head_top is not None and head_top < HEAD_UP_HIGH
+            and render.layout != "title-subtitles" and render.total_ms > HOOK_TITLE_MS + 2000):
+        until = HOOK_TITLE_MS
+    return {"place": place, "until_ms": until}
+
+
 def _title_filter(title: dict, w: int, h: int, workdir: Path | None = None,
-                  top: int | None = None, place: str = "top") -> str:
+                  top: int | None = None, place: str = "top", until_ms: int | None = None) -> str:
     """A headline that always fits: wrapped, then shrunk to the width."""
     if title.get("enabled") is False:
         return ""
@@ -278,6 +337,11 @@ def _title_filter(title: dict, w: int, h: int, workdir: Path | None = None,
         y = y0 + i * gap
         common = (f"{_text_source(line, workdir, f'title_{i}')}{font}:fontcolor=white:fontsize={size}"
                   f":x=(w-text_w)/2:y={y}")
+        if until_ms:
+            end = until_ms / 1000
+            fade = HOOK_FADE_MS / 1000
+            common += (f":enable='lt(t,{end:.3f})'"
+                       f":alpha='if(lt(t,{end - fade:.3f}),1,max(0,({end:.3f}-t)/{fade:.3f}))'")
         if kind == "bold_band":
             parts.append(f"drawtext={common}:box=1:boxcolor=black@0.78:boxborderw={int(size * 0.42)}")
         elif kind == "boxed":
@@ -490,6 +554,10 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
     plan = shotplan.plan(inputs)
     try:
         camera.apply(plan, inputs, source)
+        for shot in plan:
+            if shot.kind == "fill" and shot.motion:
+                shotplan.keep_text_whole(shot, shotplan.texts_in(inputs, shot.start_ms, shot.end_ms), inputs.width)
+        shotplan.place_captions(plan, inputs)
     except Exception:
         # Without the camera moves the shots still hold their framing.
         log.exception("camera moves failed; holding each shot still")
@@ -865,15 +933,9 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     # Heads up against the top of the frame get the headline at the bottom.
     # Measured in the output where the shots crop (a face high in a crop is
     # what the headline would cover), else in the source.
-    head_top, top_text, bottom_text = _output_bands(plan, inputs)
-    if head_top is None:
-        tops = [b[1][1] - b[1][3] / 2 for t in inputs.tracks for b in t.boxes]
-        head_top = sorted(tops)[len(tops) // 2] if tops else None
-    bands = [(e[3], e[4]) for e in inputs.detail if len(e) > 4]
-    top_busy = sorted(b[0] for b in bands)[len(bands) // 2] if bands else 0.0
-    bottom_busy = sorted(b[1] for b in bands)[len(bands) // 2] if bands else 0.0
-    place = title_place(render.title or {}, head_top, top_busy, bottom_busy, top_text, bottom_text)
-    last = _overlays(render, workdir, chain, w, h, title_top=title_top, place=place, plan=plan, inputs=inputs)
+    heading = headline_plan(render, plan, inputs)
+    last = _overlays(render, workdir, chain, w, h, title_top=title_top, place=heading["place"], plan=plan,
+                     inputs=inputs, title_until_ms=None if title_top is not None else heading["until_ms"])
 
     args = ["-ss", f"{render.in_ms / 1000:.3f}", "-t", f"{dur_s:.3f}", "-i", str(render.source),
             *_graph_args(";".join(chain), workdir), "-map", f"[{last}]", "-map", "0:a?"]
@@ -979,13 +1041,14 @@ def _captions_ass(render: Render, w: int, h: int, plan=None, inputs=None) -> str
             t = render.in_ms + ms
             shot = next((s for s in plan if s.start_ms <= t < s.end_ms), None)
             return shotplan.caption_y(shot, inputs) if shot is not None else None
-    return build_ass(render.words or [], style, w, h, censored=render.censored,
+    return build_ass(render.words or [], style, w, h, censored=render.censored, emphasis=render.emphasis,
                      position=render.caption_position, size_scale=render.caption_size, y=render.caption_y,
                      max_words=render.caption_max_words, place_at=place_at)
 
 
 def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int,
-              title_top: int | None = None, place: str = "top", plan=None, inputs=None) -> str:
+              title_top: int | None = None, place: str = "top", plan=None, inputs=None,
+              title_until_ms: int | None = None) -> str:
     """Append captions, title and watermark to a filter_complex graph.
 
     Takes the graph ending in [base] and returns the name of the last link, so
@@ -1009,7 +1072,8 @@ def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int,
         chain.append(f"color=c={looks.PROGRESS_COLOUR}:s={w}x{bar_h}:r=30:d={dur:.3f}[pbar]")
         chain.append(f"[{last}][pbar]overlay=x='-W+W*t/{dur:.3f}':y=H-h-{int(h * looks.PROGRESS_LIFT)}:eof_action=pass[prog]")
         last = "prog"
-    for name, f in (("title", _title_filter(render.title or {}, w, h, workdir, top=title_top, place=place)),
+    for name, f in (("title", _title_filter(render.title or {}, w, h, workdir, top=title_top, place=place,
+                                            until_ms=title_until_ms)),
                     ("mark", _watermark_filter(render.watermark or {}, w, h, workdir))):
         if f:
             chain.append(f"[{last}]{f}[{name}]")

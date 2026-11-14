@@ -60,3 +60,8 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 27. **You:** deploy the Engine from the main checkout (adds the Silero voice model to the image). Then clip a music-only video (detailing or real estate): the job says the soundtrack is mostly music and the clips aren't given Headline + captions for invented words.
 28. **Optional, more renders at once:** `fly scale vm performance-4x -a crayzmundo-engine` (4 CPUs, 8 GB) and set the secret `CONCURRENT_RENDERS=2`; the Engine then renders two clips at once (it checks free memory before each). The 4 GB machine stays one at a time. A second machine would need the Engine's SQLite database moved to Postgres first.
 29. **Optional, proxy spare:** add `YTDLP_PROXIES` on Fly with extra proxies (comma-separated); the Engine benches refused or empty ones and switches by itself (docs/engine-proxy-upgrade.md).
+
+## Engine: clip review fixes (15 Nov)
+
+30. **You:** deploy the Engine from the main checkout, and publish in Lovable. New clip jobs then share clips across the whole video, skip opening trailers, keep each question with its answer, colour key words, keep captions off faces and show headlines that would cover a head for the opening only. Existing clips change when re-clipped or saved again; for the Pacific Islanders video, ask Co-Work to recheck clip 7's look (it now reviews as one person, not a group).
+31. **Not done yet (from the same review):** open an answer clip with the question card shot from earlier in the video when its question was asked by someone else (needs clips made of two pieces); bring an inset picture beside the speaker (e.g. archive footage at 13:28) into view; a wider look for seated wide shots where gestures run past the 9:16 crop.

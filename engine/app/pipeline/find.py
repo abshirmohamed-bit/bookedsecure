@@ -45,6 +45,10 @@ class Moment:
     #: Kept last: a field added mid-list silently reassigns every positional
     #: construction below it, which is exactly how this went wrong once.
     focus: str = "auto"
+    #: 1-3 words the clip turns on, highlighted in its captions the way an
+    #: editor colours the key word of a pull quote. Kept after `focus` for the
+    #: same reason `focus` is last: positional constructions above stay right.
+    keywords: list[str] = field(default_factory=list)
 
     @property
     def duration_ms(self) -> int:
@@ -314,7 +318,10 @@ HOOK_RULES = (
     "win that half second: open a question the clip answers, name the stake, "
     "or lead with the line that makes someone stop. Take it from what is "
     "actually said — never promise something the clip does not deliver, and "
-    "no ALL CAPS or \"you won't believe\"."
+    "no ALL CAPS or \"you won't believe\". "
+    "You only have the words, not the picture, and several people may speak: "
+    "never call a speaker he, she, him or her in a title. Use a name they say, "
+    "\"they\", or write around it."
 )
 
 
@@ -356,6 +363,7 @@ def _claude_prompt(sentences: list[dict], count: int, target_ms: int, *, genre: 
         '"score":0-100,"grades":{"hook":"A+..D","flow":"A+..D","value":"A+..D","trend":"A+..D"},'
         '"scene_analysis":"two sentences on what happens and why it works",'
         '"focus":"speaker|reaction|everyone",'
+        '"keywords":["1-3 single words said in the clip that it turns on"],'
         '"reason":"<=120 chars"}]}'
     )
     extras.append(
@@ -396,14 +404,23 @@ def ai_find(sentences: list[dict], count: int, target_ms: int, *, genre: str = "
     if not kind:
         raise RuntimeError("No AI key is set — set AI_API_KEY (and AI_BASE_URL for an unlisted provider)")
     windows = _windows(sentences, 20 * 60 * 1000)
+    # Each window is asked for its share of the clips, by how much of the video
+    # is its own, and only that many of its best are kept: the scores of two
+    # separate calls aren't comparable, and asking every window for the full
+    # count let a 20-minute first window crowd out the rest (a 24:39 video got
+    # all ten clips from its first 16 minutes).
+    shares = window_counts(windows, count) if coverage != "whole" else [count] * len(windows)
+    owned = _owned_spans(windows)
     client = http or httpx.Client(timeout=120)
     found: list[Moment] = []
     try:
-        for window in windows:
+        for window, share, (own_a, own_b) in zip(windows, shares, owned):
             from . import replay
 
+            if share <= 0:
+                continue
             hint = replay.prompt_hint(replay_curve, window[0]["start_ms"], window[-1]["end_ms"]) if window else ""
-            user = _claude_prompt(window, count, target_ms, genre=genre, prompt=prompt,
+            user = _claude_prompt(window, share, target_ms, genre=genre, prompt=prompt,
                                   must_include=must_include or [], coverage=coverage,
                                   keep_qa=keep_qa, title_brief=title_brief, viewer_hint=hint,
                                   channel_notes=channel_notes)
@@ -428,7 +445,11 @@ def ai_find(sentences: list[dict], count: int, target_ms: int, *, genre: str = "
                 r.raise_for_status()
                 choices = r.json().get("choices") or [{}]
                 text = (choices[0].get("message") or {}).get("content") or ""
-            found.extend(parse_moments(text))
+            picked = [m for m in parse_moments(text) if own_a <= m.start_ms < own_b]
+            if coverage == "whole":
+                found.extend(picked)
+            else:
+                found.extend(sorted(picked, key=lambda m: -m.score)[:share])
     finally:
         if http is None:
             client.close()
@@ -437,6 +458,50 @@ def ai_find(sentences: list[dict], count: int, target_ms: int, *, genre: str = "
 
 #: The name this had when Anthropic was the only option.
 claude_find = ai_find
+
+
+def _owned_spans(windows: list[list[dict]]) -> list[tuple[int, int]]:
+    """The part of the video each window answers for. Windows overlap by a
+    minute; the overlap is split down the middle and a moment belongs to the
+    window it starts in, so nothing is picked twice."""
+    spans = []
+    for i, w in enumerate(windows):
+        start = 0 if i == 0 else (w[0]["start_ms"] + windows[i - 1][-1]["end_ms"]) // 2
+        end = 10 ** 12 if i + 1 == len(windows) else (windows[i + 1][0]["start_ms"] + w[-1]["end_ms"]) // 2
+        spans.append((start, end))
+    return spans
+
+
+def window_counts(windows: list[list[dict]], count: int) -> list[int]:
+    """Share `count` clips between transcript windows by how much of the video each covers on its own.
+
+    Every window with at least three minutes of its own gets one clip; the
+    rest go by length (largest remainders first), so the total is `count`.
+    """
+    if not windows:
+        return []
+    if len(windows) == 1:
+        return [count]
+    lengths = []
+    for i, w in enumerate(windows):
+        a = w[0]["start_ms"]
+        b = windows[i + 1][0]["start_ms"] if i + 1 < len(windows) else w[-1]["end_ms"]
+        lengths.append(max(0, b - a))
+    total = sum(lengths) or 1
+    raw = [count * n / total for n in lengths]
+    shares = [int(r) for r in raw]
+    for i, n in enumerate(lengths):
+        if shares[i] == 0 and n >= 180_000 and sum(shares) < count:
+            shares[i] = 1
+    order = sorted(range(len(raw)), key=lambda i: -(raw[i] - int(raw[i])))
+    k = 0
+    while sum(shares) < count and order:
+        shares[order[k % len(order)]] += 1
+        k += 1
+    while sum(shares) > count:
+        i = max(range(len(shares)), key=lambda j: shares[j])
+        shares[i] -= 1
+    return shares
 
 
 def _windows(sentences: list[dict], span_ms: int) -> list[list[dict]]:
@@ -480,7 +545,22 @@ def parse_moments(text: str) -> list[Moment]:
             scene_analysis=str(raw.get("scene_analysis") or "")[:600],
             focus=_focus(raw.get("focus")),
             grades={k: str(v)[:2] for k, v in grades.items()},
+            keywords=_keywords(raw.get("keywords")),
         ))
+    return out
+
+
+def _keywords(raw) -> list[str]:
+    """Up to three single words (letters, digits, apostrophes), as the model gave them."""
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for w in raw:
+        w = re.sub(r"[^\w'\-]", "", str(w)).strip("'-")
+        if 1 < len(w) <= 24 and w.lower() not in {x.lower() for x in out}:
+            out.append(w)
+        if len(out) == 3:
+            break
     return out
 
 
@@ -537,6 +617,97 @@ def _fill_to_count(found: list[Moment], sentences: list[dict], target_ms: int,
     return found
 
 
+# ---------------------------------------------------------------- trailers and questions
+
+#: A cold open lives in the first two and a half minutes.
+TEASER_SPAN_MS = 150_000
+#: Shorter videos rarely open on a trailer of themselves.
+TEASER_MIN_VIDEO_MS = 8 * 60_000
+
+
+def _shingles(text: str, n: int = 5) -> set:
+    words = re.findall(r"[a-z0-9']+", text.lower())
+    return {tuple(words[i:i + n]) for i in range(len(words) - n + 1)}
+
+
+def teaser_span(sentences: list[dict]) -> "tuple[int, int] | None":
+    """The trailer at the start of a video, if it opens with one.
+
+    A cold open is cut from the video itself, so its lines are said again
+    later. When at least two lines of the opening come back later and they
+    make up a good part of it, everything up to the last of them is the
+    trailer: a montage of soundbites from different people, which makes a
+    poor standalone clip (one titled "why he feels like an outsider" turned
+    out to be four speakers and a woman's line).
+    """
+    if not sentences:
+        return None
+    first = sentences[0]["start_ms"]
+    if sentences[-1]["end_ms"] - first < TEASER_MIN_VIDEO_MS:
+        return None
+    opening = [s for s in sentences if s["start_ms"] < first + TEASER_SPAN_MS]
+    later: set = set()
+    for s in sentences:
+        if s["start_ms"] >= first + TEASER_SPAN_MS:
+            later |= _shingles(s.get("text", ""))
+    repeated = [s for s in opening if _shingles(s.get("text", "")) & later]
+    if len(repeated) < 2:
+        return None
+    end = max(s["end_ms"] for s in repeated)
+    words_in = sum(len(s.get("text", "").split()) for s in opening if s["end_ms"] <= end) or 1
+    words_rep = sum(len(s.get("text", "").split()) for s in repeated)
+    if words_rep / words_in < 0.35:
+        return None
+    return first, end
+
+
+_ASKS = re.compile(r"^(who|what|why|how|when|where|which|did|do|does|is|are|was|were|can|could|would|will|have|has|should)\b", re.I)
+
+
+def _is_question(s: dict) -> bool:
+    """A question read out, as from a card: asks something, in at least four words."""
+    text = (s.get("text") or "").strip()
+    return text.endswith("?") and len(text.split()) >= 4 and bool(_ASKS.match(text))
+
+
+#: How far before a clip the question it answers may be.
+QUESTION_LOOKBACK_MS = 15_000
+#: A question in the clip's last seconds, after a pause, is the next one being asked.
+NEXT_QUESTION_TAIL_MS = 9_000
+NEXT_QUESTION_GAP_MS = 400
+
+
+def frame_questions(moments: list[Moment], sentences: list[dict], target_ms: int) -> list[Moment]:
+    """Start a clip on the question it answers, and end it before the next one is asked.
+
+    Seen on an interview series: a clip opened straight on "the New Zealanders"
+    with the question ("Who has the most intimidating haka?") five seconds
+    earlier, and another ran on into the next guest reading the next card.
+    """
+    if not sentences:
+        return moments
+    longest = int(target_ms * 1.35)
+    out: list[Moment] = []
+    for m in sorted(moments, key=lambda x: x.start_ms):
+        start, end = m.start_ms, m.end_ms
+        before = [s for s in sentences if start - QUESTION_LOOKBACK_MS <= s["start_ms"] < start - 200]
+        q = next((s for s in reversed(before) if _is_question(s)), None)
+        if q and end - q["start_ms"] <= longest and not any(q["start_ms"] < o.end_ms for o in out):
+            start = q["start_ms"]
+        inside = [s for s in sentences if s["start_ms"] >= start and s["end_ms"] <= end + 300]
+        floor = max(15_000, int(target_ms * 0.5))
+        for i, s in enumerate(inside):
+            if i == 0 or s["start_ms"] < end - NEXT_QUESTION_TAIL_MS or not _is_question(s):
+                continue
+            prev = inside[i - 1]
+            if s["start_ms"] - prev["end_ms"] >= NEXT_QUESTION_GAP_MS and prev["end_ms"] - start >= floor:
+                end = prev["end_ms"]
+                break
+        m.start_ms, m.end_ms = start, end
+        out.append(m)
+    return out
+
+
 def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto",
          coverage: str = "best", genre: str = "auto", prompt: str = "",
          must_include: list[str] | None = None, keep_qa: bool = True,
@@ -551,6 +722,10 @@ def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto
     """
     cfg = settings()
     provider = cfg.resolve_finder()
+    teaser = teaser_span(sentences)
+    if teaser:
+        log.info("finder: skipping the opening trailer %s-%s", mmss(teaser[0]), mmss(teaser[1]))
+        sentences = [s for s in sentences if s["start_ms"] >= teaser[1]]
     if mode == "energy" or (mode == "auto" and not sentences):
         raw = energy_find(envelope or [], count, target_ms)
     elif provider in ("ai", "claude"):
@@ -573,6 +748,8 @@ def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto
     else:
         raw = rules_find(sentences, count, target_ms, coverage)
     snapped = snap(raw, sentences, target_ms)
+    if keep_qa and coverage != "whole":
+        snapped = sorted(frame_questions(snapped, sentences, target_ms), key=lambda m: -m.score)
     if coverage == "whole":
         return snapped
     if len(snapped) < count:

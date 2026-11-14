@@ -128,6 +128,9 @@ class Shot:
     #: pip: which side of the frame the bubble sits on ("right" or "left"),
     #: away from the face in the main picture.
     side: str = "right"
+    #: fill: where captions sit (centre, 0 top .. 1 bottom) when the default
+    #: height would cover the face, set by place_captions(); None for the default.
+    caption_at: float | None = None
 
     @property
     def length_ms(self) -> int:
@@ -146,6 +149,7 @@ class Shot:
             "transition": self.transition,
             "side": self.side if self.kind == "pip" else None,
             "motion": [[m[0] - offset_ms, *m[1:]] for m in _thin(self.motion)],
+            "caption_y": self.caption_at,
         }
 
 
@@ -488,6 +492,11 @@ def bodies_beyond(face: _Face, bodies: list[_Face]) -> bool:
     return any(bd is not own for bd in bodies)
 
 
+def texts_in(inp: Inputs, a: int, b: int) -> list[tuple[float, float, float, float]]:
+    """The text holding still on screen through [a, b) (shares)."""
+    return _texts_in(inp, a, b)
+
+
 def _texts_in(inp: Inputs, a: int, b: int) -> list[tuple[float, float, float, float]]:
     if not inp.texts:
         return []
@@ -518,6 +527,36 @@ def _is_title(texts: list[tuple[float, float, float, float]]) -> bool:
     return False
 
 
+#: How far a crop that leaves text out stays from it (share of the width):
+#: glyph edges and a line still being typed run past the box read a moment ago.
+TEXT_CLEAR = 0.012
+
+
+def keep_text_whole(shot: "Shot", texts: list[tuple[float, float, float, float]], width: int) -> None:
+    """Hold a moving crop off the text its shot left out.
+
+    The camera's slow push and pull (camera.py) widens and shifts the crop a
+    little each frame; a crop placed clear of a pull quote could drift back
+    over its last letters. Each frame's crop is slid sideways (same size) so
+    no text box is cut by its left or right edge.
+    """
+    if not shot.motion or not texts:
+        return
+    moved = []
+    for m in shot.motion:
+        ms, x, y, w, h = m[0], m[1], m[2], m[3], m[4]
+        l, r = x / width, (x + w) / width
+        for t in texts:
+            tl, tr = t[0], t[0] + t[2]
+            if tl < l < tr and r > tr:
+                x = min(width - w, (tr + TEXT_CLEAR) * width)
+            elif tl < r < tr and l < tl:
+                x = max(0.0, (tl - TEXT_CLEAR) * width - w)
+            l, r = x / width, (x + w) / width
+        moved.append((ms, x, y, w, h, *m[5:]))
+    shot.motion = moved
+
+
 def _clear_of_text(shot: Shot, texts: list[tuple[float, float, float, float]], inp: Inputs,
                    lo: float, hi: float) -> Shot:
     """Never slice a label: a fill window takes each run of text in whole or leaves it out.
@@ -534,8 +573,10 @@ def _clear_of_text(shot: Shot, texts: list[tuple[float, float, float, float]], i
     m = share * director.EDGE_MARGIN
     for t in texts:
         tl, tr, tt, tb = t[0], t[0] + t[2], t[1], t[1] + t[3]
-        if t[2] > share * (1 - 2 * director.EDGE_MARGIN):
-            continue                    # wider than the window: nothing sideways helps
+        # Text too wide to take whole can still be left out whole: a pull
+        # quote typed beside a guest left "s," at the crop's edge when this
+        # gave up on it.
+        too_wide = t[2] > share * (1 - 2 * director.EDGE_MARGIN)
         new_pan = []
         for ms, x in shot.pan or [(shot.start_ms, win.x)]:
             wl = x / sw
@@ -544,7 +585,8 @@ def _clear_of_text(shot: Shot, texts: list[tuple[float, float, float, float]], i
                 new_pan.append((ms, x))
                 continue
             c = wl + share / 2
-            options = [tl - 0.005 - share / 2, tr + 0.005 + share / 2, tr + 0.005 - share / 2, tl - 0.005 + share / 2]
+            out_of_it = [tl - TEXT_CLEAR - share / 2, tr + TEXT_CLEAR + share / 2]
+            options = out_of_it if too_wide else out_of_it + [tr + 0.005 - share / 2, tl - 0.005 + share / 2]
             ok = [o for o in options if o - share / 2 >= -1e-9 and o + share / 2 <= 1 + 1e-9
                   and lo >= o - share / 2 + m / 2 and hi <= o + share / 2 - m / 2]
             if ok:
@@ -1464,6 +1506,46 @@ def _steady(shots_: list[Shot]) -> list[Shot]:
     return out
 
 
+#: Where the default captions sit (centre of the line, share of the height).
+CAPTION_DEFAULT_Y = 0.55
+#: Captions go this far below the chin, and never lower than CAPTION_LOWEST.
+CAPTION_BELOW_CHIN = 0.07
+CAPTION_LOWEST = 0.82
+
+
+def place_captions(shots_: list[Shot], inp: Inputs) -> None:
+    """Move captions off the face in tight shots.
+
+    A close-up of a seated speaker fills the frame: the default caption line
+    ran across the mouth and beard. When the face in a fill shot covers the
+    default height, the line goes just under the chin instead (or stays put
+    when the chin is too low for that).
+    """
+    w, h = inp.out_w, inp.out_h
+    if not h or h < w or not inp.width or not inp.height:
+        return
+    for shot in shots_:
+        if shot.kind != "fill" or shot.window is None:
+            continue
+        win = shot.window
+        faces = []
+        for t in inp.tracks:
+            for ms, (cx, cy, fw, fh) in t.boxes:
+                if shot.start_ms <= ms < shot.end_ms:
+                    px, py = cx * inp.width, cy * inp.height
+                    if win.x <= px <= win.x + win.w and win.y <= py <= win.y + win.h:
+                        faces.append((fw * fh, cy, fh))
+        if not faces:
+            continue
+        _, cy, fh = max(faces)
+        top = (cy * inp.height - fh * inp.height / 2 - win.y) / win.h
+        chin = (cy * inp.height + fh * inp.height / 2 - win.y) / win.h
+        if top - 0.03 <= CAPTION_DEFAULT_Y <= chin + 0.04:
+            below = chin + CAPTION_BELOW_CHIN
+            if below <= CAPTION_LOWEST:
+                shot.caption_at = round(below, 3)
+
+
 def caption_y(shot: Shot, inp: Inputs) -> "float | None":
     """Where captions sit for this composition (centre, 0 top .. 1 bottom), or None for the default.
 
@@ -1477,6 +1559,8 @@ def caption_y(shot: Shot, inp: Inputs) -> "float | None":
     w, h = inp.out_w, inp.out_h
     if h < w or not h:
         return None
+    if shot.caption_at is not None:
+        return shot.caption_at
     if shot.kind == "split":
         return 0.5
     if shot.kind == "screen" and shot.main is not None:

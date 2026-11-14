@@ -244,6 +244,49 @@ class _Activity:
         return rows, round(shift, 4), round(level, 3)
 
 
+#: One face track ending and another starting within this is a hand-over.
+HANDOVER_GAP_MS = 1200
+#: ...and it is a camera cut when the face jumps this much in size...
+HANDOVER_SIZE_RATIO = 1.25
+#: ...or this far across the frame (share of the width).
+HANDOVER_SHIFT = 0.06
+#: A cut already found this close counts for it.
+HANDOVER_NEAR_MS = 600
+
+
+def handover_cuts(tracks: list[FaceTrack], cuts: list[int]) -> list[int]:
+    """Cuts the picture test missed, read from the faces: one track ends and
+    the next begins within a second, the face suddenly bigger, smaller or
+    elsewhere. Seen on an interview filmed against black: the edit cut between
+    a wide shot and a close-up of the same man every eight seconds, the grey
+    and colour tests found three of nine cuts, and his four tracks in one long
+    "shot" were counted as four people side by side, so a one-man clip got a
+    four-cell grid of his nose and lips. Returns the cuts, merged and sorted.
+    """
+    out = sorted(cuts)
+    spans = sorted((t for t in tracks if len(t.boxes) >= 2), key=lambda t: t.first_ms)
+    for a in spans:
+        a_end, a_box = a.boxes[-1]
+        for b in spans:
+            if b is a:
+                continue
+            b_start, b_box = b.boxes[0]
+            gap = b_start - a_end
+            if not (0 < gap <= HANDOVER_GAP_MS):
+                continue
+            # Both on screen at once is two people, not a cut.
+            if b.first_ms <= a_end or a.first_ms >= b_start:
+                continue
+            ratio = max(a_box[2], b_box[2]) / max(1e-6, min(a_box[2], b_box[2]))
+            if ratio < HANDOVER_SIZE_RATIO and abs(a_box[0] - b_box[0]) < HANDOVER_SHIFT:
+                continue
+            at = (a_end + b_start) // 2
+            if not any(abs(at - c) <= HANDOVER_NEAR_MS for c in out):
+                out.append(at)
+                out.sort()
+    return out
+
+
 def face_tracks(video: Path, *, in_ms: int = 0, out_ms: int | None = None,
                 detect_ms: int = DETECT_MS, fps: int = MOTION_FPS,
                 detail: list | None = None, bodies: list | None = None,

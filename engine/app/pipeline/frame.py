@@ -603,6 +603,7 @@ def speech(video: Path, *, in_ms: int = 0, out_ms: int | None = None):
     detail: list = []
     bodies_: list = []
     tracks, cuts = sp.face_tracks(video, in_ms=in_ms, out_ms=out_ms, detail=detail, bodies=bodies_)
+    cuts = sp.handover_cuts(tracks, cuts)
     turns: list = []
     if tracks:
         from . import vad

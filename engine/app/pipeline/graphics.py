@@ -283,6 +283,26 @@ def _bars_in(grey) -> tuple[float, float, float, float]:
     return run(rows) / h, run(rows[::-1]) / h, run(cols) / w, run(cols[::-1]) / w
 
 
+#: Added bars come in pairs of near-equal size (a letterbox top and bottom, a
+#: pillarbox left and right); one side's dark edge is the scene.
+BAR_PAIR_TOLERANCE = 0.03
+
+
+def paired(top: float, bottom: float, left: float, right: float) -> tuple[float, float, float, float]:
+    """Keep only bars that come as a matching pair.
+
+    A studio lit against black has a dark band on one side (and often along
+    the top) in every frame, which reads like a bar; real added bars are
+    symmetric. Seen on an interview series: the black studio right of the
+    guest was taken for a pillarbox and every crop was kept out of it.
+    """
+    if not (top and bottom and abs(top - bottom) <= BAR_PAIR_TOLERANCE):
+        top = bottom = 0.0
+    if not (left and right and abs(left - right) <= BAR_PAIR_TOLERANCE):
+        left = right = 0.0
+    return top, bottom, left, right
+
+
 def letterbox(video: Path, in_ms: int, out_ms: int, samples: int = 9) -> "tuple[float, float, float, float] | None":
     """The real picture inside added black bars, as (x0, y0, x1, y1) shares, or None without bars.
 
@@ -317,8 +337,8 @@ def letterbox(video: Path, in_ms: int, out_ms: int, samples: int = 9) -> "tuple[
             vals = sorted(f[i] for f in found)
             kept = [v for v in vals if v >= BAR_MIN]
             sides.append(min(kept) if len(kept) >= BAR_SHARE * len(found) else 0.0)
-        top, bottom, left, right = sides
-        if any(v > 0 for v in sides) and top + bottom < 0.6 and left + right < 0.8:
+        top, bottom, left, right = paired(*sides)
+        if any(v > 0 for v in (top, bottom, left, right)) and top + bottom < 0.6 and left + right < 0.8:
             result = (round(left + 0.004, 4), round(top + 0.004, 4), round(1 - right - 0.004, 4), round(1 - bottom - 0.004, 4))
     _BARS[key] = result
     while len(_BARS) > CACHE_MAX:
