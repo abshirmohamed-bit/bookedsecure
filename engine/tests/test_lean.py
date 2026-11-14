@@ -302,3 +302,113 @@ def test_a_retried_job_keeps_the_sections_it_already_downloaded(api, long_talk, 
     assert job["status"] == "completed", job.get("error")
     assert tries["whole"] == 2, "the first try's fallback failed, so the job was retried"
     assert asked.count(asked[0]) == 1, "the section that arrived on the first try is not downloaded again"
+
+
+def _short_clip(dest: Path, seconds: float = 3) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                    "-f", "lavfi", "-i", f"color=c=black:s=320x180:r=25:d={seconds}",
+                    "-f", "lavfi", "-i", f"anoisesrc=d={seconds}:c=pink:a=0.2",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(dest)], check=True)
+
+
+def _link_asset(name: str):
+    from app.db import session
+    from app.ids import new_id
+    from app.models import Asset
+
+    with session() as s:
+        a = Asset(id=new_id("ast"), name=name, type="video", status="downloading", rights_confirmed=True,
+                  source_url=f"https://www.youtube.com/watch?v={name}")
+        s.add(a)
+        s.commit()
+        s.refresh(a)
+        return a.id
+
+
+@pytest.mark.parametrize("status,duration,expect", [
+    ("post_live", 2400.0, "still processing the recording"),     # the ABC News case
+    ("was_live", 2400.0, "Only 3s of this 40-minute video arrived"),
+    ("not_live", 3.0, "That video is 3s; the minimum is"),   # it really is that short
+])
+def test_a_three_second_download_is_explained_not_called_a_short_video(api, monkeypatch, status, duration, expect):
+    from app.db import session
+    from app.errors import EngineError
+    from app.models import Asset
+    from app.pipeline import analyze, ingest
+
+    asset_id = _link_asset(f"short-{status}")
+    monkeypatch.setattr(ingest, "_lean_import", lambda s, a, url: None)
+    monkeypatch.setattr(ingest, "_ytdlp", lambda url, dest, on_progress=None: _short_clip(dest))
+    monkeypatch.setattr(analyze, "link_status", lambda url: (status, duration))
+    with session() as s:
+        asset = s.get(Asset, asset_id)
+        with pytest.raises(EngineError) as e:
+            ingest._import_url(s, asset, asset.source_url)
+    assert expect in e.value.message
+    assert e.value.transient is (status == "was_live")
+    from app import storage
+    if status != "not_live":
+        assert not storage.open_write(f"sources/{asset_id}/download.mp4").exists(), "never reused as a finished download"
+
+
+def test_a_short_audio_read_checks_the_link_before_downloading_the_whole_video(api, monkeypatch, tmp_path):
+    from app.db import session
+    from app.errors import EngineError
+    from app.models import Asset
+    from app.pipeline import analyze, ingest
+
+    asset_id = _link_asset("short-audio")
+    whole = []
+    monkeypatch.setattr(ingest, "run_ytdlp", lambda url, dest, args, **kw: _short_clip(dest))
+    monkeypatch.setattr(ingest, "_ytdlp", lambda *a, **k: whole.append(a))
+    monkeypatch.setattr(analyze, "link_status", lambda url: ("post_live", 3600.0))
+    with session() as s:
+        asset = s.get(Asset, asset_id)
+        with pytest.raises(EngineError) as e:
+            ingest._import_url(s, asset, asset.source_url)
+    assert "still processing" in e.value.message
+    assert whole == [], "no whole download through the proxy for a recording that isn't ready"
+
+
+def test_a_section_that_comes_back_short_is_cut_from_the_whole_download(api, long_talk, monkeypatch):
+    from app import storage, worker
+    from app.config import settings
+    from app.db import session
+    from app.ids import new_id
+    from app.models import Asset
+    from app.pipeline import ingest
+
+    audio_key = "sources/lean-short/audio.m4a"
+    _audio_of(long_talk, storage.open_write(audio_key))
+    with session() as s:
+        asset = Asset(id=new_id("ast"), name="Long talk 3", type="video", status="ready", lean=True,
+                      storage_key=audio_key, mezzanine_key=audio_key, length_s=90.0,
+                      source_url="https://www.youtube.com/watch?v=lean-short", rights_confirmed=True)
+        s.add(asset)
+        s.commit()
+        asset_id = asset.id
+    whole_downloads = []
+
+    def short(url, dest, start_ms, end_ms):
+        _short_clip(dest, 3)                    # seconds, where ~14 s were asked for
+
+    def whole(url, dest, on_progress=None):
+        whole_downloads.append(url)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(long_talk.read_bytes())
+
+    monkeypatch.setattr(ingest, "fetch_section", short)
+    monkeypatch.setattr(ingest, "download_whole", whole)
+    monkeypatch.setattr(settings(), "section_pad_ms", 3000)
+    job_id = api.post("/v1/autoclip", json={
+        "asset_id": asset_id, "clip_count": 2, "clip_length": 8, "aspect": "9:16", "formats": ["full-video"],
+    }).json()["id"]
+    for _ in range(40):
+        worker.tick()
+        job = api.get(f"/v1/autoclip/{job_id}").json()
+        if job["status"] in {"completed", "failed"}:
+            break
+    assert job["status"] == "completed", job.get("error")
+    assert whole_downloads == ["https://www.youtube.com/watch?v=lean-short"]
+    assert all(c["duration_ms"] >= 6000 for c in job["clips"])

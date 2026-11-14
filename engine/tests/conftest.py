@@ -18,6 +18,16 @@ os.environ.setdefault("WORKER_ENABLED", "0")
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="engine-test-")
 
 
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """Each test starts with empty rate buckets: the suite shares one API key,
+    and how many heavy calls earlier tests made is not what a test is about."""
+    from app import auth
+
+    auth.reset_buckets()
+    yield
+
+
 @pytest.fixture(scope="session")
 def api():
     from fastapi.testclient import TestClient

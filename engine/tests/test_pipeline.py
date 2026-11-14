@@ -336,7 +336,9 @@ def test_every_clip_is_revisited_and_given_a_look_that_suits_it(api, uploaded_as
     job_id = api.post("/v1/autoclip", json={
         "asset_id": uploaded_asset, "clip_count": 2, "clip_length": 6, "formats": ["auto"],
         "prompt": "podcast clips, split screen please",
-    }).json()["id"]
+    }).json()
+    assert "id" in job_id, job_id
+    job_id = job_id["id"]
     seen = []
     for _ in range(40):
         worker.tick()

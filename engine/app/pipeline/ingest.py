@@ -80,11 +80,15 @@ def needs_rights(url: str) -> bool:
     return any(host in low for host in IMPORT_HOSTS)
 
 
-def ingest_video(session: Session, asset: Asset, src: Path) -> Asset:
-    """Probe, thumbnail and normalise. The mezzanine keeps the source resolution."""
+def ingest_video(session: Session, asset: Asset, src: Path, *, whole_source: bool = True) -> Asset:
+    """Probe, thumbnail and normalise. The mezzanine keeps the source resolution.
+
+    `whole_source` False is a section of a longer video (lean imports): it is
+    part of a source, so the minimum source length does not apply to it.
+    """
     info = media.probe(src)
     cfg = settings()
-    if info.duration_s < cfg.min_source_seconds:
+    if whole_source and info.duration_s < cfg.min_source_seconds:
         raise EngineError("VALIDATION_ERROR",
                           f"That video is {info.duration_s:.0f}s; the minimum is {cfg.min_source_seconds}s.")
     if info.duration_s > cfg.max_source_seconds:
@@ -169,7 +173,42 @@ def _import_url(session: Session, asset: Asset, url: str) -> Asset:
             _download(url, dest)
     asset.storage_key = f"sources/{asset.id}/download.mp4"
     asset.source_url = url
+    if needs_rights(url):
+        try:
+            got = media.probe(dest).duration_s
+        except Exception:  # noqa: BLE001 - ingest_video reports an unreadable file itself
+            got = None
+        if got is not None and got < settings().min_source_seconds:
+            try:
+                check_short_download(url, got)
+            except Exception:
+                # Kept, it would be "reused" by the next try as a finished download.
+                dest.unlink(missing_ok=True)
+                raise
     return ingest_video(session, asset, dest)
+
+
+def check_short_download(url: str, got_s: float, expected_s: float | None = None) -> None:
+    """A download came back far shorter than a real video: say why, rather than call the video short.
+
+    Seen live: an ABC News "IN FULL" press conference, streamed live hours
+    before, came back as 3 seconds and the owner was told "That video is 3s;
+    the minimum is 10s". YouTube hands over only seconds of a stream whose
+    recording it is still processing (live_status post_live). Raises with the
+    reason; returns when the link really is that short, so the normal length
+    check speaks.
+    """
+    from . import analyze
+
+    status, duration = analyze.link_status(url)
+    problem = analyze.live_problem(status)
+    if problem:
+        raise EngineError("VALIDATION_ERROR", problem)
+    real = expected_s or duration
+    if real and real >= max(2 * got_s, got_s + settings().min_source_seconds):
+        # The site says it is much longer than what arrived: a cut-off transfer. Worth another try.
+        raise TransientFetch(f"Only {got_s:.0f}s of this {real / 60:.0f}-minute video arrived. "
+                             "Try again in a few minutes, or upload the video file instead.")
 
 
 def _download(url: str, dest: Path) -> None:
@@ -387,6 +426,9 @@ def _lean_import(session: Session, asset: Asset, url: str) -> Asset | None:
     duration = lean.audio_duration(audio)
     if not lean.is_long(duration):
         audio.unlink(missing_ok=True)
+        if duration < settings().min_source_seconds:
+            # Before spending the proxy on the whole video: is it really this short?
+            check_short_download(url, duration)
         return None
     cfg = settings()
     if duration > cfg.max_source_seconds:

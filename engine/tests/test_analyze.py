@@ -112,3 +112,12 @@ def test_the_endpoint_returns_the_card_the_dashboard_draws(api):
     assert body["success"] is True
     for key in ("title", "duration_ms", "duration_s", "thumbnail_url", "quality", "suggested"):
         assert key in body, key
+
+
+def test_a_recording_youtube_is_still_processing_is_refused_with_the_reason(monkeypatch):
+    """Seen live: an ABC News "IN FULL" stream clipped soon after it ended came back as 3 seconds."""
+    from app.pipeline import analyze as mod
+    monkeypatch.setattr(mod, "_fake", lambda url: UrlInfo(url=url, duration_ms=2_400_000, live_status="post_live"))
+    with pytest.raises(EngineError) as e:
+        analyze("https://www.youtube.com/watch?v=processing")
+    assert "still processing the recording" in e.value.message

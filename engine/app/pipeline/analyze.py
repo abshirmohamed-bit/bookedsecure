@@ -63,6 +63,9 @@ class UrlInfo:
     language: str = ""
     chapters: list[Chapter] = field(default_factory=list)
     is_live: bool = False
+    #: yt-dlp's live_status: not_live | was_live | is_live | is_upcoming | post_live
+    #: (a stream that has ended but YouTube is still processing; only seconds of it can be fetched).
+    live_status: str = ""
     needs_rights: bool = False
     extractor: str = ""
     quality_warning: bool = False
@@ -116,9 +119,35 @@ def analyze(url: str, transcript: bool = False) -> UrlInfo:
     if info.duration_ms and info.duration_ms > cfg.max_source_seconds * 1000:
         hours = cfg.max_source_seconds // 3600
         raise EngineError("VALIDATION_ERROR", f"That video is longer than the {hours}h limit.")
-    if info.is_live:
-        raise EngineError("VALIDATION_ERROR", "That is a live stream. Wait until it has finished.")
+    problem = live_problem(info.live_status or ("is_live" if info.is_live else ""))
+    if problem:
+        raise EngineError("VALIDATION_ERROR", problem)
     return info
+
+
+#: What to tell the owner about a stream that can't be clipped yet, by yt-dlp's live_status.
+LIVE_PROBLEMS = {
+    "is_live": "That is a live stream. Wait until it has finished.",
+    "is_upcoming": "That is a scheduled stream that has not started.",
+    "post_live": ("That video was streamed live and YouTube is still processing the recording, so only a "
+                  "few seconds of it can be downloaded. Try again once YouTube has finished (usually within "
+                  "an hour or two; longer for a long stream)."),
+}
+
+
+def live_problem(live_status: str) -> str:
+    """Why a stream can't be clipped yet, or "" when it can."""
+    return LIVE_PROBLEMS.get(live_status or "", "")
+
+
+def link_status(url: str) -> tuple[str, float]:
+    """(live_status, duration in seconds) of a link, from its metadata; ("", 0) if it can't be read."""
+    try:
+        raw, _ = _raw_info(url)
+    except Exception as e:  # noqa: BLE001 - only used to explain a failure, never to cause one
+        log.warning("could not read %s to explain a short download: %s", url, e)
+        return "", 0.0
+    return str(raw.get("live_status") or ("is_live" if raw.get("is_live") else "")), float(raw.get("duration") or 0)
 
 
 def _common(url: str, info: UrlInfo) -> UrlInfo:
@@ -215,6 +244,7 @@ def _ytdlp(url: str, want_transcript: bool = False) -> UrlInfo:
         language=str(raw.get("language") or ""),
         chapters=chapters,
         is_live=bool(raw.get("is_live")),
+        live_status=str(raw.get("live_status") or ""),
         extractor=str(raw.get("extractor_key") or ""),
     ))
     info.description = str(raw.get("description") or "")[:5000]

@@ -528,17 +528,22 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
     def fetch(item: tuple) -> tuple:
         sec, row = item
         dest = storage.open_write(row.storage_key)
-        if lean.has_video(dest):
+        if lean.has_video(dest) and _covers(dest, sec):
             with lock:
                 tally["done"] += 1
             report(tally["done"] / max(1, len(rows)))
             return sec, row, dest, None
+        # A short file from an earlier try would be "already downloaded" to yt-dlp.
+        dest.unlink(missing_ok=True)
         if give_up.is_set():
             return sec, row, dest, RuntimeError("skipped: sections were failing")
         try:
             ingest.fetch_section(asset.source_url, dest, sec.start_ms, sec.end_ms)
             if not lean.has_video(dest):
                 raise RuntimeError("the section came without a picture")
+            if not _covers(dest, sec):
+                raise RuntimeError(f"the section came back short ({lean.audio_duration(dest):.0f}s of "
+                                   f"{(sec.end_ms - sec.start_ms) / 1000:.0f}s)")
             with lock:
                 tally["done"] += 1
             report(tally["done"] / max(1, len(rows)))
@@ -570,6 +575,11 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
             done_share = (len(results) - len(failed)) / max(1, len(results))
             moving = _progress_reporter(job.id, FETCH_FROM + round((FETCH_TO - FETCH_FROM) * done_share), FETCH_TO)
             ingest.download_whole(asset.source_url, whole, moving)
+        got = lean.audio_duration(whole)
+        if got * 1000 < 0.9 * length_ms:
+            whole.unlink(missing_ok=True)
+            ingest.check_short_download(asset.source_url, got, asset.length_s)
+            raise JobFailed(f"Only {got:.0f}s of the video could be downloaded. Try again later, or upload the file.")
         for sec, _row, dest, _err in failed:
             lean.cut_copy(whole, dest, sec.start_ms, sec.end_ms)
     fetched = [(sec, row, dest, lean.measure_offset(full_audio, dest, sec.start_ms)) for sec, row, dest, _err in results]
@@ -582,7 +592,7 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
         row.offset_ms = offset
         s.add(row)
         s.commit()
-        ingest.ingest_video(s, row, dest)
+        ingest.ingest_video(s, row, dest, whole_source=False)
         end_ms = offset + round(row.length_s * 1000)
         s.add(Transcript(id=new_id("trn"), asset_id=row.id, status="ready",
                          language=transcript.language if transcript else "",
@@ -593,6 +603,17 @@ def _fetch_sections(s: Session, job: Job, asset: Asset) -> None:
     job.params = {**params, "_sections": mapping}
     s.add(job)
     s.commit()
+
+
+#: A fetched section must hold at least this share of the stretch asked for
+#: (a stream cut off early, or a recording YouTube is still processing, comes back as seconds).
+SECTION_COVERS = 0.8
+
+
+def _covers(path: Path, sec) -> bool:
+    from . import lean
+
+    return lean.audio_duration(path) * 1000 >= SECTION_COVERS * (sec.end_ms - sec.start_ms)
 
 
 def project_summary(p: Project, full: bool = False, offset_ms: int = 0) -> dict:
