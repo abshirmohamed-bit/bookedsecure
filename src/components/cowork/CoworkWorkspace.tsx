@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { CoworkHistory } from "@/components/cowork/CoworkHistory";
 import { CoworkKnows } from "@/components/cowork/CoworkKnows";
 import { CoworkRoutines } from "@/components/cowork/CoworkRoutines";
+import { CoworkGateways } from "@/components/cowork/CoworkGateways";
 import { OwnerAssistant, type CoworkComposerApi, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
 import { Portal } from "@/components/Portal";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
@@ -128,6 +129,7 @@ export function CoworkWorkspace({
   const busy = createThread.isPending || clearThread.isPending || removeThread.isPending;
   const history = (
     <span className="flex shrink-0 items-center">
+    <CoworkGateways />
     <CoworkRoutines />
     <CoworkKnows />
     <CoworkHistory

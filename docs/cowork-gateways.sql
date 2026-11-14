@@ -1,0 +1,83 @@
+-- Co-Work gateways (Hermes phase 3): the owner messages Co-Work by text,
+-- email or Telegram. Server-only tables: the app reads and writes them with the
+-- service role, always filtered by business and the signed-in person.
+-- Lovable: apply this, then publish. Until then the gateways panel says it is
+-- waiting for this update and texts/emails behave exactly as before.
+
+create table if not exists public.cowork_gateways (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  user_id uuid not null,
+  channel text not null check (channel in ('sms', 'email', 'telegram')),
+  -- sms: the person's mobile (+61...); email: their address (lower case);
+  -- telegram: the private chat id. Null until a Telegram link is opened.
+  address text,
+  -- email: the secret part of cowork-<token>@bookedsecure.com;
+  -- telegram: the one-time code in the t.me start link.
+  token text,
+  verify_code_hash text,
+  verify_sent_at timestamptz,
+  verify_attempts integer not null default 0,
+  verified_at timestamptz,
+  enabled boolean not null default true,
+  thread_id uuid,
+  last_message_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists cowork_gateways_one_per_person
+  on public.cowork_gateways (business_id, user_id, channel);
+create unique index if not exists cowork_gateways_token
+  on public.cowork_gateways (token) where token is not null;
+-- A Telegram chat talks to one business.
+create unique index if not exists cowork_gateways_telegram_chat
+  on public.cowork_gateways (address) where channel = 'telegram' and verified_at is not null;
+create index if not exists cowork_gateways_lookup
+  on public.cowork_gateways (channel, address) where verified_at is not null;
+
+create table if not exists public.cowork_gateway_messages (
+  id uuid primary key default gen_random_uuid(),
+  gateway_id uuid not null references public.cowork_gateways(id) on delete cascade,
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  channel text not null check (channel in ('sms', 'email', 'telegram')),
+  -- The provider's own id (SMS message id, email id, Telegram update id): one row per message.
+  external_id text not null,
+  body text not null,
+  -- email: subject and Message-ID to answer in the same thread.
+  meta jsonb not null default '{}'::jsonb,
+  status text not null default 'queued' check (status in ('queued', 'running', 'done', 'failed', 'skipped')),
+  started_at timestamptz,
+  finished_at timestamptz,
+  reply text,
+  error text,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists cowork_gateway_messages_once
+  on public.cowork_gateway_messages (channel, external_id);
+create index if not exists cowork_gateway_messages_queue
+  on public.cowork_gateway_messages (status, created_at) where status in ('queued', 'running');
+create index if not exists cowork_gateway_messages_daily
+  on public.cowork_gateway_messages (gateway_id, created_at);
+
+alter table public.cowork_gateways enable row level security;
+alter table public.cowork_gateway_messages enable row level security;
+revoke all on public.cowork_gateways from anon, authenticated;
+revoke all on public.cowork_gateway_messages from anon, authenticated;
+grant all on public.cowork_gateways to service_role;
+grant all on public.cowork_gateway_messages to service_role;
+
+-- Answers arrive within about a minute: the queue is worked every minute
+-- (the 10-minute follow-ups hook is the fallback).
+select cron.schedule(
+  'cowork-gateway-every-minute',
+  '* * * * *',
+  $$
+  select net.http_post(
+    url := 'https://bookedsecure.lovable.app/api/public/hooks/cowork-gateway',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'apikey', 'sb_publishable_WHi8jU1SJMy0w1-JeuojfA_ie90kzam'),
+    body := '{"source":"pg_cron"}'::jsonb
+  );
+  $$
+);

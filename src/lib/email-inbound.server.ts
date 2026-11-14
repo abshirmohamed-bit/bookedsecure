@@ -109,6 +109,10 @@ export async function storeInboundReply(emailId: string, hintedTo: string[] = []
   const { data: existing } = await supabaseAdmin.from("email_messages").select("id").eq("provider_id", emailId).maybeSingle();
   if (existing) return { stored: false, reason: "duplicate" };
   const email = await fetchReceivedEmail(emailId);
+  // Mail to someone's Co-Work address (cowork-<token>@bookedsecure.com).
+  const { handleGatewayEmail } = await import("@/lib/cowork-gateway.server");
+  const gateway = await handleGatewayEmail(email, hintedTo);
+  if (gateway.handled) return { stored: false, reason: `cowork: ${gateway.reason ?? "handled"}` };
   const recipientId = recipientIdFromAddresses([...(email.to ?? []), ...hintedTo]);
   if (!recipientId) {
     const mailbox = platformMailboxFrom([...(email.to ?? []), ...hintedTo]);

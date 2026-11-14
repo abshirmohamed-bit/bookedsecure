@@ -41,6 +41,8 @@ export async function runAssistantAgent(input: {
   attachmentRemembered?: boolean;
   /** A scheduled routine (lib/cowork-routines): only reading and preparing tools, nobody watching. */
   routine?: boolean;
+  /** A message by text, email or Telegram (lib/cowork-gateway): reading and preparing tools, answers go back there. */
+  gateway?: boolean;
 }): Promise<AssistantAgentResult> {
   const campaignContext = campaignContextAvailable(input);
   if (campaignNeedsClarification(input.question, campaignContext)) {
@@ -77,7 +79,8 @@ export async function runAssistantAgent(input: {
     propose: (proposal) => proposals.push(proposal),
   });
   const { routineTools } = await import("@/lib/cowork-routines");
-  const tools = (input.routine ? routineTools(allTools) : allTools) as typeof allTools;
+  const { gatewayTools } = await import("@/lib/cowork-gateway");
+  const tools = (input.routine ? routineTools(allTools) : input.gateway ? gatewayTools(allTools) : allTools) as typeof allTools;
 
   const question = input.attachment
     ? `${input.question}\n\n[${

@@ -1231,6 +1231,14 @@ export async function handleInboundMessage(input: {
 
   const businessId = input.sender.businessId;
   const mobile = normaliseAuMobile(inbound.from) ?? inbound.from;
+  // The owner or a team member texting Co-Work from their verified mobile
+  // (lib/cowork-gateway): queued for Co-Work, never treated as a customer.
+  const { smsGatewayFor, queueInboundSms } = await import("@/lib/cowork-gateway.server");
+  const gateway = await smsGatewayFor(businessId, mobile).catch(() => null);
+  if (gateway && (await queueInboundSms(gateway, { providerMessageId: inbound.providerMessageId, body: inbound.body }))) {
+    await recordSmsUsage({ businessId, segmentsIn: countSegments(inbound.body).segments }).catch(() => undefined);
+    return { handled: true, reason: "Co-Work message" };
+  }
   const { data: lead } = await findActiveLeadByMobile(supabaseAdmin, businessId, mobile);
 
 

@@ -61,6 +61,7 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as ApiLinkedinUploadRouteImport } from './routes/api/linkedin/upload'
 import { Route as ApiPublicEmailUnsubscribeRouteImport } from './routes/api/public/email-unsubscribe'
 import { Route as ApiYoutubeUploadRouteImport } from './routes/api/youtube/upload'
+import { Route as ApiPublicHooksCoworkGatewayRouteImport } from './routes/api/public/hooks/cowork-gateway'
 import { Route as ApiPublicHooksEngineRouteImport } from './routes/api/public/hooks/engine'
 import { Route as ApiPublicHooksFollowUpsRouteImport } from './routes/api/public/hooks/follow-ups'
 import { Route as ApiPublicHooksLeadSyncRouteImport } from './routes/api/public/hooks/lead-sync'
@@ -75,6 +76,7 @@ import { Route as ApiPublicSmsInboundRouteImport } from './routes/api/public/sms
 import { Route as ApiPublicSmsSinchRouteImport } from './routes/api/public/sms/sinch'
 import { Route as ApiPublicSmsStatusRouteImport } from './routes/api/public/sms/status'
 import { Route as ApiPublicSmsTelnyxRouteImport } from './routes/api/public/sms/telnyx'
+import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicTenantLogoBusinessIdRouteImport } from './routes/api/public/tenant-logo.$businessId'
 import { Route as ApiPublicV1BookingsRouteImport } from './routes/api/public/v1/bookings'
 import { Route as ApiPublicV1CustomersRouteImport } from './routes/api/public/v1/customers'
@@ -360,6 +362,12 @@ const ApiYoutubeUploadRoute = ApiYoutubeUploadRouteImport.update({
   path: '/api/youtube/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksCoworkGatewayRoute =
+  ApiPublicHooksCoworkGatewayRouteImport.update({
+    id: '/api/public/hooks/cowork-gateway',
+    path: '/api/public/hooks/cowork-gateway',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksEngineRoute = ApiPublicHooksEngineRouteImport.update({
   id: '/api/public/hooks/engine',
   path: '/api/public/hooks/engine',
@@ -434,6 +442,12 @@ const ApiPublicSmsTelnyxRoute = ApiPublicSmsTelnyxRouteImport.update({
   path: '/api/public/sms/telnyx',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTelegramWebhookRoute =
+  ApiPublicTelegramWebhookRouteImport.update({
+    id: '/api/public/telegram/webhook',
+    path: '/api/public/telegram/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicTenantLogoBusinessIdRoute =
   ApiPublicTenantLogoBusinessIdRouteImport.update({
     id: '/api/public/tenant-logo/$businessId',
@@ -612,6 +626,7 @@ export interface FileRoutesByFullPath {
   '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/youtube/upload': typeof ApiYoutubeUploadRoute
+  '/api/public/hooks/cowork-gateway': typeof ApiPublicHooksCoworkGatewayRoute
   '/api/public/hooks/engine': typeof ApiPublicHooksEngineRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
@@ -626,6 +641,7 @@ export interface FileRoutesByFullPath {
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
   '/api/public/v1/bookings': typeof ApiPublicV1BookingsRoute
   '/api/public/v1/customers': typeof ApiPublicV1CustomersRoute
@@ -701,6 +717,7 @@ export interface FileRoutesByTo {
   '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/youtube/upload': typeof ApiYoutubeUploadRoute
+  '/api/public/hooks/cowork-gateway': typeof ApiPublicHooksCoworkGatewayRoute
   '/api/public/hooks/engine': typeof ApiPublicHooksEngineRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
@@ -715,6 +732,7 @@ export interface FileRoutesByTo {
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
   '/api/public/v1/bookings': typeof ApiPublicV1BookingsRoute
   '/api/public/v1/customers': typeof ApiPublicV1CustomersRoute
@@ -792,6 +810,7 @@ export interface FileRoutesById {
   '/api/linkedin/upload': typeof ApiLinkedinUploadRoute
   '/api/public/email-unsubscribe': typeof ApiPublicEmailUnsubscribeRoute
   '/api/youtube/upload': typeof ApiYoutubeUploadRoute
+  '/api/public/hooks/cowork-gateway': typeof ApiPublicHooksCoworkGatewayRoute
   '/api/public/hooks/engine': typeof ApiPublicHooksEngineRoute
   '/api/public/hooks/follow-ups': typeof ApiPublicHooksFollowUpsRoute
   '/api/public/hooks/lead-sync': typeof ApiPublicHooksLeadSyncRoute
@@ -806,6 +825,7 @@ export interface FileRoutesById {
   '/api/public/sms/sinch': typeof ApiPublicSmsSinchRoute
   '/api/public/sms/status': typeof ApiPublicSmsStatusRoute
   '/api/public/sms/telnyx': typeof ApiPublicSmsTelnyxRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/tenant-logo/$businessId': typeof ApiPublicTenantLogoBusinessIdRoute
   '/api/public/v1/bookings': typeof ApiPublicV1BookingsRoute
   '/api/public/v1/customers': typeof ApiPublicV1CustomersRoute
@@ -884,6 +904,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
     | '/api/youtube/upload'
+    | '/api/public/hooks/cowork-gateway'
     | '/api/public/hooks/engine'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
@@ -898,6 +919,7 @@ export interface FileRouteTypes {
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
+    | '/api/public/telegram/webhook'
     | '/api/public/tenant-logo/$businessId'
     | '/api/public/v1/bookings'
     | '/api/public/v1/customers'
@@ -973,6 +995,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
     | '/api/youtube/upload'
+    | '/api/public/hooks/cowork-gateway'
     | '/api/public/hooks/engine'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
@@ -987,6 +1010,7 @@ export interface FileRouteTypes {
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
+    | '/api/public/telegram/webhook'
     | '/api/public/tenant-logo/$businessId'
     | '/api/public/v1/bookings'
     | '/api/public/v1/customers'
@@ -1063,6 +1087,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/upload'
     | '/api/public/email-unsubscribe'
     | '/api/youtube/upload'
+    | '/api/public/hooks/cowork-gateway'
     | '/api/public/hooks/engine'
     | '/api/public/hooks/follow-ups'
     | '/api/public/hooks/lead-sync'
@@ -1077,6 +1102,7 @@ export interface FileRouteTypes {
     | '/api/public/sms/sinch'
     | '/api/public/sms/status'
     | '/api/public/sms/telnyx'
+    | '/api/public/telegram/webhook'
     | '/api/public/tenant-logo/$businessId'
     | '/api/public/v1/bookings'
     | '/api/public/v1/customers'
@@ -1146,6 +1172,7 @@ export interface RootRouteChildren {
   ApiLinkedinUploadRoute: typeof ApiLinkedinUploadRoute
   ApiPublicEmailUnsubscribeRoute: typeof ApiPublicEmailUnsubscribeRoute
   ApiYoutubeUploadRoute: typeof ApiYoutubeUploadRoute
+  ApiPublicHooksCoworkGatewayRoute: typeof ApiPublicHooksCoworkGatewayRoute
   ApiPublicHooksEngineRoute: typeof ApiPublicHooksEngineRoute
   ApiPublicHooksFollowUpsRoute: typeof ApiPublicHooksFollowUpsRoute
   ApiPublicHooksLeadSyncRoute: typeof ApiPublicHooksLeadSyncRoute
@@ -1160,6 +1187,7 @@ export interface RootRouteChildren {
   ApiPublicSmsSinchRoute: typeof ApiPublicSmsSinchRoute
   ApiPublicSmsStatusRoute: typeof ApiPublicSmsStatusRoute
   ApiPublicSmsTelnyxRoute: typeof ApiPublicSmsTelnyxRoute
+  ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   ApiPublicTenantLogoBusinessIdRoute: typeof ApiPublicTenantLogoBusinessIdRoute
   ApiPublicV1BookingsRoute: typeof ApiPublicV1BookingsRoute
   ApiPublicV1CustomersRoute: typeof ApiPublicV1CustomersRoute
@@ -1549,6 +1577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiYoutubeUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/cowork-gateway': {
+      id: '/api/public/hooks/cowork-gateway'
+      path: '/api/public/hooks/cowork-gateway'
+      fullPath: '/api/public/hooks/cowork-gateway'
+      preLoaderRoute: typeof ApiPublicHooksCoworkGatewayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/engine': {
       id: '/api/public/hooks/engine'
       path: '/api/public/hooks/engine'
@@ -1645,6 +1680,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/sms/telnyx'
       fullPath: '/api/public/sms/telnyx'
       preLoaderRoute: typeof ApiPublicSmsTelnyxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/telegram/webhook': {
+      id: '/api/public/telegram/webhook'
+      path: '/api/public/telegram/webhook'
+      fullPath: '/api/public/telegram/webhook'
+      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/tenant-logo/$businessId': {
@@ -1901,6 +1943,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLinkedinUploadRoute: ApiLinkedinUploadRoute,
   ApiPublicEmailUnsubscribeRoute: ApiPublicEmailUnsubscribeRoute,
   ApiYoutubeUploadRoute: ApiYoutubeUploadRoute,
+  ApiPublicHooksCoworkGatewayRoute: ApiPublicHooksCoworkGatewayRoute,
   ApiPublicHooksEngineRoute: ApiPublicHooksEngineRoute,
   ApiPublicHooksFollowUpsRoute: ApiPublicHooksFollowUpsRoute,
   ApiPublicHooksLeadSyncRoute: ApiPublicHooksLeadSyncRoute,
@@ -1915,6 +1958,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSmsSinchRoute: ApiPublicSmsSinchRoute,
   ApiPublicSmsStatusRoute: ApiPublicSmsStatusRoute,
   ApiPublicSmsTelnyxRoute: ApiPublicSmsTelnyxRoute,
+  ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   ApiPublicTenantLogoBusinessIdRoute: ApiPublicTenantLogoBusinessIdRoute,
   ApiPublicV1BookingsRoute: ApiPublicV1BookingsRoute,
   ApiPublicV1CustomersRoute: ApiPublicV1CustomersRoute,

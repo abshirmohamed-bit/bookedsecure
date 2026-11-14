@@ -38,7 +38,7 @@ export function normaliseLocalPart(value: string): string {
 export function localPartProblem(localPart: string): string | null {
   if (localPart.length < 3) return "Use at least 3 letters or numbers.";
   if (!/^[a-z0-9]([a-z0-9.-]{0,38}[a-z0-9])?$/.test(localPart)) return "Use letters, numbers, dots and dashes only.";
-  if (RESERVED_LOCAL_PARTS.has(localPart)) return "That name is kept for BookedSecure. Try your business name.";
+  if (RESERVED_LOCAL_PARTS.has(localPart) || /^co-?work/.test(localPart)) return "That name is kept for BookedSecure. Try your business name.";
   return null;
 }
 

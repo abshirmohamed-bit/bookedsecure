@@ -93,7 +93,12 @@ export const Route = createFileRoute("/api/public/hooks/follow-ups")({
         const routines = await sweepRoutines().catch((error: unknown) => ({
           error: error instanceof Error ? error.message : "Routines failed",
         }));
-        return Response.json({ ...result, routines, coworkLearning, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, youtubeStats, proxyUpgrade, abandonedSwept: swept.swept });
+        // Messages to Co-Work by text, email or Telegram (normally answered every minute).
+        const { sweepGateways } = await import("@/lib/cowork-gateway.server");
+        const gateways = await sweepGateways().catch((error: unknown) => ({
+          error: error instanceof Error ? error.message : "Co-Work gateways failed",
+        }));
+        return Response.json({ ...result, gateways, routines, coworkLearning, reminders, ownerReminders, emailCampaigns, customerReminders, reviewRequests, serviceReminders, scheduledPosts, autoCompleted, bookingEmails, googleAds, postInsights, youtubeStats, proxyUpgrade, abandonedSwept: swept.swept });
 
 
       },
