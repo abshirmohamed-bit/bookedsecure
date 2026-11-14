@@ -2823,6 +2823,100 @@ export type Database = {
           },
         ]
       }
+      lead_calls: {
+        Row: {
+          business_id: string
+          campaign: string | null
+          captured: Json
+          created_at: string
+          created_by: string | null
+          direction: string
+          duration_s: number | null
+          ended_at: string | null
+          id: string
+          lead_id: string | null
+          phone_number: string | null
+          provider: string
+          provider_call_id: string | null
+          recording_path: string | null
+          saved_at: string | null
+          saved_by: string | null
+          started_at: string | null
+          status: string
+          summary: string | null
+          transcript: Json
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          campaign?: string | null
+          captured?: Json
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          duration_s?: number | null
+          ended_at?: string | null
+          id?: string
+          lead_id?: string | null
+          phone_number?: string | null
+          provider?: string
+          provider_call_id?: string | null
+          recording_path?: string | null
+          saved_at?: string | null
+          saved_by?: string | null
+          started_at?: string | null
+          status?: string
+          summary?: string | null
+          transcript?: Json
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          campaign?: string | null
+          captured?: Json
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          duration_s?: number | null
+          ended_at?: string | null
+          id?: string
+          lead_id?: string | null
+          phone_number?: string | null
+          provider?: string
+          provider_call_id?: string | null
+          recording_path?: string | null
+          saved_at?: string | null
+          saved_by?: string | null
+          started_at?: string | null
+          status?: string
+          summary?: string | null
+          transcript?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_calls_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_calls_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "lead_inbox_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_calls_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_deletion_requests: {
         Row: {
           action: string
