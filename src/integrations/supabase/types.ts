@@ -1699,6 +1699,87 @@ export type Database = {
           },
         ]
       }
+      cowork_routines: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string
+          deliver_email: boolean
+          enabled: boolean
+          id: string
+          kind: string
+          last_result: string | null
+          last_run_at: string | null
+          last_status: string | null
+          name: string
+          next_run_at: string | null
+          prompt: string
+          running_since: string | null
+          runs: number
+          schedule: Json
+          state: Json
+          thread_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by: string
+          deliver_email?: boolean
+          enabled?: boolean
+          id?: string
+          kind?: string
+          last_result?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          name: string
+          next_run_at?: string | null
+          prompt?: string
+          running_since?: string | null
+          runs?: number
+          schedule?: Json
+          state?: Json
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string
+          deliver_email?: boolean
+          enabled?: boolean
+          id?: string
+          kind?: string
+          last_result?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          name?: string
+          next_run_at?: string | null
+          prompt?: string
+          running_since?: string | null
+          runs?: number
+          schedule?: Json
+          state?: Json
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cowork_routines_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cowork_routines_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cowork_skills: {
         Row: {
           business_id: string
