@@ -2,8 +2,9 @@
 
 ## Latest Co-Work database updates
 - [x] Verify memories, email theme, inbox, clip-learning history and lead contact fields already exist.
-- [ ] Apply missing routines and gateway storage, verify tenant access and minute schedule.
-- [ ] Refresh generated types and request publishing after security checks.
+- [x] Apply missing routines and server-only gateway storage; retain plain user UUIDs and explicit grants.
+- [x] Refresh generated types; run focused checks and security scan before requesting publishing.
+- [ ] One-minute gateway delivery blocked by public-key authentication and permanent queue polling in the supplied SQL; existing 10-minute follow-ups remains the fallback, and protected enqueue-driven processing is a separate change.
 
 ## Project monitoring fixes
 - [x] Give browser-rendered video frames valid durations and surface muxing failures.
