@@ -1,21 +1,16 @@
 -- Co-Work gateways: answer a message the moment it is queued.
 --
--- Replaces the every-minute job in docs/cowork-gateways.sql (never applied):
--- no timer and no public key. Each new queued row in cowork_gateway_messages
--- makes one HTTP call, through pg_net after the insert commits, to the app's
--- /api/public/hooks/cowork-gateway, carrying a dedicated secret. The hook
--- refuses anything without it, then answers what is waiting. The 10-minute
--- follow-ups hook stays as the fallback if a call is ever lost.
+-- No timer, no public key and no secret in the database. Each queued message
+-- carries its own random one-time key (kick_token), written by the app when it
+-- queues the message. The insert trigger below sends that message's id and key
+-- to /api/public/hooks/cowork-gateway through pg_net after the insert commits;
+-- the hook only answers when the key matches a message waiting in the queue,
+-- then clears the key so the call can't be replayed. The 10-minute follow-ups
+-- hook stays as the fallback if a call is ever lost.
 --
--- Lovable, before applying:
---   1. Make a long random secret (32+ characters, letters and numbers).
---   2. Add it as the app secret COWORK_GATEWAY_SECRET.
---   3. Store the same value in the database's Vault under the name
---      cowork_gateway_secret:
---        select vault.create_secret('<the secret>', 'cowork_gateway_secret',
---          'Co-Work gateway hook (x-cowork-gateway-secret)');
--- Without the Vault secret the trigger does nothing, and messages are still
--- answered by the 10-minute fallback.
+-- Lovable: apply this file as it is. Nothing here reads or stores a secret.
+
+alter table public.cowork_gateway_messages add column if not exists kick_token text;
 
 create extension if not exists pg_net;
 
@@ -25,20 +20,14 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
-declare
-  secret text;
 begin
-  select decrypted_secret into secret
-  from vault.decrypted_secrets
-  where name = 'cowork_gateway_secret'
-  limit 1;
-  if secret is null or length(secret) < 24 then
+  if new.kick_token is null or length(new.kick_token) < 24 then
     return null;
   end if;
   perform net.http_post(
     url := 'https://bookedsecure.lovable.app/api/public/hooks/cowork-gateway',
-    headers := jsonb_build_object('Content-Type', 'application/json', 'x-cowork-gateway-secret', secret),
-    body := jsonb_build_object('message_id', new.id),
+    headers := jsonb_build_object('Content-Type', 'application/json'),
+    body := jsonb_build_object('message_id', new.id, 'token', new.kick_token),
     -- An answer can take a minute (Co-Work reads records, then texts back).
     timeout_milliseconds := 120000
   );

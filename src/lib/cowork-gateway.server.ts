@@ -305,12 +305,28 @@ async function queue(gateway: GatewayRow, externalId: string, body: string, meta
   const { count } = await db.from("cowork_gateway_messages").select("id", { count: "exact", head: true })
     .eq("gateway_id", gateway.id).gte("created_at", since);
   const over = (count ?? 0) >= GATEWAY_DAILY_LIMIT;
-  const { error } = await db.from("cowork_gateway_messages").insert({
+  const row = {
     gateway_id: gateway.id, business_id: gateway.business_id, channel: gateway.channel, external_id: externalId,
     body: body.slice(0, GATEWAY_MESSAGE_MAX), meta, status: over ? "skipped" : "queued", ...(over ? { error: "daily limit" } : {}),
-  });
+  };
+  // The message's own one-time key: the database trigger sends it with the
+  // call that answers it (docs/cowork-gateways-trigger.sql), so no shared
+  // secret has to live in the database.
+  let { error } = await db.from("cowork_gateway_messages").insert({ ...row, ...(over ? {} : { kick_token: randomToken(32) }) });
+  if (error && isMissing(error)) ({ error } = await db.from("cowork_gateway_messages").insert(row));
   if (error && error.code !== "23505") throw new Error(error.message);
   await db.from("cowork_gateways").update({ last_message_at: new Date().toISOString() }).eq("id", gateway.id);
+}
+
+/**
+ * Whether a call to the gateway hook carries a queued message's own one-time
+ * key. The key is used up here, so the same call can't be replayed.
+ */
+export async function claimKick(messageId: unknown, token: unknown): Promise<boolean> {
+  if (typeof messageId !== "string" || typeof token !== "string" || token.length < 24 || messageId.length > 64) return false;
+  const { data, error } = await db.from("cowork_gateway_messages").update({ kick_token: null })
+    .eq("id", messageId).eq("kick_token", token).select("id");
+  return !error && Boolean(data?.length);
 }
 
 // ---------------------------------------------------------------- answering
