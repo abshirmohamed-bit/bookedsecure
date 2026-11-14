@@ -282,6 +282,8 @@ export type ClipSettings = {
   captionY: number | null;
   /** The clip's key words, coloured in its captions (caption_options.emphasis, from the Engine's finder). */
   emphasis: string[];
+  /** The question the clip answers, asked earlier in the video: a card at the start (caption_options.question). */
+  question: string | null;
   /** For the live preview: the source video, and where its time 0 sits on the original timeline. */
   sourceUrl: string | null; sourceOffsetMs: number;
   headline: { text: string; enabled: boolean; style: string; position: string };
@@ -301,6 +303,7 @@ function settingsOf(project: EngineProject): ClipSettings {
     captionSize: Number.isFinite(size) && size > 0 ? size : 1,
     captionY: typeof options["y"] === "number" && Number.isFinite(options["y"]) ? (options["y"] as number) : null,
     emphasis: Array.isArray(options["emphasis"]) ? (options["emphasis"] as unknown[]).filter((w): w is string => typeof w === "string").slice(0, 3) : [],
+    question: typeof options["question"] === "string" && options["question"].trim() ? (options["question"] as string).trim().slice(0, 200) : null,
     layout: project.layout, zoom: typeof framing["zoom"] === "string" ? (framing["zoom"] as string) : "auto",
     aspect: project.aspect, focus: typeof framing["focus"] === "string" ? (framing["focus"] as string) : "auto",
     inMs: project.in_ms, outMs: project.out_ms, trimTo: project.sourceEndMs,
@@ -406,7 +409,9 @@ export async function applyClipStyles(businessId: string, jobId: string, clipIds
 export type ShotPlan = {
   layout: string; zoom: string; aspect: string; people: number;
   /** Where the Engine puts the headline and, when it would sit on a head, for how long (the opening only). */
-  headline?: { place: "top" | "bottom"; until_ms: number | null } | null;
+  headline?: { place: "top" | "bottom"; until_ms: number | null; from_ms?: number | null } | null;
+  /** The question card the clip opens with, and how long it stays. */
+  question?: { text: string; until_ms: number } | null;
   /** The real picture inside the source's black bars (letterbox/pillarbox), when it has any. */
   active?: PlanBox | null;
   source: { w: number; h: number }; output: { w: number; h: number };

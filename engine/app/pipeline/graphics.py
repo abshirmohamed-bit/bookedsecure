@@ -99,6 +99,57 @@ def _cards_in(frame, text: list | None = None) -> list[tuple[float, float, float
     return out
 
 
+#: A framed picture (a photo or footage inset with a thin bright border):
+#: its share of the frame, its width / height, and how much of each edge of
+#: its box the border has to cover.
+FRAMED_AREA = (0.012, 0.3)
+FRAMED_ASPECT = (0.9, 2.4)
+FRAMED_EDGE = 0.6
+#: Inside, a picture is not a white card and not a blank panel.
+FRAMED_MAX_WHITE = 0.5
+FRAMED_MIN_SPREAD = 8.0
+
+
+def _framed_in(frame) -> list[tuple[float, float, float, float]]:
+    """Framed pictures in one BGR frame: footage or a photo set beside the
+    speaker inside a thin bright border, as (x, y, w, h) shares.
+
+    These carry no words, so the card test (which needs text since it
+    mistook walls for cards) never finds them; the border is what marks them.
+    Seen on an interview: archive rugby footage beside the guest, cropped out
+    of every vertical clip.
+    """
+    import cv2
+    import numpy as np
+
+    h, w = frame.shape[:2]
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    bright = (gray >= 200).astype(np.uint8) * 255
+    contours, _ = cv2.findContours(bright, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    out: list[tuple[float, float, float, float]] = []
+    for c in contours:
+        x, y, bw, bh = cv2.boundingRect(c)
+        area = bw * bh / (w * h)
+        if not (FRAMED_AREA[0] <= area <= FRAMED_AREA[1]) or not (FRAMED_ASPECT[0] <= bw / max(1, bh) <= FRAMED_ASPECT[1]):
+            continue
+        if x <= 2 or y <= 2 or x + bw >= w - 2 or y + bh >= h - 2:
+            continue
+        t = max(2, int(min(bw, bh) * 0.04))
+        cover = [float((bright[y:y + t, x:x + bw] > 0).mean(axis=1).max()),
+                 float((bright[y + bh - t:y + bh, x:x + bw] > 0).mean(axis=1).max()),
+                 float((bright[y:y + bh, x:x + t] > 0).mean(axis=0).max()),
+                 float((bright[y:y + bh, x + bw - t:x + bw] > 0).mean(axis=0).max())]
+        if min(cover) < FRAMED_EDGE:
+            continue
+        inner = gray[y + 2 * t:y + bh - 2 * t, x + 2 * t:x + bw - 2 * t]
+        if inner.size == 0 or float((inner >= 200).mean()) > FRAMED_MAX_WHITE or float(inner.std()) < FRAMED_MIN_SPREAD:
+            continue
+        box = (x / w, y / h, bw / w, bh / h)
+        if not any(_iou(box, o) >= SAME_CARD for o in out):
+            out.append(box)
+    return out
+
+
 def _inside(t, box, slack: float = 0.02) -> bool:
     """Whether a text box sits (mostly) within a card box."""
     return (t[0] >= box[0] - slack and t[1] >= box[1] - slack
@@ -238,6 +289,7 @@ def sightings(video: Path, in_ms: int, out_ms: int) -> list[tuple[int, list]]:
         ms = in_ms + int(i * 1000 / RATE)
         words = subjects.detect_text(frame) if read_text else None
         found = _cards_in(frame, words)
+        found += [f for f in _framed_in(frame) if not any(_iou(f, o) >= SAME_CARD for o in found)]
         out.append((ms, found))
         subs.append(_subtitle_top(frame, found))
         texts.append((ms, words or []))

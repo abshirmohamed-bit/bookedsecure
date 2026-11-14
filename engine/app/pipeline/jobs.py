@@ -403,6 +403,7 @@ def _cut(s: Session, job: Job, asset: Asset, params: dict) -> None:
             caption_style_id=params.get("caption_style_id") or "bold_white",
             caption_options={"enabled": params.get("edit_level", "full") != "clips",
                              **({"emphasis": list(m.keywords)[:3]} if getattr(m, "keywords", None) else {}),
+                             **({"question": m.question[:200]} if getattr(m, "question", "") else {}),
                              **({"position": params["caption_position"]} if params.get("caption_position") else {}),
                              **({"size": params["caption_size"]} if params.get("caption_size") else {})},
             framing={"mode": params.get("framing", "auto"), "focus": m.focus,

@@ -49,7 +49,7 @@ function coverStyle(crop: PlanBox, source: { w: number; h: number }, frame: { w:
  * Nothing is rendered or saved, so every change shows on the next frame.
  */
 export function LivePreview({
-  src, offsetMs, start, end, clipStart, aspect, layout, plan, lines, lineTexts, captions, headline, poster,
+  src, offsetMs, start, end, clipStart, aspect, layout, plan, lines, lineTexts, captions, headline, question = null, poster,
   scrubMs, timeRef, onCaptionY,
 }: {
   src: string;
@@ -65,7 +65,9 @@ export function LivePreview({
   lines: CaptionLine[];
   lineTexts: Record<number, string>;
   captions: { on: boolean; className: string; highlight: boolean; position: string; size: number; y: number | null; emphasis?: string[] };
-  headline: { on: boolean; text: string; position: string; untilMs?: number | null };
+  headline: { on: boolean; text: string; position: string; untilMs?: number | null; fromMs?: number | null };
+  /** The question card the clip opens with (the Engine's question plan). */
+  question?: { text: string; untilMs: number } | null;
   poster?: string | undefined;
   /** While a trim handle is dragged: show this moment instead of playing. */
   scrubMs?: number | null | undefined;
@@ -358,9 +360,14 @@ export function LivePreview({
         <div aria-hidden="true" className="pointer-events-none absolute left-0"
           style={{ bottom: `${LOOK.progress.lift * 100}%`, height: Math.max(3, frame.h * LOOK.progress.height), width: `${Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100))}%`, background: `rgba(255,255,255,${LOOK.progress.alpha})` }} />
       ) : null}
-      {headline.on && headline.text.trim() && headlineAlpha(headline.untilMs ?? null, rel) > 0 ? (
+      {question?.text && headlineAlpha(question.untilMs, rel) > 0 ? (
+        <div className="pointer-events-none absolute inset-x-3 top-[7%] flex justify-center" style={{ opacity: headlineAlpha(question.untilMs, rel) }}>
+          <span className="max-w-full rounded-lg bg-[#0B1F3A]/85 px-3 py-1.5 text-center text-[0.85rem] font-bold leading-snug text-white shadow-lg">{question.text}</span>
+        </div>
+      ) : null}
+      {headline.on && headline.text.trim() && headlineAlpha(headline.untilMs ?? null, rel, headline.fromMs ?? null) > 0 ? (
         <div className={`pointer-events-none absolute inset-x-3 flex justify-center ${headlineTop ? "top-[7%]" : "bottom-[7%]"}`}
-          style={{ opacity: headlineAlpha(headline.untilMs ?? null, rel) }}>
+          style={{ opacity: headlineAlpha(headline.untilMs ?? null, rel, headline.fromMs ?? null) }}>
           <span className="max-w-full rounded-lg bg-white px-3 py-1.5 text-center text-[0.95rem] font-black leading-tight text-black shadow-lg">{headline.text}</span>
         </div>
       ) : null}

@@ -276,7 +276,9 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
             on: saved.headline.enabled, text: saved.headline.text,
             position: saved.headline.position === "auto" ? plan.data?.headline?.place ?? "top" : saved.headline.position,
             untilMs: saved.headline.position === "auto" ? plan.data?.headline?.until_ms ?? null : null,
+            fromMs: plan.data?.headline?.from_ms ?? null,
           },
+          question: saved.question && plan.data?.question ? { text: saved.question, untilMs: plan.data.question.until_ms } : null,
         }, setMakingHere);
         const put = await fetch(r.render.uploadUrl, { method: "PUT", headers: { "Content-Type": "video/mp4" }, body: out.blob });
         if (!put.ok) throw new Error(`The upload was refused (${put.status}).`);
@@ -354,7 +356,9 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
                     on: current.headlineEnabled, text: current.headlineText,
                     position: current.headlinePosition === "auto" ? plan.data?.headline?.place ?? "top" : current.headlinePosition,
                     untilMs: current.headlinePosition === "auto" ? plan.data?.headline?.until_ms ?? null : null,
+                    fromMs: plan.data?.headline?.from_ms ?? null,
                   }}
+                  question={settings?.question && plan.data?.question ? { text: settings.question, untilMs: plan.data.question.until_ms } : null}
                   poster={clip.thumbnail_url ?? undefined} scrubMs={scrub} timeRef={timeRef}
                   onCaptionY={(y) => { setCaptionY(y); if (tab !== "captions") setTab("captions"); }}
                 />

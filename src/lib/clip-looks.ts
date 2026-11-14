@@ -110,8 +110,11 @@ export function presenterCards(W: number, H: number, top: number): [Box, Box] {
 }
 
 /** 1 while the headline shows, fading to 0 over its last 300 ms when it shows for the opening only. */
-export function headlineAlpha(untilMs: number | null, rel: number): number {
-  if (!untilMs) return 1;
+export function headlineAlpha(untilMs: number | null, rel: number, fromMs: number | null = null): number {
+  // After a question card (fromMs), the headline fades in over 300 ms.
+  if (fromMs && rel < fromMs) return 0;
+  const fadeIn = fromMs ? Math.min(1, (rel - fromMs) / 300) : 1;
+  if (!untilMs) return fadeIn;
   if (rel >= untilMs) return 0;
-  return Math.min(1, Math.max(0, (untilMs - rel) / 300));
+  return Math.min(fadeIn, Math.max(0, (untilMs - rel) / 300));
 }

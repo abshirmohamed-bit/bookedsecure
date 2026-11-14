@@ -983,7 +983,7 @@ def _with_cards(inp: Inputs, shots_, layout: str):
 
     portrait = inp.out_h >= inp.out_w
     for a, b in shots_:
-        found = graphics.spans(inp.cards, a, b) if inp.cards and portrait and layout == "auto" else []
+        found = graphics.spans(inp.cards, a, b) if inp.cards and portrait and layout in {"auto", "full-video"} else []
         cursor = a
         for ca, cb, share in found:
             if ca - cursor < MIN_PIECE_MS:
@@ -1503,6 +1503,105 @@ def _steady(shots_: list[Shot]) -> list[Shot]:
                                 why=prev.why if _faceless(prev) else s.why))
                 continue
         out.append(s)
+    return out
+
+
+#: A gesture: the body this much wider than the person at rest in the shot...
+GESTURE_WIDEN = 1.15
+#: ...and this much wider than a vertical crop can show...
+GESTURE_OVER_CROP = 1.45
+#: ...held at least this long (bodies are read about twice a second).
+GESTURE_MIN_MS = 1500
+GESTURE_MAX_MS = 4000
+#: One ease-out at most this often, so the clip doesn't pump in and out.
+GESTURE_GAP_MS = 10_000
+#: Close-ups are left alone: their body fills the frame anyway.
+GESTURE_MAX_FACE_W = 0.13
+#: Pieces shorter than this either side of a gesture join it instead.
+GESTURE_MIN_PIECE_MS = 1000
+
+
+def _slice_fill(shot: Shot, a: int, b: int) -> Shot:
+    """The part [a, b) of a fill shot, its crop where the pan has it at a."""
+    x = shot.window.x
+    for ms, px in shot.pan or []:
+        if ms <= a:
+            x = px
+    pan = [(ms, px) for ms, px in (shot.pan or []) if a <= ms < b]
+    win = Box(x, shot.window.y, shot.window.w, shot.window.h)
+    return Shot(a, b, "fill", window=win, pan=[(a, x)] + [p for p in pan if p[0] > a] if shot.pan else [],
+                zoom=shot.zoom, why=shot.why)
+
+
+def widen_for_gestures(shots_: list[Shot], inp: Inputs, layout: str) -> list[Shot]:
+    """Ease out to the whole picture while someone's gesture spreads past the crop.
+
+    A seated guest in a wide shot opens both hands wider than a vertical crop
+    (a third of the frame); followed tightly, the gesture is cut off at both
+    edges. When the person's body box runs clearly wider than it does at rest
+    in that shot, and wider than the crop can hold, for at least 1.5 s, that
+    stretch shows the whole picture (fit) and the crop comes back after it;
+    the camera dissolves between them (camera.transition_for), as it does for
+    any change of look inside one shot.
+    """
+    if layout not in {"auto", "full-video"} or not inp.bodies or inp.out_h < inp.out_w or not inp.width:
+        return shots_
+    fw, _ = full_window(inp.width, inp.height, inp.out_w, inp.out_h)
+    share = fw / inp.width
+    out: list[Shot] = []
+    last_out = -GESTURE_GAP_MS
+    for shot in shots_:
+        if shot.kind != "fill" or shot.window is None or shot.length_ms < GESTURE_MIN_MS + 2 * GESTURE_MIN_PIECE_MS:
+            out.append(shot)
+            continue
+        faces = sorted(bx[2] for t in inp.tracks for ms, bx in t.boxes if shot.start_ms <= ms < shot.end_ms)
+        if not faces or faces[len(faces) // 2] >= GESTURE_MAX_FACE_W:
+            out.append(shot)
+            continue
+        wl, wr = shot.window.x / inp.width, (shot.window.x + shot.window.w) / inp.width
+        samples = sorted((ms, bx[2]) for t in inp.bodies for ms, bx in t.boxes
+                         if shot.start_ms <= ms < shot.end_ms and wl <= bx[0] <= wr)
+        if len(samples) < 6:
+            out.append(shot)
+            continue
+        widths = sorted(w for _, w in samples)
+        rest = widths[len(widths) // 10]       # at rest: a speaker who gestures all shot long still has quiet moments
+        over = max(rest * GESTURE_WIDEN, share * GESTURE_OVER_CROP)
+        runs: list[list[int]] = []
+        for ms, w in samples:
+            if w >= over:
+                if runs and ms - runs[-1][1] <= 800:
+                    runs[-1][1] = ms
+                else:
+                    runs.append([ms, ms])
+        pieces: list[tuple[int, int]] = []
+        for r0, r1 in runs:
+            a, b = r0 - 250, r1 + 500
+            if b - a < GESTURE_MIN_MS:
+                continue
+            if b - a > GESTURE_MAX_MS:
+                mid = (a + b) // 2
+                a, b = mid - GESTURE_MAX_MS // 2, mid + GESTURE_MAX_MS // 2
+            a, b = max(shot.start_ms, a), min(shot.end_ms, b)
+            if a - shot.start_ms < GESTURE_MIN_PIECE_MS:
+                a = shot.start_ms
+            if shot.end_ms - b < GESTURE_MIN_PIECE_MS:
+                b = shot.end_ms
+            if a - last_out < GESTURE_GAP_MS or (pieces and a - pieces[-1][1] < GESTURE_GAP_MS):
+                continue
+            pieces.append((a, b))
+            last_out = b
+        if not pieces:
+            out.append(shot)
+            continue
+        cursor = shot.start_ms
+        for a, b in pieces:
+            if a > cursor:
+                out.append(_slice_fill(shot, cursor, a))
+            out.append(Shot(a, b, "fit", why="hands spread wider than the frame: the whole picture for the gesture"))
+            cursor = b
+        if cursor < shot.end_ms:
+            out.append(_slice_fill(shot, cursor, shot.end_ms))
     return out
 
 

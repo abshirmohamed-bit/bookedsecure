@@ -136,3 +136,50 @@ def test_captions_move_under_the_chin_in_a_close_up():
     P.place_captions([shot], inp)
     assert shot.caption_at is not None and shot.caption_at > 0.62
     assert P.caption_y(shot, inp) == shot.caption_at
+
+
+# ---------------------------------------------------------------- question cards, insets, gestures
+
+def test_a_question_asked_earlier_is_kept_only_when_it_was_really_said():
+    sentences = [s(790, 794, "How did your family react to you taking your Shahadah?"),
+                 s(800, 830, "My mum cried."), s(934, 940, "When I took my Shahadah I kept it quiet.")]
+    m = F.Moment(934_000, 994_000, "x", 80, question="how did your family react to you taking your shahadah")
+    assert F.verify_questions([m], sentences)[0].question == "How did your family react to you taking your Shahadah?"
+    made_up = F.Moment(934_000, 994_000, "x", 80, question="What did your brother say about the mosque?")
+    assert F.verify_questions([made_up], sentences)[0].question == ""
+
+
+def test_the_question_card_opens_the_clip_and_the_headline_waits():
+    r = compose.Render(source=__import__("pathlib").Path("x.mp4"), out=__import__("pathlib").Path("y.mp4"),
+                       in_ms=0, out_ms=60_000, question="How did your family react to you taking your Shahadah?",
+                       title={"text": "Her family rejected her", "enabled": True, "position": "auto"})
+    q = compose.question_plan(r)
+    assert q and 2500 <= q["until_ms"] <= 6000
+    plan = compose.headline_plan(r, [], None)
+    assert plan["from_ms"] == q["until_ms"]
+
+
+def test_a_framed_picture_beside_the_speaker_is_found():
+    import numpy as np
+    frame = np.full((360, 640, 3), 10, np.uint8)
+    frame[54:184, 73:212] = 255                                   # white border
+    rng = np.random.default_rng(1)
+    frame[58:180, 77:208] = rng.integers(0, 120, (122, 131, 3), dtype=np.uint8)   # footage inside
+    found = graphics._framed_in(frame)
+    assert len(found) == 1 and abs(found[0][0] - 73 / 640) < 0.01
+    blank = np.full((360, 640, 3), 10, np.uint8)
+    blank[54:184, 73:212] = 255
+    blank[58:180, 77:208] = 30                                    # an empty panel is not a picture
+    assert graphics._framed_in(blank) == []
+
+
+def test_a_spread_gesture_eases_out_to_the_whole_picture_once():
+    face = FaceTrack(id=1, boxes=[(ms, (0.6, 0.35, 0.1, 0.14)) for ms in range(0, 20_000, 500)])
+    body = FaceTrack(id=2, boxes=[(ms, (0.6, 0.6, 0.55 if 8000 <= ms < 10_500 else 0.38, 0.7)) for ms in range(0, 20_000, 500)])
+    inp = P.Inputs(width=1920, height=1080, out_w=1080, out_h=1920, in_ms=0, out_ms=20_000, tracks=[face], bodies=[body])
+    shot = P.Shot(0, 20_000, "fill", window=P.Box(850, 0, 608, 1080))
+    out = P.widen_for_gestures([shot], inp, "full-video")
+    assert [x.kind for x in out] == ["fill", "fit", "fill"]
+    assert out[1].start_ms <= 8000 and out[1].end_ms >= 10_000
+    # Owner-chosen looks other than follow-the-speaker are left alone.
+    assert P.widen_for_gestures([shot], inp, "split") == [shot]

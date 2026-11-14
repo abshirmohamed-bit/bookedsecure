@@ -31,7 +31,9 @@ export type RenderInput = {
   /** `y`: a dragged position, the line's centre as a share of the height from the top (wins over `position`). */
   captions: { on: boolean; styleId: string; position: string; size: number; y?: number | null; emphasis?: string[] };
   /** `untilMs`: the headline shows for the opening only (the Engine's headline plan), then fades. */
-  headline: { on: boolean; text: string; position: string; untilMs?: number | null };
+  headline: { on: boolean; text: string; position: string; untilMs?: number | null; fromMs?: number | null };
+  /** The question the clip answers (asked earlier in the video), shown up top for the opening. */
+  question?: { text: string; untilMs: number } | null;
 };
 
 const OUTPUT: Record<VideoAspect, { w: number; h: number }> = {
@@ -327,10 +329,41 @@ function drawCaptions(ctx: CanvasRenderingContext2D, lines: CaptionLine[], input
   }
 }
 
+/** The question card (compose._question_filter): the question up top on a dark band, fading out at untilMs. */
+function drawQuestion(ctx: CanvasRenderingContext2D, input: RenderInput, W: number, H: number, rel: number) {
+  const q = input.question;
+  if (!q?.text.trim()) return;
+  const alpha = headlineAlpha(q.untilMs, rel);
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  try {
+    const px = Math.round(Math.min(W, H * 0.5625) * 0.046);
+    ctx.font = `700 ${px}px Inter, 'Segoe UI', system-ui, sans-serif`;
+    ctx.textBaseline = "middle";
+    const rows = wrap(ctx, q.text.trim().split(/\s+/), W * 0.84).slice(0, 3);
+    const lh = px * 1.25;
+    const pad = px * 0.45;
+    const width = Math.max(...rows.map((r) => ctx.measureText(r.join(" ")).width)) + pad * 2;
+    const top = H * 0.07;
+    ctx.fillStyle = "rgba(11,31,58,0.86)";
+    ctx.beginPath();
+    ctx.roundRect((W - width) / 2, top, width, rows.length * lh + pad, px * 0.3);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    rows.forEach((r, i) => {
+      const t = r.join(" ");
+      ctx.fillText(t, (W - ctx.measureText(t).width) / 2, top + pad / 2 + lh * (i + 0.5));
+    });
+  } finally {
+    ctx.restore();
+  }
+}
+
 function drawHeadline(ctx: CanvasRenderingContext2D, input: RenderInput, W: number, H: number, rel = 0) {
   const text = input.headline.text.trim();
   if (!input.headline.on || !text) return;
-  const alpha = headlineAlpha(input.headline.untilMs ?? null, rel);
+  const alpha = headlineAlpha(input.headline.untilMs ?? null, rel, input.headline.fromMs ?? null);
   if (alpha <= 0) return;
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -480,6 +513,7 @@ async function renderClipRealtime(input: RenderInput, onProgress: (p: number) =>
       if (ts >= 0 && ts > lastTs) {
         drawPicture(ctx, video, input, abs - input.planStartMs, W, H);
         drawCaptions(ctx, lines, input, abs - input.startMs, W, H);
+        drawQuestion(ctx, input, W, H, abs - input.startMs);
         drawHeadline(ctx, input, W, H, abs - input.startMs);
         if (poster) {
           // Podcast poster: a bar that fills across the bottom as the clip plays.
@@ -676,6 +710,7 @@ async function renderClipFast(input: RenderInput, onProgress: (p: number) => voi
         const abs = input.offsetMs + t / 1000;
         drawPicture(ctx, frame, input, abs - input.planStartMs, W, H);
         drawCaptions(ctx, lines, input, abs - input.startMs, W, H);
+        drawQuestion(ctx, input, W, H, abs - input.startMs);
         drawHeadline(ctx, input, W, H, abs - input.startMs);
         if (poster) {
           const bh = Math.max(4, H * LOOK.progress.height);

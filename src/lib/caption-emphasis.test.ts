@@ -23,6 +23,11 @@ describe("the headline for the opening only", () => {
     expect(headlineAlpha(4000, 3850)).toBeCloseTo(0.5);
     expect(headlineAlpha(4000, 4000)).toBe(0);
   });
+  it("waits for the question card, then fades in", () => {
+    expect(headlineAlpha(null, 1000, 2800)).toBe(0);
+    expect(headlineAlpha(null, 2950, 2800)).toBeCloseTo(0.5);
+    expect(headlineAlpha(6800, 5000, 2800)).toBe(1);
+  });
 });
 
 describe("captions off the face", () => {

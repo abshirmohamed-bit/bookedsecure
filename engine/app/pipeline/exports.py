@@ -129,6 +129,7 @@ def render_for(project: Project, source: Path, out: Path, *, resolution: str = "
         caption_max_words=options.get("max_words"),
         censored=options.get("censored_words") or [],
         emphasis=[str(x) for x in (options.get("emphasis") or [])][:3] if isinstance(options.get("emphasis"), list) else None,
+        question=str(options.get("question") or "").strip()[:200] or None,
         title=title, watermark=project.watermark or None,
         resolution=resolution, preview=preview, loudnorm=not preview,
         finish_ass=(options.get("finish_ass") or {}).get("preview" if preview else resolution),

@@ -74,6 +74,9 @@ class Render:
     censored: list[str] | None = None
     #: The clip's key words (caption_options.emphasis), coloured in its captions.
     emphasis: list[str] | None = None
+    #: The question the clip answers, asked earlier in the video (caption_options.question):
+    #: an on-screen card for the opening seconds.
+    question: str | None = None
     title: dict | None = None               # {text, style, enabled}
     watermark: dict | None = None           # {text, position, opacity}
     broll: Path | None = None
@@ -269,6 +272,38 @@ def title_place(title: dict, head_top: float | None, top_busy: float = 0.0,
     return "top"
 
 
+#: How long the question card stays: long enough to read it.
+QUESTION_MIN_MS, QUESTION_PER_WORD_MS, QUESTION_MAX_MS = 2500, 280, 6000
+
+
+def question_plan(render) -> "dict | None":
+    """{"text", "until_ms"} for the clip's question card, or None without one."""
+    text = (getattr(render, "question", None) or "").strip()
+    if not text or render.layout == "title-subtitles":
+        return None
+    until = min(QUESTION_MAX_MS, max(QUESTION_MIN_MS, QUESTION_PER_WORD_MS * len(text.split())))
+    return {"text": text, "until_ms": min(until, max(1000, render.total_ms - 1000))}
+
+
+def _question_filter(text: str, w: int, h: int, workdir: Path | None, until_ms: int) -> str:
+    """The question card: the question the clip answers, up top, mixed case, fading out."""
+    lines, size = title_lines(text, w, h)
+    if not lines:
+        return ""
+    size = int(size * 0.92)
+    gap = int(size * 1.2)
+    y0 = int(h * 0.07)
+    end, fade = until_ms / 1000, HOOK_FADE_MS / 1000
+    font = _font_option(workdir)
+    parts = []
+    for i, line in enumerate(lines):
+        parts.append(
+            f"drawtext={_text_source(line, workdir, f'question_{i}')}{font}:fontcolor=white:fontsize={size}"
+            f":x=(w-text_w)/2:y={y0 + i * gap}:box=1:boxcolor=0x0B1F3A@0.86:boxborderw={int(size * 0.4)}"
+            f":enable='lt(t,{end:.3f})':alpha='if(lt(t,{end - fade:.3f}),1,max(0,({end:.3f}-t)/{fade:.3f}))'")
+    return ",".join(parts)
+
+
 #: A headline that would sit on someone's head is shown for the opening
 #: seconds only (the hook), then fades, unless the owner chose its place.
 HOOK_TITLE_MS = 4000
@@ -304,11 +339,17 @@ def headline_plan(render, plan, inputs) -> dict:
     if (auto and place == "top" and head_top is not None and head_top < HEAD_UP_HIGH
             and render.layout != "title-subtitles" and render.total_ms > HOOK_TITLE_MS + 2000):
         until = HOOK_TITLE_MS
-    return {"place": place, "until_ms": until}
+    # A question card opens the clip up top: a headline there comes after it.
+    q = question_plan(render)
+    start = q["until_ms"] if q and place == "top" else None
+    if start is not None and until is not None:
+        until = start + HOOK_TITLE_MS
+    return {"place": place, "until_ms": until, "from_ms": start}
 
 
 def _title_filter(title: dict, w: int, h: int, workdir: Path | None = None,
-                  top: int | None = None, place: str = "top", until_ms: int | None = None) -> str:
+                  top: int | None = None, place: str = "top", until_ms: int | None = None,
+                  from_ms: int | None = None) -> str:
     """A headline that always fits: wrapped, then shrunk to the width."""
     if title.get("enabled") is False:
         return ""
@@ -337,11 +378,17 @@ def _title_filter(title: dict, w: int, h: int, workdir: Path | None = None,
         y = y0 + i * gap
         common = (f"{_text_source(line, workdir, f'title_{i}')}{font}:fontcolor=white:fontsize={size}"
                   f":x=(w-text_w)/2:y={y}")
-        if until_ms:
-            end = until_ms / 1000
+        if until_ms or from_ms:
+            begin = (from_ms or 0) / 1000
             fade = HOOK_FADE_MS / 1000
-            common += (f":enable='lt(t,{end:.3f})'"
-                       f":alpha='if(lt(t,{end - fade:.3f}),1,max(0,({end:.3f}-t)/{fade:.3f}))'")
+            if until_ms:
+                end = until_ms / 1000
+                common += (f":enable='between(t,{begin:.3f},{end:.3f})'"
+                           f":alpha='if(lt(t,{begin + fade:.3f}),max(0,(t-{begin:.3f})/{fade:.3f}),"
+                           f"if(lt(t,{end - fade:.3f}),1,max(0,({end:.3f}-t)/{fade:.3f})))'")
+            else:
+                common += (f":enable='gte(t,{begin:.3f})'"
+                           f":alpha='min(1,max(0,(t-{begin:.3f})/{fade:.3f}))'")
         if kind == "bold_band":
             parts.append(f"drawtext={common}:box=1:boxcolor=black@0.78:boxborderw={int(size * 0.42)}")
         elif kind == "boxed":
@@ -464,9 +511,18 @@ def flatten(render: Render, workdir: Path) -> Render:
 
 # ------------------------------------------------------------------ the plan
 
+#: Layouts that show an on-screen card or framed picture whole while it is up.
+CARD_LAYOUTS = {"auto", "", "full-video"}
+
+
 def _cards(source: Path, render: Render) -> list:
-    """On-screen cards over the render's range; none if reading them fails."""
-    if render.layout not in {"auto", ""}:
+    """On-screen cards over the render's range; none if reading them fails.
+
+    Read for "auto" and "follow the speaker": a card or a framed picture set
+    beside the speaker is what they are talking about, and a crop that follows
+    them alone cuts it out.
+    """
+    if render.layout not in CARD_LAYOUTS:
         return []
     try:
         from . import graphics
@@ -552,6 +608,7 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
         voiced=_voiced(source, render) if render.framing_mode not in {"center", "manual"} else None,
     )
     plan = shotplan.plan(inputs)
+    plan = shotplan.widen_for_gestures(plan, inputs, render.layout)
     try:
         camera.apply(plan, inputs, source)
         for shot in plan:
@@ -935,7 +992,8 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     # what the headline would cover), else in the source.
     heading = headline_plan(render, plan, inputs)
     last = _overlays(render, workdir, chain, w, h, title_top=title_top, place=heading["place"], plan=plan,
-                     inputs=inputs, title_until_ms=None if title_top is not None else heading["until_ms"])
+                     inputs=inputs, title_until_ms=None if title_top is not None else heading["until_ms"],
+                     title_from_ms=None if title_top is not None else heading.get("from_ms"))
 
     args = ["-ss", f"{render.in_ms / 1000:.3f}", "-t", f"{dur_s:.3f}", "-i", str(render.source),
             *_graph_args(";".join(chain), workdir), "-map", f"[{last}]", "-map", "0:a?"]
@@ -1048,7 +1106,7 @@ def _captions_ass(render: Render, w: int, h: int, plan=None, inputs=None) -> str
 
 def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int,
               title_top: int | None = None, place: str = "top", plan=None, inputs=None,
-              title_until_ms: int | None = None) -> str:
+              title_until_ms: int | None = None, title_from_ms: int | None = None) -> str:
     """Append captions, title and watermark to a filter_complex graph.
 
     Takes the graph ending in [base] and returns the name of the last link, so
@@ -1072,8 +1130,14 @@ def _overlays(render: Render, workdir: Path, chain: list[str], w: int, h: int,
         chain.append(f"color=c={looks.PROGRESS_COLOUR}:s={w}x{bar_h}:r=30:d={dur:.3f}[pbar]")
         chain.append(f"[{last}][pbar]overlay=x='-W+W*t/{dur:.3f}':y=H-h-{int(h * looks.PROGRESS_LIFT)}:eof_action=pass[prog]")
         last = "prog"
+    q = question_plan(render)
+    if q:
+        f = _question_filter(q["text"], w, h, workdir, q["until_ms"])
+        if f:
+            chain.append(f"[{last}]{f}[question]")
+            last = "question"
     for name, f in (("title", _title_filter(render.title or {}, w, h, workdir, top=title_top, place=place,
-                                            until_ms=title_until_ms)),
+                                            until_ms=title_until_ms, from_ms=title_from_ms)),
                     ("mark", _watermark_filter(render.watermark or {}, w, h, workdir))):
         if f:
             chain.append(f"[{last}]{f}[{name}]")

@@ -49,6 +49,10 @@ class Moment:
     #: editor colours the key word of a pull quote. Kept after `focus` for the
     #: same reason `focus` is last: positional constructions above stay right.
     keywords: list[str] = field(default_factory=list)
+    #: The question this clip answers when it was asked earlier in the video
+    #: (by anyone), word for word from the transcript, shown as an on-screen
+    #: card at the start so the answer isn't heard without its question.
+    question: str = ""
 
     @property
     def duration_ms(self) -> int:
@@ -364,6 +368,7 @@ def _claude_prompt(sentences: list[dict], count: int, target_ms: int, *, genre: 
         '"scene_analysis":"two sentences on what happens and why it works",'
         '"focus":"speaker|reaction|everyone",'
         '"keywords":["1-3 single words said in the clip that it turns on"],'
+        '"question":"the question this clip answers, word for word as said, when it was asked BEFORE the clip starts (by anyone); otherwise empty",'
         '"reason":"<=120 chars"}]}'
     )
     extras.append(
@@ -546,6 +551,7 @@ def parse_moments(text: str) -> list[Moment]:
             focus=_focus(raw.get("focus")),
             grades={k: str(v)[:2] for k, v in grades.items()},
             keywords=_keywords(raw.get("keywords")),
+            question=str(raw.get("question") or "").strip()[:200],
         ))
     return out
 
@@ -708,6 +714,47 @@ def frame_questions(moments: list[Moment], sentences: list[dict], target_ms: int
     return out
 
 
+#: How far back the question a clip answers may have been asked.
+QUESTION_CARD_LOOKBACK_MS = 10 * 60_000
+
+
+def _grams(text: str, n: int = 3) -> set:
+    words = re.findall(r"[a-z0-9']+", text.lower())
+    return {tuple(words[i:i + n]) for i in range(max(0, len(words) - n + 1))} or ({tuple(words)} if words else set())
+
+
+def verify_questions(moments: list[Moment], sentences: list[dict]) -> list[Moment]:
+    """Keep a moment's question only when it was really asked before the clip.
+
+    The model's words are checked against the transcript before the clip
+    starts (most of their 3-word runs in one or two neighbouring sentences)
+    and replaced by what was actually said; a question already inside the
+    clip, or one that can't be found, is dropped. Nothing invented reaches
+    the screen.
+    """
+    for m in moments:
+        q = (m.question or "").strip()
+        m.question = ""
+        if len(q.split()) < 3:
+            continue
+        want = _grams(q)
+        before = [s for s in sentences if m.start_ms - QUESTION_CARD_LOOKBACK_MS <= s["start_ms"] < m.start_ms - 500]
+        best, best_share = "", 0.0
+        for i, s in enumerate(before):
+            for text in (s["text"], s["text"] + " " + before[i + 1]["text"] if i + 1 < len(before) else None):
+                if not text:
+                    continue
+                share = len(want & _grams(text)) / max(1, len(want))
+                if share > best_share:
+                    best, best_share = text, share
+        if best_share >= 0.6 and best.strip().endswith("?"):
+            m.question = re.sub(r"\s+", " ", best).strip()[:200]
+        elif best_share >= 0.6:
+            sentence = best.strip()
+            m.question = (sentence[: sentence.rfind("?") + 1] if "?" in sentence else sentence)[:200]
+    return moments
+
+
 def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto",
          coverage: str = "best", genre: str = "auto", prompt: str = "",
          must_include: list[str] | None = None, keep_qa: bool = True,
@@ -750,6 +797,7 @@ def find(sentences: list[dict], *, count: int, target_ms: int, mode: str = "auto
     snapped = snap(raw, sentences, target_ms)
     if keep_qa and coverage != "whole":
         snapped = sorted(frame_questions(snapped, sentences, target_ms), key=lambda m: -m.score)
+    snapped = verify_questions(snapped, sentences)
     if coverage == "whole":
         return snapped
     if len(snapped) < count:
