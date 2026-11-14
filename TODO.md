@@ -69,5 +69,5 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 
 ## AI Caller (15 Nov)
 
-32. **Lovable:** apply `docs/lead-calls.sql`, then publish. Then on Co-Work press **Log a call**, paste the notes from a real call, check the details it fills in and **Save to CRM**.
+32. ~~**Lovable:** apply `docs/lead-calls.sql`, then publish.~~ Applied and publishing requested 14 Nov. Then on Co-Work press **Log a call**, paste the notes from a real call, check the details it fills in and **Save to CRM**.
 33. **Later, live AI calls:** connect Telnyx Voice with an AI voice agent (a voice number, `TELNYX_VOICE_CONNECTION_ID`), with consent checks, Australian calling hours, the AI saying it's an AI and that the call is recorded, and credits. Its calls land in the same `lead_calls` table and panel (status live, End call / Mute / Hold).
