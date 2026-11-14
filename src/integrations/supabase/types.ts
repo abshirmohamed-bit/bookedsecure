@@ -1620,6 +1620,7 @@ export type Database = {
           finished_at: string | null
           gateway_id: string
           id: string
+          kick_token: string | null
           meta: Json
           reply: string | null
           started_at: string | null
@@ -1635,6 +1636,7 @@ export type Database = {
           finished_at?: string | null
           gateway_id: string
           id?: string
+          kick_token?: string | null
           meta?: Json
           reply?: string | null
           started_at?: string | null
@@ -1650,6 +1652,7 @@ export type Database = {
           finished_at?: string | null
           gateway_id?: string
           id?: string
+          kick_token?: string | null
           meta?: Json
           reply?: string | null
           started_at?: string | null
