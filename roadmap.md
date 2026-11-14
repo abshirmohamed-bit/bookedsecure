@@ -1,5 +1,10 @@
 # Roadmap: Facebook → Make lead import completion
 
+## Latest Co-Work database updates
+- [x] Verify memories, email theme, inbox, clip-learning history and lead contact fields already exist.
+- [ ] Apply missing routines and gateway storage, verify tenant access and minute schedule.
+- [ ] Refresh generated types and request publishing after security checks.
+
 ## Project monitoring fixes
 - [x] Give browser-rendered video frames valid durations and surface muxing failures.
 - [x] Preserve dragged caption positions through preview and save validation.
