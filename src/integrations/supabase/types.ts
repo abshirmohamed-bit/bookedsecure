@@ -1609,6 +1609,131 @@ export type Database = {
           },
         ]
       }
+      cowork_gateway_messages: {
+        Row: {
+          body: string
+          business_id: string
+          channel: string
+          created_at: string
+          error: string | null
+          external_id: string
+          finished_at: string | null
+          gateway_id: string
+          id: string
+          meta: Json
+          reply: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          body: string
+          business_id: string
+          channel: string
+          created_at?: string
+          error?: string | null
+          external_id: string
+          finished_at?: string | null
+          gateway_id: string
+          id?: string
+          meta?: Json
+          reply?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          channel?: string
+          created_at?: string
+          error?: string | null
+          external_id?: string
+          finished_at?: string | null
+          gateway_id?: string
+          id?: string
+          meta?: Json
+          reply?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cowork_gateway_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cowork_gateway_messages_gateway_id_fkey"
+            columns: ["gateway_id"]
+            isOneToOne: false
+            referencedRelation: "cowork_gateways"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cowork_gateways: {
+        Row: {
+          address: string | null
+          business_id: string
+          channel: string
+          created_at: string
+          enabled: boolean
+          id: string
+          last_message_at: string | null
+          thread_id: string | null
+          token: string | null
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+          verify_attempts: number
+          verify_code_hash: string | null
+          verify_sent_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          business_id: string
+          channel: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_message_at?: string | null
+          thread_id?: string | null
+          token?: string | null
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+          verify_attempts?: number
+          verify_code_hash?: string | null
+          verify_sent_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          business_id?: string
+          channel?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_message_at?: string | null
+          thread_id?: string | null
+          token?: string | null
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+          verify_attempts?: number
+          verify_code_hash?: string | null
+          verify_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cowork_gateways_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cowork_memories: {
         Row: {
           business_id: string
@@ -1694,6 +1819,87 @@ export type Database = {
             foreignKeyName: "cowork_reviews_thread_id_fkey"
             columns: ["thread_id"]
             isOneToOne: true
+            referencedRelation: "assistant_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cowork_routines: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string
+          deliver_email: boolean
+          enabled: boolean
+          id: string
+          kind: string
+          last_result: string | null
+          last_run_at: string | null
+          last_status: string | null
+          name: string
+          next_run_at: string | null
+          prompt: string
+          running_since: string | null
+          runs: number
+          schedule: Json
+          state: Json
+          thread_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by: string
+          deliver_email?: boolean
+          enabled?: boolean
+          id?: string
+          kind?: string
+          last_result?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          name: string
+          next_run_at?: string | null
+          prompt?: string
+          running_since?: string | null
+          runs?: number
+          schedule?: Json
+          state?: Json
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string
+          deliver_email?: boolean
+          enabled?: boolean
+          id?: string
+          kind?: string
+          last_result?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          name?: string
+          next_run_at?: string | null
+          prompt?: string
+          running_since?: string | null
+          runs?: number
+          schedule?: Json
+          state?: Json
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cowork_routines_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cowork_routines_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
             referencedRelation: "assistant_threads"
             referencedColumns: ["id"]
           },
