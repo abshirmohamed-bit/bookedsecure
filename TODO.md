@@ -71,3 +71,5 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 
 32. ~~**Lovable:** apply `docs/lead-calls.sql`, then publish.~~ Applied and publishing requested 14 Nov. Then on Co-Work press **Log a call**, paste the notes from a real call, check the details it fills in and **Save to CRM**.
 33. **Later, live AI calls:** connect Telnyx Voice with an AI voice agent (a voice number, `TELNYX_VOICE_CONNECTION_ID`), with consent checks, Australian calling hours, the AI saying it's an AI and that the call is recorded, and credits. Its calls land in the same `lead_calls` table and panel (status live, End call / Mute / Hold).
+
+32. **Engine contextual awareness:** panel detection and panel cards built 15 Nov (deploy the Engine). The rest of the plan for Opus 5.5 High is in docs/engine-context-plan.md (tall boxes, 2-box misses, format classifier, format recipes, broadcast furniture, benchmark scenes).

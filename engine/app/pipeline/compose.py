@@ -606,6 +606,7 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
         subtitle_top=_subtitles(source, render) if render.framing_mode not in {"center", "manual"} else None,
         active=_letterbox(source, render),
         voiced=_voiced(source, render) if render.framing_mode not in {"center", "manual"} else None,
+        panels=_panels(source, render, cuts) if render.framing_mode not in {"center", "manual"} else [],
     )
     plan = shotplan.plan(inputs)
     plan = shotplan.widen_for_gestures(plan, inputs, render.layout)
@@ -621,6 +622,16 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
         for shot in plan:
             shot.motion, shot.transition = [], None
     return plan, inputs
+
+
+def _panels(source, render, cuts: list) -> list:
+    """A broadcast composite's boxes per stretch between cuts (panels.by_shot); [] for an ordinary picture."""
+    try:
+        from . import panels
+        return panels.by_shot(source, render.in_ms, render.out_ms, list(cuts or []))
+    except Exception:  # noqa: BLE001 - advice only
+        log.exception("panel search failed; framing without it")
+        return []
 
 
 def _voiced(source, render) -> "float | None":

@@ -199,6 +199,10 @@ class Inputs:
     texts: list = field(default_factory=list)
     #: Share of the clip with a voice (vad.share), None when it can't be told.
     voiced: float | None = None
+    #: A broadcast composite's boxes per stretch between cuts (panels.by_shot):
+    #: (from_ms, to_ms, [(x, y, w, h) shares in reading order]); empty when the
+    #: picture is never a composite.
+    panels: list = field(default_factory=list)
 
 
 # ------------------------------------------------------------------ geometry
@@ -530,6 +534,8 @@ def _is_title(texts: list[tuple[float, float, float, float]]) -> bool:
 #: How far a crop that leaves text out stays from it (share of the width):
 #: glyph edges and a line still being typed run past the box read a moment ago.
 TEXT_CLEAR = 0.012
+#: The most keep_text_whole slides a moving crop (share of the frame width).
+KEEP_TEXT_MAX_SLIDE = 0.05
 
 
 def keep_text_whole(shot: "Shot", texts: list[tuple[float, float, float, float]], width: int) -> None:
@@ -544,7 +550,8 @@ def keep_text_whole(shot: "Shot", texts: list[tuple[float, float, float, float]]
         return
     moved = []
     for m in shot.motion:
-        ms, x, y, w, h = m[0], m[1], m[2], m[3], m[4]
+        ms, x0, y, w, h = m[0], m[1], m[2], m[3], m[4]
+        x = x0
         l, r = x / width, (x + w) / width
         for t in texts:
             tl, tr = t[0], t[0] + t[2]
@@ -553,6 +560,10 @@ def keep_text_whole(shot: "Shot", texts: list[tuple[float, float, float, float]]
             elif tl < r < tr and l < tl:
                 x = max(0.0, (tl - TEXT_CLEAR) * width - w)
             l, r = x / width, (x + w) / width
+        # A nudge, never a walk: a news ticker of several text runs once pushed
+        # the crop run by run right off the guest (a third of the frame away).
+        if abs(x - x0) > KEEP_TEXT_MAX_SLIDE * width:
+            x = x0
         moved.append((ms, x, y, w, h, *m[5:]))
     shot.motion = moved
 
@@ -1210,6 +1221,137 @@ def _group_fill(inp: Inputs, a: int, b: int, faces: list[_Face], bodies: list[_F
 
 # ------------------------------------------------------------------ zoom moments
 
+# ------------------------------------------------------------------ broadcast panels
+
+#: Layouts that compose a multi-box broadcast from its boxes.
+PANEL_LAYOUTS = {"auto", "full-video", "split", "grid"}
+#: A box's border and a hair of the background are left out of its cell.
+PANEL_INSET = 0.012
+#: Somebody counts as part of an exchange with this much talk in the shot.
+PANEL_TALK_MS = 1200
+
+
+def _panel_cell(panel: tuple, face: "_Face | None", aspect: float, inp: Inputs) -> Box:
+    """The part of one panel that fills a cell of `aspect` (w/h): as much of the
+    box as the shape allows, never a pixel outside it, the face kept with headroom."""
+    sw, sh = inp.width, inp.height
+    px, py = (panel[0] + panel[2] * PANEL_INSET) * sw, (panel[1] + panel[3] * PANEL_INSET) * sh
+    pw, ph = panel[2] * (1 - 2 * PANEL_INSET) * sw, panel[3] * (1 - 2 * PANEL_INSET) * sh
+    w, h = (pw, pw / aspect) if pw / aspect <= ph else (ph * aspect, ph)
+    cx = face.x * sw if face is not None else px + pw / 2
+    x = _clamp(cx - w / 2, px, px + pw - w)
+    if face is not None:
+        # The face's eye line about a third of the way down the cell.
+        y = _clamp(face.y * sh - h * 0.36, py, py + ph - h)
+    else:
+        y = py
+    return Box(int(x), int(y), _even(w), _even(h))
+
+
+def _panel_rows(inp: Inputs, boxes: list) -> list[Box]:
+    """Each row of panels as one box (the whole programme, a row per cell)."""
+    from . import panels as P
+
+    sw, sh = inp.width, inp.height
+    out = []
+    for row in P.rows_of(boxes):
+        x0, y0 = min(b[0] for b in row), min(b[1] for b in row)
+        x1, y1 = max(b[0] + b[2] for b in row), max(b[1] + b[3] for b in row)
+        out.append(Box(int(x0 * sw), int(y0 * sh), _even((x1 - x0) * sw), _even((y1 - y0) * sh)))
+    return out
+
+
+#: The top card stays on a speaker at least this long (no flicking on an interjection).
+PANEL_HOLD_MS = 2500
+
+
+def _panel_turns(inp: Inputs, a: int, b: int, ids: set[int]) -> list[tuple[int, int, int]]:
+    """(from, to, track id) through [a, b): who holds the floor, among the boxed faces.
+
+    Stretches shorter than PANEL_HOLD_MS join the one before, so an "mm-hm"
+    doesn't swap the cards; unnamed time goes to whoever spoke last.
+    """
+    raw: list[list[int]] = []
+    for t in inp.turns:
+        tid = getattr(t, "track_id", None)
+        if tid not in ids or t.end_ms <= a or t.start_ms >= b:
+            continue
+        ta, tb = max(a, t.start_ms), min(b, t.end_ms)
+        if raw and raw[-1][2] == tid:
+            raw[-1][1] = tb
+        else:
+            raw.append([ta, tb, tid])
+    out: list[list[int]] = []
+    for seg in raw:
+        if out and (seg[1] - seg[0] < PANEL_HOLD_MS or out[-1][2] == seg[2]):
+            out[-1][1] = seg[1]
+        else:
+            out.append(seg)
+    if not out:
+        return []
+    # A short opener joins what follows it.
+    if len(out) > 1 and out[0][1] - out[0][0] < PANEL_HOLD_MS:
+        out[1][0] = out[0][0]
+        out.pop(0)
+    out[0][0] = a
+    for prev, nxt in zip(out, out[1:]):
+        prev[1] = nxt[0]
+    out[-1][1] = b
+    return [(x, y, tid) for x, y, tid in out if y > x]
+
+
+def _panel_shots(inp: Inputs, a: int, b: int, faces: list[_Face], layout: str) -> "list[Shot] | None":
+    """One camera shot of a multi-box broadcast, composed from its boxes.
+
+    A crop that follows a face through a composite shows that guest with
+    slivers of the boxes either side, the animated background and the ticker.
+    Here the boxes are the unit: whoever is talking gets their own box on top
+    and the person they are answering the box below (two clean cards, the
+    programme's furniture left out), and the cards change with the speaker
+    even though the broadcast never cuts. When nobody can be named, or the
+    clip is about everyone, the programme is shown row by row.
+    """
+    from . import panels as P
+
+    boxes = P.at(inp.panels, a, b)
+    if layout not in PANEL_LAYOUTS or len(boxes) < 2 or inp.out_h < inp.out_w:
+        return None
+    by_panel: dict[tuple, _Face] = {}
+    for f in faces:
+        p = P.panel_of(boxes, f.x, f.y)
+        if p is not None and (p not in by_panel or f.w * f.presence > by_panel[p].w * by_panel[p].presence):
+            by_panel[p] = f
+    if not by_panel:
+        return None
+    rows = _panel_rows(inp, boxes)
+    whole = (Shot(a, b, "split", cells=rows, why="a panel programme: the whole line-up, a row per card") if len(rows) == 2
+             else Shot(a, b, "fit", why="a panel programme: shown whole"))
+    panel_of_id = {f.id: p for p, f in by_panel.items()}
+    face_of_id = {f.id: f for f in by_panel.values()}
+    turns_ = _panel_turns(inp, a, b, set(face_of_id))
+    if layout == "grid" or inp.focus == "everyone" or not turns_ or len(by_panel) < 2:
+        return [whole]
+    overall = _talk_time(inp.turns, inp.in_ms, inp.out_ms)
+    cell_aspect = inp.out_w / (inp.out_h / 2)
+    out: list[Shot] = []
+    previous: "int | None" = None
+    for i, (ta, tb, tid) in enumerate(turns_):
+        # Below the speaker: who they are answering (the last speaker), else who
+        # answers next, else whoever talks most in the clip.
+        other = previous
+        if other is None or other == tid:
+            other = next((t[2] for t in turns_[i + 1:] if t[2] != tid), None)
+        if other is None:
+            rest = [f for f in face_of_id.values() if f.id != tid]
+            other = max(rest, key=lambda f: (overall.get(f.id, 0), f.w * f.presence)).id
+        cells = [_panel_cell(panel_of_id[tid], face_of_id[tid], cell_aspect, inp),
+                 _panel_cell(panel_of_id[other], face_of_id[other], cell_aspect, inp)]
+        out.append(Shot(ta, tb, "split", cells=cells,
+                        why="a panel programme: the speaker's box on top, who they're talking with below"))
+        previous = tid
+    return out
+
+
 def _line_ends(inp: Inputs) -> list[int]:
     """Where sentences end, in source ms. Punch-ins change only on these."""
     out = []
@@ -1286,6 +1428,13 @@ def plan(inp: Inputs) -> list[Shot]:
         bodies = _bodies_in(inp, a, b)
         faces = _real_faces(_faces(cast), bodies, inp)
         texts = _texts_in(inp, a, b)
+        if inp.panels and faces:
+            # Before the people-without-bodies filter matters: a boxed guest is
+            # a head and shoulders, and the boxes say who is where.
+            boxed = _panel_shots(inp, a, b, _faces(cast), layout)
+            if boxed is not None:
+                out.extend(boxed)
+                continue
         if card is not None and faces:
             out.append(_graphic(inp, a, b, faces, card))
             continue

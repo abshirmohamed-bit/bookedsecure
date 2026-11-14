@@ -406,6 +406,9 @@ def project_framing(project_id: str, aspect: str = "", layout: str = "", zoom: s
                   faces=faces, people=len(inputs.tracks), cuts=[c - p.in_ms for c in inputs.cuts],
                   shots=[sh.as_dict(p.in_ms) for sh in plan],
                   headline=compose.headline_plan(render, plan, inputs),
+                  panels=[{"start_ms": a - p.in_ms, "end_ms": b - p.in_ms,
+                           "boxes": [{"x": x, "y": y, "w": w, "h": h} for x, y, w, h in boxes]}
+                          for a, b, boxes in inputs.panels],
                   question=compose.question_plan(render),
                   summary={k: v for k, v in sorted(compose.shotplan.summary(plan).items(), key=lambda kv: -kv[1])})
 
