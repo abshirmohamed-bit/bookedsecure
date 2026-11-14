@@ -17,6 +17,7 @@ from ..pipeline import compose
 from ..pipeline import exports as export_pipeline
 from ..pipeline import frame as framing
 from ..pipeline import jobs as job_pipeline
+from ..pipeline import style
 from ..pipeline.compose import ASPECTS, CAPTION_POSITIONS, LAYOUTS, TITLE_STYLES, ZOOMS
 from ..pipeline.find import GENRES
 
@@ -134,6 +135,9 @@ class AutoClipBody(BaseModel):
     title_style: str = "bold_band"
     vocabulary: list[str] = Field(default_factory=list)
     edits: dict = Field(default_factory=dict)
+    #: Revisit each clip after cutting and give it the layout that suits it
+    #: (style.py). A layout in `formats`, or named in `prompt`, is kept.
+    style_review: bool = True
 
     def validated(self) -> dict:
         if self.zoom not in ZOOMS:
@@ -221,6 +225,7 @@ def _job_payload(s, job: Job) -> dict:
             "suggested_count": job.suggested_count, "skipped": job.skipped,
             "processing_s": job.processing_s, "error": job.error or None,
             "finder_note": (job.params or {}).get("finder_note") or None,
+            "style_summary": job_pipeline.style_summary(s, job.id) if job.status == "completed" else None,
             "created_at": job.created_at.isoformat(),
             "clips": job_pipeline.clips_payload(s, job.id)}
 
@@ -285,6 +290,16 @@ def patch_project(project_id: str, body: PatchBody) -> dict:
         # next open cut a fresh one.
         if RENDER_FIELDS & set(data):
             p.preview_key = ""
+        review = (p.framing or {}).get("review")
+        if review and not review.get("failed") and REVIEW_FIELDS & set(data):
+            # The clip changed under its review: say so until it is checked again.
+            fr = dict(data.get("framing") or p.framing or {})
+            changed = {**review, "stale": True}
+            if "layout" in data and data["layout"] != review.get("layout"):
+                changed.update(layout=data["layout"], name=style.NAMES.get(data["layout"], data["layout"]),
+                               picked_by="owner", requested=data["layout"], request_source="studio")
+            fr["review"] = changed
+            data["framing"] = fr
         for key, value in data.items():
             setattr(p, key, value)
         s.add(p)
@@ -309,6 +324,8 @@ def delete_project(project_id: str) -> dict:
 
 #: Anything that changes what a render looks like. A cached preview of a clip
 #: is only valid while none of these have moved.
+#: Changes that make a clip's style review out of date.
+REVIEW_FIELDS = {"in_ms", "out_ms", "aspect", "layout"}
 RENDER_FIELDS = {"in_ms", "out_ms", "aspect", "layout", "framing", "caption_style_id",
                  "caption_options", "captions", "title", "watermark", "background"}
 
@@ -376,6 +393,57 @@ def project_framing(project_id: str, aspect: str = "", layout: str = "", zoom: s
                   faces=faces, people=len(inputs.tracks), cuts=[c - p.in_ms for c in inputs.cuts],
                   shots=[sh.as_dict(p.in_ms) for sh in plan],
                   summary={k: v for k, v in sorted(compose.shotplan.summary(plan).items(), key=lambda kv: -kv[1])})
+
+
+class ReviewBody(BaseModel):
+    #: Check this layout for the clip without changing anything ("would split
+    #: screen work here?"). Empty: review the clip as it stands.
+    layout: str = ""
+    #: Or the owner's own words ("make it a split screen"); a layout named in
+    #: them is checked the same way.
+    prompt: str = Field(default="", max_length=500)
+
+
+@router.post("/v1/projects/{project_id}/review")
+def review_project(project_id: str, body: ReviewBody | None = None) -> dict:
+    """The style review for one clip: what it shows, the look that suits it, and how well a layout fits.
+
+    With no layout or prompt the clip is reviewed as it stands and the review
+    is saved (a clip made before reviews existed gets one; an edited clip's
+    stale review is refreshed). The clip's own layout counts as the owner's
+    choice unless the Engine picked it. With a layout or prompt nothing is
+    saved: it answers "what would this layout do to this clip?", for Co-Work
+    to tell the owner before the change is made. The clip's layout is never
+    changed here; the app applies a layout through PATCH and an export.
+    """
+    body = body or ReviewBody()
+    trying = body.layout or style.requested_from(body.prompt) or ""
+    if trying and trying not in LAYOUTS:
+        raise EngineError("VALIDATION_ERROR", f"layout must be one of {sorted(LAYOUTS)}.")
+    with session() as s:
+        p = s.get(Project, project_id)
+        if not p or p.deleted_at:
+            raise EngineError("NOT_FOUND", "No clip with that id.")
+        source = s.get(Asset, p.asset_id)
+        if not source:
+            raise EngineError("NOT_FOUND", "The source for that clip no longer exists.")
+        old = (p.framing or {}).get("review") or {}
+        if trying:
+            requested, where = trying, "request"
+        elif p.layout in {"auto", ""} or (old.get("picked_by") == "engine" and old.get("layout") == p.layout):
+            requested, where = None, None
+        else:
+            requested, where = p.layout, old.get("request_source") or "studio"
+        path = storage.local_path(source.mezzanine_key or source.storage_key)
+        review = style.review_project(p, path, requested=requested, request_source=where)
+        review["index"] = p.index
+        if not trying:
+            p.framing = {**(p.framing or {}), "review": review}
+            s.add(p)
+            s.commit()
+        return ok(project_id=p.id, current_layout=p.layout, saved=not trying,
+                  review=job_pipeline.style_brief(review), fits=review.get("fits"),
+                  profile=review.get("profile"))
 
 
 class ExportBody(BaseModel):

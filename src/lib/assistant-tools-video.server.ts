@@ -8,13 +8,13 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { controlEngine, isEngineOperator, readEngineState } from "@/lib/engine-control.server";
 import { z } from "zod";
 import type { AssistantToolContext } from "@/lib/assistant-tools.server";
-import { CAPTION_POSITIONS, CAPTION_SIZE, CLIP_LAYOUT_IDS, CLIP_ZOOM_IDS, jobStatusLabel, MAX_CLIP_INSTRUCTIONS, MIN_CLIPS_PER_JOB, readJobOptions, SHOT_KINDS, TITLE_POSITIONS, TITLE_STYLE_IDS, transcriptText, VIDEO_ASPECTS } from "@/lib/video-clips";
-import { clipEditorData, clipFromLink, clipPlan, deleteClipJobs, engineCatalog, engineConfigured, listVideoJobs, lookUpVideoLink, renameClip, renderClip, requestClips, saveClipEdits } from "@/lib/video-clips.server";
+import { type ClipStyle, CAPTION_POSITIONS, CAPTION_SIZE, CLIP_LAYOUT_IDS, CLIP_ZOOM_IDS, jobStatusLabel, MAX_CLIP_INSTRUCTIONS, MIN_CLIPS_PER_JOB, readJobOptions, SHOT_KINDS, TITLE_POSITIONS, TITLE_STYLE_IDS, transcriptText, VIDEO_ASPECTS } from "@/lib/video-clips";
+import { applyClipStyles, checkClipLayout, clipEditorData, clipFromLink, clipPlan, clipStyles, deleteClipJobs, engineCatalog, engineConfigured, listVideoJobs, lookUpVideoLink, renameClip, renderClip, requestClips, saveClipEdits } from "@/lib/video-clips.server";
 import { channelInsights, listYouTubeComments, suggestYouTubeTitles } from "@/lib/youtube-insights.server";
 
 /** How every clip from a video should look. Only what the owner asked for; the Engine decides the rest. */
 const LOOK = {
-  layout: z.enum(CLIP_LAYOUT_IDS).optional().describe("auto lets the Engine choose shot by shot; full-video follows the speaker; split stacks two people; grid frames 3-4 people; screen puts the picture over the person (slides, screen shares, gameplay); pip insets the other face; streamer shows the whole picture over a blur; black-box adds bars; title-subtitles is headline above, words below."),
+  layout: z.enum(CLIP_LAYOUT_IDS).optional().describe("Leave out (or auto) and the Engine revisits every clip after cutting and gives each the look that suits what it shows; pass one only when the owner names a look, and it is kept on every clip (the Engine notes clips that can't take it). full-video follows the speaker; split stacks two people; grid frames 3-4 people; screen puts the picture over the person (slides, screen shares, gameplay); pip insets the other face; streamer shows the whole picture over a blur; black-box adds bars; title-subtitles is headline above, words below."),
   zoom: z.enum(CLIP_ZOOM_IDS).optional().describe("off, auto (push in on wide shots) or moments (punch in on lines)."),
   captionStyle: z.string().max(60).optional().describe("A caption style name or id from video_engine_catalog."),
   captionPosition: z.enum(CAPTION_POSITIONS).optional(),
@@ -50,6 +50,16 @@ function splitOptions<T extends Look & { aspect: (typeof VIDEO_ASPECTS)[number];
 const planLine = (s: { start_ms: number; end_ms: number; kind: string; zoom: number; why: string }) =>
   `${Math.round(s.start_ms / 1000)}–${Math.round(s.end_ms / 1000)}s: ${SHOT_KINDS[s.kind] ?? s.kind}${s.zoom > 1.01 ? ` (${s.zoom.toFixed(2)}x)` : ""}${s.why ? ` — ${s.why}` : ""}`;
 const fail = (message: string) => ({ ok: false as const, message });
+const pct = (x: number | null) => (x === null ? null : `${Math.round(x * 100)}%`);
+/** One clip's style review, in the words Co-Work passes on. */
+const lookOf = (s: ClipStyle | null) => s && ({
+  whatItShows: s.vibeLabel, detail: s.described, look: s.name, chosenBy: s.pickedBy === "owner" ? "the owner" : "the Engine",
+  why: s.why, appliesTo: pct(s.fit), note: s.note,
+  engineSuggests: s.suggested !== s.layout ? s.suggestedName : null,
+  otherGoodLooks: s.alternatives.map((a) => `${a.name} (${pct(a.fit)}): ${a.why}`),
+  personKeptInFrame: pct(s.checks.subjectInFrame), onScreenTextCut: pct(s.checks.textSliced),
+  outOfDate: s.stale,
+});
 const NOT_ON = "Video clipping isn't switched on for this workspace yet.";
 
 export function buildVideoTools(ctx: AssistantToolContext) {
@@ -150,7 +160,7 @@ export function buildVideoTools(ctx: AssistantToolContext) {
     }),
 
     video_clips_status: tool({
-      description: "The videos being clipped and the clips made so far: progress, titles, why each was picked, and which are ready to watch. Use before answering any question about clips.",
+      description: "The videos being clipped and the clips made so far: progress, titles, why each was picked, and which are ready to watch. Use before answering any question about clips. When a video has just finished, also call video_clip_styles to tell the owner which look each clip got and pass on any notes.",
       inputSchema: z.object({}),
       execute: async () => run(null, async () => ({
         switchedOn: engineConfigured(),
@@ -237,6 +247,36 @@ export function buildVideoTools(ctx: AssistantToolContext) {
       },
     }),
 
+    video_clip_styles: tool({
+      description: "How the Engine matched each clip's look to what the clip shows. After cutting it revisits every clip: what it shows (two people talking back and forth, a group, a screen with the speaker, one person to camera, narrated footage, action, wide scenes, a mix), the layout it gave it and why, how much of the clip really gets that look, and a note where a look the owner asked for can't apply (with what would suit it instead). Use it when clips finish, when the owner asks why a clip looks the way it does or whether the editing suits their video, and before suggesting layout changes. Tell them plainly, clip by clip where it matters, and always pass on every note. recheck true also reviews clips made before reviews existed or edited since (it takes a little while). If engineSuggests names a different look, offer it; change looks with apply_clip_styles or edit_video_clip only after their yes.",
+      inputSchema: z.object({ videoId: z.string().uuid().describe("The videoId from video_clips_status."), recheck: z.boolean().default(false) }),
+      execute: async ({ videoId, recheck }) => {
+        if (!engineConfigured()) return fail(NOT_ON);
+        return run(null, async () => {
+          const rows = await clipStyles(ctx.businessId, videoId, { recheck });
+          const reviewed = rows.filter((r) => r.style);
+          return {
+            clips: rows.map((r) => ({ clipId: r.clipId, clip: r.position, title: r.title, state: r.state, currentLook: r.layout, review: lookOf(r.style), problem: r.problem })),
+            notReviewed: rows.length - reviewed.length,
+            hint: rows.length && !reviewed.length && !recheck ? "These clips were made before the Engine reviewed looks: call again with recheck true." : null,
+          };
+        });
+      },
+    }),
+
+    apply_clip_styles: tool({
+      description: "Give a video's clips the look the Engine suggests for them (engineSuggests in video_clip_styles) and make those videos again. Without clipIds it changes clips that were never reviewed, the Engine's own picks, and owner-chosen looks only where a note says they can't apply; with clipIds it changes exactly those clips. Only call it after showing the owner which clips would change to what and getting their clear yes.",
+      inputSchema: z.object({ videoId: z.string().uuid(), clipIds: z.array(z.string().uuid()).max(60).optional() }),
+      execute: async ({ videoId, clipIds }) => {
+        if (!engineConfigured()) return fail(NOT_ON);
+        return run(null, async () => {
+          const r = await applyClipStyles(ctx.businessId, videoId, clipIds);
+          if (r.changed.length) ctx.record(`Gave ${r.changed.length} clip${r.changed.length === 1 ? "" : "s"} the look the Engine suggested and started making them again.`);
+          return { changed: r.changed.map((c) => ({ clip: c.position, from: c.from, to: c.to })), couldNotChange: r.skipped, status: r.changed.length ? "being made again" : "nothing needed changing" };
+        });
+      },
+    }),
+
     video_clip_plan: tool({
       description: "How the Engine cuts one clip into shots and composes each one (follows the speaker, split screen, group grid, screen + speaker, picture-in-picture, whole picture over a blur, bars), with why, how many people it found and where the camera cuts are. Pass layout, zoom or shape to see what a different choice would do before changing anything. The first call on a clip can take a little while.",
       inputSchema: z.object({ clipId: z.string().uuid(), layout: z.enum(CLIP_LAYOUT_IDS).optional(), zoom: z.enum(CLIP_ZOOM_IDS).optional(), shape: z.enum(VIDEO_ASPECTS).optional() }),
@@ -254,7 +294,7 @@ export function buildVideoTools(ctx: AssistantToolContext) {
     }),
 
     edit_video_clip: tool({
-      description: "Change a clip and make its video again (a minute or two; it shows in Studio). Change only what the owner asked for: layout, zoom, shape, captionStyle (a name from video_engine_catalog), captionsOn, captionPosition, captionSize, the headline (headlineText, headlineOn, headlineStyle, headlinePosition), trimming (cutStartSeconds removes seconds from the start, negative adds earlier footage; cutEndSeconds the same at the end) and wordFixes for misheard words or phrases in the captions. Use the clipId from video_clips_status.",
+      description: "Change a clip and make its video again (a minute or two; it shows in Studio). When the layout changes, the result's styleCheck says how much of the clip can take that look; if it has a note, tell the owner (the change is still made, as they asked). Change only what the owner asked for: layout, zoom, shape, captionStyle (a name from video_engine_catalog), captionsOn, captionPosition, captionSize, the headline (headlineText, headlineOn, headlineStyle, headlinePosition), trimming (cutStartSeconds removes seconds from the start, negative adds earlier footage; cutEndSeconds the same at the end) and wordFixes for misheard words or phrases in the captions. Use the clipId from video_clips_status.",
       inputSchema: z.object({
         clipId: z.string().uuid(),
         layout: z.enum(CLIP_LAYOUT_IDS).optional(),
@@ -282,12 +322,14 @@ export function buildVideoTools(ctx: AssistantToolContext) {
             inMs = Math.round(settings.inMs + (cutStartSeconds ?? 0) * 1000);
             outMs = Math.round(settings.outMs - (cutEndSeconds ?? 0) * 1000);
           }
+          // The Engine says how well the asked-for look suits this clip, so Co-Work can tell the owner.
+          const check = layout ? await checkClipLayout(ctx.businessId, clipId, layout).catch(() => null) : null;
           const r = await saveClipEdits(ctx.businessId, clipId, {
             styleId: captionStyle, captionsOn, captionPosition: captionPosition === "style" ? null : captionPosition, captionSize,
             layout, zoom, aspect: shape, headlineText, headlineEnabled: headlineOn, headlineStyle, headlinePosition, inMs, outMs, wordFixes,
           });
           ctx.record(`Changed a clip (${r.changed.join(", ")}) and started making it again.`);
-          return { changed: r.changed, seconds: Math.round((r.endMs - r.startMs) / 1000), status: "being made again" };
+          return { changed: r.changed, seconds: Math.round((r.endMs - r.startMs) / 1000), status: "being made again", styleCheck: check ? { appliesTo: pct(check.fit), note: check.note, engineSuggests: check.suggested !== layout ? check.suggestedName : null } : null };
         });
       },
     }),

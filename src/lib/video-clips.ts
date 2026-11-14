@@ -96,7 +96,7 @@ export type CaptionLine = { start_ms: number; end_ms: number; text: string; word
  * answers; these words stand in when it is asleep, and the ids validate input.
  */
 export const CLIP_LAYOUTS = [
-  { id: "auto", label: "Let the Engine choose", hint: "Decided shot by shot: follows the speaker, stacks two people, shows screenshots whole" },
+  { id: "auto", label: "Let the Engine choose", hint: "Each clip gets the look that suits what it shows (split screen for two people talking, screen + speaker for slides, the whole picture for wide scenes), then shot by shot" },
   { id: "full-video", label: "Follow the speaker", hint: "One crop that holds on whoever is talking, re-aimed on every cut" },
   { id: "split", label: "Split screen", hint: "Two people who share the shot, one cell each" },
   { id: "grid", label: "Group grid", hint: "Three or four people, each framed in their own cell" },
@@ -114,6 +114,65 @@ export const CLIP_ZOOMS = [
   { id: "auto", label: "Push in on wide shots", hint: "Tighter when the person is small in the frame, with room above the head" },
   { id: "moments", label: "Punch in on lines", hint: "Pushes in further on every other sentence, for energy" },
 ] as const;
+/**
+ * The Engine's style review of one clip (framing.review, from engine
+ * style.py): what the clip shows (its "vibe"), the layout it uses and why,
+ * how much of the clip really gets that look (fit), and a note when a layout
+ * the owner asked for can't apply to much of it. Read defensively: it comes
+ * from the Engine and older clips have none.
+ */
+export type ClipStyle = {
+  vibe: string; vibeLabel: string; described: string;
+  layout: string; name: string; pickedBy: "engine" | "owner";
+  suggested: string; suggestedName: string; why: string;
+  requested: string | null; requestSource: string | null;
+  /** 0..1: share of the clip that gets the layout's look. */
+  fit: number; note: string | null;
+  alternatives: { layout: string; name: string; fit: number; why: string }[];
+  checks: { subjectInFrame: number | null; textSliced: number | null };
+  /** The clip was edited (trimmed, re-shaped, layout changed) since it was reviewed. */
+  stale: boolean;
+};
+
+const layoutName = (id: string) => CLIP_LAYOUTS.find((l) => l.id === id)?.label ?? id;
+const str = (v: unknown) => (typeof v === "string" ? v : "");
+const share = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : null);
+
+export function readClipStyle(raw: unknown): ClipStyle | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (r["failed"] || !str(r["layout"])) return null;
+  const layout = str(r["layout"]);
+  const suggested = str(r["suggested"]) || layout;
+  const checks = (r["checks"] && typeof r["checks"] === "object" ? r["checks"] : {}) as Record<string, unknown>;
+  return {
+    vibe: str(r["vibe"]), vibeLabel: str(r["vibe_label"]), described: str(r["described"]),
+    layout, name: str(r["name"]) || layoutName(layout), pickedBy: r["picked_by"] === "owner" ? "owner" : "engine",
+    suggested, suggestedName: layoutName(suggested), why: str(r["why"]),
+    requested: str(r["requested"]) || null, requestSource: str(r["request_source"]) || null,
+    fit: share(r["fit"]) ?? 1, note: str(r["note"]) || null,
+    alternatives: (Array.isArray(r["alternatives"]) ? r["alternatives"] : []).flatMap((a) => {
+      if (!a || typeof a !== "object") return [];
+      const x = a as Record<string, unknown>;
+      return str(x["layout"]) ? [{ layout: str(x["layout"]), name: str(x["name"]) || layoutName(str(x["layout"])), fit: share(x["fit"]) ?? 1, why: str(x["why"]) }] : [];
+    }).slice(0, 3),
+    checks: { subjectInFrame: share(checks["subject_in_frame"]), textSliced: share(checks["text_sliced"]) },
+    stale: r["stale"] === true,
+  };
+}
+
+/** "6 Split screen, 3 Follow the speaker": a video's looks at a glance. */
+export function styleCounts(styles: (ClipStyle | null)[]): string {
+  const counts = new Map<string, number>();
+  for (const s of styles) if (s) counts.set(s.name, (counts.get(s.name) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${n} ${name}`).join(", ");
+}
+
+/** Whether the Engine would give this clip a different look than it has now. */
+export function styleSuggestsChange(style: ClipStyle | null, currentLayout: string): boolean {
+  return Boolean(style && !style.stale && style.suggested && style.suggested !== currentLayout && (CLIP_LAYOUT_IDS as readonly string[]).includes(style.suggested));
+}
+
 export type ClipZoom = (typeof CLIP_ZOOMS)[number]["id"];
 export const CLIP_ZOOM_IDS = CLIP_ZOOMS.map((z) => z.id) as [ClipZoom, ...ClipZoom[]];
 

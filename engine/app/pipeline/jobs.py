@@ -1,9 +1,11 @@
 """The AutoClip state machine.
 
 queued -> transcribing -> finding -> (awaiting_confirmation) -> [fetching] ->
-cutting -> framing -> finalizing -> completed, one stage per worker pass so
-progress is real rather than a spinner. Fetching runs only for a lean source
-(a long link imported as audio): it downloads the video of each chosen moment.
+cutting -> framing -> styling -> finalizing -> completed, one stage per worker
+pass so progress is real rather than a spinner. Fetching runs only for a lean
+source (a long link imported as audio): it downloads the video of each chosen
+moment. Styling looks at each cut clip on its own and gives it the layout that
+suits what it shows (style.py), keeping any layout the owner asked for.
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ from ..ids import new_id
 from ..models import Asset, Job, Project, Transcript, utcnow
 from . import find as finder
 from . import frame as framing
+from . import style
 from .transcribe import slice_words, transcribe
 
 log = logging.getLogger("engine.jobs")
@@ -35,7 +38,7 @@ class JobFailed(RuntimeError):
     """This job can't succeed however often it is tried."""
 
 
-STAGE_PROGRESS = {"transcribing": 15, "finding": 40, "fetching": 50, "cutting": 60, "framing": 80, "finalizing": 95}
+STAGE_PROGRESS = {"transcribing": 15, "finding": 40, "fetching": 50, "cutting": 60, "framing": 75, "styling": 80, "finalizing": 95}
 #: A lean source's fetching stage is most of its wait, so it gets most of the
 #: bar, moving with the download itself.
 FETCH_FROM, FETCH_TO = 35, 82
@@ -178,6 +181,14 @@ def _step(s: Session, job: Job) -> None:
 
     if job.stage == "framing":
         _frame(s, job, asset)
+        job.stage = "styling"
+        job.progress = STAGE_PROGRESS["styling"]
+        s.add(job)
+        s.commit()
+        return
+
+    if job.stage == "styling":
+        _style(s, job, asset)
         job.stage = "finalizing"
         job.progress = STAGE_PROGRESS["finalizing"]
         s.add(job)
@@ -198,6 +209,9 @@ def _step(s: Session, job: Job) -> None:
             "source_name": _source_name(s, job),
             "processing_seconds": round(job.processing_s),
             "finder_note": (job.params or {}).get("finder_note") or None,
+            # Which look each clip got and any note for the owner (a layout
+            # they asked for that a clip can't take), for Co-Work to tell them.
+            "style_summary": style_summary(s, job.id),
             # full: the app writes these onto each clip so the editor opens
             # ready — captions, title, watermark and layout already in place.
             "clips": clips_payload(s, job.id, full=True),
@@ -390,6 +404,49 @@ def _frame(s: Session, job: Job, asset: Asset) -> None:
     s.commit()
 
 
+def _style(s: Session, job: Job, asset: Asset) -> None:
+    """Revisit every cut clip and give it the layout that suits what it shows.
+
+    A layout the owner chose, or named in their request ("split screen"), is
+    kept; the review notes where a clip can't take it. Each clip is committed
+    as it is done, so a retried stage carries on where it stopped, and a clip
+    whose review fails keeps the layout it was cut with.
+    """
+    params = job.params or {}
+    if params.get("style_review") is False:
+        return
+    requested, source = style.requested_for_job(params)
+    projects = s.exec(select(Project).where(Project.job_id == job.id).order_by(Project.index)).all()
+    report = _progress_reporter(job.id, STAGE_PROGRESS["styling"], STAGE_PROGRESS["finalizing"] - 1)
+    for i, p in enumerate(projects):
+        if (p.framing or {}).get("review"):
+            continue
+        own = asset if p.asset_id == asset.id else (s.get(Asset, p.asset_id) or asset)
+        try:
+            path = storage.local_path(own.mezzanine_key or own.storage_key)
+            review = style.review_project(p, path, requested=requested, request_source=source)
+            review["index"] = p.index
+        except Exception:  # noqa: BLE001 - a review is advice; the clip stands without it
+            log.exception("style review of %s failed; keeping its layout", p.id)
+            review = {"version": style.VERSION, "failed": True, "index": p.index}
+            if requested and p.layout in {"auto", ""}:
+                p.layout = requested
+        else:
+            if review["layout"] != p.layout:
+                p.layout = review["layout"]
+                p.preview_key = ""
+        p.framing = {**(p.framing or {}), "review": review}
+        s.add(p)
+        s.commit()
+        report((i + 1) / max(1, len(projects)))
+
+
+def style_summary(s: Session, job_id: str) -> dict:
+    projects = s.exec(select(Project).where(Project.job_id == job_id).order_by(Project.index)).all()
+    return style.summary([r for r in ((p.framing or {}).get("review") for p in projects)
+                          if r and not r.get("failed")])
+
+
 def _source_name(s: Session, job: Job) -> str:
     """What the creator will see named in the notification."""
     asset = s.get(Asset, job.asset_id)
@@ -560,6 +617,8 @@ def project_summary(p: Project, full: bool = False, offset_ms: int = 0) -> dict:
         "score": p.score, "grades": p.grades, "scene_analysis": p.scene_analysis,
         "reason": p.reason, "alternate_of": p.alternate_of or None,
         "faces": p.faces or [],
+        # The style review: the clip's vibe, the look it got and why, any note for the owner.
+        "style": style_brief((p.framing or {}).get("review")),
     }
     if full:
         out["finish"] = {
@@ -575,3 +634,12 @@ def project_summary(p: Project, full: bool = False, offset_ms: int = 0) -> dict:
             "framing": p.framing or {},
         }
     return out
+
+
+def style_brief(review: dict | None) -> dict | None:
+    """The part of a style review the app shows: what the clip is, the look, why, and any note."""
+    if not review or review.get("failed"):
+        return None
+    keys = ("vibe", "vibe_label", "described", "layout", "name", "picked_by", "suggested", "why",
+            "requested", "request_source", "fit", "note", "alternatives", "checks", "stale")
+    return {k: review.get(k) for k in keys}

@@ -10,6 +10,12 @@ whether a change helped:
 Exit code 0 when every render passes. Writes bench/report.json and
 bench/report.md (one row per scene and layout, with every score).
 
+Each scene also gets a "review" row: the style review's vibe and the layout
+it picks for the scene. Pass --expect with one layout per scene (in order,
+"-" for no expectation) to fail the run when the review picks another:
+
+    python tools/benchmark.py src.mp4 --scenes "0:10-0:40, 2:00-2:30" --expect split,streamer
+
 Run from engine/ so `app` imports; FACE_MODEL_PATH must name the YuNet model.
 """
 from __future__ import annotations
@@ -25,7 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.pipeline import camera, compose  # noqa: E402
+from app.pipeline import camera, checks, compose, style  # noqa: E402
 
 LAYOUTS = ["auto", "full-video", "split", "grid", "screen", "pip", "streamer", "black-box", "title-subtitles"]
 
@@ -45,6 +51,11 @@ CRITERIA = {
     "max_jump_share": 0.06,
     # render time over clip length (at the benchmark's preview size)
     "speed_ratio": 3.0,
+    # follow layouts: of the sightings of the shot's main person (whole body box),
+    # the share the crop holds (a crop on a walking man's head fails this)
+    "subject_in_frame_min": 0.85,
+    # share of cropped screen time in which held on-screen text is cut by a crop edge
+    "text_sliced": 0.05,
 }
 #: Layouts that crop to a person, where losing the face is a failure.
 FOLLOW = {"auto", "full-video"}
@@ -192,9 +203,33 @@ def run_one(src: Path, a: float, b: float, layout: str, out_dir: Path, faces) ->
     row["face_kept_share"] = round(kept, 3)
     row["max_jump_share"] = round(max_jump(plan, list(inputs.cuts)), 3)
     row["speed_ratio"] = round(took / length, 2)
-    fails = [k for k, lim in CRITERIA.items() if k != "face_kept_share_min" and row.get(k, 0) > lim]
+    subject = checks.subject_in_frame(plan, inputs)
+    sliced = checks.text_sliced(plan, inputs)
+    row["subject_in_frame"] = None if subject is None else round(subject, 3)
+    row["text_sliced"] = None if sliced is None else round(sliced, 3)
+    fails = [k for k, lim in CRITERIA.items() if not k.endswith("_min") and (row.get(k) or 0) > lim]
     if layout in FOLLOW and kept < CRITERIA["face_kept_share_min"]:
         fails.append("face_kept_share")
+    if layout in FOLLOW and subject is not None and subject < CRITERIA["subject_in_frame_min"]:
+        fails.append("subject_in_frame")
+    row["fails"] = fails
+    row["pass"] = not fails
+    return row
+
+
+def review_one(src: Path, a: float, b: float, expect: str | None) -> dict:
+    """The style review of a scene: its vibe and the layout it would be given."""
+    row: dict = {"scene": f"{a:.0f}-{b:.0f}", "layout": "review"}
+    r = compose.Render(out=src.with_suffix(".review.mp4"), source=src, in_ms=int(a * 1000), out_ms=int(b * 1000),
+                       layout="auto", preview=True, loudnorm=False, captions_enabled=False)
+    try:
+        rv = style.for_render(r)
+    except Exception as e:  # noqa: BLE001
+        row.update(error=str(e)[:300], fails=["review"], **{"pass": False})
+        return row
+    row.update(vibe=rv["vibe"], picked=rv["layout"], fit=rv["fit"], described=rv["described"],
+               subject_in_frame=rv["checks"]["subject_in_frame"], text_sliced=rv["checks"]["text_sliced"])
+    fails = [] if not expect or expect == "-" or expect == rv["layout"] else [f"expected {expect}"]
     row["fails"] = fails
     row["pass"] = not fails
     return row
@@ -203,7 +238,8 @@ def run_one(src: Path, a: float, b: float, layout: str, out_dir: Path, faces) ->
 def report(rows: list[dict], out_dir: Path) -> None:
     (out_dir / "report.json").write_text(json.dumps({"criteria": CRITERIA, "rows": rows}, indent=2), encoding="utf-8")
     cols = ["scene", "layout", "pass", "shots", "transitions", "av_gap_s", "extra_black_s", "extra_freeze_s",
-            "half_face_share", "face_kept_share", "max_jump_share", "speed_ratio", "fails"]
+            "half_face_share", "face_kept_share", "max_jump_share", "subject_in_frame", "text_sliced",
+            "speed_ratio", "vibe", "picked", "fails"]
     lines = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
     for r in rows:
         lines.append("| " + " | ".join(str(r.get(c, r.get("error", "") if c == "fails" else "")) for c in cols) + " |")
@@ -219,6 +255,7 @@ def main() -> None:
     ap.add_argument("--scenes", required=True)
     ap.add_argument("--layouts", default=",".join(LAYOUTS))
     ap.add_argument("--out", default="bench")
+    ap.add_argument("--expect", default="", help="one layout per scene the style review should pick ('-' for any)")
     args = ap.parse_args()
     src = Path(args.source).resolve()
     out_dir = Path(args.out).resolve()
@@ -228,7 +265,12 @@ def main() -> None:
         a, _, b = item.partition("-")
         scenes.append((parse_time(a), parse_time(b)))
     faces = face_detector()
+    expected = [x.strip() for x in args.expect.split(",")] if args.expect else []
     rows = []
+    for i, (a, b) in enumerate(scenes):
+        row = review_one(src, a, b, expected[i] if i < len(expected) else None)
+        print(json.dumps(row), flush=True)
+        rows.append(row)
     for a, b in scenes:
         for layout in [x.strip() for x in args.layouts.split(",") if x.strip()]:
             row = run_one(src, a, b, layout, out_dir, faces)

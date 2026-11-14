@@ -324,3 +324,46 @@ def settings_media():
     from app.config import settings
 
     return settings().media_root
+
+
+def test_every_clip_is_revisited_and_given_a_look_that_suits_it(api, uploaded_asset):
+    """After cutting, each clip is reviewed on its own: its vibe, its layout and why.
+
+    The owner asked for a split screen in their own words; the test video has
+    nobody sitting apart, so the layout is kept as asked and the review says
+    why it can't apply, for Co-Work to tell them.
+    """
+    job_id = api.post("/v1/autoclip", json={
+        "asset_id": uploaded_asset, "clip_count": 2, "clip_length": 6, "formats": ["auto"],
+        "prompt": "podcast clips, split screen please",
+    }).json()["id"]
+    seen = []
+    for _ in range(40):
+        worker.tick()
+        job = api.get(f"/v1/autoclip/{job_id}").json()
+        seen.append(job["stage"])
+        if job["status"] in {"completed", "failed"}:
+            break
+    assert job["status"] == "completed", job.get("error")
+    assert "styling" in seen
+    for c in job["clips"]:
+        st = c["style"]
+        assert st and st["vibe_label"] and st["why"]
+        assert st["layout"] == "split" and st["picked_by"] == "owner" and st["request_source"] == "request"
+        assert st["note"] and st["note"].startswith("You asked for Split screen")
+    summary = job["style_summary"]
+    assert summary["layouts"] == {"Split screen": 2}
+    assert len(summary["notes"]) == 2
+
+    pid = job["clips"][0]["project_id"]
+    # "Would black bars suit this clip?" changes nothing.
+    tried = api.post(f"/v1/projects/{pid}/review", json={"layout": "black-box"}).json()
+    assert tried["saved"] is False and tried["review"]["layout"] == "black-box"
+    assert tried["current_layout"] == "split"
+    # An edit makes the review stale, and a recheck refreshes it.
+    api.patch(f"/v1/projects/{pid}", json={"layout": "streamer"})
+    stale = api.get(f"/v1/projects/{pid}").json()["framing"]["review"]
+    assert stale["stale"] is True and stale["layout"] == "streamer" and stale["picked_by"] == "owner"
+    fresh = api.post(f"/v1/projects/{pid}/review").json()
+    assert fresh["saved"] is True and fresh["review"]["stale"] is False
+    assert fresh["review"]["layout"] == "streamer" and fresh["review"]["request_source"] == "studio"

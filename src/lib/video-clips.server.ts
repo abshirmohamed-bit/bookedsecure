@@ -12,7 +12,7 @@ import { browserUploadsReady, clipVideoKey, publicUrlFor, signedUploadUrl, uploa
 import { clipOriginal, type ClipEvent, deletedEvent, editEvents, lookAfter, titleEvent } from "@/lib/clip-learning";
 import { recordClipEvents } from "@/lib/clip-learning.server";
 import { channelLessons } from "@/lib/channel-lessons.server";
-import { ACTIVE_JOB_STATUSES, applyLineEdits, applyWordFixes, CAPTION_POSITIONS, CAPTION_SIZE, type CaptionLineEdit, type CaptionPosition, type CaptionWord, checkTrim, CLIP_LAYOUTS, CLIP_ZOOMS, type ClipJobOptions, type ClipLayout, type ClipZoom, clipsToRender, FALLBACK_CAPTION_STYLES, isPublicVideoLink, mergeTrimmedWords, readJobOptions, TITLE_STYLES, type TitlePosition, type TitleStyle, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect } from "@/lib/video-clips";
+import { ACTIVE_JOB_STATUSES, applyLineEdits, applyWordFixes, CAPTION_POSITIONS, CAPTION_SIZE, type CaptionLineEdit, type CaptionPosition, type CaptionWord, checkTrim, CLIP_LAYOUTS, CLIP_ZOOMS, type ClipJobOptions, type ClipLayout, type ClipZoom, clipsToRender, FALLBACK_CAPTION_STYLES, isPublicVideoLink, mergeTrimmedWords, readJobOptions, TITLE_STYLES, type TitlePosition, type TitleStyle, isTemporaryEngineError, MAX_CLIP_INSTRUCTIONS, MAX_VIDEO_BYTES, MIN_CLIPS_PER_JOB, type VideoAspect, type ClipStyle, readClipStyle, CLIP_LAYOUT_IDS, styleSuggestsChange } from "@/lib/video-clips";
 
 type JobRow = Database["public"]["Tables"]["video_clip_jobs"]["Row"];
 type ClipRow = Database["public"]["Tables"]["video_clips"]["Row"];
@@ -283,6 +283,8 @@ export type ClipSettings = {
   /** For the live preview: the source video, and where its time 0 sits on the original timeline. */
   sourceUrl: string | null; sourceOffsetMs: number;
   headline: { text: string; enabled: boolean; style: string; position: string };
+  /** The Engine's style review: what the clip shows, the look it got and why, any note. Null for older clips. */
+  style: ClipStyle | null;
 };
 
 function settingsOf(project: EngineProject): ClipSettings {
@@ -305,6 +307,7 @@ function settingsOf(project: EngineProject): ClipSettings {
       style: typeof title["style"] === "string" ? (title["style"] as string) : "bold_band",
       position: typeof title["position"] === "string" ? (title["position"] as string) : "auto",
     },
+    style: readClipStyle(framing["review"]),
   };
 }
 
@@ -316,6 +319,85 @@ export async function clipEditorData(businessId: string, clipId: string) {
     catalog, settings: settingsOf(project), browserUploads: browserUploadsReady(),
     words: (project.captions ?? []).map((w) => ({ text: String(w.text ?? ""), start_ms: Math.round(w.start_ms), end_ms: Math.round(w.end_ms) })),
   };
+}
+
+type EngineReview = { project_id: string; current_layout: string; saved: boolean; review: Record<string, unknown> | null };
+
+/**
+ * The Engine's style review of one clip, fresh (POST /v1/projects/:id/review).
+ * With `layout`, it answers "what would this look do to this clip?" and saves
+ * nothing; without, it reviews the clip as it stands and keeps the review.
+ */
+async function reviewProject(clip: ClipRow, layout?: string): Promise<{ current: string; style: ClipStyle | null }> {
+  const r = await engineClient<EngineReview>("POST", `/v1/projects/${encodeURIComponent(clip.engine_project_id)}/review`, layout ? { layout } : {}, { timeoutMs: 150_000 });
+  if (!r.ok) throw new Error(r.error.code === "NOT_FOUND" ? "The Engine no longer has this clip." : r.error.message);
+  return { current: r.data.current_layout, style: readClipStyle(r.data.review) };
+}
+
+/** How well a layout suits one clip, before the owner changes it: fit, a note when it can't apply, and what would suit it. */
+export async function checkClipLayout(businessId: string, clipId: string, layout: string): Promise<ClipStyle | null> {
+  if (!(CLIP_LAYOUT_IDS as readonly string[]).includes(layout)) throw new Error("That isn't a layout the Engine offers.");
+  const clip = await ownClip(businessId, clipId);
+  return (await reviewProject(clip, layout)).style;
+}
+
+export type ClipStyleRow = { clipId: string; position: number; title: string | null; state: string; layout: string; style: ClipStyle | null; problem: string | null };
+
+/** Runs `work` over `items` a few at a time (the Engine is one machine shared by every business). */
+async function inBatches<T, R>(items: T[], size: number, work: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += size) out.push(...(await Promise.all(items.slice(i, i + size).map(work))));
+  return out;
+}
+
+/**
+ * Every clip of one video with the Engine's style review: the vibe, the look,
+ * why, how much of the clip gets it and any note for the owner. `recheck`
+ * reviews clips that have none yet (made before reviews existed) or were
+ * edited since; it takes a little while per clip on a cold Engine.
+ */
+export async function clipStyles(businessId: string, jobId: string, opts: { recheck?: boolean } = {}): Promise<ClipStyleRow[]> {
+  await ownJob(businessId, jobId);
+  const { data: clips, error } = await supabaseAdmin.from("video_clips").select("*").eq("business_id", businessId).eq("job_id", jobId).order("position");
+  if (error) throw new Error(error.message);
+  return inBatches(clips ?? [], 4, async (clip): Promise<ClipStyleRow> => {
+    const base = { clipId: clip.id, position: clip.position, title: clip.title, state: clip.status === "READY" ? "ready" : clip.status === "EXPORTING" ? "rendering" : clip.status === "FAILED" ? "failed" : "not rendered yet" };
+    try {
+      const project = await engineProject(clip);
+      let style = readClipStyle((project.framing ?? {})["review"]);
+      let layout = project.layout;
+      if (opts.recheck && (!style || style.stale)) ({ style, current: layout } = await reviewProject(clip));
+      return { ...base, layout, style, problem: null };
+    } catch (e) {
+      return { ...base, layout: "", style: null, problem: e instanceof Error ? e.message : "The Engine couldn't be asked about this clip." };
+    }
+  });
+}
+
+/**
+ * Gives clips the look the Engine suggests for them where it differs from
+ * the one they have, and makes their videos again. Only after the owner said
+ * yes to the list. Without `clipIds`, a look the owner chose is changed only
+ * where the review has a note (it can't apply to much of the clip); with
+ * `clipIds`, exactly those clips get the suggested look.
+ */
+export async function applyClipStyles(businessId: string, jobId: string, clipIds?: string[]) {
+  const rows = await clipStyles(businessId, jobId, { recheck: true });
+  const changed: { clipId: string; position: number; from: string; to: string }[] = [];
+  const skipped: { clipId: string; position: number; why: string }[] = [];
+  for (const row of rows) {
+    if (clipIds?.length && !clipIds.includes(row.clipId)) continue;
+    if (!row.style || !styleSuggestsChange(row.style, row.layout)) continue;
+    // A look the owner chose that suits the clip stays, unless they named this clip.
+    if (!clipIds?.length && row.style.pickedBy === "owner" && !row.style.note) continue;
+    try {
+      await saveClipEdits(businessId, row.clipId, { layout: row.style.suggested as ClipLayout });
+      changed.push({ clipId: row.clipId, position: row.position, from: row.layout, to: row.style.suggested });
+    } catch (e) {
+      skipped.push({ clipId: row.clipId, position: row.position, why: e instanceof Error ? e.message : "It couldn't be changed." });
+    }
+  }
+  return { changed, skipped };
 }
 
 export type ShotPlan = {

@@ -49,7 +49,9 @@ TEXT_MAX_H = 0.5
 SUB_ZONE = 0.74
 #: Burned-in subtitles count when seen in at least this share of the frames.
 SUB_SHARE = 0.5
-CACHE_MAX = 16
+#: Ranges kept: a job's styling stage reads every clip (up to 60), and the
+#: exports that follow should find each one here rather than read it again.
+CACHE_MAX = 64
 
 
 def _cards_in(frame, text: list | None = None) -> list[tuple[float, float, float, float]]:

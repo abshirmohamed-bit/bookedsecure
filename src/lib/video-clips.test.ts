@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipsToRender, isActiveJob, isPublicVideoLink, isTemporaryEngineError, jobStatusLabel, transcriptText } from "@/lib/video-clips";
+import { clipsToRender, isActiveJob, isPublicVideoLink, isTemporaryEngineError, jobStatusLabel, readClipStyle, styleCounts, styleSuggestsChange, transcriptText } from "@/lib/video-clips";
 
 describe("links the Engine may fetch", () => {
   it.each(["https://www.youtube.com/watch?v=abc", "https://youtu.be/abc", "https://cdn.example.com/talk.mp4"])("allows %s", (url) => {
@@ -65,5 +65,40 @@ describe("what the owner is told", () => {
     expect(isActiveJob("PROCESSING")).toBe(true);
     expect(isActiveJob("WAITING")).toBe(false);
     expect(isActiveJob("COMPLETED")).toBe(false);
+  });
+});
+
+describe("the Engine's style review of a clip", () => {
+  const review = {
+    vibe: "conversation", vibe_label: "Two people talking back and forth", described: "two people apart 80%",
+    layout: "split", name: "Split screen", picked_by: "owner", suggested: "full-video", why: "two people get a cell each",
+    requested: "split", request_source: "request", fit: 0.2,
+    note: "You asked for Split screen, which needs two people sitting apart in the same shot; that's only 20% of this clip.",
+    alternatives: [{ layout: "pip", name: "Picture-in-picture", fit: 0.7, why: "a bubble" }, { bad: true }],
+    checks: { subject_in_frame: 0.95, text_sliced: null }, stale: false,
+  };
+
+  it("reads what the Engine said, defensively", () => {
+    const s = readClipStyle(review)!;
+    expect(s.vibeLabel).toBe("Two people talking back and forth");
+    expect(s.pickedBy).toBe("owner");
+    expect(s.suggestedName).toBe("Follow the speaker");
+    expect(s.fit).toBe(0.2);
+    expect(s.note).toMatch(/^You asked for Split screen/);
+    expect(s.alternatives).toEqual([{ layout: "pip", name: "Picture-in-picture", fit: 0.7, why: "a bubble" }]);
+    expect(s.checks).toEqual({ subjectInFrame: 0.95, textSliced: null });
+    expect(readClipStyle(null)).toBeNull();
+    expect(readClipStyle({ failed: true, layout: "split" })).toBeNull();
+    expect(readClipStyle({ layout: "grid" })?.name).toBe("Group grid");
+  });
+
+  it("counts a video's looks and knows when a clip would change", () => {
+    const a = readClipStyle({ ...review, picked_by: "engine", layout: "split", suggested: "split" });
+    const b = readClipStyle({ ...review, layout: "full-video", name: "Follow the speaker", suggested: "full-video" });
+    expect(styleCounts([a, a, b, null])).toBe("2 Split screen, 1 Follow the speaker");
+    expect(styleSuggestsChange(readClipStyle(review), "split")).toBe(true);
+    expect(styleSuggestsChange(a, "split")).toBe(false);
+    expect(styleSuggestsChange(a, "auto")).toBe(true);
+    expect(styleSuggestsChange(readClipStyle({ ...review, stale: true }), "split")).toBe(false);
   });
 });

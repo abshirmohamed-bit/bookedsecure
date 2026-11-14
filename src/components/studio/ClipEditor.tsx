@@ -9,7 +9,7 @@ import type { Clip, Job } from "@/components/social/SocialResults";
 import { Button } from "@/components/ui/button";
 import { saveAssistantDraft } from "@/lib/assistant-draft";
 import { LivePreview } from "@/components/studio/LivePreview";
-import { CAPTION_POSITIONS, CAPTION_SIZE, type CaptionPosition, CLIP_LAYOUT_IDS, CLIP_ZOOM_IDS, type ClipLayout, type ClipZoom, groupCaptionLines, MAX_CLIP_MS, MIN_CLIP_MS, SHOT_KINDS, TITLE_POSITIONS, TITLE_STYLE_IDS, type TitlePosition, type TitleStyle, VIDEO_ASPECTS, type VideoAspect } from "@/lib/video-clips";
+import { CAPTION_POSITIONS, CAPTION_SIZE, type CaptionPosition, type ClipStyle, CLIP_LAYOUT_IDS, CLIP_ZOOM_IDS, type ClipLayout, type ClipZoom, groupCaptionLines, MAX_CLIP_MS, MIN_CLIP_MS, SHOT_KINDS, TITLE_POSITIONS, TITLE_STYLE_IDS, type TitlePosition, type TitleStyle, VIDEO_ASPECTS, type VideoAspect } from "@/lib/video-clips";
 import { engineMakesClipVideo, finishBrowserClipVideo, getVideoClipEditor, getVideoClipPlan, renameVideoClip, renderVideoClip, saveVideoClipEdits } from "@/lib/video-clips.functions";
 import { canRenderInBrowser, renderClipInBrowser } from "@/lib/clip-render";
 
@@ -385,6 +385,7 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
                 ))}
               </div>
             ) : null}
+            {settings?.style ? <StyleNote style={settings.style} layout={current.layout} onUse={(l) => setLayout(l)} /> : null}
 
             <Timeline start={start} end={end} baseStart={clip.start_ms ?? baseStart} baseEnd={clip.end_ms ?? baseEnd} source={source}
               clipStart={baseStart} words={editor.data?.words ?? []} shots={plan.data?.shots ?? []} timeRef={timeRef}
@@ -602,6 +603,34 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
 }
 
 /** A small segmented control for the quick bar. */
+/**
+ * What the Engine made of this clip after cutting it: what it shows, the look
+ * it gave it and why, and any note (a look the owner asked for that can't
+ * apply to much of it), with the suggested look one tap away.
+ */
+function StyleNote({ style, layout, onUse }: { style: ClipStyle; layout: string; onUse: (l: ClipLayout) => void }) {
+  const offer = style.suggested !== layout && !style.stale && isLayout(style.suggested) ? style.suggested : null;
+  return (
+    <div className="w-full max-w-2xl rounded-xl border border-white/70 bg-white/60 px-3 py-2 text-[11px] leading-snug text-foreground/80">
+      <p className="flex items-start gap-1.5">
+        <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />
+        <span>
+          <span className="font-semibold text-foreground">{style.vibeLabel || "This clip"}</span>
+          {style.stale ? " — edited since the Engine looked at it." : style.layout === layout
+            ? <> — {style.name}{style.pickedBy === "owner" ? " (your choice)" : ""}{style.why ? `: ${style.why}` : ""}{style.fit < 0.99 ? ` (${Math.round(style.fit * 100)}% of the clip)` : ""}.</>
+            : <> — the Engine suggests {style.suggestedName}.</>}
+        </span>
+      </p>
+      {style.note && style.layout === layout ? <p className="mt-1 text-amber-800">{style.note}</p> : null}
+      {offer ? (
+        <button type="button" onClick={() => onUse(offer)} className="mt-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary transition hover:bg-primary/20 active:scale-95">
+          Use {style.suggestedName}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function Seg({ options, value, onChange, label }: { options: readonly { id: string; name: string }[]; value: string; onChange: (v: string) => void; label: string }) {
   return (
     <div role="radiogroup" aria-label={label} className="inline-flex rounded-full bg-white/60 p-0.5">

@@ -91,7 +91,7 @@ def subtitle_styles() -> dict:
 #: The app's Studio and the assistants' tools are built from this, so a new
 #: layout here is a new button there without either side being told twice.
 LAYOUT_CATALOG = [
-    {"id": "auto", "name": "Let the Engine choose", "hint": "Decided shot by shot: follows the speaker, stacks two people, shows screenshots whole", "needs": None},
+    {"id": "auto", "name": "Let the Engine choose", "hint": "Each clip gets the look that suits what it shows (split screen for two people talking, screen + speaker for slides, the whole picture for wide scenes), then shot by shot", "needs": None},
     {"id": "full-video", "name": "Follow the speaker", "hint": "One crop that holds on whoever is talking, re-aimed on every cut", "needs": None},
     {"id": "split", "name": "Split screen", "hint": "Two people who share the shot, one cell each", "needs": "two people in the same shot"},
     {"id": "grid", "name": "Group grid", "hint": "Three or four people, each framed in their own cell", "needs": "three or four people in the same shot"},
