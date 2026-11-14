@@ -125,6 +125,9 @@ class Shot:
     motion: list[tuple[int, int, int, int, int]] = field(default_factory=list)
     #: How this shot comes in (an ffmpeg xfade name), None for a straight cut.
     transition: str | None = None
+    #: pip: which side of the frame the bubble sits on ("right" or "left"),
+    #: away from the face in the main picture.
+    side: str = "right"
 
     @property
     def length_ms(self) -> int:
@@ -141,6 +144,7 @@ class Shot:
             "main": self.main.as_dict() if self.main else None,
             "inset": self.inset.as_dict() if self.inset else None,
             "transition": self.transition,
+            "side": self.side if self.kind == "pip" else None,
             "motion": [[m[0] - offset_ms, *m[1:]] for m in _thin(self.motion)],
         }
 
@@ -181,6 +185,9 @@ class Inputs:
     #: Where burned-in subtitles start (share of the height), if the video has them:
     #: crops end above it (graphics.subtitle_top).
     subtitle_top: float | None = None
+    #: The real picture inside added black bars (graphics.letterbox), as
+    #: (x0, y0, x1, y1) shares, or None when the source has no bars.
+    active: tuple | None = None
     #: Whole-body person tracks (speaker.FaceTrack, boxes as centre/size shares),
     #: from the object detector. Empty when it isn't installed.
     bodies: list = field(default_factory=list)
@@ -408,8 +415,20 @@ def _people_seen(inp: Inputs) -> bool:
     return bool(inp.bodies)
 
 
+#: A body has to be found this many times in its shot (fewer in a short
+#: shot): the object detector takes a cushion or a painting for a person in
+#: the odd frame, and one sighting in fifty seconds is not someone in shot.
+BODY_MIN_SIGHTINGS = 4
+
+
 def _bodies_in(inp: Inputs, a: int, b: int) -> list[_Face]:
-    return _faces(director.people_in(inp.bodies, a, b)) if inp.bodies else []
+    if not inp.bodies:
+        return []
+    from .speaker import DETECT_MS
+
+    need = max(1, min(BODY_MIN_SIGHTINGS, round(0.25 * (b - a) / DETECT_MS)))
+    cast = [p for p in director.people_in(inp.bodies, a, b) if len(p.boxes) >= need]
+    return _faces(cast)
 
 
 def _body_of(face: _Face, bodies: list[_Face]) -> "_Face | None":
@@ -467,6 +486,19 @@ def _texts_in(inp: Inputs, a: int, b: int) -> list[tuple[float, float, float, fl
     from . import graphics
 
     return graphics.text_spans(inp.texts, a, b)
+
+
+#: A title holds through most of its shot ("DAY 1" is the shot); text that
+#: passes through a long shot is a sign or a label, not a title card.
+TITLE_HOLD = 0.5
+
+
+def _titles_in(inp: Inputs, a: int, b: int) -> list[tuple[float, float, float, float]]:
+    if not inp.texts:
+        return []
+    from . import graphics
+
+    return [box for box, held in graphics.text_runs(inp.texts, a, b) if held >= TITLE_HOLD * (b - a)]
 
 
 def _is_title(texts: list[tuple[float, float, float, float]]) -> bool:
@@ -609,7 +641,8 @@ def _fill_body(inp: Inputs, a: int, b: int, bodies: list[_Face], why: str) -> Sh
         zoom = 1.0
     ww, wh = _even(fw / zoom), _even(fh / zoom)
     share = ww / sw
-    samples = director.plan_camera(inp.bodies, [], [], a, b, share, use_turns=False) or [(a, subject.x)]
+    ids = {f.id for f in bodies}
+    samples = director.plan_camera([t for t in inp.bodies if t.id in ids], [], [], a, b, share, use_turns=False) or [(a, subject.x)]
     pan = [(ms, int(_clamp(round(c * sw - ww / 2), 0, sw - ww))) for ms, c in samples]
     top = (subject.y - subject.h / 2) * sh
     y = int(_clamp(round(top - 0.06 * wh), 0, sh - wh)) if wh < sh else 0
@@ -670,7 +703,48 @@ def _faceless_fill(inp: Inputs, a: int, b: int, centre: float, share: float, bef
         if abs(held - aim) < FACELESS_STICK:
             aim = held
     why = "nobody in shot: the busiest part of the picture" if strong else "nobody in shot: the middle of the picture"
-    return _fill_centred(inp, a, b, aim, why)
+    shot = _fill_centred(inp, a, b, aim, why)
+    return _scan(shot, inp, len(before))
+
+
+#: A faceless shot this long drifts slowly across the picture (a house tour, a
+#: landscape, a product on a bench) instead of holding a frozen strip of it.
+SCAN_MIN_MS = 2500
+#: How fast, in source pixels a second, and how far at most (share of the width).
+SCAN_SPEED = 40.0
+SCAN_MAX = 0.10
+
+
+def _scan(shot: Shot, inp: Inputs, index: int) -> Shot:
+    """A slow drift across a faceless shot, alternating direction shot to shot.
+
+    Sampled densely so the camera follows it as one smooth move (camera.py
+    smooths dense samples rather than gliding between them).
+    """
+    if shot.window is None or shot.length_ms < SCAN_MIN_MS or inp.layout not in {"auto", "full-video"}:
+        return shot
+    sw = inp.width
+    ww = shot.window.w
+    free = sw - ww
+    if free <= 0:
+        return shot
+    travel = min(SCAN_SPEED * shot.length_ms / 1000, SCAN_MAX * sw, free)
+    if travel < 24:
+        return shot
+    x0 = shot.window.x
+    direction = 1 if index % 2 == 0 else -1
+    start = _clamp(x0 - direction * travel / 2, 0, free)
+    end = _clamp(start + direction * travel, 0, free)
+    from . import camera
+
+    pan = []
+    for ms in range(shot.start_ms, shot.end_ms, 100):
+        u = (ms - shot.start_ms) / max(1, shot.length_ms)
+        pan.append((ms, int(round(start + (end - start) * camera.ease_in_out(u)))))
+    shot.pan = pan
+    shot.window.x = pan[0][1]
+    shot.why += ", drifting slowly across it"
+    return shot
 
 
 #: How much more detail than its share the busiest strip must hold to be framed instead of the middle.
@@ -781,6 +855,29 @@ def screen_split(inp: Inputs) -> tuple[int, int]:
     return top, inp.out_h - top
 
 
+#: A face this wide fills the picture: the screen layout's top card would show
+#: the same person again, so the shot follows the speaker instead...
+CLOSE_UP_W = 0.07
+#: ...and a face narrower than this makes a speaker card of wall and door.
+SPEAKER_MIN_W = 0.03
+
+
+def _screen_region(face: _Face, inp: Inputs) -> "Box | None":
+    """The screen beside a small corner face (a webinar, a game stream): the
+    picture with the face's side taken off, so the top card shows the screen
+    and the face appears once, below. None when it would leave too little."""
+    if not _in_corner(face):
+        return None
+    sw, sh = inp.width, inp.height
+    if face.x < 0.5:
+        x0, x1 = face.right + 0.02, 1.0
+    else:
+        x0, x1 = 0.0, face.left - 0.02
+    if x1 - x0 < 0.6:
+        return None
+    return Box(int(x0 * sw), 0, _even((x1 - x0) * sw), _even(sh))
+
+
 def _screen(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
     talk = _talk_time(inp.turns, a, b)
     order = _prominent(faces)
@@ -788,7 +885,8 @@ def _screen(inp: Inputs, a: int, b: int, faces: list[_Face], why: str) -> Shot:
     _, bottom = screen_split(inp)
     aspect = inp.out_w / max(2, bottom)
     main = _cell(subject, aspect, 0.30, inp)
-    return Shot(a, b, "screen", main=main, why=why)
+    region = _screen_region(subject, inp) if subject.w < SMALL_FACE_W * 1.4 else None
+    return Shot(a, b, "screen", main=main, cells=[region] if region else [], why=why)
 
 
 #: Nobody seen for this long at a shot's start or end is a dissolve the cut
@@ -929,6 +1027,10 @@ def _clear_of_others(c: float, subject: _Face, others: list[_Face], window: floa
     return c
 
 
+#: A face narrower than this (share of the source width) is mush in the bubble.
+PIP_MIN_FACE_W = 0.03
+
+
 def _pip(inp: Inputs, a: int, b: int, faces: list[_Face], wide: bool, *,
          use_turns: bool, zoom: float) -> Shot:
     talk = _talk_time(inp.turns, a, b)
@@ -943,16 +1045,117 @@ def _pip(inp: Inputs, a: int, b: int, faces: list[_Face], wide: bool, *,
                      why="picture-in-picture: the speaker, with the other person inset")
         # The main picture holds on the speaker for the whole shot; following
         # turns would put the inset's face in the main picture too.
+        if other.w < PIP_MIN_FACE_W:
+            shot.why = "picture-in-picture: the other face is too small to read; following the speaker"
+            return shot
         cx = _clear_of_others(main_face.x, main_face, [f for f in order if f.id != main_face.id], shot.window.w / sw)
         x = int(_clamp(round(cx * sw - shot.window.w / 2), 0, sw - shot.window.w))
         shot.window.x, shot.pan = x, [(a, x)]
         shot.kind, shot.inset, shot.base = "pip", _inset_box(other, inp), "fill"
+        # The bubble sits on the right unless the speaker's face is there.
+        rel = (main_face.x * sw - x) / max(1, shot.window.w)
+        shot.side = "left" if rel > 0.55 else "right"
         return shot
     if len(order) == 1 and order[0].w < SMALL_FACE_W * 1.4 and wide:
         return Shot(a, b, "pip", base="fit", inset=_inset_box(order[0], inp),
                     why="picture-in-picture: the whole picture, with the face inset")
     return _fill(inp, a, b, faces, use_turns=use_turns, zoom=zoom,
                  why="picture-in-picture needs a second face; following the speaker")
+
+
+# ------------------------------------------------------------------ groups
+
+#: Two people are stacked or gridded only when the smaller face is at least
+#: this share of the larger one's width (a close-up beside a speck in the
+#: background is one subject, not a pair) and both are in most of the shot.
+COMPARABLE_W = 0.4
+COMPARABLE_PRESENCE = 0.5
+
+
+def _comparable(faces: list[_Face], inp: Inputs) -> list[_Face]:
+    """The people a split or a grid can show well: similar in size, there for
+    most of the shot, and big enough that their cell is not blown into mush."""
+    order = _prominent(faces)
+    if not order:
+        return []
+    top = max(f.w for f in order)
+    cell_w = inp.out_w if inp.out_h >= inp.out_w else inp.out_w / 2
+    keep = []
+    for f in order:
+        if f.presence < COMPARABLE_PRESENCE or f.w < COMPARABLE_W * top:
+            continue
+        if cell_w / max(1.0, f.w * inp.width / 0.20) > MAX_CELL_UPSCALE * 1.25:
+            continue
+        keep.append(f)
+    return keep
+
+
+def _pair_fits(pair: list[_Face], share: float) -> bool:
+    return director._fits(min(f.left for f in pair), max(f.right for f in pair), share)
+
+
+#: A group window is used only when the busiest stretch holds this many times
+#: its fair share of the people and movement; otherwise the group is spread
+#: across the picture and it is shown whole.
+GROUP_LEAD = 1.3
+
+
+def _group_fill(inp: Inputs, a: int, b: int, faces: list[_Face], bodies: list[_Face], share: float) -> "Shot | None":
+    """A wide group shot framed on where the people and the movement are,
+    instead of the whole picture as a small card in the middle of a blur."""
+    n = 64
+    score = [0.0] * n
+
+    def spread(left: float, right: float, weight: float) -> None:
+        i0, i1 = max(0, int(left * n)), min(n - 1, int(right * n))
+        if i1 < i0:
+            return
+        each = weight / (i1 - i0 + 1)
+        for i in range(i0, i1 + 1):
+            score[i] += each
+
+    for bd in bodies:
+        spread(bd.left, bd.right, bd.w * bd.h * bd.presence * 4)
+    for f in faces:
+        spread(f.left, f.right, f.w * f.presence * 2)
+    act = _activity_profile(inp, a, b)
+    if act is not None:
+        cols = act[0]
+        k = len(cols)
+        total_cols = sum(cols) or 1.0
+        people = sum(score) or 1.0
+        for i in range(n):
+            score[i] += 0.6 * people * cols[min(k - 1, int(i * k / n))] / total_cols
+    total = sum(score)
+    if total <= 0:
+        return None
+    span = max(1, min(n, round(share * n)))
+    best, at = -1.0, 0
+    for i in range(0, n - span + 1):
+        s = sum(score[i:i + span])
+        if s > best:
+            best, at = s, i
+    if (best / total) / (span / n) < GROUP_LEAD:
+        return None
+    centre = (at + span / 2) / n
+    # Never slice someone at the edge: step off them or take them in.
+    people = bodies or faces
+    window = share
+    for _ in range(3):
+        moved = False
+        for p in people:
+            wl, wr = centre - window / 2, centre + window / 2
+            if p.right <= wl or p.left >= wr or (p.left >= wl and p.right <= wr):
+                continue
+            options = [p.left - 0.005 - window / 2, p.right + 0.005 + window / 2,
+                       p.right + 0.005 - window / 2, p.left - 0.005 + window / 2]
+            options = [o for o in options if window / 2 <= o <= 1 - window / 2 and abs(o - centre) <= 0.12]
+            if options:
+                centre = min(options, key=lambda o: abs(o - centre))
+                moved = True
+        if not moved:
+            break
+    return _fill_centred(inp, a, b, centre, "a wide group: framed on where the people and the action are")
 
 
 # ------------------------------------------------------------------ zoom moments
@@ -1036,7 +1239,7 @@ def plan(inp: Inputs) -> list[Shot]:
         if card is not None and faces:
             out.append(_graphic(inp, a, b, faces, card))
             continue
-        if _is_title(texts) and layout in {"auto", "full-video", "screen", "pip", "split", "grid"}:
+        if _is_title(_titles_in(inp, a, b)) and layout in {"auto", "full-video", "screen", "pip", "split", "grid"}:
             # "DAY 1" across the picture: a title card is read whole or not at all.
             out.append(Shot(a, b, "fit", why="a title on screen: shown whole"))
             continue
@@ -1086,31 +1289,44 @@ def plan(inp: Inputs) -> list[Shot]:
         zoom = _auto_zoom(faces, inp, share, bodies) if inp.zoom in {"auto", "moments"} else 1.0
         small_inset = len(faces) == 1 and faces[0].w < SMALL_FACE_W and wide and _in_corner(faces[0])
 
+        comparable = _comparable(faces, inp)
+        pair = comparable[:2]
+        pair_apart = len(pair) == 2 and not _pair_fits(pair, share)
+        speaker = max(_prominent(faces), key=lambda f: (talk.get(f.id, 0), f.w * f.presence))
+
         if layout == "screen":
-            out.append(_screen(inp, a, b, faces, "the picture on top, the speaker below"))
-            continue
+            if not small_inset and (speaker.w >= CLOSE_UP_W or speaker.w < SPEAKER_MIN_W):
+                pass                            # the person is the picture, or a speck: following the speaker below
+            else:
+                out.append(_screen(inp, a, b, faces, "the picture on top, the speaker below"))
+                continue
         if layout == "pip":
             out.append(_pip(inp, a, b, faces, wide, use_turns=use_turns, zoom=zoom))
             continue
-        if layout == "grid" and len(faces) >= 3:
-            out.append(_grid(inp, a, b, faces, "a group: one cell each"))
+        if layout == "grid" and len(comparable) >= 3:
+            out.append(_grid(inp, a, b, comparable, "a group: one cell each"))
             continue
-        if layout in {"split", "grid"} and len(faces) >= 2 and not fits:
-            out.append(_split(inp, a, b, faces, "two people sharing the shot: one cell each"))
+        if layout in {"split", "grid"} and pair_apart:
+            out.append(_split(inp, a, b, pair, "two people sharing the shot: one cell each"))
             continue
         if (layout == "auto" and len(faces) >= 3 and not fits and _too_small_to_split(faces, inp)
                 and (len(faces) >= 4 or not talk)):
-            # A stage of tiny people: cells would blow two faces up into mush and
-            # miss what the group is doing. Show the whole picture.
-            out.append(Shot(a, b, "fit", why="a wide group shot, faces too small to split: shown whole"))
+            # A stage of small people: cells would blow faces up into mush. Frame
+            # where the group and the movement are; if they are spread right
+            # across the picture, show it whole.
+            group = _group_fill(inp, a, b, faces, bodies, share)
+            if group is not None:
+                out.append(_clear_of_text(group, texts, inp, 0.45, 0.55))
+            else:
+                out.append(Shot(a, b, "fit", why="a wide group spread across the picture: shown whole"))
             continue
         if layout == "auto":
             if len(faces) >= 2 and not fits:
-                if len(faces) >= 3 and inp.focus == "everyone":
-                    out.append(_grid(inp, a, b, faces, "the whole group, as the clip is about all of them"))
+                if len(comparable) >= 3 and inp.focus == "everyone":
+                    out.append(_grid(inp, a, b, comparable, "the whole group, as the clip is about all of them"))
                     continue
-                if inp.focus in WANTS_EVERYONE or len(talkers) >= 2 or unnamed:
-                    out.append(_split(inp, a, b, faces,
+                if pair_apart and (inp.focus in WANTS_EVERYONE or len(talkers) >= 2 or unnamed):
+                    out.append(_split(inp, a, b, pair,
                                       "both people matter in this shot: one cell each"))
                     continue
             if small_inset:
@@ -1130,7 +1346,53 @@ def plan(inp: Inputs) -> list[Shot]:
                          why=why + (" (punch-in on the line)" if z > zoom else "")
                          + (f", pushed in {z:.2f}x" if z > 1 and z == zoom else ""))
             out.append(_clear_of_text(shot, texts, inp, lo, hi) if fits else _clear_of_text(shot, texts, inp, *_subject_span(faces, shot, inp)))
-    return _merge(_steady(out))
+    return _into_active(_merge(_steady(out)), inp)
+
+
+def active_box(inp: Inputs) -> "Box | None":
+    """The picture inside the source's black bars, in source px, or None."""
+    if not inp.active:
+        return None
+    x0, y0, x1, y1 = inp.active
+    sw, sh = inp.width, inp.height
+    return Box(int(x0 * sw), int(y0 * sh), _even((x1 - x0) * sw), _even((y1 - y0) * sh))
+
+
+def _inside(box: Box, area: Box) -> Box:
+    """`box` shrunk about its centre (same shape) until it fits `area`, then moved into it."""
+    k = min(1.0, area.w / max(1, box.w), area.h / max(1, box.h))
+    w, h = _even(box.w * k), _even(box.h * k)
+    cx, cy = box.x + box.w / 2, box.y + box.h / 2
+    x = int(_clamp(round(cx - w / 2), area.x, area.x + area.w - w))
+    y = int(_clamp(round(cy - h / 2), area.y, area.y + area.h - h))
+    return Box(x, y, w, h)
+
+
+def _into_active(shots_: list[Shot], inp: Inputs) -> list[Shot]:
+    """Every crop kept inside the real picture: no letterbox or pillarbox bars in any shot."""
+    area = active_box(inp)
+    if area is None:
+        return shots_
+    for s in shots_:
+        if s.window is not None:
+            before = s.window
+            win = _inside(before, area)
+            if win.w != before.w:
+                s.zoom = round(s.zoom * before.w / max(1, win.w), 3)
+                s.why += ", inside the picture's black bars"
+            shift = win.x - before.x
+            s.pan = [(ms, int(_clamp(x + shift + (before.w - win.w) // 2, area.x, area.x + area.w - win.w)))
+                     for ms, x in (s.pan or [(s.start_ms, before.x)])]
+            win.x = s.pan[0][1]
+            s.window = win
+        s.cells = [_inside(c, area) for c in s.cells]
+        if s.main is not None:
+            s.main = _inside(s.main, area)
+        if s.inset is not None and s.kind != "graphic":
+            s.inset = _inside(s.inset, area)
+        if s.kind == "screen" and not s.cells:
+            s.cells = [area]
+    return shots_
 
 
 def _subject_span(faces: list[_Face], shot: Shot, inp: Inputs) -> tuple[float, float]:

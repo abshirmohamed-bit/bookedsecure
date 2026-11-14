@@ -320,13 +320,17 @@ export async function clipEditorData(businessId: string, clipId: string) {
 
 export type ShotPlan = {
   layout: string; zoom: string; aspect: string; people: number;
+  /** The real picture inside the source's black bars (letterbox/pillarbox), when it has any. */
+  active?: PlanBox | null;
   source: { w: number; h: number }; output: { w: number; h: number };
   cuts: number[]; summary: Record<string, number>;
   shots: { start_ms: number; end_ms: number; kind: string; zoom: number; why: string; base: string | null; window: PlanBox | null; pan: [number, number][]; cells: PlanBox[]; main: PlanBox | null; inset: PlanBox | null;
     /** The Engine's camera: [ms, x, y, w, h] every few frames (glides, breathing zoom, punch-ins). */
     motion: [number, number, number, number, number][];
     /** How the shot comes in (an ffmpeg xfade name); null for a straight cut. */
-    transition: string | null }[];
+    transition: string | null;
+    /** pip: which side the bubble sits on, away from the speaker's face. */
+    side?: "left" | "right" | null }[];
 };
 /** A crop of the source, in source pixels. */
 export type PlanBox = { x: number; y: number; w: number; h: number };
@@ -348,11 +352,12 @@ export async function clipPlan(businessId: string, clipId: string, tryOut: { lay
   const d = r.data;
   return {
     layout: d.layout, zoom: d.zoom, aspect: d.aspect, people: d.people ?? 0, source: d.source, output: d.output,
-    cuts: d.cuts ?? [], summary: d.summary ?? {},
+    cuts: d.cuts ?? [], summary: d.summary ?? {}, active: d.active ?? null,
     shots: (d.shots ?? []).map((s) => ({
       start_ms: s.start_ms, end_ms: s.end_ms, kind: s.kind, zoom: s.zoom, why: s.why, base: s.base ?? null,
       window: s.window ?? null, pan: s.pan ?? [], cells: s.cells ?? [], main: s.main ?? null, inset: s.inset ?? null,
       motion: Array.isArray(s.motion) ? s.motion : [], transition: typeof s.transition === "string" ? s.transition : null,
+      side: s.side === "left" ? "left" : s.side === "right" ? "right" : null,
     })),
   };
 }

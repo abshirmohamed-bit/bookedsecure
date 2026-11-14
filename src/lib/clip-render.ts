@@ -8,12 +8,12 @@
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import * as MP4Box from "mp4box";
 import { cropAt, shotAt, transitionAt, transitionLook, type MotionSample } from "@/lib/clip-motion";
-import { captionYFor, duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
+import { captionYFor, duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, screenCrop, spotlightCards } from "@/lib/clip-looks";
 import { groupCaptionLines, type CaptionLine, type CaptionWord, type VideoAspect } from "@/lib/video-clips";
 
 export type PlanBox = { x: number; y: number; w: number; h: number };
-export type RenderShot = { start_ms: number; end_ms: number; kind: string; window: PlanBox | null; pan: [number, number][]; cells: PlanBox[]; main: PlanBox | null; inset: PlanBox | null; motion?: MotionSample[]; transition?: string | null };
-export type RenderPlan = { source: { w: number; h: number }; shots: RenderShot[] } | null;
+export type RenderShot = { start_ms: number; end_ms: number; kind: string; window: PlanBox | null; pan: [number, number][]; cells: PlanBox[]; main: PlanBox | null; inset: PlanBox | null; motion?: MotionSample[]; transition?: string | null; side?: string | null };
+export type RenderPlan = { source: { w: number; h: number }; shots: RenderShot[]; active?: PlanBox | null } | null;
 
 export type RenderInput = {
   src: string;
@@ -169,6 +169,13 @@ function drawShot(ctx: CanvasRenderingContext2D, video: Pic, input: RenderInput,
   if (shot?.kind === "fit" || shot?.kind === "headline") {
     // Ambient glass: the whole picture as a rounded card over a blur of itself.
     drawAmbient(ctx, video, W, H);
+    // A source with black bars: only its real picture goes in the card, as the Engine does.
+    const a = plan?.active;
+    if (a) {
+      const card = glassCard(W, H, a.w, a.h);
+      drawCard(ctx, card, W, () => ctx.drawImage(video, a.x * k, a.y * k, a.w * k, a.h * k, card.x, card.y, card.w, card.h));
+      return;
+    }
     const card = glassCard(W, H, pw(video), ph(video));
     drawCard(ctx, card, W, () => ctx.drawImage(video, card.x, card.y, card.w, card.h));
     return;
@@ -200,7 +207,8 @@ function drawShot(ctx: CanvasRenderingContext2D, video: Pic, input: RenderInput,
     const [scr, spk] = presenterCards(W, H, top);
     const main = shot.main;
     drawAmbient(ctx, video, W, H);
-    drawCard(ctx, scr, W, () => drawCover(ctx, video, k, { x: 0, y: 0, w: src.w, h: src.h }, scr.x, scr.y, scr.w, scr.h));
+    const screen = screenCrop(shot.cells, src);
+    drawCard(ctx, scr, W, () => drawCover(ctx, video, k, screen, scr.x, scr.y, scr.w, scr.h));
     drawCard(ctx, spk, W, () => drawCover(ctx, video, k, main, spk.x, spk.y, spk.w, spk.h));
     return;
   }
@@ -232,7 +240,7 @@ function drawShot(ctx: CanvasRenderingContext2D, video: Pic, input: RenderInput,
   drawCover(ctx, video, k, main, 0, 0, W, H);
   if (shot?.kind === "pip" && shot.inset) {
     // Reaction bubble: a rounded card with a soft shadow.
-    const bubble = pipBox(W, H);
+    const bubble = pipBox(W, H, shot.side);
     const inset = shot.inset;
     drawCard(ctx, bubble, W, () => drawCover(ctx, video, k, inset, bubble.x, bubble.y, bubble.w, bubble.h));
   }

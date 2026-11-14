@@ -227,7 +227,7 @@ HEAD_UP_HIGH = 0.16
 
 
 def title_place(title: dict, head_top: float | None, top_busy: float = 0.0,
-                bottom_busy: float = 0.0) -> str:
+                bottom_busy: float = 0.0, top_text: float = 0.0, bottom_text: float = 0.0) -> str:
     """"top" or "bottom" for this clip's headline.
 
     Up top unless the head is already there, and then at the bottom only if
@@ -237,6 +237,12 @@ def title_place(title: dict, head_top: float | None, top_busy: float = 0.0,
     want = title.get("position", "auto")
     if want in {"top", "bottom"}:
         return want
+    # The picture's own words (a name label, a caption line) under the headline
+    # make both unreadable: go where there are fewer of them.
+    if top_text > bottom_text + 0.15:
+        return "bottom"
+    if bottom_text > top_text + 0.15:
+        return "top"
     if head_top is not None and head_top < HEAD_UP_HIGH and bottom_busy <= top_busy:
         return "bottom"
     return "top"
@@ -406,6 +412,16 @@ def _cards(source: Path, render: Render) -> list:
         return []
 
 
+def _letterbox(source: Path, render: Render):
+    """The picture inside the source's black bars, if it has any."""
+    try:
+        from . import graphics
+        return graphics.letterbox(source, render.in_ms, render.out_ms)
+    except Exception:
+        log.exception("bar search failed; framing the whole frame")
+        return None
+
+
 def _texts(source: Path, render: Render) -> list:
     """On-screen text over the render's range (labels, titles, captions); none if reading fails."""
     if render.layout in {"streamer", "black-box", "title-subtitles"}:
@@ -468,6 +484,7 @@ def plan_for(render: Render) -> tuple[list[shotplan.Shot], shotplan.Inputs]:
         cards=_cards(source, render) if render.framing_mode not in {"center", "manual"} else [],
         texts=_texts(source, render) if render.framing_mode not in {"center", "manual"} else [],
         subtitle_top=_subtitles(source, render) if render.framing_mode not in {"center", "manual"} else None,
+        active=_letterbox(source, render),
     )
     plan = shotplan.plan(inputs)
     try:
@@ -640,16 +657,20 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         pan = f"sendcmd=f={_pan_file(shot, name, workdir, t0)}," if len(shot.pan) > 1 else ""
         lines.append(f"[{label_in}]{pan}{name}={win.w}:{win.h}:{win.x}:{win.y},{_scale(w, h)},setsar=1[{label_out}]")
 
+    area = shotplan.active_box(inputs)
+    unbar = f"{area.crop()}," if area is not None else ""
+
     def fit(label_in: str, label_out: str, copies_from: str | None = None) -> None:
         # Ambient glass: the whole picture as a rounded card with a soft shadow,
-        # floating over a blurred, slightly richer copy of itself.
-        sw, sh = max(1, inputs.width), max(1, inputs.height)
+        # floating over a blurred, slightly richer copy of itself. A source
+        # with black bars shows its real picture only.
+        sw, sh = (area.w, area.h) if area is not None else (max(1, inputs.width), max(1, inputs.height))
         fw = looks.even(w * looks.GLASS_WIDTH)
         fh = looks.even(fw * sh / sw)
         if fh > h * looks.GLASS_WIDTH:
             fh = looks.even(h * looks.GLASS_WIDTH)
             fw = looks.even(fh * sw / sh)
-        lines.append(f"[{label_in}]split=2[{label_out}a][{label_out}b]")
+        lines.append(f"[{label_in}]{unbar}split=2[{label_out}a][{label_out}b]")
         lines.append(looks.ambient(f"{label_out}a", f"{label_out}bg", w, h))
         lines.append(f"[{label_out}b]scale={fw}:{fh}:flags=lanczos,setsar=1[{label_out}fg]")
         looks.card(lines, base=f"{label_out}bg", picture=f"{label_out}fg", out=f"{label_out}x",
@@ -671,7 +692,7 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         fit(f"{s}t", out)
         return lines, 1
     if shot.kind in {"bars", "headline"}:
-        lines.append(f"[{s}]{head},split=2[{s}a][{s}b]")
+        lines.append(f"[{s}]{head},{unbar}split=2[{s}a][{s}b]")
         lines.append(looks.ambient(f"{s}a", f"{s}bg0", w, h, brightness=looks.CINEMA_BRIGHTNESS))
         lines.append(f"[{s}bg0]vignette=angle={looks.VIGNETTE}[{s}bg]")
         lines.append(f"[{s}b]{_fit_chain(w, h)}[{s}fg]")
@@ -743,7 +764,8 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         bh = looks.even(h - top - m - g / 2)
         lines.append(f"[{s}]{head},split=3[{s}a][{s}b][{s}c]")
         lines.append(looks.ambient(f"{s}c", f"{s}bg", w, h))
-        lines.append(f"[{s}a]scale={cw}:{th}:force_original_aspect_ratio=increase:flags=lanczos,crop={cw}:{th},setsar=1[{s}sc]")
+        region = f"{shot.cells[0].crop()}," if shot.cells else ""
+        lines.append(f"[{s}a]{region}scale={cw}:{th}:force_original_aspect_ratio=increase:flags=lanczos,crop={cw}:{th},setsar=1[{s}sc]")
         lines.append(f"[{s}b]{box.crop()},scale={cw}:{bh}:force_original_aspect_ratio=increase:flags=lanczos,crop={cw}:{bh},setsar=1[{s}pe]")
         looks.card(lines, base=f"{s}bg", picture=f"{s}sc", out=f"{s}t", x=m, y=m, w=cw, h=th,
                    out_w=w, workdir=workdir, name=f"p{i}a", frames=frames)
@@ -778,7 +800,8 @@ def _shot_graph(shot: shotplan.Shot, i: int, inputs: shotplan.Inputs, w: int, h:
         else:
             fill(f"{s}m", f"{s}base")
         lines.append(f"[{s}q]{inset.crop()},{_scale(iw, ih)},setsar=1[{s}in]")
-        looks.card(lines, base=f"{s}base", picture=f"{s}in", out=f"{s}pp", x=w - iw - int(w * 0.04), y=int(h * 0.18),
+        px = int(w * 0.04) if shot.side == "left" else w - iw - int(w * 0.04)
+        looks.card(lines, base=f"{s}base", picture=f"{s}in", out=f"{s}pp", x=px, y=int(h * 0.18),
                    w=iw, h=ih, out_w=w, workdir=workdir, name=f"b{i}", frames=frames)
         lines.append(f"[{s}pp]setsar=1[{out}]")
         return lines, 1
@@ -828,12 +851,16 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
         title_top = max(int(h * 0.04), (band - block) // 2) if band > block else None
 
     # Heads up against the top of the frame get the headline at the bottom.
-    tops = [b[1][1] - b[1][3] / 2 for t in inputs.tracks for b in t.boxes]
-    head_top = sorted(tops)[len(tops) // 2] if tops else None
+    # Measured in the output where the shots crop (a face high in a crop is
+    # what the headline would cover), else in the source.
+    head_top, top_text, bottom_text = _output_bands(plan, inputs)
+    if head_top is None:
+        tops = [b[1][1] - b[1][3] / 2 for t in inputs.tracks for b in t.boxes]
+        head_top = sorted(tops)[len(tops) // 2] if tops else None
     bands = [(e[3], e[4]) for e in inputs.detail if len(e) > 4]
     top_busy = sorted(b[0] for b in bands)[len(bands) // 2] if bands else 0.0
     bottom_busy = sorted(b[1] for b in bands)[len(bands) // 2] if bands else 0.0
-    place = title_place(render.title or {}, head_top, top_busy, bottom_busy)
+    place = title_place(render.title or {}, head_top, top_busy, bottom_busy, top_text, bottom_text)
     last = _overlays(render, workdir, chain, w, h, title_top=title_top, place=place, plan=plan, inputs=inputs)
 
     args = ["-ss", f"{render.in_ms / 1000:.3f}", "-t", f"{dur_s:.3f}", "-i", str(render.source),
@@ -843,6 +870,58 @@ def build(render: Render, workdir: Path) -> tuple[list[str], Path]:
     args += _encode_args(render)
     args.append(str(render.out))
     return args, workdir
+
+
+#: Where a headline goes in the output frame: the top band and the bottom band.
+TOP_BAND = (0.0, 0.24)
+BOTTOM_BAND = (0.66, 0.86)
+
+
+def _output_bands(plan, inputs) -> tuple["float | None", float, float]:
+    """(median face top, share of the clip with text in the top band, in the
+    bottom band), all in output terms, from the fill shots' crops."""
+    from . import graphics
+
+    tops: list[tuple[float, int]] = []
+    top_ms = bottom_ms = total = 0
+    for s in plan:
+        if s.kind != "fill" or s.window is None:
+            continue
+        win = s.window
+        total += s.length_ms
+        x0, x1 = win.x / max(1, inputs.width), (win.x + win.w) / max(1, inputs.width)
+        for t in inputs.tracks:
+            boxes = [bx for ms, bx in t.boxes if s.start_ms <= ms < s.end_ms]
+            if not boxes:
+                continue
+            cx = sorted(b[0] for b in boxes)[len(boxes) // 2]
+            if not x0 <= cx <= x1:
+                continue
+            top = sorted(b[1] - b[3] / 2 for b in boxes)[len(boxes) // 2] * inputs.height
+            tops.append(((top - win.y) / max(1, win.h), s.length_ms))
+        spans = graphics.text_spans(inputs.texts, s.start_ms, s.end_ms) if inputs.texts else []
+        in_top = in_bottom = False
+        for tx, ty, tw, th in spans:
+            if tx + tw <= x0 or tx >= x1:
+                continue
+            y0 = (ty * inputs.height - win.y) / max(1, win.h)
+            y1 = ((ty + th) * inputs.height - win.y) / max(1, win.h)
+            in_top |= y0 < TOP_BAND[1] and y1 > TOP_BAND[0]
+            in_bottom |= y0 < BOTTOM_BAND[1] and y1 > BOTTOM_BAND[0]
+        top_ms += s.length_ms if in_top else 0
+        bottom_ms += s.length_ms if in_bottom else 0
+    head_top = None
+    if tops:
+        tops.sort()
+        half, acc = sum(ms for _, ms in tops) / 2, 0
+        for v, ms in tops:
+            acc += ms
+            if acc >= half:
+                head_top = v
+                break
+    if not total:
+        return head_top, 0.0, 0.0
+    return head_top, top_ms / total, bottom_ms / total
 
 
 def join_shots(plan: list[shotplan.Shot], out: str = "base") -> list[str]:

@@ -252,6 +252,78 @@ def sightings(video: Path, in_ms: int, out_ms: int) -> list[tuple[int, list]]:
     return out
 
 
+#: A row or column this dark and this even, all the way across, is a bar
+#: someone added (letterbox, pillarbox), not picture.
+BAR_LEVEL = 20
+BAR_SPREAD = 8
+#: Bars thinner than this share are ignored; they must be found in most frames.
+BAR_MIN = 0.03
+BAR_SHARE = 0.7
+_BARS: "OrderedDict[tuple, tuple | None]" = OrderedDict()
+
+
+def _bars_in(grey) -> tuple[float, float, float, float]:
+    """(top, bottom, left, right) bar thickness in one grey frame, shares of its size."""
+    import numpy as np
+
+    h, w = grey.shape
+    rows = (grey.mean(axis=1) < BAR_LEVEL) & (grey.std(axis=1) < BAR_SPREAD)
+    cols = (grey.mean(axis=0) < BAR_LEVEL) & (grey.std(axis=0) < BAR_SPREAD)
+
+    def run(mask) -> int:
+        n = 0
+        for v in mask:
+            if not v:
+                break
+            n += 1
+        return n
+
+    return run(rows) / h, run(rows[::-1]) / h, run(cols) / w, run(cols[::-1]) / w
+
+
+def letterbox(video: Path, in_ms: int, out_ms: int, samples: int = 9) -> "tuple[float, float, float, float] | None":
+    """The real picture inside added black bars, as (x0, y0, x1, y1) shares, or None without bars.
+
+    A cinematic film letterboxed into 16:9, or a phone video pillarboxed into
+    it: the bars are not picture, so no crop should show them and no card
+    should frame them. Read from a few small frames across the range; a dark
+    scene is not a bar because the bar has to be there in most of them.
+    """
+    import numpy as np
+
+    try:
+        st = video.stat()
+        key = (str(video), st.st_size, int(st.st_mtime), in_ms, out_ms)
+    except OSError:
+        return None
+    if key in _BARS:
+        return _BARS[key]
+    from .. import media
+
+    length = max(1, out_ms - in_ms)
+    found = []
+    for k in range(samples):
+        at = in_ms + int(length * (k + 0.5) / samples)
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{at / 1000:.3f}", "-i", str(video), "-frames:v", "1",
+                              "-vf", "scale=320:180,format=gray", "-f", "rawvideo", "-"], capture_output=True).stdout
+        if len(raw) >= 320 * 180:
+            found.append(_bars_in(np.frombuffer(raw[:320 * 180], np.uint8).reshape(180, 320).astype("float32")))
+    result = None
+    if found:
+        sides = []
+        for i in range(4):
+            vals = sorted(f[i] for f in found)
+            kept = [v for v in vals if v >= BAR_MIN]
+            sides.append(min(kept) if len(kept) >= BAR_SHARE * len(found) else 0.0)
+        top, bottom, left, right = sides
+        if any(v > 0 for v in sides) and top + bottom < 0.6 and left + right < 0.8:
+            result = (round(left + 0.004, 4), round(top + 0.004, 4), round(1 - right - 0.004, 4), round(1 - bottom - 0.004, 4))
+    _BARS[key] = result
+    while len(_BARS) > CACHE_MAX:
+        _BARS.popitem(last=False)
+    return result
+
+
 def text_boxes(video: Path, in_ms: int, out_ms: int) -> list[tuple[int, list]]:
     """(ms, [text boxes as shares]) every 1/RATE s over the range: labels, titles, burned-in captions."""
     try:
@@ -266,10 +338,21 @@ def text_boxes(video: Path, in_ms: int, out_ms: int) -> list[tuple[int, list]]:
 
 def text_spans(seen: list[tuple[int, list]], start_ms: int, end_ms: int, *, min_ms: int = TEXT_MIN_MS,
                ) -> list[tuple[float, float, float, float]]:
-    """The text boxes that hold still through [start, end): a label, a title, a caption line.
+    """The text boxes that hold still through [start, end): a label, a title, a caption line."""
+    return [r[0] for r in text_runs(seen, start_ms, end_ms, min_ms=min_ms)]
+
+
+#: Text must be read in at least this many frames in a row: shelving, wall
+#: art and window bars pass the detector for a frame or two as the camera moves.
+TEXT_MIN_SIGHTINGS = 3
+
+
+def text_runs(seen: list[tuple[int, list]], start_ms: int, end_ms: int, *, min_ms: int = TEXT_MIN_MS,
+              ) -> list[tuple[tuple[float, float, float, float], int]]:
+    """(box, how long it held in ms) for each run of text that holds still through [start, end).
 
     Boxes seen in the same place in enough consecutive frames are merged (the
-    union of their sightings); a flash of text in one frame is ignored.
+    union of their sightings); a flash of text in a frame or two is ignored.
     """
     step = int(1000 / RATE)
     runs: list[dict] = []
@@ -293,8 +376,9 @@ def text_spans(seen: list[tuple[int, list]], start_ms: int, end_ms: int, *, min_
     for r in runs:
         held = r["last"] - r["first"] + step
         whole_shot = r["first"] - step <= start_ms and r["last"] + step >= end_ms
-        if held >= min_ms or (whole_shot and (r["n"] >= 2 or end_ms - start_ms < step)):
-            out.append(tuple(round(v, 4) for v in r["box"]))
+        steady = held >= min_ms and r["n"] >= TEXT_MIN_SIGHTINGS
+        if steady or (whole_shot and (r["n"] >= 2 or end_ms - start_ms < 2 * step)):
+            out.append((tuple(round(v, 4) for v in r["box"]), held))
     return out
 
 

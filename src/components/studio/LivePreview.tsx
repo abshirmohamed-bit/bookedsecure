@@ -2,7 +2,7 @@ import { GripHorizontal, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import type { PlanBox, ShotPlan } from "@/lib/video-clips.server";
 import { cropAt, shotAt, TRANSITION_MS } from "@/lib/clip-motion";
-import { captionYFor, duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, spotlightCards } from "@/lib/clip-looks";
+import { captionYFor, duoCards, glassCard, graphicCards, LOOK, pipBox, presenterCards, quadCards, screenCrop, spotlightCards } from "@/lib/clip-looks";
 import type { CaptionLine, ClipLayout, VideoAspect } from "@/lib/video-clips";
 
 const ASPECT: Record<VideoAspect, number> = { "9:16": 9 / 16, "1:1": 1, "4:5": 4 / 5, "16:9": 16 / 9 };
@@ -224,7 +224,7 @@ export function LivePreview({
     if (shot.kind === "screen" && shot.main) {
       const top = Math.min(frame.h * 0.5, (frame.w * source.h) / source.w);
       const [scr, spk] = presenterCards(frame.w, frame.h, top);
-      return [{ box: scr, crop: { x: 0, y: 0, w: source.w, h: source.h } }, { box: spk, crop: shot.main }];
+      return [{ box: scr, crop: screenCrop(shot.cells, source) }, { box: spk, crop: shot.main }];
     }
     return null;
   })();
@@ -233,10 +233,12 @@ export function LivePreview({
     s.kind === "grid" ? Math.min(3, Math.max(0, s.cells.length - 1))
       : s.kind === "split" ? 1
       : (s.kind === "screen" && s.main) || (s.kind === "graphic" && s.main && s.inset) || (s.kind === "pip" && s.inset) ? 1 : 0));
-  const bubble: Card | null = !whole && !failed && shot?.kind === "pip" && shot.inset && frame.w ? { box: pipBox(frame.w, frame.h), crop: shot.inset } : null;
+  const bubble: Card | null = !whole && !failed && shot?.kind === "pip" && shot.inset && frame.w ? { box: pipBox(frame.w, frame.h, shot.side), crop: shot.inset } : null;
   // The shot plan knows the picture's size before the video file does, so the card
   // appears at once (it waited ~2 s for the file's metadata); 16:9 until either knows.
-  const picSize = source.w ? source : { w: 16, h: 9 };
+  // A source with black bars shows only its real picture in the card (the Engine crops them off too).
+  const active = plan?.active ?? null;
+  const picSize = active ? { w: active.w, h: active.h } : source.w ? source : { w: 16, h: 9 };
   const glassBox = glass && frame.w ? glassCard(frame.w, frame.h, picSize.w, picSize.h) : null;
   const extras: Card[] = [...(cards ? cards.slice(1) : split && !failed && frame.w && source.w ? [{ box: { x: 0, y: frame.h / 2, w: frame.w, h: frame.h / 2 }, crop: split[1]! }] : []), ...(bubble ? [bubble] : [])];
   twinsInUse.current = extras.length;
@@ -308,8 +310,8 @@ export function LivePreview({
       onWaiting={() => setBuffering(true)}
       onPlaying={() => setBuffering(false)}
       onCanPlay={() => setBuffering(false)}
-      className={glassBox ? "absolute inset-0 size-full object-cover" : style ? `absolute max-w-none ${moving ? "" : "transition-[left,top,width,height] duration-150 ease-out"}` : layout === "title-subtitles" ? "absolute inset-x-0 top-1/2 w-full -translate-y-1/2 object-contain" : "absolute inset-0 size-full object-contain"}
-      style={glassBox ? undefined : style ?? undefined}
+      className={glassBox ? (active && source.w ? "absolute max-w-none" : "absolute inset-0 size-full object-cover") : style ? `absolute max-w-none ${moving ? "" : "transition-[left,top,width,height] duration-150 ease-out"}` : layout === "title-subtitles" ? "absolute inset-x-0 top-1/2 w-full -translate-y-1/2 object-contain" : "absolute inset-0 size-full object-contain"}
+      style={glassBox ? (active && source.w ? coverStyle(active, source, glassBox) : undefined) : style ?? undefined}
     />
   );
 

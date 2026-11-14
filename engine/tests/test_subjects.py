@@ -200,3 +200,98 @@ def test_a_cut_is_a_spike_and_a_sweep_is_not(tmp_path):
     _tracks, cuts = sp.face_tracks(clip, out_ms=5000, detect_people=False)
     assert any(1800 <= c <= 2300 for c in cuts), cuts
     assert sum(1 for c in cuts if c > 2400) == 0, f"the sweep registered as cuts: {cuts}"
+
+
+# --- phase 2: groups, splits, screen, pip, scan, headline -------------------
+
+def _crowd(xs, w=0.02, h=0.04):
+    return [person(i + 1, x, w=w, h=h) for i, x in enumerate(xs)]
+
+
+def test_a_wide_group_bunched_on_one_side_is_framed_there_not_shown_whole():
+    xs = [0.12, 0.62, 0.66, 0.70, 0.74, 0.78]            # one person off to the left, the rest together
+    faces = _crowd(xs)
+    bods = [body(i + 1, x, w=0.04, h=0.3) for i, x in enumerate(xs)]
+    plan = P.plan(inputs(tracks=faces, bodies=bods))
+    assert plan[0].kind == "fill" and "group" in plan[0].why
+    assert (plan[0].window.x + plan[0].window.w / 2) / 1920 > 0.6
+
+
+def test_a_wide_group_spread_across_the_picture_is_shown_whole():
+    xs = [0.06, 0.24, 0.42, 0.6, 0.78, 0.94]
+    plan = P.plan(inputs(tracks=_crowd(xs), bodies=[body(i + 1, x, w=0.05, h=0.3) for i, x in enumerate(xs)]))
+    assert plan[0].kind == "fit"
+
+
+def test_a_close_up_beside_a_speck_is_not_split():
+    big, speck = person(1, 0.3, w=0.2, h=0.35), person(2, 0.85, w=0.03, h=0.06)
+    plan = P.plan(inputs(tracks=[big, speck], layout="split"))
+    assert plan[0].kind == "fill"
+    two = P.plan(inputs(tracks=[person(1, 0.25, w=0.09), person(2, 0.75, w=0.08)], layout="split"))
+    assert two[0].kind == "split"
+
+
+def test_the_screen_layout_follows_a_close_up_instead_of_showing_the_face_twice():
+    plan = P.plan(inputs(tracks=[person(1, 0.5, w=0.2, h=0.35)], layout="screen"))
+    assert plan[0].kind == "fill"
+
+
+def test_a_corner_webcam_gets_the_screen_without_its_corner_on_top():
+    cam = person(1, 0.9, y=0.88, w=0.06, h=0.1)
+    plan = P.plan(inputs(tracks=[cam], layout="screen"))
+    assert plan[0].kind == "screen" and plan[0].cells
+    region = plan[0].cells[0]
+    assert region.x == 0 and (region.x + region.w) / 1920 <= 0.86, "the webcam's corner is left out"
+
+
+def test_the_pip_bubble_sits_away_from_the_speakers_face():
+    a, b = person(1, 0.15, w=0.08), person(2, 0.85, w=0.08)
+    plan = P.plan(inputs(tracks=[a, b], layout="pip"))
+    assert plan[0].kind == "pip" and plan[0].side in {"left", "right"}
+    tiny = P.plan(inputs(tracks=[person(1, 0.15, w=0.08), person(2, 0.85, w=0.015, h=0.03)], layout="pip"))
+    assert tiny[0].kind == "fill"
+
+
+def test_a_long_faceless_shot_drifts_and_a_short_one_holds():
+    long = P.plan(inputs(detail=face_detail(at=0.5)))[0]
+    xs = [x for _, x in long.pan]
+    assert max(xs) - min(xs) > 24 and "drifting" in long.why
+    short = P.plan(inputs(out_ms=2000, detail=face_detail(end=2000, at=0.5)))[0]
+    assert len({x for _, x in short.pan}) == 1
+
+
+def test_the_headline_moves_off_a_label_at_the_top_of_the_crop():
+    from app.pipeline import compose
+
+    assert compose.title_place({}, None, top_text=0.8, bottom_text=0.0) == "bottom"
+    assert compose.title_place({}, None, top_text=0.0, bottom_text=0.8) == "top"
+    assert compose.title_place({"position": "top"}, None, top_text=0.9) == "top"
+
+
+def test_black_bars_are_found_and_every_crop_stays_inside_the_picture(tmp_path):
+    import subprocess
+
+    import pytest
+
+    pytest.importorskip("cv2")
+    clip = tmp_path / "lb.mp4"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                    "-i", "testsrc2=s=1920x800:r=25:d=3", "-vf", "pad=1920:1080:0:140:black",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(clip)], check=True)
+    active = graphics.letterbox(clip, 0, 3000)
+    assert active is not None and abs(active[1] - 140 / 1080) < 0.02 and abs(active[3] - 940 / 1080) < 0.02
+    plan = P.plan(inputs(out_ms=3000, active=active, tracks=[person(1, 0.5, y=0.5, end=3000)]))
+    win = plan[0].window
+    assert win.y >= 140 - 2 and win.y + win.h <= 940 + 2, "no bar in the crop"
+
+
+def test_a_frame_without_bars_has_no_letterbox(tmp_path):
+    import subprocess
+
+    import pytest
+
+    pytest.importorskip("cv2")
+    clip = tmp_path / "full.mp4"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                    "-i", "testsrc2=s=1280x720:r=25:d=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(clip)], check=True)
+    assert graphics.letterbox(clip, 0, 2000) is None

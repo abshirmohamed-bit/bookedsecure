@@ -269,7 +269,7 @@ export function ClipEditor({ clip, job, onClose }: { clip: Clip; job: Job; onClo
         const out = await renderClipInBrowser({
           src: saved.sourceUrl, offsetMs: saved.sourceOffsetMs, startMs: saved.inMs, endMs: saved.outMs,
           aspect: isAspect(saved.aspect) ? saved.aspect : "9:16",
-          plan: plan.data ? { source: plan.data.source, shots: plan.data.shots } : null, planStartMs: baseStart,
+          plan: plan.data ? { source: plan.data.source, shots: plan.data.shots, active: plan.data.active ?? null } : null, planStartMs: baseStart,
           words: r.render.words,
           captions: { on: saved.captionsOn, styleId: saved.styleId, position: saved.captionPosition ?? styleDefault, size: saved.captionSize, y: saved.captionY },
           headline: { on: saved.headline.enabled, text: saved.headline.text, position: saved.headline.position },

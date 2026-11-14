@@ -41,10 +41,16 @@ export function glassCard(W: number, H: number, sw: number, sh: number): Box {
   return { x: (W - w) / 2, y: (H - h) / 2, w, h };
 }
 
-/** The reaction bubble in a W x H frame. */
-export function pipBox(W: number, H: number): Box {
+/** The reaction bubble in a W x H frame, on the side the Engine chose (away from the speaker's face). */
+export function pipBox(W: number, H: number, side?: string | null): Box {
   const w = W * LOOK.pip.width, h = w / LOOK.pip.aspect;
-  return { x: W - w - W * LOOK.pip.right, y: H * LOOK.pip.top, w, h };
+  const x = side === "left" ? W * LOOK.pip.right : W - w - W * LOOK.pip.right;
+  return { x, y: H * LOOK.pip.top, w, h };
+}
+
+/** The part of the source the screen card shows: the screen region the Engine found beside a corner webcam, else all of it. */
+export function screenCrop(cells: Box[] | null | undefined, src: { w: number; h: number }): Box {
+  return cells && cells[0] ? cells[0] : { x: 0, y: 0, w: src.w, h: src.h };
 }
 
 /** Three people (portrait): a big card on top for the one talking, two below. Mirrors looks.spotlight_cards. */

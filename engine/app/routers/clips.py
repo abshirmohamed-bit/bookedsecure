@@ -372,6 +372,7 @@ def project_framing(project_id: str, aspect: str = "", layout: str = "", zoom: s
                   output={"w": inputs.out_w, "h": inputs.out_h},
                   strategy=getattr(track, "strategy", "none"),
                   seam=framing.seam_of(track) if track is not None else None,
+                  active=compose.shotplan.active_box(inputs).as_dict() if inputs.active else None,
                   faces=faces, people=len(inputs.tracks), cuts=[c - p.in_ms for c in inputs.cuts],
                   shots=[sh.as_dict(p.in_ms) for sh in plan],
                   summary={k: v for k, v in sorted(compose.shotplan.summary(plan).items(), key=lambda kv: -kv[1])})
