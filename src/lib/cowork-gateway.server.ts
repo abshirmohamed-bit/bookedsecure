@@ -5,7 +5,8 @@
  * address) or Telegram (the BookedSecure bot, linked with a one-time code).
  *
  * Webhooks only queue the message (cowork_gateway_messages, one row per
- * provider id); sweepGateways, run every minute, answers it with the same
+ * provider id); sweepGateways, called by the database as soon as a row is
+ * queued (docs/cowork-gateways-trigger.sql), answers it with the same
  * Co-Work agent and thread store, limited to reading and preparing. The answer
  * goes back to the verified number, address or chat only. Every query is
  * filtered by the gateway's own business; the person must still be an active
@@ -316,12 +317,30 @@ async function queue(gateway: GatewayRow, externalId: string, body: string, meta
 
 const RUNS_PER_SWEEP = 3;
 
-/** Answers queued messages: up to three people at once, one message at a time per person. */
-export async function sweepGateways(now = new Date()) {
+/**
+ * Answers queued messages: up to three people at once, one message at a time
+ * per person. With `budgetMs` it keeps going round while messages are waiting
+ * (a person's second message once their first is answered), until the queue
+ * is empty or the time is used; without it, one round (the follow-ups fallback).
+ */
+export async function sweepGateways(options: { now?: Date; budgetMs?: number } = {}) {
+  const started = Date.now();
+  let answered = 0, failed = 0;
+  for (;;) {
+    const round = await sweepRound(options.now ?? new Date());
+    if ("setupMissing" in round || "error" in round) return round;
+    answered += round.answered;
+    failed += round.failed;
+    if (!options.budgetMs || round.picked === 0 || Date.now() - started > options.budgetMs) break;
+  }
+  return { answered, failed };
+}
+
+async function sweepRound(now: Date): Promise<{ answered: number; failed: number; picked: number } | { setupMissing: true } | { error: string }> {
   const stale = new Date(now.getTime() - GATEWAY_STALE_MS).toISOString();
   const { error: probe } = await db.from("cowork_gateway_messages")
     .update({ status: "failed", error: "interrupted", finished_at: now.toISOString() }).eq("status", "running").lt("started_at", stale);
-  if (probe) return isMissing(probe) ? { setupMissing: true } : { error: probe.message };
+  if (probe) return isMissing(probe) ? { setupMissing: true as const } : { error: probe.message };
 
   const [{ data: queued }, { data: running }] = await Promise.all([
     db.from("cowork_gateway_messages").select("id, gateway_id, business_id, channel, external_id, body, meta, status, started_at, created_at")
@@ -347,7 +366,7 @@ export async function sweepGateways(now = new Date()) {
       return "failed";
     }
   }));
-  return { answered: results.filter((r) => r === "done").length, failed: results.filter((r) => r === "failed").length };
+  return { answered: results.filter((r) => r === "done").length, failed: results.filter((r) => r === "failed").length, picked: picked.length };
 }
 
 const THREAD_TITLE: Record<GatewayChannel, string> = { sms: "Co-Work by text", email: "Co-Work by email", telegram: "Co-Work on Telegram" };

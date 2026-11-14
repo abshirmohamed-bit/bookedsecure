@@ -68,16 +68,6 @@ revoke all on public.cowork_gateway_messages from anon, authenticated;
 grant all on public.cowork_gateways to service_role;
 grant all on public.cowork_gateway_messages to service_role;
 
--- Answers arrive within about a minute: the queue is worked every minute
--- (the 10-minute follow-ups hook is the fallback).
-select cron.schedule(
-  'cowork-gateway-every-minute',
-  '* * * * *',
-  $$
-  select net.http_post(
-    url := 'https://bookedsecure.lovable.app/api/public/hooks/cowork-gateway',
-    headers := jsonb_build_object('Content-Type', 'application/json', 'apikey', 'sb_publishable_WHi8jU1SJMy0w1-JeuojfA_ie90kzam'),
-    body := '{"source":"pg_cron"}'::jsonb
-  );
-  $$
-);
+-- Answers arrive as soon as a message is queued: see docs/cowork-gateways-trigger.sql
+-- (an insert trigger with its own secret; no timer). The 10-minute follow-ups
+-- hook is the fallback.

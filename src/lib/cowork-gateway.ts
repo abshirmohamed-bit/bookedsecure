@@ -151,6 +151,11 @@ export async function hashCode(gatewayId: string, code: string): Promise<string>
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Whether a call to the gateway hook carries its secret (24+ characters, set on both sides). */
+export function gatewayHookAuthorised(got: string | null, expected: string | undefined): boolean {
+  return Boolean(expected && expected.length >= 24 && got && safeEqual(got, expected));
+}
+
 /** Compares two secrets without leaking how much of them matched. */
 export function safeEqual(a: string, b: string): boolean {
   const x = new TextEncoder().encode(a);

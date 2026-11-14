@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { countSegments } from "@/lib/sms/segments";
 import {
   fitSms, fitTelegram, gatewayEmailAddress, gatewayRequest, gatewayTokenFrom, gatewayTools, hashCode, isAutomaticEmail,
-  isPauseWord, plainText, randomCode, randomToken, safeEqual, telegramCommand, TELEGRAM_REPLY_MAX,
+  gatewayHookAuthorised, isPauseWord, plainText, randomCode, randomToken, safeEqual, telegramCommand, TELEGRAM_REPLY_MAX,
 } from "@/lib/cowork-gateway";
 
 const LINK = "https://bookedsecure.com/assistant/abc";
@@ -86,5 +86,18 @@ describe("codes and secrets", () => {
     expect(q).toContain("text message");
     expect(q).toContain("tap Confirm in Co-Work");
     expect(q.endsWith("what's on today?")).toBe(true);
+  });
+});
+
+describe("the gateway hook's secret", () => {
+  const secret = "s".repeat(32);
+  it("only lets in the database's call with the right secret", () => {
+    expect(gatewayHookAuthorised(secret, secret)).toBe(true);
+    expect(gatewayHookAuthorised("wrong".padEnd(32, "x"), secret)).toBe(false);
+    expect(gatewayHookAuthorised(null, secret)).toBe(false);
+  });
+  it("stays shut when the secret isn't set or is too short", () => {
+    expect(gatewayHookAuthorised("", undefined)).toBe(false);
+    expect(gatewayHookAuthorised("short", "short")).toBe(false);
   });
 });
