@@ -498,6 +498,13 @@
       "when": 1794578724441,
       "tag": "0070_apply_email_theme",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1794644484974,
+      "tag": "0071_cowork_memory_storage",
+      "breakpoints": true
     }
   ]
 }
