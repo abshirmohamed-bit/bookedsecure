@@ -8,6 +8,7 @@ import { CoworkHistory } from "@/components/cowork/CoworkHistory";
 import { CoworkKnows } from "@/components/cowork/CoworkKnows";
 import { CoworkRoutines } from "@/components/cowork/CoworkRoutines";
 import { CoworkGateways } from "@/components/cowork/CoworkGateways";
+import { AiCallerCard } from "@/components/cowork/AiCaller";
 import { OwnerAssistant, type CoworkComposerApi, type OwnerAssistantTurn } from "@/components/home/OwnerAssistant";
 import { Portal } from "@/components/Portal";
 import { SiteOnboardingPanel } from "@/components/settings/SiteOnboardingPanel";
@@ -193,6 +194,7 @@ export function CoworkWorkspace({
           </div>
         </header>
         <div className="mt-6 space-y-6">
+          <AiCallerCard onAsk={(p) => { setResultsOpen(false); write(p); }} />
           {starters(false)}
           {channels(false)}
           <section className="lg:hidden">
@@ -233,7 +235,7 @@ export function CoworkWorkspace({
       </div>
 
       <aside aria-label="Results" className="hidden h-full min-h-0 w-[24rem] shrink-0 overflow-y-auto border-l border-border/60 p-4 lg:block xl:w-[26rem] 2xl:w-[28rem]">
-        {chatting ? <div className="mb-6 space-y-5">{starters(true)}{channels(true)}</div> : null}
+        {chatting ? <div className="mb-6 space-y-5"><AiCallerCard compact onAsk={write} />{starters(true)}{channels(true)}</div> : null}
         <div className="mb-3">{resultsHeader}</div>
         <SocialResults onAsk={askFromResults} />
       </aside>
@@ -242,6 +244,7 @@ export function CoworkWorkspace({
         <DrawerContent className="max-h-[85dvh]">
           <div className="flex items-center justify-between px-4 pt-2"><DrawerTitle className="font-heading text-lg">Results</DrawerTitle><EngineDot onAsk={askFromResults} /></div>
           <div className="space-y-6 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <AiCallerCard compact onAsk={(p) => { setResultsOpen(false); write(p); }} />
             {starters(true)}
             {channels(true)}
             <SocialResults onAsk={askFromResults} />

@@ -277,7 +277,8 @@ export type CaptureInput = {
    * Capture channel. "web" is the AI web-chat path: the lead is created but no
    * acknowledgement or follow-up SMS is ever queued for it.
    */
-  channel?: "sms" | "web" | undefined;
+  /** web: captured in a web conversation; call: logged from a phone call (AI Caller). Neither queues an SMS. */
+  channel?: "sms" | "web" | "call" | undefined;
   /** Deterministic submission key; retries reuse the existing lead instead of rewriting it. */
   external_id?: string | null | undefined;
   /** Optional owner alert headline (e.g. "Quote request: Sam"); defaults to "New lead: <name>". */
@@ -544,12 +545,14 @@ export async function captureLead(input: CaptureInput): Promise<CaptureResult> {
 
   // Web-chat capture never touches the SMS path: no acknowledgement, no
   // follow-up sequence, no provider call. The lead is still created.
-  if (input.channel === "web") {
+  if (input.channel === "web" || input.channel === "call") {
     return {
       leadId: lead.id,
       duplicate: false,
       acknowledgementSent: false,
-      note: "Captured from the web conversation, so no SMS was queued.",
+      note: input.channel === "call"
+        ? "Saved from a phone call, so no SMS was queued."
+        : "Captured from the web conversation, so no SMS was queued.",
     };
   }
 

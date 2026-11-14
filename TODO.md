@@ -66,3 +66,8 @@ Done: Phase 1 (booking confirmations) and Phase 3 (social planner), both tested 
 30. **You:** deploy the Engine from the main checkout, and publish in Lovable. New clip jobs then share clips across the whole video, skip opening trailers, keep each question with its answer, colour key words, keep captions off faces and show headlines that would cover a head for the opening only. Existing clips change when re-clipped or saved again; for the Pacific Islanders video, ask Co-Work to recheck clip 7's look (it now reviews as one person, not a group).
 31. ~~Question card for answers asked earlier, inset pictures brought into view, a wider look for spread gestures.~~ Built 15 Nov (deploy the Engine, then publish).
 24c. **Lovable (instant answers, no Vault):** `docs/cowork-gateways-trigger.sql` no longer needs a database secret: each queued message carries its own one-time key. Ask Lovable to apply it as it is, then publish. Test: text the business number from your linked mobile; the answer should arrive within about a minute.
+
+## AI Caller (15 Nov)
+
+32. **Lovable:** apply `docs/lead-calls.sql`, then publish. Then on Co-Work press **Log a call**, paste the notes from a real call, check the details it fills in and **Save to CRM**.
+33. **Later, live AI calls:** connect Telnyx Voice with an AI voice agent (a voice number, `TELNYX_VOICE_CONNECTION_ID`), with consent checks, Australian calling hours, the AI saying it's an AI and that the call is recorded, and credits. Its calls land in the same `lead_calls` table and panel (status live, End call / Mute / Hold).
