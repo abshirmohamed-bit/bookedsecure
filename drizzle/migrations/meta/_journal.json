@@ -512,6 +512,13 @@
       "when": 1794647015831,
       "tag": "0072_apply_missing_cowork_routines",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794647059979,
+      "tag": "0073_apply_missing_cowork_gateway_storage",
+      "breakpoints": true
     }
   ]
 }

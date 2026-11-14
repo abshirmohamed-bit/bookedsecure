@@ -1609,6 +1609,131 @@ export type Database = {
           },
         ]
       }
+      cowork_gateway_messages: {
+        Row: {
+          body: string
+          business_id: string
+          channel: string
+          created_at: string
+          error: string | null
+          external_id: string
+          finished_at: string | null
+          gateway_id: string
+          id: string
+          meta: Json
+          reply: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          body: string
+          business_id: string
+          channel: string
+          created_at?: string
+          error?: string | null
+          external_id: string
+          finished_at?: string | null
+          gateway_id: string
+          id?: string
+          meta?: Json
+          reply?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          channel?: string
+          created_at?: string
+          error?: string | null
+          external_id?: string
+          finished_at?: string | null
+          gateway_id?: string
+          id?: string
+          meta?: Json
+          reply?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cowork_gateway_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cowork_gateway_messages_gateway_id_fkey"
+            columns: ["gateway_id"]
+            isOneToOne: false
+            referencedRelation: "cowork_gateways"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cowork_gateways: {
+        Row: {
+          address: string | null
+          business_id: string
+          channel: string
+          created_at: string
+          enabled: boolean
+          id: string
+          last_message_at: string | null
+          thread_id: string | null
+          token: string | null
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+          verify_attempts: number
+          verify_code_hash: string | null
+          verify_sent_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          business_id: string
+          channel: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_message_at?: string | null
+          thread_id?: string | null
+          token?: string | null
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+          verify_attempts?: number
+          verify_code_hash?: string | null
+          verify_sent_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          business_id?: string
+          channel?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_message_at?: string | null
+          thread_id?: string | null
+          token?: string | null
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+          verify_attempts?: number
+          verify_code_hash?: string | null
+          verify_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cowork_gateways_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cowork_memories: {
         Row: {
           business_id: string
